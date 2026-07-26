@@ -1,0 +1,2 @@
+"""Research report generation."""
+

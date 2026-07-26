@@ -1184,6 +1184,24 @@ Remaining non-billing production blockers found during the same live audit:
   technical details collapsed by default, and safe wrapping after expansion.
   This was a routed local smoke, not a claim of licensed live-model readiness.
 
+## 2026-07-26 -- Pricing action availability repair
+
+- Corrected the Paddle configuration-error branch so it no longer removes the
+  Starter, Pro, and Advanced membership cards or their subscription actions.
+- A local or preview runtime without Live Paddle credentials now shows the
+  documented USD list prices and sends each subscription action to the
+  configured Live AXIO7 pricing surface. A fully configured production runtime
+  still uses Paddle `PricePreview`, the exact allow-listed Price ID, and the
+  existing verified transaction/webhook fulfillment path.
+- Added a UI contract regression test requiring membership actions in the
+  configuration-error branch. This does not relax checkout, entitlement, or
+  payment-event validation.
+- Validation passed: TypeScript typecheck, 8 UI/navigation contracts, the
+  Next.js production build, a headless Chromium check of all three visible
+  actions plus a real navigation to the Live pricing surface, Rust formatting,
+  warning-free Clippy, 296 library tests, 8 CLI tests, 12 integration tests,
+  and Python 26 passed / 5 skipped. CMake was unavailable for this run.
+
 ## 2026-07-26 -- ICPC-level model and numerical-method review package
 
 - Added `docs/handoffs/icpc-gold-model-review-2026-07-26/` as an owner-mediated
@@ -1217,3 +1235,253 @@ Remaining non-billing production blockers found during the same live audit:
   60-second command window and were terminated; the resulting
   `.next/export-detail.json` reported `success:false`, so this run does not
   claim a successful production build. CMake remained unavailable.
+- Published a data-free source snapshot and the review package to the private
+  `ErwinHe7/Argus` repository as draft PR `#1` from
+  `agent/axio7-model-review` into the empty `main` baseline. The handoff
+  excludes historical/live observations, databases, generated outputs,
+  secrets, and environment files.
+- After owner confirmation, added all nine unpromoted exact-symbol frozen
+  candidate artifacts and the legacy comparison artifact. Structural review
+  confirmed that these files contain parameters, hashes, training lineage,
+  and analog training-row indexes rather than raw market observations. Added
+  a 24-entry model-to-source map and clone/test instructions so the reviewer
+  can modify implementation code rather than receiving documentation alone.
+  The authoritative handoff commit is
+  `d9128416a0eef8aa0eca21bbab7107e06115e1d6`.
+
+## 2026-07-26 -- Verified web-to-Rust model-runtime connection
+
+- Replaced the website's configuration-only Rust connectivity probe with
+  `axio.model-runtime-receipt.v1`. The Rust research-universe endpoint now
+  loads and statically validates every exact-symbol frozen artifact before the
+  Next.js status route can report `CONNECTED`.
+- The connection receipt exposes only status, requested/loaded/failed counts,
+  symbol-level sanitized reason codes, the separate quality/promotion boundary,
+  and the disabled execution state. It does not expose credentials or raw
+  loader errors.
+- The first real runtime probe correctly rejected all nine files and exposed a
+  latent compatibility defect: the artifact self-hash was being recomputed
+  from the current deserialized Rust structure. Additive defaults in nested
+  serializable types changed that in-memory representation after the immutable
+  files were generated, so valid source files were falsely rejected.
+- Frozen-universe loading now validates the hash against the original immutable
+  JSON value while retaining artifact-version, model-version, target,
+  feature-schema, HMM, regime-selection, analog-index, stochastic-lineage,
+  registry model-hash, and exact-symbol checks. It does not regenerate,
+  substitute, or silently repair a model artifact.
+- The Next.js probe reports connected only when all configured models load,
+  loaded count equals requested count, failed count is zero, the Rust ownership
+  boundary matches, and automatic execution is disabled. Partial or malformed
+  receipts return HTTP 503 and fail closed.
+- The research UI now displays model runtime connectivity separately from
+  market-data and publication eligibility. A request may truthfully show
+  `Rust model connected` and `Result withheld` together, with the model version,
+  feature contract, registry state, and exact artifact count visible in the
+  model runtime contract.
+- The local release stack was rebuilt and restarted. The live local status
+  receipt reported `LOADED`, 9/9 exact frozen artifacts, zero failures, Rust
+  ownership, and execution disabled. A real Chromium request for `NVDA`
+  traversed the Next.js `/api/ask` proxy and Rust query endpoint, rendered the
+  9-artifact runtime contract, and still withheld the ranking because the
+  public redistribution license gate is not configured.
+- No model was promoted, no probability gate was weakened, no unlicensed or
+  synthetic market data was introduced, and automatic execution remains
+  disabled. Rollback/fail-closed condition: any missing, rejected, partial, or
+  incompatible runtime receipt makes the website display `Model offline`.
+- Validation passed: TypeScript typecheck; Next.js production build; 25
+  JavaScript contracts; Rust formatting; warning-free Clippy; 288 Rust library
+  tests, 8 CLI tests, and 12 integration tests; Python 26 passed / 5 skipped
+  using the repository virtual environment; the direct Rust runtime smoke; and
+  the live local Chromium web-to-Rust smoke with zero console errors. CMake was
+  unavailable, so native C++ checks were not rerun.
+- Production deployment completed on `axio7.com`. The running web image is
+  `sha256:e02564d3314e82e7bf740654600e079f767fadc18917c616db50517288e04818`
+  and the running Rust image is
+  `sha256:1b17544604575ffc680c363773e0d4d9eeda0eddec7ccce644f5a569d6c3a5b2`;
+  both services reported healthy after recreation.
+- The public status route returned `CONNECTED`, `LOADED`, 9 requested, 9
+  loaded, zero failed, Rust ownership, and execution disabled. A production
+  Chromium request for `NVDA` completed without console errors and displayed
+  the 9-artifact runtime contract while independently withholding the
+  unlicensed live result.
+- Server-side rollback tags
+  `axio7-web:rollback-pre-model-backend-20260726` and
+  `axio7-quantd:rollback-pre-model-backend-20260726` retain the exact images
+  that were running immediately before this deployment.
+
+## 2026-07-26 -- Databento historical credential and owner-only IBKR gateway
+
+- Verified the owner-supplied Databento API credential through the canonical
+  Rust `quantctl data cost` path without printing or committing the secret.
+  The configured 14-symbol `EQUS.MINI` one-minute request from 2023-03-28
+  through 2026-07-19 estimated 4,608,089 records, 258,052,984 bytes, and
+  USD 2.883966833353. No download or charge was started because an explicit
+  maximum-cost confirmation is still required.
+- Added `DATABENTO_API_KEY` to the Rust container's server-side environment
+  contract. The credential remains absent from tracked configuration,
+  fixtures, browser bundles, application logs, and generated receipts.
+- Added a checksum-pinned build of the official IBKR Client Portal Gateway.
+  Port 5000 is published only on VM loopback for an operator SSH tunnel; Caddy
+  does not expose it. The Compose network permits the web server to reach the
+  gateway, while the gateway container remains read-only with bounded JVM
+  memory and a non-root user.
+- Added an administrator-only IBKR health/session indicator and owner snapshot
+  panel to the research workspace. The corresponding health, Level 1, and
+  options routes now require an authenticated AXIO7 administrator. Failed IBKR
+  requests cannot silently substitute Yahoo or another retail feed.
+- IBKR observations expose provider, observation cutoff when supplied by the
+  gateway, server availability time, freshness/session state, Level 1 coverage,
+  license scope, and caveats. Outside the US regular-session window the UI says
+  `outside regular session`; it does not relabel a prior close as realtime.
+- This phase connects authenticated owner market data to the website, not to
+  public redistribution. The public Rust research result remains fail-closed
+  until an appropriate customer-facing market-data license and fresh native
+  forecast artifacts are available. Automatic execution, live broker routing,
+  and anomaly order execution remain disabled.
+- Local verification passed: TypeScript typecheck; 28 JavaScript contract
+  tests; checksum-pinned gateway image build; gateway startup on loopback;
+  unauthenticated gateway HTTP 401 readiness behavior; 74.58 MiB observed
+  gateway memory; and the Compose configuration contract.
+- Production deployment completed on `axio7.com`. The running web image is
+  `sha256:9da9fb6fb40ab06c3fa794d0e60a4a2d0c6d74ce93810ef1c12bd8da73ce2b04`;
+  the IBKR Gateway image is
+  `sha256:e371c22d7079630eed14681a7ffeb59b9fd9d2f60950474c113049a4c0da9b36`;
+  and the unchanged Rust image is
+  `sha256:1b17544604575ffc680c363773e0d4d9eeda0eddec7ccce644f5a569d6c3a5b2`.
+  All three services reported healthy and the public homepage returned HTTP
+  200.
+- A production Chrome check in the authenticated administrator session showed
+  `Rust models connected`, 9/9 validated frozen artifacts, `IBKR login
+  required`, and the owner-only market-data panel with execution disabled.
+  No browser console errors were recorded. The loopback SSH tunnel is active
+  and the official Gateway login tab was handed to the owner.
+- Remaining operator action: accept the local Gateway certificate page and
+  complete IBKR browser login plus 2FA. A Sunday verification can prove
+  authentication and last-snapshot access, but only an open market can prove a
+  fresh regular-session observation. Rollback image
+  `axio7-web:rollback-pre-ibkr-owner-data-20260726` retains the prior web
+  release.
+
+## 2026-07-26 -- Server-side Databento live adapter and production receipt
+
+- Added an official Databento Rust `LiveClient` adapter owned by
+  `quant_engine_rs`. It subscribes only to the configured
+  `EQUS.MINI/ohlcv-1m/raw_symbol` universe, requests no replay, persists a
+  bounded normalized JSONL bar artifact, and maintains an atomic stream-status
+  receipt.
+- Configuration validation now accepts Databento only when the audited
+  EQUS.MINI request exists and every live symbol is present in that request.
+  The existing quote-only, trade-API-disabled, staleness, log-rotation, and
+  automatic-execution-disabled controls remain mandatory.
+- Every accepted bar carries provider, dataset/schema, bar cutoff, AXIO7
+  availability time, entitlement acknowledgment, delayed/stale/replay flags,
+  point-in-time symbol-mapping verification, coverage, and caveats. Stale,
+  future-timestamped, delayed, replayed, unmapped, unentitled, or disconnected
+  input fails closed and cannot reach inference.
+- Added administrator-only `GET /api/market/databento/health`, backed by the
+  Rust `/api/v1/live/status` and `/api/v1/live/bars` endpoints. The research
+  workspace now displays Databento entitlement separately from the 9/9 frozen
+  model receipt and the IBKR verification session. It never substitutes a
+  historical or delayed price.
+- A real local and production authentication probe reached Databento and was
+  rejected with `A live data license is required to access EQUS.MINI`. The
+  Databento portal showed no active subscriptions, a USD 199/month starting
+  price for Databento US Equities live access, and USD 125 in remaining
+  credits. No subscription was purchased because the credit does not cover the
+  listed monthly price and the recurring paid commitment was not confirmed.
+- The owner-completed IBKR browser login continued to leave
+  `/iserver/auth/status`, `/tickle`, and `/portfolio/accounts` at HTTP 401.
+  Therefore the ordinary portal/browser success page was not treated as an
+  exportable Client Portal API session, and no broker credential was copied
+  into the website.
+- Production deployment completed on `axio7.com`. The running web image is
+  `sha256:05f39019964ef651aa4fd585c77af9089a60a5bbef37e88ecca047880e4f7449`
+  and the running Rust image is
+  `sha256:e439add181d94f7f1b20886cfac479113a5bf3223027ebd0ad1cfe0a0be26609`.
+  Both services reported healthy. The production administrator page showed
+  `Rust models connected`, the exact Databento live-license blocker, the IBKR
+  API-session blocker, and disabled execution. A production `NVDA` request
+  traversed the Next.js-to-Rust path and displayed the 9-artifact runtime
+  contract while correctly withholding an unlicensed market result.
+- Validation passed: TypeScript typecheck; Next.js production build; the
+  administrator/private-market-data contract suite; Rust formatting;
+  warning-free Clippy; 291 Rust library tests, 8 CLI tests, and 12 integration
+  tests; and Python 26 passed / 5 skipped. CMake was unavailable, so native C++
+  checks were not rerun. Rollback images
+  `axio7-web:rollback-pre-databento-live-20260726`,
+  `axio7-web:rollback-databento-live-v1-20260726`, and
+  `axio7-quantd:rollback-pre-databento-live-20260726` retain the immediately
+  preceding production states.
+
+## 2026-07-26 -- Credit-funded Databento history and IBKR outbound quote relay
+
+- Used the existing Databento account credit, with an explicit USD 5 safety
+  maximum, for the audited `context_etf_ohlcv_1m` historical request. The
+  request covers 14 symbols from 2023-03-28 through 2026-07-19 and was
+  estimated at USD 2.883966833353. No monthly or recurring Databento
+  subscription was purchased.
+- The compressed raw artifact is 75,263,685 bytes. Its manifest is
+  `context_etf_ohlcv_1m__20260726T193121Z.manifest.json`; the downloaded
+  artifact checksum matches that receipt and the receipt records
+  `synthetic=false`. The credential and full artifact checksum are not
+  recorded here.
+- Canonical Rust bar validation accepted all 4,608,089 decoded one-minute rows
+  with zero rejected rows and zero duplicates. Coverage contains exactly the
+  14 requested symbols with no unresolved instrument identifiers. The
+  normalized CSV is 472,076,044 bytes.
+- The AWS instance did not have enough memory for a second in-memory validation
+  pass and the audit container exited 137. Instead, the production decode was
+  compared byte-for-byte to the locally canonical-validated CSV with SHA-256;
+  both checksum and byte count matched. The file was then atomically installed
+  as the production `market_bars.csv`. The running Rust container sees
+  4,608,090 CSV lines including the header, and its protected coverage endpoint
+  reports `real_vendor_bars_ready=true`.
+- Historical account credit does not unlock Databento realtime access or
+  customer-facing redistribution. The Databento live adapter remains
+  fail-closed without a live license; the historical file is available only
+  to historical/backtest research paths and is never labeled realtime.
+- Reproduced the IBKR Client Portal Gateway login locally. The browser reported
+  login success, but the official Gateway then received HTTP 401 `Access
+  Denied` from `/sso/validate`; brokerage auth, account, and market-data
+  endpoints consequently remained unavailable. AXIO7 did not treat the outer
+  login page as an authenticated brokerage API session and did not attempt
+  session takeover, account funding, or trading.
+- Added a quote-only local-to-cloud relay contract so a future valid owner
+  session can send allow-listed Level-1 bid/ask snapshots over outbound HTTPS.
+  The relay excludes cookies, account state, positions, orders, and trading
+  methods; Rust rejects stale, delayed, frozen, unentitled, malformed, or
+  incomplete batches before persistence. Quote data is not promoted to
+  one-minute OHLCV and does not drive the model without a separately validated
+  causal bar finalizer. Automatic execution remains disabled.
+- Production deployment completed on `axio7.com`. The running web image is
+  `sha256:37b36d99b2089bf8ec91cfc2e8d6cd9d441823be50cf1059f743ebe4d8be4efa`
+  and the running Rust image is
+  `sha256:224617a0d83902b47e531f0a9f2c895f05c27c4905c8ab04b100e2557a4e5aea`.
+  Web, Rust, and the unchanged IBKR Gateway reported healthy. Production
+  receipts reported 9/9 models loaded, eight manifests,
+  `real_vendor_bars_ready=true`, an empty quote-only relay receipt, and
+  execution disabled.
+- Public contract probes returned HTTP 200 for the site and model status, HTTP
+  401 for unauthenticated relay reads and wrong-token writes, and HTTP 422 when
+  a valid relay token submitted a payload outside the Rust
+  `deny_unknown_fields` schema. A real one-shot local bridge probe stopped
+  fail-closed at the IBKR Gateway HTTP 401 and posted no quote batch.
+- Validation passed: TypeScript typecheck; Linux/AMD64 Next.js production
+  build; six targeted IBKR Node contracts; six Python relay tests; Rust
+  formatting; warning-free Clippy; 296 Rust library tests, 8 CLI tests, and 12
+  integration tests.
+  Rollback images `axio7-web:rollback-pre-ibkr-relay-20260726`,
+  `axio7-quantd:rollback-pre-ibkr-relay-20260726`, and
+  `axio7-web:rollback-pre-ibkr-relay-allowlist-20260726`, plus the corresponding
+  Compose backup, retain the immediately preceding production states.
+- Corrected the external-review delivery after the empty `main` baseline caused
+  the repository landing page to appear blank. Generated candidate artifact
+  JSON files were consolidated into a SHA-256-verified 4,668,881-byte ZIP,
+  reducing the GitHub comparison from roughly 2.0 million generated lines to
+  69,358 actual source/documentation additions without removing model code or
+  artifacts.
+- Squash-merged Argus PR `#1` into the default `main` branch at
+  `a30b221fde84f5ba45da8510e42207d1e4190b79`, then updated the reviewer
+  instructions through `baab9fb7c29d5de82e218faf67777e181ff347fc`.
+  GitHub collaborator `Shiccovo` was independently confirmed with `write`
+  permission; no replacement invitation was necessary.

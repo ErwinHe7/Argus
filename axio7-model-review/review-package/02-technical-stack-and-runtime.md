@@ -148,7 +148,10 @@ Python 应当负责：
 
 - Massive websocket/REST adapter；
 - Moomoo OpenD legacy feed；
-- Databento historical adapter，尚缺完整 live adapter；
+- Databento historical adapter 与官方 Rust live adapter；live license 当前不可用，
+  所以实时路径保持 fail-closed；
+- IBKR Client Portal outbound quote relay；仅允许白名单 Level-1 bid/ask，不能
+  传 cookies、账户、持仓、订单，也不能直接生成模型 OHLCV；
 - JSONL spool/ledger；
 - 目标持久层为 PostgreSQL。
 

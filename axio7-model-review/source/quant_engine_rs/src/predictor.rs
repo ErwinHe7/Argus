@@ -618,7 +618,7 @@ impl FrozenPredictorArtifact {
         sha256_serialized(&canonical)
     }
 
-    pub fn validate_static(&self) -> Result<()> {
+    fn validate_static_fields(&self) -> Result<()> {
         if self.artifact_version != FROZEN_PREDICTOR_ARTIFACT_VERSION {
             bail!("unsupported frozen predictor artifact version");
         }
@@ -658,8 +658,36 @@ impl FrozenPredictorArtifact {
                 bail!("frozen stochastic distribution head has invalid causal lineage");
             }
         }
+        Ok(())
+    }
+
+    pub fn validate_static(&self) -> Result<()> {
+        self.validate_static_fields()?;
         if self.artifact_sha256 != self.unsigned_sha256()? {
             bail!("frozen predictor artifact hash mismatch");
+        }
+        Ok(())
+    }
+
+    pub(crate) fn validate_static_source(&self, source: &serde_json::Value) -> Result<()> {
+        self.validate_static_fields()?;
+        let mut unsigned = source.clone();
+        let stored_hash = unsigned
+            .get("artifact_sha256")
+            .and_then(serde_json::Value::as_str)
+            .context("frozen predictor source is missing artifact_sha256")?;
+        if stored_hash != self.artifact_sha256 {
+            bail!("frozen predictor source hash does not match the parsed artifact");
+        }
+        let object = unsigned
+            .as_object_mut()
+            .context("frozen predictor source must be a JSON object")?;
+        object.insert(
+            "artifact_sha256".into(),
+            serde_json::Value::String(String::new()),
+        );
+        if self.artifact_sha256 != sha256_serialized(&unsigned)? {
+            bail!("frozen predictor source artifact hash mismatch");
         }
         Ok(())
     }

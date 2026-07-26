@@ -164,7 +164,7 @@ where
                 loaded.artifacts.insert(model_symbol, artifact);
             }
             Err(error) => {
-                loaded.failures.insert(model_symbol, error.to_string());
+                loaded.failures.insert(model_symbol, format!("{error:#}"));
             }
         }
     }
@@ -177,12 +177,14 @@ fn load_exact_artifact(
     requested_model_symbol: &str,
 ) -> Result<FrozenPredictorArtifact> {
     let artifact_path = resolve_artifact_path(registry_path, &entry.artifact_path);
-    let artifact: FrozenPredictorArtifact = serde_json::from_slice(
-        &fs::read(&artifact_path).with_context(|| format!("read {}", artifact_path.display()))?,
-    )
-    .with_context(|| format!("deserialize {}", artifact_path.display()))?;
+    let bytes =
+        fs::read(&artifact_path).with_context(|| format!("read {}", artifact_path.display()))?;
+    let source: serde_json::Value = serde_json::from_slice(&bytes)
+        .with_context(|| format!("deserialize {}", artifact_path.display()))?;
+    let artifact: FrozenPredictorArtifact = serde_json::from_value(source.clone())
+        .with_context(|| format!("deserialize {}", artifact_path.display()))?;
     artifact
-        .validate_static()
+        .validate_static_source(&source)
         .with_context(|| format!("validate {}", artifact_path.display()))?;
     if !artifact.target.eq_ignore_ascii_case(requested_model_symbol)
         || !entry
@@ -308,5 +310,27 @@ mod tests {
             resolved,
             PathBuf::from("data/models/universe/NVDA.frozen.json")
         );
+    }
+
+    #[test]
+    fn repository_frozen_universe_is_statically_loadable() {
+        let registry_path = Path::new("data/models/universe/registry.json");
+        assert!(
+            registry_path.is_file(),
+            "the production frozen-universe registry is missing"
+        );
+        let loaded = load_frozen_universe(
+            registry_path,
+            [
+                "SPY", "QQQ", "NVDA", "AAPL", "MU", "SOXX", "NBIS", "BE", "IGV",
+            ],
+        )
+        .unwrap();
+        assert!(
+            loaded.failures().is_empty(),
+            "frozen model artifacts were rejected: {:#?}",
+            loaded.failures()
+        );
+        assert_eq!(loaded.artifacts().len(), 9);
     }
 }

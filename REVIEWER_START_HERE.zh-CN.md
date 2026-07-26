@@ -7,11 +7,12 @@ artifact 都已经位于本仓库默认 `main` 分支。请从 `main` 建立自�
 ## 最短阅读顺序
 
 1. `MODEL_SOURCE_MAP.zh-CN.md`：每个模型对应的准确源码文件、用途和状态。
-2. `axio7-model-review/review-package/03-review-brief-and-checklist.md`：
+2. `axio7-model-review/CURRENT_SOURCE_SYNC.md`：137 个当前源码文件的完整性、排除项和实时接入状态。
+3. `axio7-model-review/review-package/03-review-brief-and-checklist.md`：
    P0/P1/P2 审查和修复任务。
-3. `axio7-model-review/review-package/04-evidence-index.md`：关键实现位置。
-4. `axio7-model-review/source/`：Rust、Python、C++ 可编辑源码和测试。
-5. `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`：
+4. `axio7-model-review/review-package/04-evidence-index.md`：关键实现位置。
+5. `axio7-model-review/source/`：Rust、Python、C++ 可编辑源码和测试。
+6. `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`：
    9 个未晋升候选 artifact 及 legacy 对照；解压后查看。
 
 ## 哪些内容可以直接改

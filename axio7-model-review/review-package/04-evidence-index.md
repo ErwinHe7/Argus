@@ -52,16 +52,25 @@
 
 ## Artifact 与 runtime
 
+- `axio7-model-review/source/quant_engine_rs/data/models/universe/registry.json` 与同目录 9 个 artifact：
+  可由 Rust repository-level 测试和 runtime 直接加载；状态均为 `CANDIDATE_NOT_PROMOTED`。
+- `axio7-model-review/source/quant_engine_rs/data/models/frozen_predictor_latest.json`：legacy standalone SPY v1 对照；不得覆盖 exact-symbol universe routing。
 - `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`：
-  经 SHA-256 验证的 9 个 v2 candidate、registry 与 legacy standalone SPY v1
-  artifact；解压后分别位于 `universe/` 与 `legacy/`。legacy 不应覆盖
-  exact-symbol universe routing。
+  上述 12 个 JSON 的便携归档；直接文件与 ZIP 每个成员的 SHA-256 全部一致。
 - `axio7-model-review/source/quant_engine_rs/src/frozen_universe.rs`：exact-symbol registry loading 与
   per-symbol failure isolation。
 - `axio7-model-review/source/quant_engine_rs/src/bin/quantctl.rs`：Massive live model、options watch 与 CLI。
 - `axio7-model-review/source/quant_engine_rs/container-entrypoint.sh`：runtime startup 与 readiness coupling。
 - 实时 readiness receipt 未打包，因为它是环境/数据状态，不是模型源码。
 
+## 当前实时/数据源码（2026-07-26 同步）
+
+- `axio7-model-review/source/quant_engine_rs/src/data/databento_live.rs`：官方 Rust live adapter；无 live license 时 fail-closed。
+- `axio7-model-review/source/quant_engine_rs/src/data/ibkr_relay.rs`：IBKR outbound quote-only relay 合同与输入验证。
+- `axio7-model-review/source/quant_engine_rs/src/data/readiness.rs`：数据 entitlement、freshness、coverage readiness。
+- `axio7-model-review/source/quant_engine_rs/src/data/market_store.rs`：normalized market record 持久化边界。
+- `axio7-model-review/source/quant_engine_rs/src/data/massive_live.rs`：Massive 实时接入路径。
+- `axio7-model-review/source/intraday_quant/src/intraday_quant/reports/`：离线 pattern analog、theory audit 与审阅报告生成。
 ## 数据与技术栈
 
 - `axio7-model-review/source/quant_engine_rs/Cargo.toml`：Rust 生产依赖。
@@ -82,7 +91,7 @@
   有更早的成功收据，但接收方应在自己的环境重新跑完整 build。
 - `cargo fmt --check`：通过。
 - `cargo clippy --all-targets -- -D warnings`：通过。
-- `cargo test`：通过；286 library + 8 CLI + 12 integration tests。
+- `cargo test`：通过；296 library + 8 CLI + 12 integration tests，共 316 passed。
 - Python pytest：26 passed，5 skipped。
 - C++：当前机器没有 CMake，未执行。
 

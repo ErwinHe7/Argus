@@ -7,10 +7,9 @@ server:
 
 live:
   enabled: true
-  # Production market data is provider-neutral. Massive is the configured
-  # primary because it exposes SIP stocks and OPRA options through one
-  # licensed contract. OpenD is no longer the production data dependency.
-  provider: massive
+  # Databento EQUS.MINI is the configured server-side live equities feed.
+  # It is consumed only by the Rust service and is not a broker connection.
+  provider: databento
   require_realtime: true
   quote_only: true
   # host/port remain only for the explicitly-invoked legacy moomoo commands.
@@ -33,6 +32,8 @@ live:
   subscribe_ticker: true
   subscribe_order_book: false
   finalize_grace_ms: 2000
+  # A completed provider minute bar should arrive shortly after its interval
+  # end. Records more than ten seconds late fail closed.
   stale_after_ms: 10000
   execution_latency_ms: 250
   prediction_sla_ms: 5000

@@ -6,7 +6,8 @@ inspect and modify from the populated default `main` branch.
 
 Start with `REVIEWER_START_HERE.zh-CN.md`, then use
 `MODEL_SOURCE_MAP.zh-CN.md` to jump from every listed algorithm to its
-implementation.
+implementation. The current-source completeness receipt is
+`axio7-model-review/CURRENT_SOURCE_SYNC.md`.
 
 ## What is included
 
@@ -23,8 +24,10 @@ implementation.
   `axio7-model-review/reference-docs/`
 - Sanitized universe registry and artifact summary:
   `axio7-model-review/artifact-metadata/`
-- A verified ZIP containing nine exact-symbol unpromoted candidate artifacts
-  plus the legacy comparison artifact:
+- Nine exact-symbol unpromoted candidate artifacts plus the legacy comparison
+  artifact at their directly loadable runtime paths:
+  `axio7-model-review/source/quant_engine_rs/data/models/`
+- The same 12 JSON files in a verified portable archive:
   `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`
 
 ## What is deliberately excluded

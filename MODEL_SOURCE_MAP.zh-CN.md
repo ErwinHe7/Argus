@@ -61,7 +61,7 @@ artifact 都选到了当前搜索边界 `K=8`，而且没有匹配的已晋升�
 | Native research | C++20、CMake、SQLite、OpenSSL |
 | Web/orchestration | Next.js 14、React 18、TypeScript、Zod、Supabase、Redis |
 | 历史数据接口 | SQLite、PostgreSQL、Parquet；本仓库不包含历史观测 |
-| 实时数据接口 | Massive、Moomoo；Databento live adapter 尚未完整接通 |
+| 实时数据接口 | Massive/Moomoo；Databento Rust live adapter 已实现但当前无 live license；IBKR relay 仅 quote-only |
 
 历史 replay 与实时流的目标是共同进入 normalized point-in-time record、Rust
 causal feature engine 和同一 frozen inference path。不能把几百行历史数据
