@@ -41,9 +41,56 @@ Python (`intraday_quant`) **不是 Railway 服务**。它是离线训练与 arti
 |---|---|
 | `INTRADAY_QUANT_TOKEN` | 入口脚本强制要求，至少 32 字符，少于 32 直接 exit 64 |
 | `PORT` | Railway 自动注入，不要手动设 |
-| `AXIO_QUANT_HOST` | 不要设。默认已改为 `0.0.0.0`；设成 `127.0.0.1` 会让服务从外部不可达 |
+| `AXIO_QUANT_HOST` | **不要设成非 loopback 地址**，见下节。默认 `127.0.0.1` |
 | `AXIO_QUANT_CONFIG` | 默认 `configs/production.yaml` |
 | `RUST_LOG` | 默认 `axio_quant_engine=info,tower_http=info` |
+
+## 最重要的一条：这个服务目前在设计上不可对外暴露
+
+`src/config.rs:659-663`：
+
+```rust
+let server_ip = IpAddr::from_str(&self.server.host)?;
+if !server_ip.is_loopback() {
+    bail!("quant control plane must remain loopback-only until TLS/mTLS is implemented");
+}
+```
+
+`src/bin/quantd.rs:32-38` 里 `--host` 覆盖配置后立刻 `validate()`，所以传任何
+非 loopback 地址的结果不是「监听不到」，而是 **quantd 每次启动直接退出**。
+`configs/production.yaml` 里两处 `host` 也都是 `127.0.0.1`。
+
+这是**刻意设的安全门禁**，不是疏忽 —— 控制面有 kill switch（`POST /api/v1/risk/kill`）
+和 paper trading 控制，鉴权只有一个静态 header token（`x-research-token`，
+`src/api.rs:91`），在没有 TLS/mTLS 之前不允许离开 loopback 是合理的。
+
+而 Railway 的边缘路由需要容器监听非 loopback 地址才能转发流量。
+**两者直接冲突。**三个选项：
+
+| 选项 | 做法 | 代价 |
+|---|---|---|
+| A. 不暴露 | 只作为同容器内部服务，GUI/前端也跑在同一个容器里访问 127.0.0.1 | 最安全；但 Railway 上等于没有对外服务 |
+| B. 实现 TLS/mTLS | 落地 mTLS 后有意识地放宽 `validate()` 的门禁 | 正解，但是真实工作量 |
+| C. 容器内反代 | 加一个 nginx/socat 绑 `0.0.0.0:$PORT` 转发到 `127.0.0.1:8001` | **会静默绕过一道刻意的安全控制**。Railway 边缘到容器这一跳没有 TLS。需要所有者明确拍板，不要默认这么干 |
+
+在做出选择之前，不要把这个服务标成「可部署」。
+
+## 另一个会导致崩溃循环的问题
+
+`quantctl massive-model` 的两个默认路径都在被 gitignore 的 `data/` 下
+（`src/bin/quantctl.rs:139-141`）：
+
+- `--historical-bars data/normalized/market_bars.csv`
+- `--universe-registry data/models/universe/registry.json`
+
+镜像里没有这两个文件。配合本文件配套的子进程监督改动，结果是：
+massive-model 启动失败 → PID 1 以 72 退出 → Railway 重启 → 再次失败，
+直到撞上 `restartPolicyMaxRetries: 10` 后彻底停止。
+
+监督逻辑本身是对的（把静默故障变成响亮故障），但**必须先解决这两个文件的
+供给问题**：要么挂 Volume 并在首次部署时灌入，要么改成从对象存储拉取，
+要么把 registry 放进一个被显式跟踪的路径随镜像分发。
+在此之前不要开 live 子进程。
 
 ## 仍然阻塞生产部署的问题
 

@@ -7,9 +7,19 @@ if [ -z "${INTRADAY_QUANT_TOKEN:-}" ] || [ "${#INTRADAY_QUANT_TOKEN}" -lt 32 ]; 
 fi
 
 port="${PORT:-8001}"
-# 容器内必须监听所有接口，否则平台（Railway/Fly/ECS）的边缘路由和健康检查都连不上。
-# 本地直接跑二进制时仍可用 AXIO_QUANT_HOST=127.0.0.1 覆盖。
-host="${AXIO_QUANT_HOST:-0.0.0.0}"
+# 保持 loopback。不要改成 0.0.0.0。
+#
+# src/config.rs:659-663 有一道刻意的门禁：
+#     if !server_ip.is_loopback() {
+#         bail!("quant control plane must remain loopback-only until TLS/mTLS is implemented");
+#     }
+# 而 src/bin/quantd.rs:32-38 是 --host 覆盖配置后立刻 validate()。
+# 所以传任何非 loopback 地址都会让 quantd 每次启动直接退出，不是「监听不到」
+# 而是「起不来」。
+#
+# 这意味着：在 TLS/mTLS 落地之前，这个服务在设计上就不可对外暴露。
+# 部署选项与取舍见 DEPLOY.railway.md。
+host="${AXIO_QUANT_HOST:-127.0.0.1}"
 config="${AXIO_QUANT_CONFIG:-configs/production.yaml}"
 supervise_interval="${AXIO_SUPERVISE_INTERVAL_SECONDS:-5}"
 
