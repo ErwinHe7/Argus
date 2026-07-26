@@ -1,0 +1,96 @@
+name: CI
+
+# 这个 workflow 存在的直接原因：交付快照里 quant_engine_rs/src/data/、
+# intraday_quant/src/intraday_quant/data/ 和 .../reports/ 三个源码目录被
+# .gitignore 的 data/ 与 reports/ 规则静默排除，导致仓库里的代码根本无法编译，
+# 而本地 dirty worktree 上「286 个测试通过」的结论掩盖了这一点。
+#
+# CI 从 clean checkout 构建，只能看到真正被提交的文件，因此可以从结构上
+# 杜绝「本地能过、仓库里过不了」这一类问题。
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  no-ignored-sources:
+    name: 源码目录未被 gitignore 误伤
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 检查 src/ 下是否有被忽略的路径
+        run: bash scripts/check-no-ignored-sources.sh
+
+  rust:
+    name: Rust (quant_engine_rs)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: axio7-model-review/source/quant_engine_rs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: axio7-model-review/source/quant_engine_rs
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets --locked -- -D warnings
+      - run: cargo test --locked
+
+  python:
+    name: Python (intraday_quant)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: axio7-model-review/source/intraday_quant
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+      # 已知问题：代码 import torch，但 torch 不在 pyproject.toml 里。
+      # tests/test_cuda_challenger.py 现在靠 skip 掩盖这一点。
+      # torch 进入依赖清单后，把下面这行的 -k 过滤去掉，让它真的跑起来。
+      - run: python -m pytest --basetemp .pytest-tmp -p no:cacheprovider
+
+  cpp:
+    name: C++ (quant_core_cpp)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: axio7-model-review/source/quant_core_cpp
+    steps:
+      - uses: actions/checkout@v4
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            cmake ninja-build libsqlite3-dev libssl-dev
+      # CMakeLists 开着 -Werror -Wall -Wextra -Wpedantic -Wconversion -Wshadow，
+      # 这里不放宽，保持和本地一致的严格度。
+      - run: cmake -S . -B build -G Ninja
+      - run: cmake --build build
+      - run: ctest --test-dir build --output-on-failure
+
+  docker:
+    name: Docker 镜像可从 clean checkout 构建
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Dockerfile 里曾经有 `COPY data ./data`，而 data/ 被 gitignore，
+      # 这一步会在任何从仓库出发的构建里失败。构建镜像本身就是回归测试。
+      - uses: docker/build-push-action@v6
+        with:
+          context: axio7-model-review/source/quant_engine_rs
+          push: false
+          tags: axio-quantd:ci
