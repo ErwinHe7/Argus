@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "intraday-quant"
+version = "0.1.0"
+description = "Leakage-safe intraday SPX research and backtesting pipeline"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26",
+  "pandas>=2.2",
+  "pyarrow>=15",
+  "duckdb>=1.1",
+  "scikit-learn>=1.5",
+  "PyYAML>=6.0",
+  "joblib>=1.4",
+  "matplotlib>=3.8",
+  "tabulate>=0.9",
+  "pydantic>=2.7",
+  "exchange-calendars>=4.5",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.32",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "httpx>=0.27", "playwright>=1.50"]
+postgres = ["psycopg[binary]>=3.2"]
+
+[project.scripts]
+intraday-quant = "intraday_quant.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
