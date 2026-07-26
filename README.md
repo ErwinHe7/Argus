@@ -87,8 +87,8 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-The source snapshot passed 286 Rust library tests, 8 CLI tests, and 12
-integration tests on 2026-07-26.
+The current snapshot passed 296 Rust library tests, 8 CLI tests, and 12
+integration tests (316 total) on 2026-07-26.
 
 From `axio7-model-review/source/intraday_quant/`:
 

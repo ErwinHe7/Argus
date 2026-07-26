@@ -1485,3 +1485,19 @@ Remaining non-billing production blockers found during the same live audit:
   instructions through `baab9fb7c29d5de82e218faf67777e181ff347fc`.
   GitHub collaborator `Shiccovo` was independently confirmed with `write`
   permission; no replacement invitation was necessary.
+
+- Follow-up Argus PR `#2` restores the 12 frozen/candidate JSON artifacts at
+  their directly loadable `quant_engine_rs/data/models/` runtime paths while
+  preserving the verified ZIP. The generated analog-index lines are retained
+  intentionally and marked as generated in GitHub; they are model artifacts,
+  not raw vendor observations.
+- The PR matches 137 editable model/runtime source files plus 12 artifacts
+  against the current AXIO7 workspace by same-path SHA-256: 149/149 files, zero
+  missing, zero extra, and zero mismatches. It adds the current Databento,
+  Massive, IBKR quote-only relay, readiness/store/manifest source, Python report
+  modules, and native runtime configuration.
+- Argus draft PR `#2` is open at `https://github.com/ErwinHe7/Argus/pull/2`;
+  collaborator `Shiccovo` was explicitly requested as reviewer and retains
+  write access. Validation passed Rust fmt, warning-free Clippy, all 316 Rust
+  tests, and Python pytest with 26 passed and 5 skipped. C++ was not run because
+  CMake is unavailable on this machine.
