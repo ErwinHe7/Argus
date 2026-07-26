@@ -7,8 +7,11 @@ if [ -z "${INTRADAY_QUANT_TOKEN:-}" ] || [ "${#INTRADAY_QUANT_TOKEN}" -lt 32 ]; 
 fi
 
 port="${PORT:-8001}"
-host="${AXIO_QUANT_HOST:-127.0.0.1}"
+# 容器内必须监听所有接口，否则平台（Railway/Fly/ECS）的边缘路由和健康检查都连不上。
+# 本地直接跑二进制时仍可用 AXIO_QUANT_HOST=127.0.0.1 覆盖。
+host="${AXIO_QUANT_HOST:-0.0.0.0}"
 config="${AXIO_QUANT_CONFIG:-configs/production.yaml}"
+supervise_interval="${AXIO_SUPERVISE_INTERVAL_SECONDS:-5}"
 
 quantd --config "$config" --host "$host" --port "$port" &
 api_pid=$!
@@ -36,6 +39,10 @@ done
 # The readiness command contains no order path. If the configured account lacks
 # SIP/OPRA entitlement, the API remains online for historical research and
 # returns DATA_UNAVAILABLE for live scans.
+#
+# 已知未解决问题（需要 data 模块补齐后才能安全修复）：这一个 massive-check 同时
+# 覆盖 equity 与 options 权限，任一不满足就连 equity 模型也不启动。拆分为
+# equity-check / options-check 两个独立门控之后，这里应改成分别 gate 两个子进程。
 if quantctl --config "$config" live massive-check \
   --output data/live/massive_readiness.json; then
   quantctl --config "$config" live massive-model &
@@ -46,4 +53,27 @@ else
   echo "SIP/OPRA readiness failed; live model/watchers were not started" >&2
 fi
 
-wait "$api_pid"
+# 子进程监督。
+#
+# 修复前这里是 `wait "$api_pid"`：只等 API 进程。massive-model 或
+# massive-options-watch 崩溃时容器仍然存活、/health 仍然返回 200，实时模型
+# 已经停了但编排平台看到的是健康状态，故障完全静默。
+#
+# 现在任一被监督的子进程退出都会让 PID 1 以非零码退出，交给平台重启整个容器。
+# 用轮询而不是 `wait -n`：后者不在 POSIX sh 里，Debian 的 /bin/sh 是 dash，
+# 不能依赖它存在。
+supervised_exit() {
+  echo "$1 exited; failing the container so the platform restarts it" >&2
+  exit "$2"
+}
+
+while :; do
+  kill -0 "$api_pid" 2>/dev/null || supervised_exit "quantd" 71
+  if [ -n "$model_pid" ]; then
+    kill -0 "$model_pid" 2>/dev/null || supervised_exit "massive-model" 72
+  fi
+  if [ -n "$options_pid" ]; then
+    kill -0 "$options_pid" 2>/dev/null || supervised_exit "massive-options-watch" 73
+  fi
+  sleep "$supervise_interval"
+done
