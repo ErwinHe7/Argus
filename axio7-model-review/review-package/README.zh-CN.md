@@ -32,11 +32,15 @@ AXIO7 的目标不是把历史行情写进代码，而是让历史回放和授�
 
 ## 包内文件
 
+- 仓库根目录 `REVIEWER_START_HERE.zh-CN.md`：如何 clone、定位和直接修改源码。
+- 仓库根目录 `MODEL_SOURCE_MAP.zh-CN.md`：本清单每一项到实际代码文件的映射。
 - `01-model-algorithm-inventory.md`：模型、数学方法、训练与在线用途。
 - `02-technical-stack-and-runtime.md`：Rust/Python/C++/TypeScript、数据与部署栈。
 - `03-review-brief-and-checklist.md`：希望审查者真正检查和修复的内容。
 - `04-evidence-index.md`：关键代码、artifact、测试与已知阻塞证据。
 - `inventory.csv`：可排序的模型清单。
+- `../source/`：Rust、Python、C++ 模型实现和测试，不是只有说明文档。
+- `../model-artifacts/`：9 个未晋升候选 artifact、registry 和 legacy 对照。
 
 ## 希望审查者交付什么
 

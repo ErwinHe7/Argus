@@ -4,6 +4,10 @@ This repository currently contains a focused, data-free AXIO7 model and
 real-time inference review snapshot. It is intended for an external engineer to
 inspect and modify through a draft pull request.
 
+Start with `REVIEWER_START_HERE.zh-CN.md`, then use
+`MODEL_SOURCE_MAP.zh-CN.md` to jump from every listed algorithm to its
+implementation.
+
 ## What is included
 
 - Rust production inference source and tests:
@@ -19,19 +23,22 @@ inspect and modify through a draft pull request.
   `axio7-model-review/reference-docs/`
 - Sanitized universe registry and artifact summary:
   `axio7-model-review/artifact-metadata/`
+- Nine exact-symbol unpromoted candidate artifacts plus the legacy comparison
+  artifact:
+  `axio7-model-review/model-artifacts/`
 
 ## What is deliberately excluded
 
 - historical or live market-data rows;
 - databases, Parquet/CSV/JSONL archives, logs, reports, and outputs;
-- frozen artifacts containing embedded historical market states;
 - API keys, access tokens, `.env` files, credentials, and provider sessions;
 - frontend, billing, authentication, and unrelated product code;
 - automatic order execution.
 
-The model artifacts are represented by metadata only. The original large
-artifacts are not required to review the HMM, Baum-Welch, kernel regression,
-SDE/OU, calibration, and runtime code.
+The model artifacts include parameters, hashes, training lineage, and analog
+training-row indices, but no raw historical or realtime market observations.
+They are unpromoted candidates and must not be treated as calibrated production
+models.
 
 ## Core model stack
 
@@ -101,4 +108,3 @@ The original worktree base commit was
 `bfc95815be9a212bbe75663df8af548bfb92f917`. The handoff contains a selected
 snapshot from a dirty worktree, so this Argus commit is the authoritative
 content hash for the delivered review files.
-
