@@ -20,6 +20,16 @@ use crate::{
 
 /// 依据：`src/market_query.rs:1070` 与 `src/api.rs:1489` 都拿它和
 /// `snapshot.schema_version`（String）比较。
+///
+/// ⚠️ 这个**字符串字面量的值是不可恢复的**，只能靠猜。
+/// 它在幸存代码里只被比较、从不被打印，review package 里也没有随附任何
+/// option chain 样本 artifact。
+///
+/// 后果：在原始值被恢复之前，任何真实的 chain artifact 都会在
+/// `api.rs:1489`、`market_query.rs:1070`、`quantctl.rs:586` 三处
+/// `schema_version != OPTION_CHAIN_SCHEMA_VERSION` 的门控上被拒绝，
+/// 表现为 `OPTION_CHAIN_SCHEMA_INCOMPATIBLE`。
+/// 这是 fail-closed 行为，不会产生错误结果，但会让人误以为是数据问题。
 pub const OPTION_CHAIN_SCHEMA_VERSION: &str = "massive.full_option_chain.v1";
 
 /// 精确还原自 `src/engine/l1_order_flow.rs:283-310` 的结构体字面量。
