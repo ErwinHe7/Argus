@@ -1,0 +1,75 @@
+{
+  "schema_version": "axio7.external-review-artifact-summary.v1",
+  "generated_at": "2026-07-26",
+  "large_frozen_artifacts_included": false,
+  "exclusion_reason": "Frozen artifacts embed large historical state indexes. The external review handoff includes source, tests, registry metadata, and model-selection evidence without copying market-data rows.",
+  "model_version": "same-regime-kernel+cv-selected-hmm+regime-sde-shadow-frozen-v2",
+  "common_state_count": 8,
+  "common_selection_warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+  "common_calibration_status": "UNAVAILABLE_FAIL_CLOSED",
+  "entries": [
+    {
+      "public_symbol": "SPX",
+      "model_symbol": "SPY",
+      "training_cutoff": "2026-07-22T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    },
+    {
+      "public_symbol": "QQQ",
+      "model_symbol": "QQQ",
+      "training_cutoff": "2026-07-22T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    },
+    {
+      "public_symbol": "NVDA",
+      "model_symbol": "NVDA",
+      "training_cutoff": "2026-07-24T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    },
+    {
+      "public_symbol": "AAPL",
+      "model_symbol": "AAPL",
+      "training_cutoff": "2026-07-24T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    },
+    {
+      "public_symbol": "MU",
+      "model_symbol": "MU",
+      "training_cutoff": "2026-07-22T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    },
+    {
+      "public_symbol": "SOXX",
+      "model_symbol": "SOXX",
+      "training_cutoff": "2026-07-22T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    },
+    {
+      "public_symbol": "NBIS",
+      "model_symbol": "NBIS",
+      "training_cutoff": "2026-07-24T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    },
+    {
+      "public_symbol": "BE",
+      "model_symbol": "BE",
+      "training_cutoff": "2026-07-24T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    },
+    {
+      "public_symbol": "IGV",
+      "model_symbol": "IGV",
+      "training_cutoff": "2026-07-24T20:00:00Z",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "short_horizon_sde_present": true
+    }
+  ]
+}

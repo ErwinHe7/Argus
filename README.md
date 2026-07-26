@@ -1,0 +1,104 @@
+# Argus — AXIO7 model review handoff
+
+This repository currently contains a focused, data-free AXIO7 model and
+real-time inference review snapshot. It is intended for an external engineer to
+inspect and modify through a draft pull request.
+
+## What is included
+
+- Rust production inference source and tests:
+  `axio7-model-review/source/quant_engine_rs/`
+- Python offline research/training source and tests:
+  `axio7-model-review/source/intraday_quant/`
+- C++20 native research source and tests:
+  `axio7-model-review/source/quant_core_cpp/`
+- Chinese model/algorithm inventory, technical stack, evidence index, and
+  reviewer checklist:
+  `axio7-model-review/review-package/`
+- Selected mathematical and production-contract references:
+  `axio7-model-review/reference-docs/`
+- Sanitized universe registry and artifact summary:
+  `axio7-model-review/artifact-metadata/`
+
+## What is deliberately excluded
+
+- historical or live market-data rows;
+- databases, Parquet/CSV/JSONL archives, logs, reports, and outputs;
+- frozen artifacts containing embedded historical market states;
+- API keys, access tokens, `.env` files, credentials, and provider sessions;
+- frontend, billing, authentication, and unrelated product code;
+- automatic order execution.
+
+The model artifacts are represented by metadata only. The original large
+artifacts are not required to review the HMM, Baum-Welch, kernel regression,
+SDE/OU, calibration, and runtime code.
+
+## Core model stack
+
+The current candidate stack is:
+
+1. diagonal-Gaussian HMM;
+2. scaled forward-backward;
+3. Baum-Welch soft EM;
+4. causal online filtering and diagnostic-only Viterbi;
+5. 12-dimensional same-regime adaptive Gaussian-kernel regression;
+6. Markov-switching log-return diffusion;
+7. VWAP-residual Ornstein-Uhlenbeck shadow model;
+8. Logistic/Ridge/Histogram Gradient Boosting challengers;
+9. offline causal TCN and regime-gated Mixture-of-Experts challengers;
+10. Platt/isotonic calibration and purged walk-forward validation.
+
+Read `axio7-model-review/review-package/README.zh-CN.md` first.
+
+## Current high-priority review targets
+
+- HMM state selection reaches the tested boundary for all nine candidates.
+- No candidate model or calibration artifact is promoted.
+- Massive SIP/OPRA realtime entitlement is unavailable.
+- The Massive model loop persists predictions but does not automatically
+  settle matured horizons in the same loop.
+- Rust live ingestion does not continuously archive normalized records to
+  PostgreSQL.
+- Equity/options readiness is coupled at container startup.
+- Child model/options processes are not fully supervised by container health.
+- Point-in-time options NBBO/trades/OI evidence is incomplete.
+- PyTorch is used by Python code but is not pinned in `pyproject.toml`.
+
+Exact-symbol universe loading was added on 2026-07-26. Treat it as a change to
+verify, not as an unresolved single-SPY fallback bug.
+
+## Checks
+
+From `axio7-model-review/source/quant_engine_rs/`:
+
+```powershell
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+```
+
+The source snapshot passed 286 Rust library tests, 8 CLI tests, and 12
+integration tests on 2026-07-26.
+
+From `axio7-model-review/source/intraday_quant/`:
+
+```powershell
+python -m pytest --basetemp .pytest-tmp -p no:cacheprovider
+```
+
+The Python snapshot passed 26 tests with 5 skipped. CMake was unavailable on
+the source machine, so the C++ checks must be run by the reviewer.
+
+## Product and safety boundary
+
+AXIO7 is an impersonal market-research system. It may scan, explain, backtest,
+and monitor deterministic research conditions. It must not place orders,
+personalize recommendations, or call uncalibrated directional signals
+risk-free arbitrage. Missing, stale, unentitled, incomplete, or non-causal data
+must fail closed.
+
+The original worktree base commit was
+`bfc95815be9a212bbe75663df8af548bfb92f917`. The handoff contains a selected
+snapshot from a dirty worktree, so this Argus commit is the authoritative
+content hash for the delivered review files.
+
