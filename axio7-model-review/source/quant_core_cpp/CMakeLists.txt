@@ -15,7 +15,9 @@ add_library(axio_quant_core
   src/quant_os.cpp
 )
 target_include_directories(axio_quant_core PUBLIC include)
-target_link_libraries(axio_quant_core PUBLIC SQLite3::SQLite3 OpenSSL::Crypto)
+# CMake 官方 FindSQLite3 导出的 imported target 名为 SQLite::SQLite3（不是 SQLite3::SQLite3）。
+# 见 Modules/FindSQLite3.cmake。用错名字会在 generate 阶段失败，且 configure 阶段不会报错。
+target_link_libraries(axio_quant_core PUBLIC SQLite::SQLite3 OpenSSL::Crypto)
 
 if(MSVC)
   target_compile_options(axio_quant_core PRIVATE /W4 /permissive-)
