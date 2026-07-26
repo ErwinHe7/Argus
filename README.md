@@ -4,10 +4,26 @@ This repository currently contains a focused, data-free AXIO7 model and
 real-time inference review snapshot. It is intended for an external engineer to
 inspect and modify from the populated default `main` branch.
 
-Start with `REVIEWER_START_HERE.zh-CN.md`, then use
-`MODEL_SOURCE_MAP.zh-CN.md` to jump from every listed algorithm to its
-implementation. The current-source completeness receipt is
-`axio7-model-review/CURRENT_SOURCE_SYNC.md`.
+## Model stack at a glance
+
+**This is not an HMM-only repository.** The four primary statistical
+components are visibly indexed as:
+
+1. **HMM / Baum–Welch / causal regime filter**
+2. **12D high-dimensional same-regime kernel regression**
+3. **Markov-switching stochastic differential equation**
+4. **VWAP-residual Ornstein–Uhlenbeck model**
+
+Neural challengers, calibration, classical challengers, and research models are
+also included.
+
+Start with
+[`00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md`](00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md)
+or open [`MODEL_COMPONENTS/`](MODEL_COMPONENTS/) to see one plainly named
+directory per model family. Then use
+[`MODEL_SOURCE_MAP.zh-CN.md`](MODEL_SOURCE_MAP.zh-CN.md) for the complete
+algorithm-to-source map. The current-source completeness receipt is
+[`axio7-model-review/CURRENT_SOURCE_SYNC.md`](axio7-model-review/CURRENT_SOURCE_SYNC.md).
 
 ## What is included
 

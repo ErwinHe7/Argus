@@ -1501,3 +1501,10 @@ Remaining non-billing production blockers found during the same live audit:
   write access. Validation passed Rust fmt, warning-free Clippy, all 316 Rust
   tests, and Python pytest with 26 passed and 5 skipped. C++ was not run because
   CMake is unavailable on this machine.
+- Added an explicit reviewer navigation layer without renaming canonical model
+  modules: root entry
+  `00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md` and seven plainly named
+  `MODEL_COMPONENTS/` directories now identify HMM, 12D kernel regression,
+  Markov-switching SDE, VWAP-residual OU, neural challengers, calibration, and
+  research models. This changes documentation only; production imports,
+  implementation files, and artifact hashes remain unchanged.
