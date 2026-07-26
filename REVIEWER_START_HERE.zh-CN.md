@@ -11,8 +11,8 @@ artifact 都在本仓库的 `agent/axio7-model-review` 分支中，可以直接�
    P0/P1/P2 审查和修复任务。
 3. `axio7-model-review/review-package/04-evidence-index.md`：关键实现位置。
 4. `axio7-model-review/source/`：Rust、Python、C++ 可编辑源码和测试。
-5. `axio7-model-review/model-artifacts/`：9 个未晋升候选 artifact 及 legacy
-   对照。
+5. `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`：
+   9 个未晋升候选 artifact 及 legacy 对照；解压后查看。
 
 ## 哪些内容可以直接改
 
@@ -64,7 +64,7 @@ ctest --test-dir axio7-model-review/source/quant_core_cpp/build --output-on-fail
 ## 数据边界
 
 仓库没有上传历史/实时市场观测、数据库、Parquet、JSONL、API key 或 `.env`。
-artifact 包含模型参数、训练 lineage hash 和 analog 训练索引，不包含历史行情
-行。需要做数据级复现时，应通过有权限的 point-in-time 数据源接入同一份
-normalized record、Rust feature engine 和 frozen inference path。
+artifact 压缩包包含模型参数、训练 lineage hash 和 analog 训练索引，不包含
+历史行情行。需要做数据级复现时，应通过有权限的 point-in-time 数据源接入同一
+份 normalized record、Rust feature engine 和 frozen inference path。
 

@@ -23,9 +23,9 @@ implementation.
   `axio7-model-review/reference-docs/`
 - Sanitized universe registry and artifact summary:
   `axio7-model-review/artifact-metadata/`
-- Nine exact-symbol unpromoted candidate artifacts plus the legacy comparison
-  artifact:
-  `axio7-model-review/model-artifacts/`
+- A verified ZIP containing nine exact-symbol unpromoted candidate artifacts
+  plus the legacy comparison artifact:
+  `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`
 
 ## What is deliberately excluded
 

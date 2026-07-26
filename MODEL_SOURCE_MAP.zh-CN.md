@@ -44,10 +44,10 @@ LightGBM、XGBoost 或 CatBoost，不能把这些名字写成现有能力。
   `axio7-model-review/source/intraday_quant/`
 - C++20 native research：
   `axio7-model-review/source/quant_core_cpp/`
-- 9 个 exact-symbol 未晋升 artifact：
-  `axio7-model-review/model-artifacts/universe/`
-- legacy SPY 对照与 candidate receipt：
-  `axio7-model-review/model-artifacts/legacy/`
+- 9 个 exact-symbol 未晋升 artifact、registry、legacy SPY 对照与 candidate
+  receipt：
+  `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`
+  （解压后分别位于 `universe/` 与 `legacy/`）。
 
 artifact 是为了复现当前候选推理，不是生产批准证明。所有 9 个 universe
 artifact 都选到了当前搜索边界 `K=8`，而且没有匹配的已晋升校准 artifact。

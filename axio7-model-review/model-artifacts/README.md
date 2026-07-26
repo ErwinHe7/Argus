@@ -1,11 +1,14 @@
 # Model artifacts
 
-This directory contains the exact candidate artifacts associated with the
-review snapshot.
+`axio7-candidate-artifacts-2026-07-26.zip` contains the exact candidate
+artifacts associated with the review snapshot. They are compressed so GitHub
+does not misreport the generated training-index arrays as roughly two million
+lines of hand-written source code.
 
 ## Universe candidates
 
-`universe/` contains the registry and nine exact-symbol candidate artifacts:
+After extraction, `universe/` contains the registry and nine exact-symbol
+candidate artifacts:
 
 - AAPL
 - BE
@@ -23,9 +26,17 @@ promoted calibration artifact is available.
 
 ## Legacy reference
 
-`legacy/` contains the prior standalone frozen predictor and its candidate
-receipt. It is included only for routing and regression comparison. It must not
-override exact-symbol universe routing.
+After extraction, `legacy/` contains the prior standalone frozen predictor and
+its candidate receipt. It is included only for routing and regression
+comparison. It must not override exact-symbol universe routing.
+
+Extract with:
+
+```powershell
+Expand-Archive axio7-candidate-artifacts-2026-07-26.zip -DestinationPath extracted
+```
+
+The ZIP SHA-256 and every member SHA-256 are recorded in `SHA256SUMS.txt`.
 
 ## Data and editing boundary
 

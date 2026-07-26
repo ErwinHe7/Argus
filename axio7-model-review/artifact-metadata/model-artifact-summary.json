@@ -2,7 +2,7 @@
   "schema_version": "axio7.external-review-artifact-summary.v1",
   "generated_at": "2026-07-26",
   "large_frozen_artifacts_included": true,
-  "artifact_location": "axio7-model-review/model-artifacts/",
+  "artifact_location": "axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip",
   "data_boundary": "Artifacts include model parameters, training lineage hashes, and analog training-row indexes, but no raw historical or realtime market observations.",
   "model_version": "same-regime-kernel+cv-selected-hmm+regime-sde-shadow-frozen-v2",
   "common_state_count": 8,

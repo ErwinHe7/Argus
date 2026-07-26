@@ -4,3 +4,4 @@
 *.py whitespace=-blank-at-eof
 *.frozen.json linguist-generated=true -diff
 frozen_predictor_latest.json linguist-generated=true -diff
+*.zip binary linguist-generated=true

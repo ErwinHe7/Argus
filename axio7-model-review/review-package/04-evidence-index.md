@@ -52,10 +52,10 @@
 
 ## Artifact 与 runtime
 
-- `axio7-model-review/model-artifacts/universe/registry.json`：9 个 v2 candidate。
-- `axio7-model-review/model-artifacts/universe/*.frozen.json`：每标的 frozen artifact。
-- `axio7-model-review/model-artifacts/legacy/frozen_predictor_latest.json`：legacy standalone
-  SPY v1 artifact；不应覆盖 exact-symbol universe routing。
+- `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`：
+  经 SHA-256 验证的 9 个 v2 candidate、registry 与 legacy standalone SPY v1
+  artifact；解压后分别位于 `universe/` 与 `legacy/`。legacy 不应覆盖
+  exact-symbol universe routing。
 - `axio7-model-review/source/quant_engine_rs/src/frozen_universe.rs`：exact-symbol registry loading 与
   per-symbol failure isolation。
 - `axio7-model-review/source/quant_engine_rs/src/bin/quantctl.rs`：Massive live model、options watch 与 CLI。
