@@ -2,7 +2,13 @@
 
 This repository currently contains a focused, data-free AXIO7 model and
 real-time inference review snapshot. It is intended for an external engineer to
-inspect and modify through a draft pull request.
+inspect and modify from the populated default `main` branch.
+
+**Before anything else, read `HANDOFF.zh-CN.md`.** The snapshot that landed on
+`main` does not build: `.gitignore` directory-name rules silently excluded three
+source packages. The build is fixed, but the excluded implementations are still
+missing and are currently stood in for by `unimplemented!()` stubs that must be
+deleted as whole directories before the real code is restored.
 
 Start with `REVIEWER_START_HERE.zh-CN.md`, then use
 `MODEL_SOURCE_MAP.zh-CN.md` to jump from every listed algorithm to its

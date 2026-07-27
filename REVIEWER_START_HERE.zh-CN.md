@@ -1,8 +1,8 @@
 # 审查者从这里开始
 
 这不是一个只含 Markdown 的说明包。模型实现、测试和当前未晋升的冻结
-artifact 都在本仓库的 `agent/axio7-model-review` 分支中，可以直接修改代码并
-向草稿 PR #1 推送提交。
+artifact 都已经位于本仓库默认 `main` 分支。请从 `main` 建立自己的修改分支，
+完成后提交 PR 或直接推送经双方确认的修改。
 
 ## 最短阅读顺序
 
@@ -32,7 +32,9 @@ artifact 都在本仓库的 `agent/axio7-model-review` 分支中，可以直接�
 ```powershell
 git clone https://github.com/ErwinHe7/Argus.git
 Set-Location Argus
-git switch agent/axio7-model-review
+git switch main
+git pull
+git switch -c review/model-audit
 ```
 
 Rust：
@@ -67,4 +69,3 @@ ctest --test-dir axio7-model-review/source/quant_core_cpp/build --output-on-fail
 artifact 压缩包包含模型参数、训练 lineage hash 和 analog 训练索引，不包含
 历史行情行。需要做数据级复现时，应通过有权限的 point-in-time 数据源接入同一
 份 normalized record、Rust feature engine 和 frozen inference path。
-
