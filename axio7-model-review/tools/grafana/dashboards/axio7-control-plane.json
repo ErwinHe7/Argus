@@ -1,0 +1,1402 @@
+{
+  "uid": "axio7-control-plane",
+  "title": "AXIO7 控制面",
+  "description": "fail-closed 闸门链优先。这套系统的核心信息不是收益，而是「现在你被允许相信什么」。",
+  "tags": [
+    "axio7",
+    "quant"
+  ],
+  "timezone": "browser",
+  "editable": true,
+  "schemaVersion": 39,
+  "version": 4,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "symbol",
+        "label": "Symbol",
+        "type": "custom",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "query": "SPX,QQQ,NVDA,AAPL,MU,SOXX,NBIS,BE,IGV",
+        "options": []
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "table",
+      "title": "Fail-closed 闸门链 — 第一个 BLOCKED 之后的一切都不可达",
+      "description": "闸门按执行顺序排列。UNREACHABLE 不代表通过，代表上游已经拦住、根本没跑到。",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "/api/v1/system/readiness",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "gates",
+          "columns": [
+            {
+              "selector": "order",
+              "text": "#",
+              "type": "string"
+            },
+            {
+              "selector": "gate",
+              "text": "闸门",
+              "type": "string"
+            },
+            {
+              "selector": "status",
+              "text": "状态",
+              "type": "string"
+            },
+            {
+              "selector": "detail",
+              "text": "说明",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "mappings": []
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "#"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 50
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "闸门"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 260
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "状态"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 150
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "PASS": {
+                        "color": "green",
+                        "index": 0,
+                        "text": "PASS"
+                      },
+                      "BLOCKED": {
+                        "color": "red",
+                        "index": 1,
+                        "text": "BLOCKED"
+                      },
+                      "UNREACHABLE": {
+                        "color": "#6E7B8B",
+                        "index": 2,
+                        "text": "UNREACHABLE"
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "md",
+        "footer": {
+          "show": false,
+          "countRows": false,
+          "reducer": [
+            "sum"
+          ]
+        }
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "#": 0,
+              "闸门": 1,
+              "状态": 2,
+              "说明": 3
+            },
+            "excludeByName": {},
+            "renameByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Universe 模型数",
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 0,
+        "y": 9
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "/api/v1/models",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "models",
+          "columns": [
+            {
+              "selector": "public_symbol",
+              "text": "symbol",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "count"
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "unit": "none"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "已晋升模型",
+      "description": "promotion_status != CANDIDATE_NOT_PROMOTED 的数量。0 意味着这套系统当前没有任何经过晋升的模型。",
+      "gridPos": {
+        "h": 4,
+        "w": 5,
+        "x": 5,
+        "y": 9
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "/api/v1/models",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "models",
+          "columns": [
+            {
+              "selector": "public_symbol",
+              "text": "symbol",
+              "type": "string"
+            },
+            {
+              "selector": "promotion_status",
+              "text": "promotion",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "exclude",
+            "match": "any",
+            "filters": [
+              {
+                "fieldName": "promotion",
+                "config": {
+                  "id": "equal",
+                  "options": {
+                    "value": "CANDIDATE_NOT_PROMOTED"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "promotion": true
+            }
+          }
+        },
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "count"
+            ]
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "none",
+          "noValue": "0"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "概率校准",
+      "gridPos": {
+        "h": 4,
+        "w": 7,
+        "x": 10,
+        "y": 9
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "/api/v1/models",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "models",
+          "columns": [
+            {
+              "selector": "calibration_status",
+              "text": "calibration",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          },
+          "mappings": [],
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      },
+      "transformations": [
+        {
+          "id": "limit",
+          "options": {
+            "limitField": 1
+          }
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "首个阻塞闸门",
+      "gridPos": {
+        "h": 4,
+        "w": 7,
+        "x": 17,
+        "y": 9
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "/api/v1/system/readiness",
+          "url_options": {
+            "method": "GET"
+          },
+          "columns": [
+            {
+              "selector": "first_blocker",
+              "text": "first_blocker",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "orange"
+          },
+          "noValue": "—"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/.*/",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Universe — 9 个冻结候选",
+      "description": "K 全部等于所测最大候选值，selection_warning 对每一个都成立。这不是巧合，是状态数选择规则的结构性结果。",
+      "gridPos": {
+        "h": 11,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "/api/v1/models",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "models",
+          "columns": [
+            {
+              "selector": "public_symbol",
+              "text": "Symbol",
+              "type": "string"
+            },
+            {
+              "selector": "model_symbol",
+              "text": "模型标的",
+              "type": "string"
+            },
+            {
+              "selector": "target_status",
+              "text": "目标口径",
+              "type": "string"
+            },
+            {
+              "selector": "state_count",
+              "text": "K",
+              "type": "number"
+            },
+            {
+              "selector": "state_count_max_tested",
+              "text": "K上界",
+              "type": "number"
+            },
+            {
+              "selector": "promotion_status",
+              "text": "晋升",
+              "type": "string"
+            },
+            {
+              "selector": "calibration_status",
+              "text": "校准",
+              "type": "string"
+            },
+            {
+              "selector": "dominant_regime",
+              "text": "主导状态",
+              "type": "string"
+            },
+            {
+              "selector": "dominant_regime_probability",
+              "text": "后验",
+              "type": "number"
+            },
+            {
+              "selector": "training_cutoff",
+              "text": "训练截止",
+              "type": "string"
+            },
+            {
+              "selector": "model_hash_short",
+              "text": "模型哈希",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "cellOptions": {
+              "type": "auto"
+            }
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "晋升"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "CANDIDATE_NOT_PROMOTED": {
+                        "color": "orange",
+                        "index": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "校准"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "UNAVAILABLE_FAIL_CLOSED": {
+                        "color": "red",
+                        "index": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "后验"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "gauge",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "max",
+                "value": 1
+              },
+              {
+                "id": "min",
+                "value": 0
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "K"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 60
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "K上界"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 80
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "sortBy": [
+          {
+            "displayName": "Symbol",
+            "desc": false
+          }
+        ]
+      },
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "any",
+            "filters": [
+              {
+                "fieldName": "Symbol",
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": "${symbol:regex}"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "Symbol": 0,
+              "模型标的": 1,
+              "目标口径": 2,
+              "K": 3,
+              "K上界": 4,
+              "晋升": 5,
+              "校准": 6,
+              "主导状态": 7,
+              "后验": 8,
+              "训练截止": 9,
+              "模型哈希": 10
+            },
+            "excludeByName": {},
+            "renameByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "预测台账",
+      "description": "每一条都带 no_trade_reasons。RESEARCH_ONLY_NO_TRADE 由 predictor.rs:2193 无条件写入，前端不得过滤。",
+      "gridPos": {
+        "h": 11,
+        "w": 15,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "/api/v1/predictions/current",
+          "url_options": {
+            "method": "GET"
+          },
+          "root_selector": "predictions",
+          "columns": [
+            {
+              "selector": "symbol",
+              "text": "Symbol",
+              "type": "string"
+            },
+            {
+              "selector": "horizon_minutes",
+              "text": "周期(min)",
+              "type": "number"
+            },
+            {
+              "selector": "state",
+              "text": "状态",
+              "type": "string"
+            },
+            {
+              "selector": "win_probability",
+              "text": "胜率(未校准)",
+              "type": "number"
+            },
+            {
+              "selector": "expected_return_bps",
+              "text": "期望(bps)",
+              "type": "number"
+            },
+            {
+              "selector": "uncertainty_bps",
+              "text": "不确定性(bps)",
+              "type": "number"
+            },
+            {
+              "selector": "matures_at",
+              "text": "到期",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "状态"
+            },
+            "properties": [
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "basic"
+                }
+              },
+              {
+                "id": "mappings",
+                "value": [
+                  {
+                    "type": "value",
+                    "options": {
+                      "PENDING": {
+                        "color": "blue",
+                        "index": 0
+                      },
+                      "SETTLED": {
+                        "color": "#6E7B8B",
+                        "index": 1
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "胜率(未校准)"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percentunit"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "期望(bps)"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-text"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "red",
+                      "value": null
+                    },
+                    {
+                      "color": "text",
+                      "value": 0
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "transformations": [
+        {
+          "id": "filterByValue",
+          "options": {
+            "type": "include",
+            "match": "any",
+            "filters": [
+              {
+                "fieldName": "Symbol",
+                "config": {
+                  "id": "regex",
+                  "options": {
+                    "value": "${symbol:regex}"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "indexByName": {
+              "Symbol": 0,
+              "周期(min)": 1,
+              "状态": 2,
+              "胜率(未校准)": 3,
+              "期望(bps)": 4,
+              "不确定性(bps)": 5,
+              "到期": 6
+            },
+            "excludeByName": {},
+            "renameByName": {}
+          }
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "type": "table",
+      "title": "实时接入",
+      "gridPos": {
+        "h": 11,
+        "w": 9,
+        "x": 15,
+        "y": 24
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "type": "json",
+          "source": "url",
+          "format": "table",
+          "parser": "backend",
+          "url": "/api/v1/live/status",
+          "url_options": {
+            "method": "GET"
+          },
+          "columns": [
+            {
+              "selector": "feed",
+              "text": "Feed",
+              "type": "string"
+            },
+            {
+              "selector": "entitlement",
+              "text": "权限",
+              "type": "string"
+            },
+            {
+              "selector": "reason",
+              "text": "原因",
+              "type": "string"
+            },
+            {
+              "selector": "spool_backend",
+              "text": "落盘",
+              "type": "string"
+            },
+            {
+              "selector": "postgres_sink",
+              "text": "PG 落库",
+              "type": "string"
+            },
+            {
+              "selector": "kill_switch",
+              "text": "Kill switch",
+              "type": "string"
+            },
+            {
+              "selector": "paper_running",
+              "text": "Paper",
+              "type": "string"
+            }
+          ]
+        }
+      ],
+      "transformations": [
+        {
+          "id": "transpose",
+          "options": {}
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      }
+    },
+    {
+      "id": 20,
+      "type": "volkovlabs-form-panel",
+      "title": "紧急停止",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "options": {
+        "sync": false,
+        "layout": {
+          "variant": "none",
+          "orientation": "vertical",
+          "padding": 10
+        },
+        "buttonGroup": {
+          "orientation": "center",
+          "size": "md"
+        },
+        "initial": {
+          "method": "-",
+          "contentType": "application/json",
+          "highlight": false
+        },
+        "update": {
+          "method": "POST",
+          "url": "http://127.0.0.1:8001/api/v1/risk/kill",
+          "contentType": "application/json",
+          "payloadMode": "all",
+          "header": [
+            {
+              "name": "x-research-token",
+              "value": "axio7-fixture-token-for-local-gui-demo-0001"
+            }
+          ],
+          "confirm": true
+        },
+        "submit": {
+          "text": "KILL",
+          "variant": "destructive",
+          "icon": "exclamation-triangle",
+          "foregroundColor": "",
+          "backgroundColor": ""
+        },
+        "reset": {
+          "variant": "hidden",
+          "text": "Reset",
+          "icon": "process"
+        },
+        "saveDefault": {
+          "variant": "hidden"
+        },
+        "elements": [
+          {
+            "uid": "reason",
+            "id": "reason",
+            "type": "string",
+            "title": "操作原因",
+            "labelWidth": 8,
+            "width": 24,
+            "tooltip": "随请求体一起 POST，作为审计记录",
+            "value": "",
+            "section": "",
+            "hidden": false,
+            "disabled": false
+          }
+        ],
+        "confirmModal": {
+          "title": "确认执行",
+          "body": "将向 /api/v1/risk/kill 发送 POST。这是一个会改变系统状态的操作。",
+          "columns": {
+            "include": [],
+            "name": "字段",
+            "oldValue": "原值",
+            "newValue": "新值"
+          },
+          "confirm": "执行",
+          "cancel": "取消"
+        }
+      }
+    },
+    {
+      "id": 21,
+      "type": "volkovlabs-form-panel",
+      "title": "解除停止",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 6,
+        "y": 35
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "options": {
+        "sync": false,
+        "layout": {
+          "variant": "none",
+          "orientation": "vertical",
+          "padding": 10
+        },
+        "buttonGroup": {
+          "orientation": "center",
+          "size": "md"
+        },
+        "initial": {
+          "method": "-",
+          "contentType": "application/json",
+          "highlight": false
+        },
+        "update": {
+          "method": "POST",
+          "url": "http://127.0.0.1:8001/api/v1/risk/resume",
+          "contentType": "application/json",
+          "payloadMode": "all",
+          "header": [
+            {
+              "name": "x-research-token",
+              "value": "axio7-fixture-token-for-local-gui-demo-0001"
+            }
+          ],
+          "confirm": true
+        },
+        "submit": {
+          "text": "RESUME",
+          "variant": "secondary",
+          "icon": "play",
+          "foregroundColor": "",
+          "backgroundColor": ""
+        },
+        "reset": {
+          "variant": "hidden",
+          "text": "Reset",
+          "icon": "process"
+        },
+        "saveDefault": {
+          "variant": "hidden"
+        },
+        "elements": [
+          {
+            "uid": "reason",
+            "id": "reason",
+            "type": "string",
+            "title": "操作原因",
+            "labelWidth": 8,
+            "width": 24,
+            "tooltip": "随请求体一起 POST，作为审计记录",
+            "value": "",
+            "section": "",
+            "hidden": false,
+            "disabled": false
+          }
+        ],
+        "confirmModal": {
+          "title": "确认执行",
+          "body": "将向 /api/v1/risk/resume 发送 POST。这是一个会改变系统状态的操作。",
+          "columns": {
+            "include": [],
+            "name": "字段",
+            "oldValue": "原值",
+            "newValue": "新值"
+          },
+          "confirm": "执行",
+          "cancel": "取消"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "type": "volkovlabs-form-panel",
+      "title": "启动 paper",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 12,
+        "y": 35
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "options": {
+        "sync": false,
+        "layout": {
+          "variant": "none",
+          "orientation": "vertical",
+          "padding": 10
+        },
+        "buttonGroup": {
+          "orientation": "center",
+          "size": "md"
+        },
+        "initial": {
+          "method": "-",
+          "contentType": "application/json",
+          "highlight": false
+        },
+        "update": {
+          "method": "POST",
+          "url": "http://127.0.0.1:8001/api/v1/paper/start",
+          "contentType": "application/json",
+          "payloadMode": "all",
+          "header": [
+            {
+              "name": "x-research-token",
+              "value": "axio7-fixture-token-for-local-gui-demo-0001"
+            }
+          ],
+          "confirm": true
+        },
+        "submit": {
+          "text": "PAPER START",
+          "variant": "primary",
+          "icon": "play",
+          "foregroundColor": "",
+          "backgroundColor": ""
+        },
+        "reset": {
+          "variant": "hidden",
+          "text": "Reset",
+          "icon": "process"
+        },
+        "saveDefault": {
+          "variant": "hidden"
+        },
+        "elements": [
+          {
+            "uid": "reason",
+            "id": "reason",
+            "type": "string",
+            "title": "操作原因",
+            "labelWidth": 8,
+            "width": 24,
+            "tooltip": "随请求体一起 POST，作为审计记录",
+            "value": "",
+            "section": "",
+            "hidden": false,
+            "disabled": false
+          }
+        ],
+        "confirmModal": {
+          "title": "确认执行",
+          "body": "将向 /api/v1/paper/start 发送 POST。这是一个会改变系统状态的操作。",
+          "columns": {
+            "include": [],
+            "name": "字段",
+            "oldValue": "原值",
+            "newValue": "新值"
+          },
+          "confirm": "执行",
+          "cancel": "取消"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "type": "volkovlabs-form-panel",
+      "title": "停止 paper",
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 18,
+        "y": 35
+      },
+      "datasource": {
+        "type": "yesoreyeram-infinity-datasource",
+        "uid": "axio7"
+      },
+      "options": {
+        "sync": false,
+        "layout": {
+          "variant": "none",
+          "orientation": "vertical",
+          "padding": 10
+        },
+        "buttonGroup": {
+          "orientation": "center",
+          "size": "md"
+        },
+        "initial": {
+          "method": "-",
+          "contentType": "application/json",
+          "highlight": false
+        },
+        "update": {
+          "method": "POST",
+          "url": "http://127.0.0.1:8001/api/v1/paper/stop",
+          "contentType": "application/json",
+          "payloadMode": "all",
+          "header": [
+            {
+              "name": "x-research-token",
+              "value": "axio7-fixture-token-for-local-gui-demo-0001"
+            }
+          ],
+          "confirm": true
+        },
+        "submit": {
+          "text": "PAPER STOP",
+          "variant": "secondary",
+          "icon": "square-shape",
+          "foregroundColor": "",
+          "backgroundColor": ""
+        },
+        "reset": {
+          "variant": "hidden",
+          "text": "Reset",
+          "icon": "process"
+        },
+        "saveDefault": {
+          "variant": "hidden"
+        },
+        "elements": [
+          {
+            "uid": "reason",
+            "id": "reason",
+            "type": "string",
+            "title": "操作原因",
+            "labelWidth": 8,
+            "width": 24,
+            "tooltip": "随请求体一起 POST，作为审计记录",
+            "value": "",
+            "section": "",
+            "hidden": false,
+            "disabled": false
+          }
+        ],
+        "confirmModal": {
+          "title": "确认执行",
+          "body": "将向 /api/v1/paper/stop 发送 POST。这是一个会改变系统状态的操作。",
+          "columns": {
+            "include": [],
+            "name": "字段",
+            "oldValue": "原值",
+            "newValue": "新值"
+          },
+          "confirm": "执行",
+          "cancel": "取消"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: axio7
+    orgId: 1
+    folder: AXIO7
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: $AXIO7_DASHBOARDS_PATH
+      foldersFromFilesStructure: false

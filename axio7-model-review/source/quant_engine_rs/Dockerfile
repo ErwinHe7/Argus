@@ -19,7 +19,11 @@ COPY --from=builder /build/target/release/quantd /usr/local/bin/quantd
 COPY --from=builder /build/target/release/quantctl /usr/local/bin/quantctl
 COPY --chown=axio:axio configs ./configs
 COPY --chown=axio:axio configs/risk_policy.yaml ./risk_policy.yaml
-COPY --chown=axio:axio data ./data
+# 注意：这里原本有 `COPY --chown=axio:axio data ./data`。
+# `data/` 被 .gitignore 排除，clean clone 里根本不存在，任何从仓库出发的构建
+# 都会在这一行失败。下面的 mkdir 已经创建了运行期需要的全部子目录，
+# 所以这行 COPY 既是多余的也是破坏性的，已移除。
+# 如果确实需要随镜像分发种子数据，请放到一个被显式跟踪的路径（例如 seed/）再 COPY。
 COPY --chown=axio:axio container-entrypoint.sh /usr/local/bin/axio-entrypoint
 
 RUN chmod 0555 /usr/local/bin/quantd /usr/local/bin/quantctl /usr/local/bin/axio-entrypoint \

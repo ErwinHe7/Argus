@@ -1,0 +1,29 @@
+apiVersion: 1
+
+# AXIO7 控制面数据源。
+#
+# 用 Infinity 而不是别的：quantd 的 src/api.rs 没有挂 CorsLayer（tower-http 的
+# cors feature 在 Cargo.toml 里开着但从未使用），所以任何在浏览器里直接发请求的
+# GUI 都会被同源策略拦掉。Infinity 是**服务端拉取**，请求从 Grafana 后端发出，
+# 不经过浏览器，因此不受 CORS 约束。
+#
+# 鉴权与 quantd 一致：x-research-token 头（src/api.rs:91）。
+# 真实部署时把 httpHeaderValue1 换成 INTRADAY_QUANT_TOKEN，
+# 并改用 $__env{} 或 Grafana 的 secret 管理，不要 check-in 明文。
+
+datasources:
+  - name: AXIO7
+    uid: axio7
+    type: yesoreyeram-infinity-datasource
+    access: proxy
+    isDefault: true
+    editable: true
+    url: http://127.0.0.1:8001
+    jsonData:
+      auth_method: none
+      global_queries: []
+      httpHeaderName1: x-research-token
+      allowedHosts:
+        - http://127.0.0.1:8001
+    secureJsonData:
+      httpHeaderValue1: axio7-fixture-token-for-local-gui-demo-0001

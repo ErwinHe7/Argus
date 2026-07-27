@@ -11,10 +11,39 @@ __pycache__/
 .pytest-tmp*/
 node_modules/
 .next/
+
+# ---------------------------------------------------------------------------
+# 运行期数据/产出目录。
+#
+# 警告：下面这些是「按目录名」匹配的规则，它们会匹配仓库里任何层级的同名目录，
+# 包括源码包目录。历史事故：`data/` 吞掉了
+#   quant_engine_rs/src/data/
+#   intraday_quant/src/intraday_quant/data/
+# `reports/` 吞掉了
+#   intraday_quant/src/intraday_quant/reports/
+# 导致交付快照缺少整个数据接入层，Rust 无法编译、Python 无法 collection。
+#
+# git 无法重新包含「被排除目录」内部的文件，只能重新包含目录本身，
+# 所以必须用下面的 `!` 规则把源码树下的同名目录整体放行。
+# 新增任何按目录名匹配的规则时，都要同步在下面加放行规则。
+# ---------------------------------------------------------------------------
 data/
 outputs/
 reports/
 logs/
+
+# 放行：源码树下的同名目录是 Rust/Python 模块，不是数据目录
+!**/src/data/
+!**/src/**/data/
+!**/src/reports/
+!**/src/**/reports/
+!**/src/outputs/
+!**/src/**/outputs/
+!**/src/logs/
+!**/src/**/logs/
+!**/include/data/
+!**/tests/data/
+
 *.db
 *.db-*
 *.sqlite
@@ -22,6 +51,16 @@ logs/
 *.duckdb
 *.parquet
 *.jsonl
+
+# 放行：schema/DDL 不是数据
+!**/schema.sql
+
 *.csv
 !axio7-model-review/review-package/inventory.csv
+# 放行：测试夹具不是数据集
+!**/tests/**/*.csv
+!**/tests/**/*.jsonl
+!**/fixtures/**/*.csv
+!**/fixtures/**/*.jsonl
+
 *.egg-info/
