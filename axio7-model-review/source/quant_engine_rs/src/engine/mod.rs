@@ -10,6 +10,7 @@ pub mod gamma_convexity;
 pub mod gmm;
 pub mod l1_order_flow;
 pub mod labels;
+pub mod model_selection;
 pub mod models;
 pub mod regime;
 pub mod regime_competition;

@@ -475,6 +475,30 @@ impl GaussianHmm {
         })
     }
 
+    /// Expected number of observations assigned to each state across
+    /// `sequences` (sum of the training-only posterior `gamma`, i.e. each
+    /// state's total responsibility mass). A state whose occupancy sits far
+    /// below one observation per free parameter has essentially no data
+    /// support: EM keeps close to its initialization and the fitted
+    /// mean/variance/duration for that state are not meaningfully estimated
+    /// from data, even though the model still reports a validation/BIC
+    /// score as if every state were real. Used to gate state-count selection
+    /// in `engine::model_selection`. Training-only, for the same reason
+    /// `posterior_diagnostics` is training-only -- never call this with
+    /// validation or test sequences.
+    pub fn state_occupancy(&self, sequences: &[Vec<Vec<f64>>]) -> Result<Vec<f64>> {
+        let mut occupancy = vec![0.0; self.states];
+        for sequence in sequences.iter().filter(|sequence| !sequence.is_empty()) {
+            let diagnostics = self.posterior_diagnostics(sequence)?;
+            for row in &diagnostics.gamma {
+                for (state, weight) in row.iter().enumerate() {
+                    occupancy[state] += weight;
+                }
+            }
+        }
+        Ok(occupancy)
+    }
+
     /// Most likely offline state path. Log-space with explicit backpointers.
     pub fn viterbi_path(&self, raw_sequence: &[Vec<f64>]) -> Result<Vec<usize>> {
         let sequence = self.normalize_raw_sequence(raw_sequence)?;
@@ -644,6 +668,7 @@ impl GaussianHmm {
 #[cfg(test)]
 mod tests {
     use super::GaussianHmm;
+    use crate::engine::model_selection;
 
     fn tiny_model() -> GaussianHmm {
         GaussianHmm {
@@ -834,6 +859,125 @@ mod tests {
                 "sequence {sequence:?}: actual {actual} vs reference {expected}"
             );
         }
+    }
+
+    /// Deterministic xorshift32 -- reproducible across runs and platforms,
+    /// but (unlike a small-modulus repeating pattern) has no low-cardinality
+    /// sub-structure that spare HMM states could latch onto for a spurious
+    /// likelihood gain.
+    fn xorshift32(state: &mut u32) -> u32 {
+        let mut x = *state;
+        x ^= x << 13;
+        x ^= x >> 17;
+        x ^= x << 5;
+        *state = x;
+        x
+    }
+
+    fn unit_jitter(seed: u32) -> f64 {
+        let mut state = seed.wrapping_mul(2_654_435_761).max(1);
+        (xorshift32(&mut state) as f64 / u32::MAX as f64) * 2.0 - 1.0
+    }
+
+    /// `sessions` sequences of `steps_per_session` observations, cycling
+    /// through three well-separated 2D clusters (true regime count = 3) with
+    /// bounded jitter around each cluster center. No exploitable
+    /// sub-structure beyond the three clusters themselves.
+    fn three_regime_sequences(sessions: usize, steps_per_session: usize) -> Vec<Vec<Vec<f64>>> {
+        let centers = [(-6.0_f64, -6.0_f64), (0.0, 0.0), (6.0, 6.0)];
+        let regime_len = steps_per_session / 3;
+        (0..sessions)
+            .map(|session| {
+                (0..steps_per_session)
+                    .map(|step| {
+                        let regime = (step / regime_len).min(2);
+                        let (cx, cy) = centers[regime];
+                        let seed = (session as u32) * 977 + (step as u32) * 31 + 17;
+                        let jx = unit_jitter(seed) * 0.6;
+                        let jy = unit_jitter(seed.wrapping_add(1)) * 0.6;
+                        vec![cx + jx, cy + jy]
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// Direct demonstration of M2 (state-count selection saturating at the
+    /// candidate grid ceiling): 8 sessions of 21 observations cycling through
+    /// 3 well-separated true regimes, split 6 train / 2 validation, swept
+    /// over a *wide* K=2..=10 grid.
+    ///
+    /// Without an occupancy floor (`minimum_occupancy` reported as
+    /// effectively infinite for every candidate, reproducing the pre-fix
+    /// bare-argmax comparator), validation log-likelihood is not monotone
+    /// enough on this finite sample to reliably pick the true K by itself --
+    /// selection saturates at the grid ceiling, K=10, exactly the
+    /// `BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K` failure mode every
+    /// shipped `universe/*.frozen.json` candidate hit. With the real
+    /// occupancy floor (`MINIMUM_STATE_OCCUPANCY`), the same fitted
+    /// candidates -- same data, same criteria, only the occupancy gate
+    /// differs -- correctly land on an interior optimum at K=3, the true
+    /// number of regimes: states beyond 3 have nowhere real to go and their
+    /// occupancy collapses below the floor before the grid ceiling is
+    /// reached.
+    #[test]
+    fn occupancy_floor_finds_the_true_regime_count_instead_of_saturating_at_the_grid_ceiling() {
+        let sequences = three_regime_sequences(8, 21);
+        let (train, validation) = sequences.split_at(6);
+        let candidates: [usize; 9] = [2, 3, 4, 5, 6, 7, 8, 9, 10];
+        let iterations = 30;
+        let restarts = 3;
+
+        let fitted = candidates
+            .iter()
+            .filter_map(|&k| {
+                GaussianHmm::fit(train, k, iterations, restarts)
+                    .ok()
+                    .map(|m| (k, m))
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            fitted.len(),
+            candidates.len(),
+            "every candidate K should fit on this data"
+        );
+
+        let occupancy_gated = fitted
+            .iter()
+            .map(|(k, model)| model_selection::SelectionCandidate {
+                id: *k,
+                criterion: model.average_log_likelihood(validation).ok(),
+                minimum_occupancy: model
+                    .state_occupancy(train)
+                    .ok()
+                    .and_then(|occupancy| occupancy.into_iter().reduce(f64::min)),
+            })
+            .collect::<Vec<_>>();
+        let gated = model_selection::select_best(
+            &occupancy_gated,
+            model_selection::MINIMUM_STATE_OCCUPANCY,
+        );
+        assert_eq!(
+            gated,
+            Some(3),
+            "occupancy-gated selection should land on the true regime count"
+        );
+
+        let occupancy_disabled = fitted
+            .iter()
+            .map(|(k, model)| model_selection::SelectionCandidate {
+                id: *k,
+                criterion: model.average_log_likelihood(validation).ok(),
+                minimum_occupancy: Some(f64::INFINITY),
+            })
+            .collect::<Vec<_>>();
+        let ungated = model_selection::select_best(&occupancy_disabled, 0.0);
+        assert_eq!(
+            ungated,
+            Some(*candidates.last().unwrap()),
+            "sanity check: the pre-fix bare-argmax comparator should reproduce the known \
+             saturate-at-the-grid-ceiling failure mode on this exact data"
+        );
     }
 
     /// Regression test for the emission-clamping bug: `emission()` used to

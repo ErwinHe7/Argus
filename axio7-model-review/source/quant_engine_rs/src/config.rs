@@ -329,7 +329,18 @@ pub struct RegimeResearchConfig {
 impl Default for RegimeResearchConfig {
     fn default() -> Self {
         Self {
-            state_candidates: (2..=10).collect(),
+            // Widened from 2..=10 to 2..=12 -- the full range `GaussianHmm::fit`
+            // already permits and config validation already requires staying
+            // within. Every shipped candidate previously saturated at the top
+            // of whatever grid it was given
+            // (BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K); stopping two
+            // states short of the model's own hard cap made that impossible to
+            // tell apart from "the grid just wasn't wide enough yet". Selection
+            // now also requires MINIMUM_STATE_OCCUPANCY per state
+            // (engine::model_selection), which is what actually creates an
+            // interior optimum -- widening the grid alone would just move the
+            // saturation point.
+            state_candidates: (2..=12).collect(),
             validation_fraction: 0.20,
             minimum_validation_sessions: 5,
             max_iterations: 40,

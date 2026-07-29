@@ -23,6 +23,7 @@ use crate::{
             GammaConvexityFeedbackRisk, GammaConvexityRequest, gamma_convexity_feedback_risk,
         },
         labels,
+        model_selection::{self, SelectionCandidate},
         regime::GaussianHmm,
         short_horizon::{
             CausalMomentumObservation, CausalRegimeInterval, HorizonDistributionForecast,
@@ -846,7 +847,7 @@ fn select_hmm_model(
         &[][..]
     };
     let mut scores = Vec::new();
-    let mut selected: Option<(usize, f64)> = None;
+    let mut candidates = Vec::new();
     for state_count in &config.state_candidates {
         let result = GaussianHmm::fit(
             fit_sequences,
@@ -862,16 +863,15 @@ fn select_hmm_model(
                     None
                 };
                 let criterion = validation_score.unwrap_or(-model.bic);
-                let replace = selected
-                    .as_ref()
-                    .is_none_or(|(current_states, current_score)| {
-                        criterion > *current_score + 1.0e-12
-                            || ((criterion - *current_score).abs() <= 1.0e-12
-                                && *state_count < *current_states)
-                    });
-                if replace {
-                    selected = Some((*state_count, criterion));
-                }
+                let minimum_occupancy = model
+                    .state_occupancy(fit_sequences)
+                    .ok()
+                    .and_then(|occupancy| occupancy.into_iter().reduce(f64::min));
+                candidates.push(SelectionCandidate {
+                    id: *state_count,
+                    criterion: Some(criterion),
+                    minimum_occupancy,
+                });
                 scores.push(RegimeCandidateScore {
                     state_count: *state_count,
                     training_bic: model.bic.is_finite().then_some(model.bic),
@@ -893,9 +893,12 @@ fn select_hmm_model(
             }),
         }
     }
-    let selected_state_count = selected
-        .map(|(states, _)| states)
-        .context("no HMM state-count candidate produced a finite model")?;
+    let selected_state_count =
+        model_selection::select_best(&candidates, model_selection::MINIMUM_STATE_OCCUPANCY)
+            .context(
+                "no HMM state-count candidate produced a finite model and cleared the \
+                 per-state occupancy floor",
+            )?;
     let model = GaussianHmm::fit(
         train,
         selected_state_count,
