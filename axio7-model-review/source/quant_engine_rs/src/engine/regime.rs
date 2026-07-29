@@ -211,27 +211,65 @@ impl GaussianHmm {
         }
     }
 
-    fn emission(&self, observation: &[f64], state: usize) -> f64 {
-        let log_probability = (0..self.dimensions)
-            .map(|column| {
-                let variance = self.variances[state][column].max(VARIANCE_FLOOR);
-                -0.5 * ((2.0 * std::f64::consts::PI * variance).ln()
-                    + (observation[column] - self.means[state][column]).powi(2) / variance)
+    /// True (unshifted) log-density of `observation` under every state.
+    /// Never clamped: with `VARIANCE_FLOOR` bounding variance away from zero
+    /// and observations required finite, this is always a finite number, so
+    /// there is nothing to floor here. Emission *probabilities* are a
+    /// different story -- see `emission_row`.
+    fn log_densities(&self, observation: &[f64]) -> Vec<f64> {
+        (0..self.states)
+            .map(|state| {
+                (0..self.dimensions)
+                    .map(|column| {
+                        let variance = self.variances[state][column].max(VARIANCE_FLOOR);
+                        -0.5 * ((2.0 * std::f64::consts::PI * variance).ln()
+                            + (observation[column] - self.means[state][column]).powi(2) / variance)
+                    })
+                    .sum::<f64>()
             })
-            .sum::<f64>();
-        log_probability.exp().max(PROBABILITY_FLOOR)
+            .collect()
+    }
+
+    /// Per-timestep emission row for the scaled forward-backward recursion.
+    ///
+    /// Returns `(row, offset)` where `row[state] = exp(log_densities[state] -
+    /// offset)` and `offset = max(log_densities)`. Shifting by the per-step
+    /// max keeps the best-fitting state's emission at exactly 1.0 and
+    /// preserves every other state's *relative* likelihood down to the true
+    /// f64 underflow floor.
+    ///
+    /// The previous implementation exponentiated `log_densities` directly and
+    /// clamped the result to `PROBABILITY_FLOOR` (1e-300). That floor is only
+    /// ~0.19 sigma per dimension away from the mean in 4 dimensions, so any
+    /// observation even mildly off from a state's mean collapsed to the same
+    /// emission value as a wildly implausible one -- destroying the
+    /// likelihood signal that `best_hmm`-style state-count selection depends
+    /// on (see `regime_competition::best_hmm`). The max-shift here never
+    /// discards information: it is an exact per-timestep rescaling that
+    /// `normalize` (which already renormalizes every alpha/beta row) and the
+    /// `offset` bookkeeping in `forward_backward` fully absorb.
+    fn emission_row(&self, observation: &[f64]) -> (Vec<f64>, f64) {
+        let log_densities = self.log_densities(observation);
+        let offset = log_densities
+            .iter()
+            .copied()
+            .fold(f64::NEG_INFINITY, f64::max);
+        let row = log_densities
+            .iter()
+            .map(|value| (value - offset).exp())
+            .collect();
+        (row, offset)
     }
 
     fn forward_backward(&self, sequence: &[Vec<f64>]) -> ForwardBackward {
         let length = sequence.len();
-        let emissions = sequence
-            .iter()
-            .map(|observation| {
-                (0..self.states)
-                    .map(|state| self.emission(observation, state))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>();
+        let mut emissions = Vec::with_capacity(length);
+        let mut log_offsets = Vec::with_capacity(length);
+        for observation in sequence {
+            let (row, offset) = self.emission_row(observation);
+            emissions.push(row);
+            log_offsets.push(offset);
+        }
         let mut alpha = vec![vec![0.0; self.states]; length];
         let mut scales = vec![0.0; length];
         for state in 0..self.states {
@@ -262,7 +300,16 @@ impl GaussianHmm {
             alpha,
             beta,
             emissions,
-            log_likelihood: scales.iter().map(|value| value.ln()).sum(),
+            // Each timestep's emission row was shifted down by `log_offsets[t]`
+            // before entering the linear-space recursion, so `scales[t]` is
+            // exp(-log_offsets[t]) times the true scale factor. Add the offset
+            // back in log-space to recover the true sequence log-likelihood --
+            // this is the number `best_hmm` and friends compare across K.
+            log_likelihood: scales
+                .iter()
+                .zip(log_offsets.iter())
+                .map(|(scale, offset)| scale.ln() + offset)
+                .sum(),
             scales,
         }
     }
@@ -434,11 +481,16 @@ impl GaussianHmm {
         let length = sequence.len();
         let mut score = vec![vec![f64::NEG_INFINITY; self.states]; length];
         let mut back = vec![vec![0_usize; self.states]; length];
+        // Viterbi accumulates log-emissions additively across the whole path,
+        // so it needs the true (unshifted) log-density -- not the per-timestep
+        // max-relative row `forward_backward` uses, whose absolute scale is
+        // only meaningful within a single timestep.
+        let first_log_densities = self.log_densities(&sequence[0]);
         for (state, value) in score[0].iter_mut().enumerate() {
-            *value = self.initial[state].max(PROBABILITY_FLOOR).ln()
-                + self.emission(&sequence[0], state).ln();
+            *value = self.initial[state].max(PROBABILITY_FLOOR).ln() + first_log_densities[state];
         }
         for time in 1..length {
+            let log_densities = self.log_densities(&sequence[time]);
             for to in 0..self.states {
                 let (from, best) = (0..self.states)
                     .map(|from| {
@@ -450,7 +502,7 @@ impl GaussianHmm {
                     })
                     .max_by(|left, right| left.1.total_cmp(&right.1))
                     .expect("HMM has states");
-                score[time][to] = best + self.emission(&sequence[time], to).ln();
+                score[time][to] = best + log_densities[to];
                 back[time][to] = from;
             }
         }
@@ -721,6 +773,103 @@ mod tests {
             first
                 .horizon_state_probabilities(&[0.25, 0.75], 2, true)
                 .is_err()
+        );
+    }
+
+    /// Independent log-space forward algorithm, written fresh (no shared code
+    /// with `GaussianHmm::forward_backward`) as an oracle for
+    /// `sequence_log_likelihood`. Uses a textbook logsumexp, not the
+    /// production scaled-linear recursion, so agreement between the two is a
+    /// real cross-check rather than the same bug reflected twice.
+    fn reference_log_likelihood(model: &GaussianHmm, sequence: &[Vec<f64>]) -> f64 {
+        fn log_density(model: &GaussianHmm, observation: &[f64], state: usize) -> f64 {
+            (0..model.dimensions)
+                .map(|column| {
+                    let variance = model.variances[state][column];
+                    -0.5 * ((2.0 * std::f64::consts::PI * variance).ln()
+                        + (observation[column] - model.means[state][column]).powi(2) / variance)
+                })
+                .sum()
+        }
+        fn log_sum_exp(values: &[f64]) -> f64 {
+            let max = values.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+            if !max.is_finite() {
+                return max;
+            }
+            max + values
+                .iter()
+                .map(|value| (value - max).exp())
+                .sum::<f64>()
+                .ln()
+        }
+        let mut log_alpha = (0..model.states)
+            .map(|state| model.initial[state].ln() + log_density(model, &sequence[0], state))
+            .collect::<Vec<_>>();
+        for observation in &sequence[1..] {
+            log_alpha = (0..model.states)
+                .map(|to| {
+                    let incoming = (0..model.states)
+                        .map(|from| log_alpha[from] + model.transition[from][to].ln())
+                        .collect::<Vec<_>>();
+                    log_sum_exp(&incoming) + log_density(model, observation, to)
+                })
+                .collect();
+        }
+        log_sum_exp(&log_alpha)
+    }
+
+    #[test]
+    fn sequence_log_likelihood_matches_independent_logsumexp_reference() {
+        let model = tiny_model();
+        for sequence in [
+            vec![vec![-0.8], vec![0.9], vec![1.1]],
+            vec![vec![-1.0]],
+            vec![vec![0.0], vec![0.0], vec![0.0], vec![0.0]],
+            vec![vec![-3.0], vec![3.0], vec![-3.0], vec![3.0], vec![0.1]],
+        ] {
+            let actual = model.sequence_log_likelihood(&sequence).unwrap();
+            let expected = reference_log_likelihood(&model, &sequence);
+            assert!(
+                (actual - expected).abs() < 1e-9,
+                "sequence {sequence:?}: actual {actual} vs reference {expected}"
+            );
+        }
+    }
+
+    /// Regression test for the emission-clamping bug: `emission()` used to
+    /// exponentiate the log-density and clamp the result to
+    /// `PROBABILITY_FLOOR` (1e-300, i.e. any log-density below
+    /// `ln(1e-300) ≈ -690.776` read back as exactly -690.776). An observation
+    /// far from *every* state's mean therefore always scored the same
+    /// regardless of how far off it actually was, and forced `normalize`'s
+    /// uniform-reset fallback (since both emissions were pinned to the same
+    /// floor value, their sum sits right at `PROBABILITY_FLOOR` too).
+    ///
+    /// With `tiny_model()` (states at -1.0/+1.0, variance 0.5) and a single
+    /// observation at x = 50.0, the true log-densities are approximately
+    /// -2601.2 (state 0) and -2401.2 (state 1) -- both far below the old
+    /// clamp threshold. The correctly computed sequence log-likelihood is
+    /// therefore close to -2402.1 (dominated by the less-implausible state,
+    /// per the reference logsumexp), not the old code's forced -690.776.
+    #[test]
+    fn emission_no_longer_collapses_extreme_observations_to_a_shared_floor() {
+        let model = tiny_model();
+        let sequence = vec![vec![50.0]];
+        let actual = model.sequence_log_likelihood(&sequence).unwrap();
+        let expected = reference_log_likelihood(&model, &sequence);
+        assert!(
+            (actual - expected).abs() < 1e-6,
+            "actual {actual} vs reference {expected}"
+        );
+        // The old clamp forced exactly ln(PROBABILITY_FLOOR) = -690.775...
+        // regardless of how extreme the observation was. The true value here
+        // is over 1700 nats more negative -- if this assertion ever starts
+        // failing because `actual` drifts back up near -690.78, the clamp
+        // regressed.
+        assert!(
+            actual < -2000.0,
+            "expected the true (very negative) log-likelihood, got {actual} \
+             -- looks like it collapsed back to the old PROBABILITY_FLOOR clamp"
         );
     }
 }
