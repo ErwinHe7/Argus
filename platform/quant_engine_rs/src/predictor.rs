@@ -3281,7 +3281,7 @@ mod tests {
                     state_at(
                         start + Duration::minutes(minute as i64),
                         session_date,
-                        390 - minute as i32,
+                        390 - minute,
                         minute as f64 * 0.01,
                     )
                 })

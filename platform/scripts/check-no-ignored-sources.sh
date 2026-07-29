@@ -2,7 +2,21 @@
 set -euo pipefail
 
 repository_root="$(git rev-parse --show-toplevel)"
-cd "$repository_root"
+repository_root="$(cd "$repository_root" && pwd -P)"
+script_path="${BASH_SOURCE[0]}"
+script_directory="${script_path%/*}"
+if [[ "$script_directory" == "$script_path" ]]; then
+  script_directory="."
+fi
+application_root="$(cd "$script_directory/.." && pwd)"
+case "$application_root" in
+  "$repository_root" | "$repository_root"/*) ;;
+  *)
+    printf 'Application root is outside the Git checkout: %s\n' "$application_root" >&2
+    exit 1
+    ;;
+esac
+cd "$application_root"
 
 protected_paths=(
   ".github/workflows"
