@@ -2535,3 +2535,29 @@ first canonical cutover and retain its mode-`0700`, access-controlled,
 encrypted-at-rest bundle and recovery image tags until rollback is verified.
 All automatic-execution gates remain false; this bridge adds no broker route or
 order authorization.
+
+## 2026-07-29Z Argus canonical repository transfer and worker partition fix
+
+- `ErwinHe7/Argus` is now the canonical collaboration repository. The complete
+  current product was added under `platform/` on
+  `codex/live-model-integration` at transfer commit `9dc7d24`; the prior
+  data-free review snapshot remains preserved separately under
+  `axio7-model-review/`.
+- Transfer integrity matched all 739 source files byte-for-byte before Git
+  normalization. The committed bundle contains exactly nine frozen
+  exact-symbol candidates plus the registry. Real environment files,
+  credentials, private rights/technical receipts, raw and normalized market
+  data, databases, build trees, and runtime state were excluded.
+- The live exact-nine scheduler previously selected a worker bound of four but
+  split nine jobs into three equal chunks. It now partitions the jobs as
+  `3/2/2/2`, creating every selected worker while preserving the four-worker
+  ceiling and disjoint mutable ownership.
+- The partition regression tests pass, `cargo fmt --check` passes, and
+  `cargo clippy --lib -- -D warnings` passes. The transferred web application
+  passes typecheck, 50 contract tests, and a production Next.js build.
+
+This records source transfer and offline validation only. No production
+container, DNS record, secret, live data feed, model promotion, customer
+traffic, or broker execution state was changed. The real server must still
+pass the documented exact-nine readiness and release-acceptance gates before
+cutover; automatic execution remains disabled.

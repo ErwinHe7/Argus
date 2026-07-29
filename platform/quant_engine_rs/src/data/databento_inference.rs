@@ -57,6 +57,23 @@ fn bounded_worker_count(job_count: usize, available_parallelism: usize) -> usize
     job_count.min(available_parallelism.max(1)).clamp(1, 4)
 }
 
+fn bounded_worker_partition_sizes(job_count: usize, worker_count: usize) -> Vec<usize> {
+    if job_count == 0 {
+        return Vec::new();
+    }
+    let worker_count = worker_count.clamp(1, job_count);
+    let mut remaining_jobs = job_count;
+    let mut sizes = Vec::with_capacity(worker_count);
+    for worker_index in 0..worker_count {
+        let remaining_workers = worker_count - worker_index;
+        let size = remaining_jobs.div_ceil(remaining_workers);
+        sizes.push(size);
+        remaining_jobs -= size;
+    }
+    debug_assert_eq!(remaining_jobs, 0);
+    sizes
+}
+
 fn validate_atomic_target_bundle(
     bundle: &ForecastBundle,
     target: &str,
@@ -2165,9 +2182,12 @@ impl Runtime {
                 .map(std::num::NonZeroUsize::get)
                 .unwrap_or(1),
         );
-        let chunk_size = work.len().div_ceil(worker_count);
+        let partition_sizes = bounded_worker_partition_sizes(work.len(), worker_count);
         std::thread::scope(|scope| {
-            for chunk in work.chunks_mut(chunk_size) {
+            let mut remaining_work = work.as_mut_slice();
+            for partition_size in partition_sizes {
+                let (chunk, rest) = remaining_work.split_at_mut(partition_size);
+                remaining_work = rest;
                 scope.spawn(move || {
                     for item in chunk {
                         let started = Instant::now();
@@ -3676,6 +3696,14 @@ mod tests {
         assert_eq!(bounded_worker_count(9, 2), 2);
         assert_eq!(bounded_worker_count(1, 64), 1);
         assert_eq!(bounded_worker_count(0, 0), 1);
+    }
+
+    #[test]
+    fn bounded_scheduler_uses_every_selected_worker() {
+        assert_eq!(bounded_worker_partition_sizes(9, 4), vec![3, 2, 2, 2]);
+        assert_eq!(bounded_worker_partition_sizes(9, 2), vec![5, 4]);
+        assert_eq!(bounded_worker_partition_sizes(3, 4), vec![1, 1, 1]);
+        assert!(bounded_worker_partition_sizes(0, 4).is_empty());
     }
 
     #[test]
