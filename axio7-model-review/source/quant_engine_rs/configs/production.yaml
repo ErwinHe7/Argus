@@ -263,6 +263,19 @@ data:
         symbols: [SPY, QQQ, NVDA, AAPL, MU, SOXX, NBIS, BE, IGV, IWM, HYG, TLT, UUP, VXX]
         start: "2023-03-28T00:00:00Z"
         end: "2026-07-19T00:00:00Z"
+      # Scoped-down subset of context_etf_ohlcv_1m for the M7 remediation
+      # backtest: context_etf_ohlcv_1m's own cost estimate (3+ years x 14
+      # symbols) timed out against Databento's metadata API (504) rather
+      # than pricing cleanly, so this starts with just the primary target
+      # over 12 months -- still enough sessions for several purged
+      # walk-forward folds at the default train=30/validation=10/test=10.
+      - name: spy_ohlcv_1m_backtest
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY]
+        start: "2026-06-19T00:00:00Z"
+        end: "2026-07-19T00:00:00Z"
   cboe:
     licensed_csv_root: data/import/cboe
     spx_index_history_from: "2004-01-01"
