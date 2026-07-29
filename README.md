@@ -4,15 +4,34 @@ This repository currently contains a focused, data-free AXIO7 model and
 real-time inference review snapshot. It is intended for an external engineer to
 inspect and modify from the populated default `main` branch.
 
-**Before anything else, read `HANDOFF.zh-CN.md`.** The snapshot that landed on
-`main` does not build: `.gitignore` directory-name rules silently excluded three
-source packages. The build is fixed, but the excluded implementations are still
-missing and are currently stood in for by `unimplemented!()` stubs that must be
-deleted as whole directories before the real code is restored.
+**Before anything else, read `HANDOFF.zh-CN.md`.** It tracks which known build
+and numerics issues are fixed on which branch, and what is still stubbed out
+pending the real `src/data/` implementation landing on `main`.
 
 Start with `REVIEWER_START_HERE.zh-CN.md`, then use
 `MODEL_SOURCE_MAP.zh-CN.md` to jump from every listed algorithm to its
 implementation.
+
+## Model stack at a glance
+
+**This is not an HMM-only repository.** The four primary statistical
+components are visibly indexed as:
+
+1. **HMM / Baum–Welch / causal regime filter**
+2. **12D high-dimensional same-regime kernel regression**
+3. **Markov-switching stochastic differential equation**
+4. **VWAP-residual Ornstein–Uhlenbeck model**
+
+Neural challengers, calibration, classical challengers, and research models are
+also included.
+
+Start with
+[`00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md`](00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md)
+or open [`MODEL_COMPONENTS/`](MODEL_COMPONENTS/) to see one plainly named
+directory per model family. Then use
+[`MODEL_SOURCE_MAP.zh-CN.md`](MODEL_SOURCE_MAP.zh-CN.md) for the complete
+algorithm-to-source map. The current-source completeness receipt is
+[`axio7-model-review/CURRENT_SOURCE_SYNC.md`](axio7-model-review/CURRENT_SOURCE_SYNC.md).
 
 ## What is included
 
@@ -29,8 +48,10 @@ implementation.
   `axio7-model-review/reference-docs/`
 - Sanitized universe registry and artifact summary:
   `axio7-model-review/artifact-metadata/`
-- A verified ZIP containing nine exact-symbol unpromoted candidate artifacts
-  plus the legacy comparison artifact:
+- Nine exact-symbol unpromoted candidate artifacts plus the legacy comparison
+  artifact at their directly loadable runtime paths:
+  `axio7-model-review/source/quant_engine_rs/data/models/`
+- The same 12 JSON files in a verified portable archive:
   `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`
 
 ## What is deliberately excluded
@@ -90,8 +111,8 @@ cargo clippy --all-targets -- -D warnings
 cargo test
 ```
 
-The source snapshot passed 286 Rust library tests, 8 CLI tests, and 12
-integration tests on 2026-07-26.
+The current snapshot passed 296 Rust library tests, 8 CLI tests, and 12
+integration tests (316 total) on 2026-07-26.
 
 From `axio7-model-review/source/intraday_quant/`:
 

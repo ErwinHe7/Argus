@@ -1,5 +1,13 @@
 # AXIO7 模型、算法与源码总表
 
+> **AXIO7 不是只有 HMM。**
+>
+> 最明显的入口是
+> [`00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md`](00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md)
+> 和 [`MODEL_COMPONENTS/`](MODEL_COMPONENTS/)；其中以清晰目录名分别展示
+> HMM、12D 高维核回归、Markov-switching SDE、VWAP residual OU、神经
+> challenger、校准与研究模型。
+
 下面的路径都相对于 Argus 仓库根目录。表中“已实现”表示存在可审查源码，不表示
 已经通过生产晋升、校准或实时数据 readiness。
 
@@ -61,9 +69,8 @@ artifact 都选到了当前搜索边界 `K=8`，而且没有匹配的已晋升�
 | Native research | C++20、CMake、SQLite、OpenSSL |
 | Web/orchestration | Next.js 14、React 18、TypeScript、Zod、Supabase、Redis |
 | 历史数据接口 | SQLite、PostgreSQL、Parquet；本仓库不包含历史观测 |
-| 实时数据接口 | Massive、Moomoo；Databento live adapter 尚未完整接通 |
+| 实时数据接口 | Massive/Moomoo；Databento Rust live adapter 已实现但当前无 live license；IBKR relay 仅 quote-only |
 
 历史 replay 与实时流的目标是共同进入 normalized point-in-time record、Rust
 causal feature engine 和同一 frozen inference path。不能把几百行历史数据
 硬编码或粘贴进模型源码。
-

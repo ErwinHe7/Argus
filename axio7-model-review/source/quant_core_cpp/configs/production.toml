@@ -1,0 +1,35 @@
+[system]
+mode = "paper"
+kill_switch_default = true
+random_seed = 7
+target = "SPY"
+context_symbols = ["QQQ", "IWM"]
+
+[data]
+primary_historical = "massive_consolidated_aggregates"
+live_equity_bbo = "nasdaq_qbbo"
+nasdaq_scope = "NASDAQ_BBO_NOT_NBBO"
+nasdaq_capture_env = "NASDAQ_TOTALVIEW_WS_URL"
+opra_enabled = false
+
+[validation]
+train_days = 252
+validation_days = 63
+test_days = 63
+purge_minutes = 60
+embargo_minutes = 60
+frozen_future_required = true
+
+[decision]
+horizons_minutes = [1, 5, 15, 30]
+round_trip_cost_bps = 1.5
+minimum_effective_sample = 20.0
+minimum_lower_confidence_bound = 0.0
+max_trades_per_day = 2
+
+[risk]
+max_daily_loss = 0.01
+max_position = 1000.0
+max_spread_bps = 5.0
+stale_quote_seconds = 5
+cooldown_minutes = 30

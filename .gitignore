@@ -64,3 +64,18 @@ logs/
 !**/fixtures/**/*.jsonl
 
 *.egg-info/
+# AXIO7 model-source directories whose names overlap generated-output rules.
+!axio7-model-review/source/quant_engine_rs/src/data/
+!axio7-model-review/source/quant_engine_rs/src/data/*.rs
+# Frozen model artifacts required by repository-level runtime tests.
+!axio7-model-review/source/quant_engine_rs/data/
+!axio7-model-review/source/quant_engine_rs/data/models/
+!axio7-model-review/source/quant_engine_rs/data/models/universe/
+!axio7-model-review/source/quant_engine_rs/data/models/universe/*.json
+!axio7-model-review/source/quant_engine_rs/data/models/frozen_predictor_latest.json
+!axio7-model-review/source/quant_engine_rs/data/models/predictor_candidate_latest.json
+!axio7-model-review/source/intraday_quant/src/intraday_quant/reports/
+!axio7-model-review/source/intraday_quant/src/intraday_quant/reports/*.py
+# Re-apply generated Python exclusions after the directory allow-list above.
+**/__pycache__/
+*.py[cod]

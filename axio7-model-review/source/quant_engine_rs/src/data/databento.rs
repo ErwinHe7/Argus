@@ -1,42 +1,146 @@
-//! STUB — 见 `src/data/mod.rs`。
-//!
-//! 推断依据：`src/api.rs:4249` 的 `api_opra_request` 返回
-//! `crate::config::DataRequest`，其结果在 `src/api.rs:4295` 传给
-//! `estimate_cost(&query).await.map_err(ApiError::internal)?`，
-//! 返回值随后被 `json!` 直接嵌入 → async + `Result<T: Serialize>`。
+use std::{fs, path::Path};
 
-use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use anyhow::{Context, Result, bail};
+use chrono::Utc;
+use databento::{
+    HistoricalClient,
+    dbn::{SType, Schema},
+    historical::{
+        metadata::{GetBillableSizeParams, GetCostParams, GetRecordCountParams},
+        timeseries::GetRangeParams,
+    },
+};
+use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
-use crate::config::DataRequest;
+use crate::{
+    config::{DataConfig, DataRequest},
+    data::{
+        CostEstimate, DownloadReceipt,
+        manifest::{DataManifest, sha256_file, write_manifest},
+        request_output_path,
+    },
+};
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct CostEstimate {
-    pub estimated_records: Option<u64>,
-    pub estimated_bytes: Option<u64>,
-    pub estimated_vendor_charge_usd: Option<f64>,
-    pub estimated_cost_usd: f64,
+fn request_parts(request: &DataRequest) -> Result<(Schema, SType, OffsetDateTime, OffsetDateTime)> {
+    let schema: Schema = request
+        .schema
+        .parse()
+        .with_context(|| format!("unsupported DBN schema {}", request.schema))?;
+    let stype: SType = request
+        .stype_in
+        .parse()
+        .with_context(|| format!("unsupported Databento stype {}", request.stype_in))?;
+    let start = OffsetDateTime::parse(&request.start, &Rfc3339)
+        .with_context(|| format!("invalid start {}", request.start))?;
+    let end = OffsetDateTime::parse(&request.end, &Rfc3339)
+        .with_context(|| format!("invalid end {}", request.end))?;
+    Ok((schema, stype, start, end))
 }
 
-pub async fn estimate_cost(_query: &DataRequest) -> Result<CostEstimate> {
-    unimplemented!("stub: crate::data::databento::estimate_cost —— 原模块被 .gitignore 排除")
-}
-
-/// 依据：`src/bin/quantctl.rs:1591` 与 `1628`
-/// `databento::download(&config.data, request, confirm_cost, maximum_cost_usd).await?`。
-/// 第二参数在 1628 处来自 `find_request()`，其返回类型是 `&DataRequest`
-/// （`quantctl.rs:1263-1266`）。
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct DownloadReceipt {
-    pub path: String,
-    pub bytes: u64,
+pub async fn estimate_cost(request: &DataRequest) -> Result<CostEstimate> {
+    let (schema, stype, start, end) = request_parts(request)?;
+    let mut client = HistoricalClient::builder().key_from_env()?.build()?;
+    let count_params = GetRecordCountParams::builder()
+        .dataset(&request.dataset)
+        .symbols(request.symbols.clone())
+        .schema(schema)
+        .date_time_range(start..end)
+        .stype_in(stype)
+        .build();
+    let size_params = GetBillableSizeParams::builder()
+        .dataset(&request.dataset)
+        .symbols(request.symbols.clone())
+        .schema(schema)
+        .date_time_range(start..end)
+        .stype_in(stype)
+        .build();
+    let cost_params = GetCostParams::builder()
+        .dataset(&request.dataset)
+        .symbols(request.symbols.clone())
+        .schema(schema)
+        .date_time_range(start..end)
+        .stype_in(stype)
+        .build();
+    let estimated_records = client.metadata().get_record_count(&count_params).await?;
+    let estimated_bytes = client.metadata().get_billable_size(&size_params).await?;
+    let estimated_cost_usd = client.metadata().get_cost(&cost_params).await?;
+    Ok(CostEstimate {
+        request_name: request.name.clone(),
+        dataset: request.dataset.clone(),
+        schema: request.schema.clone(),
+        symbols: request.symbols.clone(),
+        start: request.start.clone(),
+        end: request.end.clone(),
+        estimated_records,
+        estimated_bytes,
+        estimated_cost_usd,
+        warning: "Estimate only. No data is downloaded or purchased without explicit confirmation and a maximum cost cap.".to_string(),
+    })
 }
 
 pub async fn download(
-    _config: &crate::config::DataConfig,
-    _request: &DataRequest,
-    _confirm_cost: bool,
-    _maximum_cost_usd: f64,
+    data: &DataConfig,
+    request: &DataRequest,
+    confirm_cost: bool,
+    maximum_cost_usd: f64,
 ) -> Result<DownloadReceipt> {
-    unimplemented!("stub: crate::data::databento::download —— 原模块被 .gitignore 排除")
+    if !confirm_cost {
+        bail!(
+            "download refused: run `quantctl data cost --request {}` then pass --confirm-cost",
+            request.name
+        );
+    }
+    let estimate = estimate_cost(request).await?;
+    if estimate.estimated_cost_usd > maximum_cost_usd {
+        bail!(
+            "estimated cost ${:.2} exceeds --maximum-cost-usd ${:.2}",
+            estimate.estimated_cost_usd,
+            maximum_cost_usd
+        );
+    }
+    let (schema, stype, start, end) = request_parts(request)?;
+    let path = request_output_path(&data.raw_root, request);
+    if path.exists() {
+        bail!(
+            "refusing to overwrite immutable raw data {}",
+            path.display()
+        );
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent)?;
+    }
+
+    let params = GetRangeParams::builder()
+        .dataset(&request.dataset)
+        .symbols(request.symbols.clone())
+        .schema(schema)
+        .date_time_range(start..end)
+        .stype_in(stype)
+        .build()
+        .with_path(&path);
+    let mut client = HistoricalClient::builder().key_from_env()?.build()?;
+    let _decoder = client.timeseries().get_range_to_file(&params).await?;
+
+    let bytes = fs::metadata(&path)
+        .with_context(|| format!("download did not create {}", path.display()))?
+        .len();
+    let sha256 = sha256_file(&path)?;
+    let manifest = DataManifest {
+        manifest_version: 1,
+        provider: "Databento".to_string(),
+        request: request.clone(),
+        raw_path: path.clone(),
+        bytes,
+        sha256: sha256.clone(),
+        acquired_at: Utc::now(),
+        license_note: "Licensed Databento data; redistribution is not implied.".to_string(),
+        synthetic: false,
+    };
+    let manifest_path = write_manifest(Path::new(&data.manifest_root), &manifest)?;
+    Ok(DownloadReceipt {
+        path,
+        bytes,
+        sha256,
+        manifest_path,
+    })
 }

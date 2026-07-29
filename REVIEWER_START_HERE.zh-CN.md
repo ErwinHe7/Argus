@@ -4,14 +4,21 @@
 artifact 都已经位于本仓库默认 `main` 分支。请从 `main` 建立自己的修改分支，
 完成后提交 PR 或直接推送经双方确认的修改。
 
+**这也不是一个只有 HMM 的仓库。** 核心模型栈包括 HMM、12 维高维
+same-regime kernel regression、Markov-switching SDE 和 VWAP residual
+Ornstein–Uhlenbeck；此外还有 TCN/MoE、Student-t、校准与其他 challenger。
+
 ## 最短阅读顺序
 
-1. `MODEL_SOURCE_MAP.zh-CN.md`：每个模型对应的准确源码文件、用途和状态。
-2. `axio7-model-review/review-package/03-review-brief-and-checklist.md`：
+1. `00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md`：完整模型栈总入口。
+2. `MODEL_COMPONENTS/`：用明确算法名分开的七个模型组件目录。
+3. `MODEL_SOURCE_MAP.zh-CN.md`：每个模型对应的准确源码文件、用途和状态。
+4. `axio7-model-review/CURRENT_SOURCE_SYNC.md`：137 个当前源码文件的完整性、排除项和实时接入状态。
+5. `axio7-model-review/review-package/03-review-brief-and-checklist.md`：
    P0/P1/P2 审查和修复任务。
-3. `axio7-model-review/review-package/04-evidence-index.md`：关键实现位置。
-4. `axio7-model-review/source/`：Rust、Python、C++ 可编辑源码和测试。
-5. `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`：
+6. `axio7-model-review/review-package/04-evidence-index.md`：关键实现位置。
+7. `axio7-model-review/source/`：Rust、Python、C++ 可编辑源码和测试。
+8. `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`：
    9 个未晋升候选 artifact 及 legacy 对照；解压后查看。
 
 ## 哪些内容可以直接改

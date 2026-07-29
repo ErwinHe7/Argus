@@ -1,7 +1,11 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use axio_quant_engine::{AppConfig, api, data::massive_live, live};
+use axio_quant_engine::{
+    AppConfig, api,
+    data::{databento_live, massive_live},
+    live,
+};
 use clap::Parser;
 use tracing_subscriber::EnvFilter;
 
@@ -69,6 +73,23 @@ async fn main() -> Result<()> {
                     Err(error) => {
                         tracing::error!(%error, "Massive SIP/OPRA readiness check failed");
                     }
+                }
+            });
+        } else if config.live.provider == "databento" {
+            let status_path = root.join("live/databento_stream_status.json");
+            let bars_path = root.join("live/databento_stock_bars.jsonl");
+            let data_config = config.data.clone();
+            let live_config = config.live.clone();
+            tokio::spawn(async move {
+                if let Err(error) = databento_live::run_equities_stream(
+                    &data_config,
+                    &live_config,
+                    status_path,
+                    bars_path,
+                )
+                .await
+                {
+                    tracing::error!(%error, "Databento Live supervisor stopped");
                 }
             });
         } else {
