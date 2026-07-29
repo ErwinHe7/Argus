@@ -1,3 +1,23 @@
+"""RETIRED as of the M3 fix -- no longer called by walk_forward.py.
+
+This was a from-scratch approximation of the production same-regime kernel
+(engine::analog_engine::AnalogEngine in quant_engine_rs) that diverged from it
+in at least eight independent ways: standardization (median/MAD vs mean/std),
+distance metric (shrinkage Mahalanobis vs plain L2), feature set (fixed 12-dim
+vs up to 51 columns), bandwidth rule, regime-posterior weighting, neighbor
+eligibility (same-regime/same-bucket/one-per-day vs none of that), k, and
+whether `median_return` was weighted. Any backtest number this class produced
+measured that different estimator, not the one that ships.
+
+walk_forward.py now calls `quantctl research analog-backtest`
+(models/walk_forward.py::_run_analog_backtest) instead, which drives the
+actual production kernel. Left here for reference and because
+review-package/REMEDIATION-PLAN.zh-CN.md M3's other named option -- keep this
+as an explicit research-toy comparison, deliberately excluded from
+config.models -- is still legitimate; just do it on purpose, not by accident.
+Do not wire this back into the default walk-forward path.
+"""
+
 from __future__ import annotations
 
 import numpy as np

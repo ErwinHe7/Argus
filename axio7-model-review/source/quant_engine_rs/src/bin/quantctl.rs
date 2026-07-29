@@ -1266,6 +1266,31 @@ enum ResearchCommand {
         #[arg(long, default_value = "data/reports/pattern_factory_latest.json")]
         output: PathBuf,
     },
+    /// Fold-level analog-kernel backtest bridge: fits the production HMM and
+    /// AnalogEngine once on every session strictly before `--train-before`,
+    /// then queries every state in `[--query-start, --query-end]` against
+    /// that single fit -- the exact production kernel
+    /// (`predictor::backtest_analog_predictions`), not a separately
+    /// maintained approximation. Exists so `intraday_quant`'s Python
+    /// backtest can shell out here instead of drifting from what
+    /// `quantd` actually serves. See review-package/REMEDIATION-PLAN.zh-CN.md M3.
+    AnalogBacktest {
+        #[arg(long, default_value = "data/normalized/market_bars.csv")]
+        bars: PathBuf,
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long)]
+        horizon: usize,
+        /// Train on every session strictly before this date.
+        #[arg(long)]
+        train_before: NaiveDate,
+        #[arg(long)]
+        query_start: NaiveDate,
+        #[arg(long)]
+        query_end: NaiveDate,
+        #[arg(long, default_value = "data/reports/analog_backtest_latest.json")]
+        output: PathBuf,
+    },
 }
 
 fn find_request<'a>(
@@ -3041,6 +3066,68 @@ async fn main() -> Result<()> {
                     report.fdr_survivors,
                     report.current_matches,
                     report.promotion_ceiling
+                );
+            }
+            ResearchCommand::AnalogBacktest {
+                bars,
+                target,
+                horizon,
+                train_before,
+                query_start,
+                query_end,
+                output,
+            } => {
+                let started = Instant::now();
+                let target = target.unwrap_or_else(|| config.research.target.clone());
+                let imported = MarketBarCsvImporter.import(&bars)?;
+                let states = features::build_states(&imported.records, &target, &config.research)?;
+                drop(imported);
+                let train_indices = states
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, state)| {
+                        state.symbol.eq_ignore_ascii_case(&target)
+                            && state.session_date < train_before
+                    })
+                    .map(|(index, _)| index)
+                    .collect::<Vec<_>>();
+                let query_indices = states
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, state)| {
+                        state.symbol.eq_ignore_ascii_case(&target)
+                            && state.session_date >= query_start
+                            && state.session_date <= query_end
+                    })
+                    .map(|(index, _)| index)
+                    .collect::<Vec<_>>();
+                if train_indices.is_empty() {
+                    anyhow::bail!(
+                        "no training states strictly before --train-before {train_before}"
+                    );
+                }
+                if query_indices.is_empty() {
+                    anyhow::bail!(
+                        "no query states in [--query-start {query_start}, --query-end {query_end}]"
+                    );
+                }
+                let forecasts = predictor::backtest_analog_predictions(
+                    &states,
+                    horizon,
+                    &train_indices,
+                    &query_indices,
+                    &config.research,
+                )?;
+                let ok_count = forecasts.iter().filter(|f| f.status == "OK").count();
+                write_json(&output, &forecasts)?;
+                println!(
+                    "analog_backtest_report={} elapsed_ms={} train_states={} query_states={} ok={} not_ok={}",
+                    output.display(),
+                    started.elapsed().as_millis(),
+                    train_indices.len(),
+                    query_indices.len(),
+                    ok_count,
+                    forecasts.len() - ok_count
                 );
             }
             ResearchCommand::Ablation {
