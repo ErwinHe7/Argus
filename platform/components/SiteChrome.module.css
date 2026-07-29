@@ -1,0 +1,395 @@
+.nav {
+  position: fixed;
+  z-index: 70;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  height: 72px;
+  padding: 0 max(24px, calc((100vw - 1240px) / 2));
+  border-bottom: 1px solid var(--ax-line-soft);
+  align-items: center;
+  justify-content: space-between;
+  color: var(--ax-ink);
+  background: rgba(250,249,246,.9);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  box-shadow: 0 8px 24px rgba(56,51,44,.045);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: var(--ax-ink);
+  font-size: 18px;
+  font-weight: 850;
+  letter-spacing: -.035em;
+  text-decoration: none;
+}
+
+.brand:hover {
+  color: var(--ax-ink);
+}
+
+.brandMark {
+  display: inline-flex;
+  width: 35px;
+  height: 35px;
+  border: 1px solid #dbc8c0;
+  border-radius: 9px;
+  align-items: center;
+  justify-content: center;
+  color: var(--ax-accent);
+  background: var(--ax-accent-soft);
+  font-size: 11px;
+  font-weight: 950;
+  letter-spacing: -.05em;
+}
+
+.brandMeta {
+  padding-left: 11px;
+  border-left: 1px solid var(--ax-line);
+  color: var(--ax-quiet);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.link {
+  display: inline-flex;
+  min-height: 38px;
+  padding: 0 13px;
+  border-radius: 8px;
+  align-items: center;
+  gap: 7px;
+  color: var(--ax-muted);
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: color .18s ease, background .18s ease;
+}
+
+.link:hover {
+  color: var(--ax-ink);
+  background: rgba(47,44,39,.05);
+}
+
+.payLink,
+.accountLink,
+.signOutLink {
+  display: inline-flex;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 850;
+  text-decoration: none;
+}
+
+.payLink {
+  margin-left: 5px;
+  color: #fff;
+  background: var(--ax-accent);
+}
+
+.payLink:hover {
+  color: #fff;
+  background: #974c34;
+}
+
+.accountLink {
+  color: var(--ax-ink);
+  border-color: var(--ax-line);
+  background: rgba(255,255,255,.68);
+}
+
+.accountLink:hover {
+  color: var(--ax-accent);
+  border-color: #d7b6a8;
+  background: var(--ax-accent-soft);
+}
+
+.signOutLink {
+  width: 40px;
+  padding: 0;
+  justify-content: center;
+  color: var(--ax-muted);
+  border-color: var(--ax-line);
+  background: rgba(255,255,255,.5);
+  cursor: pointer;
+}
+
+.signOutForm {
+  display: flex;
+  margin: 0;
+}
+
+.signOutLink:hover {
+  color: var(--ax-accent);
+  border-color: #d7b6a8;
+  background: var(--ax-accent-soft);
+}
+
+.brand:focus-visible,
+.link:focus-visible,
+.payLink:focus-visible,
+.accountLink:focus-visible,
+.signOutLink:focus-visible,
+.footerGroup a:focus-visible {
+  outline: 2px solid rgba(184,97,67,.55);
+  outline-offset: 2px;
+}
+
+.footer {
+  position: relative;
+  z-index: 10;
+  padding: 64px max(24px, calc((100vw - 1240px) / 2)) 26px;
+  color: var(--ax-muted);
+  background: var(--ax-sidebar);
+  border-top: 1px solid var(--ax-line-soft);
+}
+
+.footerTop {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 80px;
+}
+
+.footerCopy {
+  max-width: 520px;
+  margin-top: 17px;
+  color: var(--ax-muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.assurance {
+  display: flex;
+  margin-top: 20px;
+  align-items: center;
+  gap: 8px;
+  color: #687c69;
+  font-size: 10px;
+}
+
+.footerLinks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  gap: 52px;
+}
+
+.footerGroup p {
+  margin-bottom: 15px;
+  color: var(--ax-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+
+.footerGroup a {
+  display: block;
+  margin-top: 10px;
+  color: var(--ax-muted);
+  font-size: 11px;
+  text-decoration: none;
+}
+
+.footerGroup a:hover {
+  color: var(--ax-accent);
+}
+
+.footerBottom {
+  display: flex;
+  margin-top: 56px;
+  padding-top: 20px;
+  border-top: 1px solid var(--ax-line);
+  justify-content: space-between;
+  gap: 20px;
+  color: var(--ax-quiet);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: .06em;
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .nav {
+  color: #f6f4ec;
+  border-bottom-color: rgba(255,255,255,.075);
+  background: rgba(6,7,5,.78);
+  box-shadow: 0 14px 44px rgba(0,0,0,.26);
+  backdrop-filter: blur(24px) saturate(128%);
+  -webkit-backdrop-filter: blur(24px) saturate(128%);
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .brand,
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .brand:hover {
+  color: #f6f4ec;
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .brandMark {
+  color: #0b0c09;
+  border-color: #f4c95d;
+  background: #f4c95d;
+  box-shadow: 0 0 32px rgba(244,201,93,.18);
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .brandMeta {
+  color: rgba(246,244,236,.38);
+  border-left-color: rgba(255,255,255,.12);
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .link {
+  color: rgba(246,244,236,.55);
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .link:hover {
+  color: #fff4c9;
+  background: rgba(255,255,255,.045);
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .accountLink,
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .signOutLink {
+  color: rgba(246,244,236,.72);
+  border-color: rgba(255,255,255,.11);
+  background: rgba(255,255,255,.035);
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .accountLink:hover,
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .signOutLink:hover {
+  color: #ffe8a3;
+  border-color: rgba(244,201,93,.34);
+  background: rgba(244,201,93,.075);
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .payLink {
+  color: #11120e;
+  background: #f4c95d;
+  box-shadow: 0 8px 30px rgba(244,201,93,.12);
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .payLink:hover {
+  color: #070806;
+  background: #ffe08a;
+}
+
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .brand:focus-visible,
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .link:focus-visible,
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .payLink:focus-visible,
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .accountLink:focus-visible,
+:global(body:has(.quant-intraday-dark, .axio-pricing-shell)) .signOutLink:focus-visible {
+  outline-color: rgba(244,201,93,.72);
+}
+
+:global(body:has(.axio-pricing-shell)) .brandMark {
+  color: #05030a;
+  border-color: #a66bff;
+  background: linear-gradient(135deg, #a66bff, #59d9ff);
+  box-shadow: 0 0 28px rgba(130,86,255,.34);
+}
+
+:global(body:has(.axio-pricing-shell)) .payLink {
+  color: #fff;
+  background: linear-gradient(110deg, #6b42e9, #9b45ff);
+  box-shadow: 0 0 28px rgba(132,69,255,.26);
+}
+
+:global(body:has(.axio-pricing-shell)) .payLink:hover {
+  color: #fff;
+  background: linear-gradient(110deg, #7d58f2, #ae5cff);
+}
+
+:global(body:has(.axio-pricing-shell)) .footer {
+  color: rgba(238,242,255,.42);
+  border-top-color: rgba(105,92,255,.22);
+  background:
+    linear-gradient(180deg, rgba(89,77,255,.06), transparent 42%),
+    #020205;
+}
+
+:global(body:has(.axio-pricing-shell)) .footerCopy {
+  color: rgba(238,242,255,.42);
+}
+
+:global(body:has(.axio-pricing-shell)) .assurance {
+  color: rgba(89,217,255,.65);
+}
+
+:global(body:has(.axio-pricing-shell)) .footerGroup p {
+  color: rgba(232,225,255,.86);
+}
+
+:global(body:has(.axio-pricing-shell)) .footerGroup a {
+  color: rgba(238,242,255,.42);
+}
+
+:global(body:has(.axio-pricing-shell)) .footerGroup a:hover {
+  color: #9f86ff;
+}
+
+:global(body:has(.axio-pricing-shell)) .footerBottom {
+  color: rgba(238,242,255,.26);
+  border-top-color: rgba(105,92,255,.16);
+}
+
+@media (max-width: 760px) {
+  .nav {
+    height: 64px;
+    padding: 0 14px;
+  }
+
+  .brandMeta,
+  .researchLink,
+  .desktopLink {
+    display: none;
+  }
+
+  .payLink,
+  .accountLink,
+  .membershipLink,
+  .signOutLink {
+    min-height: 38px;
+    padding: 0 13px;
+  }
+
+  .footerTop {
+    grid-template-columns: 1fr;
+    gap: 42px;
+  }
+}
+
+@media (max-width: 460px) {
+  .payLink span,
+  .accountLink span,
+  .membershipLink span {
+    display: none;
+  }
+
+  .payLink,
+  .accountLink,
+  .membershipLink,
+  .signOutLink {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .footerLinks {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  .footerBottom {
+    flex-direction: column;
+  }
+}

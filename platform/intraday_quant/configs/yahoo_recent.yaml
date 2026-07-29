@@ -1,0 +1,64 @@
+target: SPX
+bar_frequency: 1min
+timezone: America/New_York
+start_date: "2026-06-22"
+end_date: "2026-07-17"
+session:
+  start: "09:30"
+  end: "16:00"
+data:
+  adapter: yahoo
+  input_path: null
+  synthetic_seed: 7
+  synthetic_sessions: 60
+  price_ffill_limit: 2
+  output_dir: data_yahoo_recent
+symbols: [SPX, ES, SPY, QQQ, SOXX, IWM, VIX]
+forecast_horizons: [15, 30, 60]
+opening_range_minutes: 15
+setups: [opening_range_breakout, vwap_pullback, mean_reversion, closing_short_cover]
+# The old Python Euclidean analog is explicit-only and non-promotion; it is not
+# the canonical Rust same-regime analog estimator.
+models: [logistic, gradient_boosting]
+model:
+  calibration: isotonic
+  score_threshold_quantile: 0.55
+scoring:
+  return_weight: 1.0
+  probability_base: 0.5
+  mfe_weight: 0.25
+  uncertainty_weight: 1.0
+walk_forward:
+  train_sessions: 8
+  validation_sessions: 4
+  test_sessions: 4
+  step_sessions: 4
+  expanding: true
+  purge_minutes: 60
+  embargo_minutes: 15
+portfolio:
+  max_trades_per_day: 2
+  max_open_positions: 1
+  cooldown_minutes: 30
+  max_same_direction_per_day: 1
+  risk_floor_bps: 5.0
+costs:
+  commission_per_trade: 1.0
+  underlying_slippage_bps: 1.0
+  estimated_spread_bps: 1.0
+  option_slippage: 0.05
+risk:
+  stop_type: atr
+  take_profit_type: atr
+  stop_value: 1.0
+  take_profit_value: 1.5
+  max_holding_minutes: 60
+option_execution:
+  enabled: false
+  quotes_path: null
+  dte: [0, 1]
+  delta_min: 0.35
+  delta_max: 0.60
+  max_spread_pct: 0.20
+  max_quote_age_seconds: 90
+  min_bid_size: 1

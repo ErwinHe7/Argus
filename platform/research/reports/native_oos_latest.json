@@ -1,0 +1,14 @@
+{
+  "evidence": "REAL_MASSIVE_AGGREGATES_UNDERLYING_ONLY",
+  "nasdaq_scope": "QBBO_ADAPTER_IMPLEMENTED_BUT_NO_LICENSED_CAPTURE_PRESENT",
+  "spxw_options": "NOT_EXECUTED_NO_OPRA_NBBO",
+  "holdout_status": "CONTAMINATED_EXISTING_HISTORY_EXPLORATORY_OOS_ONLY",
+  "data_sha256": "a1de7efe3165adbb767d001c0c32488381a1b919c95e4fbaae9cd03d1b6ee103",
+  "rows": 1251444,
+  "aligned_samples": 191553,
+  "replay": {"events":1251444,"feature_snapshots":194500,"rejected_unfinalized":0,"event_hash":"7201dc84fee4546de959751f4fc31f62950037e8c474d046870fe8fc02387f52","feature_hash":"65d85ea4c8371d3d6878104b939239778bd2964388fa92d80e0f6b1aa8f8a16f"},
+  "logistic": {"samples":2136,"trades":0,"brier":0.250536,"log_loss":0.69422,"ece":0.0334271,"net_expectancy_per_candidate":0,"trade_expectancy":0,"win_rate":0,"bootstrap_95_low":0,"bootstrap_95_high":0},
+  "analog": {"samples":2136,"trades":55,"brier":0.253547,"log_loss":0.700423,"ece":0.0435686,"net_expectancy_per_candidate":-2.86921e-06,"trade_expectancy":-0.00011143,"win_rate":0.545455,"bootstrap_95_low":-1.32748e-05,"bootstrap_95_high":7.90417e-06},
+  "hmm_candidates": [{"states":3,"log_likelihood":-73770.6,"bic":147862,"seed":8},{"states":4,"log_likelihood":-67658,"bic":135788,"seed":7},{"states":5,"log_likelihood":-61671.2,"bic":123985,"seed":8},{"states":6,"log_likelihood":-57702.1,"bic":116237,"seed":8}],
+  "promotion_decision": "REJECTED_NO_DEPLOYABLE_EDGE"
+}

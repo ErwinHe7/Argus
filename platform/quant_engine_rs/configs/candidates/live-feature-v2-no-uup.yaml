@@ -1,0 +1,19 @@
+# Dedicated offline training contract. It cannot be loaded as production
+# AppConfig and cannot change the live runtime. Pass it explicitly to
+# `quantctl predictor train-universe --feature-contract-config ...` together
+# with separate candidate output and registry paths.
+schema_version: axio.offline-feature-training-contract.v1
+promotion_status: RETRAIN_AND_VALIDATE_REQUIRED
+context_observation_policy:
+  schema_version: causal_context_observation_policy.v1
+  minimum_continuous_intervals: 6
+  eligible_states: [observed_trade_bar]
+cross_asset_feature_schema:
+  schema_version: cross_asset_breadth.v2-no-uup-candidate
+  members:
+    - {symbol: QQQ, polarity: 1.0}
+    - {symbol: IWM, polarity: 1.0}
+    - {symbol: HYG, polarity: 1.0}
+    - {symbol: VXX, polarity: -1.0}
+    - {symbol: TLT, polarity: -1.0}
+  schema_sha256: 6716d4c24f59b4bf3569d164d9547343ed4fb6f6261415f4c1e2535ed7bc2e25

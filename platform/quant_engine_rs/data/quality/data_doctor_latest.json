@@ -1,0 +1,167 @@
+{
+  "generated_at": "2026-07-20T18:07:34.439256200Z",
+  "credentials": [
+    {
+      "variable": "DATABENTO_API_KEY",
+      "present": false
+    },
+    {
+      "variable": "MASSIVE_API_KEY",
+      "present": true
+    },
+    {
+      "variable": "CBOE_DATA_ROOT",
+      "present": false
+    },
+    {
+      "variable": "IBKR_HOST",
+      "present": false
+    },
+    {
+      "variable": "IBKR_PORT",
+      "present": false
+    },
+    {
+      "variable": "IBKR_CLIENT_ID",
+      "present": false
+    },
+    {
+      "variable": "IBKR_ACCOUNT",
+      "present": false
+    }
+  ],
+  "source_matrix": [
+    {
+      "source": "DATABENTO_OPRA_PILLAR",
+      "responsibility": [
+        "SPXW_DEFINITION",
+        "OPRA_CBBO",
+        "CMBP_1",
+        "TCBBO"
+      ],
+      "prohibited_uses": [
+        "SPX_INDEX_VALUE"
+      ],
+      "credential": "DATABENTO_API_KEY",
+      "configured": false
+    },
+    {
+      "source": "CBOE_CGIF_DATASHOP",
+      "responsibility": [
+        "SPX_INDEX_VALUE",
+        "OPTION_QUOTE_INTERVAL_IMPORT"
+      ],
+      "prohibited_uses": [
+        "SILENT_VENDOR_INTERNAL_GREEKS_MIX"
+      ],
+      "credential": "CBOE_DATA_ROOT",
+      "configured": false
+    },
+    {
+      "source": "MASSIVE",
+      "responsibility": [
+        "SPY_QQQ_IWM_BARS",
+        "OPTION_OPRA_ALTERNATIVE_IF_ENTITLED"
+      ],
+      "prohibited_uses": [
+        "SPY_AS_SPX"
+      ],
+      "credential": "MASSIVE_API_KEY",
+      "configured": true
+    },
+    {
+      "source": "IBKR",
+      "responsibility": [
+        "FORWARD_LIVE_ARCHIVE",
+        "PAPER_EXECUTION"
+      ],
+      "prohibited_uses": [
+        "EXPIRED_SPXW_HISTORY_BACKFILL"
+      ],
+      "credential": "IBKR_HOST+PORT+CLIENT_ID+ACCOUNT",
+      "configured": false
+    },
+    {
+      "source": "NASDAQ_QBBO",
+      "responsibility": [
+        "SINGLE_VENUE_ETF_BBO_FEATURES"
+      ],
+      "prohibited_uses": [
+        "CONSOLIDATED_NBBO",
+        "SPX",
+        "SPXW",
+        "OPRA"
+      ],
+      "credential": null,
+      "configured": false
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "data/manifests\\massive_sync_2024-07-18_2026-07-18.json",
+      "bytes": 313,
+      "schema_hint": "unknown",
+      "manifest_hash": "a1de7efe3165adbb767d001c0c32488381a1b919c95e4fbaae9cd03d1b6ee103",
+      "validation_status": null
+    },
+    {
+      "path": "data/manifests\\massive_sync_2026-07-13_2026-07-18.json",
+      "bytes": 273,
+      "schema_hint": "unknown",
+      "manifest_hash": "96cb56649484fc67611e8dd1664bfba00ac78e78834517d9a7de81c5887abec3",
+      "validation_status": null
+    },
+    {
+      "path": "data/manifests\\massive_sync_2026-07-16_2026-07-16.json",
+      "bytes": 273,
+      "schema_hint": "unknown",
+      "manifest_hash": "2802a7a350d9831f6b7c132be2f156796c28878067aeb83821d42c111b45bdec",
+      "validation_status": null
+    }
+  ],
+  "underlying_proxy": "SPY data is UNDERLYING_PROXY_ONLY and is never SPX",
+  "readiness": {
+    "status": "SPXW_BACKTEST_BLOCKED",
+    "definitions_ready": false,
+    "quotes_ready": false,
+    "nbbo_consolidated": false,
+    "sizes_ready": false,
+    "exact_timestamp_ready": false,
+    "spx_index_ready": false,
+    "alignment_ready": false,
+    "analytics_ready": false,
+    "execution_model_ready": false,
+    "definitions_coverage": 0.0,
+    "quote_coverage": 0.0,
+    "spx_index_coverage": 0.0,
+    "bid_ask_completeness": 0.0,
+    "size_completeness": 0.0,
+    "timestamp_precision": "MISSING",
+    "crossed_quote_rate": null,
+    "locked_quote_rate": null,
+    "stale_quote_rate": null,
+    "missing_minute_rate": null,
+    "duplicate_rate": null,
+    "out_of_order_rate": null,
+    "symbol_mapping_failures": null,
+    "expiration_mapping_failures": null,
+    "underlying_alignment_failures": null,
+    "iv_solver_failure_rate": null,
+    "market_calendar_consistency": "MISSING",
+    "date_coverage": null,
+    "source_hashes": [
+      "a1de7efe3165adbb767d001c0c32488381a1b919c95e4fbaae9cd03d1b6ee103",
+      "96cb56649484fc67611e8dd1664bfba00ac78e78834517d9a7de81c5887abec3",
+      "2802a7a350d9831f6b7c132be2f156796c28878067aeb83821d42c111b45bdec"
+    ],
+    "missing_requirements": [
+      "SPXW_POINT_IN_TIME_DEFINITIONS",
+      "SPXW_OPTION_QUOTES",
+      "CONSOLIDATED_OPRA_NBBO_PROVENANCE",
+      "BID_ASK_SIZE",
+      "SPX_INDEX_VALUES",
+      "BACKWARD_ASOF_SPX_ALIGNMENT",
+      "EXECUTION_LEVEL_QUOTE_EVENTS"
+    ]
+  }
+}

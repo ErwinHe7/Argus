@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "axio7-market": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "./scripts/mcp/axio7-market-mcp/dist/index.js"
+      ],
+      "env": {
+        "AXIO7_API_BASE_URL": "https://axio7.com"
+      }
+    }
+  }
+}

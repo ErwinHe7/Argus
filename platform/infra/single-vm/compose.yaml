@@ -1,0 +1,191 @@
+name: axio7
+
+services:
+  quantd:
+    image: axio7-quantd:${GIT_COMMIT:?set GIT_COMMIT to the exact clean release commit}
+    build:
+      context: ../..
+      dockerfile: infra/single-vm/quantd.Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:?set GIT_COMMIT to the exact clean release commit}
+    restart: unless-stopped
+    deploy:
+      replicas: 1
+    environment:
+      PORT: "8001"
+      AXIO_QUANT_HOST: 127.0.0.1
+      AXIO_QUANT_CONFIG: configs/production.yaml
+      AXIO_QUANT_INSTANCE_LOCK: data/state/quantd.instance.lock
+      INTRADAY_QUANT_TOKEN: ${INTRADAY_QUANT_TOKEN:?set INTRADAY_QUANT_TOKEN}
+      DATABENTO_API_KEY: ${DATABENTO_API_KEY:-}
+      MASSIVE_API_KEY: ${MASSIVE_API_KEY:-}
+      AXIO7_PUBLIC_MARKET_DATA_PROVIDER: ${AXIO7_PUBLIC_MARKET_DATA_PROVIDER:-}
+      AXIO7_PUBLIC_MARKET_DATA_LICENSE_REFERENCE: ${AXIO7_PUBLIC_MARKET_DATA_LICENSE_REFERENCE:-}
+      AXIO7_MARKET_DATA_RIGHTS_RECEIPT_SHA256: ${AXIO7_MARKET_DATA_RIGHTS_RECEIPT_SHA256:-}
+      MODEL_PROMOTION_REGISTRY_SHA256: ${MODEL_PROMOTION_REGISTRY_SHA256:-}
+      MODEL_PROMOTION_ENTRY_SHA256_PINS: ${MODEL_PROMOTION_ENTRY_SHA256_PINS:-}
+      AXIO_PROBABILITY_CALIBRATION_ARTIFACT: ${AXIO_PROBABILITY_CALIBRATION_ARTIFACT:-data/calibration/probability_calibration_latest.json}
+      AXIO_PROBABILITY_CALIBRATION_SHA256: ${AXIO_PROBABILITY_CALIBRATION_SHA256:-}
+      IBKR_QUOTE_RELAY_ENABLED: ${IBKR_QUOTE_RELAY_ENABLED:-false}
+      MOOMOO_FORECAST_RELAY_ENABLED: ${MOOMOO_FORECAST_RELAY_ENABLED:-false}
+      # The canonical production config uses Databento for equities. Massive
+      # model/options child processes are enabled only in an explicit profile.
+      AXIO_START_MASSIVE_WORKERS: "false"
+      RUST_LOG: ${RUST_LOG:-axio_quant_engine=info,tower_http=info}
+    volumes:
+      - quant-live:/app/data/live
+      - quant-state:/app/data/state
+      - quant-models:/app/data/models/universe:ro
+      - ./runtime/quant-normalized:/app/data/normalized:ro
+      - ./runtime/quant-manifests:/app/data/manifests:ro
+      - ./runtime/quant-rights:/app/data/rights:ro
+      - ./runtime/quant-evidence:/app/data/evidence:ro
+      - ./runtime/quant-promotion:/app/data/promotion:ro
+      - ./runtime/quant-calibration:/app/data/calibration:ro
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "--silent", "http://127.0.0.1:8001/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+    security_opt:
+      - no-new-privileges:true
+
+  ibkr-gateway:
+    image: axio7-ibkr-gateway:latest
+    build:
+      context: ./ibkr-gateway
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      JAVA_TOOL_OPTIONS: "-Xms32m -Xmx160m -XX:+UseSerialGC -Dvertx.cacheDirBase=/tmp/vertx-cache"
+    ports:
+      # Client Portal Gateway login and 2FA stay on loopback. Operators reach
+      # this endpoint through an SSH tunnel; it is never exposed by Caddy.
+      - "127.0.0.1:5000:5000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "curl --insecure --silent --output /dev/null --connect-timeout 5 --max-time 7 https://127.0.0.1:5000/",
+        ]
+      interval: 20s
+      timeout: 8s
+      start_period: 45s
+      retries: 5
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+      - /opt/ibkr/logs:size=16m,uid=999,gid=999,mode=0750
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    image: axio7-web:${GIT_COMMIT:?set GIT_COMMIT to the exact clean release commit}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:?set GIT_COMMIT to the exact clean release commit}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-https://axio7.com}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:?set NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:?set NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_PADDLE_CLIENT_TOKEN: ${NEXT_PUBLIC_PADDLE_CLIENT_TOKEN:-}
+        NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
+        NEXT_PUBLIC_POSTHOG_KEY: ${NEXT_PUBLIC_POSTHOG_KEY:-}
+        NEXT_PUBLIC_POSTHOG_HOST: ${NEXT_PUBLIC_POSTHOG_HOST:-}
+    restart: unless-stopped
+    env_file:
+      - .env.server
+    environment:
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      AXIO7_SITE_URL: ${AXIO7_SITE_URL:?set AXIO7_SITE_URL}
+      PADDLE_CLIENT_TOKEN: ${NEXT_PUBLIC_PADDLE_CLIENT_TOKEN:?set NEXT_PUBLIC_PADDLE_CLIENT_TOKEN}
+      INTRADAY_QUANT_API_URL: http://127.0.0.1:8001
+      INTRADAY_QUANT_TOKEN: ${INTRADAY_QUANT_TOKEN:?set INTRADAY_QUANT_TOKEN}
+      MARKET_MONITOR_CRON_SECRET: ${MARKET_MONITOR_CRON_SECRET:?set MARKET_MONITOR_CRON_SECRET}
+      IBKR_BASE_URL: ${IBKR_BASE_URL:-}
+      IBKR_ACCOUNT_ID: ${IBKR_ACCOUNT_ID:-}
+      IBKR_MARKET_DATA_ENABLED: ${IBKR_MARKET_DATA_ENABLED:-false}
+      IBKR_ALLOW_INSECURE_TLS: ${IBKR_ALLOW_INSECURE_TLS:-false}
+      IBKR_QUOTE_RELAY_TOKEN: ${IBKR_QUOTE_RELAY_TOKEN:-}
+      MOOMOO_FORECAST_RELAY_TOKEN: ${MOOMOO_FORECAST_RELAY_TOKEN:-}
+      LIVE_EXECUTION_ENABLED: "false"
+      BROKER_LIVE_ENABLED: "false"
+      ANOMALY_LIVE_ORDER_ENABLED: "false"
+    network_mode: "service:quantd"
+    depends_on:
+      quantd:
+        condition: service_healthy
+      ibkr-gateway:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 20s
+      timeout: 5s
+      start_period: 45s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m
+    security_opt:
+      - no-new-privileges:true
+
+  monitor-scheduler:
+    image: curlimages/curl:8.14.1
+    restart: unless-stopped
+    environment:
+      MONITOR_URL: http://quantd:3000/api/cron/market-monitors
+      MARKET_MONITOR_CRON_SECRET: ${MARKET_MONITOR_CRON_SECRET:?set MARKET_MONITOR_CRON_SECRET}
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        while true; do
+          curl --fail --silent --show-error --max-time 240 \
+            -H "Authorization: Bearer $${MARKET_MONITOR_CRON_SECRET}" \
+            "$${MONITOR_URL}" || true
+          sleep 300
+        done
+    depends_on:
+      web:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    environment:
+      AXIO7_DOMAIN: ${AXIO7_DOMAIN:-axio7.com}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  caddy-data:
+  caddy-config:
+  quant-live:
+  quant-state:
+  quant-models:
+    name: axio7_quant-models-${GIT_COMMIT:?set GIT_COMMIT to the exact clean release commit}
