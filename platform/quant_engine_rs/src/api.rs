@@ -2363,7 +2363,36 @@ fn read_jsonl_tail(path: &std::path::Path, limit: usize) -> Result<Vec<Value>, A
     Ok(rows)
 }
 
-async fn live_bars(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
+#[derive(Debug, Deserialize)]
+struct LiveBarsRequest {
+    symbol: Option<String>,
+    limit: Option<usize>,
+}
+
+async fn live_bars(
+    State(state): State<AppState>,
+    Query(request): Query<LiveBarsRequest>,
+) -> Result<Json<Value>, ApiError> {
+    if state.config.live.provider == "databento"
+        && let Some(symbol) = request.symbol.as_deref()
+    {
+        let limit = request.limit.unwrap_or(500).clamp(1, 5_000);
+        let rows = crate::data::market_store::latest_live_bars(
+            &data_root(&state).join("market/databento_market_data.sqlite3"),
+            symbol,
+            limit,
+        )
+        .map_err(ApiError::internal)?;
+        return Ok(Json(json!({
+            "provider":"databento",
+            "dataset":"EQUS.MINI",
+            "schema":"ohlcv-1m",
+            "storage":"APPEND_ONLY_SQLITE",
+            "symbol":symbol.trim().trim_start_matches("US.").to_ascii_uppercase(),
+            "bars":rows,
+            "count":rows.len()
+        })));
+    }
     let file = if state.config.live.provider == "massive" {
         "massive_stock_bars.jsonl"
     } else if state.config.live.provider == "databento" {

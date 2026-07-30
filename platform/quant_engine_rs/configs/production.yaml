@@ -16,6 +16,9 @@ live:
   host: 127.0.0.1
   port: 11111
   symbols: [US.SPY, US.QQQ, US.NVDA, US.AAPL, US.MU, US.SOXX, US.NBIS, US.BE, US.IGV, US.IWM, US.HYG, US.VXX]
+  # Capture every EQUS.MINI symbol into the append-only market database.
+  # `symbols` above remains the bounded inference/readiness subset.
+  capture_all_symbols: true
   # A forecast is generated only after the matching symbol's one-minute bar
   # is finalized. The opportunity endpoint scans this explicit, auditable
   # universe on demand and reports missing/stale symbols instead of silently
@@ -261,6 +264,13 @@ data:
   databento:
     enabled: true
     requests:
+      - name: all_us_equities_ohlcv_1m
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [ALL_SYMBOLS]
+        start: "2026-07-30T00:00:00Z"
+        end: "2026-07-30T20:00:00Z"
       - name: es_ohlcv_1m
         dataset: GLBX.MDP3
         schema: ohlcv-1m

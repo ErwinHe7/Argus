@@ -1447,6 +1447,7 @@ fn read_current_session_envelopes(
     path: &Path,
     session_date: chrono::NaiveDate,
     maximum_lag_ms: i64,
+    restore_before: DateTime<Utc>,
 ) -> Vec<DatabentoRealtimeBarEnvelope> {
     let Ok(file) = fs::File::open(path) else {
         return Vec::new();
@@ -1457,6 +1458,7 @@ fn read_current_session_envelopes(
         .filter_map(|line| serde_json::from_str::<DatabentoRealtimeBarEnvelope>(&line).ok())
         .filter(|envelope| {
             envelope.bar_start.with_timezone(&New_York).date_naive() == session_date
+                && envelope.bar_start < restore_before
                 && envelope_rejection(envelope, maximum_lag_ms).is_none()
         })
         .collect::<Vec<_>>();
@@ -1475,6 +1477,7 @@ fn read_current_session_envelopes(
 fn read_current_session_context_observations(
     path: &Path,
     session_date: chrono::NaiveDate,
+    restore_before: DateTime<Utc>,
 ) -> Vec<DatabentoCausalAbsenceEnvelope> {
     let Ok(file) = fs::File::open(path) else {
         return Vec::new();
@@ -1490,6 +1493,7 @@ fn read_current_session_context_observations(
                     .with_timezone(&New_York)
                     .date_naive()
                     == session_date
+                && envelope.interval_start < restore_before
         })
         .collect::<Vec<_>>();
     envelopes.sort_by(|left, right| {
@@ -1659,7 +1663,12 @@ fn settlement_for_window(
 }
 
 impl Runtime {
-    fn initialize(config: AppConfig, root: PathBuf, session_date: chrono::NaiveDate) -> Self {
+    fn initialize(
+        config: AppConfig,
+        root: PathBuf,
+        session_date: chrono::NaiveDate,
+        first_live_cutoff: DateTime<Utc>,
+    ) -> Self {
         let configured = configured_model_symbols(&config);
         let mut failures = BTreeMap::new();
         if configured.is_empty() {
@@ -1792,16 +1801,24 @@ impl Runtime {
             context_observations: BTreeMap::new(),
         };
         let mut runtime = runtime;
-        runtime.restore_current_session(session_date);
+        runtime.restore_current_session(session_date, first_live_cutoff);
         runtime.persist_global_status();
         runtime.persist_initial_target_statuses();
         runtime
     }
 
-    fn restore_current_session(&mut self, session_date: chrono::NaiveDate) {
+    fn restore_current_session(
+        &mut self,
+        session_date: chrono::NaiveDate,
+        first_live_cutoff: DateTime<Utc>,
+    ) {
         let path = self.root.join("live/databento_stock_bars.jsonl");
-        let envelopes =
-            read_current_session_envelopes(&path, session_date, self.config.live.stale_after_ms);
+        let envelopes = read_current_session_envelopes(
+            &path,
+            session_date,
+            self.config.live.stale_after_ms,
+            first_live_cutoff,
+        );
         for envelope in envelopes {
             self.remember_settlement_bar(&envelope);
             for (target, runtime) in &mut self.targets {
@@ -1821,7 +1838,11 @@ impl Runtime {
             }
         }
         let context_path = self.root.join("live/databento_context_observations.jsonl");
-        for envelope in read_current_session_context_observations(&context_path, session_date) {
+        for envelope in read_current_session_context_observations(
+            &context_path,
+            session_date,
+            first_live_cutoff,
+        ) {
             let key = (
                 envelope.interval_start.timestamp_millis(),
                 envelope.observation.symbol.to_ascii_uppercase(),
@@ -2990,7 +3011,7 @@ pub async fn run(
             }
         };
         let session_date = first_bar.bar_start.with_timezone(&New_York).date_naive();
-        let mut runtime = Runtime::initialize(config, root, session_date);
+        let mut runtime = Runtime::initialize(config, root, session_date, first_bar.bar_start);
         runtime.handle_event(first_event);
         while let Some(event) = receiver.blocking_recv() {
             runtime.handle_event(event);
@@ -3299,6 +3320,31 @@ mod tests {
         envelope.finalized_at += shift;
         envelope.bar.timestamp += shift;
         envelope
+    }
+
+    #[test]
+    fn restart_restore_excludes_first_live_cutoff_and_later_queued_events() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("databento_stock_bars.jsonl");
+        let before = envelope_at(-1);
+        let first_live = envelope_at(0);
+        let queued_later = envelope_at(1);
+        let lines = [&before, &first_live, &queued_later]
+            .into_iter()
+            .map(|envelope| serde_json::to_string(envelope).unwrap())
+            .collect::<Vec<_>>()
+            .join("\n");
+        fs::write(&path, format!("{lines}\n")).unwrap();
+
+        let restored = read_current_session_envelopes(
+            &path,
+            first_live.bar_start.with_timezone(&New_York).date_naive(),
+            10_000,
+            first_live.bar_start,
+        );
+
+        assert_eq!(restored.len(), 1);
+        assert_eq!(restored[0].bar_start, before.bar_start);
     }
 
     fn causal_absence_at(

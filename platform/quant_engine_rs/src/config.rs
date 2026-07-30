@@ -111,6 +111,10 @@ pub struct LiveConfig {
     pub host: String,
     pub port: u16,
     pub symbols: Vec<String>,
+    /// Subscribe to the provider's complete symbol universe while keeping
+    /// `symbols` as the bounded inference/readiness subset.
+    #[serde(default)]
+    pub capture_all_symbols: bool,
     #[serde(default = "default_live_forecast_symbols")]
     pub forecast_symbols: Vec<String>,
     pub session: String,
@@ -526,6 +530,7 @@ impl Default for LiveConfig {
             host: "127.0.0.1".into(),
             port: 11_111,
             symbols: vec!["US.SPY".into()],
+            capture_all_symbols: false,
             session: "regular".into(),
             forecast_symbols: default_live_forecast_symbols(),
             subscribe_quote: true,
@@ -1183,6 +1188,11 @@ impl AppConfig {
                             request.dataset.eq_ignore_ascii_case("EQUS.MINI")
                                 && request.schema.eq_ignore_ascii_case("ohlcv-1m")
                                 && request.stype_in.eq_ignore_ascii_case("raw_symbol")
+                                && (!self.live.capture_all_symbols
+                                    || request
+                                        .symbols
+                                        .iter()
+                                        .any(|symbol| symbol.eq_ignore_ascii_case("ALL_SYMBOLS")))
                         })
                         .context(
                             "live.provider=databento requires an EQUS.MINI/ohlcv-1m/raw_symbol request",
@@ -1190,24 +1200,25 @@ impl AppConfig {
                     if self.live.symbols.is_empty() {
                         bail!("Databento live adapter requires at least one symbol");
                     }
-                    let missing_symbols = self
-                        .live
-                        .symbols
-                        .iter()
-                        .filter_map(|symbol| {
-                            let normalized = symbol.strip_prefix("US.").unwrap_or(symbol);
-                            (!request
+                    if !self.live.capture_all_symbols {
+                        let missing_symbols =
+                            self.live
                                 .symbols
                                 .iter()
-                                .any(|configured| configured.eq_ignore_ascii_case(normalized)))
-                            .then_some(normalized)
-                        })
-                        .collect::<Vec<_>>();
-                    if !missing_symbols.is_empty() {
-                        bail!(
-                            "Databento live symbols are absent from the configured EQUS.MINI request: {}",
-                            missing_symbols.join(", ")
-                        );
+                                .filter_map(|symbol| {
+                                    let normalized = symbol.strip_prefix("US.").unwrap_or(symbol);
+                                    (!request.symbols.iter().any(|configured| {
+                                        configured.eq_ignore_ascii_case(normalized)
+                                    }))
+                                    .then_some(normalized)
+                                })
+                                .collect::<Vec<_>>();
+                        if !missing_symbols.is_empty() {
+                            bail!(
+                                "Databento live symbols are absent from the configured EQUS.MINI request: {}",
+                                missing_symbols.join(", ")
+                            );
+                        }
                     }
                 }
                 _ => unreachable!("live provider was validated above"),

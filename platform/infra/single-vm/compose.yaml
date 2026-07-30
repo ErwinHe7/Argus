@@ -35,6 +35,7 @@ services:
     volumes:
       - quant-live:/app/data/live
       - quant-state:/app/data/state
+      - ./runtime/market-data:/app/data/market
       - quant-models:/app/data/models/universe:ro
       - ./runtime/quant-normalized:/app/data/normalized:ro
       - ./runtime/quant-manifests:/app/data/manifests:ro

@@ -80,6 +80,7 @@ async fn main() -> Result<()> {
         } else if config.live.provider == "databento" {
             let status_path = root.join("live/databento_stream_status.json");
             let bars_path = root.join("live/databento_stock_bars.jsonl");
+            let database_path = root.join("market/databento_market_data.sqlite3");
             let (inference_sender, inference_receiver) = tokio::sync::mpsc::channel(4096);
             let data_config = config.data.clone();
             let live_config = config.live.clone();
@@ -94,6 +95,7 @@ async fn main() -> Result<()> {
                     &live_config,
                     status_path,
                     bars_path,
+                    database_path,
                     Some(inference_sender),
                 )
                 .await

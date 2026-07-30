@@ -6,7 +6,7 @@
 //! logs the API key, requests replay, or enables broker execution.
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     fs,
     path::{Path, PathBuf},
     time::Duration,
@@ -28,6 +28,7 @@ use time::Duration as TimeDuration;
 
 use crate::{
     config::{DataConfig, DataRequest, LiveConfig},
+    data::market_store::{LiveMarketBarRecord, LiveMarketDataStore},
     domain::{
         CAUSAL_MINUTE_OBSERVATION_SCHEMA_VERSION, CausalMinuteObservation, MarketBar,
         MinuteObservationState,
@@ -35,7 +36,7 @@ use crate::{
 };
 
 const FIXED_PRICE_SCALE: f64 = 1_000_000_000.0;
-pub const DATABENTO_LIVE_STATUS_SCHEMA_VERSION: &str = "databento_live_status.v3";
+pub const DATABENTO_LIVE_STATUS_SCHEMA_VERSION: &str = "databento_live_status.v4";
 pub const DATABENTO_LIVE_BAR_SCHEMA_VERSION: &str = "databento_ohlcv_1m.v1";
 pub const DATABENTO_CAUSAL_ABSENCE_SCHEMA_VERSION: &str = "databento_causal_absence.v1";
 
@@ -71,7 +72,11 @@ pub struct DatabentoLiveStatus {
     pub entitlement_verified: bool,
     pub realtime_required: bool,
     pub replay_requested: bool,
+    #[serde(default)]
+    pub subscription_scope: String,
     pub subscribed_symbols: Vec<String>,
+    #[serde(default)]
+    pub tracked_inference_symbols: Vec<String>,
     pub required_context_symbols: Vec<String>,
     pub context_observation_policy_schema_version: String,
     pub absence_semantics: String,
@@ -82,6 +87,16 @@ pub struct DatabentoLiveStatus {
     pub last_provider_event_at: Option<DateTime<Utc>>,
     pub last_finalized_bar_at: Option<DateTime<Utc>>,
     pub finalized_bars: u64,
+    #[serde(default)]
+    pub captured_bars: u64,
+    #[serde(default)]
+    pub captured_symbol_count: usize,
+    #[serde(default)]
+    pub database_rows_inserted: u64,
+    #[serde(default)]
+    pub database_duplicate_rows: u64,
+    #[serde(default)]
+    pub capture_invalid_rows: u64,
     pub symbol_mappings: u64,
     pub reconnects: u64,
     pub blocker: Option<String>,
@@ -238,7 +253,7 @@ fn normalize_symbol(symbol: &str) -> String {
     symbol.trim().trim_start_matches("US.").to_ascii_uppercase()
 }
 
-fn configured_live_request(data: &DataConfig) -> Result<&DataRequest> {
+fn configured_live_request(data: &DataConfig, capture_all_symbols: bool) -> Result<&DataRequest> {
     data.databento
         .requests
         .iter()
@@ -246,6 +261,11 @@ fn configured_live_request(data: &DataConfig) -> Result<&DataRequest> {
             request.dataset.eq_ignore_ascii_case("EQUS.MINI")
                 && request.schema.eq_ignore_ascii_case("ohlcv-1m")
                 && request.stype_in.eq_ignore_ascii_case("raw_symbol")
+                && request
+                    .symbols
+                    .iter()
+                    .any(|symbol| symbol.eq_ignore_ascii_case("ALL_SYMBOLS"))
+                    == capture_all_symbols
         })
         .context(
             "Databento live requires an EQUS.MINI/ohlcv-1m/raw_symbol request in configuration",
@@ -394,6 +414,7 @@ enum CoverageDisposition {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OhlcvProcessingDisposition {
     Accepted,
+    CapturedOnly,
     StaleRejected,
     InvalidRejected,
     DuplicateRejected,
@@ -410,6 +431,7 @@ struct CausalAbsenceTracker {
     // https://databento.com/docs/api-reference-live
     context_symbols: std::collections::BTreeSet<String>,
     target_symbols: std::collections::BTreeSet<String>,
+    tracked_symbols: std::collections::BTreeSet<String>,
     subscription_acknowledged_at: Option<DateTime<Utc>>,
     continuous_health_started_at: Option<DateTime<Utc>>,
     last_progress_at: Option<DateTime<Utc>>,
@@ -423,17 +445,24 @@ struct CausalAbsenceTracker {
 
 impl CausalAbsenceTracker {
     fn new(live: &LiveConfig) -> Self {
+        let context_symbols = live
+            .required_context_symbols
+            .iter()
+            .map(|symbol| normalize_symbol(symbol))
+            .collect::<BTreeSet<_>>();
+        let target_symbols = live
+            .forecast_symbols
+            .iter()
+            .map(|symbol| normalize_symbol(symbol))
+            .collect::<BTreeSet<_>>();
+        let tracked_symbols = context_symbols
+            .union(&target_symbols)
+            .cloned()
+            .collect::<BTreeSet<_>>();
         Self {
-            context_symbols: live
-                .required_context_symbols
-                .iter()
-                .map(|symbol| normalize_symbol(symbol))
-                .collect(),
-            target_symbols: live
-                .forecast_symbols
-                .iter()
-                .map(|symbol| normalize_symbol(symbol))
-                .collect(),
+            context_symbols,
+            target_symbols,
+            tracked_symbols,
             subscription_acknowledged_at: None,
             continuous_health_started_at: None,
             last_progress_at: None,
@@ -457,11 +486,17 @@ impl CausalAbsenceTracker {
     }
 
     fn record_mapping(&mut self, symbol: &str, at: DateTime<Utc>) {
-        self.mapped_at.entry(normalize_symbol(symbol)).or_insert(at);
+        let symbol = normalize_symbol(symbol);
+        if self.tracked_symbols.contains(&symbol) {
+            self.mapped_at.entry(symbol).or_insert(at);
+        }
     }
 
     fn record_trade(&mut self, symbol: &str, interval_start: DateTime<Utc>) -> bool {
         let symbol = normalize_symbol(symbol);
+        if !self.tracked_symbols.contains(&symbol) {
+            return false;
+        }
         let key = (symbol.clone(), interval_start.timestamp_millis());
         let conflicts_with_absence = self.emitted_absences.contains(&key);
         if conflicts_with_absence {
@@ -476,8 +511,11 @@ impl CausalAbsenceTracker {
     }
 
     fn record_unknown(&mut self, symbol: &str, interval_start: DateTime<Utc>) {
-        self.unknown_intervals
-            .insert((normalize_symbol(symbol), interval_start.timestamp_millis()));
+        let symbol = normalize_symbol(symbol);
+        if self.tracked_symbols.contains(&symbol) {
+            self.unknown_intervals
+                .insert((symbol, interval_start.timestamp_millis()));
+        }
     }
 
     fn record_end_of_interval(&mut self, interval_start: DateTime<Utc>) {
@@ -789,7 +827,8 @@ fn record_late_trade_conflict(
 
 fn initial_status(
     request: &DataRequest,
-    symbols: Vec<String>,
+    subscribed_symbols: Vec<String>,
+    tracked_inference_symbols: Vec<String>,
     live: &LiveConfig,
 ) -> DatabentoLiveStatus {
     let required_context_symbols = live
@@ -799,7 +838,7 @@ fn initial_status(
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
-    let symbol_coverage = symbols
+    let symbol_coverage = tracked_inference_symbols
         .iter()
         .cloned()
         .map(|symbol| (symbol.clone(), initial_symbol_coverage(symbol)))
@@ -819,7 +858,13 @@ fn initial_status(
         entitlement_verified: false,
         realtime_required: live.require_realtime,
         replay_requested: false,
-        subscribed_symbols: symbols,
+        subscription_scope: if live.capture_all_symbols {
+            "ALL_SYMBOLS".to_string()
+        } else {
+            "EXPLICIT_SYMBOLS".to_string()
+        },
+        subscribed_symbols,
+        tracked_inference_symbols,
         required_context_symbols,
         context_observation_policy_schema_version: live
             .context_observation_policy
@@ -833,6 +878,11 @@ fn initial_status(
         last_provider_event_at: None,
         last_finalized_bar_at: None,
         finalized_bars: 0,
+        captured_bars: 0,
+        captured_symbol_count: 0,
+        database_rows_inserted: 0,
+        database_duplicate_rows: 0,
+        capture_invalid_rows: 0,
         symbol_mappings: 0,
         reconnects: 0,
         blocker: None,
@@ -849,8 +899,15 @@ struct StreamPaths<'a> {
 struct OhlcvProcessingContext<'a, 'b> {
     request: &'a DataRequest,
     live: &'a LiveConfig,
+    tracked_symbols: &'a BTreeSet<String>,
     paths: &'a StreamPaths<'b>,
     inference_sender: Option<&'a tokio::sync::mpsc::Sender<DatabentoInferenceEvent>>,
+}
+
+struct LiveCaptureState {
+    store: LiveMarketDataStore,
+    buffer: Vec<LiveMarketBarRecord>,
+    symbols: BTreeSet<String>,
 }
 
 fn dispatch_inference_event(
@@ -877,10 +934,13 @@ fn process_ohlcv_row(
     context: &OhlcvProcessingContext<'_, '_>,
     status: &mut DatabentoLiveStatus,
     received_at: DateTime<Utc>,
+    capture: &mut LiveCaptureState,
 ) -> Result<OhlcvProcessingDisposition> {
     status.entitlement_verified = true;
     status.state = "STREAMING_REALTIME".to_string();
     status.last_provider_event_at = Some(received_at);
+    let canonical_symbol = normalize_symbol(symbol);
+    let tracked = context.tracked_symbols.contains(&canonical_symbol);
     let envelope = match normalize_bar(
         row,
         symbol,
@@ -890,28 +950,32 @@ fn process_ohlcv_row(
     ) {
         Ok(envelope) => envelope,
         Err(error) => {
-            quarantine_invalid_ohlcv_row(
-                status,
-                symbol,
-                row,
-                received_at,
-                context
-                    .live
-                    .context_observation_policy
-                    .minimum_continuous_intervals,
-            );
+            status.capture_invalid_rows += 1;
+            if tracked {
+                quarantine_invalid_ohlcv_row(
+                    status,
+                    symbol,
+                    row,
+                    received_at,
+                    context
+                        .live
+                        .context_observation_policy
+                        .minimum_continuous_intervals,
+                );
+            }
             let interval = utc_from_nanos(row.hd.ts_event)
                 .map(|timestamp| timestamp.to_rfc3339())
                 .unwrap_or_else(|_| "INVALID_TIMESTAMP".to_string());
-            status.blocker = Some(format!(
-                "INVALID_FINALIZED_BAR_REJECTED:{}:{interval}",
-                normalize_symbol(symbol)
-            ));
-            status.updated_at = received_at;
-            write_json_atomic(context.paths.status, status)?;
+            if tracked {
+                status.blocker = Some(format!(
+                    "INVALID_FINALIZED_BAR_REJECTED:{canonical_symbol}:{interval}"
+                ));
+                status.updated_at = received_at;
+                write_json_atomic(context.paths.status, status)?;
+            }
             tracing::warn!(
                 reason = %error,
-                symbol = %normalize_symbol(symbol),
+                symbol = %canonical_symbol,
                 interval,
                 "rejected one invalid Databento OHLCV row without restarting the feed"
             );
@@ -919,10 +983,32 @@ fn process_ohlcv_row(
         }
     };
     if context.live.require_realtime && envelope.stale {
-        status.blocker = Some("STALE_DATABENTO_BAR_REJECTED".to_string());
-        status.updated_at = received_at;
-        write_json_atomic(context.paths.status, status)?;
+        status.capture_invalid_rows += 1;
+        if tracked {
+            status.blocker = Some("STALE_DATABENTO_BAR_REJECTED".to_string());
+            status.updated_at = received_at;
+            write_json_atomic(context.paths.status, status)?;
+        }
         return Ok(OhlcvProcessingDisposition::StaleRejected);
+    }
+
+    capture.buffer.push(LiveMarketBarRecord {
+        provider: envelope.provider.clone(),
+        dataset: envelope.dataset.clone(),
+        schema_name: envelope.provider_schema.clone(),
+        available_at: envelope.provider_available_at,
+        recorded_at: envelope.received_at,
+        finalized_at: envelope.finalized_at,
+        entitlement: envelope.entitlement.clone(),
+        symbol_mapping_verified: envelope.symbol_mapping_verified,
+        bar: envelope.bar.clone(),
+    });
+    status.captured_bars += 1;
+    capture.symbols.insert(canonical_symbol);
+    status.captured_symbol_count = capture.symbols.len();
+
+    if !tracked {
+        return Ok(OhlcvProcessingDisposition::CapturedOnly);
     }
 
     let disposition = match update_symbol_coverage(
@@ -973,11 +1059,27 @@ fn process_ohlcv_row(
     Ok(disposition)
 }
 
+fn flush_capture_buffer(
+    capture: &mut LiveCaptureState,
+    status: &mut DatabentoLiveStatus,
+) -> Result<()> {
+    if capture.buffer.is_empty() {
+        return Ok(());
+    }
+    let receipt = capture.store.append_batch(&capture.buffer)?;
+    status.database_rows_inserted += receipt.inserted_rows as u64;
+    status.database_duplicate_rows += receipt.duplicate_rows as u64;
+    capture.buffer.clear();
+    Ok(())
+}
+
 async fn stream_once(
     request: &DataRequest,
     live: &LiveConfig,
     paths: &StreamPaths<'_>,
     status: &mut DatabentoLiveStatus,
+    tracked_symbols: &BTreeSet<String>,
+    capture: &mut LiveCaptureState,
     inference_sender: Option<&tokio::sync::mpsc::Sender<DatabentoInferenceEvent>>,
 ) -> Result<()> {
     let mut client = LiveClient::builder()
@@ -1023,6 +1125,7 @@ async fn stream_once(
     let processing_context = OhlcvProcessingContext {
         request,
         live,
+        tracked_symbols,
         paths,
         inference_sender,
     };
@@ -1053,6 +1156,7 @@ async fn stream_once(
             } else if system.code().ok() == Some(SystemCode::EndOfInterval) {
                 absence_tracker.record_end_of_interval(utc_from_nanos(system.hd.ts_event)?);
             }
+            flush_capture_buffer(capture, status)?;
             status.updated_at = received_at;
             write_json_atomic(paths.status, status)?;
         }
@@ -1072,9 +1176,18 @@ async fn stream_once(
                 .get_for_rec(row)
                 .cloned()
                 .context("Databento OHLCV record arrived without a point-in-time symbol mapping")?;
-            let disposition =
-                process_ohlcv_row(row, &symbol, &processing_context, status, received_at)?;
-            if disposition == OhlcvProcessingDisposition::Accepted {
+            let disposition = process_ohlcv_row(
+                row,
+                &symbol,
+                &processing_context,
+                status,
+                received_at,
+                capture,
+            )?;
+            if matches!(
+                disposition,
+                OhlcvProcessingDisposition::Accepted | OhlcvProcessingDisposition::CapturedOnly
+            ) {
                 let interval_start = utc_from_nanos(row.hd.ts_event)?;
                 if absence_tracker.record_trade(&symbol, interval_start) {
                     record_late_trade_conflict(
@@ -1088,6 +1201,11 @@ async fn stream_once(
                 }
             } else if let Ok(interval_start) = utc_from_nanos(row.hd.ts_event) {
                 absence_tracker.record_unknown(&symbol, interval_start);
+            }
+            if capture.buffer.len() >= 2_048 {
+                flush_capture_buffer(capture, status)?;
+                status.updated_at = received_at;
+                write_json_atomic(paths.status, status)?;
             }
         }
         symbol_map.on_record(record)?;
@@ -1121,6 +1239,7 @@ pub async fn run_equities_stream(
     live: &LiveConfig,
     status_output: PathBuf,
     bars_output: PathBuf,
+    database_output: PathBuf,
     inference_sender: Option<tokio::sync::mpsc::Sender<DatabentoInferenceEvent>>,
 ) -> Result<()> {
     if !live.provider.eq_ignore_ascii_case("databento") {
@@ -1129,8 +1248,8 @@ pub async fn run_equities_stream(
     if !data.databento.enabled {
         bail!("Databento data configuration is disabled");
     }
-    let request = configured_live_request(data)?.clone();
-    let symbols = live
+    let request = configured_live_request(data, live.capture_all_symbols)?.clone();
+    let tracked_symbols = live
         .symbols
         .iter()
         .map(|symbol| normalize_symbol(symbol))
@@ -1138,19 +1257,32 @@ pub async fn run_equities_stream(
         .collect::<std::collections::BTreeSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
-    if symbols.is_empty() {
+    if tracked_symbols.is_empty() {
         bail!("Databento live stream requires at least one symbol");
     }
+    let tracked_symbol_set = tracked_symbols.iter().cloned().collect::<BTreeSet<_>>();
+    let subscribed_symbols = if live.capture_all_symbols {
+        vec!["ALL_SYMBOLS".to_string()]
+    } else {
+        tracked_symbols.clone()
+    };
     let configured = request
         .symbols
         .iter()
         .map(|symbol| normalize_symbol(symbol))
         .collect::<std::collections::BTreeSet<_>>();
-    if symbols.iter().any(|symbol| !configured.contains(symbol)) {
+    if live.capture_all_symbols && !configured.contains("ALL_SYMBOLS") {
+        bail!("Databento all-symbol capture requires an audited ALL_SYMBOLS request");
+    }
+    if !live.capture_all_symbols
+        && tracked_symbols
+            .iter()
+            .any(|symbol| !configured.contains(symbol))
+    {
         bail!("Databento live symbols must be a subset of the audited EQUS.MINI request");
     }
 
-    let mut status = initial_status(&request, symbols, live);
+    let mut status = initial_status(&request, subscribed_symbols, tracked_symbols, live);
     write_json_atomic(&status_output, &status)?;
     let context_observations_output =
         bars_output.with_file_name("databento_context_observations.jsonl");
@@ -1159,6 +1291,18 @@ pub async fn run_equities_stream(
         bars: &bars_output,
         context_observations: &context_observations_output,
     };
+    let store = LiveMarketDataStore::open(&database_output)?;
+    tracing::info!(
+        database = %store.database_path().display(),
+        subscription_scope = %status.subscription_scope,
+        tracked_symbols = status.tracked_inference_symbols.len(),
+        "Databento live market capture store ready"
+    );
+    let mut capture = LiveCaptureState {
+        store,
+        buffer: Vec::with_capacity(2_048),
+        symbols: BTreeSet::new(),
+    };
     let mut reconnect_ms = live.reconnect_min_ms;
     loop {
         match stream_once(
@@ -1166,12 +1310,16 @@ pub async fn run_equities_stream(
             live,
             &paths,
             &mut status,
+            &tracked_symbol_set,
+            &mut capture,
             inference_sender.as_ref(),
         )
         .await
         {
             Ok(()) => unreachable!("Databento stream loop exits only through an error"),
             Err(error) => {
+                flush_capture_buffer(&mut capture, &mut status)
+                    .context("flush Databento capture buffer after stream error")?;
                 status.authenticated = false;
                 status.entitlement_verified = false;
                 status.state = "FAIL_CLOSED_RECONNECTING".to_string();
@@ -1440,7 +1588,12 @@ mod tests {
             required_context_symbols: vec!["UUP".to_string()],
             ..LiveConfig::default()
         };
-        let mut status = initial_status(&request, vec!["UUP".to_string()], &live);
+        let mut status = initial_status(
+            &request,
+            vec!["UUP".to_string()],
+            vec!["UUP".to_string()],
+            &live,
+        );
         let directory = tempfile::tempdir().unwrap();
         let status_path = directory.path().join("status.json");
         let bars_path = directory.path().join("bars.jsonl");
@@ -1451,11 +1604,18 @@ mod tests {
             context_observations: &context_path,
         };
         let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
+        let tracked_symbols = BTreeSet::from(["UUP".to_string()]);
         let processing_context = OhlcvProcessingContext {
             request: &request,
             live: &live,
+            tracked_symbols: &tracked_symbols,
             paths: &paths,
             inference_sender: Some(&sender),
+        };
+        let mut capture = LiveCaptureState {
+            store: LiveMarketDataStore::open(&directory.path().join("capture.sqlite3")).unwrap(),
+            buffer: Vec::new(),
+            symbols: BTreeSet::new(),
         };
         let invalid_received = start + ChronoDuration::minutes(1) + ChronoDuration::seconds(1);
 
@@ -1466,6 +1626,7 @@ mod tests {
                 &processing_context,
                 &mut status,
                 invalid_received,
+                &mut capture,
             )
             .unwrap(),
             OhlcvProcessingDisposition::InvalidRejected
@@ -1494,6 +1655,7 @@ mod tests {
                 &processing_context,
                 &mut status,
                 valid_received,
+                &mut capture,
             )
             .unwrap(),
             OhlcvProcessingDisposition::Accepted
@@ -1513,9 +1675,109 @@ mod tests {
             MinuteObservationState::ObservedTradeBar
         );
         assert_eq!(status.finalized_bars, 1);
+        assert_eq!(status.captured_bars, 1);
+        assert_eq!(status.captured_symbol_count, 1);
+        assert_eq!(capture.buffer.len(), 1);
         assert!(status.blocker.is_none());
         assert_eq!(
             std::fs::read_to_string(&bars_path).unwrap().lines().count(),
+            1
+        );
+    }
+
+    #[test]
+    fn all_symbol_capture_persists_untracked_rows_without_entering_inference() {
+        let start = DateTime::parse_from_rfc3339("2026-07-24T14:00:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let row = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(
+                rtype::OHLCV_1M,
+                1,
+                42,
+                start.timestamp_nanos_opt().unwrap() as u64,
+            ),
+            open: 20_000_000_000,
+            high: 20_100_000_000,
+            low: 19_900_000_000,
+            close: 20_050_000_000,
+            volume: 100,
+        };
+        let request = DataRequest {
+            name: "all-live".into(),
+            dataset: "EQUS.MINI".into(),
+            schema: "ohlcv-1m".into(),
+            stype_in: "raw_symbol".into(),
+            symbols: vec!["ALL_SYMBOLS".into()],
+            start: "2026-07-24T00:00:00Z".into(),
+            end: "2026-07-25T00:00:00Z".into(),
+        };
+        let live = LiveConfig {
+            capture_all_symbols: true,
+            symbols: vec!["US.SPY".into()],
+            forecast_symbols: vec!["US.SPY".into()],
+            required_context_symbols: Vec::new(),
+            ..LiveConfig::default()
+        };
+        let mut status = initial_status(
+            &request,
+            vec!["ALL_SYMBOLS".into()],
+            vec!["SPY".into()],
+            &live,
+        );
+        let directory = tempfile::tempdir().unwrap();
+        let status_path = directory.path().join("status.json");
+        let bars_path = directory.path().join("inference-bars.jsonl");
+        let context_path = directory.path().join("context.jsonl");
+        let paths = StreamPaths {
+            status: &status_path,
+            bars: &bars_path,
+            context_observations: &context_path,
+        };
+        let tracked_symbols = BTreeSet::from(["SPY".to_string()]);
+        let (sender, mut receiver) = tokio::sync::mpsc::channel(1);
+        let processing_context = OhlcvProcessingContext {
+            request: &request,
+            live: &live,
+            tracked_symbols: &tracked_symbols,
+            paths: &paths,
+            inference_sender: Some(&sender),
+        };
+        let database = directory.path().join("all-symbols.sqlite3");
+        let mut capture = LiveCaptureState {
+            store: LiveMarketDataStore::open(&database).unwrap(),
+            buffer: Vec::new(),
+            symbols: BTreeSet::new(),
+        };
+        let received_at = start + ChronoDuration::minutes(1) + ChronoDuration::milliseconds(50);
+
+        assert_eq!(
+            process_ohlcv_row(
+                &row,
+                "XYZ",
+                &processing_context,
+                &mut status,
+                received_at,
+                &mut capture,
+            )
+            .unwrap(),
+            OhlcvProcessingDisposition::CapturedOnly
+        );
+        assert!(!bars_path.exists());
+        assert!(!status.symbol_coverage.contains_key("XYZ"));
+        assert_eq!(status.captured_bars, 1);
+        assert_eq!(status.finalized_bars, 0);
+        assert!(matches!(
+            receiver.try_recv(),
+            Err(tokio::sync::mpsc::error::TryRecvError::Empty)
+        ));
+
+        flush_capture_buffer(&mut capture, &mut status).unwrap();
+        assert_eq!(status.database_rows_inserted, 1);
+        assert_eq!(
+            crate::data::market_store::latest_live_bars(&database, "XYZ", 10)
+                .unwrap()
+                .len(),
             1
         );
     }
@@ -1553,7 +1815,12 @@ mod tests {
             required_context_symbols: vec!["UUP".to_string()],
             ..LiveConfig::default()
         };
-        let mut status = initial_status(&request, vec!["UUP".to_string()], &live);
+        let mut status = initial_status(
+            &request,
+            vec!["UUP".to_string()],
+            vec!["UUP".to_string()],
+            &live,
+        );
         assert_eq!(
             update_symbol_coverage(&mut status, &first, 6),
             CoverageDisposition::Accepted

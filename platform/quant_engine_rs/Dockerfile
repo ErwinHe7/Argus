@@ -23,8 +23,8 @@ COPY --chown=axio:axio data ./data
 COPY --chown=axio:axio container-entrypoint.sh /usr/local/bin/axio-entrypoint
 
 RUN chmod 0555 /usr/local/bin/quantd /usr/local/bin/quantctl /usr/local/bin/axio-entrypoint \
-    && mkdir -p /app/data/live/options /app/data/state /app/data/reports \
-    && chown -R axio:axio /app/data/live /app/data/state /app/data/reports
+    && mkdir -p /app/data/live/options /app/data/state /app/data/reports /app/data/market \
+    && chown -R axio:axio /app/data/live /app/data/state /app/data/reports /app/data/market
 
 USER axio
 ENV PORT=8001 \

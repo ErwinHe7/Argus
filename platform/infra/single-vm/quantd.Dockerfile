@@ -42,11 +42,13 @@ RUN sed -i 's/\r$//' /usr/local/bin/axio-entrypoint \
         test -r "/app/data/models/universe/${artifact}.frozen.json"; \
     done \
     && mkdir -p /app/data/live/options /app/data/state /app/data/reports \
+        /app/data/market \
         /app/data/rights /app/data/evidence /app/data/promotion \
         /app/data/calibration /app/data/models \
     && ln -sfn ../promotion/predictor_promotion_latest.json \
         /app/data/models/predictor_promotion_latest.json \
     && chown -R axio:axio /app/data/live /app/data/state /app/data/reports \
+        /app/data/market \
         /app/data/rights /app/data/evidence /app/data/promotion \
         /app/data/calibration \
     && chown -R root:root /app/data/models \
