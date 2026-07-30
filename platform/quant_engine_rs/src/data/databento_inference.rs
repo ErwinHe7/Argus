@@ -74,6 +74,13 @@ fn bounded_worker_partition_sizes(job_count: usize, worker_count: usize) -> Vec<
     sizes
 }
 
+fn state_snapshot_matches_batch_cutoff(
+    state_timestamp: Option<DateTime<Utc>>,
+    batch_cutoff: DateTime<Utc>,
+) -> bool {
+    state_timestamp == Some(batch_cutoff)
+}
+
 fn validate_atomic_target_bundle(
     bundle: &ForecastBundle,
     target: &str,
@@ -2148,11 +2155,13 @@ impl Runtime {
             return;
         }
         if self.expected_targets.iter().any(|target| {
-            self.targets
-                .get(target)
-                .and_then(|runtime| runtime.feature_engine.states().last())
-                .map(|state| state.timestamp + Duration::minutes(1))
-                != Some(batch.cutoff)
+            !state_snapshot_matches_batch_cutoff(
+                self.targets
+                    .get(target)
+                    .and_then(|runtime| runtime.feature_engine.states().last())
+                    .map(|state| state.timestamp),
+                batch.cutoff,
+            )
         }) {
             self.reject_pending_batch(batch, "BATCH_ABORTED_STATE_SNAPSHOT_CUTOFF_MISMATCH");
             return;

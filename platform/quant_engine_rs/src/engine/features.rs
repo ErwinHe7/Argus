@@ -2189,6 +2189,10 @@ mod tests {
             }
         }
         let ready = ready.expect("current session should leave warm-up");
+        assert_eq!(
+            ready.latest_state.as_ref().map(|state| state.timestamp),
+            ready.cutoff
+        );
         assert!(
             ready
                 .context_observations
