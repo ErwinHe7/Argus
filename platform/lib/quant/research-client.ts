@@ -1348,7 +1348,9 @@ function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
     ['SPY', 'QQQ', 'IWM', 'SOXX', 'HYG', 'TLT', 'UUP', 'VXX'].every(
       (symbol) =>
         Number.isSafeInteger(coverage[symbol]) &&
-        (coverage[symbol] as number) >= (symbol === 'SPY' ? 390 : 370)
+        // Databento OHLCV-1m emits only minutes containing trades. Rust also
+        // verifies that sparse context ETFs cover both session edges.
+        (coverage[symbol] as number) >= (symbol === 'SPY' ? 390 : 20)
     ) &&
     (prediction.lean === 'UP' ||
       prediction.lean === 'DOWN' ||

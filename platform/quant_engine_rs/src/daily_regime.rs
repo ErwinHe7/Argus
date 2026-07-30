@@ -41,7 +41,14 @@ const FEATURE_NAMES: [&str; 15] = [
     "vxx_return",
 ];
 const MINIMUM_PRIMARY_ROWS: usize = 390;
-const MINIMUM_CONTEXT_ROWS: usize = 370;
+// Databento's OHLCV-1m schema emits a bar only for minutes with trades. Less
+// active context ETFs such as UUP therefore cannot honestly satisfy a
+// 370-print threshold even when their full session is present. Require enough
+// observations for a daily return and explicit coverage near both session
+// edges instead.
+const MINIMUM_CONTEXT_ROWS: usize = 20;
+const CONTEXT_FIRST_MINUTE_LIMIT_ET: u32 = 10 * 60;
+const CONTEXT_LAST_MINUTE_LIMIT_ET: u32 = 15 * 60 + 30;
 const ANALOG_NEIGHBORS: usize = 15;
 const MINIMUM_ANALOGS: usize = 10;
 
@@ -516,13 +523,24 @@ fn append_live_rows(
     latest_available_at
 }
 
+fn context_session_covered(bar: &DailyBar) -> bool {
+    let (Some(first_at), Some(last_at)) = (bar.first_at, bar.last_at) else {
+        return false;
+    };
+    let first = first_at.with_timezone(&New_York);
+    let last = last_at.with_timezone(&New_York);
+    bar.minute_rows >= MINIMUM_CONTEXT_ROWS
+        && first.hour() * 60 + first.minute() <= CONTEXT_FIRST_MINUTE_LIMIT_ET
+        && last.hour() * 60 + last.minute() >= CONTEXT_LAST_MINUTE_LIMIT_ET
+}
+
 fn complete_day(day: &BTreeMap<String, DailyBar>) -> bool {
     REQUIRED_SYMBOLS.iter().all(|symbol| {
         day.get(*symbol).is_some_and(|bar| {
             if *symbol == "SPY" {
                 bar.minute_rows >= MINIMUM_PRIMARY_ROWS
             } else {
-                bar.minute_rows >= MINIMUM_CONTEXT_ROWS
+                context_session_covered(bar)
             }
         })
     })
@@ -984,7 +1002,7 @@ pub fn build_daily_regime_report(
         },
         model_contract: DailyModelContract {
             model_id: "axio7.spx-next-session-regime-analog",
-            model_version: "2026-07-30.v1",
+            model_version: "2026-07-30.v2",
             owner: "quant_engine_rs",
             regime_algorithm: "Causal deterministic trend-volatility-breadth state map using only completed sessions.",
             analog_algorithm: "Same-regime 15-neighbor standardized-Euclidean retrieval over 15 causal price-volume and cross-asset features.",
@@ -1070,5 +1088,23 @@ mod tests {
             classify_regime(&features, 0.90),
             RegimeLabel::HighVolSellOff
         );
+    }
+
+    #[test]
+    fn sparse_context_coverage_requires_both_session_edges() {
+        let mut bar = DailyBar {
+            minute_rows: MINIMUM_CONTEXT_ROWS,
+            first_at: Some("2026-07-30T13:45:00Z".parse().unwrap()),
+            last_at: Some("2026-07-30T19:45:00Z".parse().unwrap()),
+            ..DailyBar::default()
+        };
+        assert!(context_session_covered(&bar));
+
+        bar.first_at = Some("2026-07-30T14:01:00Z".parse().unwrap());
+        assert!(!context_session_covered(&bar));
+
+        bar.first_at = Some("2026-07-30T13:45:00Z".parse().unwrap());
+        bar.last_at = Some("2026-07-30T19:29:00Z".parse().unwrap());
+        assert!(!context_session_covered(&bar));
     }
 }
