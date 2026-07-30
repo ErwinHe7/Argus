@@ -15,7 +15,7 @@ live:
   # host/port remain only for the explicitly-invoked legacy moomoo commands.
   host: 127.0.0.1
   port: 11111
-  symbols: [US.SPY, US.QQQ, US.NVDA, US.AAPL, US.MU, US.SOXX, US.NBIS, US.BE, US.IGV, US.IWM, US.HYG, US.TLT, US.VXX]
+  symbols: [US.SPY, US.QQQ, US.NVDA, US.AAPL, US.MU, US.SOXX, US.NBIS, US.BE, US.IGV, US.IWM, US.HYG, US.VXX]
   # A forecast is generated only after the matching symbol's one-minute bar
   # is finalized. The opportunity endpoint scans this explicit, auditable
   # universe on demand and reports missing/stale symbols instead of silently
@@ -25,7 +25,7 @@ live:
   # No cross-asset average is formed unless every required symbol is present
   # at the same point-in-time cutoff. VXX and USO are explicit tradable
   # volatility/oil proxies; they are never mislabeled as VIX/WTI spot.
-  required_context_symbols: [QQQ, IWM, SOXX, HYG, TLT, VXX]
+  required_context_symbols: [QQQ, IWM, SOXX, HYG, VXX]
   # Stream silence cannot prove that an instrument had no trades. The frozen
   # feature schema therefore accepts only real, positive-volume bars. Missing
   # intervals are reported as unknown and fail closed. A separately versioned
@@ -36,14 +36,13 @@ live:
     minimum_continuous_intervals: 6
     eligible_states: [observed_trade_bar]
   cross_asset_feature_schema:
-    schema_version: cross_asset_breadth.v2-no-uup-candidate
+    schema_version: cross_asset_breadth.v3-no-uup-no-tlt-candidate
     members:
       - { symbol: QQQ, polarity: 1.0 }
       - { symbol: IWM, polarity: 1.0 }
       - { symbol: HYG, polarity: 1.0 }
       - { symbol: VXX, polarity: -1.0 }
-      - { symbol: TLT, polarity: -1.0 }
-    schema_sha256: 6716d4c24f59b4bf3569d164d9547343ed4fb6f6261415f4c1e2535ed7bc2e25
+    schema_sha256: 2b836dc6bc1a65e1104b8559a175b304ed3c05a77277b2ce384c14cb284ab105
   session: regular
   subscribe_quote: true
   subscribe_k_1m: true

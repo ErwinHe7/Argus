@@ -137,6 +137,8 @@ enum LiveCommand {
         #[arg(long)]
         no_uup: bool,
         #[arg(long)]
+        no_uup_no_tlt: bool,
+        #[arg(long)]
         causal_absence_shadow: bool,
     },
     /// Verify paid SIP stock WebSocket and OPRA full-chain entitlements. The
@@ -2160,14 +2162,20 @@ async fn run() -> Result<()> {
         Command::Live(args) => match args.command {
             LiveCommand::FeatureContract {
                 no_uup,
+                no_uup_no_tlt,
                 causal_absence_shadow,
             } => {
+                if no_uup && no_uup_no_tlt {
+                    anyhow::bail!("choose only one sparse cross-asset feature candidate");
+                }
                 let policy = if causal_absence_shadow {
                     axio_quant_engine::config::ContextObservationPolicyConfig::v2_candidate()
                 } else {
                     axio_quant_engine::config::ContextObservationPolicyConfig::default()
                 };
-                let cross_asset_schema = if no_uup {
+                let cross_asset_schema = if no_uup_no_tlt {
+                    axio_quant_engine::config::CrossAssetFeatureSchemaConfig::v3_candidate_without_uup_or_tlt()
+                } else if no_uup {
                     axio_quant_engine::config::CrossAssetFeatureSchemaConfig::v2_candidate_without_uup()
                 } else {
                     axio_quant_engine::config::CrossAssetFeatureSchemaConfig::default()
@@ -2185,7 +2193,7 @@ async fn run() -> Result<()> {
                         "cross_asset_feature_schema_sha256": cross_asset_schema.schema_sha256,
                         "promotion_status": if causal_absence_shadow {
                             "LIVE_SHADOW_ONLY_PENDING_DATABENTO_BATCH_PARITY"
-                        } else if no_uup {
+                        } else if no_uup || no_uup_no_tlt {
                             "RETRAIN_AND_VALIDATE_REQUIRED"
                         } else {
                             "CURRENT_V1_IDENTITY"

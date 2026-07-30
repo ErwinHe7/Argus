@@ -1,0 +1,17 @@
+# Offline candidate contract for the Databento Mini feed. TLT and UUP remain
+# available in the historical archive but are excluded from the live feature
+# identity because their observed-trade minute coverage is not continuous.
+schema_version: axio.offline-feature-training-contract.v1
+promotion_status: RETRAIN_AND_VALIDATE_REQUIRED
+context_observation_policy:
+  schema_version: causal_context_observation_policy.v1
+  minimum_continuous_intervals: 6
+  eligible_states: [observed_trade_bar]
+cross_asset_feature_schema:
+  schema_version: cross_asset_breadth.v3-no-uup-no-tlt-candidate
+  members:
+    - {symbol: QQQ, polarity: 1.0}
+    - {symbol: IWM, polarity: 1.0}
+    - {symbol: HYG, polarity: 1.0}
+    - {symbol: VXX, polarity: -1.0}
+  schema_sha256: 2b836dc6bc1a65e1104b8559a175b304ed3c05a77277b2ce384c14cb284ab105
