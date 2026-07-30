@@ -366,6 +366,24 @@ fn normalize_bar(
     })
 }
 
+fn causal_finalization_delay(
+    row: &OhlcvMsg,
+    received_at: DateTime<Utc>,
+    finalize_grace_ms: i64,
+) -> Result<Option<Duration>> {
+    let bar_end = utc_from_nanos(row.hd.ts_event)? + ChronoDuration::minutes(1);
+    let early_by_ms = bar_end
+        .signed_duration_since(received_at)
+        .num_milliseconds();
+    if early_by_ms <= 0 || early_by_ms > finalize_grace_ms {
+        return Ok(None);
+    }
+    // Databento can deliver a completed OHLCV record within the local clock's
+    // sub-second boundary skew. Wait through the asserted interval end before
+    // assigning AXIO7 availability/finalization time; never backdate the bar.
+    Ok(Some(Duration::from_millis(early_by_ms as u64 + 1)))
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum CoverageDisposition {
     Accepted,
@@ -1014,7 +1032,7 @@ async fn stream_once(
             .await
             .context("Databento live connection made no progress within heartbeat deadline")??
             .context("Databento Live gateway closed the stream")?;
-        let received_at = Utc::now();
+        let mut received_at = Utc::now();
         absence_tracker.record_progress(received_at);
         if let Some(error) = record.get::<ErrorMsg>() {
             bail!(
@@ -1043,6 +1061,13 @@ async fn stream_once(
             absence_tracker.record_mapping(mapping.stype_in_symbol()?, received_at);
         }
         if let Some(row) = record.get::<OhlcvMsg>() {
+            if let Some(delay) =
+                causal_finalization_delay(row, received_at, live.finalize_grace_ms)?
+            {
+                tokio::time::sleep(delay).await;
+                received_at = Utc::now();
+                absence_tracker.record_progress(received_at);
+            }
             let symbol = symbol_map
                 .get_for_rec(row)
                 .cloned()
@@ -1202,6 +1227,41 @@ mod tests {
         assert!(!envelope.replay);
         assert_eq!(envelope.entitlement, "REALTIME_SUBSCRIPTION_ACKNOWLEDGED");
         assert!(envelope.causal_observation().validate());
+    }
+
+    #[test]
+    fn waits_through_small_clock_skew_but_not_materially_future_bars() {
+        let start = DateTime::parse_from_rfc3339("2026-07-24T19:59:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let row = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(
+                rtype::OHLCV_1M,
+                1,
+                42,
+                start.timestamp_nanos_opt().unwrap() as u64,
+            ),
+            open: 200_000_000_000,
+            high: 201_000_000_000,
+            low: 199_500_000_000,
+            close: 200_500_000_000,
+            volume: 1_250,
+        };
+        let bar_end = start + ChronoDuration::minutes(1);
+
+        assert_eq!(
+            causal_finalization_delay(&row, bar_end - ChronoDuration::milliseconds(35), 2_000)
+                .unwrap(),
+            Some(Duration::from_millis(36))
+        );
+        assert_eq!(
+            causal_finalization_delay(&row, bar_end - ChronoDuration::seconds(3), 2_000).unwrap(),
+            None
+        );
+        assert_eq!(
+            causal_finalization_delay(&row, bar_end, 2_000).unwrap(),
+            None
+        );
     }
 
     #[test]
