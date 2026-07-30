@@ -41,6 +41,7 @@ import type {
   QuantHistoricalStats,
   QuantPipelineReadiness,
   QuantResearchCandidate,
+  QuantSessionSummary,
 } from '@/lib/forecast-chat-types';
 import styles from './AxioChat.module.css';
 
@@ -921,6 +922,7 @@ function AssistantAnswer({ message }: { message: ChatMessage }) {
     research &&
     research.candidates.length === 0 &&
     research.data_blockers.length > 0 &&
+    !message.forecast?.sessionSummary &&
     !(
       research.query.filters.include_historical &&
       research.historical.length > 0
@@ -1267,6 +1269,15 @@ function PredictionDetails({
   onRetry: () => void;
   onPreparePrompt: (prompt: string) => void;
 }) {
+  if (forecast.research && forecast.sessionSummary) {
+    return (
+      <SessionSummaryDetails
+        summary={forecast.sessionSummary}
+        disclaimer={forecast.disclaimer}
+        locale={locale}
+      />
+    );
+  }
   if (forecast.research) {
     return (
       <ResearchDetails
@@ -1696,6 +1707,174 @@ function InterpretedQuery({
           : `Assumptions: up to ${query.limit} results; maximum realtime age ${query.filters.max_data_age_seconds}s; missing, stale, unentitled, or non-causal inputs fail closed; automatic execution is always disabled.`}
       </p>
     </section>
+  );
+}
+
+function SessionSummaryDetails({
+  summary,
+  disclaimer,
+  locale,
+}: {
+  summary: QuantSessionSummary;
+  disclaimer: string;
+  locale: ConversationReceipt['locale'];
+}) {
+  const chinese = locale === 'zh-CN';
+  const latest = summary.latest_completed_bar;
+  const complete = summary.status === 'COMPLETE_78_BAR_SESSION';
+  const trendLabel = chinese
+    ? summary.trend_state === 'UP_SESSION'
+      ? '上涨时段'
+      : summary.trend_state === 'DOWN_SESSION'
+        ? '下跌时段'
+        : '平盘时段'
+    : summary.trend_state.replaceAll('_', ' ').toLowerCase();
+
+  return (
+    <div className={styles.predictionDetails}>
+      <div className={styles.reportMeta}>
+        <span className={`${styles.compliancePill} ${styles.allowed}`}>
+          <ShieldCheck size={13} />
+          {chinese ? 'Databento 结果可用' : 'Databento result available'}
+        </span>
+        <span>
+          {complete
+            ? chinese
+              ? '完整常规交易时段'
+              : 'Complete regular session'
+            : chinese
+              ? '当前时段截至目前'
+              : 'Current session to date'}
+        </span>
+        <span>
+          {summary.five_minute_bar_count}
+          {complete ? '/78' : ''} {chinese ? '根 5 分钟数据' : 'five-minute bars'}
+        </span>
+      </div>
+
+      <div className={styles.signalGrid}>
+        <div className={styles.signalCard}>
+          <div className={styles.signalTopline}>
+            <strong>
+              {summary.public_symbol} → {summary.data_symbol}
+            </strong>
+            <span>{trendLabel}</span>
+          </div>
+          <p>
+            {chinese ? '开盘' : 'Open'} {formatNumber(summary.session_open)} ·{' '}
+            {chinese ? '最高' : 'High'} {formatNumber(summary.session_high)} ·{' '}
+            {chinese ? '最低' : 'Low'} {formatNumber(summary.session_low)} ·{' '}
+            {chinese ? '收盘' : 'Close'} {formatNumber(summary.session_close)}
+          </p>
+          <p>
+            {summary.session_date_et} · {formatPercent(summary.session_return_pct)} ·{' '}
+            {chinese ? '区间' : 'range'} {formatPercent(summary.session_range_pct)}
+          </p>
+          <div className={styles.signalLineage}>
+            <p>{summary.proxy_disclosure}</p>
+            <p>
+              {chinese ? '区间收盘位置' : 'Close location'}{' '}
+              {formatPercent(summary.close_location_pct)} ·{' '}
+              {chinese ? '成交量' : 'volume'} {formatNumber(summary.total_volume, 0)}
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.signalCard}>
+          <div className={styles.signalTopline}>
+            <strong>{chinese ? '最新完整窗口' : 'Latest completed window'}</strong>
+            <span>{latest ? `#${latest.bar_number}` : 'unavailable'}</span>
+          </div>
+          <p>
+            {latest
+              ? `${new Date(latest.window_end).toLocaleTimeString(locale, {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  timeZone: 'America/New_York',
+                })} ET · ${formatNumber(latest.close)} · ${formatPercent(
+                  latest.return_pct
+                )}`
+              : chinese
+                ? '尚无完整 5 分钟窗口'
+                : 'No completed five-minute window yet'}
+          </p>
+          <p>
+            {chinese ? '收盘-成交量代理' : 'Close-volume proxy'}{' '}
+            {formatNumber(summary.close_volume_proxy)} ·{' '}
+            {formatNumber(summary.close_vs_close_volume_proxy_bps, 1)} bps
+          </p>
+          <div className={styles.signalLineage}>
+            <p>
+              {summary.source.provider} {summary.source.dataset} ·{' '}
+              {summary.source.schema} · {summary.minute_rows}{' '}
+              {chinese ? '根 1 分钟数据' : 'one-minute rows'}
+            </p>
+            <p>
+              {chinese ? '最后可用时间' : 'Available at'}{' '}
+              {new Date(summary.source.last_available_at).toLocaleString(locale)}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <details className={styles.evidence}>
+        <summary>
+          <span>{chinese ? '峰值窗口' : 'Peak five-minute windows'}</span>
+          <span>{summary.peak_windows.length}</span>
+        </summary>
+        <div>
+          {summary.peak_windows.map((bar) => (
+            <article key={bar.bar_number}>
+              <i />
+              <div>
+                <strong>
+                  #{bar.bar_number} · {formatPercent(bar.return_pct)}
+                </strong>
+                <p>
+                  {formatNumber(bar.open)} → {formatNumber(bar.close)} ·{' '}
+                  {new Date(bar.window_end).toLocaleTimeString(locale, {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    timeZone: 'America/New_York',
+                  })}{' '}
+                  ET
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </details>
+
+      <details className={styles.evidence}>
+        <summary>
+          <span>{chinese ? '完整 5 分钟时段图' : 'Full five-minute session map'}</span>
+          <span>{summary.five_minute_bars.length}</span>
+        </summary>
+        <div>
+          {summary.five_minute_bars.map((bar) => (
+            <article key={bar.bar_number}>
+              <i />
+              <div>
+                <strong>
+                  #{bar.bar_number} · {formatPercent(bar.return_pct)}
+                </strong>
+                <p>
+                  O {formatNumber(bar.open)} · H {formatNumber(bar.high)} · L{' '}
+                  {formatNumber(bar.low)} · C {formatNumber(bar.close)} · V{' '}
+                  {formatNumber(bar.volume, 0)}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </details>
+
+      <p className={styles.reportDisclaimer}>
+        {chinese
+          ? '这是由 Rust 引擎根据 Databento 数据生成的 SPY→SPX 历史/时段内观测结果，不是实时模型概率、个性化建议或订单。'
+          : `${disclaimer} This observed SPY→SPX result is not a live model probability or an order.`}
+      </p>
+    </div>
   );
 }
 

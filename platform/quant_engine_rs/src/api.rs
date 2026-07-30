@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use axum::{
     Json, Router,
     extract::{Path, Query, Request, State},
@@ -14,7 +14,8 @@ use axum::{
     response::{IntoResponse, Response},
     routing::{get, post},
 };
-use chrono::Utc;
+use chrono::{DateTime, Timelike, Utc};
+use chrono_tz::America::New_York;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
@@ -176,6 +177,10 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/data/readiness", get(data_readiness))
         .route("/api/v1/data/capabilities", get(data_capabilities))
         .route("/api/v1/research/universe", get(research_universe))
+        .route(
+            "/api/v1/research/session-summary",
+            get(research_session_summary),
+        )
         .route("/api/v1/research/factor-shadow", get(factor_shadow_status))
         .route("/api/v1/live/status", get(live_status))
         .route("/api/v1/live/events", get(live_events))
@@ -2361,6 +2366,232 @@ fn read_jsonl_tail(path: &std::path::Path, limit: usize) -> Result<Vec<Value>, A
         .collect::<Vec<_>>();
     rows.reverse();
     Ok(rows)
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SessionFiveMinuteBar {
+    bar_number: usize,
+    window_start: String,
+    window_end: String,
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+    volume: f64,
+    return_pct: f64,
+    minute_rows: usize,
+}
+
+fn build_session_summary(
+    rows: Vec<crate::data::market_store::StoredLiveMarketBar>,
+    public_symbol: &str,
+    data_symbol: &str,
+) -> Result<Value> {
+    let mut parsed = rows
+        .into_iter()
+        .filter_map(|row| {
+            row.event_at
+                .parse::<DateTime<Utc>>()
+                .ok()
+                .map(|event_at| (event_at, row))
+        })
+        .collect::<Vec<_>>();
+    parsed.sort_by_key(|(event_at, _)| *event_at);
+    let regular_rows = parsed
+        .into_iter()
+        .filter(|(event_at, _)| {
+            let local = event_at.with_timezone(&New_York);
+            let minute = local.hour() * 60 + local.minute();
+            (570..960).contains(&minute)
+        })
+        .collect::<Vec<_>>();
+    let session_date = regular_rows
+        .last()
+        .map(|(event_at, _)| event_at.with_timezone(&New_York).date_naive())
+        .context("NO_REGULAR_SESSION_ROWS")?;
+    let regular = regular_rows
+        .into_iter()
+        .filter(|(event_at, _)| event_at.with_timezone(&New_York).date_naive() == session_date)
+        .collect::<Vec<_>>();
+    if regular.is_empty() {
+        anyhow::bail!("NO_REGULAR_SESSION_ROWS");
+    }
+
+    let mut buckets = Vec::<SessionFiveMinuteBar>::new();
+    for (event_at, row) in &regular {
+        let local = event_at.with_timezone(&New_York);
+        let minute = local.hour() * 60 + local.minute();
+        let bar_number = ((minute - 570) / 5 + 1) as usize;
+        if let Some(bucket) = buckets.last_mut()
+            && bucket.bar_number == bar_number
+        {
+            bucket.high = bucket.high.max(row.high);
+            bucket.low = bucket.low.min(row.low);
+            bucket.close = row.close;
+            bucket.volume += row.volume;
+            bucket.window_end = (*event_at + chrono::Duration::minutes(1)).to_rfc3339();
+            bucket.return_pct = (bucket.close / bucket.open - 1.0) * 100.0;
+            bucket.minute_rows += 1;
+            continue;
+        }
+        buckets.push(SessionFiveMinuteBar {
+            bar_number,
+            window_start: event_at.to_rfc3339(),
+            window_end: (*event_at + chrono::Duration::minutes(1)).to_rfc3339(),
+            open: row.open,
+            high: row.high,
+            low: row.low,
+            close: row.close,
+            volume: row.volume,
+            return_pct: (row.close / row.open - 1.0) * 100.0,
+            minute_rows: 1,
+        });
+    }
+    let first = regular.first().context("NO_REGULAR_SESSION_ROWS")?;
+    let last = regular.last().context("NO_REGULAR_SESSION_ROWS")?;
+    let session_open = first.1.open;
+    let session_close = last.1.close;
+    let session_high = regular
+        .iter()
+        .map(|(_, row)| row.high)
+        .fold(f64::NEG_INFINITY, f64::max);
+    let session_low = regular
+        .iter()
+        .map(|(_, row)| row.low)
+        .fold(f64::INFINITY, f64::min);
+    let total_volume = regular.iter().map(|(_, row)| row.volume).sum::<f64>();
+    let close_volume_proxy = (total_volume > 0.0).then(|| {
+        regular
+            .iter()
+            .map(|(_, row)| row.close * row.volume)
+            .sum::<f64>()
+            / total_volume
+    });
+    let session_return_pct = (session_close / session_open - 1.0) * 100.0;
+    let session_range_pct = (session_high / session_low - 1.0) * 100.0;
+    let close_location_pct = if session_high > session_low {
+        (session_close - session_low) / (session_high - session_low) * 100.0
+    } else {
+        50.0
+    };
+    let trend_state = if session_return_pct > 0.0 {
+        "UP_SESSION"
+    } else if session_return_pct < 0.0 {
+        "DOWN_SESSION"
+    } else {
+        "FLAT_SESSION"
+    };
+    let mut peak_windows = buckets
+        .iter()
+        .filter(|bucket| bucket.minute_rows == 5)
+        .cloned()
+        .collect::<Vec<_>>();
+    peak_windows.sort_by(|left, right| {
+        right
+            .return_pct
+            .abs()
+            .total_cmp(&left.return_pct.abs())
+            .then_with(|| left.bar_number.cmp(&right.bar_number))
+    });
+    peak_windows.truncate(3);
+    let entitlements = regular
+        .iter()
+        .map(|(_, row)| row.entitlement.clone())
+        .collect::<BTreeSet<_>>();
+    let completed = regular.len() == 390
+        && buckets.len() == 78
+        && buckets.iter().all(|bucket| bucket.minute_rows == 5);
+    let latest_completed_bar = buckets
+        .iter()
+        .rev()
+        .find(|bucket| bucket.minute_rows == 5)
+        .cloned();
+
+    Ok(json!({
+        "schema_version":"axio.session-summary.v1",
+        "status":if completed {"COMPLETE_78_BAR_SESSION"} else {"SESSION_TO_DATE"},
+        "result_kind":"OBSERVED_SESSION_TREND",
+        "scope":if completed {
+            "LAST_COMPLETED_REGULAR_SESSION"
+        } else {
+            "CURRENT_REGULAR_SESSION_TO_DATE"
+        },
+        "public_symbol":public_symbol,
+        "data_symbol":data_symbol,
+        "proxy_disclosure":if public_symbol == "SPX" {
+            "SPX uses SPY for price, volume, and close-volume session research."
+        } else {
+            "Direct listed instrument observations."
+        },
+        "session_date_et":session_date.to_string(),
+        "trend_state":trend_state,
+        "session_return_pct":session_return_pct,
+        "session_open":session_open,
+        "session_high":session_high,
+        "session_low":session_low,
+        "session_close":session_close,
+        "session_range_pct":session_range_pct,
+        "close_location_pct":close_location_pct,
+        "total_volume":total_volume,
+        "close_volume_proxy":close_volume_proxy,
+        "close_vs_close_volume_proxy_bps":close_volume_proxy
+            .map(|value| (session_close / value - 1.0) * 10_000.0),
+        "minute_rows":regular.len(),
+        "five_minute_bar_count":buckets.len(),
+        "latest_completed_bar":latest_completed_bar,
+        "peak_windows":peak_windows,
+        "five_minute_bars":buckets,
+        "source":{
+            "provider":"databento",
+            "dataset":"EQUS.MINI",
+            "schema":"ohlcv-1m",
+            "storage":"APPEND_ONLY_SQLITE",
+            "first_observed_at":first.0,
+            "last_observed_at":last.0,
+            "last_available_at":last.1.available_at,
+            "entitlements":entitlements,
+        },
+        "model_status":"LIVE_FROZEN_MODEL_RESULT_NOT_AVAILABLE_FOR_THIS_CUTOFF",
+        "probability_published":false,
+        "automatic_execution_enabled":false,
+        "caveats":[
+            "This is a deterministic observed-session result, not a live forecast or personalized recommendation.",
+            "The close-volume proxy is calculated from finalized one-minute close and volume; it is not labeled as vendor VWAP.",
+            "No probability is published."
+        ]
+    }))
+}
+
+#[derive(Debug, Deserialize)]
+struct SessionSummaryRequest {
+    symbol: Option<String>,
+}
+
+async fn research_session_summary(
+    State(state): State<AppState>,
+    Query(request): Query<SessionSummaryRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let public_symbol = request
+        .symbol
+        .as_deref()
+        .unwrap_or("SPX")
+        .trim()
+        .trim_start_matches("US.")
+        .to_ascii_uppercase();
+    let data_symbol = if public_symbol == "SPX" {
+        "SPY".to_string()
+    } else {
+        public_symbol.clone()
+    };
+    let database = data_root(&state).join("market/databento_market_data.sqlite3");
+    let summary = tokio::task::spawn_blocking(move || {
+        let rows = crate::data::market_store::latest_live_bars(&database, &data_symbol, 5_000)?;
+        build_session_summary(rows, &public_symbol, &data_symbol)
+    })
+    .await
+    .map_err(ApiError::internal)?
+    .map_err(|error| ApiError::service_unavailable(error.to_string()))?;
+    Ok(Json(summary))
 }
 
 #[derive(Debug, Deserialize)]
@@ -6430,6 +6661,61 @@ mod tests {
         .into_iter()
         .map(str::to_string)
         .collect()
+    }
+
+    #[test]
+    fn session_summary_returns_complete_spx_proxy_map_from_databento_rows() {
+        let start = Utc.with_ymd_and_hms(2026, 7, 30, 13, 30, 0).unwrap();
+        let rows = (0..390)
+            .map(|minute| {
+                let event_at = start + chrono::Duration::minutes(minute);
+                let price = 100.0 + minute as f64 * 0.01;
+                crate::data::market_store::StoredLiveMarketBar {
+                    provider: "databento".into(),
+                    dataset: "EQUS.MINI".into(),
+                    schema_name: "ohlcv-1m".into(),
+                    symbol: "SPY".into(),
+                    event_at: event_at.to_rfc3339(),
+                    available_at: (event_at + chrono::Duration::minutes(1)).to_rfc3339(),
+                    recorded_at: (event_at + chrono::Duration::minutes(1)).to_rfc3339(),
+                    finalized_at: (event_at + chrono::Duration::minutes(1)).to_rfc3339(),
+                    open: price,
+                    high: price + 0.02,
+                    low: price - 0.02,
+                    close: price + 0.01,
+                    volume: 1_000.0,
+                    vwap: None,
+                    trade_count: None,
+                    source: "Databento/EQUS.MINI".into(),
+                    data_quality: "vendor_original_dbn".into(),
+                    entitlement: "LICENSED_HISTORICAL_DOWNLOAD".into(),
+                    symbol_mapping_verified: true,
+                }
+            })
+            .collect();
+        let summary = build_session_summary(rows, "SPX", "SPY").unwrap();
+        assert_eq!(summary["status"], "COMPLETE_78_BAR_SESSION");
+        assert_eq!(summary["result_kind"], "OBSERVED_SESSION_TREND");
+        assert_eq!(summary["public_symbol"], "SPX");
+        assert_eq!(summary["data_symbol"], "SPY");
+        assert_eq!(summary["minute_rows"], 390);
+        assert_eq!(summary["five_minute_bar_count"], 78);
+        assert_eq!(
+            summary["five_minute_bars"]
+                .as_array()
+                .expect("five-minute map")
+                .len(),
+            78
+        );
+        assert_eq!(
+            summary["peak_windows"]
+                .as_array()
+                .expect("peak windows")
+                .len(),
+            3
+        );
+        assert_eq!(summary["automatic_execution_enabled"], false);
+        assert_eq!(summary["probability_published"], false);
     }
 
     #[test]

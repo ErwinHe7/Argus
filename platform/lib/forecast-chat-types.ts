@@ -262,6 +262,62 @@ export type QuantEvidenceEnvelope = {
   readiness?: QuantPipelineReadiness;
 };
 
+export type QuantSessionFiveMinuteBar = {
+  bar_number: number;
+  window_start: string;
+  window_end: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+  return_pct: number;
+  minute_rows: number;
+};
+
+export type QuantSessionSummary = {
+  schema_version: 'axio.session-summary.v1';
+  status: 'COMPLETE_78_BAR_SESSION' | 'SESSION_TO_DATE';
+  result_kind: 'OBSERVED_SESSION_TREND';
+  scope:
+    | 'LAST_COMPLETED_REGULAR_SESSION'
+    | 'CURRENT_REGULAR_SESSION_TO_DATE';
+  public_symbol: string;
+  data_symbol: string;
+  proxy_disclosure: string;
+  session_date_et: string;
+  trend_state: 'UP_SESSION' | 'DOWN_SESSION' | 'FLAT_SESSION';
+  session_return_pct: number;
+  session_open: number;
+  session_high: number;
+  session_low: number;
+  session_close: number;
+  session_range_pct: number;
+  close_location_pct: number;
+  total_volume: number;
+  close_volume_proxy: number | null;
+  close_vs_close_volume_proxy_bps: number | null;
+  minute_rows: number;
+  five_minute_bar_count: number;
+  latest_completed_bar: QuantSessionFiveMinuteBar | null;
+  peak_windows: QuantSessionFiveMinuteBar[];
+  five_minute_bars: QuantSessionFiveMinuteBar[];
+  source: {
+    provider: 'databento';
+    dataset: 'EQUS.MINI';
+    schema: 'ohlcv-1m';
+    storage: 'APPEND_ONLY_SQLITE';
+    first_observed_at: string;
+    last_observed_at: string;
+    last_available_at: string;
+    entitlements: string[];
+  };
+  model_status: 'LIVE_FROZEN_MODEL_RESULT_NOT_AVAILABLE_FOR_THIS_CUTOFF';
+  probability_published: false;
+  automatic_execution_enabled: false;
+  caveats: string[];
+};
+
 export type ForecastChatResult = {
   generatedAt: string;
   model: string;
@@ -271,5 +327,6 @@ export type ForecastChatResult = {
   evidence: ForecastEvidence[];
   disclaimer: string;
   research?: QuantEvidenceEnvelope;
+  sessionSummary?: QuantSessionSummary;
   compilerNotes?: string[];
 };

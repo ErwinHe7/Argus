@@ -5,6 +5,7 @@ import type {
   ForecastSource,
   MarketMonitorAction,
   QuantEvidenceEnvelope,
+  QuantSessionSummary,
 } from '@/lib/forecast-chat-types';
 import { getCurrentUser } from '@/lib/auth';
 import {
@@ -25,6 +26,7 @@ import { isMarketResearchQuestion } from '@/lib/quant/model-knowledge';
 import {
   QuantBackendUnavailableError,
   requestQuantResearch,
+  requestQuantSessionSummary,
 } from '@/lib/quant/research-client';
 import { isSameOriginRequest } from '@/lib/same-origin';
 import { recordBillingUsageEventBestEffort } from '@/lib/refund-requests';
@@ -89,8 +91,20 @@ function researchSources(envelope: QuantEvidenceEnvelope): ForecastSource[] {
 
 function toForecast(
   envelope: QuantEvidenceEnvelope,
-  compilerNotes: string[]
+  compilerNotes: string[],
+  sessionSummary?: QuantSessionSummary
 ): ForecastChatResult {
+  const sources = researchSources(envelope);
+  if (sessionSummary) {
+    sources.push({
+      id: `databento-session:${sessionSummary.data_symbol}:${sessionSummary.session_date_et}`,
+      name: 'Databento EQUS.MINI',
+      state: 'historical',
+      role: `${sessionSummary.public_symbol} via ${sessionSummary.data_symbol} observed regular session`,
+      asOf: sessionSummary.source.last_available_at,
+      note: `${sessionSummary.minute_rows} one-minute rows; ${sessionSummary.five_minute_bar_count} five-minute bars`,
+    });
+  }
   return {
     generatedAt: envelope.generated_at,
     model: 'AXIO7 Native Quant Engine',
@@ -99,13 +113,58 @@ function toForecast(
         ? 'all_configured_horizons'
         : `${envelope.query.horizon_minutes}_minutes`,
     assets: [],
-    sources: researchSources(envelope),
+    sources,
     evidence: [],
     disclaimer:
       'Impersonal whole-market statistical research only. Scores are not probabilities unless explicitly labeled as calibrated; no output is an order, personalized recommendation, or guaranteed outcome.',
     research: envelope,
+    sessionSummary,
     compilerNotes,
   };
+}
+
+function fixed(value: number, digits = 2): string {
+  return Number.isFinite(value) ? value.toFixed(digits) : 'unavailable';
+}
+
+function signedPercent(value: number): string {
+  return `${value >= 0 ? '+' : ''}${fixed(value)}%`;
+}
+
+function sessionSummaryAnswer(
+  summary: QuantSessionSummary,
+  locale: 'en-US' | 'zh-CN'
+): string {
+  const latest = summary.latest_completed_bar;
+  const complete =
+    summary.status === 'COMPLETE_78_BAR_SESSION';
+  if (locale === 'zh-CN') {
+    const trend =
+      summary.trend_state === 'UP_SESSION'
+        ? '上涨时段'
+        : summary.trend_state === 'DOWN_SESSION'
+          ? '下跌时段'
+          : '平盘时段';
+    return [
+      `${summary.session_date_et} 的 SPX 代理观测结果：${trend}。`,
+      `${summary.data_symbol} 常规交易时段收于 ${fixed(summary.session_close)}，相对开盘 ${signedPercent(summary.session_return_pct)}；时段区间 ${fixed(summary.session_range_pct)}%，收盘位于区间的 ${fixed(summary.close_location_pct)}%。`,
+      latest
+        ? `最新完整 5 分钟窗口收于 ${fixed(latest.close)}，窗口涨跌 ${signedPercent(latest.return_pct)}。`
+        : '当前尚无完整的 5 分钟窗口。',
+      `Databento 已覆盖 ${summary.minute_rows} 根 1 分钟数据和 ${summary.five_minute_bar_count}${complete ? '/78' : ''} 根 5 分钟数据。`,
+      `这是 SPY 对 SPX 的历史/时段内观测代理，不是实时模型概率或交易建议。`,
+    ].join(' ');
+  }
+  const trend = summary.trend_state.replaceAll('_', ' ').toLowerCase();
+  return [
+    `Observed SPX proxy result for ${summary.session_date_et}: ${trend}.`,
+    `${summary.data_symbol} closed the regular session at ${fixed(summary.session_close)}, ${signedPercent(summary.session_return_pct)} from the session open; the range was ${fixed(summary.session_range_pct)}%, with the close at ${fixed(summary.close_location_pct)}% of that range.`,
+    latest
+      ? `The latest completed five-minute window closed at ${fixed(latest.close)} (${signedPercent(latest.return_pct)} in the window).`
+      : 'No completed five-minute window is available yet.',
+    `Databento coverage: ${summary.minute_rows} one-minute rows and ${summary.five_minute_bar_count}${complete ? '/78' : ''} five-minute bars.`,
+    `This is an observed SPY proxy for SPX, not a live model probability or trade recommendation.`,
+  ].join(' ');
 }
 
 function quantEnvelopeForExplanation(
@@ -231,12 +290,31 @@ export async function POST(req: NextRequest) {
 
   try {
     const envelope = await requestQuantResearch(compiled.query);
-    const forecast = toForecast(envelope, compiled.notes);
     const conversation = await explainQuantResearchResult(
       parsed.data.query,
       quantEnvelopeForExplanation(envelope),
       compiled.notes
     );
+    let sessionSummary: QuantSessionSummary | undefined;
+    if (
+      envelope.candidates.length === 0 &&
+      compiled.query.setup_type === 'model_forecast'
+    ) {
+      try {
+        sessionSummary = await requestQuantSessionSummary(
+          compiled.query.symbols[0] ?? 'SPX'
+        );
+      } catch (summaryError) {
+        console.error(
+          '[/api/ask] observed session summary unavailable',
+          summaryError instanceof Error ? summaryError.message : summaryError
+        );
+      }
+    }
+    const forecast = toForecast(envelope, compiled.notes, sessionSummary);
+    const answer = sessionSummary
+      ? sessionSummaryAnswer(sessionSummary, conversation.locale)
+      : conversation.answer;
     const usageUser = await getCurrentUser().catch(() => null);
     if (usageUser?.authenticated) {
       await recordBillingUsageEventBestEffort({
@@ -256,8 +334,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         answer: monitor
-          ? `${monitor.message}\n\n${conversation.answer}`
-          : conversation.answer,
+          ? `${monitor.message}\n\n${answer}`
+          : answer,
         forecast,
         monitor,
         conversation: {
@@ -287,6 +365,9 @@ export async function POST(req: NextRequest) {
         ? error.message
         : 'research failed';
     console.error('[/api/ask]', unavailable);
+    const backendResponded =
+      error instanceof QuantBackendUnavailableError &&
+      error.code.startsWith('RUST_BACKEND_HTTP_');
     if (monitor) {
       return NextResponse.json(
         {
@@ -302,7 +383,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         error:
-          'AXIO7 native quant engine is unavailable. No Yahoo, synthetic, or TypeScript forecast fallback was used.',
+          backendResponded
+            ? 'AXIO7 quant engine is connected, but it rejected this result contract. No unverified substitute was shown.'
+            : 'AXIO7 native quant engine is unavailable. No Yahoo, synthetic, or TypeScript forecast fallback was used.',
         detail: unavailable,
       },
       {

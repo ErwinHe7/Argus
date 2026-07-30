@@ -35,6 +35,35 @@ test('market chat remains Rust-owned and has no web forecast fallback', () => {
   assert.doesNotMatch(route, /runForecastChat\s*\(|fetchYahoo|from ['"]@\/lib\/forecast-chat['"]/);
 });
 
+test('model-forecast gaps expose a Rust-owned Databento session result', () => {
+  const route = read('app/api/ask/route.ts');
+  const client = read('lib/quant/research-client.ts');
+  const chat = read('components/AxioChat.tsx');
+  const rustApi = read('quant_engine_rs/src/api.rs');
+
+  assert.match(
+    rustApi,
+    /"\/api\/v1\/research\/session-summary"[\s\S]*get\(research_session_summary\)/
+  );
+  assert.match(rustApi, /build_session_summary/);
+  assert.match(rustApi, /databento_market_data\.sqlite3/);
+  assert.match(rustApi, /"SPX"[\s\S]*"SPY"/);
+  assert.match(rustApi, /"COMPLETE_78_BAR_SESSION"/);
+  assert.match(rustApi, /"probability_published":false/);
+  assert.match(rustApi, /"automatic_execution_enabled":false/);
+
+  assert.match(client, /requestQuantSessionSummary/);
+  assert.match(client, /axio\.session-summary\.v1/);
+  assert.match(client, /observed Databento session summary is malformed/);
+  assert.match(route, /envelope\.candidates\.length === 0/);
+  assert.match(route, /compiled\.query\.setup_type === 'model_forecast'/);
+  assert.match(route, /sessionSummaryAnswer/);
+  assert.match(chat, /forecast\.sessionSummary/);
+  assert.match(chat, /SessionSummaryDetails/);
+  assert.match(chat, /Full five-minute session map/);
+  assert.doesNotMatch(route, /fetchYahoo|runForecastChat\s*\(/);
+});
+
 test('factor scan is a paid Rust-owned metadata-only shadow that fails closed', () => {
   const scanRoute = read('app/api/quant/scan/route.ts');
   const client = read('lib/quant/research-client.ts');

@@ -4,6 +4,8 @@ import type {
   MarketQueryV1,
   QuantEvidenceEnvelope,
   QuantPipelineReadiness,
+  QuantSessionFiveMinuteBar,
+  QuantSessionSummary,
 } from '@/lib/forecast-chat-types';
 
 function backendUrl() {
@@ -1123,4 +1125,147 @@ export async function requestQuantResearch(
     );
   }
   return verifyQuantResearchResponseText(text);
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value);
+}
+
+function sessionBar(value: unknown): QuantSessionFiveMinuteBar | null {
+  const bar = record(value);
+  if (
+    !bar ||
+    !Number.isSafeInteger(bar.bar_number) ||
+    (bar.bar_number as number) < 1 ||
+    !isTimestamp(bar.window_start) ||
+    !isTimestamp(bar.window_end) ||
+    Date.parse(bar.window_end) <= Date.parse(bar.window_start) ||
+    !isFiniteNumber(bar.open) ||
+    !isFiniteNumber(bar.high) ||
+    !isFiniteNumber(bar.low) ||
+    !isFiniteNumber(bar.close) ||
+    !isFiniteNumber(bar.volume) ||
+    !isFiniteNumber(bar.return_pct) ||
+    !Number.isSafeInteger(bar.minute_rows) ||
+    (bar.minute_rows as number) < 1 ||
+    (bar.minute_rows as number) > 5 ||
+    bar.high < Math.max(bar.open, bar.close) ||
+    bar.low > Math.min(bar.open, bar.close) ||
+    bar.low <= 0 ||
+    bar.volume < 0
+  ) {
+    return null;
+  }
+  return value as QuantSessionFiveMinuteBar;
+}
+
+function verifySessionSummary(payload: unknown): QuantSessionSummary {
+  const summary = record(payload);
+  const source = record(summary?.source);
+  const bars = Array.isArray(summary?.five_minute_bars)
+    ? summary.five_minute_bars.map(sessionBar)
+    : [];
+  const peaks = Array.isArray(summary?.peak_windows)
+    ? summary.peak_windows.map(sessionBar)
+    : [];
+  const latest =
+    summary?.latest_completed_bar === null
+      ? null
+      : sessionBar(summary?.latest_completed_bar);
+  const valid =
+    summary !== null &&
+    source !== null &&
+    summary.schema_version === 'axio.session-summary.v1' &&
+    (summary.status === 'COMPLETE_78_BAR_SESSION' ||
+      summary.status === 'SESSION_TO_DATE') &&
+    summary.result_kind === 'OBSERVED_SESSION_TREND' &&
+    (summary.scope === 'LAST_COMPLETED_REGULAR_SESSION' ||
+      summary.scope === 'CURRENT_REGULAR_SESSION_TO_DATE') &&
+    isNonEmptyString(summary.public_symbol) &&
+    isNonEmptyString(summary.data_symbol) &&
+    isNonEmptyString(summary.proxy_disclosure) &&
+    typeof summary.session_date_et === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(summary.session_date_et) &&
+    (summary.trend_state === 'UP_SESSION' ||
+      summary.trend_state === 'DOWN_SESSION' ||
+      summary.trend_state === 'FLAT_SESSION') &&
+    isFiniteNumber(summary.session_return_pct) &&
+    isFiniteNumber(summary.session_open) &&
+    isFiniteNumber(summary.session_high) &&
+    isFiniteNumber(summary.session_low) &&
+    isFiniteNumber(summary.session_close) &&
+    isFiniteNumber(summary.session_range_pct) &&
+    isFiniteNumber(summary.close_location_pct) &&
+    isFiniteNumber(summary.total_volume) &&
+    summary.session_low > 0 &&
+    summary.session_high >= summary.session_low &&
+    summary.session_open >= summary.session_low &&
+    summary.session_open <= summary.session_high &&
+    summary.session_close >= summary.session_low &&
+    summary.session_close <= summary.session_high &&
+    summary.session_range_pct >= 0 &&
+    summary.close_location_pct >= 0 &&
+    summary.close_location_pct <= 100 &&
+    summary.total_volume >= 0 &&
+    isOptionalFiniteNumber(summary.close_volume_proxy) &&
+    isOptionalFiniteNumber(summary.close_vs_close_volume_proxy_bps) &&
+    isNonnegativeSafeInteger(summary.minute_rows) &&
+    summary.minute_rows > 0 &&
+    isNonnegativeSafeInteger(summary.five_minute_bar_count) &&
+    summary.five_minute_bar_count > 0 &&
+    bars.length === summary.five_minute_bar_count &&
+    bars.every((bar) => bar !== null) &&
+    peaks.length <= 3 &&
+    peaks.every((bar) => bar !== null) &&
+    (summary.latest_completed_bar === null || latest !== null) &&
+    source.provider === 'databento' &&
+    source.dataset === 'EQUS.MINI' &&
+    source.schema === 'ohlcv-1m' &&
+    source.storage === 'APPEND_ONLY_SQLITE' &&
+    isTimestamp(source.first_observed_at) &&
+    isTimestamp(source.last_observed_at) &&
+    isTimestamp(source.last_available_at) &&
+    Date.parse(source.first_observed_at) <= Date.parse(source.last_observed_at) &&
+    Date.parse(source.last_observed_at) <= Date.parse(source.last_available_at) &&
+    Array.isArray(source.entitlements) &&
+    source.entitlements.length > 0 &&
+    source.entitlements.every(isNonEmptyString) &&
+    summary.model_status ===
+      'LIVE_FROZEN_MODEL_RESULT_NOT_AVAILABLE_FOR_THIS_CUTOFF' &&
+    summary.probability_published === false &&
+    summary.automatic_execution_enabled === false &&
+    Array.isArray(summary.caveats) &&
+    summary.caveats.length > 0 &&
+    summary.caveats.every(isNonEmptyString);
+  if (!valid) {
+    throw contractMismatch('observed Databento session summary is malformed');
+  }
+  if (
+    summary.status === 'COMPLETE_78_BAR_SESSION' &&
+    (summary.minute_rows !== 390 ||
+      summary.five_minute_bar_count !== 78 ||
+      latest === null)
+  ) {
+    throw contractMismatch(
+      'complete observed session does not contain 390 minutes and 78 five-minute bars'
+    );
+  }
+  return payload as QuantSessionSummary;
+}
+
+export async function requestQuantSessionSummary(
+  symbol: string
+): Promise<QuantSessionSummary> {
+  const normalized = symbol.trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9.-]{0,11}$/.test(normalized)) {
+    throw new QuantBackendUnavailableError(
+      'RUST_SESSION_SUMMARY_SYMBOL_INVALID',
+      'The requested session-summary symbol is invalid.'
+    );
+  }
+  const payload = await fetchQuantJson(
+    `/api/v1/research/session-summary?symbol=${encodeURIComponent(normalized)}`,
+    10_000
+  );
+  return verifySessionSummary(payload);
 }
