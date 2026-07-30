@@ -1,5 +1,10 @@
-import { chat } from '@/lib/llm';
-import type { QuantEvidenceEnvelope } from '@/lib/forecast-chat-types';
+import { chat, DEFAULT_MODEL, llmApiKey } from '@/lib/llm';
+import type {
+  QuantDailyRegimeReport,
+  QuantEvidenceEnvelope,
+} from '@/lib/forecast-chat-types';
+import type { MacroReport } from '@/lib/market-intelligence/macro';
+import type { NewsPulseReport } from '@/lib/market-intelligence/news-pulse';
 import { formatQuantResearchAnswer } from '@/lib/quant/research-answer';
 import {
   AXIO7_KNOWLEDGE_VERSION,
@@ -10,6 +15,7 @@ export type ConversationResult = {
   answer: string;
   knowledgeVersion: string;
   llmRole: 'grounded_explainer' | 'deterministic_fallback';
+  llmModel: string;
   locale: 'en-US' | 'zh-CN';
 };
 
@@ -93,7 +99,7 @@ let llmRetryAfter = 0;
 function llmEnabled() {
   return (
     process.env.MARKET_LLM_ENABLED === 'true' &&
-    Boolean(process.env.OPENAI_API_KEY) &&
+    Boolean(llmApiKey()) &&
     Date.now() >= llmRetryAfter
   );
 }
@@ -158,6 +164,7 @@ export async function answerModelKnowledgeQuestion(
       answer: fallback,
       knowledgeVersion: knowledge.version,
       llmRole: 'deterministic_fallback',
+      llmModel: 'deterministic-template',
       locale,
     };
   }
@@ -191,6 +198,7 @@ For this request, answer a question about AXIO7 itself. Do not claim that live m
       answer: answer.trim(),
       knowledgeVersion: knowledge.version,
       llmRole: 'grounded_explainer',
+      llmModel: DEFAULT_MODEL,
       locale,
     };
   } catch {
@@ -199,6 +207,7 @@ For this request, answer a question about AXIO7 itself. Do not claim that live m
       answer: fallback,
       knowledgeVersion: knowledge.version,
       llmRole: 'deterministic_fallback',
+      llmModel: 'deterministic-template',
       locale,
     };
   }
@@ -221,6 +230,7 @@ export async function explainQuantResearchResult(
       answer: deterministic,
       knowledgeVersion: AXIO7_KNOWLEDGE_VERSION,
       llmRole: 'deterministic_fallback',
+      llmModel: 'deterministic-template',
       locale,
     };
   }
@@ -262,6 +272,7 @@ For this request, explain the supplied Rust research result. Preserve its status
       answer: answer.trim(),
       knowledgeVersion: knowledge.version,
       llmRole: 'grounded_explainer',
+      llmModel: DEFAULT_MODEL,
       locale,
     };
   } catch (error) {
@@ -275,6 +286,164 @@ For this request, explain the supplied Rust research result. Preserve its status
       answer: deterministic,
       knowledgeVersion: knowledge.version,
       llmRole: 'deterministic_fallback',
+      llmModel: 'deterministic-template',
+      locale,
+    };
+  }
+}
+
+function fixed(value: number, digits = 2) {
+  return Number.isFinite(value) ? value.toFixed(digits) : 'unavailable';
+}
+
+function signed(value: number) {
+  return `${value >= 0 ? '+' : ''}${fixed(value)}%`;
+}
+
+function deterministicDailyRegimeAnswer(
+  report: QuantDailyRegimeReport,
+  macro: MacroReport | null,
+  news: NewsPulseReport | null,
+  locale: ConversationResult['locale']
+) {
+  const rawPercent = report.prediction.raw_up_frequency * 100;
+  const hit = report.walk_forward_validation.raw_directional_hit_frequency;
+  if (locale === 'zh-CN') {
+    return [
+      `SPX（以 SPY 为价格和成交量代理）的下一完整常规交易时段类比倾向：${report.prediction.lean}。`,
+      `当前市场状态是 ${report.current_regime.label}：${report.current_regime.definition}`,
+      `系统从 ${report.source.complete_feature_sessions} 个完整特征交易日中，选取 ${report.prediction.analog_sample_size} 个同状态近邻；其中 ${report.prediction.raw_up_count} 个下一交易日上涨，原始上涨频率 ${fixed(rawPercent)}%，下一交易日收益中位数 ${signed(report.prediction.median_next_session_return_pct)}。这只是未经校准的历史描述，不是概率。`,
+      `扩展式滚动验证产生 ${report.walk_forward_validation.directional_calls} 次方向判断${
+        hit === null ? '，尚无可报告命中频率' : `，原始方向命中频率 ${fixed(hit * 100)}%`
+      }；它同样不能解释为未来概率。`,
+      `宏观数据状态：${macro?.reliability ?? 'unavailable'}；新闻数据状态：HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}。宏观和新闻目前只作为带来源和时间的展示背景，不会偷偷改变 Rust 类比倾向。`,
+    ].join(' ');
+  }
+  return [
+    `Next-session SPX analog lean, using SPY as the price and volume proxy: ${report.prediction.lean}.`,
+    `The current market regime is ${report.current_regime.label}: ${report.current_regime.definition}`,
+    `Across ${report.source.complete_feature_sessions} complete feature sessions, the engine selected ${report.prediction.analog_sample_size} same-regime neighbors. ${report.prediction.raw_up_count} were followed by an up session, a raw up frequency of ${fixed(rawPercent)}%, with a median next-session return of ${signed(report.prediction.median_next_session_return_pct)}. This is an uncalibrated historical description, not a probability.`,
+    `The expanding walk-forward check made ${report.walk_forward_validation.directional_calls} directional calls${
+      hit === null
+        ? ' and has no reportable hit frequency'
+        : ` with a raw directional hit frequency of ${fixed(hit * 100)}%`
+    }; that statistic is also not a future probability.`,
+    `Macro context is ${macro?.reliability ?? 'unavailable'}; news context is HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}. Macro and news are timestamped display context only and do not silently alter the Rust analog lean.`,
+  ].join(' ');
+}
+
+function compactDailyContext(
+  report: QuantDailyRegimeReport,
+  macro: MacroReport | null,
+  news: NewsPulseReport | null
+) {
+  return {
+    rust_daily_regime: report,
+    macro_context: macro
+      ? {
+          generated_at: macro.generatedAt,
+          reliability: macro.reliability,
+          series: macro.series.map((row) => ({
+            id: row.id,
+            source: row.source,
+            source_url: row.sourceUrl,
+            status: row.status,
+            as_of: row.asOf,
+            latest: row.latest,
+            unit: row.unit,
+            change_abs: row.changeAbs,
+            yoy_pct: row.yoyPct,
+          })),
+        }
+      : null,
+    news_context: news
+      ? {
+          generated_at: news.generatedAt,
+          reliability: news.reliability,
+          items: [...news.gdelt, ...news.hackerNews].slice(0, 10).map((row) => ({
+            source: row.source,
+            title: row.title,
+            url: row.url,
+            published_at: row.publishedAt,
+            tickers: row.tickers,
+            tone: row.tone,
+          })),
+        }
+      : null,
+  };
+}
+
+export async function explainDailyRegimeResult(
+  question: string,
+  report: QuantDailyRegimeReport,
+  macro: MacroReport | null,
+  news: NewsPulseReport | null
+): Promise<ConversationResult> {
+  const locale = conversationLocale(question);
+  const deterministic = deterministicDailyRegimeAnswer(
+    report,
+    macro,
+    news,
+    locale
+  );
+  if (!llmEnabled()) {
+    return {
+      answer: deterministic,
+      knowledgeVersion: AXIO7_KNOWLEDGE_VERSION,
+      llmRole: 'deterministic_fallback',
+      llmModel: 'deterministic-template',
+      locale,
+    };
+  }
+  const grounding = JSON.stringify({
+    deterministic_summary: deterministic,
+    evidence: compactDailyContext(report, macro, news),
+  });
+  try {
+    const answer = await chat(
+      [
+        {
+          role: 'system',
+          content: `${SYSTEM_BOUNDARY}
+
+Explain the supplied next-session Rust regime-and-analog report in this exact order: outcome, current regime, similar historical sessions, walk-forward evidence, macro/news context, limitations. Every numerical token must appear exactly in the grounding. Call every raw frequency uncalibrated and never call it a probability. Macro and news are display context only, not numerical inputs to the analog lean.`,
+        },
+        {
+          role: 'user',
+          content: JSON.stringify({
+            user_question: question,
+            grounding: JSON.parse(grounding),
+          }),
+        },
+      ],
+      {
+        temperature: 0.1,
+        max_tokens: 1200,
+        operation: 'quant_research_explanation',
+      }
+    );
+    if (!answer.trim() || hasUnsupportedNumber(answer, grounding)) {
+      throw new Error('ungrounded quantitative answer');
+    }
+    return {
+      answer: answer.trim(),
+      knowledgeVersion: AXIO7_KNOWLEDGE_VERSION,
+      llmRole: 'grounded_explainer',
+      llmModel: DEFAULT_MODEL,
+      locale,
+    };
+  } catch (error) {
+    if (
+      !(error instanceof Error) ||
+      error.message !== 'ungrounded quantitative answer'
+    ) {
+      markLlmTemporarilyUnavailable();
+    }
+    return {
+      answer: deterministic,
+      knowledgeVersion: AXIO7_KNOWLEDGE_VERSION,
+      llmRole: 'deterministic_fallback',
+      llmModel: 'deterministic-template',
       locale,
     };
   }

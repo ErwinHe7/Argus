@@ -275,6 +275,12 @@ export function requestsMarketMonitor(text: string) {
   );
 }
 
+export function requestsNextSessionForecast(text: string) {
+  return /tomorrow|next\s+(?:trading\s+)?(?:day|session)|next-session|明天|下一个交易日|下一交易日|明日/i.test(
+    text
+  );
+}
+
 export function inferMonitorCadenceMinutes(
   text: string
 ): 5 | 15 | 30 | 60 {

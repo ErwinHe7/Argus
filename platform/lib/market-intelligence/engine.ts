@@ -1,4 +1,4 @@
-import { chat } from '@/lib/llm';
+import { chat, llmApiKey } from '@/lib/llm';
 import { assessMarketRequest, MARKET_DISCLAIMER } from './compliance';
 import { fetchAuthorizedMarketEvents, getInfluencerMonitors, getSourceStatuses, normalizeTickers } from './sources';
 import type {
@@ -310,7 +310,7 @@ async function buildBrief(
   signals: StrategySignal[]
 ): Promise<string> {
   const fallback = fallbackBrief(events, decisionFrame, signals);
-  if (!process.env.OPENAI_API_KEY || process.env.MARKET_LLM_ENABLED !== 'true') return fallback;
+  if (!llmApiKey() || process.env.MARKET_LLM_ENABLED !== 'true') return fallback;
 
   try {
     const eventBlock = events

@@ -13,6 +13,7 @@ const compiledMarketQuery = ts.transpileModule(read('lib/quant/market-query.ts')
 const {
   compileMarketQuery,
   MarketQueryClarificationError,
+  requestsNextSessionForecast,
   UnsupportedScheduledEventModelError,
 } = await import(
   `data:text/javascript;base64,${Buffer.from(compiledMarketQuery).toString('base64')}`
@@ -61,6 +62,50 @@ test('model-forecast gaps expose a Rust-owned Databento session result', () => {
   assert.match(chat, /forecast\.sessionSummary/);
   assert.match(chat, /SessionSummaryDetails/);
   assert.match(chat, /Full five-minute session map/);
+  assert.doesNotMatch(route, /fetchYahoo|runForecastChat\s*\(/);
+});
+
+test('tomorrow SPX questions use the Rust daily-regime and analog contract', () => {
+  const route = read('app/api/ask/route.ts');
+  const client = read('lib/quant/research-client.ts');
+  const chat = read('components/AxioChat.tsx');
+  const rustApi = read('quant_engine_rs/src/api.rs');
+  const rustDaily = read('quant_engine_rs/src/daily_regime.rs');
+  const llm = read('lib/llm.ts');
+  const inventory = read('lib/quant/model-code-inventory.ts');
+
+  assert.equal(requestsNextSessionForecast("tomorrow's trend of spx"), true);
+  assert.equal(requestsNextSessionForecast('明天 SPX 走势'), true);
+  assert.equal(requestsNextSessionForecast('current SPX trend'), false);
+  assert.match(
+    rustApi,
+    /"\/api\/v1\/research\/daily-regime"[\s\S]*get\(research_daily_regime\)/
+  );
+  assert.match(rustDaily, /axio\.daily-regime\.v1/);
+  assert.match(rustDaily, /NEXT_REGULAR_SESSION_ANALOG_LEAN/);
+  assert.match(rustDaily, /Raw analog frequencies/);
+  assert.match(rustDaily, /probability_published:\s*false/);
+  assert.match(rustDaily, /automatic_execution_enabled:\s*false/);
+  assert.match(rustDaily, /ranked_analogs\(&rows,\s*current_index,\s*0\)/);
+  assert.match(rustDaily, /PURGED_EXPANDING_WALK_FORWARD/);
+  assert.match(client, /requestQuantDailyRegime/);
+  assert.match(
+    client,
+    /daily regime and historical analog report is malformed/
+  );
+  assert.match(route, /requestsNextSessionForecast/);
+  assert.match(route, /explainDailyRegimeResult/);
+  assert.match(route, /buildMacroReport/);
+  assert.match(route, /buildNewsPulseReport/);
+  assert.match(route, /modelCodeInventory/);
+  assert.match(chat, /DailyRegimeDetails/);
+  assert.match(chat, /Most similar historical regimes/);
+  assert.match(chat, /Model and algorithm source list/);
+  assert.match(llm, /moonshotai\/kimi-k3-free/);
+  assert.match(llm, /TOKENROUTER_API_KEY/);
+  assert.match(inventory, /production_rust/);
+  assert.match(inventory, /offline_python/);
+  assert.match(inventory, /native_cpp/);
   assert.doesNotMatch(route, /fetchYahoo|runForecastChat\s*\(/);
 });
 

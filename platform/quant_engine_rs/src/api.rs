@@ -181,6 +181,7 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/research/session-summary",
             get(research_session_summary),
         )
+        .route("/api/v1/research/daily-regime", get(research_daily_regime))
         .route("/api/v1/research/factor-shadow", get(factor_shadow_status))
         .route("/api/v1/live/status", get(live_status))
         .route("/api/v1/live/events", get(live_events))
@@ -2592,6 +2593,35 @@ async fn research_session_summary(
     .map_err(ApiError::internal)?
     .map_err(|error| ApiError::service_unavailable(error.to_string()))?;
     Ok(Json(summary))
+}
+
+async fn research_daily_regime(
+    State(state): State<AppState>,
+    Query(request): Query<SessionSummaryRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let public_symbol = request
+        .symbol
+        .as_deref()
+        .unwrap_or("SPX")
+        .trim()
+        .trim_start_matches("US.")
+        .to_ascii_uppercase();
+    if public_symbol != "SPX" {
+        return Err(ApiError::unprocessable(
+            "The daily-regime v1 contract currently supports SPX through the explicit SPY proxy.",
+        ));
+    }
+    let root = data_root(&state);
+    let database = root.join("market/databento_market_data.sqlite3");
+    let report = tokio::task::spawn_blocking(move || {
+        crate::daily_regime::build_daily_regime_report(&root, &database)
+    })
+    .await
+    .map_err(ApiError::internal)?
+    .map_err(|error| ApiError::service_unavailable(error.to_string()))?;
+    Ok(Json(
+        serde_json::to_value(report).map_err(ApiError::internal)?,
+    ))
 }
 
 #[derive(Debug, Deserialize)]

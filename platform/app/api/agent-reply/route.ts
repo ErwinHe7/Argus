@@ -37,7 +37,7 @@ export async function POST(req: Request) {
     // rather than a blank post with no reply.
     const agent = pickAgent(post.content);
     const msg = err?.message?.includes('OPENAI_API_KEY') || err?.status === 401
-      ? `[${agent.name} is offline — set OPENAI_API_KEY + OPENAI_BASE_URL in Vercel env vars to enable live replies.]`
+      ? `[${agent.name} is offline — set TOKENROUTER_API_KEY + OPENAI_BASE_URL in the server environment to enable live replies.]`
       : `[${agent.name} hit an error: ${String(err?.message ?? err).slice(0, 200)}. Check your TokenRouter model + key.]`;
     const reply = await createReply({
       post_id: post.id,

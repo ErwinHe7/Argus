@@ -2,6 +2,7 @@ import 'server-only';
 
 import type {
   MarketQueryV1,
+  QuantDailyRegimeReport,
   QuantEvidenceEnvelope,
   QuantPipelineReadiness,
   QuantSessionFiveMinuteBar,
@@ -1268,4 +1269,214 @@ export async function requestQuantSessionSummary(
     10_000
   );
   return verifySessionSummary(payload);
+}
+
+const DAILY_REGIMES = new Set([
+  'HIGH_VOL_SELL_OFF',
+  'HIGH_VOL_RECOVERY',
+  'RISK_ON_TREND',
+  'RISK_OFF_TREND',
+  'HIGH_VOL_RANGE',
+  'LOW_VOL_RANGE',
+  'MIXED_TRANSITION',
+]);
+
+function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
+  const report = record(payload);
+  const regime = record(report?.current_regime);
+  const market = record(report?.current_market);
+  const prediction = record(report?.prediction);
+  const validation = record(report?.walk_forward_validation);
+  const source = record(report?.source);
+  const model = record(report?.model_contract);
+  const contextPolicy = record(report?.macro_news_policy);
+  const analogs = Array.isArray(report?.similar_historical_sessions)
+    ? report.similar_historical_sessions
+    : [];
+  const features = Array.isArray(report?.feature_snapshot)
+    ? report.feature_snapshot
+    : [];
+  const files = Array.isArray(source?.files) ? source.files : [];
+  const coverage = record(market?.minute_coverage);
+  const valid =
+    report !== null &&
+    regime !== null &&
+    market !== null &&
+    prediction !== null &&
+    validation !== null &&
+    source !== null &&
+    model !== null &&
+    contextPolicy !== null &&
+    coverage !== null &&
+    report.schema_version === 'axio.daily-regime.v1' &&
+    report.status === 'AVAILABLE_UNCALIBRATED' &&
+    report.result_kind === 'NEXT_REGULAR_SESSION_ANALOG_LEAN' &&
+    isTimestamp(report.generated_at) &&
+    isTimestamp(report.observation_cutoff) &&
+    report.public_symbol === 'SPX' &&
+    report.data_symbol === 'SPY' &&
+    isNonEmptyString(report.proxy_disclosure) &&
+    report.forecast_horizon === 'NEXT_COMPLETE_US_REGULAR_SESSION' &&
+    DAILY_REGIMES.has(String(regime.label)) &&
+    isNonEmptyString(regime.definition) &&
+    isFiniteNumber(regime.volatility_percentile_prior_252) &&
+    regime.volatility_percentile_prior_252 >= 0 &&
+    regime.volatility_percentile_prior_252 <= 1 &&
+    isFiniteNumber(regime.cross_asset_breadth) &&
+    regime.cross_asset_breadth >= 0 &&
+    regime.cross_asset_breadth <= 1 &&
+    typeof market.session_date_et === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(market.session_date_et) &&
+    [
+      market.open,
+      market.high,
+      market.low,
+      market.close,
+      market.session_return_pct,
+      market.twenty_session_return_pct,
+      market.twenty_session_annualized_volatility_pct,
+      market.close_location_pct,
+    ].every(isFiniteNumber) &&
+    (market.low as number) > 0 &&
+    (market.high as number) >= (market.low as number) &&
+    (market.open as number) >= (market.low as number) &&
+    (market.open as number) <= (market.high as number) &&
+    (market.close as number) >= (market.low as number) &&
+    (market.close as number) <= (market.high as number) &&
+    (market.close_location_pct as number) >= 0 &&
+    (market.close_location_pct as number) <= 100 &&
+    ['SPY', 'QQQ', 'IWM', 'SOXX', 'HYG', 'TLT', 'UUP', 'VXX'].every(
+      (symbol) =>
+        Number.isSafeInteger(coverage[symbol]) &&
+        (coverage[symbol] as number) >= (symbol === 'SPY' ? 390 : 370)
+    ) &&
+    (prediction.lean === 'UP' ||
+      prediction.lean === 'DOWN' ||
+      prediction.lean === 'MIXED') &&
+    isNonEmptyString(prediction.target_definition) &&
+    Number.isSafeInteger(prediction.analog_sample_size) &&
+    (prediction.analog_sample_size as number) >= 10 &&
+    Number.isSafeInteger(prediction.raw_up_count) &&
+    Number.isSafeInteger(prediction.raw_down_or_flat_count) &&
+    (prediction.raw_up_count as number) +
+      (prediction.raw_down_or_flat_count as number) ===
+      prediction.analog_sample_size &&
+    isFiniteNumber(prediction.raw_up_frequency) &&
+    Math.abs(
+      prediction.raw_up_frequency -
+        (prediction.raw_up_count as number) /
+          (prediction.analog_sample_size as number)
+    ) < 1e-10 &&
+    isFiniteNumber(prediction.median_next_session_return_pct) &&
+    isFiniteNumber(prediction.mean_next_session_return_pct) &&
+    prediction.calibrated_probability === false &&
+    isNonEmptyString(prediction.interpretation) &&
+    analogs.length === prediction.analog_sample_size &&
+    analogs.every((value, index) => {
+      const analog = record(value);
+      return (
+        analog !== null &&
+        analog.rank === index + 1 &&
+        typeof analog.session_date_et === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(analog.session_date_et) &&
+        DAILY_REGIMES.has(String(analog.regime)) &&
+        isFiniteNumber(analog.standardized_euclidean_distance) &&
+        analog.standardized_euclidean_distance >= 0 &&
+        isFiniteNumber(analog.session_return_pct) &&
+        typeof analog.next_session_date_et === 'string' &&
+        /^\d{4}-\d{2}-\d{2}$/.test(analog.next_session_date_et) &&
+        isFiniteNumber(analog.next_session_return_pct) &&
+        (analog.next_session_direction === 'UP' ||
+          analog.next_session_direction === 'DOWN' ||
+          analog.next_session_direction === 'FLAT')
+      );
+    }) &&
+    validation.method === 'PURGED_EXPANDING_WALK_FORWARD' &&
+    Number.isSafeInteger(validation.evaluation_window_sessions) &&
+    Number.isSafeInteger(validation.eligible_queries) &&
+    Number.isSafeInteger(validation.directional_calls) &&
+    Number.isSafeInteger(validation.correct_directional_calls) &&
+    (validation.correct_directional_calls as number) <=
+      (validation.directional_calls as number) &&
+    isOptionalFiniteNumber(validation.raw_directional_hit_frequency) &&
+    validation.probability_interpretation_allowed === false &&
+    Array.isArray(validation.notes) &&
+    validation.notes.every(isNonEmptyString) &&
+    features.length === 15 &&
+    features.every((value) => {
+      const feature = record(value);
+      return (
+        feature !== null &&
+        isNonEmptyString(feature.name) &&
+        isFiniteNumber(feature.value) &&
+        isNonEmptyString(feature.unit)
+      );
+    }) &&
+    source.provider === 'Databento' &&
+    source.dataset === 'EQUS.MINI' &&
+    source.schema === 'ohlcv-1m' &&
+    source.session_clock === '09:30-16:00 America/New_York' &&
+    typeof source.history_start === 'string' &&
+    typeof source.history_end === 'string' &&
+    Number.isSafeInteger(source.complete_feature_sessions) &&
+    (source.complete_feature_sessions as number) >= 100 &&
+    isTimestamp(source.acquired_at) &&
+    isTimestamp(source.latest_available_at) &&
+    typeof source.dataset_sha256 === 'string' &&
+    SHA256_HEX.test(source.dataset_sha256) &&
+    files.length >= 4 &&
+    files.every((value) => {
+      const file = record(value);
+      return (
+        file !== null &&
+        isNonEmptyString(file.request_name) &&
+        isNonEmptyString(file.file_name) &&
+        Number.isSafeInteger(file.bytes) &&
+        (file.bytes as number) > 0 &&
+        typeof file.sha256 === 'string' &&
+        SHA256_HEX.test(file.sha256) &&
+        isTimestamp(file.acquired_at)
+      );
+    }) &&
+    model.model_id === 'axio7.spx-next-session-regime-analog' &&
+    isNonEmptyString(model.model_version) &&
+    model.owner === 'quant_engine_rs' &&
+    isNonEmptyString(model.regime_algorithm) &&
+    isNonEmptyString(model.analog_algorithm) &&
+    model.feature_count === 15 &&
+    model.neighbors === 15 &&
+    model.minimum_analogs === 10 &&
+    isNonEmptyString(model.fit_semantics) &&
+    isNonEmptyString(model.label_semantics) &&
+    model.status === 'UNCALIBRATED_RESEARCH_OUTPUT' &&
+    model.source_code === 'quant_engine_rs/src/daily_regime.rs' &&
+    contextPolicy.status ===
+      'DISPLAY_CONTEXT_ONLY_NOT_NUMERICAL_MODEL_INPUT' &&
+    isNonEmptyString(contextPolicy.detail) &&
+    report.probability_published === false &&
+    report.automatic_execution_enabled === false &&
+    Array.isArray(report.caveats) &&
+    report.caveats.length > 0 &&
+    report.caveats.every(isNonEmptyString);
+  if (!valid) {
+    throw contractMismatch('daily regime and historical analog report is malformed');
+  }
+  return payload as QuantDailyRegimeReport;
+}
+
+export async function requestQuantDailyRegime(
+  symbol: string
+): Promise<QuantDailyRegimeReport> {
+  const normalized = symbol.trim().toUpperCase();
+  if (normalized !== 'SPX') {
+    throw new QuantBackendUnavailableError(
+      'RUST_DAILY_REGIME_SYMBOL_UNSUPPORTED',
+      'The daily-regime v1 contract currently supports SPX through SPY.'
+    );
+  }
+  const payload = await fetchQuantJson(
+    `/api/v1/research/daily-regime?symbol=${encodeURIComponent(normalized)}`,
+    45_000
+  );
+  return verifyDailyRegimeReport(payload);
 }

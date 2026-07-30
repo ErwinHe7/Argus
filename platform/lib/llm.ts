@@ -7,23 +7,29 @@ import {
 
 let client: OpenAI | null = null;
 
+export function llmApiKey() {
+  return process.env.TOKENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+}
+
 export function llm(): OpenAI {
   if (!client) {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const apiKey = llmApiKey();
     const baseURL = process.env.OPENAI_BASE_URL;
-    if (!apiKey) throw new Error('OPENAI_API_KEY missing');
+    if (!apiKey) throw new Error('TOKENROUTER_API_KEY or OPENAI_API_KEY missing');
     client = new OpenAI({ apiKey, baseURL });
   }
   return client;
 }
 
-export const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'openai/gpt-4o-mini';
+export const DEFAULT_MODEL =
+  process.env.OPENAI_MODEL || 'moonshotai/kimi-k3-free';
 
 // Ordered fallback chain. If the primary model is unavailable on the user's
 // TokenRouter distribution group, we try each of these in order.
 // NOTE: TokenRouter expects `provider/model` form — unprefixed names 503.
-const FALLBACK_MODELS = (process.env.OPENAI_FALLBACK_MODELS ||
-  'openai/gpt-4o-mini,anthropic/claude-haiku-4.5,deepseek/deepseek-v3.2,google/gemini-3-flash-preview,qwen/qwen3.6-plus,x-ai/grok-4.1-fast,nvidia/nemotron-3-super-120b-a12b')
+// No implicit paid fallback is allowed. Operators may name an explicit
+// fallback chain after reviewing availability and price.
+const FALLBACK_MODELS = (process.env.OPENAI_FALLBACK_MODELS || '')
   .split(',')
   .map((s) => s.trim())
   .filter(Boolean);

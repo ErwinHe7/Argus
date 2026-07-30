@@ -296,6 +296,51 @@ data:
         # Train only through the last fully completed UTC market-data day.
         # The current session remains live input and never leaks into fitting.
         end: "2026-07-30T00:00:00Z"
+      - name: spx_daily_regime_context_2023
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        # A bounded day-level research universe. One-minute records are
+        # aggregated to the 09:30-16:00 New York session so historical analogs
+        # and the current Databento session use identical clock semantics.
+        symbols: [SPY, QQQ, IWM, SOXX, HYG, TLT, UUP, VXX]
+        start: "2023-03-28T00:00:00Z"
+        end: "2024-01-01T00:00:00Z"
+      - name: spx_daily_regime_context_2024
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY, QQQ, IWM, SOXX, HYG, TLT, UUP, VXX]
+        start: "2024-01-01T00:00:00Z"
+        end: "2025-01-01T00:00:00Z"
+      - name: spx_daily_regime_context_2025
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY, QQQ, IWM, SOXX, HYG, TLT, UUP, VXX]
+        start: "2025-01-01T00:00:00Z"
+        end: "2026-01-01T00:00:00Z"
+      - name: spx_daily_regime_context_2026_q1
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY, QQQ, IWM, SOXX, HYG, TLT, UUP, VXX]
+        start: "2026-01-01T00:00:00Z"
+        end: "2026-04-01T00:00:00Z"
+      - name: spx_daily_regime_context_2026_q2
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY, QQQ, IWM, SOXX, HYG, TLT, UUP, VXX]
+        start: "2026-04-01T00:00:00Z"
+        end: "2026-07-01T00:00:00Z"
+      - name: spx_daily_regime_context_2026_q3
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY, QQQ, IWM, SOXX, HYG, TLT, UUP, VXX]
+        start: "2026-07-01T00:00:00Z"
+        end: "2026-07-30T20:00:00Z"
   cboe:
     licensed_csv_root: data/import/cboe
     spx_index_history_from: "2004-01-01"

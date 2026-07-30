@@ -37,6 +37,7 @@ import type {
   ForecastSourceState,
   MarketMonitorAction,
   MarketMonitorView,
+  QuantDailyRegimeReport,
   QuantEvidenceEnvelope,
   QuantHistoricalStats,
   QuantPipelineReadiness,
@@ -58,9 +59,10 @@ type ChatMessage = {
 };
 
 type ConversationReceipt = {
-  mode: 'model_knowledge' | 'quant_research';
+  mode: 'model_knowledge' | 'quant_research' | 'daily_regime_analog';
   knowledge_version: string;
   llm_role: 'grounded_explainer' | 'deterministic_fallback';
+  llm_model?: string;
   locale: 'en-US' | 'zh-CN';
 };
 
@@ -1181,6 +1183,12 @@ function ConversationProvenance({
               : 'No language model generated this conclusion; constrained templates rendered it directly.'}{' '}
           {chinese ? '知识版本' : 'Knowledge version'}{' '}
           <code>{receipt.knowledge_version}</code>
+          {' · '}
+          {chinese ? '解释模型' : 'Explanation model'}{' '}
+          <code>
+            {receipt.llm_model ??
+              (grounded ? 'server-configured LLM' : 'deterministic-template')}
+          </code>
         </p>
       </div>
     </div>
@@ -1269,6 +1277,15 @@ function PredictionDetails({
   onRetry: () => void;
   onPreparePrompt: (prompt: string) => void;
 }) {
+  if (forecast.dailyRegime) {
+    return (
+      <DailyRegimeDetails
+        report={forecast.dailyRegime}
+        forecast={forecast}
+        locale={locale}
+      />
+    );
+  }
   if (forecast.research && forecast.sessionSummary) {
     return (
       <SessionSummaryDetails
@@ -1707,6 +1724,293 @@ function InterpretedQuery({
           : `Assumptions: up to ${query.limit} results; maximum realtime age ${query.filters.max_data_age_seconds}s; missing, stale, unentitled, or non-causal inputs fail closed; automatic execution is always disabled.`}
       </p>
     </section>
+  );
+}
+
+function DailyRegimeDetails({
+  report,
+  forecast,
+  locale,
+}: {
+  report: QuantDailyRegimeReport;
+  forecast: ForecastChatResult;
+  locale: ConversationReceipt['locale'];
+}) {
+  const chinese = locale === 'zh-CN';
+  const hit = report.walk_forward_validation.raw_directional_hit_frequency;
+  const newsItems = [
+    ...(forecast.newsContext?.gdelt ?? []),
+    ...(forecast.newsContext?.hackerNews ?? []),
+  ].slice(0, 10);
+  const inventory = forecast.modelCodeInventory ?? [];
+  const regimeLabel = report.current_regime.label
+    .replaceAll('_', ' ')
+    .toLowerCase();
+
+  return (
+    <div className={styles.predictionDetails}>
+      <div className={styles.reportMeta}>
+        <span className={`${styles.compliancePill} ${styles.allowed}`}>
+          <ShieldCheck size={13} />
+          {chinese
+            ? '下一交易日类比结果可用'
+            : 'Next-session analog result available'}
+        </span>
+        <span>
+          {chinese ? '未经校准的研究倾向' : 'Uncalibrated research lean'}
+        </span>
+        <span>SPX → SPY</span>
+      </div>
+
+      <div className={styles.signalGrid}>
+        <div className={styles.signalCard}>
+          <div className={styles.signalTopline}>
+            <strong>
+              {chinese ? '下一交易日倾向' : 'Next-session lean'}
+            </strong>
+            <span>{report.prediction.lean}</span>
+          </div>
+          <p>
+            {report.prediction.raw_up_count}/{report.prediction.analog_sample_size}{' '}
+            {chinese ? '个类比随后上涨' : 'analogs followed by an up session'} ·{' '}
+            {formatNumber(report.prediction.raw_up_frequency * 100)}%
+          </p>
+          <p>
+            {chinese ? '下一交易日收益中位数' : 'Median next-session return'}{' '}
+            {formatPercent(report.prediction.median_next_session_return_pct)} ·{' '}
+            {chinese ? '均值' : 'mean'}{' '}
+            {formatPercent(report.prediction.mean_next_session_return_pct)}
+          </p>
+          <div className={styles.signalLineage}>
+            <p>
+              {chinese
+                ? '原始历史频率，不是校准概率。'
+                : 'Raw historical frequency, not a calibrated probability.'}
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.signalCard}>
+          <div className={styles.signalTopline}>
+            <strong>{chinese ? '当前市场状态' : 'Current market regime'}</strong>
+            <span>{regimeLabel}</span>
+          </div>
+          <p>{report.current_regime.definition}</p>
+          <p>
+            {chinese ? '波动率历史分位' : 'Volatility percentile'}{' '}
+            {formatNumber(
+              report.current_regime.volatility_percentile_prior_252 * 100
+            )}
+            % · {chinese ? '跨资产广度' : 'cross-asset breadth'}{' '}
+            {formatNumber(report.current_regime.cross_asset_breadth * 100)}%
+          </p>
+        </div>
+
+        <div className={styles.signalCard}>
+          <div className={styles.signalTopline}>
+            <strong>{report.current_market.session_date_et}</strong>
+            <span>{formatPercent(report.current_market.session_return_pct)}</span>
+          </div>
+          <p>
+            O {formatNumber(report.current_market.open)} · H{' '}
+            {formatNumber(report.current_market.high)} · L{' '}
+            {formatNumber(report.current_market.low)} · C{' '}
+            {formatNumber(report.current_market.close)}
+          </p>
+          <p>
+            20D {formatPercent(report.current_market.twenty_session_return_pct)} ·{' '}
+            {chinese ? '20日年化波动' : '20D annualized volatility'}{' '}
+            {formatPercent(
+              report.current_market.twenty_session_annualized_volatility_pct
+            )}
+          </p>
+        </div>
+
+        <div className={styles.signalCard}>
+          <div className={styles.signalTopline}>
+            <strong>
+              {chinese ? '滚动样本外检查' : 'Walk-forward check'}
+            </strong>
+            <span>{report.walk_forward_validation.method.replaceAll('_', ' ')}</span>
+          </div>
+          <p>
+            {report.walk_forward_validation.directional_calls}{' '}
+            {chinese ? '次方向判断' : 'directional calls'} ·{' '}
+            {report.walk_forward_validation.correct_directional_calls}{' '}
+            {chinese ? '次方向正确' : 'directionally correct'}
+          </p>
+          <p>
+            {chinese ? '原始命中频率' : 'Raw hit frequency'}{' '}
+            {hit === null ? 'unavailable' : `${formatNumber(hit * 100)}%`}
+          </p>
+          <div className={styles.signalLineage}>
+            <p>
+              {chinese
+                ? '扩展窗口、严格按时间顺序、隔离一个完整交易日；仍不是未来概率。'
+                : 'Expanding, chronological, and purged by one complete session; still not a future probability.'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <details className={styles.evidence} open>
+        <summary>
+          <span>
+            {chinese ? '最相似的历史市场状态' : 'Most similar historical regimes'}
+          </span>
+          <span>{report.similar_historical_sessions.length}</span>
+        </summary>
+        <div>
+          {report.similar_historical_sessions.map((analog) => (
+            <article key={`${analog.rank}-${analog.session_date_et}`}>
+              <i />
+              <div>
+                <strong>
+                  #{analog.rank} · {analog.session_date_et} ·{' '}
+                  {analog.regime.replaceAll('_', ' ').toLowerCase()}
+                </strong>
+                <p>
+                  {chinese ? '当日' : 'session'}{' '}
+                  {formatPercent(analog.session_return_pct)} →{' '}
+                  {analog.next_session_date_et}{' '}
+                  {formatPercent(analog.next_session_return_pct)} ·{' '}
+                  {chinese ? '标准化距离' : 'standardized distance'}{' '}
+                  {formatNumber(analog.standardized_euclidean_distance, 3)}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </details>
+
+      <details className={styles.evidence}>
+        <summary>
+          <span>{chinese ? '宏观背景（仅展示）' : 'Macro context (display only)'}</span>
+          <span>{forecast.macroContext?.reliability ?? 'unavailable'}</span>
+        </summary>
+        <div>
+          {(forecast.macroContext?.series ?? []).map((series) => (
+            <article key={series.id}>
+              <i data-state={series.status} />
+              <div>
+                <a href={series.sourceUrl} target="_blank" rel="noreferrer">
+                  {series.id} · {series.title}
+                </a>
+                <p>
+                  {series.latest === null
+                    ? 'unavailable'
+                    : `${formatNumber(series.latest)} ${series.unit}`}{' '}
+                  · {series.asOf ?? 'no as-of date'} · {series.source}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </details>
+
+      <details className={styles.evidence}>
+        <summary>
+          <span>{chinese ? '新闻背景（仅展示）' : 'News context (display only)'}</span>
+          <span>{newsItems.length}</span>
+        </summary>
+        <div>
+          {newsItems.length > 0 ? (
+            newsItems.map((item) => (
+              <article key={item.id}>
+                <i />
+                <div>
+                  {item.url ? (
+                    <a href={item.url} target="_blank" rel="noreferrer">
+                      {item.title}
+                    </a>
+                  ) : (
+                    <strong>{item.title}</strong>
+                  )}
+                  <p>
+                    {item.source} · {new Date(item.publishedAt).toLocaleString(locale)} ·{' '}
+                    {item.tickers.join(', ') || 'market context'}
+                  </p>
+                </div>
+              </article>
+            ))
+          ) : (
+            <article>
+              <i data-state="unavailable" />
+              <div>
+                <strong>{chinese ? '没有可靠新闻命中' : 'No reliable news hits'}</strong>
+                <p>
+                  {chinese
+                    ? '新闻缺失不会被合成内容替代。'
+                    : 'Missing news is not replaced with synthetic content.'}
+                </p>
+              </div>
+            </article>
+          )}
+        </div>
+      </details>
+
+      <details className={styles.evidence}>
+        <summary>
+          <span>{chinese ? '模型与算法源码清单' : 'Model and algorithm source list'}</span>
+          <span>{inventory.length}</span>
+        </summary>
+        <div>
+          {inventory.map((item) => (
+            <article key={item.id}>
+              <i data-state={item.status === 'active' ? 'computed' : 'historical'} />
+              <div>
+                <a href={item.sourceUrl} target="_blank" rel="noreferrer">
+                  {item.name}
+                </a>
+                <p>
+                  {item.layer.replaceAll('_', ' ')} · {item.status.replaceAll('_', ' ')}
+                  {' · '}
+                  {item.algorithm}
+                </p>
+                <code>{item.sourcePath}</code>
+              </div>
+            </article>
+          ))}
+        </div>
+      </details>
+
+      <details className={styles.evidence}>
+        <summary>
+          <span>{chinese ? '特征、覆盖率和数据血缘' : 'Features, coverage, and lineage'}</span>
+          <span>{report.feature_snapshot.length} features</span>
+        </summary>
+        <div>
+          {report.feature_snapshot.map((feature) => (
+            <article key={feature.name}>
+              <i />
+              <div>
+                <strong>{feature.name.replaceAll('_', ' ')}</strong>
+                <p>
+                  {formatNumber(feature.value, 4)} · {feature.unit}
+                </p>
+              </div>
+            </article>
+          ))}
+          {report.source.files.map((file) => (
+            <article key={file.sha256}>
+              <i data-state="historical" />
+              <div>
+                <strong>{file.request_name}</strong>
+                <p>
+                  Databento {report.source.dataset} · {formatNumber(file.bytes, 0)} bytes ·{' '}
+                  {new Date(file.acquired_at).toLocaleString(locale)}
+                </p>
+                <code>{file.sha256}</code>
+              </div>
+            </article>
+          ))}
+        </div>
+      </details>
+
+      <p className={styles.reportDisclaimer}>
+        {forecast.disclaimer} {report.macro_news_policy.detail}
+      </p>
+    </div>
   );
 }
 

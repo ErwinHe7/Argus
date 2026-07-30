@@ -1,0 +1,1071 @@
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::{Path, PathBuf},
+    sync::{Arc, OnceLock},
+};
+
+use anyhow::{Context, Result, bail};
+use chrono::{DateTime, NaiveDate, Timelike, Utc};
+use chrono_tz::America::New_York;
+use databento::dbn::{
+    OhlcvMsg,
+    decode::{DbnDecoder, DbnMetadata, DecodeRecordRef},
+    symbol_map::SymbolIndex,
+};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::data::{
+    manifest::{DataManifest, sha256_file},
+    market_store::{StoredLiveMarketBar, latest_live_bars},
+};
+
+const PRICE_SCALE: f64 = 1_000_000_000.0;
+const REQUIRED_SYMBOLS: [&str; 8] = ["SPY", "QQQ", "IWM", "SOXX", "HYG", "TLT", "UUP", "VXX"];
+const FEATURE_NAMES: [&str; 15] = [
+    "spy_session_return",
+    "spy_gap_return",
+    "spy_5d_return",
+    "spy_20d_return",
+    "spy_20d_realized_volatility",
+    "spy_session_range",
+    "spy_close_location",
+    "spy_log_volume_z20",
+    "qqq_relative_return",
+    "iwm_relative_return",
+    "soxx_relative_return",
+    "hyg_return",
+    "tlt_return",
+    "uup_return",
+    "vxx_return",
+];
+const MINIMUM_PRIMARY_ROWS: usize = 390;
+const MINIMUM_CONTEXT_ROWS: usize = 370;
+const ANALOG_NEIGHBORS: usize = 15;
+const MINIMUM_ANALOGS: usize = 10;
+
+static HISTORY_CACHE: OnceLock<Arc<HistoricalDailyData>> = OnceLock::new();
+
+#[derive(Debug, Clone, Default)]
+struct DailyBar {
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+    volume: f64,
+    minute_rows: usize,
+    first_at: Option<DateTime<Utc>>,
+    last_at: Option<DateTime<Utc>>,
+}
+
+impl DailyBar {
+    fn push(
+        &mut self,
+        timestamp: DateTime<Utc>,
+        open: f64,
+        high: f64,
+        low: f64,
+        close: f64,
+        volume: f64,
+    ) {
+        if self.minute_rows == 0 {
+            self.open = open;
+            self.high = high;
+            self.low = low;
+            self.first_at = Some(timestamp);
+        } else {
+            self.high = self.high.max(high);
+            self.low = self.low.min(low);
+        }
+        self.close = close;
+        self.volume += volume;
+        self.minute_rows += 1;
+        self.last_at = Some(timestamp);
+    }
+}
+
+type DailyTape = BTreeMap<NaiveDate, BTreeMap<String, DailyBar>>;
+
+#[derive(Debug, Clone, Copy)]
+struct RawMinute {
+    timestamp: DateTime<Utc>,
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+    volume: f64,
+}
+
+#[derive(Debug, Clone)]
+struct HistoricalDailyData {
+    tape: DailyTape,
+    lineage: Vec<SourceFile>,
+    dataset_sha256: String,
+    acquired_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone)]
+struct FeatureRow {
+    date: NaiveDate,
+    features: Vec<f64>,
+    regime: RegimeLabel,
+    spy: DailyBar,
+    coverage: BTreeMap<String, usize>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+enum RegimeLabel {
+    HighVolSellOff,
+    HighVolRecovery,
+    RiskOnTrend,
+    RiskOffTrend,
+    HighVolRange,
+    LowVolRange,
+    MixedTransition,
+}
+
+impl RegimeLabel {
+    fn definition(self) -> &'static str {
+        match self {
+            Self::HighVolSellOff => {
+                "Elevated trailing volatility with a materially negative SPY session."
+            }
+            Self::HighVolRecovery => {
+                "Elevated trailing volatility with a materially positive SPY recovery session."
+            }
+            Self::RiskOnTrend => {
+                "Positive 20-session SPY trend confirmed by cross-asset breadth and non-negative HYG."
+            }
+            Self::RiskOffTrend => {
+                "Negative 20-session SPY trend with weak breadth and negative HYG."
+            }
+            Self::HighVolRange => {
+                "Elevated trailing volatility without a directional trend confirmation."
+            }
+            Self::LowVolRange => {
+                "Low trailing volatility and no material 20-session directional trend."
+            }
+            Self::MixedTransition => {
+                "Trend, volatility, breadth, and defensive cross-asset evidence are mixed."
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DailyRegimeReport {
+    schema_version: &'static str,
+    status: &'static str,
+    result_kind: &'static str,
+    generated_at: DateTime<Utc>,
+    observation_cutoff: DateTime<Utc>,
+    public_symbol: &'static str,
+    data_symbol: &'static str,
+    proxy_disclosure: &'static str,
+    forecast_horizon: &'static str,
+    current_regime: CurrentRegime,
+    current_market: CurrentMarket,
+    prediction: NextSessionLean,
+    similar_historical_sessions: Vec<HistoricalAnalog>,
+    walk_forward_validation: WalkForwardValidation,
+    feature_snapshot: Vec<FeatureValue>,
+    source: DailySource,
+    model_contract: DailyModelContract,
+    macro_news_policy: MacroNewsPolicy,
+    probability_published: bool,
+    automatic_execution_enabled: bool,
+    caveats: Vec<&'static str>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct CurrentRegime {
+    label: RegimeLabel,
+    definition: &'static str,
+    volatility_percentile_prior_252: f64,
+    cross_asset_breadth: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct CurrentMarket {
+    session_date_et: NaiveDate,
+    open: f64,
+    high: f64,
+    low: f64,
+    close: f64,
+    session_return_pct: f64,
+    twenty_session_return_pct: f64,
+    twenty_session_annualized_volatility_pct: f64,
+    close_location_pct: f64,
+    minute_coverage: BTreeMap<String, usize>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct NextSessionLean {
+    lean: &'static str,
+    target_definition: &'static str,
+    analog_sample_size: usize,
+    raw_up_count: usize,
+    raw_down_or_flat_count: usize,
+    raw_up_frequency: f64,
+    median_next_session_return_pct: f64,
+    mean_next_session_return_pct: f64,
+    calibrated_probability: bool,
+    interpretation: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct HistoricalAnalog {
+    rank: usize,
+    session_date_et: NaiveDate,
+    regime: RegimeLabel,
+    standardized_euclidean_distance: f64,
+    session_return_pct: f64,
+    next_session_date_et: NaiveDate,
+    next_session_return_pct: f64,
+    next_session_direction: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct WalkForwardValidation {
+    method: &'static str,
+    evaluation_window_sessions: usize,
+    eligible_queries: usize,
+    directional_calls: usize,
+    correct_directional_calls: usize,
+    raw_directional_hit_frequency: Option<f64>,
+    probability_interpretation_allowed: bool,
+    notes: Vec<&'static str>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct FeatureValue {
+    name: &'static str,
+    value: f64,
+    unit: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SourceFile {
+    request_name: String,
+    file_name: String,
+    bytes: u64,
+    sha256: String,
+    acquired_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DailySource {
+    provider: &'static str,
+    dataset: &'static str,
+    schema: &'static str,
+    session_clock: &'static str,
+    history_start: NaiveDate,
+    history_end: NaiveDate,
+    complete_feature_sessions: usize,
+    acquired_at: DateTime<Utc>,
+    latest_available_at: DateTime<Utc>,
+    dataset_sha256: String,
+    files: Vec<SourceFile>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct DailyModelContract {
+    model_id: &'static str,
+    model_version: &'static str,
+    owner: &'static str,
+    regime_algorithm: &'static str,
+    analog_algorithm: &'static str,
+    feature_count: usize,
+    neighbors: usize,
+    minimum_analogs: usize,
+    fit_semantics: &'static str,
+    label_semantics: &'static str,
+    status: &'static str,
+    source_code: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct MacroNewsPolicy {
+    status: &'static str,
+    detail: &'static str,
+}
+
+#[derive(Debug, Clone)]
+struct RankedAnalog {
+    index: usize,
+    distance: f64,
+    next_return: f64,
+}
+
+fn utc_from_nanos(value: u64) -> Result<DateTime<Utc>> {
+    let nanos: i64 = value
+        .try_into()
+        .context("timestamp exceeds signed nanosecond range")?;
+    Ok(DateTime::<Utc>::from_timestamp_nanos(nanos))
+}
+
+fn is_regular_session(timestamp: DateTime<Utc>) -> bool {
+    let local = timestamp.with_timezone(&New_York);
+    let minute = local.hour() * 60 + local.minute();
+    (570..960).contains(&minute)
+}
+
+fn push_daily(tape: &mut DailyTape, symbol: &str, minute: RawMinute) {
+    if !is_regular_session(minute.timestamp) {
+        return;
+    }
+    let canonical = symbol.trim().trim_start_matches("US.").to_ascii_uppercase();
+    if !REQUIRED_SYMBOLS.contains(&canonical.as_str()) {
+        return;
+    }
+    let date = minute.timestamp.with_timezone(&New_York).date_naive();
+    tape.entry(date)
+        .or_default()
+        .entry(canonical)
+        .or_default()
+        .push(
+            minute.timestamp,
+            minute.open,
+            minute.high,
+            minute.low,
+            minute.close,
+            minute.volume,
+        );
+}
+
+fn read_dbn_into_tape(path: &Path, tape: &mut DailyTape) -> Result<()> {
+    let mut decoder = DbnDecoder::from_zstd_file(path)
+        .with_context(|| format!("failed opening daily-regime DBN {}", path.display()))?;
+    let symbol_map = decoder.metadata().symbol_map()?;
+    while let Some(record) = decoder.decode_record_ref()? {
+        let Some(bar) = record.get::<OhlcvMsg>() else {
+            continue;
+        };
+        let Some(symbol) = symbol_map.get_for_rec(bar) else {
+            continue;
+        };
+        push_daily(
+            tape,
+            symbol,
+            RawMinute {
+                timestamp: utc_from_nanos(bar.hd.ts_event)?,
+                open: bar.open as f64 / PRICE_SCALE,
+                high: bar.high as f64 / PRICE_SCALE,
+                low: bar.low as f64 / PRICE_SCALE,
+                close: bar.close as f64 / PRICE_SCALE,
+                volume: bar.volume as f64,
+            },
+        );
+    }
+    Ok(())
+}
+
+fn manifest_files(root: &Path) -> Result<Vec<PathBuf>> {
+    if !root.exists() {
+        bail!("DAILY_REGIME_MANIFEST_DIRECTORY_MISSING");
+    }
+    let mut paths = fs::read_dir(root)?
+        .filter_map(|entry| entry.ok().map(|row| row.path()))
+        .filter(|path| {
+            path.file_name()
+                .and_then(|value| value.to_str())
+                .is_some_and(|name| {
+                    name.starts_with("spx_daily_regime_context_")
+                        && name.ends_with(".manifest.json")
+                })
+        })
+        .collect::<Vec<_>>();
+    paths.sort();
+    Ok(paths)
+}
+
+fn raw_files(root: &Path) -> Result<Vec<PathBuf>> {
+    if !root.exists() {
+        bail!("DAILY_REGIME_RAW_DIRECTORY_MISSING");
+    }
+    let mut paths = fs::read_dir(root)?
+        .filter_map(|entry| entry.ok().map(|row| row.path()))
+        .filter(|path| {
+            path.file_name()
+                .and_then(|value| value.to_str())
+                .is_some_and(|name| {
+                    name.starts_with("spx_daily_regime_context_") && name.ends_with(".dbn.zst")
+                })
+        })
+        .collect::<Vec<_>>();
+    paths.sort();
+    Ok(paths)
+}
+
+fn load_historical(data_root: &Path) -> Result<HistoricalDailyData> {
+    let regime_root = data_root.join("market/regime");
+    let raw_root = regime_root.join("raw/EQUS.MINI/ohlcv-1m");
+    let manifests = manifest_files(&regime_root.join("manifests"))?
+        .into_iter()
+        .map(|path| {
+            let payload = fs::read(&path)?;
+            serde_json::from_slice::<DataManifest>(&payload)
+                .with_context(|| format!("invalid daily-regime manifest {}", path.display()))
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let raw = raw_files(&raw_root)?;
+    if raw.len() < 4 || manifests.len() != raw.len() {
+        bail!("DAILY_REGIME_HISTORY_COVERAGE_INCOMPLETE");
+    }
+
+    let mut tape = DailyTape::new();
+    let mut lineage = Vec::new();
+    let mut dataset_hasher = Sha256::new();
+    let mut acquired_at = DateTime::<Utc>::MIN_UTC;
+    let mut seen_requests = BTreeSet::new();
+    for path in raw {
+        let file_name = path
+            .file_name()
+            .and_then(|value| value.to_str())
+            .context("daily-regime raw file has no UTF-8 name")?
+            .to_string();
+        let manifest = manifests
+            .iter()
+            .find(|row| file_name.starts_with(&row.request.name))
+            .context("DAILY_REGIME_RAW_MANIFEST_MISSING")?;
+        if manifest.provider != "Databento"
+            || manifest.request.dataset != "EQUS.MINI"
+            || manifest.request.schema != "ohlcv-1m"
+            || manifest.synthetic
+            || !seen_requests.insert(manifest.request.name.clone())
+        {
+            bail!("DAILY_REGIME_MANIFEST_REJECTED");
+        }
+        let metadata = fs::metadata(&path)?;
+        if metadata.len() != manifest.bytes || sha256_file(&path)? != manifest.sha256 {
+            bail!("DAILY_REGIME_IMMUTABLE_HASH_MISMATCH");
+        }
+        dataset_hasher.update(manifest.sha256.as_bytes());
+        acquired_at = acquired_at.max(manifest.acquired_at);
+        read_dbn_into_tape(&path, &mut tape)?;
+        lineage.push(SourceFile {
+            request_name: manifest.request.name.clone(),
+            file_name,
+            bytes: manifest.bytes,
+            sha256: manifest.sha256.clone(),
+            acquired_at: manifest.acquired_at,
+        });
+    }
+    if lineage.len() < 4 {
+        bail!("DAILY_REGIME_HISTORY_COVERAGE_INCOMPLETE");
+    }
+    Ok(HistoricalDailyData {
+        tape,
+        lineage,
+        dataset_sha256: format!("{:x}", dataset_hasher.finalize()),
+        acquired_at,
+    })
+}
+
+fn historical(data_root: &Path) -> Result<Arc<HistoricalDailyData>> {
+    if let Some(value) = HISTORY_CACHE.get() {
+        return Ok(value.clone());
+    }
+    let loaded = Arc::new(load_historical(data_root)?);
+    let _ = HISTORY_CACHE.set(loaded.clone());
+    Ok(HISTORY_CACHE.get().cloned().unwrap_or(loaded))
+}
+
+fn append_live_rows(
+    tape: &mut DailyTape,
+    rows: Vec<StoredLiveMarketBar>,
+    historical_cutoff: DateTime<Utc>,
+) -> Option<DateTime<Utc>> {
+    let mut latest_available_at = None;
+    for row in rows {
+        if row.provider != "databento"
+            || row.dataset != "EQUS.MINI"
+            || row.schema_name != "ohlcv-1m"
+            || !row.symbol_mapping_verified
+        {
+            continue;
+        }
+        let Ok(timestamp) = row.event_at.parse::<DateTime<Utc>>() else {
+            continue;
+        };
+        if timestamp <= historical_cutoff {
+            continue;
+        }
+        let Ok(available_at) = row.available_at.parse::<DateTime<Utc>>() else {
+            continue;
+        };
+        latest_available_at = Some(
+            latest_available_at
+                .map_or(available_at, |prior: DateTime<Utc>| prior.max(available_at)),
+        );
+        push_daily(
+            tape,
+            &row.symbol,
+            RawMinute {
+                timestamp,
+                open: row.open,
+                high: row.high,
+                low: row.low,
+                close: row.close,
+                volume: row.volume,
+            },
+        );
+    }
+    latest_available_at
+}
+
+fn complete_day(day: &BTreeMap<String, DailyBar>) -> bool {
+    REQUIRED_SYMBOLS.iter().all(|symbol| {
+        day.get(*symbol).is_some_and(|bar| {
+            if *symbol == "SPY" {
+                bar.minute_rows >= MINIMUM_PRIMARY_ROWS
+            } else {
+                bar.minute_rows >= MINIMUM_CONTEXT_ROWS
+            }
+        })
+    })
+}
+
+fn mean(values: &[f64]) -> f64 {
+    values.iter().sum::<f64>() / values.len() as f64
+}
+
+fn standard_deviation(values: &[f64]) -> f64 {
+    if values.len() < 2 {
+        return 0.0;
+    }
+    let center = mean(values);
+    (values
+        .iter()
+        .map(|value| (value - center).powi(2))
+        .sum::<f64>()
+        / (values.len() - 1) as f64)
+        .sqrt()
+}
+
+fn quantile(mut values: Vec<f64>, probability: f64) -> f64 {
+    values.sort_by(f64::total_cmp);
+    if values.is_empty() {
+        return 0.0;
+    }
+    let index = probability.clamp(0.0, 1.0) * (values.len() - 1) as f64;
+    let low = index.floor() as usize;
+    let high = index.ceil() as usize;
+    if low == high {
+        values[low]
+    } else {
+        values[low] + (values[high] - values[low]) * (index - low as f64)
+    }
+}
+
+fn session_return(bar: &DailyBar) -> f64 {
+    bar.close / bar.open - 1.0
+}
+
+fn close_location(bar: &DailyBar) -> f64 {
+    if bar.high > bar.low {
+        (bar.close - bar.low) / (bar.high - bar.low)
+    } else {
+        0.5
+    }
+}
+
+fn build_features(tape: &DailyTape) -> Result<Vec<FeatureRow>> {
+    let complete = tape
+        .iter()
+        .filter(|(_, day)| complete_day(day))
+        .collect::<Vec<_>>();
+    if complete.len() < 100 {
+        bail!("DAILY_REGIME_REQUIRES_AT_LEAST_100_COMPLETE_SESSIONS");
+    }
+    let mut provisional = Vec::<FeatureRow>::new();
+    for index in 20..complete.len() {
+        let (date, day) = complete[index];
+        let spy = day.get("SPY").context("SPY_DAY_MISSING")?;
+        let previous_spy = complete[index - 1]
+            .1
+            .get("SPY")
+            .context("PREVIOUS_SPY_DAY_MISSING")?;
+        let spy_5d = complete[index - 5]
+            .1
+            .get("SPY")
+            .context("SPY_5D_DAY_MISSING")?;
+        let spy_20d = complete[index - 20]
+            .1
+            .get("SPY")
+            .context("SPY_20D_DAY_MISSING")?;
+        let close_returns = (index - 19..=index)
+            .map(|cursor| {
+                let current = complete[cursor].1.get("SPY").expect("complete SPY");
+                let previous = complete[cursor - 1].1.get("SPY").expect("complete SPY");
+                current.close / previous.close - 1.0
+            })
+            .collect::<Vec<_>>();
+        let log_volumes = (index - 19..=index)
+            .map(|cursor| {
+                complete[cursor]
+                    .1
+                    .get("SPY")
+                    .expect("complete SPY")
+                    .volume
+                    .max(1.0)
+                    .ln()
+            })
+            .collect::<Vec<_>>();
+        let volume_sd = standard_deviation(&log_volumes);
+        let spy_return = session_return(spy);
+        let instrument_return = |symbol: &str| {
+            day.get(symbol)
+                .map(session_return)
+                .context("required context symbol missing")
+        };
+        let qqq_return = instrument_return("QQQ")?;
+        let iwm_return = instrument_return("IWM")?;
+        let soxx_return = instrument_return("SOXX")?;
+        let features = vec![
+            spy_return,
+            spy.open / previous_spy.close - 1.0,
+            spy.close / spy_5d.close - 1.0,
+            spy.close / spy_20d.close - 1.0,
+            standard_deviation(&close_returns) * 252.0_f64.sqrt(),
+            spy.high / spy.low - 1.0,
+            close_location(spy),
+            if volume_sd > 1.0e-12 {
+                (spy.volume.max(1.0).ln() - mean(&log_volumes)) / volume_sd
+            } else {
+                0.0
+            },
+            qqq_return - spy_return,
+            iwm_return - spy_return,
+            soxx_return - spy_return,
+            instrument_return("HYG")?,
+            instrument_return("TLT")?,
+            instrument_return("UUP")?,
+            instrument_return("VXX")?,
+        ];
+        if features.iter().any(|value| !value.is_finite()) {
+            continue;
+        }
+        provisional.push(FeatureRow {
+            date: *date,
+            features,
+            regime: RegimeLabel::MixedTransition,
+            spy: spy.clone(),
+            coverage: day
+                .iter()
+                .map(|(symbol, bar)| (symbol.clone(), bar.minute_rows))
+                .collect(),
+        });
+    }
+    for index in 0..provisional.len() {
+        let start = index.saturating_sub(252);
+        let prior_volatility = provisional[start..index]
+            .iter()
+            .map(|row| row.features[4])
+            .collect::<Vec<_>>();
+        let current_vol = provisional[index].features[4];
+        let vol_percentile = if prior_volatility.len() >= 40 {
+            prior_volatility
+                .iter()
+                .filter(|value| **value <= current_vol)
+                .count() as f64
+                / prior_volatility.len() as f64
+        } else {
+            0.5
+        };
+        provisional[index].regime = classify_regime(&provisional[index].features, vol_percentile);
+    }
+    Ok(provisional)
+}
+
+fn cross_asset_breadth(features: &[f64]) -> f64 {
+    [8, 9, 10, 11]
+        .iter()
+        .filter(|index| features[**index] + features[0] > 0.0)
+        .count() as f64
+        / 4.0
+}
+
+fn classify_regime(features: &[f64], volatility_percentile: f64) -> RegimeLabel {
+    let one_day = features[0];
+    let trend_20d = features[3];
+    let hyg = features[11];
+    let breadth = cross_asset_breadth(features);
+    if volatility_percentile >= 0.75 && one_day <= -0.0075 {
+        RegimeLabel::HighVolSellOff
+    } else if volatility_percentile >= 0.75 && one_day >= 0.0075 {
+        RegimeLabel::HighVolRecovery
+    } else if trend_20d >= 0.02 && breadth >= 0.5 && hyg >= 0.0 {
+        RegimeLabel::RiskOnTrend
+    } else if trend_20d <= -0.02 && breadth <= 0.5 && hyg < 0.0 {
+        RegimeLabel::RiskOffTrend
+    } else if volatility_percentile >= 0.75 {
+        RegimeLabel::HighVolRange
+    } else if volatility_percentile <= 0.25 && trend_20d.abs() < 0.02 {
+        RegimeLabel::LowVolRange
+    } else {
+        RegimeLabel::MixedTransition
+    }
+}
+
+fn volatility_percentile(rows: &[FeatureRow], index: usize) -> f64 {
+    let start = index.saturating_sub(252);
+    let prior = &rows[start..index];
+    if prior.len() < 40 {
+        return 0.5;
+    }
+    prior
+        .iter()
+        .filter(|row| row.features[4] <= rows[index].features[4])
+        .count() as f64
+        / prior.len() as f64
+}
+
+fn ranked_analogs(
+    rows: &[FeatureRow],
+    query_index: usize,
+    purge_sessions: usize,
+) -> Vec<RankedAnalog> {
+    if query_index <= purge_sessions + 2 {
+        return Vec::new();
+    }
+    let query = &rows[query_index];
+    let last_candidate = query_index.saturating_sub(purge_sessions + 2);
+    let candidate_indices = (0..=last_candidate)
+        .filter(|index| {
+            *index + 1 < rows.len()
+                && rows[*index].regime == query.regime
+                && rows[*index + 1].date < query.date
+        })
+        .collect::<Vec<_>>();
+    if candidate_indices.len() < MINIMUM_ANALOGS {
+        return Vec::new();
+    }
+    let mut centers = vec![0.0; FEATURE_NAMES.len()];
+    let mut scales = vec![1.0; FEATURE_NAMES.len()];
+    for dimension in 0..FEATURE_NAMES.len() {
+        let values = candidate_indices
+            .iter()
+            .map(|index| rows[*index].features[dimension])
+            .collect::<Vec<_>>();
+        centers[dimension] = mean(&values);
+        scales[dimension] = standard_deviation(&values).max(1.0e-9);
+    }
+    let mut ranked = candidate_indices
+        .into_iter()
+        .map(|index| {
+            let squared = (0..FEATURE_NAMES.len())
+                .map(|dimension| {
+                    let query_z =
+                        (query.features[dimension] - centers[dimension]) / scales[dimension];
+                    let analog_z =
+                        (rows[index].features[dimension] - centers[dimension]) / scales[dimension];
+                    (query_z - analog_z).powi(2)
+                })
+                .sum::<f64>();
+            RankedAnalog {
+                index,
+                distance: (squared / FEATURE_NAMES.len() as f64).sqrt(),
+                next_return: rows[index + 1].spy.close / rows[index].spy.close - 1.0,
+            }
+        })
+        .collect::<Vec<_>>();
+    ranked.sort_by(|left, right| {
+        left.distance
+            .total_cmp(&right.distance)
+            .then_with(|| rows[right.index].date.cmp(&rows[left.index].date))
+    });
+    ranked.truncate(ANALOG_NEIGHBORS);
+    ranked
+}
+
+fn lean_from_analogs(analogs: &[RankedAnalog]) -> (&'static str, usize, f64, f64, f64) {
+    let up_count = analogs
+        .iter()
+        .filter(|analog| analog.next_return > 0.0)
+        .count();
+    let raw_up = up_count as f64 / analogs.len() as f64;
+    let returns = analogs
+        .iter()
+        .map(|analog| analog.next_return)
+        .collect::<Vec<_>>();
+    let median = quantile(returns.clone(), 0.5);
+    let average = mean(&returns);
+    let lean = if raw_up >= 0.55 && median > 0.0 {
+        "UP"
+    } else if raw_up <= 0.45 && median < 0.0 {
+        "DOWN"
+    } else {
+        "MIXED"
+    };
+    (lean, up_count, raw_up, median, average)
+}
+
+fn walk_forward(rows: &[FeatureRow]) -> WalkForwardValidation {
+    let start = rows.len().saturating_sub(127).max(80);
+    let mut eligible_queries = 0;
+    let mut directional_calls = 0;
+    let mut correct = 0;
+    for query_index in start..rows.len().saturating_sub(1) {
+        let analogs = ranked_analogs(rows, query_index, 1);
+        if analogs.len() < MINIMUM_ANALOGS {
+            continue;
+        }
+        eligible_queries += 1;
+        let (lean, _, _, _, _) = lean_from_analogs(&analogs);
+        if lean == "MIXED" {
+            continue;
+        }
+        directional_calls += 1;
+        let realized = rows[query_index + 1].spy.close / rows[query_index].spy.close - 1.0;
+        if (lean == "UP" && realized > 0.0) || (lean == "DOWN" && realized < 0.0) {
+            correct += 1;
+        }
+    }
+    WalkForwardValidation {
+        method: "PURGED_EXPANDING_WALK_FORWARD",
+        evaluation_window_sessions: rows.len().saturating_sub(start + 1),
+        eligible_queries,
+        directional_calls,
+        correct_directional_calls: correct,
+        raw_directional_hit_frequency: (directional_calls > 0)
+            .then_some(correct as f64 / directional_calls as f64),
+        probability_interpretation_allowed: false,
+        notes: vec![
+            "Each validation query uses only earlier sessions and next-session labels already available before that query.",
+            "One full session is purged between an analog label and the validation query.",
+            "The raw hit frequency is descriptive and is not a calibrated probability.",
+        ],
+    }
+}
+
+fn observation_cutoff(row: &FeatureRow) -> Result<DateTime<Utc>> {
+    row.spy.last_at.context("SPY_OBSERVATION_CUTOFF_MISSING")
+}
+
+fn feature_snapshot(row: &FeatureRow) -> Vec<FeatureValue> {
+    row.features
+        .iter()
+        .enumerate()
+        .map(|(index, value)| FeatureValue {
+            name: FEATURE_NAMES[index],
+            value: if matches!(index, 6 | 7) {
+                *value
+            } else {
+                *value * 100.0
+            },
+            unit: if index == 6 {
+                "fraction_of_session_range"
+            } else if index == 7 {
+                "z_score"
+            } else {
+                "percent"
+            },
+        })
+        .collect()
+}
+
+pub fn build_daily_regime_report(
+    data_root: &Path,
+    live_database: &Path,
+) -> Result<DailyRegimeReport> {
+    let history = historical(data_root)?;
+    let mut tape = history.tape.clone();
+    let historical_cutoff = tape
+        .values()
+        .flat_map(|day| day.values())
+        .filter_map(|bar| bar.last_at)
+        .max()
+        .context("DAILY_REGIME_HISTORY_CUTOFF_MISSING")?;
+    let mut latest_available_at = history.acquired_at;
+    if live_database.exists() {
+        for symbol in REQUIRED_SYMBOLS {
+            if let Some(available_at) = append_live_rows(
+                &mut tape,
+                latest_live_bars(live_database, symbol, 5_000)?,
+                historical_cutoff,
+            ) {
+                latest_available_at = latest_available_at.max(available_at);
+            }
+        }
+    }
+    let rows = build_features(&tape)?;
+    let current_index = rows.len() - 1;
+    let current = &rows[current_index];
+    let analogs = ranked_analogs(&rows, current_index, 0);
+    if analogs.len() < MINIMUM_ANALOGS {
+        bail!("DAILY_REGIME_ANALOG_COVERAGE_INSUFFICIENT");
+    }
+    let (lean, up_count, raw_up, median, average) = lean_from_analogs(&analogs);
+    let volatility_percentile = volatility_percentile(&rows, current_index);
+    let history_start = rows.first().context("NO_FEATURE_ROWS")?.date;
+    let history_end = current.date;
+    let similar_historical_sessions = analogs
+        .iter()
+        .enumerate()
+        .map(|(rank, analog)| HistoricalAnalog {
+            rank: rank + 1,
+            session_date_et: rows[analog.index].date,
+            regime: rows[analog.index].regime,
+            standardized_euclidean_distance: analog.distance,
+            session_return_pct: session_return(&rows[analog.index].spy) * 100.0,
+            next_session_date_et: rows[analog.index + 1].date,
+            next_session_return_pct: analog.next_return * 100.0,
+            next_session_direction: if analog.next_return > 0.0 {
+                "UP"
+            } else if analog.next_return < 0.0 {
+                "DOWN"
+            } else {
+                "FLAT"
+            },
+        })
+        .collect::<Vec<_>>();
+
+    Ok(DailyRegimeReport {
+        schema_version: "axio.daily-regime.v1",
+        status: "AVAILABLE_UNCALIBRATED",
+        result_kind: "NEXT_REGULAR_SESSION_ANALOG_LEAN",
+        generated_at: Utc::now(),
+        observation_cutoff: observation_cutoff(current)?,
+        public_symbol: "SPX",
+        data_symbol: "SPY",
+        proxy_disclosure: "SPX uses SPY for price, volume, and next-session return research.",
+        forecast_horizon: "NEXT_COMPLETE_US_REGULAR_SESSION",
+        current_regime: CurrentRegime {
+            label: current.regime,
+            definition: current.regime.definition(),
+            volatility_percentile_prior_252: volatility_percentile,
+            cross_asset_breadth: cross_asset_breadth(&current.features),
+        },
+        current_market: CurrentMarket {
+            session_date_et: current.date,
+            open: current.spy.open,
+            high: current.spy.high,
+            low: current.spy.low,
+            close: current.spy.close,
+            session_return_pct: current.features[0] * 100.0,
+            twenty_session_return_pct: current.features[3] * 100.0,
+            twenty_session_annualized_volatility_pct: current.features[4] * 100.0,
+            close_location_pct: current.features[6] * 100.0,
+            minute_coverage: current.coverage.clone(),
+        },
+        prediction: NextSessionLean {
+            lean,
+            target_definition: "SPY next regular-session close divided by the current regular-session close, minus one.",
+            analog_sample_size: analogs.len(),
+            raw_up_count: up_count,
+            raw_down_or_flat_count: analogs.len() - up_count,
+            raw_up_frequency: raw_up,
+            median_next_session_return_pct: median * 100.0,
+            mean_next_session_return_pct: average * 100.0,
+            calibrated_probability: false,
+            interpretation: "Directional research lean derived from the sign agreement of same-regime historical analogs; it is not a probability or recommendation.",
+        },
+        similar_historical_sessions,
+        walk_forward_validation: walk_forward(&rows),
+        feature_snapshot: feature_snapshot(current),
+        source: DailySource {
+            provider: "Databento",
+            dataset: "EQUS.MINI",
+            schema: "ohlcv-1m",
+            session_clock: "09:30-16:00 America/New_York",
+            history_start,
+            history_end,
+            complete_feature_sessions: rows.len(),
+            acquired_at: history.acquired_at,
+            latest_available_at,
+            dataset_sha256: history.dataset_sha256.clone(),
+            files: history.lineage.clone(),
+        },
+        model_contract: DailyModelContract {
+            model_id: "axio7.spx-next-session-regime-analog",
+            model_version: "2026-07-30.v1",
+            owner: "quant_engine_rs",
+            regime_algorithm: "Causal deterministic trend-volatility-breadth state map using only completed sessions.",
+            analog_algorithm: "Same-regime 15-neighbor standardized-Euclidean retrieval over 15 causal price-volume and cross-asset features.",
+            feature_count: FEATURE_NAMES.len(),
+            neighbors: ANALOG_NEIGHBORS,
+            minimum_analogs: MINIMUM_ANALOGS,
+            fit_semantics: "Feature scaling is fit only on eligible historical analog candidates before each query cutoff.",
+            label_semantics: "Raw next-session close-to-close return; labels must be available before reuse.",
+            status: "UNCALIBRATED_RESEARCH_OUTPUT",
+            source_code: "quant_engine_rs/src/daily_regime.rs",
+        },
+        macro_news_policy: MacroNewsPolicy {
+            status: "DISPLAY_CONTEXT_ONLY_NOT_NUMERICAL_MODEL_INPUT",
+            detail: "Current macro releases and news may be attached by the web orchestration layer with source and as-of times. They do not change this Rust analog lean until a point-in-time feature artifact is separately validated and promoted.",
+        },
+        probability_published: false,
+        automatic_execution_enabled: false,
+        caveats: vec![
+            "Raw analog frequencies and walk-forward hit frequencies are descriptive statistics, not calibrated probabilities.",
+            "SPY is an explicit proxy for SPX price and volume research.",
+            "The historical window begins in 2023 and does not represent every possible market cycle.",
+            "Macro and news context shown by the website is not yet a numerical input to this daily analog model.",
+            "No output is an order, personalized recommendation, or guarantee.",
+        ],
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn feature_row(index: usize, regime: RegimeLabel, next_direction_seed: f64) -> FeatureRow {
+        FeatureRow {
+            date: NaiveDate::from_ymd_opt(2025, 1, 1).unwrap()
+                + chrono::Duration::days(index as i64),
+            features: vec![next_direction_seed + index as f64 * 0.0001; FEATURE_NAMES.len()],
+            regime,
+            spy: DailyBar {
+                open: 100.0 + index as f64,
+                high: 101.0 + index as f64,
+                low: 99.0 + index as f64,
+                close: 100.5 + index as f64,
+                volume: 1_000_000.0,
+                minute_rows: 390,
+                first_at: None,
+                last_at: None,
+            },
+            coverage: BTreeMap::new(),
+        }
+    }
+
+    #[test]
+    fn analog_retrieval_never_uses_query_or_future_label() {
+        let rows = (0..40)
+            .map(|index| feature_row(index, RegimeLabel::RiskOnTrend, 0.001))
+            .collect::<Vec<_>>();
+        let analogs = ranked_analogs(&rows, 39, 1);
+        assert_eq!(analogs.len(), ANALOG_NEIGHBORS);
+        assert!(analogs.iter().all(|analog| analog.index + 2 < 39));
+    }
+
+    #[test]
+    fn lean_requires_sign_and_frequency_agreement() {
+        let analogs = (0..15)
+            .map(|index| RankedAnalog {
+                index,
+                distance: index as f64,
+                next_return: if index < 10 { 0.01 } else { -0.005 },
+            })
+            .collect::<Vec<_>>();
+        let (lean, up_count, raw_up, median, _) = lean_from_analogs(&analogs);
+        assert_eq!(lean, "UP");
+        assert_eq!(up_count, 10);
+        assert!(raw_up > 0.65);
+        assert!(median > 0.0);
+    }
+
+    #[test]
+    fn high_volatility_selloff_is_named_deterministically() {
+        let mut features = vec![0.0; FEATURE_NAMES.len()];
+        features[0] = -0.02;
+        assert_eq!(
+            classify_regime(&features, 0.90),
+            RegimeLabel::HighVolSellOff
+        );
+    }
+}

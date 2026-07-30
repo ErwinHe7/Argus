@@ -4,6 +4,7 @@ import type {
   ForecastChatResult,
   ForecastSource,
   MarketMonitorAction,
+  QuantDailyRegimeReport,
   QuantEvidenceEnvelope,
   QuantSessionSummary,
 } from '@/lib/forecast-chat-types';
@@ -13,6 +14,7 @@ import {
   inferMonitorCadenceMinutes,
   MarketQueryClarificationError,
   requestsMarketMonitor,
+  requestsNextSessionForecast,
   UnsupportedScheduledEventModelError,
 } from '@/lib/quant/market-query';
 import {
@@ -20,17 +22,25 @@ import {
 } from '@/lib/quant/market-monitors';
 import {
   answerModelKnowledgeQuestion,
+  explainDailyRegimeResult,
   explainQuantResearchResult,
 } from '@/lib/quant/conversation';
 import { isMarketResearchQuestion } from '@/lib/quant/model-knowledge';
 import {
   QuantBackendUnavailableError,
+  requestQuantDailyRegime,
   requestQuantResearch,
   requestQuantSessionSummary,
 } from '@/lib/quant/research-client';
 import { isSameOriginRequest } from '@/lib/same-origin';
 import { recordBillingUsageEventBestEffort } from '@/lib/refund-requests';
 import { requirePaidResearchAccess } from '@/lib/research-access';
+import { buildMacroReport, type MacroReport } from '@/lib/market-intelligence/macro';
+import {
+  buildNewsPulseReport,
+  type NewsPulseReport,
+} from '@/lib/market-intelligence/news-pulse';
+import { modelCodeInventory } from '@/lib/quant/model-code-inventory';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -123,6 +133,90 @@ function toForecast(
   };
 }
 
+function dailyRegimeSources(
+  report: QuantDailyRegimeReport,
+  macro: MacroReport | null,
+  news: NewsPulseReport | null
+): ForecastSource[] {
+  const sources: ForecastSource[] = [
+    {
+      id: `databento-daily-regime:${report.source.dataset_sha256}`,
+      name: 'Databento EQUS.MINI',
+      state: 'historical',
+      role: `${report.public_symbol} via ${report.data_symbol}; ${report.source.schema}; ${report.source.session_clock}`,
+      asOf: report.source.latest_available_at,
+      note: `${report.source.complete_feature_sessions} complete feature sessions; observation cutoff ${report.observation_cutoff}; ${report.source.files.length} immutable DBN files`,
+    },
+    {
+      id: `axio7-daily-regime:${report.model_contract.model_version}`,
+      name: 'AXIO7 Rust Daily Regime + Analog Engine',
+      state: 'computed',
+      role: report.model_contract.model_id,
+      asOf: report.generated_at,
+      note: `${report.model_contract.status}; ${report.model_contract.feature_count} causal features; probability publication disabled`,
+    },
+  ];
+  for (const series of macro?.series ?? []) {
+    sources.push({
+      id: `fred:${series.id}`,
+      name: series.source,
+      state: series.status === 'ok' ? 'historical' : 'unavailable',
+      role: `${series.id} display context only`,
+      asOf: series.asOf,
+      note:
+        series.status === 'ok'
+          ? `${series.title}; latest ${series.latest ?? 'unavailable'} ${series.unit}`
+          : `${series.title}; unavailable`,
+    });
+  }
+  if (news) {
+    sources.push(
+      {
+        id: 'news:hackernews',
+        name: 'Hacker News Algolia',
+        state:
+          news.reliability.hackernews === 'ok' ? 'historical' : 'unavailable',
+        role: 'Current public-news display context only',
+        asOf: news.generatedAt,
+        note: `${news.hackerNews.length} matched items`,
+      },
+      {
+        id: 'news:gdelt',
+        name: 'GDELT 2.0',
+        state: news.reliability.gdelt === 'ok' ? 'historical' : 'unavailable',
+        role: 'Current public-news display context only',
+        asOf: news.generatedAt,
+        note: `${news.gdelt.length} matched items`,
+      }
+    );
+  }
+  return sources;
+}
+
+function compactMacro(report: MacroReport | null): MacroReport | null {
+  if (!report) return null;
+  return {
+    ...report,
+    series: report.series.map((series) => ({
+      ...series,
+      history: series.history.slice(-2),
+    })),
+  };
+}
+
+function compactNews(report: NewsPulseReport | null): NewsPulseReport | null {
+  if (!report) return null;
+  return {
+    ...report,
+    pulses: report.pulses.map((pulse) => ({
+      ...pulse,
+      topItems: pulse.topItems.slice(0, 5),
+    })),
+    hackerNews: report.hackerNews.slice(0, 20),
+    gdelt: report.gdelt.slice(0, 20),
+  };
+}
+
 function fixed(value: number, digits = 2): string {
   return Number.isFinite(value) ? value.toFixed(digits) : 'unavailable';
 }
@@ -209,6 +303,7 @@ export async function POST(req: NextRequest) {
           mode: 'model_knowledge',
           knowledge_version: conversation.knowledgeVersion,
           llm_role: conversation.llmRole,
+          llm_model: conversation.llmModel,
           locale: conversation.locale,
         },
       },
@@ -289,6 +384,90 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    if (
+      requestsNextSessionForecast(parsed.data.query) &&
+      compiled.query.setup_type === 'model_forecast' &&
+      compiled.query.symbols.includes('SPX')
+    ) {
+      const [dailyRegime, macro, news] = await Promise.all([
+        requestQuantDailyRegime('SPX'),
+        buildMacroReport().catch(() => null),
+        buildNewsPulseReport([
+          'SPY',
+          'QQQ',
+          'IWM',
+          'SOXX',
+          'HYG',
+          'TLT',
+          'UUP',
+        ]).catch(() => null),
+      ]);
+      const conversation = await explainDailyRegimeResult(
+        parsed.data.query,
+        dailyRegime,
+        macro,
+        news
+      );
+      const forecast: ForecastChatResult = {
+        generatedAt: dailyRegime.generated_at,
+        model: 'AXIO7 Rust Daily Regime + Historical Analog',
+        horizon: 'next_regular_session',
+        assets: [],
+        sources: dailyRegimeSources(dailyRegime, macro, news),
+        evidence: [],
+        disclaimer:
+          'Impersonal whole-market statistical research only. Raw analog frequencies are not calibrated probabilities; no output is an order, personalized recommendation, or guaranteed outcome.',
+        dailyRegime,
+        macroContext: compactMacro(macro),
+        newsContext: compactNews(news),
+        modelCodeInventory: modelCodeInventory(),
+        compilerNotes: compiled.notes,
+      };
+      const usageUser = await getCurrentUser().catch(() => null);
+      if (usageUser?.authenticated) {
+        await recordBillingUsageEventBestEffort({
+          userId: usageUser.id,
+          eventType: 'api_call_completed',
+          metadata: { route: '/api/ask', mode: 'daily_regime_analog' },
+        });
+        await recordBillingUsageEventBestEffort({
+          userId: usageUser.id,
+          eventType: 'research_report_generated',
+          metadata: {
+            evidence_contract: dailyRegime.schema_version,
+            model_version: dailyRegime.model_contract.model_version,
+          },
+        });
+      }
+      return NextResponse.json(
+        {
+          answer: monitor
+            ? `${monitor.message}\n\n${conversation.answer}`
+            : conversation.answer,
+          forecast,
+          monitor,
+          conversation: {
+            mode: 'daily_regime_analog',
+            knowledge_version: conversation.knowledgeVersion,
+            llm_role: conversation.llmRole,
+            llm_model: conversation.llmModel,
+            locale: conversation.locale,
+          },
+        },
+        {
+          headers: {
+            'Cache-Control': 'no-store',
+            'X-AXIO7-Model-Runtime': 'rust',
+            'X-AXIO7-Evidence-Contract': dailyRegime.schema_version,
+            'X-AXIO7-Conversation-Mode': 'daily_regime_analog',
+            'X-AXIO7-Knowledge-Version': conversation.knowledgeVersion,
+            'X-AXIO7-LLM-Role': conversation.llmRole,
+            'X-AXIO7-LLM-Model': conversation.llmModel,
+            'X-AXIO7-Conversation-Locale': conversation.locale,
+          },
+        }
+      );
+    }
     const envelope = await requestQuantResearch(compiled.query);
     const conversation = await explainQuantResearchResult(
       parsed.data.query,
@@ -342,6 +521,7 @@ export async function POST(req: NextRequest) {
           mode: 'quant_research',
           knowledge_version: conversation.knowledgeVersion,
           llm_role: conversation.llmRole,
+          llm_model: conversation.llmModel,
           locale: conversation.locale,
         },
       },

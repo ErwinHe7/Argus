@@ -5,6 +5,7 @@ pub mod api;
 pub mod broker;
 pub mod config;
 pub mod cross_asset;
+pub mod daily_regime;
 pub mod data;
 pub mod domain;
 pub mod engine;

@@ -1,4 +1,6 @@
 import type { WebForecastDistribution } from '@/lib/quant/web-forecast';
+import type { MacroReport } from '@/lib/market-intelligence/macro';
+import type { NewsPulseReport } from '@/lib/market-intelligence/news-pulse';
 
 export type ForecastSourceState =
   | 'real_time'
@@ -318,6 +320,132 @@ export type QuantSessionSummary = {
   caveats: string[];
 };
 
+export type QuantDailyRegimeLabel =
+  | 'HIGH_VOL_SELL_OFF'
+  | 'HIGH_VOL_RECOVERY'
+  | 'RISK_ON_TREND'
+  | 'RISK_OFF_TREND'
+  | 'HIGH_VOL_RANGE'
+  | 'LOW_VOL_RANGE'
+  | 'MIXED_TRANSITION';
+
+export type QuantDailyRegimeReport = {
+  schema_version: 'axio.daily-regime.v1';
+  status: 'AVAILABLE_UNCALIBRATED';
+  result_kind: 'NEXT_REGULAR_SESSION_ANALOG_LEAN';
+  generated_at: string;
+  observation_cutoff: string;
+  public_symbol: 'SPX';
+  data_symbol: 'SPY';
+  proxy_disclosure: string;
+  forecast_horizon: 'NEXT_COMPLETE_US_REGULAR_SESSION';
+  current_regime: {
+    label: QuantDailyRegimeLabel;
+    definition: string;
+    volatility_percentile_prior_252: number;
+    cross_asset_breadth: number;
+  };
+  current_market: {
+    session_date_et: string;
+    open: number;
+    high: number;
+    low: number;
+    close: number;
+    session_return_pct: number;
+    twenty_session_return_pct: number;
+    twenty_session_annualized_volatility_pct: number;
+    close_location_pct: number;
+    minute_coverage: Record<string, number>;
+  };
+  prediction: {
+    lean: 'UP' | 'DOWN' | 'MIXED';
+    target_definition: string;
+    analog_sample_size: number;
+    raw_up_count: number;
+    raw_down_or_flat_count: number;
+    raw_up_frequency: number;
+    median_next_session_return_pct: number;
+    mean_next_session_return_pct: number;
+    calibrated_probability: false;
+    interpretation: string;
+  };
+  similar_historical_sessions: Array<{
+    rank: number;
+    session_date_et: string;
+    regime: QuantDailyRegimeLabel;
+    standardized_euclidean_distance: number;
+    session_return_pct: number;
+    next_session_date_et: string;
+    next_session_return_pct: number;
+    next_session_direction: 'UP' | 'DOWN' | 'FLAT';
+  }>;
+  walk_forward_validation: {
+    method: 'PURGED_EXPANDING_WALK_FORWARD';
+    evaluation_window_sessions: number;
+    eligible_queries: number;
+    directional_calls: number;
+    correct_directional_calls: number;
+    raw_directional_hit_frequency: number | null;
+    probability_interpretation_allowed: false;
+    notes: string[];
+  };
+  feature_snapshot: Array<{
+    name: string;
+    value: number;
+    unit: string;
+  }>;
+  source: {
+    provider: 'Databento';
+    dataset: 'EQUS.MINI';
+    schema: 'ohlcv-1m';
+    session_clock: '09:30-16:00 America/New_York';
+    history_start: string;
+    history_end: string;
+    complete_feature_sessions: number;
+    acquired_at: string;
+    latest_available_at: string;
+    dataset_sha256: string;
+    files: Array<{
+      request_name: string;
+      file_name: string;
+      bytes: number;
+      sha256: string;
+      acquired_at: string;
+    }>;
+  };
+  model_contract: {
+    model_id: 'axio7.spx-next-session-regime-analog';
+    model_version: string;
+    owner: 'quant_engine_rs';
+    regime_algorithm: string;
+    analog_algorithm: string;
+    feature_count: number;
+    neighbors: number;
+    minimum_analogs: number;
+    fit_semantics: string;
+    label_semantics: string;
+    status: 'UNCALIBRATED_RESEARCH_OUTPUT';
+    source_code: 'quant_engine_rs/src/daily_regime.rs';
+  };
+  macro_news_policy: {
+    status: 'DISPLAY_CONTEXT_ONLY_NOT_NUMERICAL_MODEL_INPUT';
+    detail: string;
+  };
+  probability_published: false;
+  automatic_execution_enabled: false;
+  caveats: string[];
+};
+
+export type ModelCodeInventoryItem = {
+  id: string;
+  name: string;
+  layer: 'production_rust' | 'offline_python' | 'native_cpp';
+  status: 'active' | 'frozen_candidate' | 'research_only' | 'validation_gate';
+  algorithm: string;
+  sourcePath: string;
+  sourceUrl: string;
+};
+
 export type ForecastChatResult = {
   generatedAt: string;
   model: string;
@@ -328,5 +456,9 @@ export type ForecastChatResult = {
   disclaimer: string;
   research?: QuantEvidenceEnvelope;
   sessionSummary?: QuantSessionSummary;
+  dailyRegime?: QuantDailyRegimeReport;
+  macroContext?: MacroReport | null;
+  newsContext?: NewsPulseReport | null;
+  modelCodeInventory?: ModelCodeInventoryItem[];
   compilerNotes?: string[];
 };
