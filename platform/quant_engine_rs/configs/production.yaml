@@ -275,7 +275,9 @@ data:
         stype_in: raw_symbol
         symbols: [SPY, QQQ, NVDA, AAPL, MU, SOXX, NBIS, BE, IGV, IWM, HYG, TLT, UUP, VXX]
         start: "2023-03-28T00:00:00Z"
-        end: "2026-07-19T00:00:00Z"
+        # Train only through the last fully completed UTC market-data day.
+        # The current session remains live input and never leaks into fitting.
+        end: "2026-07-30T00:00:00Z"
   cboe:
     licensed_csv_root: data/import/cboe
     spx_index_history_from: "2004-01-01"

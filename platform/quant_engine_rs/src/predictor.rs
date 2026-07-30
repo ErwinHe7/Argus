@@ -1841,7 +1841,11 @@ fn hmm_context(
     })
 }
 
-const SHORT_HORIZON_TRAINING_SESSIONS: usize = 60;
+// Keep the per-regime effective-observation floor unchanged, but use enough
+// recent sessions for sparse valid regimes to meet it. Sixty sessions caused
+// the licensed Databento MU no-UUP candidate to fail closed even though the
+// full point-in-time history was available.
+const SHORT_HORIZON_TRAINING_SESSIONS: usize = 120;
 
 #[derive(Debug, Clone, Copy)]
 struct MaterialMoveLogReturnThresholds {
@@ -3234,6 +3238,15 @@ mod tests {
     use crate::engine::gamma_convexity::{
         GammaConvexityAvailability, GammaConvexityUnavailableReason,
     };
+
+    #[test]
+    fn short_horizon_training_uses_six_months_without_weakening_sample_gates() {
+        assert_eq!(SHORT_HORIZON_TRAINING_SESSIONS, 120);
+        assert_eq!(
+            ShortHorizonConfig::default().minimum_regime_effective_observations,
+            30.0
+        );
+    }
 
     #[test]
     fn hmm_sequences_split_at_mid_session_feature_gaps() {
