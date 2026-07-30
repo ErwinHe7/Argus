@@ -43,7 +43,11 @@ function chineseBlocker(blocker: string) {
   if (/AWAITING_FIRST_FINALIZED_LIVE_FORECAST/i.test(blocker)) {
     return '实时推理管线尚未为该标的发布第一份完整预测';
   }
-  if (/PUBLIC_MARKET_DATA.*LICENSE|LICENSE.*NOT_CONFIGURED/i.test(blocker)) {
+  if (
+    /PUBLIC_MARKET_DATA_(?:RIGHTS|.*LICENSE)|LICENSE.*NOT_CONFIGURED|REDISTRIBUTION/i.test(
+      blocker
+    )
+  ) {
     return '尚未配置允许向网站用户展示或再分发的实时市场数据授权';
   }
   if (/MODEL.*(?:NOT_PROMOTED|UNPROMOTED)|PROMOTION/i.test(blocker)) {
@@ -67,8 +71,19 @@ function englishBlocker(blocker: string) {
   if (/AWAITING_FIRST_FINALIZED_LIVE_FORECAST/i.test(blocker)) {
     return `${subject}the live inference pipeline has not published its first finalized forecast yet.`;
   }
-  if (/PUBLIC_MARKET_DATA.*LICENSE|LICENSE.*NOT_CONFIGURED/i.test(blocker)) {
-    return `${subject}customer-facing realtime market-data authorization is not active in the serving receipt.`;
+  if (/LIVE_FORECAST_NOT_PUBLISHED/i.test(blocker)) {
+    return `${subject}the model has not published a complete live forecast batch.`;
+  }
+  if (/MODEL_FORECAST_HORIZON_MISSING/i.test(blocker)) {
+    const horizon = blocker.match(/horizon_minutes=(5|15|30|60)/i)?.[1];
+    return `${subject}the required${horizon ? ` ${horizon}-minute` : ''} model horizon was not published.`;
+  }
+  if (
+    /PUBLIC_MARKET_DATA_(?:RIGHTS|.*LICENSE)|LICENSE.*NOT_CONFIGURED|REDISTRIBUTION/i.test(
+      blocker
+    )
+  ) {
+    return `${subject}this request is publication-gated, and its realtime market-data rights receipt is not active.`;
   }
   if (/MODEL.*(?:NOT_PROMOTED|UNPROMOTED)|PROMOTION/i.test(blocker)) {
     return `${subject}the required model or calibration artifact is not promoted for publication.`;
@@ -88,6 +103,37 @@ function englishBlocker(blocker: string) {
   return `${subject}a required live-data, inference, or publication gate did not pass.`;
 }
 
+function outsideUsRegularSession(timestamp: string) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return false;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value;
+  const weekday = value('weekday');
+  const hour = Number(value('hour'));
+  const minute = Number(value('minute'));
+  if (
+    weekday === undefined ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute)
+  ) {
+    return false;
+  }
+  const minutes = hour * 60 + minute;
+  return (
+    weekday === 'Sat' ||
+    weekday === 'Sun' ||
+    minutes < 9 * 60 + 30 ||
+    minutes >= 16 * 60
+  );
+}
+
 function blockerSummary(envelope: QuantEvidenceEnvelope, chinese: boolean) {
   const blockers = envelope.data_blockers.slice(0, 6);
   if (blockers.length === 0) {
@@ -95,11 +141,22 @@ function blockerSummary(envelope: QuantEvidenceEnvelope, chinese: boolean) {
       ? '当前没有通过全部数据与模型门控的候选。'
       : 'No candidate passed every data and model readiness gate.';
   }
-  const lines = blockers
-    .map(
-      (blocker) =>
-        `- ${chinese ? chineseBlocker(blocker) : englishBlocker(blocker)}`
+  if (
+    envelope.query.setup_type === 'model_forecast' &&
+    outsideUsRegularSession(envelope.observation_cutoff)
+  ) {
+    return chinese
+      ? '该请求发生在模型的美国常规交易时段之外（美东时间上午 9:30 至下午 4:00）；盘后行情不会生成新的实时预测批次。'
+      : 'This request was made outside the model’s regular U.S. session window (9:30 a.m.–4:00 p.m. ET); extended-hours bars do not produce a new live forecast batch.';
+  }
+  const lines = Array.from(
+    new Set(
+      blockers.map((blocker) =>
+        chinese ? chineseBlocker(blocker) : englishBlocker(blocker)
+      )
     )
+  )
+    .map((line) => `- ${line}`)
     .join('\n');
   return chinese
     ? `本次请求没有生成实时预测：\n${lines}`
@@ -319,6 +376,46 @@ function modelForecastSummary(
       : `${candidate.symbol} · ${horizonLabel}: model direction state ${orientation}. Promoted out-of-sample calibrated binary P(up) ${probabilityUp.toFixed(
           1
         )}%. Down and flat are not jointly calibrated; no trade action is produced.`;
+  }
+  const rawExpectedReturn = candidate.metrics.expected_return;
+  if (
+    candidate.status === 'UNCALIBRATED_RESEARCH_OUTPUT' &&
+    typeof rawExpectedReturn === 'number' &&
+    Number.isFinite(rawExpectedReturn)
+  ) {
+    const quantiles = Array.isArray(candidate.metrics.return_quantiles)
+      ? candidate.metrics.return_quantiles.map(asRecord)
+      : [];
+    const quantile = (probability: number) =>
+      quantiles.find(
+        (point) =>
+          typeof point.probability === 'number' &&
+          Math.abs(point.probability - probability) < 1e-6
+      )?.value;
+    const lower = quantile(0.25);
+    const upper = quantile(0.75);
+    const rawDirectionFrequency =
+      candidate.metrics.statistical_orientation ===
+      'POSITIVE_CONDITIONAL_MEAN'
+        ? candidate.metrics.raw_analog_up_frequency
+        : candidate.metrics.raw_analog_down_frequency;
+    return chinese
+      ? `${candidate.symbol} · ${horizonLabel}：未校准方向为${orientation}；原始条件均值 ${pct(
+          rawExpectedReturn,
+          2
+        )}，历史邻居中间 50% 为 ${pct(lower, 2)} 至 ${pct(
+          upper,
+          2
+        )}，同方向原始频率 ${pct(rawDirectionFrequency)}。这些是本机实时研究诊断，不是校准概率、公开数据发布或交易指令。`
+      : `${candidate.symbol} · ${horizonLabel}: uncalibrated direction ${orientation}; raw conditional mean ${pct(
+          rawExpectedReturn,
+          2
+        )}, historical-neighbor middle 50% ${pct(lower, 2)} to ${pct(
+          upper,
+          2
+        )}, raw same-direction frequency ${pct(
+          rawDirectionFrequency
+        )}. These are loopback live-research diagnostics, not calibrated probabilities, public data publication, or trade instructions.`;
   }
   const validated =
     candidate.status === 'VALIDATED_STATISTICAL_CANDIDATE';

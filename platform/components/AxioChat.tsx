@@ -33,6 +33,7 @@ import {
 } from 'react';
 import Image from 'next/image';
 import type {
+  DevelopmentReplayReceipt,
   ForecastChatResult,
   ForecastSourceState,
   MarketMonitorAction,
@@ -44,6 +45,17 @@ import type {
 } from '@/lib/forecast-chat-types';
 import styles from './AxioChat.module.css';
 
+type QueryClarification = {
+  setup_type?: string;
+  direction?: string;
+  horizon_minutes?: number;
+  symbols?: string[];
+  missing_fields?: string[];
+  allowed_values?: Record<string, unknown>;
+  historical_only?: boolean;
+  offered_after_live_failure?: boolean;
+};
+
 type ChatMessage = {
   id: string;
   role: 'user' | 'assistant';
@@ -53,6 +65,8 @@ type ChatMessage = {
   monitor?: MarketMonitorAction;
   ownerPreview?: MoomooOwnerPreview;
   conversation?: ConversationReceipt;
+  developmentReplay?: DevelopmentReplayReceipt;
+  clarification?: QueryClarification;
   failed?: boolean;
 };
 
@@ -69,12 +83,8 @@ type AskResponse = {
   forecast?: ForecastChatResult;
   monitor?: MarketMonitorAction;
   conversation?: ConversationReceipt;
-  clarification?: {
-    setup_type?: string;
-    symbols?: string[];
-    missing_fields?: string[];
-    allowed_values?: Record<string, unknown>;
-  };
+  developmentReplay?: DevelopmentReplayReceipt;
+  clarification?: QueryClarification;
 };
 
 type AuthUser = {
@@ -109,6 +119,17 @@ type MoomooOwnerForecastRow = {
   horizon_minutes?: number;
   reference_price?: number;
   expected_return?: number;
+  return_quantiles?: Array<{
+    probability?: number;
+    value?: number;
+  }>;
+  raw_analog_up_frequency?: number;
+  raw_analog_down_frequency?: number;
+  raw_analog_flat_frequency?: number;
+  analog_effective_sample_size?: number;
+  analog_similarity_score?: number;
+  dominant_regime_state?: number;
+  dominant_regime_probability?: number;
   observation_cutoff?: string;
   model_hash?: string;
   research_status?: string;
@@ -120,6 +141,7 @@ type MoomooOwnerPreview = {
   freshness_status?: string;
   observation_cutoff?: string;
   owner_only?: boolean;
+  source_mode?: 'DATABENTO_LOCAL_LIVE' | 'MOOMOO_OWNER';
   customer_publication_authorized?: false;
   probability_publication_status?: string;
   prediction_layer?: MoomooOwnerForecastRow[];
@@ -149,6 +171,33 @@ const STARTERS = [
   },
 ] as const;
 
+const DEVELOPMENT_REPLAY_STARTERS = [
+  {
+    label: 'Deterministic SPX replay',
+    prompt: 'Forecast SPX using the core model.',
+  },
+] as const;
+
+const LOCAL_LIVE_STARTERS = [
+  {
+    label: 'AAPL core forecast',
+    prompt: 'Forecast AAPL using the core model.',
+  },
+  {
+    label: 'QQQ core forecast',
+    prompt: 'Forecast QQQ using the core model.',
+  },
+  {
+    label: 'SPX core forecast',
+    prompt: 'Forecast SPX using the core model.',
+  },
+  {
+    label: 'Historical opening study',
+    prompt:
+      'Which 5-minute bar most often confirms a bearish SPX opening buy exhaustion? Backtest it.',
+  },
+] as const;
+
 function newId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -173,14 +222,25 @@ function humanizeDataBlocker(
       ? `${subject}实时管线尚未发布第一份完整预测。`
       : `${subject}the live pipeline has not published its first finalized forecast yet.`;
   }
+  if (/LIVE_FORECAST_NOT_PUBLISHED/i.test(blocker)) {
+    return chinese
+      ? `${subject}模型尚未发布完整的实时预测批次。`
+      : `${subject}the model has not published a complete live forecast batch.`;
+  }
+  if (/MODEL_FORECAST_HORIZON_MISSING/i.test(blocker)) {
+    const horizon = blocker.match(/horizon_minutes=(5|15|30|60)/i)?.[1];
+    return chinese
+      ? `${subject}所需的${horizon ? ` ${horizon} 分钟` : ''}模型周期尚未发布。`
+      : `${subject}the required${horizon ? ` ${horizon}-minute` : ''} model horizon was not published.`;
+  }
   if (
-    /PUBLIC_MARKET_DATA.*LICENSE|LICENSE.*NOT_CONFIGURED|REDISTRIBUTION/i.test(
+    /PUBLIC_MARKET_DATA_(?:RIGHTS|.*LICENSE)|LICENSE.*NOT_CONFIGURED|REDISTRIBUTION/i.test(
       blocker
     )
   ) {
     return chinese
       ? `${subject}面向网站用户的实时数据授权凭据尚未生效。`
-      : `${subject}the customer-facing realtime data authorization receipt is not active.`;
+      : `${subject}this request is publication-gated, and its realtime market-data rights receipt is not active.`;
   }
   if (/MODEL.*(?:NOT_PROMOTED|UNPROMOTED)|PROMOTION|CALIBRATION/i.test(blocker)) {
     return chinese
@@ -202,21 +262,74 @@ function humanizeDataBlocker(
     : `${subject}a required live-data, inference, or publication gate did not pass.`;
 }
 
+function outsideUsRegularSession(timestamp: string) {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return false;
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York',
+    weekday: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date);
+  const value = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value;
+  const weekday = value('weekday');
+  const hour = Number(value('hour'));
+  const minute = Number(value('minute'));
+  if (
+    weekday === undefined ||
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute)
+  ) {
+    return false;
+  }
+  const minutes = hour * 60 + minute;
+  return (
+    weekday === 'Sat' ||
+    weekday === 'Sun' ||
+    minutes < 9 * 60 + 30 ||
+    minutes >= 16 * 60
+  );
+}
+
 function explainDataBlockers(
-  blockers: string[],
+  envelope: QuantEvidenceEnvelope,
   locale: ConversationReceipt['locale'] = 'en-US'
 ) {
+  const blockers = envelope.data_blockers;
+  if (
+    envelope.query.setup_type === 'model_forecast' &&
+    outsideUsRegularSession(envelope.observation_cutoff)
+  ) {
+    return locale === 'zh-CN'
+      ? '该请求发生在模型的美国常规交易时段之外（美东时间上午 9:30 至下午 4:00）；盘后行情不会生成新的实时预测批次。'
+      : 'This request was made outside the model’s regular U.S. session window (9:30 a.m.–4:00 p.m. ET); extended-hours bars do not produce a new live forecast batch.';
+  }
   return blockers.length > 0
-    ? blockers
+    ? Array.from(
+        new Set(
+          blockers
+            .slice(0, 6)
+            .map((blocker) => humanizeDataBlocker(blocker, locale))
+        )
+      )
         .slice(0, 3)
-        .map((blocker) => humanizeDataBlocker(blocker, locale))
         .join(' ')
     : locale === 'zh-CN'
       ? '本次请求没有生成实时预测，后端也没有返回可公开的诊断信息。'
       : 'The request did not produce a live forecast, and the backend did not report a public diagnostic.';
 }
 
-export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
+export function AxioChat({
+  initialUser,
+  developmentReplay = false,
+  localLiveResearch = false,
+}: {
+  initialUser: AuthUser;
+  developmentReplay?: boolean;
+  localLiveResearch?: boolean;
+}) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -242,6 +355,14 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const conversationRef = useRef<HTMLDivElement>(null);
   const requestVersionRef = useRef(0);
+  const starters = developmentReplay
+    ? DEVELOPMENT_REPLAY_STARTERS
+    : localLiveResearch
+      ? LOCAL_LIVE_STARTERS
+      : STARTERS;
+  const signInHref = developmentReplay
+    ? '/auth/signin?next=%2F%3Fmock%3D1'
+    : '/auth/signin?next=%2F';
 
   const currentTitle = useMemo(
     () => messages.find((message) => message.role === 'user')?.content ?? '',
@@ -274,6 +395,10 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
   }, [loading, messages]);
 
   useEffect(() => {
+    if (developmentReplay) {
+      setMonitorAccess('ready');
+      return;
+    }
     if (
       monitorAccess === 'authentication_required' ||
       monitorAccess === 'payment_required'
@@ -290,9 +415,14 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
       window.clearInterval(interval);
       document.removeEventListener('visibilitychange', refresh);
     };
-  }, [monitorAccess]);
+  }, [developmentReplay, monitorAccess]);
 
   useEffect(() => {
+    if (developmentReplay) {
+      setRuntimeReceipt(null);
+      setRuntimeState('models_loaded');
+      return;
+    }
     let cancelled = false;
 
     async function probeRuntime() {
@@ -325,7 +455,7 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [developmentReplay]);
 
   async function loadMonitors() {
     try {
@@ -417,30 +547,60 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
       const response = await fetch('/api/ask', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({
+          query,
+          ...(developmentReplay ? { developmentReplay: true } : {}),
+        }),
       });
       const data = (await response.json().catch(() => ({}))) as AskResponse;
       if (!response.ok && !data.answer) {
         throw new Error(data.error || 'AXIO7 could not complete that research request.');
       }
+      const needsClarification =
+        data.error === 'market_query_needs_clarification' ||
+        data.clarification !== undefined;
       let ownerPreviewForMessage: MoomooOwnerPreview | undefined;
-      const ownerSymbol = initialUser.privateMarketDataAccess
-        ? requestedOwnerPreviewSymbol(question)
-        : null;
+      const ownerSymbol =
+        !needsClarification &&
+        !developmentReplay &&
+        (initialUser.privateMarketDataAccess || localLiveResearch)
+          ? requestedOwnerPreviewSymbol(question)
+          : null;
       if (ownerSymbol) {
         try {
+          const previewPath = localLiveResearch
+            ? 'forecast'
+            : 'owner-preview';
           const previewResponse = await fetch(
-            `/api/quant/intraday/predictor/owner-preview?symbol=${encodeURIComponent(ownerSymbol)}`,
+            `/api/quant/intraday/predictor/${previewPath}?symbol=${encodeURIComponent(ownerSymbol)}`,
             { cache: 'no-store', signal: AbortSignal.timeout(5_000) }
           );
           const preview = (await previewResponse.json().catch(() => ({}))) as MoomooOwnerPreview;
-          if (
-            previewResponse.ok &&
+          const usableLocalLivePreview =
+            localLiveResearch &&
+            preview.status === 'IMPERSONAL_MARKET_RESEARCH' &&
+            Array.isArray(preview.prediction_layer) &&
+            preview.prediction_layer.length > 0;
+          const usableOwnerPreview =
+            !localLiveResearch &&
             preview.owner_only === true &&
             Array.isArray(preview.prediction_layer) &&
-            preview.prediction_layer.length > 0
+            preview.prediction_layer.length > 0;
+          if (
+            previewResponse.ok &&
+            (usableLocalLivePreview || usableOwnerPreview)
           ) {
-            ownerPreviewForMessage = preview;
+            ownerPreviewForMessage = localLiveResearch
+              ? {
+                  ...preview,
+                  symbol: ownerSymbol,
+                  source_mode: 'DATABENTO_LOCAL_LIVE',
+                  owner_only: true,
+                  customer_publication_authorized: false,
+                  truth:
+                    'Loopback-only Databento live shadow research. The Rust backend verified freshness, causality, the exact frozen model, the source receipt, and the atomic prediction ledger. Public redistribution, calibrated probabilities, advice, and execution remain disabled.',
+                }
+              : { ...preview, source_mode: 'MOOMOO_OWNER' };
           }
         } catch {
           // The public research response remains valid even if the private preview is absent.
@@ -455,13 +615,17 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
           id: newId(),
           role: 'assistant',
           content:
-            data.answer?.trim() ||
-            'The model completed the research run but returned no written conclusion.',
+            ownerPreviewForMessage?.source_mode === 'DATABENTO_LOCAL_LIVE'
+              ? 'The Rust backend produced a fresh, causally verified loopback-only live research forecast. Public redistribution and calibrated-probability publication remain withheld, but the quant panel below shows the raw model means, empirical ranges, regime state, and analog frequencies from the licensed Databento bars.'
+              : data.answer?.trim() ||
+                'The model completed the research run but returned no written conclusion.',
           question,
           forecast: data.forecast,
           monitor: data.monitor,
           ownerPreview: ownerPreviewForMessage,
           conversation: data.conversation,
+          developmentReplay: data.developmentReplay,
+          clarification: data.clarification,
         },
       ]);
     } catch (error) {
@@ -609,7 +773,7 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
             ) : monitorAccess === 'authentication_required' ? (
               <a
                 className={styles.monitorEmpty}
-                href="/auth/signin?next=%2F"
+                href={signInHref}
               >
                 Sign in to save monitors
               </a>
@@ -752,7 +916,7 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
             ) : (
               <a
                 className={styles.signInLink}
-                href="/auth/signin?next=%2F"
+                href={signInHref}
                 aria-label="Sign in to AXIO7"
               >
                 <CircleUserRound size={15} aria-hidden="true" />
@@ -762,13 +926,34 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
           </div>
         </header>
 
+        {developmentReplay ? (
+          <aside
+            className={styles.developmentReplayBanner}
+            role="status"
+            aria-label="Development replay mode"
+          >
+            <strong>Historical research replay</strong>
+            <span>
+              Local-only SPX pipeline replay. Requests still use Google auth and
+              /api/ask. Installed historical bars and an isolated, unpromoted
+              replay-local Rust model are used; no current provider connection,
+              LLM, or live publication storage is used.
+            </span>
+          </aside>
+        ) : null}
+
         {!hasConversation ? (
           <div className={styles.welcome}>
             <div className={styles.welcomeInner}>
-              <h1>What would you like to predict or research?</h1>
+              <h1>
+                {developmentReplay
+                  ? 'Test the forecast UI end to end'
+                  : 'What would you like to predict or research?'}
+              </h1>
               <p className={styles.welcomeCopy}>
-                Scan, backtest, or monitor an impersonal condition. AXIO7 shows
-                the data cutoff, evidence, model limits, and reproducibility trail.
+                {developmentReplay
+                  ? 'Submit the SPX example below to run a causal historical replay, historical regime initialization, Rust inference, and held-out outcome review.'
+                  : 'Scan, backtest, or monitor an impersonal condition. AXIO7 shows the data cutoff, evidence, model limits, and reproducibility trail.'}
               </p>
               {initialUser.researchAccess ? (
                 <Composer
@@ -801,7 +986,7 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                 <span>Press Enter to submit</span>
               </div>
               <div className={styles.starterGrid} aria-label="Example questions">
-                {STARTERS.map(({ label, prompt }, index) => (
+                {starters.map(({ label, prompt }, index) => (
                   <button
                     type="button"
                     key={label}
@@ -849,7 +1034,17 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                       </div>
                       <div className={styles.assistantBody}>
                         <p className={styles.assistantName}>AXIO7</p>
+                        {message.developmentReplay ? (
+                          <DevelopmentReplayNotice
+                            receipt={message.developmentReplay}
+                          />
+                        ) : null}
                         <AssistantAnswer message={message} />
+                        <HistoricalReplayAlternative
+                          message={message}
+                          disabled={loading}
+                          onSubmit={(prompt) => void send(prompt)}
+                        />
                         {message.forecast ? (
                           <PredictionDetails
                             forecast={message.forecast}
@@ -915,6 +1110,196 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
   );
 }
 
+const HISTORICAL_SETUP_LABELS: Record<string, string> = {
+  momentum: 'Momentum',
+  vwap_reversal: 'VWAP reversal',
+  opening_turn: 'Opening turn',
+  statistical_dislocation: 'Statistical dislocation',
+};
+
+function clarificationValues(
+  clarification: QueryClarification,
+  field: string,
+  fallback: Array<string | number>
+) {
+  const value = clarification.allowed_values?.[field];
+  return Array.isArray(value) ? value : fallback;
+}
+
+function historicalReplayAlternative(
+  message: ChatMessage
+): QueryClarification | null {
+  if (message.clarification?.historical_only) {
+    return message.clarification;
+  }
+  const research = message.forecast?.research;
+  if (
+    !research ||
+    research.query.intent === 'backtest' ||
+    research.candidates.length > 0 ||
+    research.data_blockers.length === 0 ||
+    research.historical.length > 0
+  ) {
+    return null;
+  }
+  const setup = research.query.setup_type;
+  const supportedSetup = Object.hasOwn(HISTORICAL_SETUP_LABELS, setup);
+  if (setup !== 'model_forecast' && !supportedSetup) {
+    return null;
+  }
+  return {
+    setup_type: supportedSetup ? setup : undefined,
+    direction: supportedSetup ? research.query.filters.direction : undefined,
+    horizon_minutes: research.query.horizon_minutes,
+    symbols: research.query.symbols,
+    missing_fields: [
+      ...(supportedSetup ? [] : ['setup_type']),
+      ...(research.query.filters.direction ? [] : ['direction']),
+      ...(research.query.horizon_minutes ? [] : ['horizon_minutes']),
+    ],
+    allowed_values: {
+      setup_type: Object.keys(HISTORICAL_SETUP_LABELS),
+      direction: ['up', 'down'],
+      horizon_minutes: [5, 15, 30, 60],
+    },
+    historical_only: true,
+    offered_after_live_failure: true,
+  };
+}
+
+function HistoricalReplayAlternative({
+  message,
+  disabled,
+  onSubmit,
+}: {
+  message: ChatMessage;
+  disabled: boolean;
+  onSubmit: (prompt: string) => void;
+}) {
+  const clarification = historicalReplayAlternative(message);
+  return clarification ? (
+    <HistoricalReplayChooser
+      clarification={clarification}
+      disabled={disabled}
+      onSubmit={onSubmit}
+    />
+  ) : null;
+}
+
+function HistoricalReplayChooser({
+  clarification,
+  disabled,
+  onSubmit,
+}: {
+  clarification: QueryClarification;
+  disabled: boolean;
+  onSubmit: (prompt: string) => void;
+}) {
+  const setupChoices = clarificationValues(
+    clarification,
+    'setup_type',
+    Object.keys(HISTORICAL_SETUP_LABELS)
+  ).filter((value): value is string => typeof value === 'string');
+  const directionChoices = clarificationValues(
+    clarification,
+    'direction',
+    ['up', 'down']
+  ).filter((value): value is string => value === 'up' || value === 'down');
+  const horizonChoices = clarificationValues(
+    clarification,
+    'horizon_minutes',
+    [5, 15, 30, 60]
+  )
+    .map(Number)
+    .filter((value) => [5, 15, 30, 60].includes(value));
+  const [setup, setSetup] = useState(clarification.setup_type ?? '');
+  const [direction, setDirection] = useState(clarification.direction ?? '');
+  const [horizon, setHorizon] = useState<number | null>(
+    clarification.horizon_minutes ?? null
+  );
+  const [submitted, setSubmitted] = useState(false);
+  const symbols = clarification.symbols?.length
+    ? clarification.symbols.join(', ')
+    : 'the selected symbol';
+  const complete =
+    setup.length > 0 && direction.length > 0 && horizon !== null;
+
+  function submitReplay() {
+    if (!complete || submitted) return;
+    const setupLabel = HISTORICAL_SETUP_LABELS[setup] ?? setup.replaceAll('_', ' ');
+    setSubmitted(true);
+    onSubmit(
+      `Backtest ${direction === 'up' ? 'bullish' : 'bearish'} ${setupLabel} for ${symbols} over the next ${horizon} minutes. Use historical data only.`
+    );
+  }
+
+  return (
+    <section
+      className={styles.clarificationChooser}
+      aria-label="Choose historical replay assumptions"
+    >
+      <p>
+        {clarification.offered_after_live_failure
+          ? 'Live result unavailable — run an explicit historical replay instead'
+          : 'Choose the historical rule assumptions'}
+      </p>
+      <fieldset disabled={disabled || submitted}>
+        <legend>Setup</legend>
+        <div>
+          {setupChoices.map((value) => (
+            <button
+              type="button"
+              key={value}
+              aria-pressed={setup === value}
+              onClick={() => setSetup(value)}
+            >
+              {HISTORICAL_SETUP_LABELS[value] ?? value.replaceAll('_', ' ')}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset disabled={disabled || submitted}>
+        <legend>Direction</legend>
+        <div>
+          {directionChoices.map((value) => (
+            <button
+              type="button"
+              key={value}
+              aria-pressed={direction === value}
+              onClick={() => setDirection(value)}
+            >
+              {value === 'up' ? 'Up / bullish' : 'Down / bearish'}
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <fieldset disabled={disabled || submitted}>
+        <legend>Horizon</legend>
+        <div>
+          {horizonChoices.map((value) => (
+            <button
+              type="button"
+              key={value}
+              aria-pressed={horizon === value}
+              onClick={() => setHorizon(value)}
+            >
+              {value} min
+            </button>
+          ))}
+        </div>
+      </fieldset>
+      <button
+        type="button"
+        className={styles.clarificationSubmit}
+        disabled={disabled || submitted || !complete}
+        onClick={submitReplay}
+      >
+        {submitted ? 'Replay submitted' : 'Run historical replay'}
+      </button>
+    </section>
+  );
+}
+
 function AssistantAnswer({ message }: { message: ChatMessage }) {
   const research = message.forecast?.research;
   const gatedResearch =
@@ -945,6 +1330,60 @@ function AssistantAnswer({ message }: { message: ChatMessage }) {
     >
       {message.content}
     </div>
+  );
+}
+
+function DevelopmentReplayNotice({
+  receipt,
+}: {
+  receipt: DevelopmentReplayReceipt;
+}) {
+  return (
+    <section
+      className={styles.developmentReplayNotice}
+      aria-label="Mock historical replay result"
+    >
+      <strong>
+        {receipt.sourceMode === 'RECORDED_DATABENTO_ENVELOPES'
+          ? 'Recorded Databento replay · not live'
+          : receipt.sourceMode === 'STRICT_INSTALLED_HISTORICAL_REPLAY'
+            ? 'Strict historical research replay · not live'
+            : 'Databento-shaped historical transport mock · not live'}
+      </strong>
+      <span>
+        Recorded cutoff {new Date(receipt.observationCutoff).toLocaleString()} ·{' '}
+        {receipt.inputEnvelopeCount}{' '}
+        {receipt.sourceMode === 'STRICT_INSTALLED_HISTORICAL_REPLAY'
+          ? 'observed market bars'
+          : 'transport envelopes'}{' '}
+        · Rust inference · no current market data · no live state written
+      </span>
+      {receipt.sourceMode === 'STRICT_INSTALLED_HISTORICAL_REPLAY' ? (
+        <small>
+          Real installed SPY, QQQ, and IWM bars; zero synthetic rows.
+          The model was trained on pre-session history and reviewed against one
+          subsequently realized session. This validates research behavior, not
+          live connectivity or production calibration.
+        </small>
+      ) : null}
+      {receipt.sourceMode ===
+      'DATABENTO_SHAPED_HISTORICAL_TRANSPORT_MOCK' ? (
+        <small>
+          Time-shifted licensed historical bars test the transport and UI path;
+          {` ${receipt.syntheticContextIntervals} missing context intervals were
+          explicitly filled with pipeline-only rows for the mock. `}They are not
+          Databento records and do not test live connectivity or latency.
+        </small>
+      ) : null}
+      {!receipt.artifactFeatureIdentityMatchesReplay &&
+      receipt.sourceMode !== 'STRICT_INSTALLED_HISTORICAL_REPLAY' ? (
+        <small>
+          Integration shadow: {receipt.contextObservationCount} captured causal
+          no-trade observations completed sparse context under the unpromoted
+          replay policy. This is not model-validation evidence.
+        </small>
+      ) : null}
+    </section>
   );
 }
 
@@ -985,7 +1424,7 @@ function FailClosedNotice({
           ? '本次请求没有生成实时预测。'
           : 'No live forecast was generated for this request.'}
       </h2>
-      <p>{explainDataBlockers(blockers, locale)}</p>
+      <p>{explainDataBlockers(envelope, locale)}</p>
       <p className={styles.gatedAssurance}>
         {chinese
           ? '系统没有显示未授权、过期、历史规则或合成数据替代品。'
@@ -1052,22 +1491,46 @@ function OwnerModelPreview({ preview }: { preview: MoomooOwnerPreview }) {
     (left, right) => (left.horizon_minutes ?? 0) - (right.horizon_minutes ?? 0)
   );
   const replay = preview.preview_mode === 'DETERMINISTIC_REPLAY';
+  const databentoLocal = preview.source_mode === 'DATABENTO_LOCAL_LIVE';
   return (
     <div className={styles.predictionDetails}>
       <div className={styles.reportMeta}>
         <span className={`${styles.compliancePill} ${styles.allowed}`}>
           <ShieldCheck size={13} />
-          Owner-only Rust model output
+          {databentoLocal
+            ? 'Local-only Rust model output'
+            : 'Owner-only Rust model output'}
         </span>
         <span className={`${styles.compliancePill} ${styles.blocked}`}>
-          Customer publication withheld
+          Public redistribution withheld
         </span>
-        <span>{replay ? 'Historical replay - not live' : 'Moomoo live forward shadow'}</span>
+        <span>
+          {databentoLocal
+            ? 'Databento live forward shadow'
+            : replay
+              ? 'Historical replay - not live'
+              : 'Moomoo live forward shadow'}
+        </span>
       </div>
       <div className={styles.signalGrid}>
         {rows.map((row) => {
           const expectedPct =
             typeof row.expected_return === 'number' ? row.expected_return * 100 : null;
+          const quantiles = Array.isArray(row.return_quantiles)
+            ? row.return_quantiles
+            : [];
+          const quantile = (probability: number) =>
+            quantiles.find(
+              (point) =>
+                typeof point.probability === 'number' &&
+                Math.abs(point.probability - probability) < 1e-6
+            )?.value;
+          const lower = quantile(0.25);
+          const upper = quantile(0.75);
+          const rawDirectionFrequency =
+            typeof row.expected_return === 'number' && row.expected_return >= 0
+              ? row.raw_analog_up_frequency
+              : row.raw_analog_down_frequency;
           return (
             <div
               className={styles.signalCard}
@@ -1087,18 +1550,44 @@ function OwnerModelPreview({ preview }: { preview: MoomooOwnerPreview }) {
                   ? 'withheld'
                   : `${expectedPct >= 0 ? '+' : ''}${expectedPct.toFixed(3)}%`}
               </p>
+              {databentoLocal ? (
+                <p>
+                  Analog middle 50% {replayReturn(lower)} to{' '}
+                  {replayReturn(upper)} · raw same-direction frequency{' '}
+                  {typeof rawDirectionFrequency === 'number'
+                    ? `${(rawDirectionFrequency * 100).toFixed(1)}%`
+                    : 'unavailable'}
+                  {' · '}regime{' '}
+                  {typeof row.dominant_regime_state === 'number'
+                    ? `state ${row.dominant_regime_state}`
+                    : 'unavailable'}
+                  {typeof row.dominant_regime_probability === 'number'
+                    ? ` at ${(row.dominant_regime_probability * 100).toFixed(1)}%`
+                    : ''}
+                  .
+                </p>
+              ) : null}
               <small>
                 Unpromoted shadow research. Calibrated up/down probability, ranking,
-                advice, and execution are withheld.
+                advice, and execution are withheld. Raw model moments and historical
+                frequencies are uncalibrated.
               </small>
             </div>
           );
         })}
       </div>
       <p className={styles.detailNote}>
-        Cutoff: {preview.observation_cutoff || 'unavailable'} - source: official Moomoo
-        OpenD owner session - {preview.probability_publication_status || 'probability withheld'}.{' '}
-        <a href="/quant/intraday">Open full owner dashboard</a>.
+        Cutoff: {preview.observation_cutoff || rows[0]?.observation_cutoff || 'unavailable'} -
+        source:{' '}
+        {databentoLocal
+          ? 'licensed Databento EQUS.MINI completed bars on this loopback runtime'
+          : 'official Moomoo OpenD owner session'}{' '}
+        - {preview.probability_publication_status || 'probability withheld'}.{' '}
+        <a href="/quant/intraday">
+          {databentoLocal
+            ? 'Open full quant dashboard'
+            : 'Open full owner dashboard'}
+        </a>.
       </p>
     </div>
   );
@@ -1548,6 +2037,453 @@ function orderedResearchCandidates(candidates: QuantResearchCandidate[]) {
   });
 }
 
+function replayReturn(value: unknown, digits = 2) {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? `${value >= 0 ? '+' : ''}${(value * 100).toFixed(digits)}%`
+    : '—';
+}
+
+function replayQuantile(candidate: QuantResearchCandidate, probability: number) {
+  const points = Array.isArray(candidate.metrics.return_quantiles)
+    ? candidate.metrics.return_quantiles
+    : [];
+  const point = points
+    .map(asRecord)
+    .find(
+      (row) =>
+        typeof row.probability === 'number' &&
+        Math.abs(row.probability - probability) < 1.0e-6
+    );
+  return point?.value;
+}
+
+function StrictHistoricalReplayReport({
+  envelope,
+}: {
+  envelope: QuantEvidenceEnvelope;
+}) {
+  const candidates = orderedResearchCandidates(envelope.candidates);
+  const rows = candidates.map((candidate) => {
+    const outcome = asRecord(candidate.metrics.realized_outcome);
+    return {
+      candidate,
+      horizon: candidateHorizonMinutes(candidate),
+      expectedReturn: candidate.metrics.expected_return,
+      lower: replayQuantile(candidate, 0.25),
+      upper: replayQuantile(candidate, 0.75),
+      realizedReturn: outcome.realized_return,
+      directionCorrect:
+        typeof outcome.direction_correct === 'boolean'
+          ? outcome.direction_correct
+          : null,
+    };
+  });
+  const directionalRows = rows.filter(
+    (row) =>
+      typeof row.expectedReturn === 'number' &&
+      Number.isFinite(row.expectedReturn)
+  );
+  const averageExpected =
+    directionalRows.length > 0
+      ? directionalRows.reduce(
+          (total, row) => total + (row.expectedReturn as number),
+          0
+        ) / directionalRows.length
+      : 0;
+  const direction =
+    averageExpected > 0 ? 'higher' : averageExpected < 0 ? 'lower' : 'flat';
+  const correctCount = rows.filter(
+    (row) => row.directionCorrect === true
+  ).length;
+  const settledCount = rows.filter(
+    (row) => row.directionCorrect !== null
+  ).length;
+  const sixtyMinute =
+    rows.find((row) => row.horizon === 60) ?? rows.at(-1);
+  const analogs = sixtyMinute
+    ? Array.isArray(sixtyMinute.candidate.metrics.top_analogs)
+      ? sixtyMinute.candidate.metrics.top_analogs
+          .slice(0, 4)
+          .map(asRecord)
+      : []
+    : [];
+  const regimeState = sixtyMinute?.candidate.metrics.dominant_regime_state;
+  const regimeProbability =
+    sixtyMinute?.candidate.metrics.dominant_regime_probability;
+  const effectiveAnalogs =
+    sixtyMinute?.candidate.metrics.analog_effective_sample_size;
+  const trainingSessions = envelope.model_contract.historical_training_sessions;
+  const invalidationBoundary =
+    direction === 'higher'
+      ? sixtyMinute?.lower
+      : direction === 'lower'
+        ? sixtyMinute?.upper
+        : undefined;
+
+  return (
+    <section
+      className={styles.strictReplayReport}
+      aria-label="Strict historical replay research report"
+    >
+      <p className={styles.strictReplayEyebrow}>
+        Held-out historical diagnostic · not a current forecast
+      </p>
+      <h2>
+        SPX historical replay: the model leaned {direction} at the recorded
+        cutoff
+      </h2>
+      <p className={styles.strictReplayLead}>
+        This is the quant-readable result from the installed real bars. It shows
+        what the frozen model knew then, the historical cases it retrieved, and
+        what happened afterward.
+      </p>
+
+      <ul className={styles.strictReplayFacts}>
+        <li>
+          The model trained on{' '}
+          {typeof trainingSessions === 'number' ? trainingSessions : 60}{' '}
+          sessions ending before the held-out replay date.
+        </li>
+        <li>
+          Market regime: state{' '}
+          {typeof regimeState === 'number' ? regimeState : 'unavailable'}
+          {typeof regimeProbability === 'number'
+            ? ` at ${(regimeProbability * 100).toFixed(1)}% dominance`
+            : ''}
+          .
+        </li>
+        <li>
+          Cross-asset context used real QQQ and IWM observations; no
+          synthetic rows or forward-filled market records were admitted.
+        </li>
+        <li>
+          {settledCount > 0
+            ? `${correctCount} of ${settledCount} horizon directions matched the subsequently realized path.`
+            : 'The held-out realized path was not available for scoring.'}
+        </li>
+      </ul>
+
+      <div className={styles.strictReplayTable}>
+        <h3>Forecast and held-out outcome</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Horizon</th>
+              <th>Model mean</th>
+              <th>Analog middle 50%</th>
+              <th>Realized</th>
+              <th>Review</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.horizon ?? 'unknown'}>
+                <td>{row.horizon ? `${row.horizon} min` : '—'}</td>
+                <td>{replayReturn(row.expectedReturn)}</td>
+                <td>
+                  {replayReturn(row.lower)} to {replayReturn(row.upper)}
+                </td>
+                <td>{replayReturn(row.realizedReturn)}</td>
+                <td>
+                  {row.directionCorrect === null
+                    ? 'not settled'
+                    : row.directionCorrect
+                      ? 'direction matched'
+                      : 'direction missed'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {analogs.length > 0 ? (
+        <div className={styles.strictReplayTable}>
+          <h3>
+            Closest historical conditions ·{' '}
+            {sixtyMinute?.horizon ?? 'selected'} minute horizon
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Session</th>
+                <th>Precondition match</th>
+                <th>Subsequent reaction</th>
+              </tr>
+            </thead>
+            <tbody>
+              {analogs.map((analog, index) => (
+                <tr
+                  key={
+                    metricString(analog.derived_trace_id) ??
+                    `${metricString(analog.session_date) ?? 'analog'}-${index}`
+                  }
+                >
+                  <td>
+                    {metricString(analog.session_date) ??
+                      metricString(analog.analog_timestamp)?.slice(0, 10) ??
+                      '—'}
+                  </td>
+                  <td>
+                    distance {metricNumber(analog.distance, 2)}
+                    {typeof analog.regime_similarity === 'number'
+                      ? ` · regime ${(analog.regime_similarity * 100).toFixed(0)}%`
+                      : ''}
+                  </td>
+                  <td>{replayReturn(analog.forward_return)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p>
+            Effective analog sample:{' '}
+            {metricNumber(effectiveAnalogs, 1)}. These are raw historical
+            neighbors, not calibrated probabilities.
+          </p>
+        </div>
+      ) : null}
+
+      <div className={styles.strictReplayConclusion}>
+        <h3>Forced research conclusion</h3>
+        <p>
+          At the recorded cutoff, the model’s cross-horizon call was{' '}
+          <strong>{direction}</strong>
+          {sixtyMinute
+            ? `, with a ${sixtyMinute.horizon}-minute mean of ${replayReturn(
+                sixtyMinute.expectedReturn
+              )}`
+            : ''}
+          . The subsequently realized return was{' '}
+          <strong>{replayReturn(sixtyMinute?.realizedReturn)}</strong>.
+        </p>
+        <p>
+          What would invalidate the call:{' '}
+          {typeof invalidationBoundary === 'number'
+            ? `a ${sixtyMinute?.horizon ?? 60}-minute move through the adverse analog-quartile boundary of ${replayReturn(
+                invalidationBoundary
+              )}.`
+            : 'the horizons failing to agree or the realized path moving against the model orientation.'}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function LocalLiveResearchReport({
+  envelope,
+}: {
+  envelope: QuantEvidenceEnvelope;
+}) {
+  const candidates = orderedResearchCandidates(envelope.candidates);
+  const symbols = Array.from(
+    new Set(candidates.map((candidate) => candidate.symbol))
+  );
+
+  return (
+    <>
+      {symbols.map((symbol) => {
+        const rows = candidates
+          .filter((candidate) => candidate.symbol === symbol)
+          .map((candidate) => ({
+            candidate,
+            horizon: candidateHorizonMinutes(candidate),
+            expectedReturn: candidate.metrics.expected_return,
+            lower: replayQuantile(candidate, 0.25),
+            upper: replayQuantile(candidate, 0.75),
+          }));
+        const finiteRows = rows.filter(
+          (row) =>
+            typeof row.expectedReturn === 'number' &&
+            Number.isFinite(row.expectedReturn)
+        );
+        const averageExpected =
+          finiteRows.length > 0
+            ? finiteRows.reduce(
+                (total, row) => total + (row.expectedReturn as number),
+                0
+              ) / finiteRows.length
+            : 0;
+        const direction =
+          averageExpected > 0
+            ? 'higher'
+            : averageExpected < 0
+              ? 'lower'
+              : 'flat';
+        const alignedHorizons = finiteRows.filter((row) =>
+          direction === 'higher'
+            ? (row.expectedReturn as number) > 0
+            : direction === 'lower'
+              ? (row.expectedReturn as number) < 0
+              : (row.expectedReturn as number) === 0
+        ).length;
+        const anchor = rows.find((row) => row.horizon === 60) ?? rows.at(-1);
+        const regimeState =
+          anchor?.candidate.metrics.dominant_regime_state;
+        const regimeProbability =
+          anchor?.candidate.metrics.dominant_regime_probability;
+        const effectiveAnalogs =
+          anchor?.candidate.metrics.analog_effective_sample_size;
+        const analogs = Array.isArray(anchor?.candidate.metrics.top_analogs)
+          ? anchor.candidate.metrics.top_analogs.slice(0, 4).map(asRecord)
+          : [];
+        const invalidationBoundary =
+          direction === 'higher'
+            ? anchor?.lower
+            : direction === 'lower'
+              ? anchor?.upper
+              : undefined;
+
+        return (
+          <section
+            className={styles.strictReplayReport}
+            aria-label={`${symbol} local live research report`}
+            key={symbol}
+          >
+            <p className={styles.strictReplayEyebrow}>
+              Licensed live bars · loopback-only uncalibrated research
+            </p>
+            <h2>
+              {symbol}: the live model leans {direction}
+            </h2>
+            <p className={styles.strictReplayLead}>
+              This is the model’s current descriptive read from completed
+              Databento bars and point-in-time cross-asset context. It is not a
+              calibrated probability, public data publication, or trade
+              instruction.
+            </p>
+
+            <ul className={styles.strictReplayFacts}>
+              <li>
+                {alignedHorizons} of {finiteRows.length} configured horizons
+                agree with the cross-horizon direction.
+              </li>
+              <li>
+                Market regime: state{' '}
+                {typeof regimeState === 'number' ? regimeState : 'unavailable'}
+                {typeof regimeProbability === 'number'
+                  ? ` at ${(regimeProbability * 100).toFixed(1)}% dominance`
+                  : ''}
+                .
+              </li>
+              <li>
+                Effective analog sample: {metricNumber(effectiveAnalogs, 1)}.
+                Raw historical frequencies are shown as diagnostics, not
+                probabilities.
+              </li>
+              <li>
+                Cutoff:{' '}
+                {new Date(envelope.observation_cutoff).toLocaleString()}.
+                Automatic execution remains disabled.
+              </li>
+            </ul>
+
+            <div className={styles.strictReplayTable}>
+              <h3>Current model horizon map</h3>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Horizon</th>
+                    <th>Model mean</th>
+                    <th>Analog middle 50%</th>
+                    <th>Raw analog direction share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row) => {
+                    const up =
+                      row.candidate.metrics.raw_analog_up_frequency;
+                    const down =
+                      row.candidate.metrics.raw_analog_down_frequency;
+                    const directionalShare =
+                      direction === 'higher' ? up : direction === 'lower' ? down : null;
+                    return (
+                      <tr key={row.horizon ?? 'unknown'}>
+                        <td>{row.horizon ? `${row.horizon} min` : '—'}</td>
+                        <td>{replayReturn(row.expectedReturn)}</td>
+                        <td>
+                          {replayReturn(row.lower)} to {replayReturn(row.upper)}
+                        </td>
+                        <td>
+                          {typeof directionalShare === 'number'
+                            ? `${(directionalShare * 100).toFixed(1)}%`
+                            : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {analogs.length > 0 ? (
+              <div className={styles.strictReplayTable}>
+                <h3>
+                  Closest historical conditions · {anchor?.horizon ?? 'selected'}{' '}
+                  minute horizon
+                </h3>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Session</th>
+                      <th>Precondition match</th>
+                      <th>Subsequent reaction</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analogs.map((analog, index) => (
+                      <tr
+                        key={
+                          metricString(analog.derived_trace_id) ??
+                          `${metricString(analog.session_date) ?? 'analog'}-${index}`
+                        }
+                      >
+                        <td>
+                          {metricString(analog.session_date) ??
+                            metricString(analog.analog_timestamp)?.slice(0, 10) ??
+                            '—'}
+                        </td>
+                        <td>
+                          distance {metricNumber(analog.distance, 2)}
+                          {typeof analog.regime_similarity === 'number'
+                            ? ` · regime ${(analog.regime_similarity * 100).toFixed(0)}%`
+                            : ''}
+                        </td>
+                        <td>{replayReturn(analog.forward_return)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
+
+            <div className={styles.strictReplayConclusion}>
+              <h3>Research conclusion</h3>
+              <p>
+                The current cross-horizon model read is{' '}
+                <strong>{direction}</strong>
+                {anchor
+                  ? `, with a ${anchor.horizon}-minute raw conditional mean of ${replayReturn(
+                      anchor.expectedReturn
+                    )}`
+                  : ''}
+                .
+              </p>
+              <p>
+                What would invalidate this read:{' '}
+                {typeof invalidationBoundary === 'number'
+                  ? `a ${anchor?.horizon ?? 60}-minute move through the adverse analog-quartile boundary of ${replayReturn(
+                      invalidationBoundary
+                    )}.`
+                  : 'the configured horizons losing directional agreement or fresh common-cutoff context becoming unavailable.'}
+              </p>
+            </div>
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
 function publishedProbabilityUp(candidate: QuantResearchCandidate) {
   const validation = asRecord(candidate.metrics.validation);
   const probability = candidate.metrics.probability_up_percent;
@@ -1615,6 +2551,16 @@ function InterpretedQuery({
 }) {
   const query = envelope.query;
   const chinese = locale === 'zh-CN';
+  const deterministicReplay =
+    envelope.evidence_mode === 'deterministic_historical_replay';
+  const localUncalibratedLive =
+    envelope.evidence_mode === 'local_uncalibrated_live_research';
+  const historicalTransportMock =
+    envelope.model_contract.replay_source_mode ===
+    'DATABENTO_SHAPED_HISTORICAL_TRANSPORT_MOCK';
+  const strictHistoricalReplay =
+    envelope.model_contract.replay_source_mode ===
+    'STRICT_INSTALLED_HISTORICAL_REPLAY';
   const direction =
     query.filters.direction === undefined
       ? chinese
@@ -1635,21 +2581,33 @@ function InterpretedQuery({
       : chinese
         ? `${query.horizon_minutes} 分钟`
         : `${query.horizon_minutes} minutes`;
-  const mode = query.filters.include_historical
-    ? query.filters.require_realtime
+  const mode = deterministicReplay
+    ? chinese
+      ? 'Databento 录制数据的确定性回放（非实时）'
+      : historicalTransportMock
+        ? 'Databento-shaped historical transport mock (not live)'
+        : strictHistoricalReplay
+          ? 'Strict real-bar historical replay (not live)'
+          : 'Deterministic Databento recording replay (not live)'
+    : localUncalibratedLive
       ? chinese
-        ? '实时 + 明确请求的历史回放'
-        : 'Live + explicitly requested history'
-      : chinese
-        ? '仅历史'
-        : 'Historical only'
-    : query.filters.require_realtime
-      ? chinese
-        ? '仅实时'
-        : 'Live only'
-      : chinese
-        ? '非实时研究'
-        : 'Non-realtime research';
+        ? '本机授权实时数据 · 未校准研究'
+        : 'Loopback licensed live data · uncalibrated research'
+    : query.filters.include_historical
+      ? query.filters.require_realtime
+        ? chinese
+          ? '实时 + 明确请求的历史回放'
+          : 'Live + explicitly requested history'
+        : chinese
+          ? '仅历史'
+          : 'Historical only'
+      : query.filters.require_realtime
+        ? chinese
+          ? '仅实时'
+          : 'Live only'
+        : chinese
+          ? '非实时研究'
+          : 'Non-realtime research';
   const proxy = interpretedProxy(query, locale);
 
   const rows = [
@@ -1691,9 +2649,19 @@ function InterpretedQuery({
         ))}
       </dl>
       <p>
-        {chinese
-          ? `假设：最多返回 ${query.limit} 个结果；实时数据最大年龄 ${query.filters.max_data_age_seconds} 秒；缺失、过期、未授权或非因果输入一律拒绝发布；自动下单始终关闭。`
-          : `Assumptions: up to ${query.limit} results; maximum realtime age ${query.filters.max_data_age_seconds}s; missing, stale, unentitled, or non-causal inputs fail closed; automatic execution is always disabled.`}
+        {deterministicReplay
+          ? chinese
+            ? '回放使用历史市场状态、录制的 Databento 包络和冻结的 Rust 模型；它不连接当前市场数据，也不写入实时状态。自动下单始终关闭。'
+            : strictHistoricalReplay
+              ? 'Replay uses observed historical bars, point-in-time cross-asset context, and an isolated Rust model trained only on prior sessions. It does not connect to current market data or write live state. Automatic execution is always disabled.'
+              : 'Replay uses historical market state, Databento-shaped replay inputs, and an isolated, unpromoted replay-local Rust model. It does not connect to current market data or write live state. Automatic execution is always disabled.'
+          : localUncalibratedLive
+            ? chinese
+              ? '本机研究模式使用已完成的授权实时 K 线和共同截止时间上下文；未声明公开再分发权限，概率未校准，自动执行始终关闭。'
+              : 'Loopback research mode uses completed licensed realtime bars and common-cutoff context. Public redistribution authorization is not asserted, probabilities are uncalibrated, and automatic execution is always disabled.'
+          : chinese
+            ? `假设：最多返回 ${query.limit} 个结果；实时数据最大年龄 ${query.filters.max_data_age_seconds} 秒；缺失、过期、未授权或非因果输入一律拒绝发布；自动下单始终关闭。`
+            : `Assumptions: up to ${query.limit} results; maximum realtime age ${query.filters.max_data_age_seconds}s; missing, stale, unentitled, or non-causal inputs fail closed; automatic execution is always disabled.`}
       </p>
     </section>
   );
@@ -1765,6 +2733,16 @@ function ResearchDetails({
   onPreparePrompt: (prompt: string) => void;
 }) {
   const chinese = locale === 'zh-CN';
+  const deterministicReplay =
+    envelope.evidence_mode === 'deterministic_historical_replay';
+  const localUncalibratedLive =
+    envelope.evidence_mode === 'local_uncalibrated_live_research';
+  const historicalTransportMock =
+    envelope.model_contract.replay_source_mode ===
+    'DATABENTO_SHAPED_HISTORICAL_TRANSPORT_MOCK';
+  const strictHistoricalReplay =
+    envelope.model_contract.replay_source_mode ===
+    'STRICT_INSTALLED_HISTORICAL_REPLAY';
   const targetArtifacts = Array.isArray(envelope.model_contract.target_artifacts)
     ? envelope.model_contract.target_artifacts
     : [];
@@ -1803,7 +2781,15 @@ function ResearchDetails({
       state: modelReadinessState,
     },
     {
-      label: chinese ? '实时数据' : 'Live feed',
+      label: chinese
+        ? '实时数据'
+        : deterministicReplay
+          ? historicalTransportMock
+            ? 'Transport mock'
+            : strictHistoricalReplay
+              ? 'Historical bars'
+              : 'Recorded bars'
+          : 'Live feed',
       state: normalizedReadinessState(explicitReadiness.feed?.state),
     },
     {
@@ -1834,11 +2820,23 @@ function ResearchDetails({
 
   return (
     <div className={styles.predictionDetails}>
+      {strictHistoricalReplay ? (
+        <StrictHistoricalReplayReport envelope={envelope} />
+      ) : null}
+      {localUncalibratedLive ? (
+        <LocalLiveResearchReport envelope={envelope} />
+      ) : null}
       <InterpretedQuery envelope={envelope} locale={locale} />
       <div
         className={styles.readinessStrip}
         id={`readiness-${envelope.request_id}`}
-        aria-label={chinese ? '实时预测就绪状态' : 'Live forecast readiness'}
+        aria-label={
+          chinese
+            ? '实时预测就绪状态'
+            : deterministicReplay
+              ? 'Recorded replay readiness'
+              : 'Live forecast readiness'
+        }
       >
         {readinessStages.map((stage) => (
           <span data-state={stage.state} key={stage.label}>
@@ -1848,13 +2846,31 @@ function ResearchDetails({
           </span>
         ))}
       </div>
-      <RecoveryActions
-        envelope={envelope}
-        locale={locale}
-        onRetry={onRetry}
-        onPreparePrompt={onPreparePrompt}
-      />
+      {!deterministicReplay ? (
+        <RecoveryActions
+          envelope={envelope}
+          locale={locale}
+          onRetry={onRetry}
+          onPreparePrompt={onPreparePrompt}
+        />
+      ) : null}
       <div className={styles.reportMeta}>
+        {deterministicReplay ? (
+          <span className={`${styles.compliancePill} ${styles.allowed}`}>
+            {chinese
+              ? 'Databento 录制回放 · 非实时'
+              : historicalTransportMock
+                ? 'Databento-shaped transport mock · not live'
+                : strictHistoricalReplay
+                  ? 'Strict historical replay · not live'
+                  : 'Recorded Databento replay · not live'}
+          </span>
+        ) : null}
+        {localUncalibratedLive ? (
+          <span className={`${styles.compliancePill} ${styles.allowed}`}>
+            Loopback licensed data · uncalibrated research
+          </span>
+        ) : null}
         <span
           className={`${styles.compliancePill} ${
             rustModelLoaded
@@ -1914,7 +2930,7 @@ function ResearchDetails({
         </span>
       </div>
 
-      {candidates.length > 0 ? (
+      {candidates.length > 0 && !strictHistoricalReplay ? (
         <div className={styles.signalGrid}>
           {candidates.map((candidate) => {
             const score = candidate.heuristic_structure_score;

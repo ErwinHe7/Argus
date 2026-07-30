@@ -15,7 +15,7 @@ use axio_quant_engine::{
     data::{
         LicensedFileImporter, capability, context,
         csv_import::MarketBarCsvImporter,
-        databento, dbn_decode,
+        databento, databento_replay, dbn_decode,
         market_store::{AvailabilityPolicy, LicenseScope, MarketDataStore, MaterializeRequest},
         training_lineage::{self, AdjustmentStatus, SealTrainingLineageRequest},
     },
@@ -130,12 +130,14 @@ enum MassiveReadinessScope {
 #[derive(Debug, Subcommand)]
 enum LiveCommand {
     /// Print the immutable feature-contract identity for retraining. The
-    /// no-UUP candidate remains observed-bars-only; causal absence is a
-    /// separate shadow identity pending Databento batch-parity evidence.
+    /// observed-bar candidates remain separate from the causal-absence shadow
+    /// identity pending Databento batch-parity evidence.
     #[command(name = "feature-contract")]
     FeatureContract {
         #[arg(long)]
         no_uup: bool,
+        #[arg(long)]
+        liquid_context: bool,
         #[arg(long)]
         causal_absence_shadow: bool,
     },
@@ -269,6 +271,18 @@ enum LiveCommand {
         publish_url: Option<String>,
         #[arg(long, default_value = "MOOMOO_FORECAST_RELAY_TOKEN")]
         publish_token_env: String,
+    },
+    /// Replay recorded Databento envelopes through historical regime
+    /// initialization and the frozen Rust predictor. Outputs are isolated
+    /// under data/replay and can never satisfy the live-publication gate.
+    #[command(name = "databento-replay")]
+    DatabentoReplay {
+        #[arg(long, default_value = "data/live/databento_stock_bars.jsonl")]
+        input: PathBuf,
+        #[arg(long, default_value = "SPX")]
+        symbol: String,
+        #[arg(long, default_value = "data/replay/databento")]
+        output_root: PathBuf,
     },
 }
 
@@ -500,6 +514,12 @@ enum PredictorCommand {
         /// promote a candidate, and it requires explicit isolated outputs.
         #[arg(long)]
         feature_contract_config: Option<PathBuf>,
+        /// Permit the installed normalized CSV to train an unpromoted,
+        /// loopback-only exploratory candidate when delivery manifests are
+        /// absent. Requires the explicit local research environment gate and
+        /// a separate feature-contract/output bundle.
+        #[arg(long)]
+        allow_contaminated_local_candidate: bool,
     },
     WalkForward {
         #[arg(long, default_value = "data/normalized/market_bars.csv")]
@@ -2160,14 +2180,20 @@ async fn run() -> Result<()> {
         Command::Live(args) => match args.command {
             LiveCommand::FeatureContract {
                 no_uup,
+                liquid_context,
                 causal_absence_shadow,
             } => {
+                if no_uup && liquid_context {
+                    anyhow::bail!("choose either --no-uup or --liquid-context");
+                }
                 let policy = if causal_absence_shadow {
                     axio_quant_engine::config::ContextObservationPolicyConfig::v2_candidate()
                 } else {
                     axio_quant_engine::config::ContextObservationPolicyConfig::default()
                 };
-                let cross_asset_schema = if no_uup {
+                let cross_asset_schema = if liquid_context {
+                    axio_quant_engine::config::CrossAssetFeatureSchemaConfig::v3_liquid_equity_candidate()
+                } else if no_uup {
                     axio_quant_engine::config::CrossAssetFeatureSchemaConfig::v2_candidate_without_uup()
                 } else {
                     axio_quant_engine::config::CrossAssetFeatureSchemaConfig::default()
@@ -2185,7 +2211,7 @@ async fn run() -> Result<()> {
                         "cross_asset_feature_schema_sha256": cross_asset_schema.schema_sha256,
                         "promotion_status": if causal_absence_shadow {
                             "LIVE_SHADOW_ONLY_PENDING_DATABENTO_BATCH_PARITY"
-                        } else if no_uup {
+                        } else if no_uup || liquid_context {
                             "RETRAIN_AND_VALIDATE_REQUIRED"
                         } else {
                             "CURRENT_V1_IDENTITY"
@@ -2807,6 +2833,15 @@ async fn run() -> Result<()> {
                     }))?
                 );
             }
+            LiveCommand::DatabentoReplay {
+                input,
+                symbol,
+                output_root,
+            } => {
+                let root = config.data.raw_root.parent().unwrap_or(Path::new("data"));
+                let report = databento_replay::run(&config, root, &input, &output_root, &symbol)?;
+                println!("{}", serde_json::to_string_pretty(&report)?);
+            }
             LiveCommand::Stream {
                 shadow,
                 bridge,
@@ -3165,6 +3200,7 @@ async fn run() -> Result<()> {
                 registry,
                 symbols,
                 feature_contract_config,
+                allow_contaminated_local_candidate,
             } => {
                 if config.research.targets.is_empty() {
                     anyhow::bail!("research.targets is empty");
@@ -3210,8 +3246,56 @@ async fn run() -> Result<()> {
                 if targets.is_empty() {
                     anyhow::bail!("no configured public targets matched --symbols");
                 }
-                let (imported, capability) =
-                    capability::import_verified_training_bars(&config.data, &bars)?;
+                let (imported, capability) = if allow_contaminated_local_candidate {
+                    let local_research_enabled =
+                        std::env::var("AXIO_ENABLE_LOCAL_UNCALIBRATED_LIVE_RESEARCH")
+                            .ok()
+                            .is_some_and(|value| {
+                                matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true")
+                            });
+                    let loopback = matches!(
+                        config.server.host.trim().to_ascii_lowercase().as_str(),
+                        "127.0.0.1" | "::1" | "localhost"
+                    );
+                    if feature_contract.is_none()
+                        || !local_research_enabled
+                        || !loopback
+                        || config.execution.enabled
+                        || config.execution.allow_real_orders
+                        || config.live.allow_trade_api
+                    {
+                        anyhow::bail!(
+                            "contaminated local candidate training requires an explicit feature contract, loopback-only local research mode, and every execution path disabled"
+                        );
+                    }
+                    let configured_bars = config.data.normalized_root.join("market_bars.csv");
+                    if bars.canonicalize()? != configured_bars.canonicalize()? {
+                        anyhow::bail!(
+                            "contaminated local candidate training accepts only the configured normalized market_bars.csv"
+                        );
+                    }
+                    let imported = MarketBarCsvImporter.import(&bars)?;
+                    if imported.rejected_rows != 0
+                        || imported.duplicate_rows != 0
+                        || imported.input_rows != imported.accepted_rows
+                    {
+                        anyhow::bail!(
+                            "contaminated local candidate requires a lossless normalized-bar import"
+                        );
+                    }
+                    let capability = capability::inspect(&config.data)?;
+                    if capability.evidence_grade != "CONTAMINATED_EXPLORATORY"
+                        || capability.normalized_file_sha256.is_none()
+                        || !capability.d0_underlying_bars
+                    {
+                        anyhow::bail!(
+                            "contaminated local candidate capability contract is not satisfied"
+                        );
+                    }
+                    (imported, capability)
+                } else {
+                    capability::import_verified_training_bars(&config.data, &bars)?
+                };
                 let trained_at = Utc::now();
                 let mut entries = Vec::new();
                 for (index, target) in targets.iter().enumerate() {

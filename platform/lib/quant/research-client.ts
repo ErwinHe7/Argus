@@ -420,6 +420,68 @@ function hasNonNullForbiddenField(value: unknown): boolean {
   );
 }
 
+function verifyDescriptiveUncalibratedMetrics(
+  candidate: Record<string, unknown>,
+  historicalReplay: boolean
+): void {
+  const metrics = record(candidate.metrics);
+  if (!metrics) {
+    throw contractMismatch('descriptive uncalibrated metrics are absent');
+  }
+  const finite = (key: string) =>
+    typeof metrics[key] === 'number' && Number.isFinite(metrics[key]);
+  const unitInterval = (key: string) =>
+    finite(key) &&
+    (metrics[key] as number) >= 0 &&
+    (metrics[key] as number) <= 1;
+  if (
+    !finite('expected_return') ||
+    !finite('median_return') ||
+    !unitInterval('raw_analog_up_frequency') ||
+    !unitInterval('raw_analog_down_frequency') ||
+    !unitInterval('raw_analog_flat_frequency') ||
+    !finite('analog_effective_sample_size') ||
+    (metrics.analog_effective_sample_size as number) <= 0 ||
+    !unitInterval('analog_similarity_score') ||
+    !Number.isSafeInteger(metrics.dominant_regime_state) ||
+    (metrics.dominant_regime_state as number) < 0 ||
+    !unitInterval('dominant_regime_probability') ||
+    !Array.isArray(metrics.return_quantiles) ||
+    metrics.return_quantiles.length === 0 ||
+    !metrics.return_quantiles.every((value) => {
+      const point = record(value);
+      return (
+        point !== null &&
+        typeof point.probability === 'number' &&
+        Number.isFinite(point.probability) &&
+        point.probability >= 0 &&
+        point.probability <= 1 &&
+        typeof point.value === 'number' &&
+        Number.isFinite(point.value)
+      );
+    }) ||
+    !Array.isArray(metrics.top_analogs)
+  ) {
+    throw contractMismatch(
+      'descriptive uncalibrated return, analog, or regime metrics are malformed'
+    );
+  }
+  const directionalFrequency =
+    (metrics.raw_analog_up_frequency as number) +
+    (metrics.raw_analog_down_frequency as number) +
+    (metrics.raw_analog_flat_frequency as number);
+  if (Math.abs(directionalFrequency - 1) > 1e-6) {
+    throw contractMismatch(
+      'descriptive uncalibrated analog frequencies do not sum to one'
+    );
+  }
+  if (historicalReplay && !record(metrics.realized_outcome)) {
+    throw contractMismatch(
+      'historical replay is missing its held-out realized outcome'
+    );
+  }
+}
+
 function verifyFreshnessEvidence(
   candidate: Record<string, unknown>,
   generatedAt: string
@@ -481,7 +543,10 @@ function verifyFreshnessEvidence(
   }
 }
 
-function verifyModelLineage(candidate: Record<string, unknown>): void {
+function verifyModelLineage(
+  candidate: Record<string, unknown>,
+  evidenceMode: unknown
+): void {
   if (
     candidate.status !== 'UNCALIBRATED_RESEARCH_OUTPUT' &&
     candidate.status !== 'VALIDATED_STATISTICAL_CANDIDATE'
@@ -489,17 +554,30 @@ function verifyModelLineage(candidate: Record<string, unknown>): void {
     return;
   }
   const freshness = candidate.freshness;
-  if (
-    !Array.isArray(freshness) ||
-    !freshness.every((value) => {
-      const evidence = record(value);
-      return (
-        evidence?.realtime === true &&
-        evidence.entitlement === 'LICENSED_REALTIME_SHADOW_EVIDENCE_VERIFIED'
-      );
-    })
-  ) {
-    throw contractMismatch('model candidate realtime entitlement is not verified');
+  const deterministicReplay =
+    evidenceMode === 'deterministic_historical_replay';
+  if (!Array.isArray(freshness)) {
+    throw contractMismatch('model candidate source entitlement is absent');
+  }
+  const sourceIdentityValid = freshness.every((value) => {
+    const evidence = record(value);
+    return deterministicReplay
+      ? evidence?.realtime === false &&
+          evidence.entitlement ===
+            'DETERMINISTIC_REPLAY_NOT_CURRENT_MARKET_DATA' &&
+          typeof evidence.source === 'string' &&
+          (evidence.source.startsWith('DATABENTO_REPLAY:') ||
+            evidence.source.startsWith('HISTORICAL_REPLAY:'))
+      : evidence?.realtime === true &&
+          evidence.entitlement ===
+            'LICENSED_REALTIME_SHADOW_EVIDENCE_VERIFIED';
+  });
+  if (!sourceIdentityValid) {
+    throw contractMismatch(
+      deterministicReplay
+        ? 'Databento replay candidate is not explicitly isolated from current market data'
+        : 'model candidate realtime entitlement is not verified'
+    );
   }
   const validation = record(record(candidate.metrics)?.validation);
   if (
@@ -630,6 +708,9 @@ function verifyEnvelopeSemantics(payload: unknown): QuantEvidenceEnvelope {
     !isTimestamp(envelope.generated_at) ||
     !isTimestamp(envelope.observation_cutoff) ||
     !isNonEmptyString(envelope.status) ||
+    (envelope.evidence_mode !== undefined &&
+      envelope.evidence_mode !== 'deterministic_historical_replay' &&
+      envelope.evidence_mode !== 'local_uncalibrated_live_research') ||
     !record(envelope.query) ||
     !EVIDENCE_ENVELOPE_STATUSES.has(envelope.status) ||
     !Array.isArray(envelope.candidates) ||
@@ -680,7 +761,7 @@ function verifyEnvelopeSemantics(payload: unknown): QuantEvidenceEnvelope {
       throw contractMismatch('candidate evidence is malformed');
     }
     verifyFreshnessEvidence(candidate, envelope.generated_at);
-    verifyModelLineage(candidate);
+    verifyModelLineage(candidate, envelope.evidence_mode);
     if (
       !candidate.supporting_evidence.every((item) =>
         isNonEmptyString(record(item)?.statement)
@@ -691,13 +772,18 @@ function verifyEnvelopeSemantics(payload: unknown): QuantEvidenceEnvelope {
     ) {
       throw contractMismatch('candidate evidence statements are malformed');
     }
-    if (
-      candidate.status === 'UNCALIBRATED_RESEARCH_OUTPUT' &&
-      hasNonNullForbiddenField(candidate)
-    ) {
-      throw contractMismatch(
-        'uncalibrated candidate contains probability, frequency, expected-value, price, rank, or trade output'
-      );
+    if (candidate.status === 'UNCALIBRATED_RESEARCH_OUTPUT') {
+      const historicalReplay =
+        envelope.evidence_mode === 'deterministic_historical_replay';
+      const localUncalibratedLive =
+        envelope.evidence_mode === 'local_uncalibrated_live_research';
+      if (historicalReplay || localUncalibratedLive) {
+        verifyDescriptiveUncalibratedMetrics(candidate, historicalReplay);
+      } else if (hasNonNullForbiddenField(candidate)) {
+        throw contractMismatch(
+          'uncalibrated public candidate contains probability, frequency, expected-value, price, rank, or trade output'
+        );
+      }
     }
   }
 
@@ -1123,4 +1209,71 @@ export async function requestQuantResearch(
     );
   }
   return verifyQuantResearchResponseText(text);
+}
+
+export async function requestDatabentoDevelopmentReplay(
+  query: MarketQueryV1
+): Promise<QuantEvidenceEnvelope> {
+  if (process.env.NODE_ENV === 'production') {
+    throw new QuantBackendUnavailableError(
+      'DATABENTO_REPLAY_DISABLED',
+      'Deterministic Databento replay is disabled in production.'
+    );
+  }
+  const backend =
+    process.env.HISTORICAL_REPLAY_API_URL?.trim() || backendUrl();
+  if (!backend) {
+    throw new QuantBackendUnavailableError(
+      'RUST_BACKEND_URL_NOT_CONFIGURED',
+      'The Rust inference service URL is not configured.'
+    );
+  }
+  const token = process.env.INTRADAY_QUANT_TOKEN;
+  if (!token || token.length < 32) {
+    throw new QuantBackendUnavailableError(
+      'RUST_BACKEND_TOKEN_NOT_CONFIGURED',
+      'The server-side research token is missing or too short.'
+    );
+  }
+  let response: Response;
+  try {
+    response = await fetch(
+      `${backend}/api/v1/research/databento-replay`,
+      {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-Research-Token': token,
+        },
+        body: JSON.stringify(query),
+        cache: 'no-store',
+        // The first strict local replay may need to fit and freeze its
+        // pre-session artifact from the installed historical archive. Later
+        // requests are served from the sealed replay cache.
+        signal: AbortSignal.timeout(15 * 60_000),
+      }
+    );
+  } catch (error) {
+    throw new QuantBackendUnavailableError(
+      'RUST_DATABENTO_REPLAY_UNREACHABLE',
+      error instanceof Error
+        ? error.message
+        : 'The Rust Databento replay service is unreachable.'
+    );
+  }
+  const text = await response.text();
+  if (!response.ok) {
+    throw new QuantBackendUnavailableError(
+      `RUST_DATABENTO_REPLAY_HTTP_${response.status}`,
+      text.slice(0, 800) || 'The Rust Databento replay service rejected the request.'
+    );
+  }
+  const envelope = await verifyQuantResearchResponseText(text);
+  if (envelope.evidence_mode !== 'deterministic_historical_replay') {
+    throw contractMismatch(
+      'Databento replay endpoint returned evidence without replay mode'
+    );
+  }
+  return envelope;
 }

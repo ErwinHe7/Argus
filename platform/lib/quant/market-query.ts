@@ -77,13 +77,12 @@ export class MarketQueryClarificationError extends Error {
   readonly missingFields: Array<
     'setup_type' | 'direction' | 'horizon_minutes'
   >;
+  readonly historicalOnly: boolean;
   readonly allowedValues = {
     setup_type: [
       'momentum',
-      'gamma_squeeze',
       'vwap_reversal',
       'opening_turn',
-      'closing_short_cover',
       'statistical_dislocation',
     ] as const,
     direction: ['up', 'down'] as const,
@@ -96,11 +95,12 @@ export class MarketQueryClarificationError extends Error {
     missingFields: Array<
       'setup_type' | 'direction' | 'horizon_minutes'
     >;
+    historicalOnly?: boolean;
   }) {
     const missing = input.missingFields
       .map((field) =>
         field === 'setup_type'
-          ? 'a named historical rule'
+          ? 'a setup (momentum, VWAP reversal, opening turn, or statistical dislocation)'
           : field === 'direction'
           ? 'a bullish/up or bearish/down direction'
           : 'a 5, 15, 30, or 60 minute horizon'
@@ -117,6 +117,7 @@ export class MarketQueryClarificationError extends Error {
     this.setupType = input.setupType;
     this.symbols = input.symbols;
     this.missingFields = input.missingFields;
+    this.historicalOnly = input.historicalOnly === true;
   }
 }
 
@@ -304,13 +305,33 @@ export function compileMarketQuery(
   }
   const setupType = inferSetupType(text);
   const wantsBacktest =
-    /回测|历史验证|historical\s*(?:test|backtest)|backtest/i.test(text);
+    /回测|历史验证|historical\s*(?:test|backtest)|historical(?:\s*-\s*only|\s+only)?\s+(?:condition\s+)?replay|backtest/i.test(
+      text
+    );
   const wantsLive =
     /现在|实时|今天|盘中|当前|预测|live|now|today|scan|forecast|predict/i.test(
       text
     );
-  const direction = inferDirection(text);
-  const horizon = inferHorizon(text);
+  const asksToChooseAssumptions =
+    /(?:first\s+)?ask\s+me\s+to\s+choose|let\s+me\s+choose|do\s+not\s+assume\s+(?:them|these)/i.test(
+      text
+    );
+  const presentsDirectionChoices =
+    /\bup\s*\/\s*down\b|\bup\s+or\s+down\b|\bbullish\s*\/\s*bearish\b|\bbullish\s+or\s+bearish\b/i.test(
+      text
+    );
+  const presentsHorizonChoices =
+    /\b5\s*\/\s*15\s*\/\s*30\s*\/\s*60(?:\s*-\s*minute|\s+minute)?\b/i.test(
+      text
+    );
+  const direction =
+    asksToChooseAssumptions && presentsDirectionChoices
+      ? undefined
+      : inferDirection(text);
+  const horizon =
+    asksToChooseAssumptions && presentsHorizonChoices
+      ? undefined
+      : inferHorizon(text);
   const symbols = inferSymbols(text, requestedSymbols, setupType);
   if (wantsBacktest && setupType === 'model_forecast') {
     const missingFields: Array<
@@ -322,6 +343,7 @@ export function compileMarketQuery(
       setupType: null,
       symbols,
       missingFields,
+      historicalOnly: true,
     });
   }
   if (setupType !== 'model_forecast') {
@@ -333,6 +355,7 @@ export function compileMarketQuery(
         setupType,
         symbols,
         missingFields,
+        historicalOnly: wantsBacktest && !wantsLive,
       });
     }
   }

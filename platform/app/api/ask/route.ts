@@ -24,8 +24,13 @@ import {
 import { isMarketResearchQuestion } from '@/lib/quant/model-knowledge';
 import {
   QuantBackendUnavailableError,
+  requestDatabentoDevelopmentReplay,
   requestQuantResearch,
 } from '@/lib/quant/research-client';
+import {
+  developmentReplayReceipt,
+  supportsDevelopmentReplay,
+} from '@/lib/quant/development-replay';
 import { isSameOriginRequest } from '@/lib/same-origin';
 import { recordBillingUsageEventBestEffort } from '@/lib/refund-requests';
 import { requirePaidResearchAccess } from '@/lib/research-access';
@@ -37,6 +42,7 @@ export const maxDuration = 60;
 const Body = z.object({
   query: z.string().min(1).max(2000),
   watchlist: z.array(z.string().min(1).max(12)).max(30).optional(),
+  developmentReplay: z.boolean().optional(),
 });
 
 function researchSources(envelope: QuantEvidenceEnvelope): ForecastSource[] {
@@ -197,6 +203,7 @@ export async function POST(req: NextRequest) {
             symbols: error.symbols,
             missing_fields: error.missingFields,
             allowed_values: error.allowedValues,
+            historical_only: error.historicalOnly,
           },
         },
         {
@@ -207,6 +214,117 @@ export async function POST(req: NextRequest) {
     }
     throw error;
   }
+
+  const developmentReplayRequested =
+    process.env.NODE_ENV !== 'production' &&
+    parsed.data.developmentReplay === true;
+  if (developmentReplayRequested) {
+    if (!supportsDevelopmentReplay(compiled.query)) {
+      return NextResponse.json(
+        {
+          error: 'development_replay_query_not_supported',
+          answer:
+            'The local Databento pipeline replay currently supports one query. Submit “Forecast SPX using the core model.” to test the Rust replay end to end.',
+        },
+        {
+          status: 422,
+          headers: {
+            'Cache-Control': 'no-store',
+            'X-AXIO7-Response-Mode': 'development-replay',
+          },
+        }
+      );
+    }
+    try {
+      const envelope = await requestDatabentoDevelopmentReplay(compiled.query);
+      const replay = developmentReplayReceipt(envelope);
+      const artifactFeatureIdentityMatchesReplay =
+        envelope.model_contract.artifact_feature_identity_matches_replay ===
+        true;
+      const historicalTransportMock =
+        replay.sourceMode ===
+        'DATABENTO_SHAPED_HISTORICAL_TRANSPORT_MOCK';
+      const strictHistoricalReplay =
+        replay.sourceMode === 'STRICT_INSTALLED_HISTORICAL_REPLAY';
+      const contextQualification = strictHistoricalReplay
+        ? 'The replay used observed SPY, QQQ, and IWM one-minute bars with zero synthetic context rows. Its two-member cross-asset context is an experimental historical contract, not the production six-member live contract.'
+        : historicalTransportMock
+        ? `${replay.syntheticContextIntervals} missing context intervals were represented by explicitly synthetic pipeline-only rows, including forward fills and a deterministic proxy for an absent series. This tests pipeline integration, not market data or model validity.`
+        : artifactFeatureIdentityMatchesReplay
+          ? 'Every replay context input matched the frozen artifact feature identity.'
+          : 'The recorded replay used captured causal no-trade observations under a separately versioned, unpromoted shadow policy. This tests pipeline integration, not model validity or live publication.';
+      const transportQualification = strictHistoricalReplay
+        ? 'A frozen Rust model was trained only on sessions preceding one held-out historical session, then evaluated against that session’s subsequently realized paths.'
+        : replay.sourceMode === 'RECORDED_DATABENTO_ENVELOPES'
+          ? 'Structurally verified recorded Databento envelopes were ordered by their original exchange timestamps.'
+          : 'The recorded session began too late to support a safe four-horizon batch, so a licensed historical session was time-shifted through an internal Databento-shaped transport mock. These rows are not Databento records and do not test live connectivity or latency.';
+      const forecast = {
+        ...toForecast(envelope, [
+          ...compiled.notes,
+          strictHistoricalReplay
+            ? 'Rust-owned strict historical research replay; not current market data.'
+            : 'Rust-owned deterministic Databento pipeline replay; not current market data.',
+          transportQualification,
+          contextQualification,
+        ]),
+        model: strictHistoricalReplay
+          ? 'AXIO7 Rust strict historical replay'
+          : 'AXIO7 Rust Databento pipeline replay',
+        developmentReplay: replay,
+      };
+      return NextResponse.json(
+        {
+          answer: strictHistoricalReplay
+            ? `SPX historical replay completed through ${envelope.observation_cutoff}. The report below is a causal, held-out research diagnostic built from real installed bars. It is not a current forecast; raw expected returns and analog frequencies are uncalibrated, and execution remains disabled.`
+            : `Databento pipeline replay completed through ${envelope.observation_cutoff}. ${transportQualification} The historical regime and feature state were initialized, and an isolated replay-local Rust model produced all four configured horizons. The production model artifact was not used. ${contextQualification} This is not current market data. Calibrated probabilities, expected moves, ranking, and execution remain withheld, and no live state was written.`,
+          forecast,
+          developmentReplay: replay,
+          conversation: {
+            mode: 'quant_research',
+            knowledge_version: 'rust-databento-development-replay.v1',
+            llm_role: 'deterministic_fallback',
+            locale: 'en-US',
+          },
+        },
+        {
+          headers: {
+            'Cache-Control': 'no-store',
+            'X-AXIO7-Response-Mode': 'databento-pipeline-replay',
+            'X-AXIO7-Model-Runtime': 'rust-replay',
+            'X-AXIO7-Evidence-Contract': envelope.schema_version,
+            'X-AXIO7-Conversation-Mode': 'quant_research',
+            'X-AXIO7-Knowledge-Version':
+              'rust-databento-development-replay.v1',
+            'X-AXIO7-LLM-Role': 'deterministic_fallback',
+            'X-AXIO7-Conversation-Locale': 'en-US',
+          },
+        }
+      );
+    } catch (error) {
+      const detail =
+        error instanceof QuantBackendUnavailableError
+          ? `${error.code}: ${error.message}`
+          : error instanceof Error
+            ? error.message
+            : 'Databento replay failed';
+      console.error('[/api/ask] DATABENTO_REPLAY_UNAVAILABLE:', detail);
+      return NextResponse.json(
+        {
+          error:
+            'The Rust Databento replay is unavailable. No TypeScript forecast fixture was substituted.',
+          detail,
+        },
+        {
+          status: 503,
+          headers: {
+            'Cache-Control': 'no-store',
+            'X-AXIO7-Response-Mode': 'databento-pipeline-replay',
+          },
+        }
+      );
+    }
+  }
+
   let monitor: MarketMonitorAction | undefined;
   if (requestsMarketMonitor(parsed.data.query)) {
     const user = await getCurrentUser();

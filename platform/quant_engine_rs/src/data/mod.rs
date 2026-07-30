@@ -4,6 +4,7 @@ pub mod csv_import;
 pub mod databento;
 pub mod databento_inference;
 pub mod databento_live;
+pub mod databento_replay;
 pub mod dbn_decode;
 pub mod ibkr_relay;
 pub mod manifest;

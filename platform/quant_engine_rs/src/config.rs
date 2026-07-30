@@ -19,6 +19,8 @@ pub const CONTEXT_OBSERVATION_POLICY_V2_SCHEMA_VERSION: &str =
     "causal_context_observation_policy.v2-causally-inferred-no-trade-flat-shadow";
 pub const CROSS_ASSET_FEATURE_SCHEMA_V1: &str = "cross_asset_breadth.v1";
 pub const CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE: &str = "cross_asset_breadth.v2-no-uup-candidate";
+pub const CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE: &str =
+    "cross_asset_breadth.v3-liquid-equity-candidate";
 pub const OFFLINE_FEATURE_TRAINING_CONTRACT_SCHEMA_VERSION: &str =
     "axio.offline-feature-training-contract.v1";
 pub const OFFLINE_FEATURE_TRAINING_CANDIDATE_STATUS: &str = "RETRAIN_AND_VALIDATE_REQUIRED";
@@ -345,10 +347,36 @@ impl CrossAssetFeatureSchemaConfig {
         }
     }
 
+    pub fn v3_liquid_equity_candidate() -> Self {
+        let members = vec![
+            CrossAssetFeatureMember {
+                symbol: "QQQ".into(),
+                polarity: 1.0,
+            },
+            CrossAssetFeatureMember {
+                symbol: "IWM".into(),
+                polarity: 1.0,
+            },
+            CrossAssetFeatureMember {
+                symbol: "SOXX".into(),
+                polarity: 1.0,
+            },
+        ];
+        let schema_version = CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE.to_string();
+        let schema_sha256 = Self::hash_members(&schema_version, &members);
+        Self {
+            schema_version,
+            members,
+            schema_sha256,
+        }
+    }
+
     pub fn validate(&self) -> Result<()> {
         if !matches!(
             self.schema_version.as_str(),
-            CROSS_ASSET_FEATURE_SCHEMA_V1 | CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE
+            CROSS_ASSET_FEATURE_SCHEMA_V1
+                | CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE
+                | CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE
         ) {
             bail!(
                 "unsupported live.cross_asset_feature_schema.schema_version {}",
@@ -385,6 +413,11 @@ impl CrossAssetFeatureSchemaConfig {
         {
             bail!("cross-asset v2 candidate members are immutable");
         }
+        if self.schema_version == CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE
+            && self.members != Self::v3_liquid_equity_candidate().members
+        {
+            bail!("cross-asset v3 liquid candidate members are immutable");
+        }
         if self.schema_sha256 != self.computed_sha256() {
             bail!("live.cross_asset_feature_schema.schema_sha256 mismatch");
         }
@@ -399,6 +432,15 @@ impl OfflineFeatureTrainingContractConfig {
             promotion_status: OFFLINE_FEATURE_TRAINING_CANDIDATE_STATUS.to_string(),
             context_observation_policy: ContextObservationPolicyConfig::default(),
             cross_asset_feature_schema: CrossAssetFeatureSchemaConfig::v2_candidate_without_uup(),
+        }
+    }
+
+    pub fn v3_liquid_equity_candidate() -> Self {
+        Self {
+            schema_version: OFFLINE_FEATURE_TRAINING_CONTRACT_SCHEMA_VERSION.to_string(),
+            promotion_status: OFFLINE_FEATURE_TRAINING_CANDIDATE_STATUS.to_string(),
+            context_observation_policy: ContextObservationPolicyConfig::default(),
+            cross_asset_feature_schema: CrossAssetFeatureSchemaConfig::v3_liquid_equity_candidate(),
         }
     }
 
@@ -440,10 +482,14 @@ impl OfflineFeatureTrainingContractConfig {
                 "offline candidate training accepts observed_trade_bar only; causal absence remains live-shadow-only"
             );
         }
-        if self.cross_asset_feature_schema
-            != CrossAssetFeatureSchemaConfig::v2_candidate_without_uup()
-        {
-            bail!("offline feature training contract must be the immutable no-UUP v2 candidate");
+        if !matches!(
+            self.cross_asset_feature_schema.schema_version.as_str(),
+            CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE
+                | CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE
+        ) {
+            bail!(
+                "offline feature training contract must use an immutable supported candidate schema"
+            );
         }
         Ok(())
     }
@@ -1302,6 +1348,26 @@ mod context_observation_policy_tests {
     }
 
     #[test]
+    fn cross_asset_v3_candidate_uses_only_liquid_equity_context_and_is_hash_bound() {
+        let candidate = CrossAssetFeatureSchemaConfig::v3_liquid_equity_candidate();
+        assert!(candidate.validate().is_ok());
+        assert_eq!(
+            candidate
+                .members
+                .iter()
+                .map(|member| member.symbol.as_str())
+                .collect::<Vec<_>>(),
+            ["QQQ", "IWM", "SOXX"]
+        );
+        let mut tampered = candidate;
+        tampered.members.push(CrossAssetFeatureMember {
+            symbol: "UUP".into(),
+            polarity: -1.0,
+        });
+        assert!(tampered.validate().is_err());
+    }
+
+    #[test]
     fn offline_no_uup_yaml_is_loadable_but_causal_shadow_is_rejected() {
         let contract: OfflineFeatureTrainingContractConfig = serde_yaml::from_str(include_str!(
             "../configs/candidates/live-feature-v2-no-uup.yaml"
@@ -1321,6 +1387,23 @@ mod context_observation_policy_tests {
                 .unwrap_err()
                 .to_string()
                 .contains("causal absence remains live-shadow-only")
+        );
+    }
+
+    #[test]
+    fn offline_liquid_equity_yaml_is_loadable_and_hash_bound() {
+        let contract: OfflineFeatureTrainingContractConfig = serde_yaml::from_str(include_str!(
+            "../configs/candidates/live-feature-v3-liquid-equity.yaml"
+        ))
+        .unwrap();
+        contract.validate().unwrap();
+        assert_eq!(
+            contract,
+            OfflineFeatureTrainingContractConfig::v3_liquid_equity_candidate()
+        );
+        assert_eq!(
+            contract.cross_asset_feature_schema.schema_sha256,
+            "3fd3fe4b3fe130a43f2e67b3be10631e869b9563e8c6f549f613f7ee050d7361"
         );
     }
 }

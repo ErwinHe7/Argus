@@ -322,6 +322,13 @@ struct CompletedTargetInference {
     compute_ms: u128,
 }
 
+fn state_snapshot_timestamp_matches_cutoff(
+    latest_state_timestamp: Option<DateTime<Utc>>,
+    batch_cutoff: DateTime<Utc>,
+) -> bool {
+    latest_state_timestamp.map(|timestamp| timestamp + Duration::minutes(1)) == Some(batch_cutoff)
+}
+
 struct TargetInferenceWork {
     target: String,
     runtime: TargetRuntime,
@@ -1814,7 +1821,22 @@ impl Runtime {
             }
         }
         let context_path = self.root.join("live/databento_context_observations.jsonl");
+        let required_context = self
+            .config
+            .live
+            .required_context_symbols
+            .iter()
+            .map(|symbol| symbol.to_ascii_uppercase())
+            .collect::<BTreeSet<_>>();
         for envelope in read_current_session_context_observations(&context_path, session_date) {
+            // A restart may follow an explicitly versioned feature-contract
+            // change while the append-only session ledger still contains
+            // observations for the prior contract. Those rows remain valid
+            // audit evidence, but they are not inputs to the current feature
+            // engine and must not make every current artifact look invalid.
+            if !required_context.contains(&envelope.observation.symbol.to_ascii_uppercase()) {
+                continue;
+            }
             let key = (
                 envelope.interval_start.timestamp_millis(),
                 envelope.observation.symbol.to_ascii_uppercase(),
@@ -2148,11 +2170,16 @@ impl Runtime {
             return;
         }
         if self.expected_targets.iter().any(|target| {
-            self.targets
-                .get(target)
-                .and_then(|runtime| runtime.feature_engine.states().last())
-                .map(|state| state.timestamp + Duration::minutes(1))
-                != Some(batch.cutoff)
+            !state_snapshot_timestamp_matches_cutoff(
+                self.targets
+                    .get(target)
+                    .and_then(|runtime| runtime.feature_engine.states().last())
+                    // Feature states are keyed by bar start; atomic
+                    // publications, forecast observation cutoffs, and ledger
+                    // batches are keyed by the same finalized bar's end.
+                    .map(|state| state.timestamp),
+                batch.cutoff,
+            )
         }) {
             self.reject_pending_batch(batch, "BATCH_ABORTED_STATE_SNAPSHOT_CUTOFF_MISMATCH");
             return;
@@ -2910,7 +2937,7 @@ impl Runtime {
             );
             ready_targets.push((
                 target.clone(),
-                cutoff,
+                target_event.bar_end,
                 PendingTargetInference {
                     context: context.clone(),
                     source_input,
@@ -2964,25 +2991,19 @@ pub async fn run(
     // intentionally synchronous. Keep that work on one dedicated blocking
     // worker so API liveness/readiness requests remain responsive while the
     // immutable universe warms up and while each finalized bar is inferred.
+    //
+    // Warm the runtime before waiting for the first provider envelope. The
+    // forecast SLA is measured from that envelope's causal receipt time; doing
+    // a multi-artifact/history cold start after receipt makes an otherwise
+    // healthy first live batch fail merely because the process was restarted
+    // shortly before the open.
+    //
     // The bounded Tokio channel still preserves ordering and applies
     // backpressure at the single licensed Databento socket.
     tokio::task::spawn_blocking(move || -> Result<()> {
         let mut receiver = receiver;
-        // Do not allocate the multi-model historical state while the provider
-        // is unlicensed or disconnected. The first accepted realtime envelope
-        // is the initialization trigger.
-        let first_event = receiver
-            .blocking_recv()
-            .context("DATABENTO_INFERENCE_CHANNEL_CLOSED_BEFORE_FIRST_ENVELOPE")?;
-        let first_bar = match &first_event {
-            DatabentoInferenceEvent::TradeBar { envelope } => envelope,
-            DatabentoInferenceEvent::ContextObservation { .. } => {
-                bail!("DATABENTO_INFERENCE_FIRST_EVENT_MUST_BE_TRADE_BAR")
-            }
-        };
-        let session_date = first_bar.bar_start.with_timezone(&New_York).date_naive();
+        let session_date = Utc::now().with_timezone(&New_York).date_naive();
         let mut runtime = Runtime::initialize(config, root, session_date);
-        runtime.handle_event(first_event);
         while let Some(event) = receiver.blocking_recv() {
             runtime.handle_event(event);
         }
@@ -3240,6 +3261,21 @@ mod tests {
     const BATCH_SYMBOLS: [&str; 9] = [
         "AAPL", "BE", "IGV", "MU", "NBIS", "NVDA", "QQQ", "SOXX", "SPY",
     ];
+
+    #[test]
+    fn atomic_batch_snapshot_maps_feature_bar_start_to_publication_bar_end() {
+        let bar_start = DateTime::parse_from_rfc3339("2026-07-30T16:20:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        assert!(state_snapshot_timestamp_matches_cutoff(
+            Some(bar_start),
+            bar_start + Duration::minutes(1)
+        ));
+        assert!(!state_snapshot_timestamp_matches_cutoff(
+            Some(bar_start),
+            bar_start
+        ));
+    }
 
     fn valid_envelope() -> DatabentoRealtimeBarEnvelope {
         let start = DateTime::parse_from_rfc3339("2026-07-27T13:30:00Z")

@@ -1,0 +1,43 @@
+{
+  "context_observation_policy_schema_version": "causal_context_observation_policy.v1",
+  "cross_asset_feature_schema_sha256": "3fd3fe4b3fe130a43f2e67b3be10631e869b9563e8c6f549f613f7ee050d7361",
+  "cross_asset_feature_schema_version": "cross_asset_breadth.v3-liquid-equity-candidate",
+  "entries": [
+    {
+      "artifact_path": "data/models/liquid-context-v3-spx/SPX.frozen.json",
+      "artifact_version": "axio.frozen-predictor.v1",
+      "feature_schema_sha256": "77e06e9916d1e0d45e6cec8d99897dae05dbc43e470b7641d3f6afea74be32d3",
+      "feature_schema_version": "point-in-time-v7-strict-observed-context+liquid-equity-candidate",
+      "model_hash": "2cd84a788ea85aea4201f171da05dc5c7272072a031be1dbc95ab833a3252ae4",
+      "model_symbol": "SPY",
+      "model_version": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+      "options_underlying": "SPX",
+      "price_symbol": "I:SPX",
+      "promotion_status": "CANDIDATE_NOT_PROMOTED",
+      "public_symbol": "SPX",
+      "research_model_config_sha256": "36678eda8df517251b6af77e93e8c4326ebec79dce2ee1842eef941b349c87a7",
+      "short_horizon_sde_present": true,
+      "target_status": "SPX_DIRECTION_AND_VWAP_PROXY_VIA_SPY",
+      "training_cutoff": "2026-07-22T20:00:00Z",
+      "training_excluded_incomplete_context_states": 3039,
+      "vwap_volume_source": "SPY"
+    }
+  ],
+  "execution_enabled": false,
+  "feature_contract_config": "configs/candidates/live-feature-v3-liquid-equity.yaml",
+  "feature_schema_sha256": "77e06e9916d1e0d45e6cec8d99897dae05dbc43e470b7641d3f6afea74be32d3",
+  "feature_schema_version": "point-in-time-v7-strict-observed-context+liquid-equity-candidate",
+  "generated_at": "2026-07-30T15:18:40.152613400Z",
+  "horizons_minutes": [
+    5,
+    15,
+    30,
+    60
+  ],
+  "requested_public_symbols": [
+    "SPX"
+  ],
+  "schema_version": "axio.frozen-universe-registry.v1",
+  "status": "CANDIDATE_ARTIFACTS_NOT_PROMOTED",
+  "training_mode": "EXPLICIT_OFFLINE_FEATURE_CANDIDATE"
+}

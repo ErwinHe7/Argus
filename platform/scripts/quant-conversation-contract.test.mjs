@@ -17,6 +17,18 @@ const {
 } = await import(
   `data:text/javascript;base64,${Buffer.from(compiledMarketQuery).toString('base64')}`
 );
+const compiledDevelopmentReplay = ts.transpileModule(
+  read('lib/quant/development-replay.ts'),
+  {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }
+).outputText;
+const { developmentReplayReceipt, supportsDevelopmentReplay } = await import(
+  `data:text/javascript;base64,${Buffer.from(compiledDevelopmentReplay).toString('base64')}`
+);
 const compiledResearchAnswer = ts.transpileModule(read('lib/quant/research-answer.ts'), {
   compilerOptions: {
     module: ts.ModuleKind.ESNext,
@@ -33,6 +45,199 @@ test('market chat remains Rust-owned and has no web forecast fallback', () => {
   assert.match(route, /explainQuantResearchResult/);
   assert.match(route, /answerModelKnowledgeQuestion/);
   assert.doesNotMatch(route, /runForecastChat\s*\(|fetchYahoo|from ['"]@\/lib\/forecast-chat['"]/);
+});
+
+test('market-data rights receipt failures are not mislabeled as missing point-in-time inputs', () => {
+  const envelope = {
+    schema_version: 'axio.evidence-envelope.v1',
+    evidence_mode: 'live',
+    request_id: 'rights-receipt-test',
+    query_sha256: 'synthetic',
+    response_sha256: 'synthetic',
+    generated_at: '2026-07-30T19:19:21Z',
+    observation_cutoff: '2026-07-30T19:19:21Z',
+    status: 'DATA_UNAVAILABLE',
+    query: compileMarketQuery(
+      'Monitor bullish gamma-squeeze structures in NVDA over the next 15 minutes.'
+    ).query,
+    candidates: [],
+    exclusions: [],
+    historical: [],
+    data_blockers: ['PUBLIC_MARKET_DATA_RIGHTS_RECEIPT_MISSING'],
+    readiness: {},
+    model_contract: {},
+    research_only_policy: {},
+    caveats: [],
+  };
+  const answer = formatQuantResearchAnswer('gamma scan', envelope, []);
+  assert.match(answer, /publication-gated/i);
+  assert.match(answer, /market-data rights receipt is not active/i);
+  assert.doesNotMatch(answer, /point-in-time inputs are incomplete/i);
+
+  const chat = read('components/AxioChat.tsx');
+  assert.ok(chat.includes('PUBLIC_MARKET_DATA_(?:RIGHTS|.*LICENSE)'));
+});
+
+test('post-close model failures explain the regular-session boundary once', () => {
+  const envelope = {
+    schema_version: 'axio.evidence-envelope.v1',
+    evidence_mode: 'local_uncalibrated_live_research',
+    request_id: 'post-close-test',
+    query_sha256: 'synthetic',
+    response_sha256: 'synthetic',
+    generated_at: '2026-07-30T20:25:34Z',
+    observation_cutoff: '2026-07-30T20:25:34Z',
+    status: 'DATA_UNAVAILABLE',
+    query: compileMarketQuery('Forecast AAPL using the core model.').query,
+    candidates: [],
+    exclusions: [],
+    historical: [],
+    data_blockers: [
+      'AAPL:LIVE_FORECAST_NOT_PUBLISHED',
+      'AAPL:MODEL_FORECAST_HORIZON_MISSING:horizon_minutes=5',
+      'AAPL:MODEL_FORECAST_HORIZON_MISSING:horizon_minutes=15',
+      'AAPL:MODEL_FORECAST_HORIZON_MISSING:horizon_minutes=30',
+      'AAPL:MODEL_FORECAST_HORIZON_MISSING:horizon_minutes=60',
+    ],
+    readiness: {},
+    model_contract: {},
+    research_only_policy: {},
+    caveats: [],
+  };
+  const answer = formatQuantResearchAnswer('AAPL', envelope, []);
+  assert.match(answer, /outside the model’s regular U\.S\. session window/i);
+  assert.match(answer, /extended-hours bars do not produce/i);
+  assert.doesNotMatch(answer, /point-in-time inputs are incomplete/i);
+
+  const chat = read('components/AxioChat.tsx');
+  assert.match(chat, /outsideUsRegularSession/);
+  assert.match(chat, /Array\.from\([\s\S]*new Set/);
+});
+
+test('development replay is local-only, explicit, deterministic, and never a live fallback', () => {
+  const route = read('app/api/ask/route.ts');
+  const page = read('app/page.tsx');
+  const chat = read('components/AxioChat.tsx');
+  const client = read('lib/quant/research-client.ts');
+  const rustReplay = read('quant_engine_rs/src/data/databento_replay.rs');
+  const rustApi = read('quant_engine_rs/src/api.rs');
+  const query = compileMarketQuery('Forecast SPX using the core model.').query;
+
+  assert.equal(supportsDevelopmentReplay(query), true);
+  const receipt = developmentReplayReceipt({
+    evidence_mode: 'deterministic_historical_replay',
+    request_id: 'replay-1',
+    observation_cutoff: '2026-07-29T19:59:00Z',
+    model_contract: {
+      replay_source_envelope_count: 123,
+      replay_context_observation_count: 7,
+      replay_source_mode: 'DATABENTO_SHAPED_HISTORICAL_TRANSPORT_MOCK',
+      synthetic_context_intervals: 42,
+      artifact_feature_identity_matches_replay: false,
+      replay_local_model_trained: true,
+      production_artifact_used: false,
+    },
+  });
+  assert.equal(receipt.mode, 'DATABENTO_PIPELINE_REPLAY');
+  assert.equal(receipt.inputEnvelopeCount, 123);
+  assert.equal(receipt.contextObservationCount, 7);
+  assert.equal(
+    receipt.sourceMode,
+    'DATABENTO_SHAPED_HISTORICAL_TRANSPORT_MOCK'
+  );
+  assert.equal(receipt.syntheticContextIntervals, 42);
+  assert.equal(receipt.artifactFeatureIdentityMatchesReplay, false);
+  assert.equal(receipt.replayLocalModelTrained, true);
+  assert.equal(receipt.productionArtifactUsed, false);
+  assert.equal(receipt.rustInference, true);
+  assert.equal(receipt.currentMarketData, false);
+  assert.equal(receipt.liveStateWritten, false);
+  assert.match(
+    route,
+    /process\.env\.NODE_ENV !== 'production'[\s\S]*developmentReplay === true/
+  );
+  assert.match(route, /requestDatabentoDevelopmentReplay/);
+  assert.match(route, /No TypeScript forecast fixture was substituted/);
+  assert.match(
+    client,
+    /process\.env\.NODE_ENV === 'production'[\s\S]*DATABENTO_REPLAY_DISABLED/
+  );
+  assert.match(client, /\/api\/v1\/research\/databento-replay/);
+  assert.match(
+    rustApi,
+    /AXIO_ENABLE_HISTORICAL_REPLAY[\s\S]*!cfg!\(debug_assertions\)[\s\S]*!explicitly_enabled/
+  );
+  assert.match(rustReplay, /MarketBarCsvImporter/);
+  assert.match(rustReplay, /forecast_with_frozen_artifact/);
+  assert.match(rustReplay, /enforce_realtime_forward_shadow/);
+  assert.match(rustReplay, /DatabentoCausalAbsenceEnvelope/);
+  assert.match(
+    rustReplay,
+    /OfflineFeatureTrainingContractConfig::v2_no_uup_candidate/
+  );
+  assert.match(rustReplay, /exact_historical_states/);
+  assert.match(rustReplay, /artifact_feature_identity_matches_replay/);
+  assert.match(rustReplay, /data\/replay\/databento/);
+  assert.match(rustReplay, /live_state_written:\s*false/);
+  assert.doesNotMatch(rustReplay, /LiveClient|run_equities_stream/);
+  assert.match(page, /searchParams\?\.mock === '1'/);
+  assert.match(chat, /Historical research replay/);
+  assert.match(chat, /no current provider\s+connection/);
+  assert.match(chat, /\/auth\/signin\?next=%2F%3Fmock%3D1/);
+  assert.doesNotMatch(
+    compiledDevelopmentReplay,
+    /requestQuantResearch|requestDatabentoDevelopmentReplay|fetch\(/
+  );
+});
+
+test('loopback Databento research exposes only Rust-verified uncalibrated diagnostics', () => {
+  const page = read('app/page.tsx');
+  const chat = read('components/AxioChat.tsx');
+  const proxy = read('app/api/quant/intraday/[...path]/route.ts');
+  const rustApi = read('quant_engine_rs/src/api.rs');
+  const rustInference = read('quant_engine_rs/src/data/databento_inference.rs');
+
+  assert.match(page, /AXIO_ENABLE_LOCAL_UNCALIBRATED_LIVE_RESEARCH === '1'/);
+  assert.match(page, /process\.env\.NODE_ENV !== 'production'/);
+  assert.match(
+    proxy,
+    /rawSuffix === 'predictor\/forecast'[\s\S]*user\?\.authenticated === true/
+  );
+  assert.match(chat, /source_mode:\s*'DATABENTO_LOCAL_LIVE'/);
+  assert.match(chat, /Databento live forward shadow/);
+  assert.match(chat, /Public redistribution withheld/);
+  assert.match(chat, /Raw model moments[\s\S]*uncalibrated/);
+  assert.match(
+    rustApi,
+    /AXIO_ENABLE_LOCAL_UNCALIBRATED_LIVE_RESEARCH[\s\S]*loopback_only/
+  );
+  assert.match(rustApi, /LocalUncalibratedLiveResearch/);
+  assert.match(rustApi, /customer_publication_authorized/);
+  assert.match(
+    rustApi,
+    /blocker != "PUBLIC_MARKET_DATA_FINALIZED_FEED_NOT_FRESH"/
+  );
+  assert.match(
+    rustApi,
+    /requested immutable forecast[\s\S]*maximum age[\s\S]*context completeness/
+  );
+  assert.match(
+    rustInference,
+    /Warm the runtime before waiting for the first provider envelope/
+  );
+  assert.match(chat, /localLiveResearch[\s\S]*LOCAL_LIVE_STARTERS/);
+  for (const prompt of [
+    'Forecast AAPL using the core model.',
+    'Forecast QQQ using the core model.',
+    'Forecast SPX using the core model.',
+  ]) {
+    assert.ok(chat.includes(prompt), `missing local model starter: ${prompt}`);
+    assert.equal(compileMarketQuery(prompt).query.setup_type, 'model_forecast');
+  }
+  assert.doesNotMatch(
+    chat,
+    /automatic execution enabled|customer publication authorized/i
+  );
 });
 
 test('factor scan is a paid Rust-owned metadata-only shadow that fails closed', () => {
@@ -674,10 +879,62 @@ test('rule queries and generic backtests request missing assumptions instead of 
     (error) =>
       error instanceof MarketQueryClarificationError &&
       error.setupType === null &&
+      error.historicalOnly === true &&
       error.missingFields.includes('setup_type') &&
       error.missingFields.includes('direction') &&
       error.missingFields.includes('horizon_minutes')
   );
+  const explicitClarificationPrompt =
+    'Set up a historical-only replay for AAPL. First ask me to choose the setup, up/down direction, and a 5/15/30/60-minute horizon; do not assume them for me.';
+  assert.throws(
+    () => compileMarketQuery(explicitClarificationPrompt),
+    (error) =>
+      error instanceof MarketQueryClarificationError &&
+      error.setupType === null &&
+      error.symbols.length === 1 &&
+      error.symbols[0] === 'AAPL' &&
+      error.missingFields.length === 3 &&
+      error.missingFields.includes('setup_type') &&
+      error.missingFields.includes('direction') &&
+      error.missingFields.includes('horizon_minutes') &&
+      /momentum, VWAP reversal, opening turn, or statistical dislocation/.test(
+        error.message
+      ) &&
+      !error.allowedValues.setup_type.includes('gamma_squeeze') &&
+      !error.allowedValues.setup_type.includes('closing_short_cover')
+  );
+  const chat = read('components/AxioChat.tsx');
+  assert.match(
+    chat,
+    /needsClarification[\s\S]*data\.error === 'market_query_needs_clarification'[\s\S]*!needsClarification/
+  );
+  assert.match(
+    chat,
+    /HistoricalReplayChooser[\s\S]*Choose historical replay assumptions[\s\S]*Run historical replay/
+  );
+  assert.match(
+    chat,
+    /historicalReplayAlternative[\s\S]*research\.query\.intent === 'backtest'[\s\S]*research\.candidates\.length > 0[\s\S]*offered_after_live_failure:\s*true/
+  );
+  assert.match(
+    chat,
+    /Live result unavailable — run an explicit historical replay instead/
+  );
+  assert.match(
+    chat,
+    /clarification\.direction \?\? ''[\s\S]*clarification\.horizon_minutes \?\? null/
+  );
+  assert.match(chat, /clarification:\s*data\.clarification/);
+  const explicitReplay = compileMarketQuery(
+    'Backtest bearish Opening turn for AAPL over the next 5 minutes. Use historical data only.'
+  ).query;
+  assert.equal(explicitReplay.intent, 'backtest');
+  assert.equal(explicitReplay.setup_type, 'opening_turn');
+  assert.deepEqual(explicitReplay.symbols, ['AAPL']);
+  assert.equal(explicitReplay.filters.direction, 'down');
+  assert.equal(explicitReplay.horizon_minutes, 5);
+  assert.equal(explicitReplay.filters.include_historical, true);
+  assert.equal(explicitReplay.filters.require_realtime, false);
   const route = read('app/api/ask/route.ts');
   assert.match(route, /market_query_needs_clarification/);
   assert.match(route, /missing_fields/);

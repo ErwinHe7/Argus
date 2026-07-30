@@ -252,11 +252,29 @@ fn configured_live_request(data: &DataConfig) -> Result<&DataRequest> {
         )
 }
 
-fn utc_from_nanos(value: u64) -> Result<DateTime<Utc>> {
+pub(crate) fn utc_from_nanos(value: u64) -> Result<DateTime<Utc>> {
     let nanos: i64 = value
         .try_into()
         .context("Databento timestamp exceeds signed nanosecond range")?;
     Ok(DateTime::<Utc>::from_timestamp_nanos(nanos))
+}
+
+fn early_bar_finalize_delay(
+    row: &OhlcvMsg,
+    observed_at: DateTime<Utc>,
+    maximum_clock_skew_ms: i64,
+) -> Result<Option<Duration>> {
+    if maximum_clock_skew_ms <= 0 {
+        return Ok(None);
+    }
+    let bar_end = utc_from_nanos(row.hd.ts_event)? + ChronoDuration::minutes(1);
+    let early_by = bar_end.signed_duration_since(observed_at);
+    if early_by <= ChronoDuration::zero()
+        || early_by > ChronoDuration::milliseconds(maximum_clock_skew_ms)
+    {
+        return Ok(None);
+    }
+    Ok(early_by.to_std().ok())
 }
 
 fn write_json_atomic(path: &Path, value: &impl Serialize) -> Result<()> {
@@ -302,7 +320,7 @@ fn redact_error(error: &anyhow::Error) -> String {
         .collect()
 }
 
-fn normalize_bar(
+pub(crate) fn normalize_bar(
     row: &OhlcvMsg,
     symbol: &str,
     dataset: &str,
@@ -357,8 +375,7 @@ fn normalize_bar(
         symbol_mapping_verified: true,
         bar,
         caveats: vec![
-            "The provider send timestamp was not requested; availability is the AXIO7 receipt time."
-                .to_string(),
+            "The provider send timestamp was not requested; availability is the causal AXIO7 receipt time after any bounded clock-skew hold through interval end.".to_string(),
             "OHLCV-1m contains only completed vendor bars and does not expose order-book depth."
                 .to_string(),
             "Licensed access does not imply public redistribution rights.".to_string(),
@@ -1047,8 +1064,24 @@ async fn stream_once(
                 .get_for_rec(row)
                 .cloned()
                 .context("Databento OHLCV record arrived without a point-in-time symbol mapping")?;
-            let disposition =
-                process_ohlcv_row(row, &symbol, &processing_context, status, received_at)?;
+            // Databento can publish a completed aggregate a few hundred
+            // milliseconds before this host's nominal interval boundary when
+            // the workstation clock trails the provider clock. Hold only
+            // bounded early arrivals through the local bar end so downstream
+            // inference remains causal. Larger future timestamps still fail
+            // closed in normalize_bar.
+            let mut causal_received_at = received_at;
+            if let Some(delay) = early_bar_finalize_delay(row, received_at, live.stale_after_ms)? {
+                tokio::time::sleep(delay).await;
+                causal_received_at = Utc::now();
+            }
+            let disposition = process_ohlcv_row(
+                row,
+                &symbol,
+                &processing_context,
+                status,
+                causal_received_at,
+            )?;
             if disposition == OhlcvProcessingDisposition::Accepted {
                 let interval_start = utc_from_nanos(row.hd.ts_event)?;
                 if absence_tracker.record_trade(&symbol, interval_start) {
@@ -1202,6 +1235,46 @@ mod tests {
         assert!(!envelope.replay);
         assert_eq!(envelope.entitlement, "REALTIME_SUBSCRIPTION_ACKNOWLEDGED");
         assert!(envelope.causal_observation().validate());
+    }
+
+    #[test]
+    fn delays_only_small_early_arrivals_until_the_bar_is_complete() {
+        let start = DateTime::parse_from_rfc3339("2026-07-24T19:59:00Z")
+            .unwrap()
+            .with_timezone(&Utc);
+        let row = OhlcvMsg {
+            hd: RecordHeader::new::<OhlcvMsg>(
+                rtype::OHLCV_1M,
+                1,
+                42,
+                start.timestamp_nanos_opt().unwrap() as u64,
+            ),
+            open: 200_000_000_000,
+            high: 201_000_000_000,
+            low: 199_500_000_000,
+            close: 200_500_000_000,
+            volume: 1_250,
+        };
+
+        let small_skew = start + ChronoDuration::milliseconds(59_700);
+        let delay = early_bar_finalize_delay(&row, small_skew, 2_000)
+            .unwrap()
+            .unwrap();
+        assert_eq!(delay, Duration::from_millis(300));
+
+        let excessive_skew = start + ChronoDuration::seconds(55);
+        assert!(
+            early_bar_finalize_delay(&row, excessive_skew, 2_000)
+                .unwrap()
+                .is_none()
+        );
+
+        let after_bar_end = start + ChronoDuration::seconds(61);
+        assert!(
+            early_bar_finalize_delay(&row, after_bar_end, 2_000)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]

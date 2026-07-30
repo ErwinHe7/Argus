@@ -9,8 +9,9 @@ use chrono_tz::America::New_York;
 
 use crate::{
     config::{
-        CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE, ContextObservationPolicyConfig,
-        CrossAssetFeatureSchemaConfig, OfflineFeatureTrainingContractConfig, ResearchConfig,
+        CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE, CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE,
+        ContextObservationPolicyConfig, CrossAssetFeatureSchemaConfig,
+        OfflineFeatureTrainingContractConfig, ResearchConfig,
     },
     domain::{
         CAUSAL_MINUTE_OBSERVATION_SCHEMA_VERSION, CausalMinuteObservation, MarketBar, MarketState,
@@ -150,7 +151,10 @@ fn runtime_state_build_semantics(
     policy: &ContextObservationPolicyConfig,
     cross_asset_schema: &CrossAssetFeatureSchemaConfig,
 ) -> StateBuildSemantics {
-    let candidate = cross_asset_schema.schema_version == CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE;
+    let candidate = matches!(
+        cross_asset_schema.schema_version.as_str(),
+        CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE | CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE
+    );
     StateBuildSemantics {
         observed_trade_bars_only: candidate && !policy.causal_no_trade_materialization_enabled(),
         require_complete_cross_asset_context: candidate,
@@ -654,8 +658,10 @@ pub fn build_states_for_observed_feature_contract(
         bail!("observed-bar feature builder cannot satisfy causal no-trade policy");
     }
     let mut cumulative_volume_history = HashMap::new();
-    let semantics = if cross_asset_schema.schema_version == CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE
-    {
+    let semantics = if matches!(
+        cross_asset_schema.schema_version.as_str(),
+        CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE | CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE
+    ) {
         StateBuildSemantics::NO_UUP_CANDIDATE
     } else {
         StateBuildSemantics::LEGACY_V1
