@@ -884,7 +884,10 @@ pub fn build_daily_regime_report(
         for symbol in REQUIRED_SYMBOLS {
             if let Some(available_at) = append_live_rows(
                 &mut tape,
-                latest_live_bars(live_database, symbol, 5_000)?,
+                // Preserve enough append-only SQLite history to bridge the
+                // immutable Databento batch until the next scheduled batch
+                // archive. Public live-bar APIs remain capped at 5,000 rows.
+                latest_live_bars(live_database, symbol, 250_000)?,
                 historical_cutoff,
             ) {
                 latest_available_at = latest_available_at.max(available_at);

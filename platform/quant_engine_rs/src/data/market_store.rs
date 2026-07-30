@@ -357,8 +357,8 @@ pub fn latest_live_bars(
     limit: usize,
 ) -> Result<Vec<StoredLiveMarketBar>> {
     let canonical_symbol = symbol.trim().trim_start_matches("US.").to_ascii_uppercase();
-    if canonical_symbol.is_empty() || limit == 0 || limit > 5_000 {
-        bail!("live bar query requires a symbol and a limit between 1 and 5000");
+    if canonical_symbol.is_empty() || limit == 0 || limit > 250_000 {
+        bail!("live bar query requires a symbol and a limit between 1 and 250000");
     }
     let connection = Connection::open_with_flags(
         path,
