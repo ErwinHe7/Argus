@@ -323,14 +323,26 @@ export type QuantSessionSummary = {
 export type QuantDailyRegimeLabel =
   | 'HIGH_VOL_SELL_OFF'
   | 'HIGH_VOL_RECOVERY'
+  | 'LOW_VOL_BREAKOUT'
   | 'RISK_ON_TREND'
   | 'RISK_OFF_TREND'
   | 'HIGH_VOL_RANGE'
   | 'LOW_VOL_RANGE'
   | 'MIXED_TRANSITION';
 
+export type QuantDailyHistoricalSession = {
+  rank: number;
+  session_date_et: string;
+  regime: QuantDailyRegimeLabel;
+  standardized_euclidean_distance: number;
+  session_return_pct: number;
+  next_session_date_et: string;
+  next_session_return_pct: number;
+  next_session_direction: 'UP' | 'DOWN' | 'FLAT';
+};
+
 export type QuantDailyRegimeReport = {
-  schema_version: 'axio.daily-regime.v1';
+  schema_version: 'axio.daily-regime.v2';
   status: 'AVAILABLE_UNCALIBRATED';
   result_kind: 'NEXT_REGULAR_SESSION_ANALOG_LEAN';
   generated_at: string;
@@ -341,10 +353,21 @@ export type QuantDailyRegimeReport = {
   forecast_horizon: 'NEXT_COMPLETE_US_REGULAR_SESSION';
   current_regime: {
     label: QuantDailyRegimeLabel;
+    display_name: string;
     definition: string;
+    market_summary: string;
+    classification_reasons: string[];
     volatility_percentile_prior_252: number;
     cross_asset_breadth: number;
   };
+  regime_taxonomy: Array<{
+    priority: number;
+    label: QuantDailyRegimeLabel;
+    display_name: string;
+    definition: string;
+    selection_rule: string;
+    active: boolean;
+  }>;
   current_market: {
     session_date_et: string;
     open: number;
@@ -359,26 +382,44 @@ export type QuantDailyRegimeReport = {
   };
   prediction: {
     lean: 'UP' | 'DOWN' | 'MIXED';
+    directional_call_status:
+      | 'PUBLISHED_RAW_RESEARCH_LEAN'
+      | 'WITHHELD_INSUFFICIENT_AGREEMENT';
     target_definition: string;
     analog_sample_size: number;
     raw_up_count: number;
     raw_down_or_flat_count: number;
     raw_up_frequency: number;
+    raw_directional_agreement: number;
+    minimum_directional_agreement: number;
+    reported_evidence_strength: number | null;
     median_next_session_return_pct: number;
     mean_next_session_return_pct: number;
     calibrated_probability: false;
     interpretation: string;
   };
-  similar_historical_sessions: Array<{
-    rank: number;
-    session_date_et: string;
-    regime: QuantDailyRegimeLabel;
-    standardized_euclidean_distance: number;
-    session_return_pct: number;
-    next_session_date_et: string;
-    next_session_return_pct: number;
-    next_session_direction: 'UP' | 'DOWN' | 'FLAT';
-  }>;
+  prediction_interval: {
+    method: 'PREQUENTIAL_ABSOLUTE_RESIDUAL_CONFORMAL';
+    nominal_coverage: number;
+    point_estimate_pct: number;
+    lower_bound_pct: number;
+    upper_bound_pct: number;
+    calibration_sessions: number;
+    evaluated_sessions: number;
+    covered_sessions: number;
+    empirical_coverage: number | null;
+    directional_probability: false;
+    interpretation: string;
+  };
+  prediction_rationale: {
+    conclusion: string;
+    supporting_evidence: string[];
+    opposing_evidence: string[];
+    uncertainty_reasons: string[];
+    model_steps: string[];
+  };
+  similar_historical_sessions: QuantDailyHistoricalSession[];
+  same_regime_history: QuantDailyHistoricalSession[];
   walk_forward_validation: {
     method: 'PURGED_EXPANDING_WALK_FORWARD';
     evaluation_window_sessions: number;

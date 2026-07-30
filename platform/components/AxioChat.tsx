@@ -1737,15 +1737,22 @@ function DailyRegimeDetails({
   locale: ConversationReceipt['locale'];
 }) {
   const chinese = locale === 'zh-CN';
-  const hit = report.walk_forward_validation.raw_directional_hit_frequency;
   const newsItems = [
     ...(forecast.newsContext?.gdelt ?? []),
     ...(forecast.newsContext?.hackerNews ?? []),
   ].slice(0, 10);
   const inventory = forecast.modelCodeInventory ?? [];
-  const regimeLabel = report.current_regime.label
-    .replaceAll('_', ' ')
-    .toLowerCase();
+  const published =
+    report.prediction.directional_call_status ===
+    'PUBLISHED_RAW_RESEARCH_LEAN';
+  const agreement = report.prediction.raw_directional_agreement * 100;
+  const interval = report.prediction_interval;
+  const empiricalCoverage = interval.empirical_coverage;
+  const resultTitle = published
+    ? `${report.prediction.lean} ${chinese ? '研究倾向' : 'research lean'}`
+    : chinese
+      ? '不发布方向判断'
+      : 'NO DIRECTIONAL CALL';
 
   return (
     <div className={styles.predictionDetails}>
@@ -1762,126 +1769,249 @@ function DailyRegimeDetails({
         <span>SPX → SPY</span>
       </div>
 
-      <div className={styles.signalGrid}>
-        <div className={styles.signalCard}>
-          <div className={styles.signalTopline}>
-            <strong>
-              {chinese ? '下一交易日倾向' : 'Next-session lean'}
-            </strong>
-            <span>{report.prediction.lean}</span>
-          </div>
-          <p>
-            {report.prediction.raw_up_count}/{report.prediction.analog_sample_size}{' '}
-            {chinese ? '个类比随后上涨' : 'analogs followed by an up session'} ·{' '}
-            {formatNumber(report.prediction.raw_up_frequency * 100)}%
-          </p>
-          <p>
-            {chinese ? '下一交易日收益中位数' : 'Median next-session return'}{' '}
-            {formatPercent(report.prediction.median_next_session_return_pct)} ·{' '}
-            {chinese ? '均值' : 'mean'}{' '}
-            {formatPercent(report.prediction.mean_next_session_return_pct)}
-          </p>
-          <div className={styles.signalLineage}>
+      <section className={styles.reportStep}>
+        <div className={styles.stepHeading}>
+          <span>01</span>
+          <div>
+            <strong>{chinese ? '当前市场是什么状态' : 'Current market regime'}</strong>
             <p>
               {chinese
-                ? '原始历史频率，不是校准概率。'
-                : 'Raw historical frequency, not a calibrated probability.'}
+                ? '先在固定的 8 种市场状态中分类，再进行历史匹配。'
+                : 'Classify the completed market into one of eight fixed states before matching history.'}
             </p>
           </div>
         </div>
 
-        <div className={styles.signalCard}>
-          <div className={styles.signalTopline}>
-            <strong>{chinese ? '当前市场状态' : 'Current market regime'}</strong>
-            <span>{regimeLabel}</span>
+        <div className={styles.regimeHero}>
+          <div>
+            <small>{chinese ? '当前状态' : 'ACTIVE REGIME'}</small>
+            <strong>{report.current_regime.display_name}</strong>
+            <span>{report.current_regime.label}</span>
           </div>
-          <p>{report.current_regime.definition}</p>
-          <p>
-            {chinese ? '波动率历史分位' : 'Volatility percentile'}{' '}
-            {formatNumber(
-              report.current_regime.volatility_percentile_prior_252 * 100
-            )}
-            % · {chinese ? '跨资产广度' : 'cross-asset breadth'}{' '}
-            {formatNumber(report.current_regime.cross_asset_breadth * 100)}%
-          </p>
+          <p>{report.current_regime.market_summary}</p>
         </div>
 
-        <div className={styles.signalCard}>
-          <div className={styles.signalTopline}>
-            <strong>{report.current_market.session_date_et}</strong>
-            <span>{formatPercent(report.current_market.session_return_pct)}</span>
-          </div>
-          <p>
-            O {formatNumber(report.current_market.open)} · H{' '}
-            {formatNumber(report.current_market.high)} · L{' '}
-            {formatNumber(report.current_market.low)} · C{' '}
-            {formatNumber(report.current_market.close)}
-          </p>
-          <p>
-            20D {formatPercent(report.current_market.twenty_session_return_pct)} ·{' '}
-            {chinese ? '20日年化波动' : '20D annualized volatility'}{' '}
-            {formatPercent(
-              report.current_market.twenty_session_annualized_volatility_pct
-            )}
-          </p>
-        </div>
-
-        <div className={styles.signalCard}>
-          <div className={styles.signalTopline}>
-            <strong>
-              {chinese ? '滚动样本外检查' : 'Walk-forward check'}
-            </strong>
-            <span>{report.walk_forward_validation.method.replaceAll('_', ' ')}</span>
-          </div>
-          <p>
-            {report.walk_forward_validation.directional_calls}{' '}
-            {chinese ? '次方向判断' : 'directional calls'} ·{' '}
-            {report.walk_forward_validation.correct_directional_calls}{' '}
-            {chinese ? '次方向正确' : 'directionally correct'}
-          </p>
-          <p>
-            {chinese ? '原始命中频率' : 'Raw hit frequency'}{' '}
-            {hit === null ? 'unavailable' : `${formatNumber(hit * 100)}%`}
-          </p>
-          <div className={styles.signalLineage}>
-            <p>
-              {chinese
-                ? '扩展窗口、严格按时间顺序、隔离一个完整交易日；仍不是未来概率。'
-                : 'Expanding, chronological, and purged by one complete session; still not a future probability.'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <details className={styles.evidence} open>
-        <summary>
-          <span>
-            {chinese ? '最相似的历史市场状态' : 'Most similar historical regimes'}
-          </span>
-          <span>{report.similar_historical_sessions.length}</span>
-        </summary>
-        <div>
-          {report.similar_historical_sessions.map((analog) => (
-            <article key={`${analog.rank}-${analog.session_date_et}`}>
-              <i />
-              <div>
-                <strong>
-                  #{analog.rank} · {analog.session_date_et} ·{' '}
-                  {analog.regime.replaceAll('_', ' ').toLowerCase()}
-                </strong>
-                <p>
-                  {chinese ? '当日' : 'session'}{' '}
-                  {formatPercent(analog.session_return_pct)} →{' '}
-                  {analog.next_session_date_et}{' '}
-                  {formatPercent(analog.next_session_return_pct)} ·{' '}
-                  {chinese ? '标准化距离' : 'standardized distance'}{' '}
-                  {formatNumber(analog.standardized_euclidean_distance, 3)}
-                </p>
-              </div>
+        <div className={styles.reasonList}>
+          {report.current_regime.classification_reasons.map((reason, index) => (
+            <article key={reason}>
+              <span>{index + 1}</span>
+              <p>{reason}</p>
             </article>
           ))}
         </div>
-      </details>
+
+        <div className={styles.regimeTaxonomy} aria-label="Eight market regimes">
+          {report.regime_taxonomy.map((regime) => (
+            <article key={regime.label} data-active={regime.active}>
+              <div>
+                <span>{String(regime.priority).padStart(2, '0')}</span>
+                <strong>{regime.display_name}</strong>
+                {regime.active ? (
+                  <b>{chinese ? '当前' : 'CURRENT'}</b>
+                ) : null}
+              </div>
+              <p>{regime.definition}</p>
+              <small>{regime.selection_rule}</small>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.reportStep}>
+        <div className={styles.stepHeading}>
+          <span>02</span>
+          <div>
+            <strong>
+              {chinese ? '全部历史同状态交易日' : 'All same-regime history'}
+            </strong>
+            <p>
+              {chinese
+                ? `找到 ${report.same_regime_history.length} 个已知下一交易日结果的同状态样本；全部列出，最近 15 个用于预测规则。`
+                : `${report.same_regime_history.length} mature same-regime sessions found. Every match is listed; the nearest 15 drive the prediction rule.`}
+            </p>
+          </div>
+        </div>
+
+        <details className={`${styles.evidence} ${styles.historyEvidence}`} open>
+          <summary>
+            <span>
+              {chinese
+                ? '按标准化欧氏距离排序'
+                : 'Ranked by standardized Euclidean distance'}
+            </span>
+            <span>{report.same_regime_history.length}</span>
+          </summary>
+          <div>
+            {report.same_regime_history.map((analog) => (
+              <article key={`${analog.rank}-${analog.session_date_et}`}>
+                <i data-state={analog.rank <= 15 ? 'computed' : 'historical'} />
+                <div>
+                  <strong>
+                    #{analog.rank} · {analog.session_date_et} ·{' '}
+                    {analog.next_session_direction}
+                    {analog.rank <= 15
+                      ? chinese
+                        ? ' · 预测近邻'
+                        : ' · MODEL NEIGHBOR'
+                      : ''}
+                  </strong>
+                  <p>
+                    {chinese ? '当日' : 'session'}{' '}
+                    {formatPercent(analog.session_return_pct)} →{' '}
+                    {analog.next_session_date_et}{' '}
+                    {formatPercent(analog.next_session_return_pct)} ·{' '}
+                    {chinese ? '距离' : 'distance'}{' '}
+                    {formatNumber(analog.standardized_euclidean_distance, 3)}
+                  </p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </details>
+      </section>
+
+      <section className={styles.reportStep}>
+        <div className={styles.stepHeading}>
+          <span>03</span>
+          <div>
+            <strong>
+              {chinese ? '预测结果、区间和原因' : 'Prediction, interval, and reasons'}
+            </strong>
+            <p>
+              {chinese
+                ? '方向门槛和收益区间分开报告，避免把接近 50% 的频率冒充置信度。'
+                : 'The direction gate and return interval are reported separately so a near-50% frequency is never presented as confidence.'}
+            </p>
+          </div>
+        </div>
+
+        <div className={styles.predictionHero} data-published={published}>
+          <div>
+            <small>
+              {published
+                ? chinese
+                  ? '方向判断已通过门槛'
+                  : 'DIRECTION GATE PASSED'
+                : chinese
+                  ? '方向判断已拒绝'
+                  : 'DIRECTION WITHHELD'}
+            </small>
+            <strong>{resultTitle}</strong>
+            <p>{report.prediction_rationale.conclusion}</p>
+          </div>
+          <dl>
+            <div>
+              <dt>{chinese ? '原始方向一致度' : 'Raw direction agreement'}</dt>
+              <dd>{formatNumber(agreement)}%</dd>
+            </div>
+            <div>
+              <dt>{chinese ? '发布门槛' : 'Publication threshold'}</dt>
+              <dd>
+                {formatNumber(
+                  report.prediction.minimum_directional_agreement * 100,
+                  0
+                )}
+                %
+              </dd>
+            </div>
+            <div>
+              <dt>{chinese ? '涨 / 跌或平' : 'Up / down-or-flat'}</dt>
+              <dd>
+                {report.prediction.raw_up_count} /{' '}
+                {report.prediction.raw_down_or_flat_count}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className={styles.intervalCard}>
+          <div>
+            <small>
+              {formatNumber(interval.nominal_coverage * 100, 0)}%{' '}
+              {chinese ? '下一交易日收益预测区间' : 'NEXT-SESSION RETURN INTERVAL'}
+            </small>
+            <strong>
+              {formatPercent(interval.lower_bound_pct)} →{' '}
+              {formatPercent(interval.upper_bound_pct)}
+            </strong>
+            <p>
+              {chinese ? '点估计' : 'Point estimate'}{' '}
+              {formatPercent(interval.point_estimate_pct)} ·{' '}
+              {interval.method.replaceAll('_', ' ').toLowerCase()}
+            </p>
+          </div>
+          <dl>
+            <div>
+              <dt>{chinese ? '校准样本' : 'Calibration sessions'}</dt>
+              <dd>{interval.calibration_sessions}</dd>
+            </div>
+            <div>
+              <dt>{chinese ? '滚动覆盖率' : 'Walk-forward coverage'}</dt>
+              <dd>
+                {empiricalCoverage === null
+                  ? 'unavailable'
+                  : `${formatNumber(empiricalCoverage * 100)}%`}
+              </dd>
+            </div>
+          </dl>
+          <p>{interval.interpretation}</p>
+        </div>
+
+        <div className={styles.reasonGrid}>
+          <article>
+            <strong>{chinese ? '支持证据' : 'Supporting evidence'}</strong>
+            {report.prediction_rationale.supporting_evidence.map((reason) => (
+              <p key={reason}>{reason}</p>
+            ))}
+          </article>
+          <article>
+            <strong>{chinese ? '反对证据' : 'Opposing evidence'}</strong>
+            {report.prediction_rationale.opposing_evidence.map((reason) => (
+              <p key={reason}>{reason}</p>
+            ))}
+          </article>
+          <article>
+            <strong>{chinese ? '不确定性' : 'Uncertainty and limits'}</strong>
+            {report.prediction_rationale.uncertainty_reasons.map((reason) => (
+              <p key={reason}>{reason}</p>
+            ))}
+          </article>
+        </div>
+
+        <details className={styles.evidence} open>
+          <summary>
+            <span>
+              {chinese ? '模型如何得到结果' : 'How the model reached this result'}
+            </span>
+            <span>{report.prediction_rationale.model_steps.length} steps</span>
+          </summary>
+          <div>
+            {report.prediction_rationale.model_steps.map((step, index) => (
+              <article key={step}>
+                <i />
+                <div>
+                  <strong>
+                    {chinese ? '步骤' : 'Step'} {index + 1}
+                  </strong>
+                  <p>{step}</p>
+                </div>
+              </article>
+            ))}
+            <article>
+              <i data-state="computed" />
+              <div>
+                <strong>
+                  {report.model_contract.model_id} ·{' '}
+                  {report.model_contract.model_version}
+                </strong>
+                <p>{report.model_contract.regime_algorithm}</p>
+                <p>{report.model_contract.analog_algorithm}</p>
+                <code>{report.model_contract.source_code}</code>
+              </div>
+            </article>
+          </div>
+        </details>
+      </section>
 
       <details className={styles.evidence}>
         <summary>

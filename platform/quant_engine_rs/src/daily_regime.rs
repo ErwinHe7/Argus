@@ -51,6 +51,9 @@ const CONTEXT_FIRST_MINUTE_LIMIT_ET: u32 = 10 * 60;
 const CONTEXT_LAST_MINUTE_LIMIT_ET: u32 = 15 * 60 + 30;
 const ANALOG_NEIGHBORS: usize = 15;
 const MINIMUM_ANALOGS: usize = 10;
+const DIRECTIONAL_AGREEMENT_THRESHOLD: f64 = 0.60;
+const PREDICTION_INTERVAL_COVERAGE: f64 = 0.90;
+const MINIMUM_INTERVAL_CALIBRATION_SESSIONS: usize = 40;
 
 static HISTORY_CACHE: OnceLock<Arc<HistoricalDailyData>> = OnceLock::new();
 
@@ -126,6 +129,7 @@ struct FeatureRow {
 enum RegimeLabel {
     HighVolSellOff,
     HighVolRecovery,
+    LowVolBreakout,
     RiskOnTrend,
     RiskOffTrend,
     HighVolRange,
@@ -141,6 +145,9 @@ impl RegimeLabel {
             }
             Self::HighVolRecovery => {
                 "Elevated trailing volatility with a materially positive SPY recovery session."
+            }
+            Self::LowVolBreakout => {
+                "Low trailing volatility with a positive 20-session trend and broad risk-asset confirmation."
             }
             Self::RiskOnTrend => {
                 "Positive 20-session SPY trend confirmed by cross-asset breadth and non-negative HYG."
@@ -159,7 +166,60 @@ impl RegimeLabel {
             }
         }
     }
+
+    fn display_name(self) -> &'static str {
+        match self {
+            Self::HighVolSellOff => "High-volatility sell-off",
+            Self::HighVolRecovery => "High-volatility recovery",
+            Self::LowVolBreakout => "Low-volatility breakout",
+            Self::RiskOnTrend => "Risk-on trend",
+            Self::RiskOffTrend => "Risk-off trend",
+            Self::HighVolRange => "High-volatility range",
+            Self::LowVolRange => "Low-volatility range",
+            Self::MixedTransition => "Mixed transition",
+        }
+    }
+
+    fn selection_rule(self) -> &'static str {
+        match self {
+            Self::HighVolSellOff => {
+                "Volatility percentile at or above 75% and SPY session return at or below -0.75%."
+            }
+            Self::HighVolRecovery => {
+                "Volatility percentile at or above 75% and SPY session return at or above +0.75%."
+            }
+            Self::LowVolBreakout => {
+                "Volatility percentile at or below 25%, SPY 20-session return at or above +2%, breadth at or above 50%, and HYG non-negative."
+            }
+            Self::RiskOnTrend => {
+                "SPY 20-session return at or above +2%, breadth at or above 50%, and HYG non-negative."
+            }
+            Self::RiskOffTrend => {
+                "SPY 20-session return at or below -2%, breadth at or below 50%, and HYG negative."
+            }
+            Self::HighVolRange => {
+                "Volatility percentile at or above 75% without an earlier directional state."
+            }
+            Self::LowVolRange => {
+                "Volatility percentile at or below 25% without an earlier directional state."
+            }
+            Self::MixedTransition => {
+                "No earlier state in the ordered eight-regime decision tree is satisfied."
+            }
+        }
+    }
 }
+
+const REGIME_TAXONOMY: [RegimeLabel; 8] = [
+    RegimeLabel::HighVolSellOff,
+    RegimeLabel::HighVolRecovery,
+    RegimeLabel::LowVolBreakout,
+    RegimeLabel::RiskOnTrend,
+    RegimeLabel::RiskOffTrend,
+    RegimeLabel::HighVolRange,
+    RegimeLabel::LowVolRange,
+    RegimeLabel::MixedTransition,
+];
 
 #[derive(Debug, Clone, Serialize)]
 pub struct DailyRegimeReport {
@@ -173,9 +233,13 @@ pub struct DailyRegimeReport {
     proxy_disclosure: &'static str,
     forecast_horizon: &'static str,
     current_regime: CurrentRegime,
+    regime_taxonomy: Vec<RegimeTaxonomyEntry>,
     current_market: CurrentMarket,
     prediction: NextSessionLean,
+    prediction_interval: PredictionInterval,
+    prediction_rationale: PredictionRationale,
     similar_historical_sessions: Vec<HistoricalAnalog>,
+    same_regime_history: Vec<HistoricalAnalog>,
     walk_forward_validation: WalkForwardValidation,
     feature_snapshot: Vec<FeatureValue>,
     source: DailySource,
@@ -189,9 +253,22 @@ pub struct DailyRegimeReport {
 #[derive(Debug, Clone, Serialize)]
 struct CurrentRegime {
     label: RegimeLabel,
+    display_name: &'static str,
     definition: &'static str,
+    market_summary: String,
+    classification_reasons: Vec<String>,
     volatility_percentile_prior_252: f64,
     cross_asset_breadth: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct RegimeTaxonomyEntry {
+    priority: usize,
+    label: RegimeLabel,
+    display_name: &'static str,
+    definition: &'static str,
+    selection_rule: &'static str,
+    active: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -211,15 +288,43 @@ struct CurrentMarket {
 #[derive(Debug, Clone, Serialize)]
 struct NextSessionLean {
     lean: &'static str,
+    directional_call_status: &'static str,
     target_definition: &'static str,
     analog_sample_size: usize,
     raw_up_count: usize,
     raw_down_or_flat_count: usize,
     raw_up_frequency: f64,
+    raw_directional_agreement: f64,
+    minimum_directional_agreement: f64,
+    reported_evidence_strength: Option<f64>,
     median_next_session_return_pct: f64,
     mean_next_session_return_pct: f64,
     calibrated_probability: bool,
     interpretation: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PredictionInterval {
+    method: &'static str,
+    nominal_coverage: f64,
+    point_estimate_pct: f64,
+    lower_bound_pct: f64,
+    upper_bound_pct: f64,
+    calibration_sessions: usize,
+    evaluated_sessions: usize,
+    covered_sessions: usize,
+    empirical_coverage: Option<f64>,
+    directional_probability: bool,
+    interpretation: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct PredictionRationale {
+    conclusion: String,
+    supporting_evidence: Vec<String>,
+    opposing_evidence: Vec<String>,
+    uncertainty_reasons: Vec<String>,
+    model_steps: Vec<&'static str>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -304,6 +409,24 @@ struct RankedAnalog {
     index: usize,
     distance: f64,
     next_return: f64,
+}
+
+#[derive(Debug)]
+struct WalkForwardComputation {
+    validation: WalkForwardValidation,
+    residuals: Vec<f64>,
+    interval_evaluated_sessions: usize,
+    interval_covered_sessions: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct AnalogPredictionSummary {
+    lean: &'static str,
+    up_count: usize,
+    analog_count: usize,
+    raw_up: f64,
+    median: f64,
+    average: f64,
 }
 
 fn utc_from_nanos(value: u64) -> Result<DateTime<Utc>> {
@@ -715,6 +838,8 @@ fn classify_regime(features: &[f64], volatility_percentile: f64) -> RegimeLabel 
         RegimeLabel::HighVolSellOff
     } else if volatility_percentile >= 0.75 && one_day >= 0.0075 {
         RegimeLabel::HighVolRecovery
+    } else if volatility_percentile <= 0.25 && trend_20d >= 0.02 && breadth >= 0.5 && hyg >= 0.0 {
+        RegimeLabel::LowVolBreakout
     } else if trend_20d >= 0.02 && breadth >= 0.5 && hyg >= 0.0 {
         RegimeLabel::RiskOnTrend
     } else if trend_20d <= -0.02 && breadth <= 0.5 && hyg < 0.0 {
@@ -741,7 +866,7 @@ fn volatility_percentile(rows: &[FeatureRow], index: usize) -> f64 {
         / prior.len() as f64
 }
 
-fn ranked_analogs(
+fn ranked_same_regime_history(
     rows: &[FeatureRow],
     query_index: usize,
     purge_sessions: usize,
@@ -795,8 +920,18 @@ fn ranked_analogs(
             .total_cmp(&right.distance)
             .then_with(|| rows[right.index].date.cmp(&rows[left.index].date))
     });
-    ranked.truncate(ANALOG_NEIGHBORS);
     ranked
+}
+
+fn nearest_analogs(
+    rows: &[FeatureRow],
+    query_index: usize,
+    purge_sessions: usize,
+) -> Vec<RankedAnalog> {
+    ranked_same_regime_history(rows, query_index, purge_sessions)
+        .into_iter()
+        .take(ANALOG_NEIGHBORS)
+        .collect()
 }
 
 fn lean_from_analogs(analogs: &[RankedAnalog]) -> (&'static str, usize, f64, f64, f64) {
@@ -811,9 +946,9 @@ fn lean_from_analogs(analogs: &[RankedAnalog]) -> (&'static str, usize, f64, f64
         .collect::<Vec<_>>();
     let median = quantile(returns.clone(), 0.5);
     let average = mean(&returns);
-    let lean = if raw_up >= 0.55 && median > 0.0 {
+    let lean = if raw_up >= DIRECTIONAL_AGREEMENT_THRESHOLD && median > 0.0 {
         "UP"
-    } else if raw_up <= 0.45 && median < 0.0 {
+    } else if raw_up <= 1.0 - DIRECTIONAL_AGREEMENT_THRESHOLD && median < 0.0 {
         "DOWN"
     } else {
         "MIXED"
@@ -821,41 +956,69 @@ fn lean_from_analogs(analogs: &[RankedAnalog]) -> (&'static str, usize, f64, f64
     (lean, up_count, raw_up, median, average)
 }
 
-fn walk_forward(rows: &[FeatureRow]) -> WalkForwardValidation {
+fn conformal_residual_quantile(residuals: &[f64], coverage: f64) -> Option<f64> {
+    if residuals.is_empty() {
+        return None;
+    }
+    let mut sorted = residuals.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    let rank = (((sorted.len() + 1) as f64 * coverage).ceil() as usize).clamp(1, sorted.len());
+    Some(sorted[rank - 1])
+}
+
+fn walk_forward(rows: &[FeatureRow]) -> WalkForwardComputation {
     let start = rows.len().saturating_sub(127).max(80);
     let mut eligible_queries = 0;
     let mut directional_calls = 0;
     let mut correct = 0;
+    let mut residuals = Vec::new();
+    let mut interval_evaluated_sessions = 0;
+    let mut interval_covered_sessions = 0;
     for query_index in start..rows.len().saturating_sub(1) {
-        let analogs = ranked_analogs(rows, query_index, 1);
+        let analogs = nearest_analogs(rows, query_index, 1);
         if analogs.len() < MINIMUM_ANALOGS {
             continue;
         }
         eligible_queries += 1;
-        let (lean, _, _, _, _) = lean_from_analogs(&analogs);
-        if lean == "MIXED" {
-            continue;
-        }
-        directional_calls += 1;
         let realized = rows[query_index + 1].spy.close / rows[query_index].spy.close - 1.0;
-        if (lean == "UP" && realized > 0.0) || (lean == "DOWN" && realized < 0.0) {
-            correct += 1;
+        let (lean, _, _, median, _) = lean_from_analogs(&analogs);
+        if residuals.len() >= MINIMUM_INTERVAL_CALIBRATION_SESSIONS
+            && let Some(radius) =
+                conformal_residual_quantile(&residuals, PREDICTION_INTERVAL_COVERAGE)
+        {
+            interval_evaluated_sessions += 1;
+            if (realized - median).abs() <= radius {
+                interval_covered_sessions += 1;
+            }
+        }
+        residuals.push((realized - median).abs());
+        if lean != "MIXED" {
+            directional_calls += 1;
+            if (lean == "UP" && realized > 0.0) || (lean == "DOWN" && realized < 0.0) {
+                correct += 1;
+            }
         }
     }
-    WalkForwardValidation {
-        method: "PURGED_EXPANDING_WALK_FORWARD",
-        evaluation_window_sessions: rows.len().saturating_sub(start + 1),
-        eligible_queries,
-        directional_calls,
-        correct_directional_calls: correct,
-        raw_directional_hit_frequency: (directional_calls > 0)
-            .then_some(correct as f64 / directional_calls as f64),
-        probability_interpretation_allowed: false,
-        notes: vec![
-            "Each validation query uses only earlier sessions and next-session labels already available before that query.",
-            "One full session is purged between an analog label and the validation query.",
-            "The raw hit frequency is descriptive and is not a calibrated probability.",
-        ],
+    WalkForwardComputation {
+        validation: WalkForwardValidation {
+            method: "PURGED_EXPANDING_WALK_FORWARD",
+            evaluation_window_sessions: rows.len().saturating_sub(start + 1),
+            eligible_queries,
+            directional_calls,
+            correct_directional_calls: correct,
+            raw_directional_hit_frequency: (directional_calls > 0)
+                .then_some(correct as f64 / directional_calls as f64),
+            probability_interpretation_allowed: false,
+            notes: vec![
+                "Each validation query uses only earlier sessions and next-session labels already available before that query.",
+                "One full session is purged between an analog label and the validation query.",
+                "Directional calls require at least 60% raw sign agreement plus a same-sign median return.",
+                "The raw hit frequency is descriptive and is not a calibrated probability.",
+            ],
+        },
+        residuals,
+        interval_evaluated_sessions,
+        interval_covered_sessions,
     }
 }
 
@@ -883,6 +1046,211 @@ fn feature_snapshot(row: &FeatureRow) -> Vec<FeatureValue> {
             },
         })
         .collect()
+}
+
+fn historical_sessions(rows: &[FeatureRow], analogs: &[RankedAnalog]) -> Vec<HistoricalAnalog> {
+    analogs
+        .iter()
+        .enumerate()
+        .map(|(rank, analog)| HistoricalAnalog {
+            rank: rank + 1,
+            session_date_et: rows[analog.index].date,
+            regime: rows[analog.index].regime,
+            standardized_euclidean_distance: analog.distance,
+            session_return_pct: session_return(&rows[analog.index].spy) * 100.0,
+            next_session_date_et: rows[analog.index + 1].date,
+            next_session_return_pct: analog.next_return * 100.0,
+            next_session_direction: if analog.next_return > 0.0 {
+                "UP"
+            } else if analog.next_return < 0.0 {
+                "DOWN"
+            } else {
+                "FLAT"
+            },
+        })
+        .collect()
+}
+
+fn regime_taxonomy(active: RegimeLabel) -> Vec<RegimeTaxonomyEntry> {
+    REGIME_TAXONOMY
+        .iter()
+        .enumerate()
+        .map(|(index, label)| RegimeTaxonomyEntry {
+            priority: index + 1,
+            label: *label,
+            display_name: label.display_name(),
+            definition: label.definition(),
+            selection_rule: label.selection_rule(),
+            active: *label == active,
+        })
+        .collect()
+}
+
+fn regime_classification_reasons(current: &FeatureRow, volatility_percentile: f64) -> Vec<String> {
+    let one_day = current.features[0] * 100.0;
+    let trend_20d = current.features[3] * 100.0;
+    let breadth = cross_asset_breadth(&current.features) * 100.0;
+    let hyg = current.features[11] * 100.0;
+    let volatility_tier = if volatility_percentile >= 0.75 {
+        "high"
+    } else if volatility_percentile <= 0.25 {
+        "low"
+    } else {
+        "middle"
+    };
+    let trend_tier = if trend_20d >= 2.0 {
+        "positive"
+    } else if trend_20d <= -2.0 {
+        "negative"
+    } else {
+        "flat-to-mixed"
+    };
+    vec![
+        format!(
+            "SPY completed-session return was {one_day:+.2}%; the high-volatility directional trigger is ±0.75% and also requires volatility at or above the 75th percentile."
+        ),
+        format!(
+            "The 20-session SPY return was {trend_20d:+.2}%, classified as {trend_tier} relative to the ±2.00% trend thresholds."
+        ),
+        format!(
+            "The 20-session annualized volatility ranked at the {:.2}th percentile of the prior 252 sessions, which is the {volatility_tier} volatility tier.",
+            volatility_percentile * 100.0
+        ),
+        format!(
+            "Cross-asset breadth was {breadth:.2}% and HYG returned {hyg:+.2}% in the completed session."
+        ),
+        format!(
+            "The ordered eight-state decision tree selected {} because no higher-priority state matched all of its required conditions.",
+            current.regime.display_name()
+        ),
+    ]
+}
+
+fn prediction_rationale(
+    current: &FeatureRow,
+    all_same_regime_count: usize,
+    prediction: AnalogPredictionSummary,
+    interval: &PredictionInterval,
+    validation: &WalkForwardValidation,
+) -> PredictionRationale {
+    let AnalogPredictionSummary {
+        lean,
+        up_count,
+        analog_count,
+        raw_up,
+        median,
+        average,
+    } = prediction;
+    let down_or_flat_count = analog_count - up_count;
+    let agreement = raw_up.max(1.0 - raw_up);
+    let mut supporting_evidence = Vec::new();
+    let mut opposing_evidence = Vec::new();
+    if up_count > 0 {
+        supporting_evidence.push(format!(
+            "{up_count} of {analog_count} nearest same-regime analogs were followed by an up session ({:.2}% raw frequency).",
+            raw_up * 100.0
+        ));
+    }
+    if down_or_flat_count > 0 {
+        opposing_evidence.push(format!(
+            "{down_or_flat_count} of {analog_count} nearest same-regime analogs were followed by a down or flat session ({:.2}% raw frequency).",
+            (1.0 - raw_up) * 100.0
+        ));
+    }
+    let median_sentence = format!(
+        "The nearest-analog median next-session return was {:+.3}% and the mean was {:+.3}%.",
+        median * 100.0,
+        average * 100.0
+    );
+    if median > 0.0 {
+        supporting_evidence.push(median_sentence);
+    } else {
+        opposing_evidence.push(median_sentence);
+    }
+    if current.features[3] > 0.0 {
+        supporting_evidence.push(format!(
+            "SPY's completed 20-session return was {:+.2}%, while cross-asset breadth was {:.2}%.",
+            current.features[3] * 100.0,
+            cross_asset_breadth(&current.features) * 100.0
+        ));
+    } else {
+        opposing_evidence.push(format!(
+            "SPY's completed 20-session return was {:+.2}%, while cross-asset breadth was {:.2}%.",
+            current.features[3] * 100.0,
+            cross_asset_breadth(&current.features) * 100.0
+        ));
+    }
+
+    let mut uncertainty_reasons = vec![
+        format!(
+            "The current state has {all_same_regime_count} mature historical matches; only the 15 nearest are used for the directional rule."
+        ),
+        format!(
+            "The 90% prequential conformal return interval is {:+.3}% to {:+.3}%; it is a return interval, not a directional probability.",
+            interval.lower_bound_pct, interval.upper_bound_pct
+        ),
+        "Macro releases and news are display-only context and are not numerical inputs to this version of the Rust model.".to_string(),
+    ];
+    if agreement < DIRECTIONAL_AGREEMENT_THRESHOLD {
+        uncertainty_reasons.push(format!(
+            "Raw directional agreement was {:.2}%, below the required {:.0}% threshold, so no directional confidence number is published.",
+            agreement * 100.0,
+            DIRECTIONAL_AGREEMENT_THRESHOLD * 100.0
+        ));
+    }
+    if interval.lower_bound_pct <= 0.0 && interval.upper_bound_pct >= 0.0 {
+        uncertainty_reasons.push(
+            "The return prediction interval crosses zero, so both positive and negative next-session outcomes remain historically plausible."
+                .to_string(),
+        );
+    }
+    let conclusion = if lean == "UP" {
+        format!(
+            "UP research lean: raw directional agreement is {:.2}% and the analog median is positive. This agreement is not a calibrated probability.",
+            agreement * 100.0
+        )
+    } else if lean == "DOWN" {
+        format!(
+            "DOWN research lean: raw directional agreement is {:.2}% and the analog median is negative. This agreement is not a calibrated probability.",
+            agreement * 100.0
+        )
+    } else {
+        format!(
+            "NO DIRECTIONAL CALL: raw agreement is {:.2}%, below the {:.0}% publication threshold.",
+            agreement * 100.0,
+            DIRECTIONAL_AGREEMENT_THRESHOLD * 100.0
+        )
+    };
+    let validation_sentence = validation
+        .raw_directional_hit_frequency
+        .map(|hit| {
+            format!(
+                "Purged walk-forward validation made {} threshold-qualified directional calls with {:.2}% raw historical accuracy; this is not a future probability.",
+                validation.directional_calls,
+                hit * 100.0
+            )
+        })
+        .unwrap_or_else(|| {
+            "Purged walk-forward validation produced no threshold-qualified directional calls."
+                .to_string()
+        });
+    uncertainty_reasons.push(validation_sentence);
+
+    PredictionRationale {
+        conclusion,
+        supporting_evidence,
+        opposing_evidence,
+        uncertainty_reasons,
+        model_steps: vec![
+            "Read only completed, manifest-verified Databento regular sessions and map SPX to SPY.",
+            "Construct 15 causal SPY price-volume and cross-asset features.",
+            "Apply the ordered eight-regime deterministic state classifier.",
+            "Fit feature scaling only on mature, earlier sessions in the selected regime.",
+            "Rank every mature same-regime session by standardized-Euclidean distance and use the nearest 15 for the directional rule.",
+            "Publish UP or DOWN only when raw sign agreement is at least 60% and the median return has the same sign; otherwise publish no directional call.",
+            "Build the 90% return interval from earlier prequential absolute forecast residuals with a one-session purge.",
+        ],
+    }
 }
 
 pub fn build_daily_regime_report(
@@ -915,37 +1283,60 @@ pub fn build_daily_regime_report(
     let rows = build_features(&tape)?;
     let current_index = rows.len() - 1;
     let current = &rows[current_index];
-    let analogs = ranked_analogs(&rows, current_index, 0);
+    let all_same_regime = ranked_same_regime_history(&rows, current_index, 0);
+    let analogs = all_same_regime
+        .iter()
+        .take(ANALOG_NEIGHBORS)
+        .cloned()
+        .collect::<Vec<_>>();
     if analogs.len() < MINIMUM_ANALOGS {
         bail!("DAILY_REGIME_ANALOG_COVERAGE_INSUFFICIENT");
     }
     let (lean, up_count, raw_up, median, average) = lean_from_analogs(&analogs);
+    let walk_forward = walk_forward(&rows);
+    let interval_radius =
+        conformal_residual_quantile(&walk_forward.residuals, PREDICTION_INTERVAL_COVERAGE)
+            .context("DAILY_REGIME_INTERVAL_CALIBRATION_INSUFFICIENT")?;
+    let prediction_interval = PredictionInterval {
+        method: "PREQUENTIAL_ABSOLUTE_RESIDUAL_CONFORMAL",
+        nominal_coverage: PREDICTION_INTERVAL_COVERAGE,
+        point_estimate_pct: median * 100.0,
+        lower_bound_pct: (median - interval_radius) * 100.0,
+        upper_bound_pct: (median + interval_radius) * 100.0,
+        calibration_sessions: walk_forward.residuals.len(),
+        evaluated_sessions: walk_forward.interval_evaluated_sessions,
+        covered_sessions: walk_forward.interval_covered_sessions,
+        empirical_coverage: (walk_forward.interval_evaluated_sessions > 0).then_some(
+            walk_forward.interval_covered_sessions as f64
+                / walk_forward.interval_evaluated_sessions as f64,
+        ),
+        directional_probability: false,
+        interpretation: "A 90% next-session return prediction interval centered on the nearest-analog median and calibrated from earlier prequential absolute residuals. It is not a directional probability or guarantee.",
+    };
     let volatility_percentile = volatility_percentile(&rows, current_index);
     let history_start = rows.first().context("NO_FEATURE_ROWS")?.date;
     let history_end = current.date;
-    let similar_historical_sessions = analogs
-        .iter()
-        .enumerate()
-        .map(|(rank, analog)| HistoricalAnalog {
-            rank: rank + 1,
-            session_date_et: rows[analog.index].date,
-            regime: rows[analog.index].regime,
-            standardized_euclidean_distance: analog.distance,
-            session_return_pct: session_return(&rows[analog.index].spy) * 100.0,
-            next_session_date_et: rows[analog.index + 1].date,
-            next_session_return_pct: analog.next_return * 100.0,
-            next_session_direction: if analog.next_return > 0.0 {
-                "UP"
-            } else if analog.next_return < 0.0 {
-                "DOWN"
-            } else {
-                "FLAT"
-            },
-        })
-        .collect::<Vec<_>>();
+    let similar_historical_sessions = historical_sessions(&rows, &analogs);
+    let same_regime_history = historical_sessions(&rows, &all_same_regime);
+    let raw_directional_agreement = raw_up.max(1.0 - raw_up);
+    let prediction_rationale = prediction_rationale(
+        current,
+        same_regime_history.len(),
+        AnalogPredictionSummary {
+            lean,
+            up_count,
+            analog_count: analogs.len(),
+            raw_up,
+            median,
+            average,
+        },
+        &prediction_interval,
+        &walk_forward.validation,
+    );
+    let classification_reasons = regime_classification_reasons(current, volatility_percentile);
 
     Ok(DailyRegimeReport {
-        schema_version: "axio.daily-regime.v1",
+        schema_version: "axio.daily-regime.v2",
         status: "AVAILABLE_UNCALIBRATED",
         result_kind: "NEXT_REGULAR_SESSION_ANALOG_LEAN",
         generated_at: Utc::now(),
@@ -956,10 +1347,21 @@ pub fn build_daily_regime_report(
         forecast_horizon: "NEXT_COMPLETE_US_REGULAR_SESSION",
         current_regime: CurrentRegime {
             label: current.regime,
+            display_name: current.regime.display_name(),
             definition: current.regime.definition(),
+            market_summary: format!(
+                "SPY closed {:+.2}% for the session, its 20-session return was {:+.2}%, 20-session annualized volatility was {:.2}%, volatility ranked at the {:.2}th percentile, and cross-asset breadth was {:.2}%.",
+                current.features[0] * 100.0,
+                current.features[3] * 100.0,
+                current.features[4] * 100.0,
+                volatility_percentile * 100.0,
+                cross_asset_breadth(&current.features) * 100.0,
+            ),
+            classification_reasons,
             volatility_percentile_prior_252: volatility_percentile,
             cross_asset_breadth: cross_asset_breadth(&current.features),
         },
+        regime_taxonomy: regime_taxonomy(current.regime),
         current_market: CurrentMarket {
             session_date_et: current.date,
             open: current.spy.open,
@@ -974,18 +1376,29 @@ pub fn build_daily_regime_report(
         },
         prediction: NextSessionLean {
             lean,
+            directional_call_status: if lean == "MIXED" {
+                "WITHHELD_INSUFFICIENT_AGREEMENT"
+            } else {
+                "PUBLISHED_RAW_RESEARCH_LEAN"
+            },
             target_definition: "SPY next regular-session close divided by the current regular-session close, minus one.",
             analog_sample_size: analogs.len(),
             raw_up_count: up_count,
             raw_down_or_flat_count: analogs.len() - up_count,
             raw_up_frequency: raw_up,
+            raw_directional_agreement,
+            minimum_directional_agreement: DIRECTIONAL_AGREEMENT_THRESHOLD,
+            reported_evidence_strength: (lean != "MIXED").then_some(raw_directional_agreement),
             median_next_session_return_pct: median * 100.0,
             mean_next_session_return_pct: average * 100.0,
             calibrated_probability: false,
-            interpretation: "Directional research lean derived from the sign agreement of same-regime historical analogs; it is not a probability or recommendation.",
+            interpretation: "A directional research lean is published only when nearest-analog sign agreement is at least 60% and the median return has the same sign. Otherwise the directional call and confidence number are withheld.",
         },
+        prediction_interval,
+        prediction_rationale,
         similar_historical_sessions,
-        walk_forward_validation: walk_forward(&rows),
+        same_regime_history,
+        walk_forward_validation: walk_forward.validation,
         feature_snapshot: feature_snapshot(current),
         source: DailySource {
             provider: "Databento",
@@ -1002,10 +1415,10 @@ pub fn build_daily_regime_report(
         },
         model_contract: DailyModelContract {
             model_id: "axio7.spx-next-session-regime-analog",
-            model_version: "2026-07-30.v2",
+            model_version: "2026-07-30.v3",
             owner: "quant_engine_rs",
-            regime_algorithm: "Causal deterministic trend-volatility-breadth state map using only completed sessions.",
-            analog_algorithm: "Same-regime 15-neighbor standardized-Euclidean retrieval over 15 causal price-volume and cross-asset features.",
+            regime_algorithm: "Ordered causal eight-state trend-volatility-breadth decision tree using only completed sessions.",
+            analog_algorithm: "All mature same-regime sessions are ranked by standardized-Euclidean distance over 15 causal features; the nearest 15 drive the thresholded directional rule and prequential conformal return interval.",
             feature_count: FEATURE_NAMES.len(),
             neighbors: ANALOG_NEIGHBORS,
             minimum_analogs: MINIMUM_ANALOGS,
@@ -1022,6 +1435,8 @@ pub fn build_daily_regime_report(
         automatic_execution_enabled: false,
         caveats: vec![
             "Raw analog frequencies and walk-forward hit frequencies are descriptive statistics, not calibrated probabilities.",
+            "The 90% conformal interval is a next-session return prediction interval, not a 90% directional probability.",
+            "No directional confidence number is published when raw nearest-analog agreement is below 60%.",
             "SPY is an explicit proxy for SPX price and volume research.",
             "The historical window begins in 2023 and does not represent every possible market cycle.",
             "Macro and news context shown by the website is not yet a numerical input to this daily analog model.",
@@ -1059,7 +1474,7 @@ mod tests {
         let rows = (0..40)
             .map(|index| feature_row(index, RegimeLabel::RiskOnTrend, 0.001))
             .collect::<Vec<_>>();
-        let analogs = ranked_analogs(&rows, 39, 1);
+        let analogs = nearest_analogs(&rows, 39, 1);
         assert_eq!(analogs.len(), ANALOG_NEIGHBORS);
         assert!(analogs.iter().all(|analog| analog.index + 2 < 39));
     }
@@ -1081,6 +1496,20 @@ mod tests {
     }
 
     #[test]
+    fn near_fifty_fifty_analogs_withhold_the_directional_call() {
+        let analogs = (0..15)
+            .map(|index| RankedAnalog {
+                index,
+                distance: index as f64,
+                next_return: if index < 8 { 0.01 } else { -0.005 },
+            })
+            .collect::<Vec<_>>();
+        let (lean, _, raw_up, _, _) = lean_from_analogs(&analogs);
+        assert_eq!(lean, "MIXED");
+        assert!(raw_up < DIRECTIONAL_AGREEMENT_THRESHOLD);
+    }
+
+    #[test]
     fn high_volatility_selloff_is_named_deterministically() {
         let mut features = vec![0.0; FEATURE_NAMES.len()];
         features[0] = -0.02;
@@ -1088,6 +1517,34 @@ mod tests {
             classify_regime(&features, 0.90),
             RegimeLabel::HighVolSellOff
         );
+    }
+
+    #[test]
+    fn taxonomy_has_eight_unique_states_and_low_volatility_breakout() {
+        let unique = REGIME_TAXONOMY
+            .iter()
+            .map(|label| format!("{label:?}"))
+            .collect::<BTreeSet<_>>();
+        assert_eq!(REGIME_TAXONOMY.len(), 8);
+        assert_eq!(unique.len(), 8);
+
+        let mut features = vec![0.0; FEATURE_NAMES.len()];
+        features[3] = 0.03;
+        features[8] = 0.01;
+        features[9] = 0.01;
+        features[10] = 0.01;
+        features[11] = 0.001;
+        assert_eq!(
+            classify_regime(&features, 0.10),
+            RegimeLabel::LowVolBreakout
+        );
+    }
+
+    #[test]
+    fn conformal_quantile_uses_finite_sample_rank() {
+        let residuals = (1..=99).map(|value| value as f64).collect::<Vec<_>>();
+        assert_eq!(conformal_residual_quantile(&residuals, 0.90), Some(90.0));
+        assert_eq!(conformal_residual_quantile(&[], 0.90), None);
     }
 
     #[test]

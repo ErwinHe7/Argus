@@ -1140,6 +1140,315 @@ a.monitorEmpty:hover {
   margin-top: 21px;
 }
 
+.reportStep {
+  margin-top: 22px;
+  padding-top: 17px;
+  border-top: 1px solid var(--line);
+}
+
+.stepHeading {
+  display: grid;
+  margin-bottom: 14px;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+}
+
+.stepHeading > span {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #cfc9bf;
+  border-radius: 8px;
+  place-items: center;
+  color: #8b6252;
+  background: #f8f4ef;
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+}
+
+.stepHeading strong {
+  display: block;
+  color: #37342f;
+  font-size: 15px;
+  font-weight: 720;
+}
+
+.stepHeading p {
+  margin: 4px 0 0;
+  color: #858077;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.regimeHero {
+  display: grid;
+  padding: 16px;
+  border: 1px solid #d9d3ca;
+  border-radius: 11px;
+  grid-template-columns: minmax(180px, 0.78fr) minmax(0, 1.22fr);
+  align-items: center;
+  gap: 20px;
+  background: linear-gradient(135deg, #fbf7f1, #f7f5f1);
+}
+
+.regimeHero > div {
+  display: grid;
+  gap: 4px;
+}
+
+.regimeHero small,
+.predictionHero small,
+.intervalCard small {
+  color: #9b7769;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.1em;
+}
+
+.regimeHero strong {
+  color: #34312c;
+  font-size: 19px;
+  line-height: 1.2;
+}
+
+.regimeHero span {
+  color: #908a82;
+  font-size: 9px;
+  font-weight: 680;
+  letter-spacing: 0.04em;
+}
+
+.regimeHero p,
+.intervalCard > p {
+  margin: 0;
+  color: #6f6961;
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.reasonList {
+  display: grid;
+  margin-top: 10px;
+  gap: 6px;
+}
+
+.reasonList article {
+  display: grid;
+  padding: 8px 10px;
+  border-left: 2px solid #d7d1c8;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 7px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.reasonList span {
+  color: #a1988e;
+  font-size: 9px;
+  font-weight: 740;
+}
+
+.reasonList p {
+  margin: 0;
+  color: #777168;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.regimeTaxonomy {
+  display: grid;
+  margin-top: 13px;
+  border-top: 1px solid var(--line-soft);
+  border-left: 1px solid var(--line-soft);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.regimeTaxonomy article {
+  min-width: 0;
+  padding: 11px 12px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.regimeTaxonomy article[data-active='true'] {
+  box-shadow: inset 3px 0 0 #8b6252;
+  background: #f8f1e9;
+}
+
+.regimeTaxonomy article > div {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.regimeTaxonomy article > div > span {
+  color: #aaa39a;
+  font-size: 9px;
+  font-weight: 720;
+}
+
+.regimeTaxonomy article strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #514d47;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.regimeTaxonomy article b {
+  margin-left: auto;
+  color: #8b6252;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.regimeTaxonomy article p {
+  margin: 6px 0 0;
+  color: #817b73;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.regimeTaxonomy article small {
+  display: block;
+  margin-top: 5px;
+  color: #aaa49c;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.historyEvidence > div {
+  max-height: 480px;
+  overflow-y: auto;
+  scrollbar-color: #c9c3ba transparent;
+  scrollbar-width: thin;
+}
+
+.predictionHero {
+  display: grid;
+  padding: 17px;
+  border: 1px solid rgba(149, 85, 76, 0.3);
+  border-radius: 11px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(220px, 0.75fr);
+  gap: 18px;
+  background: rgba(149, 85, 76, 0.045);
+}
+
+.predictionHero[data-published='true'] {
+  border-color: rgba(92, 120, 95, 0.34);
+  background: rgba(92, 120, 95, 0.055);
+}
+
+.predictionHero > div {
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.predictionHero > div > strong {
+  color: #3a3631;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.predictionHero p,
+.intervalCard p,
+.reasonGrid p {
+  margin: 0;
+  color: #777168;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.predictionHero dl,
+.intervalCard dl {
+  display: grid;
+  margin: 0;
+  gap: 7px;
+}
+
+.predictionHero dl > div,
+.intervalCard dl > div {
+  display: flex;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(130, 123, 113, 0.14);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.predictionHero dt,
+.intervalCard dt {
+  color: #8d877f;
+  font-size: 9px;
+}
+
+.predictionHero dd,
+.intervalCard dd {
+  margin: 0;
+  color: #4e4a44;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.intervalCard {
+  display: grid;
+  margin-top: 10px;
+  padding: 15px 16px;
+  border: 1px solid #dcd7cf;
+  border-radius: 10px;
+  grid-template-columns: minmax(0, 1.2fr) minmax(190px, 0.8fr);
+  gap: 16px 22px;
+  background: #fbfaf7;
+}
+
+.intervalCard > div:first-child {
+  display: grid;
+  gap: 5px;
+}
+
+.intervalCard > div > strong {
+  color: #3d3934;
+  font-size: 18px;
+  line-height: 1.25;
+}
+
+.intervalCard > p {
+  padding-top: 9px;
+  border-top: 1px solid var(--line-soft);
+  grid-column: 1 / -1;
+}
+
+.reasonGrid {
+  display: grid;
+  margin-top: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.reasonGrid article {
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+.reasonGrid strong {
+  display: block;
+  margin-bottom: 7px;
+  color: #57524b;
+  font-size: 10px;
+}
+
+.reasonGrid p + p {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-soft);
+}
+
 .interpretedQuery {
   margin-bottom: 14px;
   overflow: hidden;
@@ -1853,6 +2162,27 @@ a.monitorEmpty:hover {
   .recoveryActions button {
     min-height: 42px;
     justify-content: center;
+  }
+
+  .regimeHero,
+  .predictionHero,
+  .intervalCard {
+    grid-template-columns: 1fr;
+  }
+
+  .regimeTaxonomy,
+  .reasonGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .regimeHero,
+  .predictionHero,
+  .intervalCard {
+    padding: 13px;
+  }
+
+  .historyEvidence > div {
+    max-height: 400px;
   }
 
   .signalCard {

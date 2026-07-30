@@ -81,12 +81,18 @@ test('tomorrow SPX questions use the Rust daily-regime and analog contract', () 
     rustApi,
     /"\/api\/v1\/research\/daily-regime"[\s\S]*get\(research_daily_regime\)/
   );
-  assert.match(rustDaily, /axio\.daily-regime\.v1/);
+  assert.match(rustDaily, /axio\.daily-regime\.v2/);
   assert.match(rustDaily, /NEXT_REGULAR_SESSION_ANALOG_LEAN/);
   assert.match(rustDaily, /Raw analog frequencies/);
   assert.match(rustDaily, /probability_published:\s*false/);
   assert.match(rustDaily, /automatic_execution_enabled:\s*false/);
-  assert.match(rustDaily, /ranked_analogs\(&rows,\s*current_index,\s*0\)/);
+  assert.match(
+    rustDaily,
+    /ranked_same_regime_history\(&rows,\s*current_index,\s*0\)/
+  );
+  assert.match(rustDaily, /REGIME_TAXONOMY:\s*\[RegimeLabel;\s*8\]/);
+  assert.match(rustDaily, /DIRECTIONAL_AGREEMENT_THRESHOLD:\s*f64\s*=\s*0\.60/);
+  assert.match(rustDaily, /PREQUENTIAL_ABSOLUTE_RESIDUAL_CONFORMAL/);
   assert.match(rustDaily, /PURGED_EXPANDING_WALK_FORWARD/);
   assert.match(client, /requestQuantDailyRegime/);
   assert.match(
@@ -99,7 +105,9 @@ test('tomorrow SPX questions use the Rust daily-regime and analog contract', () 
   assert.match(route, /buildNewsPulseReport/);
   assert.match(route, /modelCodeInventory/);
   assert.match(chat, /DailyRegimeDetails/);
-  assert.match(chat, /Most similar historical regimes/);
+  assert.match(chat, /All same-regime history/);
+  assert.match(chat, /NO DIRECTIONAL CALL/);
+  assert.match(chat, /How the model reached this result/);
   assert.match(chat, /Model and algorithm source list/);
   assert.match(llm, /moonshotai\/kimi-k3-free/);
   assert.match(llm, /TOKENROUTER_API_KEY/);

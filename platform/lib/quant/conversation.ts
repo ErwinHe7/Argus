@@ -306,29 +306,54 @@ function deterministicDailyRegimeAnswer(
   news: NewsPulseReport | null,
   locale: ConversationResult['locale']
 ) {
-  const rawPercent = report.prediction.raw_up_frequency * 100;
+  const agreement = report.prediction.raw_directional_agreement * 100;
   const hit = report.walk_forward_validation.raw_directional_hit_frequency;
+  const interval = report.prediction_interval;
+  const empiricalCoverage = interval.empirical_coverage;
+  const nearestDates = report.similar_historical_sessions
+    .slice(0, 3)
+    .map((session) => session.session_date_et)
+    .join(', ');
+  const published =
+    report.prediction.directional_call_status ===
+    'PUBLISHED_RAW_RESEARCH_LEAN';
   if (locale === 'zh-CN') {
     return [
-      `SPX（以 SPY 为价格和成交量代理）的下一完整常规交易时段类比倾向：${report.prediction.lean}。`,
-      `当前市场状态是 ${report.current_regime.label}：${report.current_regime.definition}`,
-      `系统从 ${report.source.complete_feature_sessions} 个完整特征交易日中，选取 ${report.prediction.analog_sample_size} 个同状态近邻；其中 ${report.prediction.raw_up_count} 个下一交易日上涨，原始上涨频率 ${fixed(rawPercent)}%，下一交易日收益中位数 ${signed(report.prediction.median_next_session_return_pct)}。这只是未经校准的历史描述，不是概率。`,
-      `扩展式滚动验证产生 ${report.walk_forward_validation.directional_calls} 次方向判断${
-        hit === null ? '，尚无可报告命中频率' : `，原始方向命中频率 ${fixed(hit * 100)}%`
-      }；它同样不能解释为未来概率。`,
-      `宏观数据状态：${macro?.reliability ?? 'unavailable'}；新闻数据状态：HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}。宏观和新闻目前只作为带来源和时间的展示背景，不会偷偷改变 Rust 类比倾向。`,
+      `第一步｜当前市场状态：${report.current_regime.display_name}（${report.current_regime.label}），属于网站固定的 8 种状态之一。${report.current_regime.market_summary}`,
+      `第二步｜历史同类：完整历史中共有 ${report.same_regime_history.length} 个同状态、且已有下一交易日结果的样本；距离最近的三个日期是 ${nearestDates}。页面下方会列出全部 ${report.same_regime_history.length} 个样本，最近 15 个用于方向规则。`,
+      `第三步｜预测：${
+        published
+          ? `${report.prediction.lean} 研究倾向；原始方向一致度 ${fixed(agreement)}%，达到 ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}% 门槛。该数值不是校准概率。`
+          : `不发布方向判断。原始方向一致度只有 ${fixed(agreement)}%，低于 ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}% 门槛，因此不展示一个虚假的“置信度”。`
+      } 下一交易日收益点估计为 ${signed(interval.point_estimate_pct)}，90% 顺序共形收益区间为 ${signed(interval.lower_bound_pct)} 至 ${signed(interval.upper_bound_pct)}${
+        empiricalCoverage === null
+          ? ''
+          : `；历史滚动覆盖率为 ${fixed(empiricalCoverage * 100)}%`
+      }。这是收益区间，不是涨跌概率。`,
+      `理由：${report.prediction_rationale.conclusion} ${report.prediction_rationale.supporting_evidence.join(' ')} ${report.prediction_rationale.opposing_evidence.join(' ')}`,
+      `模型：Rust 引擎使用 15 个因果特征、按优先级排列的 8 状态分类树、同状态标准化欧氏距离最近邻、60% 方向一致门槛，以及带一交易日隔离的 90% 顺序共形区间。滚动检验产生 ${report.walk_forward_validation.directional_calls} 次合格方向判断${
+        hit === null ? '' : `，原始历史命中率 ${fixed(hit * 100)}%`
+      }；这仍不是未来概率。`,
+      `宏观数据状态：${macro?.reliability ?? 'unavailable'}；新闻数据状态：HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}。当前版本把宏观和新闻作为带来源、时间戳的展示背景，不让语言模型改写 Rust 数值结果。`,
     ].join(' ');
   }
   return [
-    `Next-session SPX analog lean, using SPY as the price and volume proxy: ${report.prediction.lean}.`,
-    `The current market regime is ${report.current_regime.label}: ${report.current_regime.definition}`,
-    `Across ${report.source.complete_feature_sessions} complete feature sessions, the engine selected ${report.prediction.analog_sample_size} same-regime neighbors. ${report.prediction.raw_up_count} were followed by an up session, a raw up frequency of ${fixed(rawPercent)}%, with a median next-session return of ${signed(report.prediction.median_next_session_return_pct)}. This is an uncalibrated historical description, not a probability.`,
-    `The expanding walk-forward check made ${report.walk_forward_validation.directional_calls} directional calls${
-      hit === null
-        ? ' and has no reportable hit frequency'
-        : ` with a raw directional hit frequency of ${fixed(hit * 100)}%`
-    }; that statistic is also not a future probability.`,
-    `Macro context is ${macro?.reliability ?? 'unavailable'}; news context is HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}. Macro and news are timestamped display context only and do not silently alter the Rust analog lean.`,
+    `Step 1 — Current market regime: ${report.current_regime.display_name} (${report.current_regime.label}), one of the fixed eight regimes. ${report.current_regime.market_summary}`,
+    `Step 2 — Historical matches: ${report.same_regime_history.length} mature same-regime sessions were found across the complete history. The three nearest dates are ${nearestDates}; the interface lists all ${report.same_regime_history.length}, while the nearest 15 drive the directional rule.`,
+    `Step 3 — Prediction: ${
+      published
+        ? `${report.prediction.lean} research lean. Raw directional agreement is ${fixed(agreement)}%, above the ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}% threshold; it is not a calibrated probability.`
+        : `NO DIRECTIONAL CALL. Raw directional agreement is ${fixed(agreement)}%, below the ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}% threshold, so no misleading confidence number is published.`
+    } The next-session return point estimate is ${signed(interval.point_estimate_pct)}, with a 90% prequential conformal return interval of ${signed(interval.lower_bound_pct)} to ${signed(interval.upper_bound_pct)}${
+      empiricalCoverage === null
+        ? ''
+        : ` and ${fixed(empiricalCoverage * 100)}% observed walk-forward coverage`
+    }. This is a return interval, not a directional probability.`,
+    `Rationale: ${report.prediction_rationale.conclusion} ${report.prediction_rationale.supporting_evidence.join(' ')} ${report.prediction_rationale.opposing_evidence.join(' ')}`,
+    `Model: the Rust engine uses 15 causal features, an ordered eight-state classifier, standardized-Euclidean same-regime neighbors, a 60% direction-agreement gate, and a purged 90% prequential conformal interval. The walk-forward check made ${report.walk_forward_validation.directional_calls} threshold-qualified directional calls${
+      hit === null ? '' : ` with ${fixed(hit * 100)}% raw historical accuracy`
+    }; that is still not a future probability.`,
+    `Macro context is ${macro?.reliability ?? 'unavailable'}; news context is HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}. Macro and news remain timestamped display context; the language model cannot overwrite Rust quantitative output.`,
   ].join(' ');
 }
 
@@ -406,7 +431,7 @@ export async function explainDailyRegimeResult(
           role: 'system',
           content: `${SYSTEM_BOUNDARY}
 
-Explain the supplied next-session Rust regime-and-analog report in this exact order: outcome, current regime, similar historical sessions, walk-forward evidence, macro/news context, limitations. Every numerical token must appear exactly in the grounding. Call every raw frequency uncalibrated and never call it a probability. Macro and news are display context only, not numerical inputs to the analog lean.`,
+Explain the supplied next-session Rust report in exactly three numbered sections: (1) current market regime and why it was selected from the fixed eight-regime taxonomy; (2) all same-regime history, clearly distinguishing the nearest 15 used by the rule; (3) the next-session conclusion, detailed supporting and opposing evidence, the 90% return prediction interval, walk-forward evidence, and the exact model steps. If directional_call_status is WITHHELD_INSUFFICIENT_AGREEMENT, say NO DIRECTIONAL CALL and do not invent a confidence score. If it is published, call reported_evidence_strength raw directional agreement, never probability. The conformal range is a return prediction interval, never a directional probability. Every numerical token must appear exactly in the grounding. Macro and news are timestamped display context only, not numerical model inputs, and the language model must not change any Rust output.`,
         },
         {
           role: 'user',

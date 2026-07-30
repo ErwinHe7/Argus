@@ -1274,6 +1274,7 @@ export async function requestQuantSessionSummary(
 const DAILY_REGIMES = new Set([
   'HIGH_VOL_SELL_OFF',
   'HIGH_VOL_RECOVERY',
+  'LOW_VOL_BREAKOUT',
   'RISK_ON_TREND',
   'RISK_OFF_TREND',
   'HIGH_VOL_RANGE',
@@ -1286,29 +1287,66 @@ function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
   const regime = record(report?.current_regime);
   const market = record(report?.current_market);
   const prediction = record(report?.prediction);
+  const interval = record(report?.prediction_interval);
+  const rationale = record(report?.prediction_rationale);
   const validation = record(report?.walk_forward_validation);
   const source = record(report?.source);
   const model = record(report?.model_contract);
   const contextPolicy = record(report?.macro_news_policy);
+  const taxonomy = Array.isArray(report?.regime_taxonomy)
+    ? report.regime_taxonomy
+    : [];
   const analogs = Array.isArray(report?.similar_historical_sessions)
     ? report.similar_historical_sessions
+    : [];
+  const sameRegimeHistory = Array.isArray(report?.same_regime_history)
+    ? report.same_regime_history
     : [];
   const features = Array.isArray(report?.feature_snapshot)
     ? report.feature_snapshot
     : [];
   const files = Array.isArray(source?.files) ? source.files : [];
   const coverage = record(market?.minute_coverage);
+  const validHistoricalSession = (value: unknown, index: number) => {
+    const analog = record(value);
+    return (
+      analog !== null &&
+      analog.rank === index + 1 &&
+      typeof analog.session_date_et === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(analog.session_date_et) &&
+      DAILY_REGIMES.has(String(analog.regime)) &&
+      analog.regime === regime?.label &&
+      isFiniteNumber(analog.standardized_euclidean_distance) &&
+      analog.standardized_euclidean_distance >= 0 &&
+      isFiniteNumber(analog.session_return_pct) &&
+      typeof analog.next_session_date_et === 'string' &&
+      /^\d{4}-\d{2}-\d{2}$/.test(analog.next_session_date_et) &&
+      isFiniteNumber(analog.next_session_return_pct) &&
+      (analog.next_session_direction === 'UP' ||
+        analog.next_session_direction === 'DOWN' ||
+        analog.next_session_direction === 'FLAT')
+    );
+  };
+  const taxonomyLabels = taxonomy.map((value) => String(record(value)?.label));
+  const activeTaxonomy = taxonomy.filter(
+    (value) => record(value)?.active === true
+  );
+  const sameRegimeDates = sameRegimeHistory.map(
+    (value) => String(record(value)?.session_date_et)
+  );
   const valid =
     report !== null &&
     regime !== null &&
     market !== null &&
     prediction !== null &&
+    interval !== null &&
+    rationale !== null &&
     validation !== null &&
     source !== null &&
     model !== null &&
     contextPolicy !== null &&
     coverage !== null &&
-    report.schema_version === 'axio.daily-regime.v1' &&
+    report.schema_version === 'axio.daily-regime.v2' &&
     report.status === 'AVAILABLE_UNCALIBRATED' &&
     report.result_kind === 'NEXT_REGULAR_SESSION_ANALOG_LEAN' &&
     isTimestamp(report.generated_at) &&
@@ -1318,13 +1356,35 @@ function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
     isNonEmptyString(report.proxy_disclosure) &&
     report.forecast_horizon === 'NEXT_COMPLETE_US_REGULAR_SESSION' &&
     DAILY_REGIMES.has(String(regime.label)) &&
+    isNonEmptyString(regime.display_name) &&
     isNonEmptyString(regime.definition) &&
+    isNonEmptyString(regime.market_summary) &&
+    Array.isArray(regime.classification_reasons) &&
+    regime.classification_reasons.length >= 5 &&
+    regime.classification_reasons.every(isNonEmptyString) &&
     isFiniteNumber(regime.volatility_percentile_prior_252) &&
     regime.volatility_percentile_prior_252 >= 0 &&
     regime.volatility_percentile_prior_252 <= 1 &&
     isFiniteNumber(regime.cross_asset_breadth) &&
     regime.cross_asset_breadth >= 0 &&
     regime.cross_asset_breadth <= 1 &&
+    taxonomy.length === 8 &&
+    new Set(taxonomyLabels).size === 8 &&
+    taxonomyLabels.every((label) => DAILY_REGIMES.has(label)) &&
+    activeTaxonomy.length === 1 &&
+    record(activeTaxonomy[0])?.label === regime.label &&
+    taxonomy.every((value, index) => {
+      const item = record(value);
+      return (
+        item !== null &&
+        item.priority === index + 1 &&
+        DAILY_REGIMES.has(String(item.label)) &&
+        isNonEmptyString(item.display_name) &&
+        isNonEmptyString(item.definition) &&
+        isNonEmptyString(item.selection_rule) &&
+        typeof item.active === 'boolean'
+      );
+    }) &&
     typeof market.session_date_et === 'string' &&
     /^\d{4}-\d{2}-\d{2}$/.test(market.session_date_et) &&
     [
@@ -1355,6 +1415,10 @@ function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
     (prediction.lean === 'UP' ||
       prediction.lean === 'DOWN' ||
       prediction.lean === 'MIXED') &&
+    (prediction.directional_call_status ===
+      'PUBLISHED_RAW_RESEARCH_LEAN' ||
+      prediction.directional_call_status ===
+        'WITHHELD_INSUFFICIENT_AGREEMENT') &&
     isNonEmptyString(prediction.target_definition) &&
     Number.isSafeInteger(prediction.analog_sample_size) &&
     (prediction.analog_sample_size as number) >= 10 &&
@@ -1369,30 +1433,73 @@ function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
         (prediction.raw_up_count as number) /
           (prediction.analog_sample_size as number)
     ) < 1e-10 &&
+    isFiniteNumber(prediction.raw_directional_agreement) &&
+    Math.abs(
+      prediction.raw_directional_agreement -
+        Math.max(
+          prediction.raw_up_frequency as number,
+          1 - (prediction.raw_up_frequency as number)
+        )
+    ) < 1e-10 &&
+    prediction.minimum_directional_agreement === 0.6 &&
+    isOptionalFiniteNumber(prediction.reported_evidence_strength) &&
+    (prediction.directional_call_status ===
+    'WITHHELD_INSUFFICIENT_AGREEMENT'
+      ? prediction.lean === 'MIXED' &&
+        prediction.reported_evidence_strength === null &&
+        (prediction.raw_directional_agreement as number) < 0.6
+      : prediction.lean !== 'MIXED' &&
+        prediction.reported_evidence_strength ===
+          prediction.raw_directional_agreement &&
+        (prediction.raw_directional_agreement as number) >= 0.6) &&
     isFiniteNumber(prediction.median_next_session_return_pct) &&
     isFiniteNumber(prediction.mean_next_session_return_pct) &&
     prediction.calibrated_probability === false &&
     isNonEmptyString(prediction.interpretation) &&
     analogs.length === prediction.analog_sample_size &&
-    analogs.every((value, index) => {
-      const analog = record(value);
-      return (
-        analog !== null &&
-        analog.rank === index + 1 &&
-        typeof analog.session_date_et === 'string' &&
-        /^\d{4}-\d{2}-\d{2}$/.test(analog.session_date_et) &&
-        DAILY_REGIMES.has(String(analog.regime)) &&
-        isFiniteNumber(analog.standardized_euclidean_distance) &&
-        analog.standardized_euclidean_distance >= 0 &&
-        isFiniteNumber(analog.session_return_pct) &&
-        typeof analog.next_session_date_et === 'string' &&
-        /^\d{4}-\d{2}-\d{2}$/.test(analog.next_session_date_et) &&
-        isFiniteNumber(analog.next_session_return_pct) &&
-        (analog.next_session_direction === 'UP' ||
-          analog.next_session_direction === 'DOWN' ||
-          analog.next_session_direction === 'FLAT')
-      );
-    }) &&
+    analogs.every(validHistoricalSession) &&
+    sameRegimeHistory.length >= analogs.length &&
+    sameRegimeHistory.every(validHistoricalSession) &&
+    new Set(sameRegimeDates).size === sameRegimeHistory.length &&
+    analogs.every(
+      (value, index) =>
+        record(value)?.session_date_et ===
+          record(sameRegimeHistory[index])?.session_date_et &&
+        record(value)?.standardized_euclidean_distance ===
+          record(sameRegimeHistory[index])?.standardized_euclidean_distance
+    ) &&
+    interval.method === 'PREQUENTIAL_ABSOLUTE_RESIDUAL_CONFORMAL' &&
+    interval.nominal_coverage === 0.9 &&
+    isFiniteNumber(interval.point_estimate_pct) &&
+    isFiniteNumber(interval.lower_bound_pct) &&
+    isFiniteNumber(interval.upper_bound_pct) &&
+    (interval.lower_bound_pct as number) <=
+      (interval.point_estimate_pct as number) &&
+    (interval.point_estimate_pct as number) <=
+      (interval.upper_bound_pct as number) &&
+    Number.isSafeInteger(interval.calibration_sessions) &&
+    (interval.calibration_sessions as number) >= 40 &&
+    Number.isSafeInteger(interval.evaluated_sessions) &&
+    Number.isSafeInteger(interval.covered_sessions) &&
+    (interval.covered_sessions as number) <=
+      (interval.evaluated_sessions as number) &&
+    isOptionalFiniteNumber(interval.empirical_coverage) &&
+    (interval.empirical_coverage === null ||
+      ((interval.empirical_coverage as number) >= 0 &&
+        (interval.empirical_coverage as number) <= 1)) &&
+    interval.directional_probability === false &&
+    isNonEmptyString(interval.interpretation) &&
+    isNonEmptyString(rationale.conclusion) &&
+    Array.isArray(rationale.supporting_evidence) &&
+    rationale.supporting_evidence.every(isNonEmptyString) &&
+    Array.isArray(rationale.opposing_evidence) &&
+    rationale.opposing_evidence.every(isNonEmptyString) &&
+    Array.isArray(rationale.uncertainty_reasons) &&
+    rationale.uncertainty_reasons.length >= 3 &&
+    rationale.uncertainty_reasons.every(isNonEmptyString) &&
+    Array.isArray(rationale.model_steps) &&
+    rationale.model_steps.length >= 7 &&
+    rationale.model_steps.every(isNonEmptyString) &&
     validation.method === 'PURGED_EXPANDING_WALK_FORWARD' &&
     Number.isSafeInteger(validation.evaluation_window_sessions) &&
     Number.isSafeInteger(validation.eligible_queries) &&
@@ -1473,7 +1580,7 @@ export async function requestQuantDailyRegime(
   if (normalized !== 'SPX') {
     throw new QuantBackendUnavailableError(
       'RUST_DAILY_REGIME_SYMBOL_UNSUPPORTED',
-      'The daily-regime v1 contract currently supports SPX through SPY.'
+      'The daily-regime v2 contract currently supports SPX through SPY.'
     );
   }
   const payload = await fetchQuantJson(
