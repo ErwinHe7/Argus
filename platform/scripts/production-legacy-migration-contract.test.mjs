@@ -35,6 +35,7 @@ test('legacy bridge is restricted to the exact null-revision flat stack', () => 
   );
   assert.match(backup, /flat Compose file does not define the exact four legacy volumes/);
   assert.match(backup, /legacy Compose must not use the scale key during recovery/);
+  assert.match(backup, /gsub\(\/\^\[\[:space:\]/);
   assert.match(backup, /if \(value != "1"\)/);
   assert.match(backup, /legacy Compose may declare only replicas: 1 during recovery/);
   assert.match(backup, /com\.docker\.compose\.config-hash/);

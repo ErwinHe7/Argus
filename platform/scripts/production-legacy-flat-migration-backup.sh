@@ -951,7 +951,7 @@ invalid_replica_lines="$(
     /^[[:space:]]+replicas:[[:space:]]*/ {
       value = $0
       sub(/^[[:space:]]+replicas:[[:space:]]*/, "", value)
-      gsub(/^["'\'' ]+|["'\'' ]+$/, "", value)
+      gsub(/^[[:space:]"'\'']+|[[:space:]"'\'']+$/, "", value)
       if (value != "1") {
         print NR ":" $0
       }
