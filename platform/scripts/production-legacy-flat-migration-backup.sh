@@ -943,9 +943,23 @@ expected_volumes="$(
 )"
 [[ "$configured_volumes" == "$expected_volumes" ]] \
   || die "flat Compose file does not define the exact four legacy volumes"
-if grep -Eq '^[[:space:]]+(scale|replicas):' "$compose_file"; then
-  die "legacy Compose must not scale any service during recovery"
+if grep -Eq '^[[:space:]]+scale:' "$compose_file"; then
+  die "legacy Compose must not use the scale key during recovery"
 fi
+invalid_replica_lines="$(
+  awk '
+    /^[[:space:]]+replicas:[[:space:]]*/ {
+      value = $0
+      sub(/^[[:space:]]+replicas:[[:space:]]*/, "", value)
+      gsub(/^["'\'' ]+|["'\'' ]+$/, "", value)
+      if (value != "1") {
+        print NR ":" $0
+      }
+    }
+  ' "$compose_file"
+)"
+[[ -z "$invalid_replica_lines" ]] \
+  || die "legacy Compose may declare only replicas: 1 during recovery"
 for gate_name in \
   LIVE_EXECUTION_ENABLED BROKER_LIVE_ENABLED ANOMALY_LIVE_ORDER_ENABLED; do
   grep -Eq \

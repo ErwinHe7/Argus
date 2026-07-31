@@ -2680,3 +2680,27 @@ The measurable 30-day channel and experiment sequence is recorded in
 `docs/growth/30-day-user-acquisition.md`. External posts, Product Hunt launch,
 and paid acquisition remain unexecuted until the production release gate is
 green and the repository owner selects or provides the publishing accounts.
+
+## 2026-07-31Z production migration staging
+
+The account-authenticated AWS staging pass created commit-tagged EBS snapshots
+of both the root filesystem and the dedicated market-data filesystem. It also
+created and attached a separate encrypted, temporary 10GB migration-backup
+volume, formatted only the newly attached empty device, and mounted it at
+`/mnt/axio7-migration-backup` with owner-only permissions. No production
+container or service was stopped. The release Git bundle was encrypted at rest
+in the existing private S3 handoff path, independently SHA-256 verified in the
+development workspace, CloudShell, and the migration volume, and cloned to the
+exact release commit with complete Git history.
+
+The first read-only legacy preflight correctly left the running stack
+untouched but exposed an overly strict helper check: the observed production
+Compose file explicitly declares the safe singleton setting `replicas: 1`,
+while the helper rejected every `replicas` key. The helper now permits only
+that exact singleton value, continues to reject the Compose `scale` key and
+all other replica values, and has an explicit static contract test. Bash
+syntax, the 14 deployment/legacy migration contract tests, and
+`git diff --check` pass. Cutover remains blocked until both EBS snapshots are
+complete, a bundle for the corrected commit is verified on the migration
+volume, the read-only preflight passes, and the canonical candidate build and
+rollback path are ready. Automatic execution remains disabled.
