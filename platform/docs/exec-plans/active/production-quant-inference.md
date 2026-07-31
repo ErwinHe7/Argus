@@ -2777,3 +2777,22 @@ the six declared historical Databento partitions are not present yet, no
 accuracy improvement is claimed, and no promotion can occur until the paired
 purged walk-forward, untouched holdout, calibration, and forward-shadow gates
 all pass.
+
+The follow-up release at commit
+`818abb1a324372b0a325e5d022056a9a6fce39c8` is now active. Before the rollout,
+an independently checksummed custom-format PostgreSQL dump was sealed on the
+encrypted migration volume. Compose recreated the commit-bound services and
+PostgreSQL container without replacing its persistent data, then all seven
+services returned healthy or stable-running. The unmodified strict verifier
+passed directly on production with Docker Compose 2.40, confirming the image-ID
+canonicalization fix rather than relying on the temporary compatibility copy.
+
+The canonical public origin now returns HTTP 200 for the homepage,
+`/api/health`, `/api/quant/research/status`, and
+`/research/sector-rotation`; the health response exposes the exact active
+commit. PostgreSQL contained 2,318,458 append-only live minute rows and seven
+archive receipts at verification time. The new continuous archiver reported
+`ARCHIVED_APPEND_ONLY`, inserted a further 20 rows through its latest cutoff,
+and both it and PostgreSQL had zero restarts. The active release checkout is
+clean, rollback snapshots and sealed legacy artifacts remain retained, and
+automatic execution remains disabled.
