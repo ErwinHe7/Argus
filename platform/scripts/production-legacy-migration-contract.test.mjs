@@ -9,7 +9,7 @@ const restore = read('scripts/production-legacy-flat-migration-restore.sh');
 const canonicalBackup = read('scripts/production-release-backup.sh');
 const runbook = read('infra/single-vm/README.md');
 
-test('legacy bridge is restricted to the exact null-revision flat stack', () => {
+test('legacy bridge is restricted to an exactly revision-bound flat stack', () => {
   assert.match(backup, /EXPECTED_DEPLOYMENT_DIR="\/opt\/axio7"/);
   assert.match(backup, /this one-time helper is restricted to \/opt\/axio7/);
   for (const service of [
@@ -40,10 +40,23 @@ test('legacy bridge is restricted to the exact null-revision flat stack', () => 
   assert.match(backup, /legacy Compose may declare only replicas: 1 during recovery/);
   assert.match(backup, /com\.docker\.compose\.config-hash/);
   assert.match(backup, /config --hash/);
+  assert.match(backup, /--dry-run/);
+  assert.match(backup, /up -d --no-build --pull never --no-deps/);
+  assert.match(backup, /Container\[\[:space:\]\]\+\$container_name/);
+  assert.match(backup, /dry-run would mutate the legacy deployment/);
   assert.match(backup, /legacy quantd does not have exactly two named volumes/);
   assert.match(backup, /legacy quantd does not have exactly eight runtime bind mounts/);
   assert.match(backup, /org\.opencontainers\.image\.revision/);
-  assert.match(backup, /has an OCI revision; use the canonical release backup helper/);
+  assert.match(backup, /flat quantd and web OCI revisions must be the same full commit/);
+  assert.match(backup, /flat environment GIT_COMMIT differs from the application images/);
+  assert.match(backup, /flat_compose_has_exact_web_env_file/);
+  assert.match(backup, /flat web service must use exactly one \.env\.server env_file/);
+  assert.match(backup, /APPLICATION_OCI_REVISION=/);
+  assert.match(backup, /service\.image \?\? `\$\{model\.name\}-\$\{serviceName\}`/);
+  assert.match(restore, /APPLICATION_OCI_REVISION/);
+  assert.match(restore, /service\.image \?\? `\$\{model\.name\}-\$\{serviceName\}`/);
+  assert.match(restore, /sealed legacy application image revision changed/);
+  assert.match(restore, /saved legacy web service does not use the sealed environment file/);
 
   assert.match(canonicalBackup, /git -C "\$repo_root" rev-parse HEAD/);
   assert.match(canonicalBackup, /quantd_image_revision.*release_commit/s);
@@ -86,9 +99,12 @@ test('legacy backup captures exact IDs, protected config, runtime, and complete 
   assert.match(backup, /compose\.legacy\.yaml/);
   assert.match(backup, /Caddyfile\.legacy/);
   assert.match(backup, /runtime-binds\.tgz/);
+  assert.match(backup, /--entrypoint caddy/);
   assert.match(backup, /runtime-files\.sha256/);
   assert.match(backup, /runtime-directories\.txt/);
   assert.match(backup, /runtime-tree-directories\.txt/);
+  assert.match(backup, /tar --hard-dereference/);
+  assert.match(backup, /runtime_hardlinks_dereferenced/);
   assert.match(backup, /quant-state-sqlite-family-files\.txt/);
   assert.match(backup, /sqlite_wal_captured_as_complete_quiesced_volume/);
   assert.match(backup, /write_volume_manifest/);
@@ -121,6 +137,7 @@ test('sealed bundle contains a fail-closed self-contained recovery path', () => 
   assert.match(backup, /RECOVERY\.txt/);
   assert.match(restore, /--confirm-legacy-restore/);
   assert.match(restore, /axio\.legacy-flat-migration-backup\.v1/);
+  assert.match(restore, /runtime_hardlinks_dereferenced/);
   assert.match(restore, /validate_checksum_manifest/);
   assert.match(restore, /count == 24/);
   assert.match(restore, /run the exact restore helper sealed inside this legacy bundle/);
@@ -140,6 +157,7 @@ test('sealed bundle contains a fail-closed self-contained recovery path', () => 
       < restore.lastIndexOf('destructive_started=true'),
   );
   assert.match(restore, /--no-build --pull never --force-recreate/);
+  assert.match(restore, /--entrypoint caddy/);
   assert.match(restore, /does not use the sealed legacy image/);
   assert.match(restore, /LIVE_EXECUTION_ENABLED.*false/s);
   assert.doesNotMatch(restore, /docker (?:image|volume|system) prune/);

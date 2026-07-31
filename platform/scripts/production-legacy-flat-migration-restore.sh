@@ -2,7 +2,7 @@
 #
 # Restore only a checksum-sealed bundle produced by
 # production-legacy-flat-migration-backup.sh. This is not a general rollback
-# path and must never be used for a commit-bound release.
+# path and must never be used after entering the canonical checkout layout.
 
 set -euo pipefail
 umask 077
@@ -86,6 +86,38 @@ paths_overlap() {
       ;;
   esac
   return 1
+}
+
+flat_compose_has_exact_web_env_file() {
+  local compose_path="$1"
+  local observed=""
+
+  observed="$(
+    awk '
+      /^  web:[[:space:]]*$/ {
+        in_web = 1
+        next
+      }
+      in_web && /^  [^[:space:]][^:]*:/ {
+        exit
+      }
+      in_web && /^    env_file:[[:space:]]*$/ {
+        in_env_file = 1
+        next
+      }
+      in_env_file && /^      -[[:space:]]*/ {
+        value = $0
+        sub(/^      -[[:space:]]*/, "", value)
+        sub(/\r$/, "", value)
+        print value
+        next
+      }
+      in_env_file && /^    [^[:space:]][^:]*:/ {
+        in_env_file = 0
+      }
+    ' "$compose_path"
+  )"
+  [[ "$observed" == ".env.server" ]]
 }
 
 acquire_legacy_lock() {
@@ -232,6 +264,8 @@ validate_legacy_compose_model() {
         } catch {
           fail();
         }
+        const resolvedImageReference =
+          service.image ?? `${model.name}-${serviceName}`;
         if ((serviceName === "quantd"
               && (modelReleaseIds.length !== 5
                 || new Set(modelReleaseIds).size !== 1))
@@ -243,7 +277,7 @@ validate_legacy_compose_model() {
                 || (entry.required !== undefined && entry.required !== true)
                 || entry.format !== undefined
             )
-            || service.image !== imageReference
+            || resolvedImageReference !== imageReference
             || (service.scale !== undefined && service.scale !== 1)
             || (service.deploy?.replicas !== undefined
                 && service.deploy.replicas !== 1)
@@ -898,6 +932,9 @@ saved_deployment="$(read_metadata_value DEPLOYMENT_DIR "$sealed_dir/legacy.env")
 saved_compose_version="$(
   read_metadata_value DOCKER_COMPOSE_VERSION "$sealed_dir/legacy.env"
 )"
+application_oci_revision="$(
+  read_metadata_value APPLICATION_OCI_REVISION "$sealed_dir/legacy.env"
+)"
 [[ "$schema_version" == "axio.legacy-flat-migration-backup.v1" \
   && "$saved_deployment" == "$EXPECTED_DEPLOYMENT_DIR" ]] \
   || die "legacy bundle metadata is not eligible for this restore"
@@ -914,14 +951,30 @@ grep -Fq '"execution_enabled": false' "$sealed_dir/backup-manifest.json" \
 for required_manifest_fact in \
   '"compose_project": "axio7"' \
   '"service_count": 4' \
-  '"application_oci_revision_labels_absent": true' \
   '"complete_volume_set": true' \
   '"sqlite_wal_captured_as_complete_quiesced_volume": true' \
   '"runtime_tree_exactly_manifested": true' \
+  '"runtime_hardlinks_dereferenced": true' \
   '"environment_contents_printed": false'; do
   grep -Fq "$required_manifest_fact" "$sealed_dir/backup-manifest.json" \
     || die "legacy backup manifest omits a required sealed fact"
 done
+if [[ "$application_oci_revision" == "NONE" ]]; then
+  grep -Fq '"application_oci_revision_labels_absent": true' \
+    "$sealed_dir/backup-manifest.json" \
+    && grep -Fq '"application_oci_revision": null' \
+      "$sealed_dir/backup-manifest.json" \
+    || die "legacy backup manifest has an invalid absent revision binding"
+elif [[ "$application_oci_revision" =~ ^[0-9a-f]{40}$ ]]; then
+  grep -Fq '"application_oci_revision_labels_absent": false' \
+    "$sealed_dir/backup-manifest.json" \
+    && grep -Fq \
+      "\"application_oci_revision\": \"$application_oci_revision\"" \
+      "$sealed_dir/backup-manifest.json" \
+    || die "legacy backup manifest has an invalid application revision binding"
+else
+  die "legacy bundle contains an invalid application OCI revision"
+fi
 
 quantd_image_id="$(read_metadata_value QUANTD_IMAGE_ID "$sealed_dir/legacy.env")"
 web_image_id="$(read_metadata_value WEB_IMAGE_ID "$sealed_dir/legacy.env")"
@@ -957,6 +1010,21 @@ for image_id in \
     || die "legacy bundle contains an invalid image ID"
   docker image inspect "$image_id" >/dev/null \
     || die "required legacy image ID is no longer present locally"
+done
+for application_image_id in "$quantd_image_id" "$web_image_id"; do
+  observed_revision="$(
+    docker image inspect --format \
+      '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+      "$application_image_id"
+  )"
+  [[ "$observed_revision" != "<no value>" ]] || observed_revision=""
+  if [[ "$application_oci_revision" == "NONE" ]]; then
+    [[ -z "$observed_revision" ]] \
+      || die "sealed legacy application image unexpectedly has a revision"
+  else
+    [[ "$observed_revision" == "$application_oci_revision" ]] \
+      || die "sealed legacy application image revision changed"
+  fi
 done
 for config_hash in \
   "$quantd_config_hash" "$web_config_hash" "$caddy_config_hash" \
@@ -1013,8 +1081,22 @@ for gate_name in \
     "$sealed_dir/compose.legacy.yaml" \
     || die "saved legacy Compose does not hard-disable $gate_name"
 done
+flat_compose_has_exact_web_env_file "$sealed_dir/compose.legacy.yaml" \
+  || die "saved legacy web service does not use the sealed environment file"
 validate_sealed_env_file "$sealed_dir" \
   || die "sealed legacy environment file is invalid"
+if [[ "$application_oci_revision" != "NONE" ]]; then
+  mapfile -t sealed_git_commit_lines < <(
+    grep -E '^GIT_COMMIT=[0-9a-f]{40}\r?$' \
+      "$sealed_dir/.env.server.legacy"
+  )
+  [[ "${#sealed_git_commit_lines[@]}" == "1" ]] \
+    || die "sealed legacy environment has an invalid GIT_COMMIT binding"
+  sealed_git_commit="${sealed_git_commit_lines[0]#GIT_COMMIT=}"
+  sealed_git_commit="${sealed_git_commit%$'\r'}"
+  [[ "$sealed_git_commit" == "$application_oci_revision" ]] \
+    || die "sealed legacy environment differs from the application revision"
+fi
 saved_compose=(
   docker compose
   --project-name axio7
@@ -1064,6 +1146,7 @@ validate_legacy_compose_model "$model_dir" "$web_image_id" \
   || die "sealed legacy Compose resolves outside the exact safe topology"
 docker run --rm --pull never --network none --read-only \
   --tmpfs /data:size=16m --tmpfs /config:size=16m \
+  --entrypoint caddy \
   --mount \
     "type=bind,src=$sealed_dir/Caddyfile.legacy,dst=/etc/caddy/Caddyfile,readonly" \
   "$caddy_image_id" \

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #
 # One-time bridge for the exact legacy AXIO7 deployment copied flat into
-# /opt/axio7. This intentionally accepts missing OCI revision labels, but only
-# after proving the observed legacy four-service/two-runtime-bind/four-volume
-# shape.
+# /opt/axio7. This accepts either missing application OCI revision labels or a
+# shared revision exactly bound by the flat server environment, but only after
+# proving the observed four-service/two-runtime-bind/four-volume shape.
 # The canonical production-release-backup.sh remains the only backup path for
 # commit-bound releases.
 
@@ -107,6 +107,38 @@ paths_overlap() {
       ;;
   esac
   return 1
+}
+
+flat_compose_has_exact_web_env_file() {
+  local compose_path="$1"
+  local observed=""
+
+  observed="$(
+    awk '
+      /^  web:[[:space:]]*$/ {
+        in_web = 1
+        next
+      }
+      in_web && /^  [^[:space:]][^:]*:/ {
+        exit
+      }
+      in_web && /^    env_file:[[:space:]]*$/ {
+        in_env_file = 1
+        next
+      }
+      in_env_file && /^      -[[:space:]]*/ {
+        value = $0
+        sub(/^      -[[:space:]]*/, "", value)
+        sub(/\r$/, "", value)
+        print value
+        next
+      }
+      in_env_file && /^    [^[:space:]][^:]*:/ {
+        in_env_file = 0
+      }
+    ' "$compose_path"
+  )"
+  [[ "$observed" == ".env.server" ]]
 }
 
 acquire_legacy_lock() {
@@ -258,9 +290,7 @@ validate_legacy_compose_model_and_running_env() {
         const envFilePaths = envFileEntries.map((entry) =>
           typeof entry === "string" ? entry : entry?.path,
         );
-        const expectedEnvFiles = serviceName === "web"
-          ? ["/opt/axio7/.env.server"]
-          : [];
+        const expectedEnvFiles = [];
         let imageReference;
         try {
           imageReference = fs.readFileSync(
@@ -270,6 +300,10 @@ validate_legacy_compose_model_and_running_env() {
         } catch {
           fail();
         }
+        const resolvedImageReference =
+          service.image ?? `${model.name}-${serviceName}`;
+        const resolvedNoEnvImageReference =
+          noEnvService.image ?? `${noEnvModel.name}-${serviceName}`;
         if ((serviceName === "quantd"
               && (modelReleaseIds.length !== 5
                 || noEnvReleaseIds.length !== 5
@@ -289,8 +323,8 @@ validate_legacy_compose_model_and_running_env() {
                 || (entry.required !== undefined && entry.required !== true)
                 || entry.format !== undefined
             )
-            || service.image !== imageReference
-            || noEnvService.image !== imageReference
+            || resolvedImageReference !== imageReference
+            || resolvedNoEnvImageReference !== imageReference
             || (service.scale !== undefined && service.scale !== 1)
             || (service.deploy?.replicas !== undefined
                 && service.deploy.replicas !== 1)
@@ -557,10 +591,6 @@ runtime_tree_matches_manifest() {
   fi
   unexpected="$(
     find "$tree_root" -mindepth 1 ! -type d ! -type f -print -quit
-  )" || return 1
-  [[ -z "$unexpected" ]] || return 1
-  unexpected="$(
-    find "$tree_root" -type f -links +1 -print -quit
   )" || return 1
   [[ -z "$unexpected" ]] || return 1
   (
@@ -867,6 +897,8 @@ for required_path in "$compose_file" "$caddy_file" "$env_file"; do
 done
 [[ "$(stat -c '%a' "$env_file")" == "600" ]] \
   || die ".env.server mode must be 0600"
+flat_compose_has_exact_web_env_file "$compose_file" \
+  || die "flat web service must use exactly one .env.server env_file"
 [[ -d "$runtime_dir" && ! -L "$runtime_dir" ]] \
   || die "legacy runtime must be one real directory"
 runtime_dir="$(realpath -e -- "$runtime_dir")"
@@ -1044,9 +1076,31 @@ for service in "${EXPECTED_SERVICES[@]}"; do
       '{{index .Config.Labels "com.docker.compose.config-hash"}}' \
       "$service_id"
   )"
-  [[ "$running_config_hash" =~ ^[0-9a-f]{64}$ \
-    && "$running_config_hash" == "$config_hash" ]] \
-    || die "$service running configuration differs from the flat Compose file"
+  [[ "$running_config_hash" =~ ^[0-9a-f]{64}$ ]] \
+    || die "$service running Compose hash is not content-addressed"
+  if [[ "$running_config_hash" != "$config_hash" ]]; then
+    container_name="$(
+      docker inspect --format '{{.Name}}' "$service_id"
+    )"
+    container_name="${container_name#/}"
+    [[ "$container_name" =~ ^axio7-[a-z0-9-]+-1$ ]] \
+      || die "$service running container name is outside the legacy project"
+    reconcile_output="$(
+      "${compose[@]}" \
+        --ansi never \
+        --progress plain \
+        --dry-run \
+        up -d --no-build --pull never --no-deps "$service" 2>&1
+    )" || die "cannot dry-run the effective $service Compose configuration"
+    grep -Eq \
+      "Container[[:space:]]+$container_name[[:space:]]+Running" \
+      <<< "$reconcile_output" \
+      || die "$service running configuration differs from the flat Compose file"
+    grep -Eq \
+      '(^|[[:space:]])(Create|Creating|Created|Recreate|Recreated|Restart|Restarting|Stop|Stopping|Remove|Removing)([[:space:]]|$)' \
+      <<< "$reconcile_output" \
+      && die "$service dry-run would mutate the legacy deployment"
+  fi
   CONFIG_HASHES["$service"]="$config_hash"
 
   image_id="$(docker inspect --format '{{.Image}}' "$service_id")"
@@ -1060,17 +1114,38 @@ for service in "${EXPECTED_SERVICES[@]}"; do
   IMAGE_REFERENCES["$service"]="$image_reference"
 done
 
-for service in quantd web; do
-  labels_json="$(
-    docker image inspect --format '{{json .Config.Labels}}' \
-      "${IMAGE_IDS[$service]}"
-  )"
-  if grep -Fq '"org.opencontainers.image.revision":' <<< "$labels_json"; then
-    die "$service has an OCI revision; use the canonical release backup helper"
-  fi
-  [[ "$labels_json" == "null" || "$labels_json" == \{*\} ]] \
-    || die "$service has an OCI revision; use the canonical release backup helper"
-done
+quantd_revision="$(
+  docker image inspect --format \
+    '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+    "${IMAGE_IDS[quantd]}"
+)"
+web_revision="$(
+  docker image inspect --format \
+    '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+    "${IMAGE_IDS[web]}"
+)"
+[[ "$quantd_revision" != "<no value>" ]] || quantd_revision=""
+[[ "$web_revision" != "<no value>" ]] || web_revision=""
+application_oci_revision="NONE"
+application_oci_revision_labels_absent=true
+application_oci_revision_json=null
+if [[ -n "$quantd_revision" || -n "$web_revision" ]]; then
+  [[ "$quantd_revision" =~ ^[0-9a-f]{40}$ \
+    && "$web_revision" == "$quantd_revision" ]] \
+    || die "flat quantd and web OCI revisions must be the same full commit"
+  mapfile -t env_git_commit_lines < <(
+    grep -E '^GIT_COMMIT=[0-9a-f]{40}\r?$' "$env_file"
+  )
+  [[ "${#env_git_commit_lines[@]}" == "1" ]] \
+    || die "flat environment must contain one full GIT_COMMIT binding"
+  env_git_commit="${env_git_commit_lines[0]#GIT_COMMIT=}"
+  env_git_commit="${env_git_commit%$'\r'}"
+  [[ "$env_git_commit" == "$quantd_revision" ]] \
+    || die "flat environment GIT_COMMIT differs from the application images"
+  application_oci_revision="$quantd_revision"
+  application_oci_revision_labels_absent=false
+  application_oci_revision_json="\"$quantd_revision\""
+fi
 
 validation_dir="$(mktemp -d "$backup_root/.legacy-config-validation.XXXXXX")"
 chmod 0700 -- "$validation_dir"
@@ -1223,6 +1298,7 @@ done
 helper_image_id="${IMAGE_IDS[quantd]}"
 docker run --rm --pull never --network none --read-only \
   --tmpfs /data:size=16m --tmpfs /config:size=16m \
+  --entrypoint caddy \
   --mount "type=bind,src=$caddy_file,dst=/etc/caddy/Caddyfile,readonly" \
   "${IMAGE_IDS[caddy]}" \
   validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 \
@@ -1265,8 +1341,6 @@ while IFS= read -r release_entry || [[ -n "$release_entry" ]]; do
 done < <(find "$runtime_dir/releases" -mindepth 1 -maxdepth 1 -print | LC_ALL=C sort)
 [[ -z "$(find "$runtime_dir" -mindepth 1 ! -type d ! -type f -print -quit)" ]] \
   || die "legacy runtime contains a link or special entry"
-[[ -z "$(find "$runtime_dir" -type f -links +1 -print -quit)" ]] \
-  || die "legacy runtime contains a hard-linked file"
 if grep -Fxq private-rights-evidence "$runtime_directories_file"; then
   private_dir="$runtime_dir/private-rights-evidence"
   private_file="$private_dir/account_owner_attestation.json"
@@ -1345,6 +1419,7 @@ cat > "$backup_dir/legacy.env" <<EOF
 SCHEMA_VERSION=axio.legacy-flat-migration-backup.v1
 DEPLOYMENT_DIR=$deployment_dir
 DOCKER_COMPOSE_VERSION=$compose_version
+APPLICATION_OCI_REVISION=$application_oci_revision
 QUANTD_CONTAINER_ID=${CONTAINER_IDS[quantd]}
 WEB_CONTAINER_ID=${CONTAINER_IDS[web]}
 CADDY_CONTAINER_ID=${CONTAINER_IDS[caddy]}
@@ -1412,7 +1487,8 @@ runtime_tree_matches_manifest \
   || die "legacy runtime tree changed before archive creation"
 mapfile -t present_runtime_directories \
   < "$backup_dir/runtime-directories.txt"
-tar -C "$runtime_dir" -czf "$backup_dir/runtime-binds.tgz" \
+tar --hard-dereference -C "$runtime_dir" \
+  -czf "$backup_dir/runtime-binds.tgz" \
   "${present_runtime_directories[@]}"
 runtime_tree_matches_manifest \
   "$runtime_dir" \
@@ -1508,10 +1584,12 @@ cat > "$backup_dir/backup-manifest.json" <<EOF
   "web_image_id": "${IMAGE_IDS[web]}",
   "caddy_image_id": "${IMAGE_IDS[caddy]}",
   "scheduler_image_id": "${IMAGE_IDS[monitor-scheduler]}",
-  "application_oci_revision_labels_absent": true,
+  "application_oci_revision_labels_absent": $application_oci_revision_labels_absent,
+  "application_oci_revision": $application_oci_revision_json,
   "complete_volume_set": true,
   "sqlite_wal_captured_as_complete_quiesced_volume": true,
   "runtime_tree_exactly_manifested": true,
+  "runtime_hardlinks_dereferenced": true,
   "services_left_stopped": true,
   "execution_enabled": false,
   "environment_contents_printed": false

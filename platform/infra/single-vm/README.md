@@ -194,9 +194,11 @@ required by the sealed acceptance helper.
 
 The existing `/opt/axio7` host may predate the commit-bound checkout layout:
 `compose.yaml`, `Caddyfile`, `.env.server`, and `runtime/` are directly under
-that directory, and the running web/quantd images have no
-`org.opencontainers.image.revision` label. The canonical backup helper
-correctly refuses that state. Do not weaken its revision check.
+that directory. Its running web/quantd images may both omit the
+`org.opencontainers.image.revision` label, or they may carry the same full
+revision while the source checkout is still absent. The canonical backup
+helper correctly refuses both flat states because it cannot bind them to a
+checkout `HEAD`. Do not weaken its checkout check.
 
 Securely copy both one-time helpers from `scripts/` to one owner-only directory
 on the VM. First prove the observed four-service topology without changing a
@@ -224,8 +226,9 @@ sudo bash /root/axio7-migration-tools/production-legacy-flat-migration-backup.sh
 This bridge accepts only the exact legacy `axio7` project: one running
 `quantd`, `web`, `caddy`, and `monitor-scheduler`; the four
 fixed `quant-state`, `quant-live`, `caddy-data`, and `caddy-config` volumes;
-the exact observed runtime/release binds; and absent web/quantd revision
-labels. It
+the exact observed runtime/release binds; and either absent web/quantd revision
+labels or identical full revision labels that equal the sole `GIT_COMMIT`
+binding in `.env.server`. It
 verifies that all three execution gates are false, records the full container
 and image IDs for every service, adds recovery tags for all four images, and
 stops all four services. It then archives the complete detached volumes
@@ -234,6 +237,13 @@ file—the approved runtime trees, and the exact flat configuration. Archive
 paths, member types, directory sets, file checksums, and a full extraction
 preflight must all pass before the bundle is sealed. Success intentionally
 leaves the legacy deployment stopped for cutover.
+
+Older flat releases may hard-link identical immutable public artifacts across
+release directories. The bridge records every path and content hash, archives
+the runtime with `--hard-dereference`, and rejects link members. Recovery
+therefore preserves the exact bytes and directory tree, but inode deduplication
+is not part of the recovery contract. The private owner-attestation remains
+restricted to one hard link.
 
 The mode-`0700` bundle contains the recoverable `.env.server`, Caddy private
 state, and possibly the private owner attestation. Keep its parent directory

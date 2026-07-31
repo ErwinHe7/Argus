@@ -2693,14 +2693,31 @@ in the existing private S3 handoff path, independently SHA-256 verified in the
 development workspace, CloudShell, and the migration volume, and cloned to the
 exact release commit with complete Git history.
 
-The first read-only legacy preflight correctly left the running stack
-untouched but exposed an overly strict helper check: the observed production
-Compose file explicitly declares the safe singleton setting `replicas: 1`,
-while the helper rejected every `replicas` key. The helper now permits only
-that exact singleton value, continues to reject the Compose `scale` key and
-all other replica values, and has an explicit static contract test. Bash
-syntax, the 14 deployment/legacy migration contract tests, and
-`git diff --check` pass. Cutover remains blocked until both EBS snapshots are
-complete, a bundle for the corrected commit is verified on the migration
-volume, the read-only preflight passes, and the canonical candidate build and
-rollback path are ready. Automatic execution remains disabled.
+Both EBS snapshots completed before any filesystem change. The root volume was
+then expanded from 20GB to 40GB and the ext4 filesystem was grown in place,
+leaving approximately 24GB free for the commit-bound build. The encrypted
+migration-backup volume remains independently attached and is retained for the
+rollback window. No market-data mount or production state volume was resized.
+
+Successive read-only preflights exposed only representation differences in the
+observed flat release: explicit singleton `replicas: 1`, CRLF line endings,
+default Compose build-image names, a normalized-away web `env_file`, matching
+web/quantd OCI revisions without a source checkout, a Caddy image whose command
+requires an explicit validation entrypoint, and intentional hard links between
+identical immutable public artifacts in old release directories. The bridge
+now accepts only the exact safe form of each condition. It still rejects scale
+overrides, revision disagreement, environment disagreement, mutating Compose
+dry-runs, links or special archive members, and any private owner attestation
+with more than one hard link. Public runtime hard links are recorded path by
+path and content-hashed, then dereferenced into independent regular archive
+members.
+
+The corrected helper bundle was SHA-256 verified in the development workspace,
+CloudShell, and the encrypted migration volume. Its full production read-only
+preflight passed and explicitly reported that no service or image was changed.
+Bash syntax, the 14 deployment/legacy migration contract tests, and
+`git diff --check` pass. The legacy four-service deployment remains healthy and
+online. Cutover remains blocked until the exact committed candidate is built in
+the canonical checkout layout, its new PostgreSQL environment is prepared
+without exposing secrets, and both the forward startup and sealed legacy
+restore commands are staged. Automatic execution remains disabled.
