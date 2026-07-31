@@ -46,6 +46,8 @@ test('PostgreSQL archive stays private, append-only, and revision-bound', () => 
   assert.match(archiveService, /--watch-interval-seconds/);
   assert.match(archiveService, /AXIO7_MARKET_DATA_RIGHTS_RECEIPT_SHA256/);
   assert.match(archiveService, /read_only:\s*true/);
+  assert.match(marketArchiveDockerfile, /COPY --chown=axio:axio intraday_quant\/src \.\/src/);
+  assert.match(rootDockerignore, /^!intraday_quant\/src\/\*\*$/m);
   assert.match(environmentExample, /^MARKET_POSTGRES_PASSWORD=$/m);
   assert.match(verifyRuntime, /market_data\.live_archive_receipts/);
 });

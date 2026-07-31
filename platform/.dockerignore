@@ -20,6 +20,9 @@ axio7_design
 docs
 intraday_quant
 intraday_quant/**
+!intraday_quant
+!intraday_quant/src
+!intraday_quant/src/**
 memory
 mobile
 quant_core_cpp
