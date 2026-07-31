@@ -27,6 +27,12 @@ die() {
   exit 1
 }
 
+canonical_image_id() {
+  local image_ref="$1"
+  [[ "$image_ref" =~ ^(sha256:)?[0-9a-f]{64}$ ]] || return 1
+  docker image inspect --format '{{.Id}}' "$image_ref" 2>/dev/null
+}
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -295,6 +301,20 @@ postgres_image_id="$(
 market_archive_image_id="$(
   "${compose[@]}" images -q market-archive | awk 'NR == 1 { print; exit }'
 )"
+quantd_image_id="$(canonical_image_id "$quantd_image_id")" \
+  || die "cannot canonicalize the running quantd image ID"
+web_image_id="$(canonical_image_id "$web_image_id")" \
+  || die "cannot canonicalize the running web image ID"
+caddy_image_id="$(canonical_image_id "$caddy_image_id")" \
+  || die "cannot canonicalize the running Caddy image ID"
+scheduler_image_id="$(canonical_image_id "$scheduler_image_id")" \
+  || die "cannot canonicalize the running scheduler image ID"
+ibkr_gateway_image_id="$(canonical_image_id "$ibkr_gateway_image_id")" \
+  || die "cannot canonicalize the running IBKR gateway image ID"
+postgres_image_id="$(canonical_image_id "$postgres_image_id")" \
+  || die "cannot canonicalize the running PostgreSQL image ID"
+market_archive_image_id="$(canonical_image_id "$market_archive_image_id")" \
+  || die "cannot canonicalize the running market-archive image ID"
 [[ "$quantd_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || die "cannot resolve the running quantd image ID"
 [[ "$web_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \

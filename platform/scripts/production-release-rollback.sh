@@ -29,6 +29,12 @@ die() {
   exit 1
 }
 
+canonical_image_id() {
+  local image_ref="$1"
+  [[ "$image_ref" =~ ^(sha256:)?[0-9a-f]{64}$ ]] || return 1
+  docker image inspect --format '{{.Id}}' "$image_ref" 2>/dev/null
+}
+
 usage() {
   cat <<'EOF'
 Usage:
@@ -618,6 +624,10 @@ attempt_emergency_recovery() {
         recovery_failed=true
         break
       fi
+      if ! restored_image="$(canonical_image_id "$restored_image")"; then
+        recovery_failed=true
+        break
+      fi
       case "$service_name:$restored_image" in
         "quantd:$current_quantd_image_id"|\
         "web:$current_web_image_id"|\
@@ -1008,6 +1018,20 @@ current_market_archive_image_id="$(
   env GIT_COMMIT="$current_commit" "${current_compose[@]}" \
     images -q market-archive | awk 'NR == 1 { print; exit }'
 )"
+current_quantd_image_id="$(canonical_image_id "$current_quantd_image_id")" \
+  || die "cannot canonicalize the current quantd image ID"
+current_web_image_id="$(canonical_image_id "$current_web_image_id")" \
+  || die "cannot canonicalize the current web image ID"
+current_caddy_image_id="$(canonical_image_id "$current_caddy_image_id")" \
+  || die "cannot canonicalize the current Caddy image ID"
+current_scheduler_image_id="$(canonical_image_id "$current_scheduler_image_id")" \
+  || die "cannot canonicalize the current scheduler image ID"
+current_ibkr_gateway_image_id="$(canonical_image_id "$current_ibkr_gateway_image_id")" \
+  || die "cannot canonicalize the current IBKR gateway image ID"
+current_postgres_image_id="$(canonical_image_id "$current_postgres_image_id")" \
+  || die "cannot canonicalize the current PostgreSQL image ID"
+current_market_archive_image_id="$(canonical_image_id "$current_market_archive_image_id")" \
+  || die "cannot canonicalize the current market-archive image ID"
 [[ "$current_caddy_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || die "cannot resolve the current Caddy image ID"
 [[ "$current_scheduler_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
@@ -1354,6 +1378,20 @@ restored_market_archive_image="$(
   env GIT_COMMIT="$source_commit" "${restored_compose[@]}" \
     images -q market-archive | awk 'NR == 1 { print; exit }'
 )"
+restored_quantd_image="$(canonical_image_id "$restored_quantd_image")" \
+  || die "cannot canonicalize the restored quantd image ID"
+restored_web_image="$(canonical_image_id "$restored_web_image")" \
+  || die "cannot canonicalize the restored web image ID"
+restored_caddy_image="$(canonical_image_id "$restored_caddy_image")" \
+  || die "cannot canonicalize the restored Caddy image ID"
+restored_scheduler_image="$(canonical_image_id "$restored_scheduler_image")" \
+  || die "cannot canonicalize the restored scheduler image ID"
+restored_ibkr_gateway_image="$(canonical_image_id "$restored_ibkr_gateway_image")" \
+  || die "cannot canonicalize the restored IBKR gateway image ID"
+restored_postgres_image="$(canonical_image_id "$restored_postgres_image")" \
+  || die "cannot canonicalize the restored PostgreSQL image ID"
+restored_market_archive_image="$(canonical_image_id "$restored_market_archive_image")" \
+  || die "cannot canonicalize the restored market-archive image ID"
 [[ "$restored_quantd_image" == "$quantd_image_id" ]] \
   || die "running quantd image does not match the rollback receipt"
 [[ "$restored_web_image" == "$web_image_id" ]] \

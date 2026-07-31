@@ -141,9 +141,13 @@ test('runtime preparation and parity verification cover the exact frozen univers
   assert.match(verifyRuntime, /loaded_artifact_count === 9/);
   assert.match(verifyRuntime, /failed_artifact_count === 0/);
   assert.match(verifyRuntime, /org\.opencontainers\.image\.revision/);
+  assert.match(verifyRuntime, /canonical_image_id/);
+  assert.match(verifyRuntime, /\^\(sha256:\)\?\[0-9a-f\]\{64\}\$/);
 });
 
 test('backup and rollback require explicit destructive-operation confirmations', () => {
+  assert.match(backup, /canonical_image_id/);
+  assert.match(rollback, /canonical_image_id/);
   assert.match(backup, /--confirm-quiesce/);
   assert.match(backup, /services_left_stopped/);
   assert.match(backup, /flock -n 9/);

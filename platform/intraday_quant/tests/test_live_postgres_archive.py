@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 
 from intraday_quant.storage.live_postgres_archive import (
+    LIVE_COLUMNS,
+    LIVE_SELECTION_ORDER,
     database_connection_target,
     inspect_live_sqlite,
     validate_live_row,
@@ -80,6 +82,37 @@ def test_inspect_live_sqlite_reports_exact_source_and_symbol_coverage(tmp_path: 
     assert inventory.schemas == ["ohlcv-1m"]
     assert inventory.minimum_event_at == "2026-07-30T13:30:00+00:00"
     assert inventory.maximum_recorded_at == "2026-07-30T13:31:03+00:00"
+
+
+def test_live_selection_order_uses_without_rowid_primary_key_without_temp_sort() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.execute(
+        """
+        CREATE TABLE live_minute_bars (
+            provider TEXT NOT NULL, dataset TEXT NOT NULL, schema_name TEXT NOT NULL,
+            symbol TEXT NOT NULL, event_at TEXT NOT NULL, available_at TEXT NOT NULL,
+            recorded_at TEXT NOT NULL, finalized_at TEXT NOT NULL, open REAL NOT NULL,
+            high REAL NOT NULL, low REAL NOT NULL, close REAL NOT NULL,
+            volume REAL NOT NULL, vwap REAL, trade_count INTEGER, source TEXT NOT NULL,
+            data_quality TEXT NOT NULL, entitlement TEXT NOT NULL,
+            symbol_mapping_verified INTEGER NOT NULL,
+            PRIMARY KEY (provider, dataset, schema_name, symbol, event_at)
+        ) WITHOUT ROWID
+        """
+    )
+    plan = connection.execute(
+        f"""
+        EXPLAIN QUERY PLAN
+        SELECT {', '.join(LIVE_COLUMNS)}
+        FROM live_minute_bars
+        WHERE provider = ? AND dataset = ? AND schema_name = ? AND recorded_at <= ?
+        ORDER BY {LIVE_SELECTION_ORDER}
+        """,
+        ("databento", "EQUS.MINI", "ohlcv-1m", "2026-07-31T00:00:00+00:00"),
+    ).fetchall()
+    connection.close()
+
+    assert all("USE TEMP B-TREE" not in str(row[3]).upper() for row in plan)
 
 
 def test_postgres_schema_requires_recorded_at_for_asof_and_append_only_live() -> None:

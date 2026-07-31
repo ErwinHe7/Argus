@@ -43,8 +43,18 @@ configured_commit="$(
 }
 docker compose --env-file .env.server config --quiet
 
+canonical_image_id() {
+  local image_ref="$1"
+  [[ "$image_ref" =~ ^(sha256:)?[0-9a-f]{64}$ ]] || return 1
+  docker image inspect --format '{{.Id}}' "$image_ref" 2>/dev/null
+}
+
 for service in quantd web market-archive; do
-  image_id="$(docker compose --env-file .env.server images -q "$service")"
+  raw_image_id="$(docker compose --env-file .env.server images -q "$service")"
+  image_id="$(canonical_image_id "$raw_image_id")" || {
+    printf 'Cannot canonicalize one content-addressed %s image.\n' "$service" >&2
+    exit 65
+  }
   [[ "$image_id" =~ ^sha256:[0-9a-f]{64}$ ]] || {
     printf 'Cannot resolve one content-addressed %s image.\n' "$service" >&2
     exit 65

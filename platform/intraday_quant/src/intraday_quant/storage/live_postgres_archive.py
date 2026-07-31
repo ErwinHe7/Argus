@@ -41,6 +41,7 @@ LICENSE_SCOPES = ("RESEARCH_ONLY", "INTERNAL_USE", "PUBLIC_DISPLAY", "REDISTRIBU
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 SOURCE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{2,63}$")
 LIBPQ_ENVIRONMENT = ("PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD")
+LIVE_SELECTION_ORDER = "provider, dataset, schema_name, symbol, event_at"
 
 
 @dataclass(frozen=True)
@@ -286,7 +287,7 @@ def sync_live_archive(
             SELECT {', '.join(LIVE_COLUMNS)}
             FROM live_minute_bars
             WHERE {' AND '.join(conditions)}
-            ORDER BY recorded_at, provider, dataset, schema_name, symbol, event_at
+            ORDER BY {LIVE_SELECTION_ORDER}
             """,
             parameters,
         )

@@ -2721,3 +2721,59 @@ online. Cutover remains blocked until the exact committed candidate is built in
 the canonical checkout layout, its new PostgreSQL environment is prepared
 without exposing secrets, and both the forward startup and sealed legacy
 restore commands are staged. Automatic execution remains disabled.
+
+## 2026-07-31Z production cutover and archive receipt
+
+The production cutover completed from the legacy flat four-service deployment
+to the canonical single-VM stack at commit
+`b65821894490e9717b4b0e42f4c447e1ebe56b73`. The active release now runs
+quantd, web, Caddy, monitor-scheduler, PostgreSQL 17, the continuous market
+archiver, and the IBKR market-data-only gateway. All seven services reached
+their required healthy or stable-running state. Runtime verification confirmed
+the Rust inference owner, a connected web-to-quantd path, all nine requested
+frozen model artifacts loaded with zero failures, a ready provider supervisor,
+HTTP 200 from Next.js, and every automatic-execution switch disabled.
+
+Before writer quiescence, both production EBS filesystems had completed
+snapshots. The exact legacy release, configuration, image IDs, runtime trees,
+named volumes, checksums, and recovery command were then sealed on the separate
+encrypted migration volume. That volume and the snapshots remain retained for
+the rollback window. The dedicated market-data filesystem is now bind-mounted
+into the canonical runtime through an explicit, validated `fstab` entry; no
+market data was moved onto the root filesystem.
+
+The first append-only SQLite-to-PostgreSQL archive inserted exactly 2,317,963
+rows with zero duplicate or rejected rows and emitted a content-hashed archive
+receipt. PostgreSQL remains private to the Compose network, its credentials
+remain server-side, and the source rights are recorded as `INTERNAL_USE` rather
+than silently upgraded to public display. The initial query exposed that its
+`recorded_at`-first ordering required a large SQLite temporary sort. The
+selection now follows the source `WITHOUT ROWID` primary-key order, and an
+`EXPLAIN QUERY PLAN` regression test rejects any temporary B-tree sort for this
+path.
+
+Production Docker Compose 2.40 also exposed that `images -q` may return a bare
+64-hex image ID instead of the older `sha256:`-prefixed representation. Runtime
+verification, backup, emergency recovery, and final rollback verification now
+canonicalize either representation through Docker before comparing or sealing
+IDs. The production checkout itself remained clean; the temporary compatibility
+verifier used during cutover was removed after the strict receipt passed.
+
+Public verification returns HTTP 200 from the homepage and the read-only
+`/api/quant/research/status` endpoint. Its after-hours feed-freshness gate is
+correctly blocked while the model runtime remains 9/9 loaded and connected.
+The earlier HTTP 410 from `/api/health` and redirect from
+`/research/sector-rotation` were middleware allow-list omissions, not service
+failures. Both exact paths are now explicitly active, with contract coverage,
+so the trusted-TLS release seal and the public acquisition page reach their
+intended handlers.
+
+Post-cutover validation passes TypeScript typecheck and the 67-page production
+build, nine deployment contracts, four acquisition contracts, shell syntax,
+64 Python tests with five licensed/optional skips, Rust formatting, warning-free
+Clippy, 495 Rust library tests, 16 CLI tests, 12 native integration tests, and
+both production contract fixtures. The sector challenger remains shadow-only:
+the six declared historical Databento partitions are not present yet, no
+accuracy improvement is claimed, and no promotion can occur until the paired
+purged walk-forward, untouched holdout, calibration, and forward-shadow gates
+all pass.

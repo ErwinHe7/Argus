@@ -46,14 +46,17 @@ test('the public runtime probe is read-only while paid research remains gated', 
   assert.match(protection, /['"]\/api\/quant\/research\/status['"]/);
 });
 
-test('sector-rotation acquisition page is indexed and makes no current signal claim', async () => {
-  const [page, sitemap, robots] = await Promise.all([
+test('sector-rotation acquisition page is public, indexed, and makes no current signal claim', async () => {
+  const [page, sitemap, robots, middleware] = await Promise.all([
     readFile('app/research/sector-rotation/page.tsx', 'utf8'),
     readFile('app/sitemap.ts', 'utf8'),
     readFile('app/robots.ts', 'utf8'),
+    readFile('middleware.ts', 'utf8'),
   ]);
   assert.match(page, /This page explains methodology/);
   assert.match(page, /not a current market signal/);
   assert.match(sitemap, /\/research\/sector-rotation/);
   assert.match(robots, /\/research\/sector-rotation/);
+  assert.match(middleware, /ACTIVE_IMPERSONAL_RESEARCH_PAGE_PREFIXES[\s\S]*['"]\/research\/sector-rotation['"]/);
+  assert.match(middleware, /ACTIVE_API_PREFIXES[\s\S]*['"]\/api\/health['"]/);
 });

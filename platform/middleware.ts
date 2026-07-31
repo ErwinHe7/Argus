@@ -22,9 +22,11 @@ const RETIRED_LEGACY_PAGE_PREFIXES = [
 const ACTIVE_IMPERSONAL_RESEARCH_PAGE_PREFIXES = [
   '/quant/intraday',
   '/quant/scanner',
+  '/research/sector-rotation',
 ];
 
 const ACTIVE_API_PREFIXES = [
+  '/api/health',
   '/api/ask',
   '/api/context/v1',
   '/api/cron/market-monitors',
