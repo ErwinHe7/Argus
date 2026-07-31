@@ -310,51 +310,60 @@ function deterministicDailyRegimeAnswer(
   const hit = report.walk_forward_validation.raw_directional_hit_frequency;
   const interval = report.prediction_interval;
   const empiricalCoverage = interval.empirical_coverage;
-  const nearestDates = report.similar_historical_sessions
-    .slice(0, 3)
-    .map((session) => session.session_date_et)
-    .join(', ');
+  const likelihood = report.raw_likelihood;
   const published =
     report.prediction.directional_call_status ===
     'PUBLISHED_RAW_RESEARCH_LEAN';
+  const result = published
+    ? report.prediction.lean
+    : report.raw_likelihood.down_or_flat_estimate >
+        report.raw_likelihood.up_estimate
+      ? 'MIXED · RAW DOWNSIDE/FLAT SKEW'
+      : 'MIXED · RAW UPSIDE SKEW';
   if (locale === 'zh-CN') {
     return [
-      `第一步｜当前市场状态：${report.current_regime.display_name}（${report.current_regime.label}），属于网站固定的 8 种状态之一。${report.current_regime.market_summary}`,
-      `第二步｜历史同类：完整历史中共有 ${report.same_regime_history.length} 个同状态、且已有下一交易日结果的样本；距离最近的三个日期是 ${nearestDates}。页面下方会列出全部 ${report.same_regime_history.length} 个样本，最近 15 个用于方向规则。`,
-      `第三步｜预测：${
-        published
-          ? `${report.prediction.lean} 研究倾向；原始方向一致度 ${fixed(agreement)}%，达到 ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}% 门槛。该数值不是校准概率。`
-          : `不发布方向判断。原始方向一致度只有 ${fixed(agreement)}%，低于 ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}% 门槛，因此不展示一个虚假的“置信度”。`
-      } 下一交易日收益点估计为 ${signed(interval.point_estimate_pct)}，90% 顺序共形收益区间为 ${signed(interval.lower_bound_pct)} 至 ${signed(interval.upper_bound_pct)}${
-        empiricalCoverage === null
-          ? ''
-          : `；历史滚动覆盖率为 ${fixed(empiricalCoverage * 100)}%`
-      }。这是收益区间，不是涨跌概率。`,
-      `理由：${report.prediction_rationale.conclusion} ${report.prediction_rationale.supporting_evidence.join(' ')} ${report.prediction_rationale.opposing_evidence.join(' ')}`,
-      `模型：Rust 引擎使用 15 个因果特征、按优先级排列的 8 状态分类树、同状态标准化欧氏距离最近邻、60% 方向一致门槛，以及带一交易日隔离的 90% 顺序共形区间。滚动检验产生 ${report.walk_forward_validation.directional_calls} 次合格方向判断${
+      '下一交易日模型结果',
+      `- 当前状态：${report.current_regime.display_name}（${report.current_regime.label}）`,
+      `- 方向结果：${result}`,
+      `- 原始上涨可能性：${fixed(likelihood.up_estimate * 100)}%（${likelihood.up_count}/${likelihood.sample_size} 个近邻）`,
+      `- 原始下跌或持平可能性：${fixed(likelihood.down_or_flat_estimate * 100)}%（${likelihood.down_or_flat_count}/${likelihood.sample_size} 个近邻）`,
+      `- 原始上涨比例的 ${fixed(likelihood.confidence_level * 100, 0)}% Wilson 区间：${fixed(likelihood.up_lower_bound * 100)}% 至 ${fixed(likelihood.up_upper_bound * 100)}%`,
+      `- 下一交易日收益点估计：${signed(interval.point_estimate_pct)}`,
+      `- ${fixed(interval.nominal_coverage * 100, 0)}% 收益预测区间：${signed(interval.lower_bound_pct)} 至 ${signed(interval.upper_bound_pct)}`,
+      `- 方向发布门槛：${fixed(report.prediction.minimum_directional_agreement * 100, 0)}%；当前一致度 ${fixed(agreement)}%`,
+      `- 滚动方向检验：${report.walk_forward_validation.correct_directional_calls}/${report.walk_forward_validation.directional_calls}${
         hit === null ? '' : `，原始历史命中率 ${fixed(hit * 100)}%`
-      }；这仍不是未来概率。`,
-      `宏观数据状态：${macro?.reliability ?? 'unavailable'}；新闻数据状态：HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}。当前版本把宏观和新闻作为带来源、时间戳的展示背景，不让语言模型改写 Rust 数值结果。`,
-    ].join(' ');
+      }`,
+      `- 收益区间滚动覆盖率：${
+        empiricalCoverage === null
+          ? 'unavailable'
+          : `${fixed(empiricalCoverage * 100)}%`
+      }`,
+      '',
+      `诚实说明：${likelihood.interpretation} 页面下方列出全部 ${report.same_regime_history.length} 个同状态历史样本、详细理由和模型步骤。宏观 ${macro?.reliability ?? 'unavailable'}；新闻 HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}。`,
+    ].join('\n');
   }
   return [
-    `Step 1 — Current market regime: ${report.current_regime.display_name} (${report.current_regime.label}), one of the fixed eight regimes. ${report.current_regime.market_summary}`,
-    `Step 2 — Historical matches: ${report.same_regime_history.length} mature same-regime sessions were found across the complete history. The three nearest dates are ${nearestDates}; the interface lists all ${report.same_regime_history.length}, while the nearest 15 drive the directional rule.`,
-    `Step 3 — Prediction: ${
-      published
-        ? `${report.prediction.lean} research lean. Raw directional agreement is ${fixed(agreement)}%, above the ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}% threshold; it is not a calibrated probability.`
-        : `NO DIRECTIONAL CALL. Raw directional agreement is ${fixed(agreement)}%, below the ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}% threshold, so no misleading confidence number is published.`
-    } The next-session return point estimate is ${signed(interval.point_estimate_pct)}, with a 90% prequential conformal return interval of ${signed(interval.lower_bound_pct)} to ${signed(interval.upper_bound_pct)}${
+    'NEXT-SESSION MODEL RESULT',
+    `- Current regime: ${report.current_regime.display_name} (${report.current_regime.label})`,
+    `- Direction result: ${result}`,
+    `- Raw up likelihood: ${fixed(likelihood.up_estimate * 100)}% (${likelihood.up_count}/${likelihood.sample_size} nearest analogs)`,
+    `- Raw down-or-flat likelihood: ${fixed(likelihood.down_or_flat_estimate * 100)}% (${likelihood.down_or_flat_count}/${likelihood.sample_size} nearest analogs)`,
+    `- ${fixed(likelihood.confidence_level * 100, 0)}% Wilson interval for the raw up share: ${fixed(likelihood.up_lower_bound * 100)}% to ${fixed(likelihood.up_upper_bound * 100)}%`,
+    `- Next-session return point estimate: ${signed(interval.point_estimate_pct)}`,
+    `- ${fixed(interval.nominal_coverage * 100, 0)}% return prediction interval: ${signed(interval.lower_bound_pct)} to ${signed(interval.upper_bound_pct)}`,
+    `- Direction publication threshold: ${fixed(report.prediction.minimum_directional_agreement * 100, 0)}%; observed agreement: ${fixed(agreement)}%`,
+    `- Directional walk-forward: ${report.walk_forward_validation.correct_directional_calls}/${report.walk_forward_validation.directional_calls}${
+      hit === null ? '' : `, ${fixed(hit * 100)}% raw historical accuracy`
+    }`,
+    `- Return-interval walk-forward coverage: ${
       empiricalCoverage === null
-        ? ''
-        : ` and ${fixed(empiricalCoverage * 100)}% observed walk-forward coverage`
-    }. This is a return interval, not a directional probability.`,
-    `Rationale: ${report.prediction_rationale.conclusion} ${report.prediction_rationale.supporting_evidence.join(' ')} ${report.prediction_rationale.opposing_evidence.join(' ')}`,
-    `Model: the Rust engine uses 15 causal features, an ordered eight-state classifier, standardized-Euclidean same-regime neighbors, a 60% direction-agreement gate, and a purged 90% prequential conformal interval. The walk-forward check made ${report.walk_forward_validation.directional_calls} threshold-qualified directional calls${
-      hit === null ? '' : ` with ${fixed(hit * 100)}% raw historical accuracy`
-    }; that is still not a future probability.`,
-    `Macro context is ${macro?.reliability ?? 'unavailable'}; news context is HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}. Macro and news remain timestamped display context; the language model cannot overwrite Rust quantitative output.`,
-  ].join(' ');
+        ? 'unavailable'
+        : `${fixed(empiricalCoverage * 100)}%`
+    }`,
+    '',
+    `Honesty note: ${likelihood.interpretation} The interface below lists all ${report.same_regime_history.length} same-regime historical sessions, detailed reasons, and model steps. Macro ${macro?.reliability ?? 'unavailable'}; news HN ${news?.reliability.hackernews ?? 'unavailable'} / GDELT ${news?.reliability.gdelt ?? 'unavailable'}.`,
+  ].join('\n');
 }
 
 function compactDailyContext(
@@ -431,7 +440,7 @@ export async function explainDailyRegimeResult(
           role: 'system',
           content: `${SYSTEM_BOUNDARY}
 
-Explain the supplied next-session Rust report in exactly three numbered sections: (1) current market regime and why it was selected from the fixed eight-regime taxonomy; (2) all same-regime history, clearly distinguishing the nearest 15 used by the rule; (3) the next-session conclusion, detailed supporting and opposing evidence, the 90% return prediction interval, walk-forward evidence, and the exact model steps. If directional_call_status is WITHHELD_INSUFFICIENT_AGREEMENT, say NO DIRECTIONAL CALL and do not invent a confidence score. If it is published, call reported_evidence_strength raw directional agreement, never probability. The conformal range is a return prediction interval, never a directional probability. Every numerical token must appear exactly in the grounding. Macro and news are timestamped display context only, not numerical model inputs, and the language model must not change any Rust output.`,
+Begin with a concise bulleted NEXT-SESSION MODEL RESULT list containing, in this order: current regime, direction result, raw up likelihood, raw down-or-flat likelihood, the Wilson confidence interval for the raw up share, return point estimate, conformal return prediction interval, direction threshold and observed agreement, directional walk-forward accuracy, and return-interval walk-forward coverage. Then add one short honesty note. Call the up/down likelihoods honest raw nearest-analog outcome shares and explicitly say they are uncalibrated, not a promoted forecast probability. The Wilson interval measures sampling uncertainty in the raw up share; the conformal interval is a next-session return interval. If directional_call_status is WITHHELD_INSUFFICIENT_AGREEMENT, keep the direction result MIXED and may state which raw side is larger, but do not invent a calibrated confidence score. Every numerical token must appear exactly in the grounding. Macro and news are timestamped display context only, not numerical model inputs, and the language model must not change any Rust output.`,
         },
         {
           role: 'user',

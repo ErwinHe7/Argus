@@ -2561,3 +2561,32 @@ container, DNS record, secret, live data feed, model promotion, customer
 traffic, or broker execution state was changed. The real server must still
 pass the documented exact-nine readiness and release-acceptance gates before
 cutover; automatic execution remains disabled.
+
+## 2026-07-30Z transparent SPX raw-likelihood result contract
+
+- Bare SPX/SPY trend, direction, outlook, forecast, and prediction questions
+  now route to the Rust-owned next-session daily-regime report. Questions
+  explicitly asking for the current, live, intraday, or today's trend continue
+  to use the observed-session report.
+- The daily-regime interface is now `axio.daily-regime.v3`, model version
+  `2026-07-30.v4`. Rust publishes the 15-nearest-same-regime up and
+  down-or-flat outcome shares together with a two-sided 95% Wilson score
+  interval for the raw up share. The web proxy independently verifies the
+  counts, shares, interval parameters, and recomputed bounds before rendering.
+- The customer result begins with a concise list containing the raw outcome
+  shares, their uncertainty interval, the conformal next-session return point
+  and 90% prediction interval, empirical interval coverage, and purged
+  walk-forward directional accuracy. It labels the raw likelihood as
+  uncalibrated and does not represent it as a promoted probability.
+- No probability gate was weakened. `probability_published` remains false,
+  automatic execution remains disabled, and a calibrated probability still
+  requires a separately validated, immutable, promoted artifact.
+
+Offline validation passed: TypeScript typecheck, all 21 quant-conversation
+contract tests, the production Next.js build, `cargo fmt --check`,
+`cargo clippy --all-targets -- -D warnings`, all Rust tests (492 library tests
+plus binary/integration suites), 59 Python tests with five licensed-data tests
+skipped, and the C++ CMake/CTest suite. The Next.js build retained the existing
+non-fatal warning about duplicate inherited ESLint plugin configuration.
+Production deployment and exact `spx trend` browser acceptance are still
+pending.

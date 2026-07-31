@@ -1747,15 +1747,113 @@ function DailyRegimeDetails({
     'PUBLISHED_RAW_RESEARCH_LEAN';
   const agreement = report.prediction.raw_directional_agreement * 100;
   const interval = report.prediction_interval;
+  const likelihood = report.raw_likelihood;
   const empiricalCoverage = interval.empirical_coverage;
   const resultTitle = published
     ? `${report.prediction.lean} ${chinese ? '研究倾向' : 'research lean'}`
     : chinese
       ? '不发布方向判断'
       : 'NO DIRECTIONAL CALL';
+  const likelihoodResult = published
+    ? report.prediction.lean
+    : likelihood.down_or_flat_estimate > likelihood.up_estimate
+      ? chinese
+        ? '混合 · 原始数据轻微偏向下跌或持平'
+        : 'MIXED · raw downside/flat skew'
+      : chinese
+        ? '混合 · 原始数据轻微偏向上涨'
+        : 'MIXED · raw upside skew';
 
   return (
     <div className={styles.predictionDetails}>
+      <section
+        className={styles.probabilitySummary}
+        aria-label={chinese ? '下一交易日模型概率结果' : 'Next-session model probability result'}
+      >
+        <div className={styles.probabilityHeading}>
+          <div>
+            <small>
+              {chinese ? '下一交易日模型结果' : 'NEXT-SESSION MODEL RESULT'}
+            </small>
+            <strong>{likelihoodResult}</strong>
+          </div>
+          <span>
+            {chinese ? '原始、未校准' : 'RAW · UNCALIBRATED'}
+          </span>
+        </div>
+        <dl className={styles.probabilityRows}>
+          <div>
+            <dt>{chinese ? '上涨可能性' : 'Up likelihood'}</dt>
+            <dd>{formatNumber(likelihood.up_estimate * 100)}%</dd>
+            <small>
+              {likelihood.up_count}/{likelihood.sample_size}{' '}
+              {chinese ? '个近邻' : 'nearest analogs'}
+            </small>
+          </div>
+          <div>
+            <dt>{chinese ? '下跌或持平可能性' : 'Down-or-flat likelihood'}</dt>
+            <dd>{formatNumber(likelihood.down_or_flat_estimate * 100)}%</dd>
+            <small>
+              {likelihood.down_or_flat_count}/{likelihood.sample_size}{' '}
+              {chinese ? '个近邻' : 'nearest analogs'}
+            </small>
+          </div>
+          <div>
+            <dt>
+              {formatNumber(likelihood.confidence_level * 100, 0)}%{' '}
+              {chinese ? '上涨比例区间' : 'up-share confidence interval'}
+            </dt>
+            <dd>
+              {formatNumber(likelihood.up_lower_bound * 100)}%–
+              {formatNumber(likelihood.up_upper_bound * 100)}%
+            </dd>
+            <small>{likelihood.confidence_method.replaceAll('_', ' ')}</small>
+          </div>
+          <div>
+            <dt>{chinese ? '收益点估计' : 'Return point estimate'}</dt>
+            <dd>{formatPercent(interval.point_estimate_pct)}</dd>
+            <small>{chinese ? '下一完整交易日' : 'next complete session'}</small>
+          </div>
+          <div>
+            <dt>
+              {formatNumber(interval.nominal_coverage * 100, 0)}%{' '}
+              {chinese ? '收益预测区间' : 'return prediction interval'}
+            </dt>
+            <dd>
+              {formatPercent(interval.lower_bound_pct)}–
+              {formatPercent(interval.upper_bound_pct)}
+            </dd>
+            <small>
+              {chinese ? '滚动覆盖率' : 'walk-forward coverage'}{' '}
+              {empiricalCoverage === null
+                ? 'unavailable'
+                : `${formatNumber(empiricalCoverage * 100)}%`}
+            </small>
+          </div>
+          <div>
+            <dt>{chinese ? '方向历史检验' : 'Directional walk-forward'}</dt>
+            <dd>
+              {report.walk_forward_validation.correct_directional_calls}/
+              {report.walk_forward_validation.directional_calls}
+            </dd>
+            <small>
+              {report.walk_forward_validation.raw_directional_hit_frequency ===
+              null
+                ? 'unavailable'
+                : `${formatNumber(
+                    report.walk_forward_validation.raw_directional_hit_frequency *
+                      100
+                  )}% ${chinese ? '原始命中率' : 'raw accuracy'}`}
+            </small>
+          </div>
+        </dl>
+        <p>
+          {chinese
+            ? '这些上涨/下跌数字是最近 15 个同状态历史近邻的真实原始比例；95% Wilson 区间表示样本不确定性。它们不是已经校准并晋升的预测概率。'
+            : 'The up/down numbers are the actual raw outcome shares among the 15 nearest same-regime analogs; the 95% Wilson interval shows sampling uncertainty. They are not a calibrated or promoted forecast probability.'}
+        </p>
+      </section>
+
       <div className={styles.reportMeta}>
         <span className={`${styles.compliancePill} ${styles.allowed}`}>
           <ShieldCheck size={13} />

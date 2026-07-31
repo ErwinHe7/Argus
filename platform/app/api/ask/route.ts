@@ -153,7 +153,7 @@ function dailyRegimeSources(
       state: 'computed',
       role: report.model_contract.model_id,
       asOf: report.generated_at,
-      note: `${report.model_contract.status}; ${report.model_contract.feature_count} causal features; probability publication disabled`,
+      note: `${report.model_contract.status}; ${report.model_contract.feature_count} causal features; raw empirical likelihood and uncertainty interval displayed; calibrated probability publication disabled`,
     },
   ];
   for (const series of macro?.series ?? []) {

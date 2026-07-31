@@ -342,7 +342,7 @@ export type QuantDailyHistoricalSession = {
 };
 
 export type QuantDailyRegimeReport = {
-  schema_version: 'axio.daily-regime.v2';
+  schema_version: 'axio.daily-regime.v3';
   status: 'AVAILABLE_UNCALIBRATED';
   result_kind: 'NEXT_REGULAR_SESSION_ANALOG_LEAN';
   generated_at: string;
@@ -395,6 +395,20 @@ export type QuantDailyRegimeReport = {
     reported_evidence_strength: number | null;
     median_next_session_return_pct: number;
     mean_next_session_return_pct: number;
+    calibrated_probability: false;
+    interpretation: string;
+  };
+  raw_likelihood: {
+    method: 'NEAREST_SAME_REGIME_EMPIRICAL_SIGN_FREQUENCY';
+    sample_size: number;
+    up_count: number;
+    down_or_flat_count: number;
+    up_estimate: number;
+    down_or_flat_estimate: number;
+    confidence_method: 'WILSON_SCORE_INTERVAL';
+    confidence_level: number;
+    up_lower_bound: number;
+    up_upper_bound: number;
     calibrated_probability: false;
     interpretation: string;
   };

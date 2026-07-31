@@ -76,12 +76,19 @@ test('tomorrow SPX questions use the Rust daily-regime and analog contract', () 
 
   assert.equal(requestsNextSessionForecast("tomorrow's trend of spx"), true);
   assert.equal(requestsNextSessionForecast('明天 SPX 走势'), true);
+  assert.equal(requestsNextSessionForecast('spx trend'), true);
+  assert.equal(requestsNextSessionForecast('trend of SPX'), true);
+  assert.equal(requestsNextSessionForecast('SPX 走势'), true);
   assert.equal(requestsNextSessionForecast('current SPX trend'), false);
+  assert.equal(requestsNextSessionForecast('SPX current trend'), false);
+  const bareTrendQuery = compileMarketQuery('spx trend');
+  assert.equal(bareTrendQuery.query.setup_type, 'model_forecast');
+  assert.deepEqual(bareTrendQuery.query.symbols, ['SPX']);
   assert.match(
     rustApi,
     /"\/api\/v1\/research\/daily-regime"[\s\S]*get\(research_daily_regime\)/
   );
-  assert.match(rustDaily, /axio\.daily-regime\.v2/);
+  assert.match(rustDaily, /axio\.daily-regime\.v3/);
   assert.match(rustDaily, /NEXT_REGULAR_SESSION_ANALOG_LEAN/);
   assert.match(rustDaily, /Raw analog frequencies/);
   assert.match(rustDaily, /probability_published:\s*false/);
@@ -92,6 +99,8 @@ test('tomorrow SPX questions use the Rust daily-regime and analog contract', () 
   );
   assert.match(rustDaily, /REGIME_TAXONOMY:\s*\[RegimeLabel;\s*8\]/);
   assert.match(rustDaily, /DIRECTIONAL_AGREEMENT_THRESHOLD:\s*f64\s*=\s*0\.60/);
+  assert.match(rustDaily, /NEAREST_SAME_REGIME_EMPIRICAL_SIGN_FREQUENCY/);
+  assert.match(rustDaily, /WILSON_SCORE_INTERVAL/);
   assert.match(rustDaily, /PREQUENTIAL_ABSOLUTE_RESIDUAL_CONFORMAL/);
   assert.match(rustDaily, /PURGED_EXPANDING_WALK_FORWARD/);
   assert.match(client, /requestQuantDailyRegime/);
@@ -107,6 +116,8 @@ test('tomorrow SPX questions use the Rust daily-regime and analog contract', () 
   assert.match(chat, /DailyRegimeDetails/);
   assert.match(chat, /All same-regime history/);
   assert.match(chat, /NO DIRECTIONAL CALL/);
+  assert.match(chat, /Up likelihood/);
+  assert.match(chat, /up-share confidence interval/);
   assert.match(chat, /How the model reached this result/);
   assert.match(chat, /Model and algorithm source list/);
   assert.match(llm, /moonshotai\/kimi-k3-free/);

@@ -276,8 +276,30 @@ export function requestsMarketMonitor(text: string) {
 }
 
 export function requestsNextSessionForecast(text: string) {
-  return /tomorrow|next\s+(?:trading\s+)?(?:day|session)|next-session|明天|下一个交易日|下一交易日|明日/i.test(
-    text
+  if (
+    /tomorrow|next\s+(?:trading\s+)?(?:day|session)|next-session|明天|下一个交易日|下一交易日|明日/i.test(
+      text
+    )
+  ) {
+    return true;
+  }
+  if (
+    /current|today|live|intraday|observed|session\s+so\s+far|现在|当前|今天|今日|实时|盘中/i.test(
+      text
+    )
+  ) {
+    return false;
+  }
+  return (
+    /\b(?:spx|spy)\b[\s\S]{0,24}\b(?:trend|direction|outlook|forecast|prediction)\b/i.test(
+      text
+    ) ||
+    /\b(?:trend|direction|outlook|forecast|prediction)\b[\s\S]{0,24}\b(?:spx|spy)\b/i.test(
+      text
+    ) ||
+    /(?:SPX|SPY)[\s\S]{0,12}(?:走势|趋势|方向|预测)|(?:走势|趋势|方向|预测)[\s\S]{0,12}(?:SPX|SPY)/i.test(
+      text
+    )
   );
 }
 

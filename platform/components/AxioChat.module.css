@@ -1140,6 +1140,105 @@ a.monitorEmpty:hover {
   margin-top: 21px;
 }
 
+.probabilitySummary {
+  overflow: hidden;
+  border: 1px solid #d5cec5;
+  border-radius: 12px;
+  background: #fbf8f3;
+}
+
+.probabilityHeading {
+  display: flex;
+  min-height: 76px;
+  padding: 15px 16px;
+  border-bottom: 1px solid #ded8d0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  background: linear-gradient(135deg, #f7efe7, #faf8f4);
+}
+
+.probabilityHeading > div {
+  display: grid;
+  gap: 5px;
+}
+
+.probabilityHeading small {
+  color: #987567;
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: 0.1em;
+}
+
+.probabilityHeading strong {
+  color: #332f2a;
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+.probabilityHeading > span {
+  padding: 5px 8px;
+  border: 1px solid #d8ccc1;
+  border-radius: 999px;
+  color: #896d61;
+  background: rgba(255, 255, 255, 0.55);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.probabilityRows {
+  display: grid;
+  margin: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.probabilityRows > div {
+  display: grid;
+  min-width: 0;
+  min-height: 94px;
+  padding: 12px 14px;
+  border-right: 1px solid var(--line-soft);
+  border-bottom: 1px solid var(--line-soft);
+  align-content: center;
+  gap: 4px;
+}
+
+.probabilityRows > div:nth-child(3n) {
+  border-right: 0;
+}
+
+.probabilityRows dt {
+  color: #817a72;
+  font-size: 9px;
+  font-weight: 650;
+}
+
+.probabilityRows dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #3c3833;
+  font-size: 17px;
+  font-weight: 730;
+  line-height: 1.2;
+}
+
+.probabilityRows small {
+  color: #a19a92;
+  font-size: 8px;
+  line-height: 1.4;
+  text-transform: lowercase;
+}
+
+.probabilitySummary > p {
+  margin: 0;
+  padding: 10px 14px 11px;
+  color: #777168;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
 .reportStep {
   margin-top: 22px;
   padding-top: 17px;
@@ -2168,6 +2267,24 @@ a.monitorEmpty:hover {
   .predictionHero,
   .intervalCard {
     grid-template-columns: 1fr;
+  }
+
+  .probabilityHeading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .probabilityRows {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .probabilityRows > div:nth-child(3n) {
+    border-right: 1px solid var(--line-soft);
+  }
+
+  .probabilityRows > div:nth-child(2n) {
+    border-right: 0;
   }
 
   .regimeTaxonomy,

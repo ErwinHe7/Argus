@@ -54,6 +54,8 @@ const MINIMUM_ANALOGS: usize = 10;
 const DIRECTIONAL_AGREEMENT_THRESHOLD: f64 = 0.60;
 const PREDICTION_INTERVAL_COVERAGE: f64 = 0.90;
 const MINIMUM_INTERVAL_CALIBRATION_SESSIONS: usize = 40;
+const RAW_LIKELIHOOD_CONFIDENCE_LEVEL: f64 = 0.95;
+const NORMAL_95_TWO_SIDED_Z: f64 = 1.959_963_984_540_054;
 
 static HISTORY_CACHE: OnceLock<Arc<HistoricalDailyData>> = OnceLock::new();
 
@@ -236,6 +238,7 @@ pub struct DailyRegimeReport {
     regime_taxonomy: Vec<RegimeTaxonomyEntry>,
     current_market: CurrentMarket,
     prediction: NextSessionLean,
+    raw_likelihood: RawLikelihoodEstimate,
     prediction_interval: PredictionInterval,
     prediction_rationale: PredictionRationale,
     similar_historical_sessions: Vec<HistoricalAnalog>,
@@ -299,6 +302,22 @@ struct NextSessionLean {
     reported_evidence_strength: Option<f64>,
     median_next_session_return_pct: f64,
     mean_next_session_return_pct: f64,
+    calibrated_probability: bool,
+    interpretation: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct RawLikelihoodEstimate {
+    method: &'static str,
+    sample_size: usize,
+    up_count: usize,
+    down_or_flat_count: usize,
+    up_estimate: f64,
+    down_or_flat_estimate: f64,
+    confidence_method: &'static str,
+    confidence_level: f64,
+    up_lower_bound: f64,
+    up_upper_bound: f64,
     calibrated_probability: bool,
     interpretation: &'static str,
 }
@@ -966,6 +985,20 @@ fn conformal_residual_quantile(residuals: &[f64], coverage: f64) -> Option<f64> 
     Some(sorted[rank - 1])
 }
 
+fn wilson_score_interval(successes: usize, trials: usize, z: f64) -> Option<(f64, f64)> {
+    if trials == 0 || !z.is_finite() || z <= 0.0 || successes > trials {
+        return None;
+    }
+    let n = trials as f64;
+    let proportion = successes as f64 / n;
+    let z_squared = z * z;
+    let denominator = 1.0 + z_squared / n;
+    let center = (proportion + z_squared / (2.0 * n)) / denominator;
+    let radius = z * ((proportion * (1.0 - proportion) / n) + z_squared / (4.0 * n * n)).sqrt()
+        / denominator;
+    Some(((center - radius).max(0.0), (center + radius).min(1.0)))
+}
+
 fn walk_forward(rows: &[FeatureRow]) -> WalkForwardComputation {
     let start = rows.len().saturating_sub(127).max(80);
     let mut eligible_queries = 0;
@@ -1319,6 +1352,9 @@ pub fn build_daily_regime_report(
     let similar_historical_sessions = historical_sessions(&rows, &analogs);
     let same_regime_history = historical_sessions(&rows, &all_same_regime);
     let raw_directional_agreement = raw_up.max(1.0 - raw_up);
+    let (raw_up_lower_bound, raw_up_upper_bound) =
+        wilson_score_interval(up_count, analogs.len(), NORMAL_95_TWO_SIDED_Z)
+            .context("DAILY_REGIME_RAW_LIKELIHOOD_INTERVAL_UNAVAILABLE")?;
     let prediction_rationale = prediction_rationale(
         current,
         same_regime_history.len(),
@@ -1336,7 +1372,7 @@ pub fn build_daily_regime_report(
     let classification_reasons = regime_classification_reasons(current, volatility_percentile);
 
     Ok(DailyRegimeReport {
-        schema_version: "axio.daily-regime.v2",
+        schema_version: "axio.daily-regime.v3",
         status: "AVAILABLE_UNCALIBRATED",
         result_kind: "NEXT_REGULAR_SESSION_ANALOG_LEAN",
         generated_at: Utc::now(),
@@ -1394,6 +1430,20 @@ pub fn build_daily_regime_report(
             calibrated_probability: false,
             interpretation: "A directional research lean is published only when nearest-analog sign agreement is at least 60% and the median return has the same sign. Otherwise the directional call and confidence number are withheld.",
         },
+        raw_likelihood: RawLikelihoodEstimate {
+            method: "NEAREST_SAME_REGIME_EMPIRICAL_SIGN_FREQUENCY",
+            sample_size: analogs.len(),
+            up_count,
+            down_or_flat_count: analogs.len() - up_count,
+            up_estimate: raw_up,
+            down_or_flat_estimate: 1.0 - raw_up,
+            confidence_method: "WILSON_SCORE_INTERVAL",
+            confidence_level: RAW_LIKELIHOOD_CONFIDENCE_LEVEL,
+            up_lower_bound: raw_up_lower_bound,
+            up_upper_bound: raw_up_upper_bound,
+            calibrated_probability: false,
+            interpretation: "The displayed up and down-or-flat likelihoods are the honest raw outcome shares among the 15 nearest same-regime analogs. The 95% Wilson interval quantifies sampling uncertainty in the raw up share. These values are uncalibrated and are not a promoted forecast probability.",
+        },
         prediction_interval,
         prediction_rationale,
         similar_historical_sessions,
@@ -1415,7 +1465,7 @@ pub fn build_daily_regime_report(
         },
         model_contract: DailyModelContract {
             model_id: "axio7.spx-next-session-regime-analog",
-            model_version: "2026-07-30.v3",
+            model_version: "2026-07-30.v4",
             owner: "quant_engine_rs",
             regime_algorithm: "Ordered causal eight-state trend-volatility-breadth decision tree using only completed sessions.",
             analog_algorithm: "All mature same-regime sessions are ranked by standardized-Euclidean distance over 15 causal features; the nearest 15 drive the thresholded directional rule and prequential conformal return interval.",
@@ -1435,6 +1485,7 @@ pub fn build_daily_regime_report(
         automatic_execution_enabled: false,
         caveats: vec![
             "Raw analog frequencies and walk-forward hit frequencies are descriptive statistics, not calibrated probabilities.",
+            "The raw likelihood estimate and its Wilson interval are shown for transparency but are not a calibrated or promoted forecast probability.",
             "The 90% conformal interval is a next-session return prediction interval, not a 90% directional probability.",
             "No directional confidence number is published when raw nearest-analog agreement is below 60%.",
             "SPY is an explicit proxy for SPX price and volume research.",
@@ -1545,6 +1596,16 @@ mod tests {
         let residuals = (1..=99).map(|value| value as f64).collect::<Vec<_>>();
         assert_eq!(conformal_residual_quantile(&residuals, 0.90), Some(90.0));
         assert_eq!(conformal_residual_quantile(&[], 0.90), None);
+    }
+
+    #[test]
+    fn wilson_interval_exposes_raw_likelihood_uncertainty() {
+        let (lower, upper) =
+            wilson_score_interval(7, 15, NORMAL_95_TWO_SIDED_Z).expect("valid interval");
+        assert!((lower - 0.248_095_353_657_374).abs() < 1.0e-12);
+        assert!((upper - 0.698_830_199_745_016).abs() < 1.0e-12);
+        assert!(wilson_score_interval(0, 0, NORMAL_95_TWO_SIDED_Z).is_none());
+        assert!(wilson_score_interval(16, 15, NORMAL_95_TWO_SIDED_Z).is_none());
     }
 
     #[test]

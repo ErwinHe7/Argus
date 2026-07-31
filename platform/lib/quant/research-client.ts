@@ -1282,11 +1282,31 @@ const DAILY_REGIMES = new Set([
   'MIXED_TRANSITION',
 ]);
 
+function wilsonScoreInterval(successes: number, trials: number, z: number) {
+  const proportion = successes / trials;
+  const zSquared = z * z;
+  const denominator = 1 + zSquared / trials;
+  const center =
+    (proportion + zSquared / (2 * trials)) / denominator;
+  const radius =
+    (z *
+      Math.sqrt(
+        (proportion * (1 - proportion)) / trials +
+          zSquared / (4 * trials * trials)
+      )) /
+    denominator;
+  return {
+    lower: Math.max(0, center - radius),
+    upper: Math.min(1, center + radius),
+  };
+}
+
 function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
   const report = record(payload);
   const regime = record(report?.current_regime);
   const market = record(report?.current_market);
   const prediction = record(report?.prediction);
+  const rawLikelihood = record(report?.raw_likelihood);
   const interval = record(report?.prediction_interval);
   const rationale = record(report?.prediction_rationale);
   const validation = record(report?.walk_forward_validation);
@@ -1334,11 +1354,23 @@ function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
   const sameRegimeDates = sameRegimeHistory.map(
     (value) => String(record(value)?.session_date_et)
   );
+  const expectedRawLikelihoodInterval =
+    prediction !== null &&
+    Number.isSafeInteger(prediction.raw_up_count) &&
+    Number.isSafeInteger(prediction.analog_sample_size) &&
+    (prediction.analog_sample_size as number) > 0
+      ? wilsonScoreInterval(
+          prediction.raw_up_count as number,
+          prediction.analog_sample_size as number,
+          1.959963984540054
+        )
+      : null;
   const valid =
     report !== null &&
     regime !== null &&
     market !== null &&
     prediction !== null &&
+    rawLikelihood !== null &&
     interval !== null &&
     rationale !== null &&
     validation !== null &&
@@ -1346,7 +1378,7 @@ function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
     model !== null &&
     contextPolicy !== null &&
     coverage !== null &&
-    report.schema_version === 'axio.daily-regime.v2' &&
+    report.schema_version === 'axio.daily-regime.v3' &&
     report.status === 'AVAILABLE_UNCALIBRATED' &&
     report.result_kind === 'NEXT_REGULAR_SESSION_ANALOG_LEAN' &&
     isTimestamp(report.generated_at) &&
@@ -1456,6 +1488,40 @@ function verifyDailyRegimeReport(payload: unknown): QuantDailyRegimeReport {
     isFiniteNumber(prediction.mean_next_session_return_pct) &&
     prediction.calibrated_probability === false &&
     isNonEmptyString(prediction.interpretation) &&
+    rawLikelihood.method ===
+      'NEAREST_SAME_REGIME_EMPIRICAL_SIGN_FREQUENCY' &&
+    rawLikelihood.sample_size === prediction.analog_sample_size &&
+    rawLikelihood.up_count === prediction.raw_up_count &&
+    rawLikelihood.down_or_flat_count === prediction.raw_down_or_flat_count &&
+    isFiniteNumber(rawLikelihood.up_estimate) &&
+    Math.abs(
+      (rawLikelihood.up_estimate as number) -
+        (prediction.raw_up_frequency as number)
+    ) < 1e-10 &&
+    isFiniteNumber(rawLikelihood.down_or_flat_estimate) &&
+    Math.abs(
+      (rawLikelihood.down_or_flat_estimate as number) -
+        (1 - (prediction.raw_up_frequency as number))
+    ) < 1e-10 &&
+    rawLikelihood.confidence_method === 'WILSON_SCORE_INTERVAL' &&
+    rawLikelihood.confidence_level === 0.95 &&
+    isFiniteNumber(rawLikelihood.up_lower_bound) &&
+    isFiniteNumber(rawLikelihood.up_upper_bound) &&
+    expectedRawLikelihoodInterval !== null &&
+    Math.abs(
+      (rawLikelihood.up_lower_bound as number) -
+        expectedRawLikelihoodInterval.lower
+    ) < 1e-10 &&
+    Math.abs(
+      (rawLikelihood.up_upper_bound as number) -
+        expectedRawLikelihoodInterval.upper
+    ) < 1e-10 &&
+    (rawLikelihood.up_lower_bound as number) <=
+      (rawLikelihood.up_estimate as number) &&
+    (rawLikelihood.up_estimate as number) <=
+      (rawLikelihood.up_upper_bound as number) &&
+    rawLikelihood.calibrated_probability === false &&
+    isNonEmptyString(rawLikelihood.interpretation) &&
     analogs.length === prediction.analog_sample_size &&
     analogs.every(validHistoricalSession) &&
     sameRegimeHistory.length >= analogs.length &&
@@ -1580,7 +1646,7 @@ export async function requestQuantDailyRegime(
   if (normalized !== 'SPX') {
     throw new QuantBackendUnavailableError(
       'RUST_DAILY_REGIME_SYMBOL_UNSUPPORTED',
-      'The daily-regime v2 contract currently supports SPX through SPY.'
+      'The daily-regime v3 contract currently supports SPX through SPY.'
     );
   }
   const payload = await fetchQuantJson(
