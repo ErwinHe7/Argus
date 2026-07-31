@@ -59,7 +59,14 @@ PUBLIC_HOST_RE = re.compile(
     r"^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+"
     r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$"
 )
-REQUIRED_RUNTIME_SERVICES = ("quantd", "web", "caddy", "monitor-scheduler")
+REQUIRED_RUNTIME_SERVICES = (
+    "quantd",
+    "web",
+    "postgres",
+    "market-archive",
+    "caddy",
+    "monitor-scheduler",
+)
 
 
 class SealError(RuntimeError):
@@ -958,7 +965,7 @@ def parse_runtime_service_state(
         running and not restarting and not dead,
         f"{service} is not stably running",
     )
-    if service in ("quantd", "web"):
+    if service in ("quantd", "web", "postgres"):
         require(
             health_status == "healthy",
             f"{service} liveness healthcheck is not healthy",
@@ -1560,6 +1567,9 @@ def main(argv: Iterable[str]) -> int:
         compose, "quantd", expected_commit, process_environment
     )
     web_image = image_receipt(compose, "web", expected_commit, process_environment)
+    market_archive_image = image_receipt(
+        compose, "market-archive", expected_commit, process_environment
+    )
 
     readiness, publication_bundle = capture_consistent_state(
         compose,
@@ -1731,6 +1741,7 @@ find data/models data/manifests data/evidence data/promotion data/calibration da
         expected_image_ids={
             "quantd": str(quantd_image["image_id"]),
             "web": str(web_image["image_id"]),
+            "market-archive": str(market_archive_image["image_id"]),
         },
     )
     verify_runtime_mount_isolation(
@@ -1789,6 +1800,7 @@ find data/models data/manifests data/evidence data/promotion data/calibration da
             "images": {
                 "quantd": quantd_image,
                 "web": web_image,
+                "market_archive": market_archive_image,
             },
             "configuration": {
                 "compose_yaml_sha256": sha256_file(compose_file),

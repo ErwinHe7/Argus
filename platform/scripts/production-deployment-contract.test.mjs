@@ -7,6 +7,7 @@ const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf
 const compose = read('infra/single-vm/compose.yaml');
 const environmentExample = read('infra/single-vm/.env.server.example');
 const quantdDockerfile = read('infra/single-vm/quantd.Dockerfile');
+const marketArchiveDockerfile = read('infra/single-vm/market-archive.Dockerfile');
 const quantdDockerignore = read('infra/single-vm/quantd.Dockerfile.dockerignore');
 const webDockerfile = read('Dockerfile');
 const rootDockerignore = read('.dockerignore');
@@ -19,16 +20,34 @@ const deploymentReadme = read('infra/single-vm/README.md');
 
 test('single-VM build binds both images to an explicit clean commit', () => {
   const buildArgMatches = compose.match(/GIT_COMMIT:\s*\$\{GIT_COMMIT:\?[^}]+\}/g) ?? [];
-  assert.equal(buildArgMatches.length, 2);
+  assert.equal(buildArgMatches.length, 3);
   assert.match(compose, /image:\s*axio7-quantd:\$\{GIT_COMMIT:\?/);
   assert.match(compose, /image:\s*axio7-web:\$\{GIT_COMMIT:\?/);
+  assert.match(compose, /image:\s*axio7-market-archive:\$\{GIT_COMMIT:\?/);
   assert.match(quantdDockerfile, /LABEL org\.opencontainers\.image\.revision=\$GIT_COMMIT/);
   assert.match(webDockerfile, /LABEL org\.opencontainers\.image\.revision=\$GIT_COMMIT/);
+  assert.match(marketArchiveDockerfile, /LABEL org\.opencontainers\.image\.revision=\$GIT_COMMIT/);
   assert.match(quantdDockerfile, /test "\$\{#GIT_COMMIT\}" -eq 40/);
   assert.match(webDockerfile, /test "\$\{#GIT_COMMIT\}" -eq 40/);
   assert.match(quantdDockerfile, /ARG GIT_COMMIT=WORKTREE_UNCOMMITTED/);
   assert.match(webDockerfile, /ARG GIT_COMMIT=WORKTREE_UNCOMMITTED/);
+  assert.match(marketArchiveDockerfile, /ARG GIT_COMMIT=WORKTREE_UNCOMMITTED/);
   assert.match(environmentExample, /^GIT_COMMIT=$/m);
+});
+
+test('PostgreSQL archive stays private, append-only, and revision-bound', () => {
+  const postgresService = compose.split('\n  postgres:')[1].split('\n  market-archive:')[0];
+  const archiveService = compose.split('\n  market-archive:')[1].split('\n  ibkr-gateway:')[0];
+  assert.doesNotMatch(postgresService, /^\s+ports:/m);
+  assert.match(postgresService, /POSTGRES_INITDB_ARGS:\s*--data-checksums/);
+  assert.match(postgresService, /runtime\/market-data\/postgres:\/var\/lib\/postgresql\/data/);
+  assert.match(postgresService, /pg_isready -U axio7 -d axio7_market/);
+  assert.match(archiveService, /runtime\/market-data:\/archive:ro/);
+  assert.match(archiveService, /--watch-interval-seconds/);
+  assert.match(archiveService, /AXIO7_MARKET_DATA_RIGHTS_RECEIPT_SHA256/);
+  assert.match(archiveService, /read_only:\s*true/);
+  assert.match(environmentExample, /^MARKET_POSTGRES_PASSWORD=$/m);
+  assert.match(verifyRuntime, /market_data\.live_archive_receipts/);
 });
 
 test('private release artifacts are injected through read-only runtime mounts', () => {
@@ -214,7 +233,7 @@ test('sealed acceptance is exact-nine, regular-session, and checksum-bound', () 
   assert.match(acceptance, /environment\.get\("deployment"\) == expected_commit/);
   assert.match(
     acceptance,
-    /REQUIRED_RUNTIME_SERVICES = \("quantd", "web", "caddy", "monitor-scheduler"\)/,
+    /"postgres",[\s\S]*"market-archive",[\s\S]*"caddy"/,
   );
   assert.match(acceptance, /health_status == "healthy"/);
   assert.match(acceptance, /image_id == expected_image_id/);

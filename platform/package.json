@@ -22,6 +22,7 @@
     "test:public-context": "tsx --test scripts/public-context-contract.test.ts",
     "test:ui-navigation": "node --test scripts/ui-navigation-contract.test.mjs",
     "test:paddle-catalog": "node --test scripts/paddle-catalog-contract.test.mjs",
+    "test:growth-funnel": "tsx --test scripts/acquisition-attribution-contract.test.ts",
     "paddle:catalog": "node scripts/provision-paddle-catalog.mjs",
     "paddle:live-infra": "node scripts/provision-paddle-live-infrastructure.mjs"
   },

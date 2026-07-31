@@ -166,7 +166,6 @@ test('Free Paddle membership stays read-only across research surfaces', async ()
     'app/api/quant/price-anomalies/route.ts',
     'app/api/quant/reason/route.ts',
     'app/api/quant/research/route.ts',
-    'app/api/quant/research/status/route.ts',
     'app/api/quant/scan/route.ts',
     'app/api/quant/stat-arb/route.ts',
     'app/api/research/serenity/route.ts',
@@ -191,6 +190,12 @@ test('Free Paddle membership stays read-only across research surfaces', async ()
       `${protectedRoutes[index]} must enforce paid research access`
     );
   }
+
+  const publicRuntimeStatus = await source(
+    'app/api/quant/research/status/route.ts'
+  );
+  assert.match(publicRuntimeStatus, /probeQuantResearchBackend\(\)/);
+  assert.doesNotMatch(publicRuntimeStatus, /requirePaidResearchAccess\(\)/);
 });
 
 test('Paddle automatic payment surfaces are a permanent repository contract', async () => {

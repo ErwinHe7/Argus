@@ -43,7 +43,7 @@ configured_commit="$(
 }
 docker compose --env-file .env.server config --quiet
 
-for service in quantd web; do
+for service in quantd web market-archive; do
   image_id="$(docker compose --env-file .env.server images -q "$service")"
   [[ "$image_id" =~ ^sha256:[0-9a-f]{64}$ ]] || {
     printf 'Cannot resolve one content-addressed %s image.\n' "$service" >&2
@@ -59,6 +59,45 @@ for service in quantd web; do
     exit 65
   }
 done
+
+postgres_container="$(docker compose --env-file .env.server ps -q postgres)"
+[[ -n "$postgres_container" ]] || {
+  printf 'postgres is not running.\n' >&2
+  exit 69
+}
+postgres_health="$(
+  docker inspect --format \
+    '{{if .State.Health}}{{.State.Health.Status}}{{else}}missing{{end}}' \
+    "$postgres_container"
+)"
+[[ "$postgres_health" == healthy ]] || {
+  printf 'postgres is not healthy: %s\n' "$postgres_health" >&2
+  exit 69
+}
+
+archive_container="$(docker compose --env-file .env.server ps -q market-archive)"
+[[ -n "$archive_container" ]] || {
+  printf 'market-archive is not running.\n' >&2
+  exit 69
+}
+archive_running="$(
+  docker inspect --format '{{.State.Running}}|{{.State.Restarting}}' \
+    "$archive_container"
+)"
+[[ "$archive_running" == 'true|false' ]] || {
+  printf 'market-archive is not stably running.\n' >&2
+  exit 69
+}
+
+archive_counts="$(
+  docker compose --env-file .env.server exec -T postgres \
+    psql -U axio7 -d axio7_market -Atqc \
+    "SELECT COUNT(*)::text || '|' || (SELECT COUNT(*)::text FROM market_data.live_archive_receipts) FROM market_data.live_equity_minute_bars;"
+)"
+[[ "$archive_counts" =~ ^[1-9][0-9]*\|[1-9][0-9]*$ ]] || {
+  printf 'PostgreSQL live archive has no rows or receipts.\n' >&2
+  exit 69
+}
 
 quantd_container="$(docker compose --env-file .env.server ps -q quantd)"
 [[ -n "$quantd_container" ]] || {

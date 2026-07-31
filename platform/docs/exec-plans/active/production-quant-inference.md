@@ -2507,9 +2507,9 @@ refuses this state and remains unchanged.
 Two narrowly scoped source-side helpers now bridge only that first migration:
 `production-legacy-flat-migration-backup.sh` and
 `production-legacy-flat-migration-restore.sh`. The backup requires explicit
-`--confirm-legacy-quiesce`, fingerprints the exact five-service/four-volume
+`--confirm-legacy-quiesce`, fingerprints the exact four-service/four-volume
 legacy topology and expected bind mounts, verifies disabled execution, records
-every full container/image ID, recovery-tags every image, stops all five
+every full container/image ID, recovery-tags every image, stops all four
 services, and archives the complete detached volumes. This preserves SQLite
 main databases together with every existing WAL/SHM/journal file rather than
 copying selected database paths. It also seals the exact flat Compose, Caddy,
@@ -2590,3 +2590,93 @@ skipped, and the C++ CMake/CTest suite. The Next.js build retained the existing
 non-fatal warning about duplicate inherited ESLint plugin configuration.
 Production deployment and exact `spx trend` browser acceptance are still
 pending.
+
+## 2026-07-31Z sector-rotation challenger and PostgreSQL live-archive contract
+
+Local source on `codex/sector-rotation-model-v1` now contains a separately
+gated daily sector/theme challenger. It treats MAGS as an explicit ETF proxy
+for the Magnificent Seven, SKYY as cloud computing, IGV as software, SOXX as
+semiconductors, and the eleven SPDR sector ETFs as the broad rotation basket.
+The six new causal completed-session features are Mag-7, cloud, and software
+returns relative to SPY; sector leadership breadth; sector-return dispersion;
+and growth-versus-defensive rotation. Every sector row requires real Databento
+observations near both regular-session edges. Missing history or a missing
+current group fails the challenger closed.
+
+The customer-published 15-feature daily result is unchanged. The challenger is
+compared with that baseline only on matched queries through a paired purged
+expanding walk-forward evaluation. It must have at least 80 matched queries,
+adequate directional-call coverage, at least a two-percentage-point raw
+hit-frequency gain, and no increase in mean absolute next-session return error
+before it can become eligible for forward shadow. Even then it remains
+unpromoted until an untouched holdout, forward-shadow receipt, immutable
+artifact, and manual promotion exist. The report serializes this state and
+never turns the comparison frequency into a calibrated probability.
+
+Six immutable Databento request partitions are declared for 2023 through the
+last completed 2026-07-30 session. They are not considered present merely
+because the request exists; hash-matched DBN files and manifests must be
+downloaded through the existing account-entitled path before evaluation can
+begin.
+
+The PostgreSQL market schema now has a separately keyed, monthly partitioned
+`live_equity_minute_bars` table, append-only live archive receipts, and a
+unified point-in-time reader. Both the historical reader and the unified
+reader require `recorded_at <= decision_cutoff` in addition to availability,
+closing a causal gap where a theoretically available but not-yet-observed row
+could otherwise enter a historical decision. A new idempotent archiver copies
+only Rust-finalized SQLite rows that pass source, schema, symbology, OHLC,
+completion-clock, availability-clock, entitlement, and rights-pin validation.
+It replays a bounded overlap into a logical provider/dataset/schema/symbol/time
+primary key and emits content-hashed append-only receipts. Database credentials
+and rights evidence remain server-side and are never printed.
+
+The canonical single-VM Compose inventory now includes a private PostgreSQL 17
+service and a revision-bound `market-archive` service. PostgreSQL binds only to
+the private Compose network and stores its data on the dedicated market-data
+volume. The archiver receives the rights pin and database password only through
+server-side environment variables and mounts the source SQLite store read-only.
+Backup, rollback, runtime verification, and sealed acceptance now inventory the
+two services explicitly. Release rollback intentionally preserves the
+append-only database forward rather than claiming to restore it from the
+application release tarball; an independent EBS snapshot or logical database
+backup is required before a cutover.
+
+Full local validation passed Rust formatting, warning-free Clippy for all
+targets, 495 Rust library tests, 16 `quantctl` tests, 12 native-core integration
+tests, the explicit completed-bar fixture, and the live-publication end-to-end
+fixture. Python passed 63 tests with five licensed/optional tests skipped.
+TypeScript typecheck and the 67-page optimized Next.js build passed with only
+the repository's existing Sentry and duplicate inherited ESLint-plugin
+warnings. CMake/Ninja built the native code and CTest passed 1/1. The five
+focused PostgreSQL/live-archive tests, eight production deployment contract
+tests, and `git diff --check` also passed. Dockerfile `--check` remains
+unverified because the local Docker Desktop Linux daemon is not running. An
+account-authenticated AWS inspection found one healthy legacy four-service
+deployment, no RDS database, one dedicated 100GB ext4 market-data volume, and
+2,316,177 finalized Databento `EQUS.MINI` / `ohlcv-1m` SQLite rows through
+2026-07-31T20:44:00Z. The Rust and web containers are healthy and all nine
+configured model artifacts are loaded. The public UI's “Model offline” state
+was caused by its status route requiring paid access, not by a service outage.
+No AWS resource or production service was changed during that inspection.
+Automatic execution remains disabled.
+
+## 2026-07-31Z public activation and acquisition instrumentation
+
+The research status probe is now a public, no-store, read-only market path;
+all research execution routes remain paid and authenticated. Guest starter
+prompts are actionable and route through sign-in and pricing instead of
+appearing disabled. The browser records a bounded first-touch attribution
+receipt and allow-listed landing, starter, sign-in, pricing, checkout, and
+research lifecycle events. Signup attribution is forwarded server-side
+without capturing auth codes, email addresses, full query strings, or research
+questions.
+
+A public `/research/sector-rotation` page explains the exact sector/theme
+proxies, causal feature classes, point-in-time requirements, promotion gates,
+and caveats without publishing a current signal or performing a quantitative
+calculation in TypeScript. It is included in the sitemap and robots contract.
+The measurable 30-day channel and experiment sequence is recorded in
+`docs/growth/30-day-user-acquisition.md`. External posts, Product Hunt launch,
+and paid acquisition remain unexecuted until the production release gate is
+green and the repository owner selects or provides the publishing accounts.

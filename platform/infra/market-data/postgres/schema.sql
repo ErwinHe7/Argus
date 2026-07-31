@@ -72,6 +72,40 @@ CREATE TABLE IF NOT EXISTS market_data.equity_minute_bars (
     CHECK (recorded_at >= available_at)
 ) PARTITION BY RANGE (event_at);
 
+CREATE TABLE IF NOT EXISTS market_data.live_equity_minute_bars (
+    provider text NOT NULL,
+    dataset text NOT NULL,
+    schema_name text NOT NULL,
+    symbol text NOT NULL CHECK (symbol = upper(symbol)),
+    event_at timestamptz NOT NULL,
+    available_at timestamptz NOT NULL,
+    recorded_at timestamptz NOT NULL,
+    finalized_at timestamptz NOT NULL,
+    open double precision NOT NULL CHECK (market_data.is_finite(open) AND open > 0),
+    high double precision NOT NULL CHECK (market_data.is_finite(high) AND high > 0),
+    low double precision NOT NULL CHECK (market_data.is_finite(low) AND low > 0),
+    close double precision NOT NULL CHECK (market_data.is_finite(close) AND close > 0),
+    volume double precision NOT NULL CHECK (market_data.is_finite(volume) AND volume >= 0),
+    vwap double precision CHECK (
+        vwap IS NULL OR (market_data.is_finite(vwap) AND vwap > 0)
+    ),
+    trade_count bigint CHECK (trade_count IS NULL OR trade_count >= 0),
+    source text NOT NULL,
+    data_quality text NOT NULL,
+    entitlement text NOT NULL,
+    license_scope text NOT NULL CHECK (
+        license_scope IN ('RESEARCH_ONLY', 'INTERNAL_USE', 'PUBLIC_DISPLAY', 'REDISTRIBUTION')
+    ),
+    license_reference_sha256 text NOT NULL CHECK (license_reference_sha256 ~ '^[0-9a-f]{64}$'),
+    symbol_mapping_verified boolean NOT NULL CHECK (symbol_mapping_verified),
+    PRIMARY KEY (provider, dataset, schema_name, symbol, event_at),
+    CHECK (high >= greatest(open, low, close)),
+    CHECK (low <= least(open, high, close)),
+    CHECK (available_at >= event_at + interval '1 minute'),
+    CHECK (recorded_at >= available_at),
+    CHECK (finalized_at = available_at)
+) PARTITION BY RANGE (event_at);
+
 CREATE TABLE IF NOT EXISTS market_data.equity_nbbo_quotes (
     batch_id text NOT NULL REFERENCES market_data.batches(batch_id),
     symbol text NOT NULL CHECK (symbol = upper(symbol)),
@@ -255,6 +289,33 @@ CREATE TABLE IF NOT EXISTS market_data.coverage_receipts (
     CHECK (trade_count_row_count <= row_count)
 );
 
+CREATE TABLE IF NOT EXISTS market_data.live_archive_receipts (
+    receipt_id text PRIMARY KEY CHECK (receipt_id ~ '^[0-9a-f]{64}$'),
+    source_id text NOT NULL,
+    decision_cutoff timestamptz NOT NULL,
+    first_recorded_at timestamptz,
+    last_recorded_at timestamptz,
+    first_event_at timestamptz,
+    last_event_at timestamptz,
+    attempted_rows bigint NOT NULL CHECK (attempted_rows >= 0),
+    inserted_rows bigint NOT NULL CHECK (inserted_rows >= 0),
+    duplicate_rows bigint NOT NULL CHECK (duplicate_rows >= 0),
+    content_sha256 text NOT NULL CHECK (content_sha256 ~ '^[0-9a-f]{64}$'),
+    license_scope text NOT NULL CHECK (
+        license_scope IN ('RESEARCH_ONLY', 'INTERNAL_USE', 'PUBLIC_DISPLAY', 'REDISTRIBUTION')
+    ),
+    license_reference_sha256 text NOT NULL CHECK (license_reference_sha256 ~ '^[0-9a-f]{64}$'),
+    completed_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    CHECK (attempted_rows = inserted_rows + duplicate_rows),
+    CHECK (
+        (attempted_rows = 0 AND first_recorded_at IS NULL AND last_recorded_at IS NULL
+            AND first_event_at IS NULL AND last_event_at IS NULL)
+        OR
+        (attempted_rows > 0 AND last_recorded_at >= first_recorded_at
+            AND last_event_at >= first_event_at)
+    )
+);
+
 CREATE INDEX IF NOT EXISTS batches_provider_dataset_idx
     ON market_data.batches(provider, dataset, captured_at DESC);
 CREATE INDEX IF NOT EXISTS option_contracts_underlying_expiration_idx
@@ -267,6 +328,8 @@ CREATE INDEX IF NOT EXISTS readiness_provider_dataset_idx
     ON market_data.readiness_receipts(provider, dataset, observed_at DESC);
 CREATE INDEX IF NOT EXISTS coverage_dataset_symbol_idx
     ON market_data.coverage_receipts(dataset, symbol, maximum_event_at DESC);
+CREATE INDEX IF NOT EXISTS live_archive_receipts_cutoff_idx
+    ON market_data.live_archive_receipts(source_id, decision_cutoff DESC);
 
 DROP TRIGGER IF EXISTS batches_reject_update_delete ON market_data.batches;
 CREATE TRIGGER batches_reject_update_delete
@@ -276,6 +339,12 @@ FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
 DROP TRIGGER IF EXISTS equity_minute_bars_reject_update_delete ON market_data.equity_minute_bars;
 CREATE TRIGGER equity_minute_bars_reject_update_delete
 BEFORE UPDATE OR DELETE ON market_data.equity_minute_bars
+FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
+
+DROP TRIGGER IF EXISTS live_equity_minute_bars_reject_update_delete
+    ON market_data.live_equity_minute_bars;
+CREATE TRIGGER live_equity_minute_bars_reject_update_delete
+BEFORE UPDATE OR DELETE ON market_data.live_equity_minute_bars
 FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
 
 DROP TRIGGER IF EXISTS equity_nbbo_quotes_reject_update_delete ON market_data.equity_nbbo_quotes;
@@ -324,6 +393,12 @@ CREATE TRIGGER coverage_receipts_reject_update_delete
 BEFORE UPDATE OR DELETE ON market_data.coverage_receipts
 FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
 
+DROP TRIGGER IF EXISTS live_archive_receipts_reject_update_delete
+    ON market_data.live_archive_receipts;
+CREATE TRIGGER live_archive_receipts_reject_update_delete
+BEFORE UPDATE OR DELETE ON market_data.live_archive_receipts
+FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
+
 CREATE OR REPLACE FUNCTION market_data.equity_minute_bars_asof(
     requested_symbols text[],
     event_start timestamptz,
@@ -369,7 +444,131 @@ AS $$
       AND b.event_at >= event_start
       AND b.event_at < event_end
       AND b.available_at <= decision_cutoff
+      AND b.recorded_at <= decision_cutoff
     ORDER BY b.symbol, b.event_at, b.available_at DESC, b.recorded_at DESC, b.batch_id
+$$;
+
+CREATE OR REPLACE FUNCTION market_data.equity_minute_bars_unified_asof(
+    requested_symbols text[],
+    event_start timestamptz,
+    event_end timestamptz,
+    decision_cutoff timestamptz
+)
+RETURNS TABLE (
+    provider text,
+    dataset text,
+    schema_name text,
+    symbol text,
+    event_at timestamptz,
+    available_at timestamptz,
+    recorded_at timestamptz,
+    finalized_at timestamptz,
+    open double precision,
+    high double precision,
+    low double precision,
+    close double precision,
+    volume double precision,
+    vwap double precision,
+    trade_count bigint,
+    source text,
+    data_quality text,
+    entitlement text,
+    license_scope text,
+    license_reference text,
+    provenance_id text
+)
+LANGUAGE sql
+STABLE
+AS $$
+    WITH eligible AS (
+        SELECT
+            batches.provider,
+            batches.dataset,
+            'EQUITY_MINUTE_BARS'::text AS schema_name,
+            bars.symbol,
+            bars.event_at,
+            bars.available_at,
+            bars.recorded_at,
+            bars.available_at AS finalized_at,
+            bars.open,
+            bars.high,
+            bars.low,
+            bars.close,
+            bars.volume,
+            bars.vwap,
+            bars.trade_count,
+            bars.source,
+            bars.data_quality,
+            'HISTORICAL_BATCH'::text AS entitlement,
+            batches.license_scope,
+            batches.license_reference,
+            bars.batch_id AS provenance_id
+        FROM market_data.equity_minute_bars AS bars
+        JOIN market_data.batches AS batches USING (batch_id)
+        WHERE bars.symbol = ANY(requested_symbols)
+          AND bars.event_at >= event_start
+          AND bars.event_at < event_end
+          AND bars.available_at <= decision_cutoff
+          AND bars.recorded_at <= decision_cutoff
+        UNION ALL
+        SELECT
+            live.provider,
+            live.dataset,
+            live.schema_name,
+            live.symbol,
+            live.event_at,
+            live.available_at,
+            live.recorded_at,
+            live.finalized_at,
+            live.open,
+            live.high,
+            live.low,
+            live.close,
+            live.volume,
+            live.vwap,
+            live.trade_count,
+            live.source,
+            live.data_quality,
+            live.entitlement,
+            live.license_scope,
+            live.license_reference_sha256 AS license_reference,
+            concat_ws('|', live.provider, live.dataset, live.schema_name) AS provenance_id
+        FROM market_data.live_equity_minute_bars AS live
+        WHERE live.symbol = ANY(requested_symbols)
+          AND live.event_at >= event_start
+          AND live.event_at < event_end
+          AND live.available_at <= decision_cutoff
+          AND live.recorded_at <= decision_cutoff
+    )
+    SELECT DISTINCT ON (eligible.symbol, eligible.event_at)
+        eligible.provider,
+        eligible.dataset,
+        eligible.schema_name,
+        eligible.symbol,
+        eligible.event_at,
+        eligible.available_at,
+        eligible.recorded_at,
+        eligible.finalized_at,
+        eligible.open,
+        eligible.high,
+        eligible.low,
+        eligible.close,
+        eligible.volume,
+        eligible.vwap,
+        eligible.trade_count,
+        eligible.source,
+        eligible.data_quality,
+        eligible.entitlement,
+        eligible.license_scope,
+        eligible.license_reference,
+        eligible.provenance_id
+    FROM eligible
+    ORDER BY
+        eligible.symbol,
+        eligible.event_at,
+        eligible.recorded_at DESC,
+        eligible.available_at DESC,
+        eligible.provenance_id
 $$;
 
 CREATE OR REPLACE FUNCTION market_data.option_minute_bars_asof(

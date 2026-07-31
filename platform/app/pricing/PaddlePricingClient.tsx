@@ -11,6 +11,7 @@ import {
   type Paddle,
 } from '@paddle/paddle-js';
 import type { PaddlePublicTier, PaddleTierKey } from '@/lib/paddle-catalog';
+import { trackProductEvent } from '@/components/PostHogProvider';
 
 type Props = {
   authenticated: boolean;
@@ -83,6 +84,7 @@ export function PaddlePricingClient({
   const [checkoutTier, setCheckoutTier] = useState<PaddleTierKey | null>(null);
   const [error, setError] = useState<string | null>(null);
   const activeTransactionId = useRef<string | null>(null);
+  const activeCheckoutTier = useRef<PaddleTierKey | null>(null);
   const checkoutCompleted = useRef(false);
 
   const priceSignature = useMemo(
@@ -108,6 +110,9 @@ export function PaddlePricingClient({
           environment,
           eventCallback: (event) => {
             if (event.name === CheckoutEventNames.CHECKOUT_COMPLETED) {
+              trackProductEvent('checkout_completed', {
+                tier: activeCheckoutTier.current,
+              });
               checkoutCompleted.current = true;
               const completedTransactionId = event.data?.transaction_id;
               if (
@@ -117,6 +122,7 @@ export function PaddlePricingClient({
                 activeTransactionId.current = null;
               }
               setCheckoutTier(null);
+              activeCheckoutTier.current = null;
               window.location.assign('/welcome');
             } else if (event.name === CheckoutEventNames.CHECKOUT_CLOSED) {
               const eventTransactionId = event.data?.transaction_id;
@@ -132,6 +138,7 @@ export function PaddlePricingClient({
                 if (activeTransactionId.current === closedTransactionId) {
                   activeTransactionId.current = null;
                   setCheckoutTier(null);
+                  activeCheckoutTier.current = null;
                 }
                 void abandonPaddleCheckout(closedTransactionId).catch((abandonError) => {
                   console.error('[billing] Unable to abandon closed Paddle checkout', abandonError);
@@ -142,7 +149,12 @@ export function PaddlePricingClient({
               event.name === CheckoutEventNames.CHECKOUT_FAILED ||
               event.name === CheckoutEventNames.CHECKOUT_PAYMENT_ERROR
             ) {
+              trackProductEvent('checkout_failed', {
+                tier: activeCheckoutTier.current,
+                stage: event.name,
+              });
               setCheckoutTier(null);
+              activeCheckoutTier.current = null;
               setError('Paddle could not complete checkout. Please review the payment form and try again.');
             }
           },
@@ -190,9 +202,18 @@ export function PaddlePricingClient({
   }, [clientToken, countryCode, environment, priceSignature, tiers]);
 
   async function subscribe(tier: PaddlePublicTier) {
+    trackProductEvent('pricing_cta_clicked', {
+      placement: 'pricing_card',
+      tier: tier.key,
+      authenticated,
+    });
     setError(null);
 
     if (!authenticated) {
+      trackProductEvent('sign_in_started', {
+        method: 'pricing_gate',
+        tier: tier.key,
+      });
       window.location.assign('/auth/signin?next=%2Fpricing');
       return;
     }
@@ -202,6 +223,7 @@ export function PaddlePricingClient({
     }
 
     setCheckoutTier(tier.key);
+    activeCheckoutTier.current = tier.key;
     checkoutCompleted.current = false;
     try {
       const response = await fetch('/api/paddle/checkout', {
@@ -262,6 +284,7 @@ export function PaddlePricingClient({
       }
 
       activeTransactionId.current = payload.transactionId;
+      trackProductEvent('checkout_started', { tier: tier.key });
       const successUrl = new URL('/welcome', window.location.origin).toString();
       // The server-created transaction already has the authenticated Paddle
       // customer attached. Transaction checkout must inherit that customer;
@@ -276,6 +299,10 @@ export function PaddlePricingClient({
         },
       });
     } catch (checkoutError) {
+      trackProductEvent('checkout_failed', {
+        tier: tier.key,
+        stage: 'open',
+      });
       if (activeTransactionId.current) {
         const transactionId = activeTransactionId.current;
         activeTransactionId.current = null;
@@ -292,6 +319,7 @@ export function PaddlePricingClient({
           : 'Unable to start secure checkout.'
       );
       setCheckoutTier(null);
+      activeCheckoutTier.current = null;
     }
   }
 

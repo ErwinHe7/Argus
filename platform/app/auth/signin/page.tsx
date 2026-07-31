@@ -6,6 +6,7 @@ import { useSearchParams } from 'next/navigation';
 import { Apple, Loader2, LogIn, Mail } from 'lucide-react';
 import { supabaseBrowser } from '@/lib/supabase-browser';
 import { safeInternalRedirectPath } from '@/lib/safe-internal-redirect';
+import { trackProductEvent } from '@/components/PostHogProvider';
 
 export const dynamic = 'force-dynamic';
 
@@ -79,6 +80,7 @@ export default function SignInPage() {
   const secondsRemaining = Math.max(0, Math.ceil((cooldownUntil - now) / 1000));
 
   async function signInWithGoogle() {
+    trackProductEvent('sign_in_started', { method: 'google' });
     setError(null);
     setGoogleLoading(true);
     try {
@@ -96,6 +98,7 @@ export default function SignInPage() {
   }
 
   async function signInWithApple() {
+    trackProductEvent('sign_in_started', { method: 'apple' });
     setError(null);
     setAppleLoading(true);
     try {
@@ -116,6 +119,7 @@ export default function SignInPage() {
     e.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) return;
+    trackProductEvent('sign_in_started', { method: 'magic_link' });
 
     const lastSent = Number(window.localStorage.getItem(cooldownKey(normalizedEmail)) ?? 0);
     const waitMs = lastSent + EMAIL_COOLDOWN_MS - Date.now();

@@ -39,7 +39,11 @@ const BEHAVIOR_WINDOW = 10_000;
 const BOT_UA =
   /\b(?:bot|crawler|spider|scrapy|wget|curl|python-requests|aiohttp|httpclient|go-http-client|libwww-perl|nikto|sqlmap|headlesschrome|phantomjs|puppeteer)\b/i;
 const BROWSERISH_UA = /\b(?:mozilla|chrome|safari|firefox|edg|opr|mobile|crios|fxios)\b/i;
-const PUBLIC_MARKET_READ_PATHS = ['/api/market/signals', '/api/context/v1'];
+const PUBLIC_MARKET_READ_PATHS = [
+  '/api/market/signals',
+  '/api/context/v1',
+  '/api/quant/research/status',
+];
 
 const globalProtection = globalThis as typeof globalThis & {
   __axio7RateBuckets?: Map<string, Bucket>;

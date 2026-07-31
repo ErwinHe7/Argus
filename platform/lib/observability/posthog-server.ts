@@ -17,7 +17,17 @@ function getPostHog(): PostHog | null {
 type ServerEvent =
   | {
       event: 'user_signed_up';
-      properties: { user_id: string; signup_method: 'google' | 'apple' | 'magic_link' | 'oauth' | string };
+      properties: {
+        user_id: string;
+        signup_method: 'google' | 'apple' | 'magic_link' | 'oauth' | string;
+        utm_source?: string;
+        utm_medium?: string;
+        utm_campaign?: string;
+        utm_content?: string;
+        utm_term?: string;
+        referrer_host?: string;
+        landing_path?: string;
+      };
     }
   | {
       event: 'agents_responded';

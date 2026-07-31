@@ -341,6 +341,53 @@ data:
         symbols: [SPY, QQQ, IWM, SOXX, HYG, TLT, UUP, VXX]
         start: "2026-07-01T00:00:00Z"
         end: "2026-07-30T20:00:00Z"
+      # Sector/theme rotation is a separately gated challenger. These files
+      # may be archived and evaluated, but they cannot change the published
+      # 15-feature baseline without untouched holdout and forward-shadow
+      # promotion receipts. MAGS is an ETF proxy for the Magnificent Seven;
+      # it is not a point-in-time constituent reconstruction.
+      - name: spx_daily_regime_sector_2023
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [MAGS, SKYY, IGV, XLK, XLC, XLY, XLF, XLE, XLI, XLV, XLP, XLU, XLRE, XLB, SOXX]
+        start: "2023-03-28T00:00:00Z"
+        end: "2024-01-01T00:00:00Z"
+      - name: spx_daily_regime_sector_2024
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [MAGS, SKYY, IGV, XLK, XLC, XLY, XLF, XLE, XLI, XLV, XLP, XLU, XLRE, XLB, SOXX]
+        start: "2024-01-01T00:00:00Z"
+        end: "2025-01-01T00:00:00Z"
+      - name: spx_daily_regime_sector_2025
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [MAGS, SKYY, IGV, XLK, XLC, XLY, XLF, XLE, XLI, XLV, XLP, XLU, XLRE, XLB, SOXX]
+        start: "2025-01-01T00:00:00Z"
+        end: "2026-01-01T00:00:00Z"
+      - name: spx_daily_regime_sector_2026_q1
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [MAGS, SKYY, IGV, XLK, XLC, XLY, XLF, XLE, XLI, XLV, XLP, XLU, XLRE, XLB, SOXX]
+        start: "2026-01-01T00:00:00Z"
+        end: "2026-04-01T00:00:00Z"
+      - name: spx_daily_regime_sector_2026_q2
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [MAGS, SKYY, IGV, XLK, XLC, XLY, XLF, XLE, XLI, XLV, XLP, XLU, XLRE, XLB, SOXX]
+        start: "2026-04-01T00:00:00Z"
+        end: "2026-07-01T00:00:00Z"
+      - name: spx_daily_regime_sector_2026_q3
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [MAGS, SKYY, IGV, XLK, XLC, XLY, XLF, XLE, XLI, XLV, XLP, XLU, XLRE, XLB, SOXX]
+        start: "2026-07-01T00:00:00Z"
+        end: "2026-07-30T20:00:00Z"
   cboe:
     licensed_csv_root: data/import/cboe
     spx_index_history_from: "2004-01-01"

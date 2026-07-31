@@ -76,6 +76,7 @@ def _create_month_partitions(connection: object, starts: Sequence[datetime]) -> 
 
     partitioned_tables = (
         "equity_minute_bars",
+        "live_equity_minute_bars",
         "equity_nbbo_quotes",
         "option_quotes",
         "option_trades",
@@ -103,6 +104,16 @@ def _create_month_partitions(connection: object, starts: Sequence[datetime]) -> 
                         sql.SQL(
                             "CREATE INDEX IF NOT EXISTS {} ON market_data.{} "
                             "(symbol, event_at DESC, available_at DESC)"
+                        ).format(
+                            sql.Identifier(f"{partition}_symbol_event_idx"),
+                            sql.Identifier(partition),
+                        )
+                    )
+                elif parent == "live_equity_minute_bars":
+                    cursor.execute(
+                        sql.SQL(
+                            "CREATE INDEX IF NOT EXISTS {} ON market_data.{} "
+                            "(symbol, event_at DESC, recorded_at DESC)"
                         ).format(
                             sql.Identifier(f"{partition}_symbol_event_idx"),
                             sql.Identifier(partition),

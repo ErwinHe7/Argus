@@ -126,6 +126,16 @@ must supply readable immutable historical bars, a frozen-universe registry,
 and the persistent ledger path before enabling those workers; the entrypoint
 then monitors every child and terminates the container if any child exits.
 
+The append-only PostgreSQL live archiver runs as the private `postgres` and
+`market-archive` Compose services documented in
+`../market-data/postgres/README.md`. PostgreSQL publishes no host port. Its
+data directory lives under `runtime/market-data/postgres` on the dedicated
+market-data volume; the archiver receives the SQLite source read-only and a
+server-only database password. `MARKET_DATABASE_URL` remains an optional
+managed-TLS override for a later RDS migration. The exact rights scope and
+pinned rights-receipt hash are mandatory, and archive activation never
+upgrades the underlying data license.
+
 From the Windows development machine, the ignored server environment can be
 prepared without printing or committing secrets:
 
@@ -189,22 +199,36 @@ that directory, and the running web/quantd images have no
 correctly refuses that state. Do not weaken its revision check.
 
 Securely copy both one-time helpers from `scripts/` to one owner-only directory
-on the VM, then run the backup with the explicit outage acknowledgement:
+on the VM. First prove the observed four-service topology without changing a
+service or image:
 
 ```sh
 sudo bash /root/axio7-migration-tools/production-legacy-flat-migration-backup.sh \
   --deployment-dir /opt/axio7 \
-  --backup-root /opt/axio7-legacy-migration-backups \
+  --backup-root /mnt/axio7-migration-backup \
+  --preflight-only
+```
+
+Use a separate encrypted backup filesystem with enough free space for the
+runtime tree and four named volumes; never place the backup root inside
+`/opt/axio7`, its runtime tree, or Docker's data root. After the read-only
+preflight passes, run the backup with the explicit outage acknowledgement:
+
+```sh
+sudo bash /root/axio7-migration-tools/production-legacy-flat-migration-backup.sh \
+  --deployment-dir /opt/axio7 \
+  --backup-root /mnt/axio7-migration-backup \
   --confirm-legacy-quiesce
 ```
 
 This bridge accepts only the exact legacy `axio7` project: one running
-`quantd`, `web`, `caddy`, `monitor-scheduler`, and `ibkr-gateway`; the four
+`quantd`, `web`, `caddy`, and `monitor-scheduler`; the four
 fixed `quant-state`, `quant-live`, `caddy-data`, and `caddy-config` volumes;
-the expected flat read-only binds; and absent web/quantd revision labels. It
+the exact observed runtime/release binds; and absent web/quantd revision
+labels. It
 verifies that all three execution gates are false, records the full container
-and image IDs for every service, adds recovery tags for all five images, and
-stops all five services. It then archives the complete detached volumes
+and image IDs for every service, adds recovery tags for all four images, and
+stops all four services. It then archives the complete detached volumes
 together—including every SQLite database and any `-wal`, `-shm`, or journal
 file—the approved runtime trees, and the exact flat configuration. Archive
 paths, member types, directory sets, file checksums, and a full extraction
@@ -222,10 +246,10 @@ then use the restore helper copied into the sealed bundle:
 
 ```sh
 sudo bash \
-  /opt/axio7-legacy-migration-backups/legacy-flat-YYYYMMDDTHHMMSSZ/restore-legacy-flat.sh \
+  /mnt/axio7-migration-backup/legacy-flat-YYYYMMDDTHHMMSSZ/restore-legacy-flat.sh \
   --deployment-dir /opt/axio7 \
   --backup-dir \
-    /opt/axio7-legacy-migration-backups/legacy-flat-YYYYMMDDTHHMMSSZ \
+    /mnt/axio7-migration-backup/legacy-flat-YYYYMMDDTHHMMSSZ \
   --confirm-legacy-restore
 ```
 

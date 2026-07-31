@@ -45,6 +45,7 @@ import type {
   QuantSessionSummary,
 } from '@/lib/forecast-chat-types';
 import styles from './AxioChat.module.css';
+import { trackProductEvent } from '@/components/PostHogProvider';
 
 type ChatMessage = {
   id: string;
@@ -409,6 +410,12 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
       : question;
     const version = requestVersionRef.current;
 
+    trackProductEvent('research_submitted', {
+      question_length: question.length,
+      is_follow_up: Boolean(lastUserQuestion),
+      runtime_state: runtimeState,
+    });
+
     setMessages((current) => [
       ...current,
       { id: newId(), role: 'user', content: question },
@@ -467,6 +474,12 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
           conversation: data.conversation,
         },
       ]);
+      trackProductEvent('research_completed', {
+        has_answer: Boolean(data.answer?.trim()),
+        has_forecast: Boolean(data.forecast),
+        created_monitor: Boolean(data.monitor?.monitor),
+        response_mode: data.conversation?.mode,
+      });
     } catch (error) {
       if (requestVersionRef.current !== version) return;
       setMessages((current) => [
@@ -482,6 +495,9 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
           failed: true,
         },
       ]);
+      trackProductEvent('research_failed', {
+        runtime_state: runtimeState,
+      });
     } finally {
       if (requestVersionRef.current === version) setLoading(false);
     }
@@ -727,6 +743,11 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
               className={styles.plansLink}
               href="/pricing"
               aria-label="View membership plans"
+              onClick={() =>
+                trackProductEvent('pricing_cta_clicked', {
+                  placement: 'header',
+                })
+              }
             >
               <CreditCard size={14} aria-hidden="true" />
               <span>Plans</span>
@@ -757,6 +778,11 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                 className={styles.signInLink}
                 href="/auth/signin?next=%2F"
                 aria-label="Sign in to AXIO7"
+                onClick={() =>
+                  trackProductEvent('sign_in_started', {
+                    placement: 'header',
+                  })
+                }
               >
                 <CircleUserRound size={15} aria-hidden="true" />
                 <span>Sign in</span>
@@ -793,7 +819,14 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                       to run scans, backtests, research, and monitors.
                     </p>
                   </div>
-                  <a href="/pricing">
+                  <a
+                    href="/pricing"
+                    onClick={() =>
+                      trackProductEvent('pricing_cta_clicked', {
+                        placement: 'read_only_gate',
+                      })
+                    }
+                  >
                     View plans <ArrowRight size={15} aria-hidden="true" />
                   </a>
                 </div>
@@ -801,15 +834,28 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
 
               <div className={styles.starterHeader}>
                 <span>Example research questions</span>
-                <span>Press Enter to submit</span>
+                <span>
+                  {initialUser.researchAccess
+                    ? 'Press Enter to submit'
+                    : 'Select one to continue'}
+                </span>
               </div>
               <div className={styles.starterGrid} aria-label="Example questions">
                 {STARTERS.map(({ label, prompt }, index) => (
                   <button
                     type="button"
                     key={label}
-                    onClick={() => void send(prompt)}
-                    disabled={!initialUser.researchAccess}
+                    onClick={() => {
+                      trackProductEvent('starter_selected', {
+                        starter: label,
+                        has_research_access: initialUser.researchAccess,
+                      });
+                      if (initialUser.researchAccess) {
+                        void send(prompt);
+                      } else {
+                        window.location.assign('/auth/signin?next=%2Fpricing');
+                      }
+                    }}
                   >
                     <span className={styles.starterIndex}>
                       {String(index + 1).padStart(2, '0')}

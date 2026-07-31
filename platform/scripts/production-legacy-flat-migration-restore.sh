@@ -16,7 +16,6 @@ readonly REQUIRED_VOLUMES=(
 )
 readonly EXPECTED_SERVICES=(
   caddy
-  ibkr-gateway
   monitor-scheduler
   quantd
   web
@@ -63,7 +62,7 @@ read_metadata_value() {
 
 runtime_directory_is_allowed() {
   case "$1" in
-    quant-normalized|quant-manifests|quant-rights|quant-evidence|private-rights-evidence|quant-promotion|quant-calibration)
+    market-data|releases|quant-raw|quant-normalized|quant-manifests|quant-rights|quant-evidence|private-rights-evidence|quant-promotion|quant-calibration)
       return 0
       ;;
     *)
@@ -152,7 +151,7 @@ validate_legacy_compose_model() {
         fail();
       }
       const services = [
-        "caddy", "ibkr-gateway", "monitor-scheduler", "quantd", "web",
+        "caddy", "monitor-scheduler", "quantd", "web",
       ];
       const volumeNames = {
         "caddy-config": "axio7_caddy-config",
@@ -163,6 +162,23 @@ validate_legacy_compose_model() {
       const sortedKeys = (value) => Object.keys(value || {}).sort();
       const same = (left, right) =>
         JSON.stringify(left) === JSON.stringify(right);
+      const releaseMount = /^\/opt\/axio7\/runtime\/releases\/([0-9a-f]{7})\/(quant-(?:raw|normalized|evidence|manifests|rights))$/;
+      const normalizedMounts = (service) => (service.volumes || []).map((mount) => {
+        const source = String(mount.source || "");
+        const match = source.match(releaseMount);
+        return [
+          mount.type || "",
+          match
+            ? `/opt/axio7/runtime/releases/<release>/${match[2]}`
+            : source,
+          mount.target || "",
+          String(mount.read_only === true),
+        ].join("|");
+      }).sort();
+      const releaseIds = (service) => (service.volumes || [])
+        .map((mount) => String(mount.source || "").match(releaseMount))
+        .filter(Boolean)
+        .map((match) => match[1]);
       if (model.name !== "axio7"
           || !same(sortedKeys(model.services), services)
           || !same(sortedKeys(model.volumes), sortedKeys(volumeNames))) {
@@ -181,11 +197,16 @@ validate_legacy_compose_model() {
           "volume|caddy-config|/config|false",
           "volume|caddy-data|/data|false",
         ],
-        "ibkr-gateway": [],
         "monitor-scheduler": [],
         quantd: [
-          "bind|/opt/axio7/runtime/quant-manifests|/app/data/manifests|true",
-          "bind|/opt/axio7/runtime/quant-normalized|/app/data/normalized|true",
+          "bind|/opt/axio7/runtime/market-data|/app/data/market|false",
+          "bind|/opt/axio7/runtime/quant-calibration|/app/data/calibration|true",
+          "bind|/opt/axio7/runtime/quant-promotion|/app/data/promotion|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-evidence|/app/data/evidence|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-manifests|/app/data/manifests|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-normalized|/app/data/normalized|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-raw|/app/data/raw|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-rights|/app/data/rights|true",
           "volume|quant-live|/app/data/live|false",
           "volume|quant-state|/app/data/state|false",
         ],
@@ -193,12 +214,8 @@ validate_legacy_compose_model() {
       };
       for (const serviceName of services) {
         const service = model.services[serviceName] || {};
-        const mounts = (service.volumes || []).map((mount) => [
-          mount.type || "",
-          mount.source || "",
-          mount.target || "",
-          String(mount.read_only === true),
-        ].join("|")).sort();
+        const mounts = normalizedMounts(service);
+        const modelReleaseIds = releaseIds(service);
         const envFileEntries = service.env_file || [];
         const envFilePaths = envFileEntries.map((entry) =>
           typeof entry === "string" ? entry : entry?.path,
@@ -215,7 +232,10 @@ validate_legacy_compose_model() {
         } catch {
           fail();
         }
-        if (!same(mounts, expectedMounts[serviceName].slice().sort())
+        if ((serviceName === "quantd"
+              && (modelReleaseIds.length !== 5
+                || new Set(modelReleaseIds).size !== 1))
+            || !same(mounts, expectedMounts[serviceName].slice().sort())
             || !same(envFilePaths, expectedEnvFiles)
             || envFileEntries.some((entry) =>
               typeof entry !== "object"
@@ -893,7 +913,7 @@ grep -Fq '"execution_enabled": false' "$sealed_dir/backup-manifest.json" \
   || die "legacy backup does not prove disabled execution"
 for required_manifest_fact in \
   '"compose_project": "axio7"' \
-  '"service_count": 5' \
+  '"service_count": 4' \
   '"application_oci_revision_labels_absent": true' \
   '"complete_volume_set": true' \
   '"sqlite_wal_captured_as_complete_quiesced_volume": true' \
@@ -907,37 +927,32 @@ quantd_image_id="$(read_metadata_value QUANTD_IMAGE_ID "$sealed_dir/legacy.env")
 web_image_id="$(read_metadata_value WEB_IMAGE_ID "$sealed_dir/legacy.env")"
 caddy_image_id="$(read_metadata_value CADDY_IMAGE_ID "$sealed_dir/legacy.env")"
 scheduler_image_id="$(read_metadata_value SCHEDULER_IMAGE_ID "$sealed_dir/legacy.env")"
-ibkr_gateway_image_id="$(read_metadata_value IBKR_GATEWAY_IMAGE_ID "$sealed_dir/legacy.env")"
 quantd_container_id="$(read_metadata_value QUANTD_CONTAINER_ID "$sealed_dir/legacy.env")"
 web_container_id="$(read_metadata_value WEB_CONTAINER_ID "$sealed_dir/legacy.env")"
 caddy_container_id="$(read_metadata_value CADDY_CONTAINER_ID "$sealed_dir/legacy.env")"
 scheduler_container_id="$(read_metadata_value SCHEDULER_CONTAINER_ID "$sealed_dir/legacy.env")"
-ibkr_gateway_container_id="$(read_metadata_value IBKR_GATEWAY_CONTAINER_ID "$sealed_dir/legacy.env")"
 quantd_config_hash="$(read_metadata_value QUANTD_COMPOSE_CONFIG_HASH "$sealed_dir/legacy.env")"
 web_config_hash="$(read_metadata_value WEB_COMPOSE_CONFIG_HASH "$sealed_dir/legacy.env")"
 caddy_config_hash="$(read_metadata_value CADDY_COMPOSE_CONFIG_HASH "$sealed_dir/legacy.env")"
 scheduler_config_hash="$(read_metadata_value SCHEDULER_COMPOSE_CONFIG_HASH "$sealed_dir/legacy.env")"
-ibkr_gateway_config_hash="$(read_metadata_value IBKR_GATEWAY_COMPOSE_CONFIG_HASH "$sealed_dir/legacy.env")"
 quantd_reference="$(read_metadata_value QUANTD_IMAGE_REFERENCE "$sealed_dir/legacy.env")"
 web_reference="$(read_metadata_value WEB_IMAGE_REFERENCE "$sealed_dir/legacy.env")"
 caddy_reference="$(read_metadata_value CADDY_IMAGE_REFERENCE "$sealed_dir/legacy.env")"
 scheduler_reference="$(read_metadata_value SCHEDULER_IMAGE_REFERENCE "$sealed_dir/legacy.env")"
-ibkr_gateway_reference="$(read_metadata_value IBKR_GATEWAY_IMAGE_REFERENCE "$sealed_dir/legacy.env")"
 quantd_tag="$(read_metadata_value QUANTD_RECOVERY_TAG "$sealed_dir/legacy.env")"
 web_tag="$(read_metadata_value WEB_RECOVERY_TAG "$sealed_dir/legacy.env")"
 caddy_tag="$(read_metadata_value CADDY_RECOVERY_TAG "$sealed_dir/legacy.env")"
 scheduler_tag="$(read_metadata_value SCHEDULER_RECOVERY_TAG "$sealed_dir/legacy.env")"
-ibkr_gateway_tag="$(read_metadata_value IBKR_GATEWAY_RECOVERY_TAG "$sealed_dir/legacy.env")"
 
 for container_id in \
   "$quantd_container_id" "$web_container_id" "$caddy_container_id" \
-  "$scheduler_container_id" "$ibkr_gateway_container_id"; do
+  "$scheduler_container_id"; do
   [[ "$container_id" =~ ^[0-9a-f]{64}$ ]] \
     || die "legacy bundle contains an invalid original container ID"
 done
 for image_id in \
   "$quantd_image_id" "$web_image_id" "$caddy_image_id" \
-  "$scheduler_image_id" "$ibkr_gateway_image_id"; do
+  "$scheduler_image_id"; do
   [[ "$image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
     || die "legacy bundle contains an invalid image ID"
   docker image inspect "$image_id" >/dev/null \
@@ -945,7 +960,7 @@ for image_id in \
 done
 for config_hash in \
   "$quantd_config_hash" "$web_config_hash" "$caddy_config_hash" \
-  "$scheduler_config_hash" "$ibkr_gateway_config_hash"; do
+  "$scheduler_config_hash"; do
   [[ "$config_hash" =~ ^[0-9a-f]{64}$ ]] \
     || die "legacy bundle contains an invalid Compose configuration hash"
 done
@@ -955,17 +970,14 @@ for manifest_binding in \
   "web_container_id|$web_container_id" \
   "caddy_container_id|$caddy_container_id" \
   "scheduler_container_id|$scheduler_container_id" \
-  "ibkr_gateway_container_id|$ibkr_gateway_container_id" \
   "quantd_compose_config_hash|$quantd_config_hash" \
   "web_compose_config_hash|$web_config_hash" \
   "caddy_compose_config_hash|$caddy_config_hash" \
   "scheduler_compose_config_hash|$scheduler_config_hash" \
-  "ibkr_gateway_compose_config_hash|$ibkr_gateway_config_hash" \
   "quantd_image_id|$quantd_image_id" \
   "web_image_id|$web_image_id" \
   "caddy_image_id|$caddy_image_id" \
-  "scheduler_image_id|$scheduler_image_id" \
-  "ibkr_gateway_image_id|$ibkr_gateway_image_id"; do
+  "scheduler_image_id|$scheduler_image_id"; do
   manifest_key="${manifest_binding%%|*}"
   manifest_value="${manifest_binding#*|}"
   grep -Fqx "  \"$manifest_key\": \"$manifest_value\"," \
@@ -974,8 +986,8 @@ for manifest_binding in \
 done
 for image_reference in \
   "$quantd_reference" "$web_reference" "$caddy_reference" \
-  "$scheduler_reference" "$ibkr_gateway_reference" \
-  "$quantd_tag" "$web_tag" "$caddy_tag" "$scheduler_tag" "$ibkr_gateway_tag"; do
+  "$scheduler_reference" \
+  "$quantd_tag" "$web_tag" "$caddy_tag" "$scheduler_tag"; do
   [[ "$image_reference" =~ ^[A-Za-z0-9][A-Za-z0-9._/:+-]*$ \
     && "$image_reference" != *"@"* ]] \
     || die "legacy bundle contains an unsafe image reference"
@@ -984,8 +996,7 @@ for tag_binding in \
   "$quantd_tag|$quantd_image_id" \
   "$web_tag|$web_image_id" \
   "$caddy_tag|$caddy_image_id" \
-  "$scheduler_tag|$scheduler_image_id" \
-  "$ibkr_gateway_tag|$ibkr_gateway_image_id"; do
+  "$scheduler_tag|$scheduler_image_id"; do
   recovery_tag="${tag_binding%%|*}"
   expected_image="${tag_binding#*|}"
   observed_image="$(
@@ -1019,7 +1030,7 @@ configured_services="$(
 )" || die "cannot enumerate services from saved legacy Compose"
 expected_services="$(printf '%s\n' "${EXPECTED_SERVICES[@]}" | LC_ALL=C sort)"
 [[ "$configured_services" == "$expected_services" ]] \
-  || die "saved legacy Compose does not define the exact five services"
+  || die "saved legacy Compose does not define the exact four services"
 configured_volumes="$(
   "${saved_compose[@]}" config --no-env-resolution --volumes 2>/dev/null \
     | LC_ALL=C sort
@@ -1043,8 +1054,7 @@ for image_binding in \
   "quantd|$quantd_reference" \
   "web|$web_reference" \
   "caddy|$caddy_reference" \
-  "monitor-scheduler|$scheduler_reference" \
-  "ibkr-gateway|$ibkr_gateway_reference"; do
+  "monitor-scheduler|$scheduler_reference"; do
   service="${image_binding%%|*}"
   image_reference="${image_binding#*|}"
   printf '%s\n' "$image_reference" \
@@ -1223,8 +1233,7 @@ for tag_binding in \
   "$quantd_tag|$quantd_image_id" \
   "$web_tag|$web_image_id" \
   "$caddy_tag|$caddy_image_id" \
-  "$scheduler_tag|$scheduler_image_id" \
-  "$ibkr_gateway_tag|$ibkr_gateway_image_id"; do
+  "$scheduler_tag|$scheduler_image_id"; do
   recovery_tag="${tag_binding%%|*}"
   expected_image="${tag_binding#*|}"
   observed_image="$(
@@ -1287,7 +1296,6 @@ docker image tag "$quantd_image_id" "$quantd_reference"
 docker image tag "$web_image_id" "$web_reference"
 docker image tag "$caddy_image_id" "$caddy_reference"
 docker image tag "$scheduler_image_id" "$scheduler_reference"
-docker image tag "$ibkr_gateway_image_id" "$ibkr_gateway_reference"
 
 restored_compose=(
   docker compose
@@ -1309,8 +1317,7 @@ for config_binding in \
   "quantd|$quantd_config_hash" \
   "web|$web_config_hash" \
   "caddy|$caddy_config_hash" \
-  "monitor-scheduler|$scheduler_config_hash" \
-  "ibkr-gateway|$ibkr_gateway_config_hash"; do
+  "monitor-scheduler|$scheduler_config_hash"; do
   service="${config_binding%%|*}"
   expected_config_hash="${config_binding#*|}"
   config_hash_line="$(
@@ -1349,8 +1356,7 @@ for service_binding in \
   "quantd|$quantd_image_id" \
   "web|$web_image_id" \
   "caddy|$caddy_image_id" \
-  "monitor-scheduler|$scheduler_image_id" \
-  "ibkr-gateway|$ibkr_gateway_image_id"; do
+  "monitor-scheduler|$scheduler_image_id"; do
   service="${service_binding%%|*}"
   expected_image="${service_binding#*|}"
   container_id="$("${restored_compose[@]}" ps -q "$service")"
@@ -1373,8 +1379,8 @@ quantd_mounts="$(
     "${RESTORED_CONTAINER_IDS[quantd]}"
 )"
 [[ "$(awk -F'|' '$1 == "volume" { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "2" \
-  && "$(awk -F'|' '$1 == "bind" { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "2" \
-  && "$(awk 'NF { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "4" ]] \
+  && "$(awk -F'|' '$1 == "bind" { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "8" \
+  && "$(awk 'NF { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "10" ]] \
   || die "restored quantd mount count differs from the sealed topology"
 for expected_mount in \
   "axio7_quant-live|/app/data/live" \
@@ -1390,17 +1396,45 @@ for expected_mount in \
     || die "restored quantd uses the wrong fixed volume"
 done
 for runtime_mount in \
-  "$deployment_dir/runtime/quant-normalized|/app/data/normalized" \
-  "$deployment_dir/runtime/quant-manifests|/app/data/manifests"; do
-  source_path="${runtime_mount%%|*}"
+  "$deployment_dir/runtime/quant-calibration|/app/data/calibration|false" \
+  "$deployment_dir/runtime/quant-promotion|/app/data/promotion|false" \
+  "$deployment_dir/runtime/market-data|/app/data/market|true"; do
+  IFS='|' read -r source_path destination expected_rw <<< "$runtime_mount"
+  awk -F'|' -v source="$source_path" -v destination="$destination" \
+      -v expected_rw="$expected_rw" '
+    $1 == "bind" && $3 == source && $4 == destination && $5 == expected_rw {
+      found += 1
+    }
+    END { exit(found == 1 ? 0 : 1) }
+  ' <<< "$quantd_mounts" \
+    || die "restored quantd uses the wrong fixed runtime bind"
+done
+active_release_source="$(
+  awk -F'|' '
+    $1 == "bind" && $4 == "/app/data/manifests" && $5 == "false" {
+      print $3
+    }
+  ' <<< "$quantd_mounts"
+)"
+[[ "$active_release_source" =~ ^$deployment_dir/runtime/releases/([0-9a-f]{7})/quant-manifests$ ]] \
+  || die "restored quantd active release mount is invalid"
+active_release_root="${active_release_source%/quant-manifests}"
+for runtime_mount in \
+  "quant-raw|/app/data/raw" \
+  "quant-normalized|/app/data/normalized" \
+  "quant-evidence|/app/data/evidence" \
+  "quant-manifests|/app/data/manifests" \
+  "quant-rights|/app/data/rights"; do
+  directory_name="${runtime_mount%%|*}"
   destination="${runtime_mount#*|}"
+  source_path="$active_release_root/$directory_name"
   awk -F'|' -v source="$source_path" -v destination="$destination" '
     $1 == "bind" && $3 == source && $4 == destination && $5 == "false" {
       found += 1
     }
     END { exit(found == 1 ? 0 : 1) }
   ' <<< "$quantd_mounts" \
-    || die "restored quantd uses the wrong runtime bind"
+    || die "restored quantd uses the wrong release runtime bind"
 done
 
 caddy_mounts="$(
@@ -1432,7 +1466,7 @@ awk -F'|' -v source="$deployment_dir/Caddyfile" '
   END { exit(found == 1 ? 0 : 1) }
 ' <<< "$caddy_mounts" \
   || die "restored Caddy uses the wrong configuration bind"
-for service in web monitor-scheduler ibkr-gateway; do
+for service in web monitor-scheduler; do
   service_mounts="$(
     docker inspect --format \
       '{{range .Mounts}}{{printf "%s|%s|%s|%s|%t\n" .Type .Name .Source .Destination .RW}}{{end}}' \

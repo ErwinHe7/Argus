@@ -17,7 +17,6 @@ test('legacy bridge is restricted to the exact null-revision flat stack', () => 
     'web',
     'caddy',
     'monitor-scheduler',
-    'ibkr-gateway',
   ]) {
     assert.match(backup, new RegExp(`\\b${service}\\b`));
   }
@@ -29,16 +28,16 @@ test('legacy bridge is restricted to the exact null-revision flat stack', () => 
   ]) {
     assert.match(backup, new RegExp(`\\b${volume}\\b`));
   }
-  assert.match(backup, /running project is not the exact five-service legacy stack/);
+  assert.match(backup, /running project is not the exact four-service legacy stack/);
   assert.match(
     backup,
-    /flat Compose file does not define the exact five-service legacy stack/,
+    /flat Compose file does not define the exact four-service legacy stack/,
   );
   assert.match(backup, /flat Compose file does not define the exact four legacy volumes/);
   assert.match(backup, /com\.docker\.compose\.config-hash/);
   assert.match(backup, /config --hash/);
   assert.match(backup, /legacy quantd does not have exactly two named volumes/);
-  assert.match(backup, /legacy quantd does not have exactly two runtime bind mounts/);
+  assert.match(backup, /legacy quantd does not have exactly eight runtime bind mounts/);
   assert.match(backup, /org\.opencontainers\.image\.revision/);
   assert.match(backup, /has an OCI revision; use the canonical release backup helper/);
 
@@ -50,12 +49,14 @@ test('legacy bridge is restricted to the exact null-revision flat stack', () => 
 
 test('legacy backup explicitly quiesces all services and never prunes state', () => {
   assert.match(backup, /--confirm-legacy-quiesce/);
+  assert.match(backup, /--preflight-only/);
+  assert.match(backup, /read-only four-service preflight passed/);
   assert.match(backup, /refusing to stop the legacy deployment/);
   assert.match(backup, /docker stop --time 60/);
   assert.match(backup, /running_project_ids/);
   assert.match(backup, /volume_is_detached/);
   assert.match(backup, /restart_unchanged_legacy_stack/);
-  assert.match(backup, /all five legacy services remain stopped for cutover/);
+  assert.match(backup, /all four legacy services remain stopped for cutover/);
   assert.doesNotMatch(backup, /docker (?:image|volume|system) prune/);
   assert.doesNotMatch(backup, /docker (?:image|volume) rm/);
   assert.doesNotMatch(backup, /\bcompose(?:\[@\]\}")?\s+down\b/);
@@ -67,12 +68,10 @@ test('legacy backup captures exact IDs, protected config, runtime, and complete 
     'WEB_CONTAINER_ID',
     'CADDY_CONTAINER_ID',
     'SCHEDULER_CONTAINER_ID',
-    'IBKR_GATEWAY_CONTAINER_ID',
     'QUANTD_IMAGE_ID',
     'WEB_IMAGE_ID',
     'CADDY_IMAGE_ID',
     'SCHEDULER_IMAGE_ID',
-    'IBKR_GATEWAY_IMAGE_ID',
   ]) {
     assert.match(backup, new RegExp(`\\b${field}=`));
   }

@@ -9,6 +9,11 @@ const posthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog
 
 let initialized = false;
 
+type ProductEventProperties = Record<
+  string,
+  string | number | boolean | null | undefined
+>;
+
 function initPostHog() {
   if (initialized || !posthogKey || typeof window === 'undefined') return;
   posthog.init(posthogKey, {
@@ -53,6 +58,26 @@ export function trackReplyViewed(payload: {
   if (!posthogKey || typeof window === 'undefined') return;
   try {
     posthog.capture('reply_viewed', payload);
+  } catch {}
+}
+
+export function trackProductEvent(
+  event:
+    | 'acquisition_landing_viewed'
+    | 'starter_selected'
+    | 'research_submitted'
+    | 'research_completed'
+    | 'research_failed'
+    | 'sign_in_started'
+    | 'pricing_cta_clicked'
+    | 'checkout_started'
+    | 'checkout_completed'
+    | 'checkout_failed',
+  properties: ProductEventProperties = {}
+) {
+  if (!posthogKey || typeof window === 'undefined') return;
+  try {
+    posthog.capture(event, properties);
   } catch {}
 }
 

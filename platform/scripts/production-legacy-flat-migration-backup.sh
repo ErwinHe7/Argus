@@ -2,7 +2,8 @@
 #
 # One-time bridge for the exact legacy AXIO7 deployment copied flat into
 # /opt/axio7. This intentionally accepts missing OCI revision labels, but only
-# after proving the legacy five-service/two-runtime-bind/four-volume shape.
+# after proving the observed legacy four-service/two-runtime-bind/four-volume
+# shape.
 # The canonical production-release-backup.sh remains the only backup path for
 # commit-bound releases.
 
@@ -12,7 +13,6 @@ umask 077
 readonly EXPECTED_DEPLOYMENT_DIR="/opt/axio7"
 readonly EXPECTED_SERVICES=(
   caddy
-  ibkr-gateway
   monitor-scheduler
   quantd
   web
@@ -22,11 +22,9 @@ readonly STOP_ORDER=(
   caddy
   web
   quantd
-  ibkr-gateway
 )
 readonly START_ORDER=(
   quantd
-  ibkr-gateway
   web
   monitor-scheduler
   caddy
@@ -64,24 +62,28 @@ Usage:
   production-legacy-flat-migration-backup.sh \
     --deployment-dir /opt/axio7 \
     --backup-root /opt/axio7-legacy-migration-backups \
-    --confirm-legacy-quiesce
+    [--preflight-only | --confirm-legacy-quiesce]
 
 This is a one-time migration bridge for the exact flat /opt/axio7 Compose
 project whose running quantd and web images have no OCI revision label. It
-captures the exact five container/image IDs, protects every image with a
-recovery tag, stops all five services, archives the complete state/live/Caddy
+captures the exact four container/image IDs, protects every image with a
+recovery tag, stops all four services, archives the complete state/live/Caddy
 volumes and approved runtime trees, verifies extracted file manifests, and
 leaves the legacy stack stopped for cutover.
 
 It never sources or prints .env.server, never prunes an image or volume, and
 refuses a commit-bound or differently shaped deployment. Use the canonical
 production-release-backup.sh for every later release.
+
+--preflight-only performs the complete read-only topology, image, environment,
+mount, execution-gate, and runtime-tree validation without tagging images or
+stopping a service.
 EOF
 }
 
 runtime_directory_is_allowed() {
   case "$1" in
-    quant-normalized|quant-manifests|quant-rights|quant-evidence|private-rights-evidence|quant-promotion|quant-calibration)
+    market-data|releases|quant-raw|quant-normalized|quant-manifests|quant-rights|quant-evidence|private-rights-evidence|quant-promotion|quant-calibration)
       return 0
       ;;
     *)
@@ -174,7 +176,7 @@ validate_legacy_compose_model_and_running_env() {
         fail();
       }
       const services = [
-        "caddy", "ibkr-gateway", "monitor-scheduler", "quantd", "web",
+        "caddy", "monitor-scheduler", "quantd", "web",
       ];
       const volumeNames = {
         "caddy-config": "axio7_caddy-config",
@@ -185,6 +187,23 @@ validate_legacy_compose_model_and_running_env() {
       const sortedKeys = (value) => Object.keys(value || {}).sort();
       const same = (left, right) =>
         JSON.stringify(left) === JSON.stringify(right);
+      const releaseMount = /^\/opt\/axio7\/runtime\/releases\/([0-9a-f]{7})\/(quant-(?:raw|normalized|evidence|manifests|rights))$/;
+      const normalizedMounts = (service) => (service.volumes || []).map((mount) => {
+        const source = String(mount.source || "");
+        const match = source.match(releaseMount);
+        return [
+          mount.type || "",
+          match
+            ? `/opt/axio7/runtime/releases/<release>/${match[2]}`
+            : source,
+          mount.target || "",
+          String(mount.read_only === true),
+        ].join("|");
+      }).sort();
+      const releaseIds = (service) => (service.volumes || [])
+        .map((mount) => String(mount.source || "").match(releaseMount))
+        .filter(Boolean)
+        .map((match) => match[1]);
       if (model.name !== "axio7"
           || !same(sortedKeys(model.services), services)
           || !same(sortedKeys(model.volumes), sortedKeys(volumeNames))
@@ -213,11 +232,16 @@ validate_legacy_compose_model_and_running_env() {
           "volume|caddy-config|/config|false",
           "volume|caddy-data|/data|false",
         ],
-        "ibkr-gateway": [],
         "monitor-scheduler": [],
         quantd: [
-          "bind|/opt/axio7/runtime/quant-manifests|/app/data/manifests|true",
-          "bind|/opt/axio7/runtime/quant-normalized|/app/data/normalized|true",
+          "bind|/opt/axio7/runtime/market-data|/app/data/market|false",
+          "bind|/opt/axio7/runtime/quant-calibration|/app/data/calibration|true",
+          "bind|/opt/axio7/runtime/quant-promotion|/app/data/promotion|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-evidence|/app/data/evidence|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-manifests|/app/data/manifests|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-normalized|/app/data/normalized|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-raw|/app/data/raw|true",
+          "bind|/opt/axio7/runtime/releases/<release>/quant-rights|/app/data/rights|true",
           "volume|quant-live|/app/data/live|false",
           "volume|quant-state|/app/data/state|false",
         ],
@@ -226,18 +250,10 @@ validate_legacy_compose_model_and_running_env() {
       for (const serviceName of services) {
         const service = model.services[serviceName] || {};
         const noEnvService = noEnvModel.services[serviceName] || {};
-        const mounts = (service.volumes || []).map((mount) => [
-          mount.type || "",
-          mount.source || "",
-          mount.target || "",
-          String(mount.read_only === true),
-        ].join("|")).sort();
-        const noEnvMounts = (noEnvService.volumes || []).map((mount) => [
-          mount.type || "",
-          mount.source || "",
-          mount.target || "",
-          String(mount.read_only === true),
-        ].join("|")).sort();
+        const mounts = normalizedMounts(service);
+        const noEnvMounts = normalizedMounts(noEnvService);
+        const modelReleaseIds = releaseIds(service);
+        const noEnvReleaseIds = releaseIds(noEnvService);
         const envFileEntries = noEnvService.env_file || [];
         const envFilePaths = envFileEntries.map((entry) =>
           typeof entry === "string" ? entry : entry?.path,
@@ -254,7 +270,13 @@ validate_legacy_compose_model_and_running_env() {
         } catch {
           fail();
         }
-        if (!same(mounts, expectedMounts[serviceName].slice().sort())
+        if ((serviceName === "quantd"
+              && (modelReleaseIds.length !== 5
+                || noEnvReleaseIds.length !== 5
+                || new Set(modelReleaseIds).size !== 1
+                || new Set(noEnvReleaseIds).size !== 1
+                || modelReleaseIds[0] !== noEnvReleaseIds[0]))
+            || !same(mounts, expectedMounts[serviceName].slice().sort())
             || !same(
               noEnvMounts,
               expectedMounts[serviceName].slice().sort(),
@@ -645,7 +667,7 @@ verify_final_quiesced_sources() {
       --filter label=com.docker.compose.project=axio7 \
       | awk 'NF { count += 1 } END { print count + 0 }'
   )" || return 1
-  [[ "$all_project_count" == "5" ]] || return 1
+  [[ "$all_project_count" == "4" ]] || return 1
 
   for service in "${EXPECTED_SERVICES[@]}"; do
     container_id="${CONTAINER_IDS[$service]}"
@@ -780,6 +802,7 @@ script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 deployment_dir="$EXPECTED_DEPLOYMENT_DIR"
 backup_root="/opt/axio7-legacy-migration-backups"
 confirmed=false
+preflight_only=false
 
 while (($#)); do
   case "$1" in
@@ -797,6 +820,10 @@ while (($#)); do
       confirmed=true
       shift
       ;;
+    --preflight-only)
+      preflight_only=true
+      shift
+      ;;
     --help|-h)
       usage
       exit 0
@@ -807,7 +834,10 @@ while (($#)); do
   esac
 done
 
-$confirmed \
+if $confirmed && $preflight_only; then
+  die "--preflight-only and --confirm-legacy-quiesce are mutually exclusive"
+fi
+$confirmed || $preflight_only \
   || die "refusing to stop the legacy deployment without --confirm-legacy-quiesce"
 for command_name in \
   awk basename cat chmod cmp date docker find flock grep id install mapfile mkdir \
@@ -904,7 +934,7 @@ configured_services="$(
 )" || die "cannot enumerate services from the flat Compose file"
 expected_services="$(printf '%s\n' "${EXPECTED_SERVICES[@]}" | LC_ALL=C sort)"
 [[ "$configured_services" == "$expected_services" ]] \
-  || die "flat Compose file does not define the exact five-service legacy stack"
+  || die "flat Compose file does not define the exact four-service legacy stack"
 configured_volumes="$(
   "${compose[@]}" config --volumes 2>/dev/null | LC_ALL=C sort
 )" || die "cannot enumerate volumes from the flat Compose file"
@@ -931,13 +961,13 @@ observed_services="$(
     | LC_ALL=C sort
 )" || die "cannot enumerate the legacy Compose services"
 [[ "$observed_services" == "$expected_services" ]] \
-  || die "running project is not the exact five-service legacy stack"
+  || die "running project is not the exact four-service legacy stack"
 all_project_count="$(
   docker ps -aq \
     --filter label=com.docker.compose.project=axio7 \
     | awk 'NF { count += 1 } END { print count + 0 }'
 )" || die "cannot count all legacy project containers"
-[[ "$all_project_count" == "5" ]] \
+[[ "$all_project_count" == "4" ]] \
   || die "legacy project has a stopped, one-off, or duplicate container"
 all_project_services="$(
   docker ps -a \
@@ -1077,23 +1107,53 @@ for expected_mount in \
   ' <<< "$quantd_mounts" \
     || die "legacy quantd volume mount is missing or changed: $volume_name"
 done
-[[ "$(awk -F'|' '$1 == "bind" { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "2" ]] \
-  || die "legacy quantd does not have exactly two runtime bind mounts"
-[[ "$(awk 'NF { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "4" ]] \
+[[ "$(awk -F'|' '$1 == "bind" { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "8" ]] \
+  || die "legacy quantd does not have exactly eight runtime bind mounts"
+[[ "$(awk 'NF { count += 1 } END { print count + 0 }' <<< "$quantd_mounts")" == "10" ]] \
   || die "legacy quantd has an unapproved extra mount"
 for runtime_mount in \
+  "quant-calibration|/app/data/calibration|false" \
+  "quant-promotion|/app/data/promotion|false" \
+  "market-data|/app/data/market|true"; do
+  IFS='|' read -r directory_name destination expected_rw <<< "$runtime_mount"
+  source_path="$runtime_dir/$directory_name"
+  awk -F'|' -v source="$source_path" -v destination="$destination" \
+      -v expected_rw="$expected_rw" '
+    $1 == "bind" && $3 == source && $4 == destination && $5 == expected_rw {
+      found += 1
+    }
+    END { exit(found == 1 ? 0 : 1) }
+  ' <<< "$quantd_mounts" \
+    || die "legacy quantd fixed runtime mount is missing: $directory_name"
+done
+active_release_source="$(
+  awk -F'|' '
+    $1 == "bind" && $4 == "/app/data/manifests" && $5 == "false" {
+      print $3
+    }
+  ' <<< "$quantd_mounts"
+)"
+[[ "$active_release_source" =~ ^$runtime_dir/releases/([0-9a-f]{7})/quant-manifests$ ]] \
+  || die "legacy quantd active release mount is invalid"
+active_release_root="${active_release_source%/quant-manifests}"
+[[ -d "$active_release_root" && ! -L "$active_release_root" ]] \
+  || die "legacy quantd active release directory is missing"
+for runtime_mount in \
+  "quant-raw|/app/data/raw" \
   "quant-normalized|/app/data/normalized" \
-  "quant-manifests|/app/data/manifests"; do
+  "quant-evidence|/app/data/evidence" \
+  "quant-manifests|/app/data/manifests" \
+  "quant-rights|/app/data/rights"; do
   directory_name="${runtime_mount%%|*}"
   destination="${runtime_mount#*|}"
-  source_path="$runtime_dir/$directory_name"
+  source_path="$active_release_root/$directory_name"
   awk -F'|' -v source="$source_path" -v destination="$destination" '
     $1 == "bind" && $3 == source && $4 == destination && $5 == "false" {
       found += 1
     }
     END { exit(found == 1 ? 0 : 1) }
   ' <<< "$quantd_mounts" \
-    || die "legacy quantd read-only runtime mount is missing: $directory_name"
+    || die "legacy quantd release mount is missing: $directory_name"
 done
 
 caddy_mounts="$(
@@ -1128,7 +1188,7 @@ awk -F'|' -v source="$caddy_file" '
 ' <<< "$caddy_mounts" \
   || die "legacy Caddyfile bind is missing or writable"
 
-for service in web monitor-scheduler ibkr-gateway; do
+for service in web monitor-scheduler; do
   service_mounts="$(
     docker inspect --format \
       '{{range .Mounts}}{{printf "%s|%s|%s|%s|%t\n" .Type .Name .Source .Destination .RW}}{{end}}' \
@@ -1165,10 +1225,30 @@ while IFS= read -r runtime_entry || [[ -n "$runtime_entry" ]]; do
     || die "legacy runtime top-level entries must be real directories"
   printf '%s\n' "$runtime_name" >> "$runtime_directories_file"
 done < <(find "$runtime_dir" -mindepth 1 -maxdepth 1 -print | LC_ALL=C sort)
-for required_runtime in quant-normalized quant-manifests; do
+for required_runtime in \
+  market-data releases quant-raw quant-normalized quant-manifests \
+  quant-calibration quant-promotion; do
   grep -Fxq "$required_runtime" "$runtime_directories_file" \
     || die "legacy runtime is missing $required_runtime"
 done
+expected_release_directories="$(
+  printf '%s\n' \
+    quant-evidence quant-manifests quant-normalized quant-raw quant-rights \
+    | LC_ALL=C sort
+)"
+while IFS= read -r release_entry || [[ -n "$release_entry" ]]; do
+  [[ -n "$release_entry" ]] || continue
+  release_name="$(basename -- "$release_entry")"
+  [[ "$release_name" =~ ^[0-9a-f]{7}$ \
+    && -d "$release_entry" && ! -L "$release_entry" ]] \
+    || die "legacy release tree contains an invalid release directory"
+  observed_release_directories="$(
+    find "$release_entry" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+      | LC_ALL=C sort
+  )"
+  [[ "$observed_release_directories" == "$expected_release_directories" ]] \
+    || die "legacy release directory does not contain the exact artifact trees"
+done < <(find "$runtime_dir/releases" -mindepth 1 -maxdepth 1 -print | LC_ALL=C sort)
 [[ -z "$(find "$runtime_dir" -mindepth 1 ! -type d ! -type f -print -quit)" ]] \
   || die "legacy runtime contains a link or special entry"
 [[ -z "$(find "$runtime_dir" -type f -links +1 -print -quit)" ]] \
@@ -1191,6 +1271,11 @@ if grep -Fxq private-rights-evidence "$runtime_directories_file"; then
   fi
 fi
 
+if $preflight_only; then
+  printf 'legacy-backup: read-only four-service preflight passed; no service or image was changed\n'
+  exit 0
+fi
+
 compose_sha_before="$(sha256sum "$compose_file" | awk '{print $1}')"
 caddy_sha_before="$(sha256sum "$caddy_file" | awk '{print $1}')"
 env_sha_before="$(sha256sum "$env_file" | awk '{print $1}')"
@@ -1211,7 +1296,7 @@ for service in "${EXPECTED_SERVICES[@]}"; do
   RECOVERY_TAGS["$service"]="$recovery_tag"
 done
 
-printf 'legacy-backup: quiescing the exact five-service flat deployment\n'
+printf 'legacy-backup: quiescing the exact four-service flat deployment\n'
 quiesced=true
 for service in "${STOP_ORDER[@]}"; do
   docker stop --time 60 "${CONTAINER_IDS[$service]}" >/dev/null \
@@ -1250,27 +1335,22 @@ QUANTD_CONTAINER_ID=${CONTAINER_IDS[quantd]}
 WEB_CONTAINER_ID=${CONTAINER_IDS[web]}
 CADDY_CONTAINER_ID=${CONTAINER_IDS[caddy]}
 SCHEDULER_CONTAINER_ID=${CONTAINER_IDS[monitor-scheduler]}
-IBKR_GATEWAY_CONTAINER_ID=${CONTAINER_IDS[ibkr-gateway]}
 QUANTD_COMPOSE_CONFIG_HASH=${CONFIG_HASHES[quantd]}
 WEB_COMPOSE_CONFIG_HASH=${CONFIG_HASHES[web]}
 CADDY_COMPOSE_CONFIG_HASH=${CONFIG_HASHES[caddy]}
 SCHEDULER_COMPOSE_CONFIG_HASH=${CONFIG_HASHES[monitor-scheduler]}
-IBKR_GATEWAY_COMPOSE_CONFIG_HASH=${CONFIG_HASHES[ibkr-gateway]}
 QUANTD_IMAGE_ID=${IMAGE_IDS[quantd]}
 WEB_IMAGE_ID=${IMAGE_IDS[web]}
 CADDY_IMAGE_ID=${IMAGE_IDS[caddy]}
 SCHEDULER_IMAGE_ID=${IMAGE_IDS[monitor-scheduler]}
-IBKR_GATEWAY_IMAGE_ID=${IMAGE_IDS[ibkr-gateway]}
 QUANTD_IMAGE_REFERENCE=${IMAGE_REFERENCES[quantd]}
 WEB_IMAGE_REFERENCE=${IMAGE_REFERENCES[web]}
 CADDY_IMAGE_REFERENCE=${IMAGE_REFERENCES[caddy]}
 SCHEDULER_IMAGE_REFERENCE=${IMAGE_REFERENCES[monitor-scheduler]}
-IBKR_GATEWAY_IMAGE_REFERENCE=${IMAGE_REFERENCES[ibkr-gateway]}
 QUANTD_RECOVERY_TAG=${RECOVERY_TAGS[quantd]}
 WEB_RECOVERY_TAG=${RECOVERY_TAGS[web]}
 CADDY_RECOVERY_TAG=${RECOVERY_TAGS[caddy]}
 SCHEDULER_RECOVERY_TAG=${RECOVERY_TAGS[monitor-scheduler]}
-IBKR_GATEWAY_RECOVERY_TAG=${RECOVERY_TAGS[ibkr-gateway]}
 EOF
 
 archive_volume \
@@ -1401,22 +1481,19 @@ cat > "$backup_dir/backup-manifest.json" <<EOF
   "deployment_dir": "/opt/axio7",
   "docker_compose_version": "$compose_version",
   "compose_project": "axio7",
-  "service_count": 5,
+  "service_count": 4,
   "quantd_container_id": "${CONTAINER_IDS[quantd]}",
   "web_container_id": "${CONTAINER_IDS[web]}",
   "caddy_container_id": "${CONTAINER_IDS[caddy]}",
   "scheduler_container_id": "${CONTAINER_IDS[monitor-scheduler]}",
-  "ibkr_gateway_container_id": "${CONTAINER_IDS[ibkr-gateway]}",
   "quantd_compose_config_hash": "${CONFIG_HASHES[quantd]}",
   "web_compose_config_hash": "${CONFIG_HASHES[web]}",
   "caddy_compose_config_hash": "${CONFIG_HASHES[caddy]}",
   "scheduler_compose_config_hash": "${CONFIG_HASHES[monitor-scheduler]}",
-  "ibkr_gateway_compose_config_hash": "${CONFIG_HASHES[ibkr-gateway]}",
   "quantd_image_id": "${IMAGE_IDS[quantd]}",
   "web_image_id": "${IMAGE_IDS[web]}",
   "caddy_image_id": "${IMAGE_IDS[caddy]}",
   "scheduler_image_id": "${IMAGE_IDS[monitor-scheduler]}",
-  "ibkr_gateway_image_id": "${IMAGE_IDS[ibkr-gateway]}",
   "application_oci_revision_labels_absent": true,
   "complete_volume_set": true,
   "sqlite_wal_captured_as_complete_quiesced_volume": true,
@@ -1442,6 +1519,6 @@ verify_final_quiesced_sources \
 
 backup_complete=true
 printf 'legacy-backup: sealed one-time migration bundle: %s\n' "$backup_dir"
-printf 'legacy-backup: all five legacy services remain stopped for cutover\n'
+printf 'legacy-backup: all four legacy services remain stopped for cutover\n'
 printf 'legacy-backup: recovery command is recorded in %s/RECOVERY.txt\n' \
   "$backup_dir"

@@ -4,6 +4,10 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { trackServerEvent } from '@/lib/observability/posthog-server';
 import { authRedirectOrigin } from '@/lib/auth-redirect-origin';
 import { safeInternalRedirectPath } from '@/lib/safe-internal-redirect';
+import {
+  ACQUISITION_ATTRIBUTION_COOKIE,
+  parseAcquisitionAttributionCookie,
+} from '@/lib/observability/acquisition-attribution';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -84,7 +88,13 @@ export async function GET(req: Request) {
           : u.identities?.[0]?.provider ?? 'oauth';
         trackServerEvent(u.id, {
           event: 'user_signed_up',
-          properties: { user_id: u.id, signup_method: signupMethod },
+          properties: {
+            user_id: u.id,
+            signup_method: signupMethod,
+            ...parseAcquisitionAttributionCookie(
+              cookieStore.get(ACQUISITION_ATTRIBUTION_COOKIE)?.value
+            ),
+          },
         });
       }
     }

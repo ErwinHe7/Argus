@@ -230,7 +230,7 @@ stop_project_writers_by_label() {
   local container_ids=""
   local service_name=""
 
-  for service_name in monitor-scheduler caddy web quantd; do
+  for service_name in monitor-scheduler caddy web market-archive quantd postgres; do
     container_ids="$(
       docker ps -q \
         --filter label=com.docker.compose.project=axio7 \
@@ -357,11 +357,15 @@ current_web_image_id=""
 current_caddy_image_id=""
 current_scheduler_image_id=""
 current_ibkr_gateway_image_id=""
+current_postgres_image_id=""
+current_market_archive_image_id=""
 current_quantd_tag=""
 current_web_tag=""
 current_caddy_tag=""
 current_scheduler_tag=""
 current_ibkr_gateway_tag=""
+current_postgres_tag=""
+current_market_archive_tag=""
 destructive_started=false
 emergency_sealed=false
 rollback_succeeded=false
@@ -516,11 +520,20 @@ attempt_emergency_recovery() {
     || recovery_failed=true
   docker image tag "$current_ibkr_gateway_image_id" axio7-ibkr-gateway:latest \
     || recovery_failed=true
+  docker image tag "$current_postgres_image_id" postgres:17-bookworm \
+    || recovery_failed=true
+  docker image tag "$current_market_archive_image_id" \
+    "axio7-market-archive:$current_commit" \
+    || recovery_failed=true
   docker image tag "$current_caddy_image_id" "$current_caddy_tag" \
     || recovery_failed=true
   docker image tag "$current_scheduler_image_id" "$current_scheduler_tag" \
     || recovery_failed=true
   docker image tag "$current_ibkr_gateway_image_id" "$current_ibkr_gateway_tag" \
+    || recovery_failed=true
+  docker image tag "$current_postgres_image_id" "$current_postgres_tag" \
+    || recovery_failed=true
+  docker image tag "$current_market_archive_image_id" "$current_market_archive_tag" \
     || recovery_failed=true
 
   if $recovery_failed; then
@@ -561,7 +574,7 @@ attempt_emergency_recovery() {
   fi
 
   if ! $recovery_failed; then
-    for service_name in quantd web; do
+    for service_name in quantd web postgres; do
       if ! container_id="$(
         env GIT_COMMIT="$current_commit" "${emergency_compose[@]}" \
           ps -q "$service_name"
@@ -587,7 +600,8 @@ attempt_emergency_recovery() {
     )"; then
       recovery_failed=true
     else
-      for service_name in quantd web caddy monitor-scheduler ibkr-gateway; do
+      for service_name in \
+        quantd web postgres market-archive caddy monitor-scheduler ibkr-gateway; do
         grep -Fxq "$service_name" <<< "$running_services" \
           || recovery_failed=true
       done
@@ -595,7 +609,8 @@ attempt_emergency_recovery() {
   fi
 
   if ! $recovery_failed; then
-    for service_name in quantd web caddy monitor-scheduler ibkr-gateway; do
+    for service_name in \
+      quantd web postgres market-archive caddy monitor-scheduler ibkr-gateway; do
       if ! restored_image="$(
         env GIT_COMMIT="$current_commit" "${emergency_compose[@]}" \
           images -q "$service_name"
@@ -608,7 +623,9 @@ attempt_emergency_recovery() {
         "web:$current_web_image_id"|\
         "caddy:$current_caddy_image_id"|\
         "monitor-scheduler:$current_scheduler_image_id"|\
-        "ibkr-gateway:$current_ibkr_gateway_image_id")
+        "ibkr-gateway:$current_ibkr_gateway_image_id"|\
+        "postgres:$current_postgres_image_id"|\
+        "market-archive:$current_market_archive_image_id")
           ;;
         *)
           recovery_failed=true
@@ -653,7 +670,8 @@ restart_unchanged_current() {
   )"; then
     return 1
   fi
-  for service_name in quantd web caddy monitor-scheduler ibkr-gateway; do
+  for service_name in \
+    quantd web postgres market-archive caddy monitor-scheduler ibkr-gateway; do
     grep -Fxq "$service_name" <<< "$running_services" || return 1
   done
   quiesced=false
@@ -746,6 +764,12 @@ scheduler_image_id="$(
 ibkr_gateway_image_id="$(
   read_metadata_value IBKR_GATEWAY_IMAGE_ID "$backup_dir/rollback.env"
 )"
+postgres_image_id="$(
+  read_metadata_value POSTGRES_IMAGE_ID "$backup_dir/rollback.env"
+)"
+market_archive_image_id="$(
+  read_metadata_value MARKET_ARCHIVE_IMAGE_ID "$backup_dir/rollback.env"
+)"
 quantd_rollback_tag="$(
   read_metadata_value QUANTD_ROLLBACK_TAG "$backup_dir/rollback.env"
 )"
@@ -761,11 +785,20 @@ scheduler_rollback_tag="$(
 ibkr_gateway_rollback_tag="$(
   read_metadata_value IBKR_GATEWAY_ROLLBACK_TAG "$backup_dir/rollback.env"
 )"
+postgres_rollback_tag="$(
+  read_metadata_value POSTGRES_ROLLBACK_TAG "$backup_dir/rollback.env"
+)"
+market_archive_rollback_tag="$(
+  read_metadata_value MARKET_ARCHIVE_ROLLBACK_TAG "$backup_dir/rollback.env"
+)"
 metadata_quantd_revision="$(
   read_metadata_value QUANTD_IMAGE_REVISION "$backup_dir/rollback.env"
 )"
 metadata_web_revision="$(
   read_metadata_value WEB_IMAGE_REVISION "$backup_dir/rollback.env"
+)"
+metadata_market_archive_revision="$(
+  read_metadata_value MARKET_ARCHIVE_IMAGE_REVISION "$backup_dir/rollback.env"
 )"
 
 [[ "$source_commit" =~ ^[0-9a-f]{40}$ ]] || die "backup source commit is invalid"
@@ -779,6 +812,10 @@ metadata_web_revision="$(
   || die "backup scheduler image ID is invalid"
 [[ "$ibkr_gateway_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || die "backup IBKR gateway image ID is invalid"
+[[ "$postgres_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || die "backup PostgreSQL image ID is invalid"
+[[ "$market_archive_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || die "backup market-archive image ID is invalid"
 [[ "$quantd_rollback_tag" =~ ^axio7-quantd:rollback-[0-9TZ-]+-[0-9a-f]{12}$ ]] \
   || die "backup quantd rollback tag is invalid"
 [[ "$web_rollback_tag" =~ ^axio7-web:rollback-[0-9TZ-]+-[0-9a-f]{12}$ ]] \
@@ -789,10 +826,16 @@ metadata_web_revision="$(
   || die "backup scheduler rollback tag is invalid"
 [[ "$ibkr_gateway_rollback_tag" =~ ^axio7-ibkr-gateway:rollback-[0-9TZ-]+-[0-9a-f]{12}$ ]] \
   || die "backup IBKR gateway rollback tag is invalid"
+[[ "$postgres_rollback_tag" =~ ^axio7-postgres:rollback-[0-9TZ-]+-[0-9a-f]{12}$ ]] \
+  || die "backup PostgreSQL rollback tag is invalid"
+[[ "$market_archive_rollback_tag" =~ ^axio7-market-archive:rollback-[0-9TZ-]+-[0-9a-f]{12}$ ]] \
+  || die "backup market-archive rollback tag is invalid"
 [[ "$metadata_quantd_revision" == "$source_commit" ]] \
   || die "backup quantd revision metadata does not match the source commit"
 [[ "$metadata_web_revision" == "$source_commit" ]] \
   || die "backup web revision metadata does not match the source commit"
+[[ "$metadata_market_archive_revision" == "$source_commit" ]] \
+  || die "backup market-archive revision metadata does not match the source commit"
 backup_environment_commit="$(
   read_metadata_value GIT_COMMIT "$backup_dir/.env.server.pre"
 )"
@@ -809,6 +852,10 @@ docker image inspect "$scheduler_image_id" >/dev/null 2>&1 \
   || die "the exact rollback scheduler image is no longer available locally"
 docker image inspect "$ibkr_gateway_image_id" >/dev/null 2>&1 \
   || die "the exact rollback IBKR gateway image is no longer available locally"
+docker image inspect "$postgres_image_id" >/dev/null 2>&1 \
+  || die "the exact rollback PostgreSQL image is no longer available locally"
+docker image inspect "$market_archive_image_id" >/dev/null 2>&1 \
+  || die "the exact rollback market-archive image is no longer available locally"
 rollback_quantd_revision="$(
   docker image inspect --format \
     '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
@@ -819,10 +866,17 @@ rollback_web_revision="$(
     '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
     "$web_image_id"
 )"
+rollback_market_archive_revision="$(
+  docker image inspect --format \
+    '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+    "$market_archive_image_id"
+)"
 [[ "$rollback_quantd_revision" == "$source_commit" ]] \
   || die "rollback quantd image revision does not match the source commit"
 [[ "$rollback_web_revision" == "$source_commit" ]] \
   || die "rollback web image revision does not match the source commit"
+[[ "$rollback_market_archive_revision" == "$source_commit" ]] \
+  || die "rollback market-archive image revision does not match the source commit"
 
 work_dir="$(mktemp -d "$backup_parent/.rollback-work.XXXXXX")"
 chmod 0700 -- "$work_dir"
@@ -946,12 +1000,24 @@ current_ibkr_gateway_image_id="$(
   env GIT_COMMIT="$current_commit" "${current_compose[@]}" \
     images -q ibkr-gateway | awk 'NR == 1 { print; exit }'
 )"
+current_postgres_image_id="$(
+  env GIT_COMMIT="$current_commit" "${current_compose[@]}" \
+    images -q postgres | awk 'NR == 1 { print; exit }'
+)"
+current_market_archive_image_id="$(
+  env GIT_COMMIT="$current_commit" "${current_compose[@]}" \
+    images -q market-archive | awk 'NR == 1 { print; exit }'
+)"
 [[ "$current_caddy_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || die "cannot resolve the current Caddy image ID"
 [[ "$current_scheduler_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || die "cannot resolve the current scheduler image ID"
 [[ "$current_ibkr_gateway_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || die "cannot resolve the current IBKR gateway image ID"
+[[ "$current_postgres_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || die "cannot resolve the current PostgreSQL image ID"
+[[ "$current_market_archive_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || die "cannot resolve the current market-archive image ID"
 write_image_model_manifest \
   "$current_quantd_image_id" "$work_dir/current-model-universe.sha256" \
   || die "cannot hash the current image model universe"
@@ -965,10 +1031,17 @@ current_web_revision="$(
     '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
     "$current_web_image_id"
 )"
+current_market_archive_revision="$(
+  docker image inspect --format \
+    '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+    "$current_market_archive_image_id"
+)"
 [[ "$current_quantd_revision" == "$current_commit" ]] \
   || die "current quantd image revision does not match .env.server"
 [[ "$current_web_revision" == "$current_commit" ]] \
   || die "current web image revision does not match .env.server"
+[[ "$current_market_archive_revision" == "$current_commit" ]] \
+  || die "current market-archive image revision does not match .env.server"
 
 printf 'rollback: validating saved Compose, execution gates, and Caddy configuration\n'
 if grep -Fq 'private-rights-evidence' "$backup_dir/compose.pre.yaml"; then
@@ -1000,7 +1073,7 @@ mkdir -m 0700 -- "$emergency_dir"
 
 printf 'rollback: quiescing current production writers\n'
 if ! env GIT_COMMIT="$current_commit" "${current_compose[@]}" \
-  stop monitor-scheduler caddy web quantd; then
+  stop monitor-scheduler caddy web market-archive quantd postgres; then
   quiesced=true
   die "failed while quiescing current production writers"
 fi
@@ -1011,7 +1084,7 @@ if ! running_services="$(
 )"; then
   die "cannot verify that production writers stopped"
 fi
-for service_name in monitor-scheduler caddy web quantd; do
+for service_name in monitor-scheduler caddy web market-archive quantd postgres; do
   if grep -Fxq "$service_name" <<< "$running_services"; then
     die "service is still running after quiesce: $service_name"
   fi
@@ -1040,11 +1113,15 @@ current_web_tag="axio7-web:pre-rollback-$rollback_stamp-${current_commit:0:12}"
 current_caddy_tag="axio7-caddy:pre-rollback-$rollback_stamp-${current_commit:0:12}"
 current_scheduler_tag="axio7-monitor-scheduler:pre-rollback-$rollback_stamp-${current_commit:0:12}"
 current_ibkr_gateway_tag="axio7-ibkr-gateway:pre-rollback-$rollback_stamp-${current_commit:0:12}"
+current_postgres_tag="axio7-postgres:pre-rollback-$rollback_stamp-${current_commit:0:12}"
+current_market_archive_tag="axio7-market-archive:pre-rollback-$rollback_stamp-${current_commit:0:12}"
 docker image tag "$current_quantd_image_id" "$current_quantd_tag"
 docker image tag "$current_web_image_id" "$current_web_tag"
 docker image tag "$current_caddy_image_id" "$current_caddy_tag"
 docker image tag "$current_scheduler_image_id" "$current_scheduler_tag"
 docker image tag "$current_ibkr_gateway_image_id" "$current_ibkr_gateway_tag"
+docker image tag "$current_postgres_image_id" "$current_postgres_tag"
+docker image tag "$current_market_archive_image_id" "$current_market_archive_tag"
 
 cat > "$emergency_dir/emergency.env" <<EOF
 SOURCE_COMMIT=$current_commit
@@ -1053,13 +1130,18 @@ WEB_IMAGE_ID=$current_web_image_id
 CADDY_IMAGE_ID=$current_caddy_image_id
 SCHEDULER_IMAGE_ID=$current_scheduler_image_id
 IBKR_GATEWAY_IMAGE_ID=$current_ibkr_gateway_image_id
+POSTGRES_IMAGE_ID=$current_postgres_image_id
+MARKET_ARCHIVE_IMAGE_ID=$current_market_archive_image_id
 QUANTD_IMAGE_REVISION=$current_quantd_revision
 WEB_IMAGE_REVISION=$current_web_revision
+MARKET_ARCHIVE_IMAGE_REVISION=$current_market_archive_revision
 QUANTD_RECOVERY_TAG=$current_quantd_tag
 WEB_RECOVERY_TAG=$current_web_tag
 CADDY_RECOVERY_TAG=$current_caddy_tag
 SCHEDULER_RECOVERY_TAG=$current_scheduler_tag
 IBKR_GATEWAY_RECOVERY_TAG=$current_ibkr_gateway_tag
+POSTGRES_RECOVERY_TAG=$current_postgres_tag
+MARKET_ARCHIVE_RECOVERY_TAG=$current_market_archive_tag
 EOF
 
 archive_current_volume \
@@ -1102,9 +1184,13 @@ cat > "$emergency_dir/emergency-manifest.json" <<EOF
   "caddy_image_id": "$current_caddy_image_id",
   "scheduler_image_id": "$current_scheduler_image_id",
   "ibkr_gateway_image_id": "$current_ibkr_gateway_image_id",
+  "postgres_image_id": "$current_postgres_image_id",
+  "market_archive_image_id": "$current_market_archive_image_id",
   "quantd_image_revision": "$current_quantd_revision",
   "web_image_revision": "$current_web_revision",
+  "market_archive_image_revision": "$current_market_archive_revision",
   "state_live_runtime_caddy_config_captured_as_one_set": true,
+  "append_only_market_database_restored_by_release_rollback": false,
   "services_left_stopped": true,
   "execution_enabled": false
 }
@@ -1184,9 +1270,13 @@ docker image tag "$web_image_id" "$web_rollback_tag"
 docker image tag "$caddy_image_id" caddy:2.10-alpine
 docker image tag "$scheduler_image_id" curlimages/curl:8.14.1
 docker image tag "$ibkr_gateway_image_id" axio7-ibkr-gateway:latest
+docker image tag "$postgres_image_id" postgres:17-bookworm
+docker image tag "$market_archive_image_id" "axio7-market-archive:$source_commit"
 docker image tag "$caddy_image_id" "$caddy_rollback_tag"
 docker image tag "$scheduler_image_id" "$scheduler_rollback_tag"
 docker image tag "$ibkr_gateway_image_id" "$ibkr_gateway_rollback_tag"
+docker image tag "$postgres_image_id" "$postgres_rollback_tag"
+docker image tag "$market_archive_image_id" "$market_archive_rollback_tag"
 
 restored_compose=(
   docker compose
@@ -1197,7 +1287,7 @@ env GIT_COMMIT="$source_commit" "${restored_compose[@]}" config --quiet
 env GIT_COMMIT="$source_commit" "${restored_compose[@]}" \
   up -d --no-build --pull never --force-recreate --wait --wait-timeout 180
 
-for service_name in quantd web; do
+for service_name in quantd web postgres; do
   container_id="$(
     env GIT_COMMIT="$source_commit" "${restored_compose[@]}" \
       ps -q "$service_name"
@@ -1230,7 +1320,8 @@ restored_running_services="$(
   env GIT_COMMIT="$source_commit" "${restored_compose[@]}" \
     ps --status running --services
 )"
-for service_name in quantd web caddy monitor-scheduler ibkr-gateway; do
+for service_name in \
+  quantd web postgres market-archive caddy monitor-scheduler ibkr-gateway; do
   grep -Fxq "$service_name" <<< "$restored_running_services" \
     || die "restored service is not running: $service_name"
 done
@@ -1255,6 +1346,14 @@ restored_ibkr_gateway_image="$(
   env GIT_COMMIT="$source_commit" "${restored_compose[@]}" \
     images -q ibkr-gateway | awk 'NR == 1 { print; exit }'
 )"
+restored_postgres_image="$(
+  env GIT_COMMIT="$source_commit" "${restored_compose[@]}" \
+    images -q postgres | awk 'NR == 1 { print; exit }'
+)"
+restored_market_archive_image="$(
+  env GIT_COMMIT="$source_commit" "${restored_compose[@]}" \
+    images -q market-archive | awk 'NR == 1 { print; exit }'
+)"
 [[ "$restored_quantd_image" == "$quantd_image_id" ]] \
   || die "running quantd image does not match the rollback receipt"
 [[ "$restored_web_image" == "$web_image_id" ]] \
@@ -1265,6 +1364,10 @@ restored_ibkr_gateway_image="$(
   || die "running scheduler image does not match the rollback receipt"
 [[ "$restored_ibkr_gateway_image" == "$ibkr_gateway_image_id" ]] \
   || die "running IBKR gateway image does not match the rollback receipt"
+[[ "$restored_postgres_image" == "$postgres_image_id" ]] \
+  || die "running PostgreSQL image does not match the rollback receipt"
+[[ "$restored_market_archive_image" == "$market_archive_image_id" ]] \
+  || die "running market-archive image does not match the rollback receipt"
 
 rollback_succeeded=true
 destructive_started=false
@@ -1279,14 +1382,19 @@ cat > "$emergency_dir/rollback-receipt.json" <<EOF
   "caddy_image_id": "$caddy_image_id",
   "scheduler_image_id": "$scheduler_image_id",
   "ibkr_gateway_image_id": "$ibkr_gateway_image_id",
+  "postgres_image_id": "$postgres_image_id",
+  "market_archive_image_id": "$market_archive_image_id",
   "release_archives_fully_preflighted_before_quiesce": true,
   "emergency_state_sealed_before_overwrite": true,
   "state_and_wal_restored_as_one_set": true,
   "runtime_binds_restored_as_one_set": true,
+  "append_only_market_database_restored_by_release_rollback": false,
   "read_only_model_universe_matches_image": true,
   "all_service_image_ids_verified": true,
   "quantd_liveness_healthcheck": "healthy",
   "web_liveness_healthcheck": "healthy",
+  "postgres_liveness_healthcheck": "healthy",
+  "market_archive_running": true,
   "caddy_running": true,
   "monitor_scheduler_running": true,
   "execution_enabled": false

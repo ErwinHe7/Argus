@@ -36,8 +36,8 @@ Usage:
     --expected-normalized-sha256 HEX \
     --confirm-quiesce
 
-The command stops monitor-scheduler, Caddy, web, and quantd, then leaves them
-stopped for a release cutover. It backs up the complete quant-state and
+The command stops monitor-scheduler, Caddy, web, quantd, market-archive, and
+PostgreSQL, then leaves them stopped for a release cutover. It backs up the complete quant-state and
 quant-live volumes, both Caddy volumes, all immutable runtime artifact directories,
 the protected server environment, Compose/Caddy configuration, image IDs, and
 checksums. It never runs `docker compose down` or removes a volume.
@@ -72,7 +72,7 @@ cleanup() {
         env GIT_COMMIT="$release_commit" "${compose[@]}" \
           ps --status running --services
       )"; then
-      for service_name in quantd web caddy monitor-scheduler ibkr-gateway; do
+      for service_name in quantd web postgres market-archive caddy monitor-scheduler ibkr-gateway; do
         if ! grep -Fxq "$service_name" <<< "$running_services"; then
           printf 'backup: unchanged deployment restart verification failed\n' >&2
           break
@@ -289,6 +289,12 @@ scheduler_image_id="$(
 ibkr_gateway_image_id="$(
   "${compose[@]}" images -q ibkr-gateway | awk 'NR == 1 { print; exit }'
 )"
+postgres_image_id="$(
+  "${compose[@]}" images -q postgres | awk 'NR == 1 { print; exit }'
+)"
+market_archive_image_id="$(
+  "${compose[@]}" images -q market-archive | awk 'NR == 1 { print; exit }'
+)"
 [[ "$quantd_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || die "cannot resolve the running quantd image ID"
 [[ "$web_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
@@ -299,6 +305,10 @@ ibkr_gateway_image_id="$(
   || die "cannot resolve the running scheduler image ID"
 [[ "$ibkr_gateway_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
   || die "cannot resolve the running IBKR gateway image ID"
+[[ "$postgres_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || die "cannot resolve the running PostgreSQL image ID"
+[[ "$market_archive_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] \
+  || die "cannot resolve the running market-archive image ID"
 quantd_image_revision="$(
   docker image inspect --format \
     '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
@@ -309,10 +319,17 @@ web_image_revision="$(
     '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
     "$web_image_id"
 )"
+market_archive_image_revision="$(
+  docker image inspect --format \
+    '{{index .Config.Labels "org.opencontainers.image.revision"}}' \
+    "$market_archive_image_id"
+)"
 [[ "$quantd_image_revision" == "$release_commit" ]] \
   || die "running quantd image revision does not match the release checkout"
 [[ "$web_image_revision" == "$release_commit" ]] \
   || die "running web image revision does not match the release checkout"
+[[ "$market_archive_image_revision" == "$release_commit" ]] \
+  || die "running market-archive image revision does not match the release checkout"
 for gate_name in \
   LIVE_EXECUTION_ENABLED BROKER_LIVE_ENABLED ANOMALY_LIVE_ORDER_ENABLED; do
   grep -Eq \
@@ -351,7 +368,7 @@ mkdir -m 0700 -- "$backup_dir"
 
 printf 'backup: quiescing production writers\n'
 if ! env GIT_COMMIT="$release_commit" "${compose[@]}" \
-  stop monitor-scheduler caddy web quantd; then
+  stop monitor-scheduler caddy web market-archive quantd postgres; then
   quiesced=true
   die "failed while quiescing production writers"
 fi
@@ -362,7 +379,7 @@ if ! running_services="$(
 )"; then
   die "cannot verify that production writers stopped"
 fi
-for service_name in monitor-scheduler caddy web quantd; do
+for service_name in monitor-scheduler caddy web market-archive quantd postgres; do
   if grep -Fxq "$service_name" <<<"$running_services"; then
     die "service is still running after quiesce: $service_name"
   fi
@@ -380,11 +397,15 @@ web_rollback_tag="axio7-web:rollback-$stamp-$short_commit"
 caddy_rollback_tag="axio7-caddy:rollback-$stamp-$short_commit"
 scheduler_rollback_tag="axio7-monitor-scheduler:rollback-$stamp-$short_commit"
 ibkr_gateway_rollback_tag="axio7-ibkr-gateway:rollback-$stamp-$short_commit"
+postgres_rollback_tag="axio7-postgres:rollback-$stamp-$short_commit"
+market_archive_rollback_tag="axio7-market-archive:rollback-$stamp-$short_commit"
 docker image tag "$quantd_image_id" "$quantd_rollback_tag"
 docker image tag "$web_image_id" "$web_rollback_tag"
 docker image tag "$caddy_image_id" "$caddy_rollback_tag"
 docker image tag "$scheduler_image_id" "$scheduler_rollback_tag"
 docker image tag "$ibkr_gateway_image_id" "$ibkr_gateway_rollback_tag"
+docker image tag "$postgres_image_id" "$postgres_rollback_tag"
+docker image tag "$market_archive_image_id" "$market_archive_rollback_tag"
 
 cat > "$backup_dir/rollback.env" <<EOF
 SOURCE_COMMIT=$release_commit
@@ -393,14 +414,19 @@ WEB_IMAGE_ID=$web_image_id
 CADDY_IMAGE_ID=$caddy_image_id
 SCHEDULER_IMAGE_ID=$scheduler_image_id
 IBKR_GATEWAY_IMAGE_ID=$ibkr_gateway_image_id
+POSTGRES_IMAGE_ID=$postgres_image_id
+MARKET_ARCHIVE_IMAGE_ID=$market_archive_image_id
 QUANTD_ROLLBACK_TAG=$quantd_rollback_tag
 WEB_ROLLBACK_TAG=$web_rollback_tag
 CADDY_ROLLBACK_TAG=$caddy_rollback_tag
 SCHEDULER_ROLLBACK_TAG=$scheduler_rollback_tag
 IBKR_GATEWAY_ROLLBACK_TAG=$ibkr_gateway_rollback_tag
+POSTGRES_ROLLBACK_TAG=$postgres_rollback_tag
+MARKET_ARCHIVE_ROLLBACK_TAG=$market_archive_rollback_tag
 NORMALIZED_SHA256=$observed_normalized_sha256
 QUANTD_IMAGE_REVISION=$quantd_image_revision
 WEB_IMAGE_REVISION=$web_image_revision
+MARKET_ARCHIVE_IMAGE_REVISION=$market_archive_image_revision
 EOF
 
 archive_volume() {
@@ -462,15 +488,21 @@ cat > "$backup_dir/backup-manifest.json" <<EOF
   "caddy_image_id": "$caddy_image_id",
   "scheduler_image_id": "$scheduler_image_id",
   "ibkr_gateway_image_id": "$ibkr_gateway_image_id",
+  "postgres_image_id": "$postgres_image_id",
+  "market_archive_image_id": "$market_archive_image_id",
   "quantd_image_revision": "$quantd_image_revision",
   "web_image_revision": "$web_image_revision",
+  "market_archive_image_revision": "$market_archive_image_revision",
   "quantd_rollback_tag": "$quantd_rollback_tag",
   "web_rollback_tag": "$web_rollback_tag",
   "caddy_rollback_tag": "$caddy_rollback_tag",
   "scheduler_rollback_tag": "$scheduler_rollback_tag",
   "ibkr_gateway_rollback_tag": "$ibkr_gateway_rollback_tag",
+  "postgres_rollback_tag": "$postgres_rollback_tag",
+  "market_archive_rollback_tag": "$market_archive_rollback_tag",
   "normalized_market_bars_sha256": "$observed_normalized_sha256",
   "services_left_stopped": true,
+  "append_only_market_database_restored_by_release_rollback": false,
   "execution_enabled": false
 }
 EOF
@@ -488,4 +520,4 @@ EOF
 
 backup_complete=true
 printf 'backup: sealed rollback bundle: %s\n' "$backup_dir"
-printf 'backup: quantd, web, scheduler, and Caddy remain stopped for cutover\n'
+printf 'backup: application, archive, PostgreSQL, scheduler, and Caddy services remain stopped for cutover\n'

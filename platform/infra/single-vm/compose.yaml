@@ -52,6 +52,77 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: axio7_market
+      POSTGRES_USER: axio7
+      POSTGRES_PASSWORD: ${MARKET_POSTGRES_PASSWORD:?set MARKET_POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes:
+      - ./runtime/market-data/postgres:/var/lib/postgresql/data
+      - ../market-data/postgres/schema.sql:/docker-entrypoint-initdb.d/001-market-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U axio7 -d axio7_market"]
+      interval: 20s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    shm_size: 256mb
+    security_opt:
+      - no-new-privileges:true
+
+  market-archive:
+    image: axio7-market-archive:${GIT_COMMIT:?set GIT_COMMIT to the exact clean release commit}
+    build:
+      context: ../..
+      dockerfile: infra/single-vm/market-archive.Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:?set GIT_COMMIT to the exact clean release commit}
+    restart: unless-stopped
+    environment:
+      MARKET_DATABASE_URL: ${MARKET_DATABASE_URL:-}
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: axio7_market
+      PGUSER: axio7
+      PGPASSWORD: ${MARKET_POSTGRES_PASSWORD:?set MARKET_POSTGRES_PASSWORD}
+      AXIO7_MARKET_DATA_RIGHTS_RECEIPT_SHA256: ${AXIO7_MARKET_DATA_RIGHTS_RECEIPT_SHA256:?set AXIO7_MARKET_DATA_RIGHTS_RECEIPT_SHA256}
+    command:
+      - --sqlite
+      - /archive/databento_market_data.sqlite3
+      - --schema
+      - /app/schema.sql
+      - --source-id
+      - production-databento-equs-mini
+      - --expected-provider
+      - databento
+      - --expected-dataset
+      - EQUS.MINI
+      - --expected-schema
+      - ohlcv-1m
+      - --license-scope
+      - ${AXIO7_MARKET_DATA_LICENSE_SCOPE:?set AXIO7_MARKET_DATA_LICENSE_SCOPE}
+      - --safety-lag-seconds
+      - "120"
+      - --overlap-seconds
+      - "600"
+      - --watch-interval-seconds
+      - "300"
+    volumes:
+      - ./runtime/market-data:/archive:ro
+    depends_on:
+      quantd:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+
   ibkr-gateway:
     image: axio7-ibkr-gateway:latest
     build:

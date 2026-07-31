@@ -23,6 +23,27 @@ use crate::data::{
 
 const PRICE_SCALE: f64 = 1_000_000_000.0;
 const REQUIRED_SYMBOLS: [&str; 8] = ["SPY", "QQQ", "IWM", "SOXX", "HYG", "TLT", "UUP", "VXX"];
+const SECTOR_ROTATION_SYMBOLS: [&str; 15] = [
+    "MAGS", "SKYY", "IGV", "XLK", "XLC", "XLY", "XLF", "XLE", "XLI", "XLV", "XLP", "XLU", "XLRE",
+    "XLB", "SOXX",
+];
+const SECTOR_ROTATION_GROUPS: [(&str, &str); 15] = [
+    ("MAGNIFICENT_SEVEN", "MAGS"),
+    ("CLOUD_COMPUTING", "SKYY"),
+    ("SOFTWARE", "IGV"),
+    ("TECHNOLOGY", "XLK"),
+    ("COMMUNICATION_SERVICES", "XLC"),
+    ("CONSUMER_DISCRETIONARY", "XLY"),
+    ("FINANCIALS", "XLF"),
+    ("ENERGY", "XLE"),
+    ("INDUSTRIALS", "XLI"),
+    ("HEALTH_CARE", "XLV"),
+    ("CONSUMER_STAPLES", "XLP"),
+    ("UTILITIES", "XLU"),
+    ("REAL_ESTATE", "XLRE"),
+    ("MATERIALS", "XLB"),
+    ("SEMICONDUCTORS", "SOXX"),
+];
 const FEATURE_NAMES: [&str; 15] = [
     "spy_session_return",
     "spy_gap_return",
@@ -40,6 +61,14 @@ const FEATURE_NAMES: [&str; 15] = [
     "uup_return",
     "vxx_return",
 ];
+const SECTOR_ROTATION_FEATURE_NAMES: [&str; 6] = [
+    "mag7_relative_return",
+    "cloud_relative_return",
+    "software_relative_return",
+    "sector_leadership_breadth",
+    "sector_return_dispersion",
+    "growth_defensive_rotation",
+];
 const MINIMUM_PRIMARY_ROWS: usize = 390;
 // Databento's OHLCV-1m schema emits a bar only for minutes with trades. Less
 // active context ETFs such as UUP therefore cannot honestly satisfy a
@@ -56,6 +85,10 @@ const PREDICTION_INTERVAL_COVERAGE: f64 = 0.90;
 const MINIMUM_INTERVAL_CALIBRATION_SESSIONS: usize = 40;
 const RAW_LIKELIHOOD_CONFIDENCE_LEVEL: f64 = 0.95;
 const NORMAL_95_TWO_SIDED_Z: f64 = 1.959_963_984_540_054;
+const SECTOR_CHALLENGER_MINIMUM_QUERIES: usize = 80;
+const SECTOR_CHALLENGER_MINIMUM_DIRECTIONAL_CALLS: usize = 20;
+const SECTOR_CHALLENGER_MINIMUM_HIT_GAIN: f64 = 0.02;
+const SECTOR_CHALLENGER_MAXIMUM_MAE_RATIO: f64 = 1.0;
 
 static HISTORY_CACHE: OnceLock<Arc<HistoricalDailyData>> = OnceLock::new();
 
@@ -121,9 +154,17 @@ struct HistoricalDailyData {
 struct FeatureRow {
     date: NaiveDate,
     features: Vec<f64>,
+    sector_rotation: Option<SectorRotationFeatures>,
+    missing_sector_symbols: Vec<String>,
     regime: RegimeLabel,
     spy: DailyBar,
     coverage: BTreeMap<String, usize>,
+}
+
+#[derive(Debug, Clone)]
+struct SectorRotationFeatures {
+    values: Vec<f64>,
+    group_returns: BTreeMap<String, f64>,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
@@ -245,6 +286,7 @@ pub struct DailyRegimeReport {
     same_regime_history: Vec<HistoricalAnalog>,
     walk_forward_validation: WalkForwardValidation,
     feature_snapshot: Vec<FeatureValue>,
+    sector_rotation_challenger: SectorRotationChallenger,
     source: DailySource,
     model_contract: DailyModelContract,
     macro_news_policy: MacroNewsPolicy,
@@ -378,6 +420,56 @@ struct FeatureValue {
 }
 
 #[derive(Debug, Clone, Serialize)]
+struct SectorRotationChallenger {
+    status: &'static str,
+    feature_version: &'static str,
+    applied_to_published_prediction: bool,
+    required_symbols: Vec<&'static str>,
+    missing_current_symbols: Vec<String>,
+    feature_snapshot: Vec<FeatureValue>,
+    current_leaders: Vec<SectorGroupReturn>,
+    current_laggards: Vec<SectorGroupReturn>,
+    validation: Option<SectorChallengerValidation>,
+    promotion_gate: SectorPromotionGate,
+    blockers: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SectorGroupReturn {
+    group: &'static str,
+    symbol: &'static str,
+    session_return_pct: f64,
+    relative_to_spy_pct: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SectorChallengerValidation {
+    method: &'static str,
+    matched_queries: usize,
+    baseline_directional_calls: usize,
+    baseline_correct_directional_calls: usize,
+    baseline_raw_hit_frequency: Option<f64>,
+    baseline_mean_absolute_return_error_pct: f64,
+    challenger_directional_calls: usize,
+    challenger_correct_directional_calls: usize,
+    challenger_raw_hit_frequency: Option<f64>,
+    challenger_mean_absolute_return_error_pct: f64,
+    raw_hit_frequency_change: Option<f64>,
+    mean_absolute_error_change_pct: f64,
+    probability_interpretation_allowed: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+struct SectorPromotionGate {
+    minimum_matched_queries: usize,
+    minimum_directional_calls: usize,
+    minimum_raw_hit_frequency_gain: f64,
+    maximum_mean_absolute_error_ratio: f64,
+    forward_shadow_required: bool,
+    independently_promoted_artifact_required: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
 struct SourceFile {
     request_name: String,
     file_name: String,
@@ -448,6 +540,39 @@ struct AnalogPredictionSummary {
     average: f64,
 }
 
+#[derive(Debug, Default)]
+struct ChallengerScore {
+    directional_calls: usize,
+    correct_directional_calls: usize,
+    absolute_return_errors: Vec<f64>,
+}
+
+impl ChallengerScore {
+    fn observe(&mut self, analogs: &[RankedAnalog], realized: f64) {
+        let (lean, _, _, median, _) = lean_from_analogs(analogs);
+        self.absolute_return_errors.push((realized - median).abs());
+        if lean != "MIXED" {
+            self.directional_calls += 1;
+            if (lean == "UP" && realized > 0.0) || (lean == "DOWN" && realized < 0.0) {
+                self.correct_directional_calls += 1;
+            }
+        }
+    }
+
+    fn raw_hit_frequency(&self) -> Option<f64> {
+        (self.directional_calls > 0)
+            .then_some(self.correct_directional_calls as f64 / self.directional_calls as f64)
+    }
+
+    fn mean_absolute_return_error(&self) -> f64 {
+        if self.absolute_return_errors.is_empty() {
+            0.0
+        } else {
+            mean(&self.absolute_return_errors)
+        }
+    }
+}
+
 fn utc_from_nanos(value: u64) -> Result<DateTime<Utc>> {
     let nanos: i64 = value
         .try_into()
@@ -466,7 +591,9 @@ fn push_daily(tape: &mut DailyTape, symbol: &str, minute: RawMinute) {
         return;
     }
     let canonical = symbol.trim().trim_start_matches("US.").to_ascii_uppercase();
-    if !REQUIRED_SYMBOLS.contains(&canonical.as_str()) {
+    if !REQUIRED_SYMBOLS.contains(&canonical.as_str())
+        && !SECTOR_ROTATION_SYMBOLS.contains(&canonical.as_str())
+    {
         return;
     }
     let date = minute.timestamp.with_timezone(&New_York).date_naive();
@@ -521,7 +648,8 @@ fn manifest_files(root: &Path) -> Result<Vec<PathBuf>> {
             path.file_name()
                 .and_then(|value| value.to_str())
                 .is_some_and(|name| {
-                    name.starts_with("spx_daily_regime_context_")
+                    (name.starts_with("spx_daily_regime_context_")
+                        || name.starts_with("spx_daily_regime_sector_"))
                         && name.ends_with(".manifest.json")
                 })
         })
@@ -540,7 +668,9 @@ fn raw_files(root: &Path) -> Result<Vec<PathBuf>> {
             path.file_name()
                 .and_then(|value| value.to_str())
                 .is_some_and(|name| {
-                    name.starts_with("spx_daily_regime_context_") && name.ends_with(".dbn.zst")
+                    (name.starts_with("spx_daily_regime_context_")
+                        || name.starts_with("spx_daily_regime_sector_"))
+                        && name.ends_with(".dbn.zst")
                 })
         })
         .collect::<Vec<_>>();
@@ -688,6 +818,14 @@ fn complete_day(day: &BTreeMap<String, DailyBar>) -> bool {
     })
 }
 
+fn missing_sector_symbols(day: &BTreeMap<String, DailyBar>) -> Vec<String> {
+    SECTOR_ROTATION_SYMBOLS
+        .iter()
+        .filter(|symbol| !day.get(**symbol).is_some_and(context_session_covered))
+        .map(|symbol| (*symbol).to_string())
+        .collect()
+}
+
 fn mean(values: &[f64]) -> f64 {
     values.iter().sum::<f64>() / values.len() as f64
 }
@@ -730,6 +868,57 @@ fn close_location(bar: &DailyBar) -> f64 {
     } else {
         0.5
     }
+}
+
+fn build_sector_rotation_features(
+    day: &BTreeMap<String, DailyBar>,
+    spy_return: f64,
+) -> Option<SectorRotationFeatures> {
+    if !missing_sector_symbols(day).is_empty() {
+        return None;
+    }
+    let group_returns = SECTOR_ROTATION_SYMBOLS
+        .iter()
+        .map(|symbol| {
+            day.get(*symbol)
+                .map(session_return)
+                .map(|value| ((*symbol).to_string(), value))
+        })
+        .collect::<Option<BTreeMap<_, _>>>()?;
+    let sector_returns = [
+        "XLK", "XLC", "XLY", "XLF", "XLE", "XLI", "XLV", "XLP", "XLU", "XLRE", "XLB",
+    ]
+    .iter()
+    .map(|symbol| group_returns.get(*symbol).copied())
+    .collect::<Option<Vec<_>>>()?;
+    let growth_returns = ["MAGS", "SKYY", "IGV", "SOXX"]
+        .iter()
+        .map(|symbol| group_returns.get(*symbol).copied())
+        .collect::<Option<Vec<_>>>()?;
+    let defensive_returns = ["XLP", "XLV", "XLU"]
+        .iter()
+        .map(|symbol| group_returns.get(*symbol).copied())
+        .collect::<Option<Vec<_>>>()?;
+    let leadership_breadth = sector_returns
+        .iter()
+        .filter(|value| **value > spy_return)
+        .count() as f64
+        / sector_returns.len() as f64;
+    let values = vec![
+        group_returns["MAGS"] - spy_return,
+        group_returns["SKYY"] - spy_return,
+        group_returns["IGV"] - spy_return,
+        leadership_breadth,
+        standard_deviation(&sector_returns),
+        mean(&growth_returns) - mean(&defensive_returns),
+    ];
+    values
+        .iter()
+        .all(|value| value.is_finite())
+        .then_some(SectorRotationFeatures {
+            values,
+            group_returns,
+        })
 }
 
 fn build_features(tape: &DailyTape) -> Result<Vec<FeatureRow>> {
@@ -808,9 +997,13 @@ fn build_features(tape: &DailyTape) -> Result<Vec<FeatureRow>> {
         if features.iter().any(|value| !value.is_finite()) {
             continue;
         }
+        let missing_sector_symbols = missing_sector_symbols(day);
+        let sector_rotation = build_sector_rotation_features(day, spy_return);
         provisional.push(FeatureRow {
             date: *date,
             features,
+            sector_rotation,
+            missing_sector_symbols,
             regime: RegimeLabel::MixedTransition,
             spy: spy.clone(),
             coverage: day
@@ -953,6 +1146,125 @@ fn nearest_analogs(
         .collect()
 }
 
+fn paired_sector_analogs(
+    rows: &[FeatureRow],
+    query_index: usize,
+    purge_sessions: usize,
+    include_sector_features: bool,
+) -> Vec<RankedAnalog> {
+    if query_index <= purge_sessions + 2 || rows[query_index].sector_rotation.is_none() {
+        return Vec::new();
+    }
+    let query = &rows[query_index];
+    let last_candidate = query_index.saturating_sub(purge_sessions + 2);
+    let candidate_indices = (0..=last_candidate)
+        .filter(|index| {
+            *index + 1 < rows.len()
+                && rows[*index].regime == query.regime
+                && rows[*index + 1].date < query.date
+                && rows[*index].sector_rotation.is_some()
+        })
+        .collect::<Vec<_>>();
+    if candidate_indices.len() < MINIMUM_ANALOGS {
+        return Vec::new();
+    }
+    let vector = |row: &FeatureRow| {
+        let mut values = row.features.clone();
+        if include_sector_features {
+            values.extend(
+                row.sector_rotation
+                    .as_ref()
+                    .expect("sector-filtered row")
+                    .values
+                    .iter()
+                    .copied(),
+            );
+        }
+        values
+    };
+    let query_features = vector(query);
+    let dimensions = query_features.len();
+    let mut centers = vec![0.0; dimensions];
+    let mut scales = vec![1.0; dimensions];
+    for dimension in 0..dimensions {
+        let values = candidate_indices
+            .iter()
+            .map(|index| vector(&rows[*index])[dimension])
+            .collect::<Vec<_>>();
+        centers[dimension] = mean(&values);
+        scales[dimension] = standard_deviation(&values).max(1.0e-9);
+    }
+    let mut ranked = candidate_indices
+        .into_iter()
+        .map(|index| {
+            let candidate_features = vector(&rows[index]);
+            let squared = (0..dimensions)
+                .map(|dimension| {
+                    let query_z =
+                        (query_features[dimension] - centers[dimension]) / scales[dimension];
+                    let analog_z =
+                        (candidate_features[dimension] - centers[dimension]) / scales[dimension];
+                    (query_z - analog_z).powi(2)
+                })
+                .sum::<f64>();
+            RankedAnalog {
+                index,
+                distance: (squared / dimensions as f64).sqrt(),
+                next_return: rows[index + 1].spy.close / rows[index].spy.close - 1.0,
+            }
+        })
+        .collect::<Vec<_>>();
+    ranked.sort_by(|left, right| {
+        left.distance
+            .total_cmp(&right.distance)
+            .then_with(|| rows[right.index].date.cmp(&rows[left.index].date))
+    });
+    ranked.truncate(ANALOG_NEIGHBORS);
+    ranked
+}
+
+fn evaluate_sector_challenger(rows: &[FeatureRow]) -> Option<SectorChallengerValidation> {
+    let start = rows.len().saturating_sub(127).max(80);
+    let mut matched_queries = 0;
+    let mut baseline = ChallengerScore::default();
+    let mut challenger = ChallengerScore::default();
+    for query_index in start..rows.len().saturating_sub(1) {
+        let baseline_analogs = paired_sector_analogs(rows, query_index, 1, false);
+        let challenger_analogs = paired_sector_analogs(rows, query_index, 1, true);
+        if baseline_analogs.len() < MINIMUM_ANALOGS || challenger_analogs.len() < MINIMUM_ANALOGS {
+            continue;
+        }
+        matched_queries += 1;
+        let realized = rows[query_index + 1].spy.close / rows[query_index].spy.close - 1.0;
+        baseline.observe(&baseline_analogs, realized);
+        challenger.observe(&challenger_analogs, realized);
+    }
+    if matched_queries == 0 {
+        return None;
+    }
+    let baseline_hit = baseline.raw_hit_frequency();
+    let challenger_hit = challenger.raw_hit_frequency();
+    let baseline_mae = baseline.mean_absolute_return_error();
+    let challenger_mae = challenger.mean_absolute_return_error();
+    Some(SectorChallengerValidation {
+        method: "PAIRED_PURGED_EXPANDING_WALK_FORWARD",
+        matched_queries,
+        baseline_directional_calls: baseline.directional_calls,
+        baseline_correct_directional_calls: baseline.correct_directional_calls,
+        baseline_raw_hit_frequency: baseline_hit,
+        baseline_mean_absolute_return_error_pct: baseline_mae * 100.0,
+        challenger_directional_calls: challenger.directional_calls,
+        challenger_correct_directional_calls: challenger.correct_directional_calls,
+        challenger_raw_hit_frequency: challenger_hit,
+        challenger_mean_absolute_return_error_pct: challenger_mae * 100.0,
+        raw_hit_frequency_change: baseline_hit
+            .zip(challenger_hit)
+            .map(|(baseline, challenger)| challenger - baseline),
+        mean_absolute_error_change_pct: (challenger_mae - baseline_mae) * 100.0,
+        probability_interpretation_allowed: false,
+    })
+}
+
 fn lean_from_analogs(analogs: &[RankedAnalog]) -> (&'static str, usize, f64, f64, f64) {
     let up_count = analogs
         .iter()
@@ -1079,6 +1391,148 @@ fn feature_snapshot(row: &FeatureRow) -> Vec<FeatureValue> {
             },
         })
         .collect()
+}
+
+fn sector_rotation_challenger(
+    rows: &[FeatureRow],
+    current: &FeatureRow,
+) -> SectorRotationChallenger {
+    let validation = evaluate_sector_challenger(rows);
+    let mut group_returns = current
+        .sector_rotation
+        .as_ref()
+        .map(|features| {
+            SECTOR_ROTATION_GROUPS
+                .iter()
+                .filter_map(|(group, symbol)| {
+                    features
+                        .group_returns
+                        .get(*symbol)
+                        .map(|value| SectorGroupReturn {
+                            group,
+                            symbol,
+                            session_return_pct: value * 100.0,
+                            relative_to_spy_pct: (value - current.features[0]) * 100.0,
+                        })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    group_returns.sort_by(|left, right| {
+        right
+            .session_return_pct
+            .total_cmp(&left.session_return_pct)
+            .then_with(|| left.symbol.cmp(right.symbol))
+    });
+    let current_leaders = group_returns.iter().take(3).cloned().collect::<Vec<_>>();
+    let current_laggards = group_returns
+        .iter()
+        .rev()
+        .take(3)
+        .cloned()
+        .collect::<Vec<_>>();
+    let feature_snapshot = current
+        .sector_rotation
+        .as_ref()
+        .map(|features| {
+            features
+                .values
+                .iter()
+                .enumerate()
+                .map(|(index, value)| FeatureValue {
+                    name: SECTOR_ROTATION_FEATURE_NAMES[index],
+                    value: if index == 3 { *value } else { *value * 100.0 },
+                    unit: if index == 3 { "fraction" } else { "percent" },
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    let promotion_gate = SectorPromotionGate {
+        minimum_matched_queries: SECTOR_CHALLENGER_MINIMUM_QUERIES,
+        minimum_directional_calls: SECTOR_CHALLENGER_MINIMUM_DIRECTIONAL_CALLS,
+        minimum_raw_hit_frequency_gain: SECTOR_CHALLENGER_MINIMUM_HIT_GAIN,
+        maximum_mean_absolute_error_ratio: SECTOR_CHALLENGER_MAXIMUM_MAE_RATIO,
+        forward_shadow_required: true,
+        independently_promoted_artifact_required: true,
+    };
+    let mut blockers = Vec::new();
+    if current.sector_rotation.is_none() {
+        blockers.push(format!(
+            "The current completed session lacks point-in-time edge coverage for: {}.",
+            current.missing_sector_symbols.join(", ")
+        ));
+    }
+    let status = match validation.as_ref() {
+        None => {
+            blockers.push(
+                "No matched causal walk-forward queries have complete sector-rotation history."
+                    .to_string(),
+            );
+            "BLOCKED_POINT_IN_TIME_SECTOR_HISTORY_INCOMPLETE"
+        }
+        Some(result) if result.matched_queries < SECTOR_CHALLENGER_MINIMUM_QUERIES => {
+            blockers.push(format!(
+                "Only {} matched walk-forward queries are available; at least {} are required.",
+                result.matched_queries, SECTOR_CHALLENGER_MINIMUM_QUERIES
+            ));
+            "BLOCKED_SECTOR_WALK_FORWARD_COVERAGE_INSUFFICIENT"
+        }
+        Some(result) => {
+            let minimum_calls = SECTOR_CHALLENGER_MINIMUM_DIRECTIONAL_CALLS
+                .max(((result.baseline_directional_calls as f64) * 0.8).ceil() as usize);
+            let hit_gate = result
+                .raw_hit_frequency_change
+                .is_some_and(|change| change >= SECTOR_CHALLENGER_MINIMUM_HIT_GAIN);
+            let mae_gate = if result.baseline_mean_absolute_return_error_pct > 0.0 {
+                result.challenger_mean_absolute_return_error_pct
+                    / result.baseline_mean_absolute_return_error_pct
+                    <= SECTOR_CHALLENGER_MAXIMUM_MAE_RATIO
+            } else {
+                result.challenger_mean_absolute_return_error_pct <= 0.0
+            };
+            let call_gate = result.challenger_directional_calls >= minimum_calls;
+            if !hit_gate {
+                blockers.push(
+                    "The paired walk-forward raw hit-frequency gain is below the predeclared two-percentage-point research gate."
+                        .to_string(),
+                );
+            }
+            if !mae_gate {
+                blockers.push(
+                    "The sector challenger increases mean absolute next-session return error."
+                        .to_string(),
+                );
+            }
+            if !call_gate {
+                blockers.push(format!(
+                    "The challenger made {} directional calls; at least {minimum_calls} are required for matched coverage.",
+                    result.challenger_directional_calls
+                ));
+            }
+            if hit_gate && mae_gate && call_gate && current.sector_rotation.is_some() {
+                "ELIGIBLE_FOR_FORWARD_SHADOW_NOT_PROMOTED"
+            } else {
+                "REJECTED_NO_PAIRED_WALK_FORWARD_IMPROVEMENT"
+            }
+        }
+    };
+    blockers.push(
+        "An untouched holdout, forward-shadow receipt, immutable artifact, and manual promotion are required before these features may affect customer publication."
+            .to_string(),
+    );
+    SectorRotationChallenger {
+        status,
+        feature_version: "sector-rotation-session-close.v1",
+        applied_to_published_prediction: false,
+        required_symbols: SECTOR_ROTATION_SYMBOLS.to_vec(),
+        missing_current_symbols: current.missing_sector_symbols.clone(),
+        feature_snapshot,
+        current_leaders,
+        current_laggards,
+        validation,
+        promotion_gate,
+        blockers,
+    }
 }
 
 fn historical_sessions(rows: &[FeatureRow], analogs: &[RankedAnalog]) -> Vec<HistoricalAnalog> {
@@ -1300,7 +1754,12 @@ pub fn build_daily_regime_report(
         .context("DAILY_REGIME_HISTORY_CUTOFF_MISSING")?;
     let mut latest_available_at = history.acquired_at;
     if live_database.exists() {
-        for symbol in REQUIRED_SYMBOLS {
+        let live_symbols = REQUIRED_SYMBOLS
+            .iter()
+            .chain(SECTOR_ROTATION_SYMBOLS.iter())
+            .copied()
+            .collect::<BTreeSet<_>>();
+        for symbol in live_symbols {
             if let Some(available_at) = append_live_rows(
                 &mut tape,
                 // Preserve enough append-only SQLite history to bridge the
@@ -1369,6 +1828,7 @@ pub fn build_daily_regime_report(
         &prediction_interval,
         &walk_forward.validation,
     );
+    let sector_rotation_challenger = sector_rotation_challenger(&rows, current);
     let classification_reasons = regime_classification_reasons(current, volatility_percentile);
 
     Ok(DailyRegimeReport {
@@ -1450,6 +1910,7 @@ pub fn build_daily_regime_report(
         same_regime_history,
         walk_forward_validation: walk_forward.validation,
         feature_snapshot: feature_snapshot(current),
+        sector_rotation_challenger,
         source: DailySource {
             provider: "Databento",
             dataset: "EQUS.MINI",
@@ -1490,6 +1951,7 @@ pub fn build_daily_regime_report(
             "No directional confidence number is published when raw nearest-analog agreement is below 60%.",
             "SPY is an explicit proxy for SPX price and volume research.",
             "The historical window begins in 2023 and does not represent every possible market cycle.",
+            "Sector and theme rotation features remain a separately evaluated challenger and do not alter the published baseline result without an untouched holdout, forward shadow, immutable artifact, and manual promotion.",
             "Macro and news context shown by the website is not yet a numerical input to this daily analog model.",
             "No output is an order, personalized recommendation, or guarantee.",
         ],
@@ -1505,6 +1967,11 @@ mod tests {
             date: NaiveDate::from_ymd_opt(2025, 1, 1).unwrap()
                 + chrono::Duration::days(index as i64),
             features: vec![next_direction_seed + index as f64 * 0.0001; FEATURE_NAMES.len()],
+            sector_rotation: None,
+            missing_sector_symbols: SECTOR_ROTATION_SYMBOLS
+                .iter()
+                .map(|symbol| (*symbol).to_string())
+                .collect(),
             regime,
             spy: DailyBar {
                 open: 100.0 + index as f64,
@@ -1520,6 +1987,19 @@ mod tests {
         }
     }
 
+    fn covered_bar(open: f64, close: f64) -> DailyBar {
+        DailyBar {
+            open,
+            high: open.max(close) + 1.0,
+            low: open.min(close) - 1.0,
+            close,
+            volume: 1_000_000.0,
+            minute_rows: MINIMUM_CONTEXT_ROWS,
+            first_at: Some("2026-07-30T13:45:00Z".parse().unwrap()),
+            last_at: Some("2026-07-30T19:45:00Z".parse().unwrap()),
+        }
+    }
+
     #[test]
     fn analog_retrieval_never_uses_query_or_future_label() {
         let rows = (0..40)
@@ -1528,6 +2008,64 @@ mod tests {
         let analogs = nearest_analogs(&rows, 39, 1);
         assert_eq!(analogs.len(), ANALOG_NEIGHBORS);
         assert!(analogs.iter().all(|analog| analog.index + 2 < 39));
+    }
+
+    #[test]
+    fn sector_rotation_requires_complete_edge_covered_groups() {
+        let mut day = BTreeMap::new();
+        for (index, symbol) in SECTOR_ROTATION_SYMBOLS.iter().enumerate() {
+            day.insert(
+                (*symbol).to_string(),
+                covered_bar(100.0, 100.0 + index as f64),
+            );
+        }
+        let features = build_sector_rotation_features(&day, 0.01).expect("complete rotation");
+        assert_eq!(features.values.len(), SECTOR_ROTATION_FEATURE_NAMES.len());
+        assert_eq!(features.group_returns.len(), SECTOR_ROTATION_SYMBOLS.len());
+        assert!((features.values[0] + 0.01).abs() < 1.0e-12);
+        assert!(features.values[1].abs() < 1.0e-12);
+        assert!((features.values[2] - 0.01).abs() < 1.0e-12);
+        assert_eq!(features.values[3], 1.0);
+        assert!(features.values[4] > 0.0);
+
+        day.get_mut("SKYY").unwrap().last_at = Some("2026-07-30T19:29:00Z".parse().unwrap());
+        assert!(build_sector_rotation_features(&day, 0.01).is_none());
+        assert_eq!(missing_sector_symbols(&day), vec!["SKYY"]);
+    }
+
+    #[test]
+    fn paired_sector_challenger_never_uses_query_or_future_label() {
+        let mut rows = (0..120)
+            .map(|index| feature_row(index, RegimeLabel::RiskOnTrend, 0.001))
+            .collect::<Vec<_>>();
+        for (index, row) in rows.iter_mut().enumerate() {
+            row.sector_rotation = Some(SectorRotationFeatures {
+                values: vec![index as f64 * 0.00001; SECTOR_ROTATION_FEATURE_NAMES.len()],
+                group_returns: BTreeMap::new(),
+            });
+            row.missing_sector_symbols.clear();
+        }
+        let analogs = paired_sector_analogs(&rows, 119, 1, true);
+        assert_eq!(analogs.len(), ANALOG_NEIGHBORS);
+        assert!(analogs.iter().all(|analog| analog.index + 2 < 119));
+    }
+
+    #[test]
+    fn missing_sector_history_keeps_challenger_out_of_publication() {
+        let rows = (0..100)
+            .map(|index| feature_row(index, RegimeLabel::RiskOnTrend, 0.001))
+            .collect::<Vec<_>>();
+        let challenger = sector_rotation_challenger(&rows, rows.last().unwrap());
+        assert_eq!(
+            challenger.status,
+            "BLOCKED_POINT_IN_TIME_SECTOR_HISTORY_INCOMPLETE"
+        );
+        assert!(!challenger.applied_to_published_prediction);
+        assert!(challenger.validation.is_none());
+        assert_eq!(
+            challenger.missing_current_symbols.len(),
+            SECTOR_ROTATION_SYMBOLS.len()
+        );
     }
 
     #[test]

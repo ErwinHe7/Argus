@@ -40,6 +40,7 @@ case "${1:-}" in
 esac
 
 install -d -m 0755 \
+  runtime/market-data \
   runtime/quant-normalized \
   runtime/quant-manifests \
   runtime/quant-rights \
@@ -47,6 +48,7 @@ install -d -m 0755 \
   runtime/quant-promotion/evidence \
   runtime/quant-calibration
 install -d -m 0700 runtime/private-rights-evidence
+install -d -m 0700 runtime/market-data/postgres
 
 registry="$repo_root/quant_engine_rs/data/models/universe/registry.json"
 [[ -r "$registry" ]] || {
