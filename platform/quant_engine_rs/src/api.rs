@@ -181,6 +181,7 @@ pub fn router(state: AppState) -> Router {
             "/api/v1/research/session-summary",
             get(research_session_summary),
         )
+        .route("/api/v1/research/ticker-rag", get(research_ticker_rag))
         .route("/api/v1/research/daily-regime", get(research_daily_regime))
         .route("/api/v1/research/factor-shadow", get(factor_shadow_status))
         .route("/api/v1/live/status", get(live_status))
@@ -2552,7 +2553,19 @@ fn build_session_summary(
             "last_available_at":last.1.available_at,
             "entitlements":entitlements,
         },
+        "freshness":{
+            "status":"NOT_EVALUATED_FOR_LIVE_USE",
+            "observation_cutoff":last.0,
+            "available_at":last.1.available_at,
+        },
+        "coverage":{
+            "expected_regular_session_minutes":390,
+            "observed_regular_session_minutes":regular.len(),
+            "ratio":regular.len() as f64 / 390.0,
+        },
         "model_status":"LIVE_FROZEN_MODEL_RESULT_NOT_AVAILABLE_FOR_THIS_CUTOFF",
+        "model_version":Value::Null,
+        "feature_version":Value::Null,
         "probability_published":false,
         "automatic_execution_enabled":false,
         "caveats":[
@@ -2568,17 +2581,122 @@ struct SessionSummaryRequest {
     symbol: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+struct TickerRagRequest {
+    symbols: String,
+}
+
+fn normalize_ticker(value: &str) -> Result<String> {
+    let upper = value.trim().to_ascii_uppercase();
+    let symbol = upper.trim_start_matches("US.").to_string();
+    let valid = !symbol.is_empty()
+        && symbol.len() <= 12
+        && symbol
+            .bytes()
+            .next()
+            .is_some_and(|byte| byte.is_ascii_alphabetic())
+        && symbol
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'.' | b'-'));
+    if !valid {
+        anyhow::bail!("INVALID_TICKER_SYMBOL");
+    }
+    Ok(symbol)
+}
+
+fn normalize_ticker_list(value: &str) -> Result<Vec<String>> {
+    let mut seen = BTreeSet::new();
+    let mut symbols = Vec::new();
+    for raw in value.split(',') {
+        let symbol = normalize_ticker(raw)?;
+        if seen.insert(symbol.clone()) {
+            symbols.push(symbol);
+        }
+    }
+    if symbols.is_empty() || symbols.len() > 20 {
+        anyhow::bail!("TICKER_RAG_REQUIRES_ONE_TO_TWENTY_SYMBOLS");
+    }
+    Ok(symbols)
+}
+
+fn build_ticker_rag_bundle<F>(requested_symbols: &[String], mut retrieve: F) -> Value
+where
+    F: FnMut(&str) -> Result<Vec<crate::data::market_store::StoredLiveMarketBar>>,
+{
+    let results = requested_symbols
+        .iter()
+        .map(|requested_symbol| {
+            let data_symbol = if requested_symbol == "SPX" {
+                "SPY".to_string()
+            } else {
+                requested_symbol.clone()
+            };
+            match retrieve(&data_symbol) {
+                Ok(rows) if rows.is_empty() => json!({
+                    "requested_symbol":requested_symbol,
+                    "canonical_symbol":requested_symbol,
+                    "data_symbol":data_symbol,
+                    "status":"NO_STORED_OBSERVATIONS",
+                    "reason_code":"NO_STORED_OBSERVATIONS",
+                    "reason":"No eligible finalized database observations are stored for this ticker.",
+                    "summary":Value::Null,
+                }),
+                Ok(rows) => match build_session_summary(rows, requested_symbol, &data_symbol) {
+                    Ok(summary) => json!({
+                        "requested_symbol":requested_symbol,
+                        "canonical_symbol":requested_symbol,
+                        "data_symbol":data_symbol,
+                        "status":"RETRIEVED",
+                        "reason_code":Value::Null,
+                        "reason":Value::Null,
+                        "summary":summary,
+                    }),
+                    Err(_) => json!({
+                        "requested_symbol":requested_symbol,
+                        "canonical_symbol":requested_symbol,
+                        "data_symbol":data_symbol,
+                        "status":"INSUFFICIENT_DATA",
+                        "reason_code":"NO_ELIGIBLE_REGULAR_SESSION",
+                        "reason":"Stored rows do not form an eligible regular-session observation at the requested retrieval policy.",
+                        "summary":Value::Null,
+                    }),
+                },
+                Err(_) => json!({
+                    "requested_symbol":requested_symbol,
+                    "canonical_symbol":requested_symbol,
+                    "data_symbol":data_symbol,
+                    "status":"RETRIEVAL_FAILED",
+                    "reason_code":"DATABASE_READ_FAILED",
+                    "reason":"The authoritative market database could not be read for this ticker.",
+                    "summary":Value::Null,
+                }),
+            }
+        })
+        .collect::<Vec<_>>();
+    json!({
+        "schema_version":"axio.ticker-rag.v1",
+        "generated_at":Utc::now(),
+        "requested_count":requested_symbols.len(),
+        "result_count":results.len(),
+        "retrieval_policy":"EXACT_SYMBOL_POINT_IN_TIME_DATABASE_LOOKUP",
+        "storage":"APPEND_ONLY_SQLITE_WITH_POSTGRES_ARCHIVE",
+        "results":results,
+        "probability_published":false,
+        "automatic_execution_enabled":false,
+        "caveats":[
+            "Each requested ticker is retrieved independently; one ticker's observations are never reused for another ticker.",
+            "Missing or incomplete stored observations return a reason-coded status rather than a fabricated result.",
+            "Retrieved session summaries are observed market facts, not calibrated forecasts or personalized recommendations."
+        ]
+    })
+}
+
 async fn research_session_summary(
     State(state): State<AppState>,
     Query(request): Query<SessionSummaryRequest>,
 ) -> Result<Json<Value>, ApiError> {
-    let public_symbol = request
-        .symbol
-        .as_deref()
-        .unwrap_or("SPX")
-        .trim()
-        .trim_start_matches("US.")
-        .to_ascii_uppercase();
+    let public_symbol = normalize_ticker(request.symbol.as_deref().unwrap_or("SPX"))
+        .map_err(|_| ApiError::unprocessable("The requested ticker symbol is invalid."))?;
     let data_symbol = if public_symbol == "SPX" {
         "SPY".to_string()
     } else {
@@ -2593,6 +2711,24 @@ async fn research_session_summary(
     .map_err(ApiError::internal)?
     .map_err(|error| ApiError::service_unavailable(error.to_string()))?;
     Ok(Json(summary))
+}
+
+async fn research_ticker_rag(
+    State(state): State<AppState>,
+    Query(request): Query<TickerRagRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let symbols = normalize_ticker_list(&request.symbols).map_err(|_| {
+        ApiError::unprocessable("Ticker RAG requires one to twenty comma-separated ticker symbols.")
+    })?;
+    let database = data_root(&state).join("market/databento_market_data.sqlite3");
+    let bundle = tokio::task::spawn_blocking(move || {
+        build_ticker_rag_bundle(&symbols, |data_symbol| {
+            crate::data::market_store::latest_live_bars(&database, data_symbol, 5_000)
+        })
+    })
+    .await
+    .map_err(ApiError::internal)?;
+    Ok(Json(bundle))
 }
 
 async fn research_daily_regime(
@@ -6730,6 +6866,12 @@ mod tests {
         assert_eq!(summary["data_symbol"], "SPY");
         assert_eq!(summary["minute_rows"], 390);
         assert_eq!(summary["five_minute_bar_count"], 78);
+        assert_eq!(summary["freshness"]["status"], "NOT_EVALUATED_FOR_LIVE_USE");
+        assert_eq!(summary["coverage"]["expected_regular_session_minutes"], 390);
+        assert_eq!(summary["coverage"]["observed_regular_session_minutes"], 390);
+        assert_eq!(summary["coverage"]["ratio"], 1.0);
+        assert!(summary["model_version"].is_null());
+        assert!(summary["feature_version"].is_null());
         assert_eq!(
             summary["five_minute_bars"]
                 .as_array()
@@ -6746,6 +6888,75 @@ mod tests {
         );
         assert_eq!(summary["automatic_execution_enabled"], false);
         assert_eq!(summary["probability_published"], false);
+    }
+
+    #[test]
+    fn ticker_rag_preserves_cardinality_and_never_reuses_another_symbol() {
+        let requested = ["GOOG", "AMZN", "MU", "SNDK"]
+            .into_iter()
+            .map(str::to_string)
+            .collect::<Vec<_>>();
+        let start = Utc.with_ymd_and_hms(2026, 7, 30, 13, 30, 0).unwrap();
+        let bundle = build_ticker_rag_bundle(&requested, |symbol| {
+            if symbol != "MU" {
+                return Ok(Vec::new());
+            }
+            Ok((0..390)
+                .map(|minute| {
+                    let event_at = start + chrono::Duration::minutes(minute);
+                    let price = 120.0 + minute as f64 * 0.01;
+                    crate::data::market_store::StoredLiveMarketBar {
+                        provider: "databento".into(),
+                        dataset: "EQUS.MINI".into(),
+                        schema_name: "ohlcv-1m".into(),
+                        symbol: symbol.to_string(),
+                        event_at: event_at.to_rfc3339(),
+                        available_at: (event_at + chrono::Duration::minutes(1)).to_rfc3339(),
+                        recorded_at: (event_at + chrono::Duration::minutes(1)).to_rfc3339(),
+                        finalized_at: (event_at + chrono::Duration::minutes(1)).to_rfc3339(),
+                        open: price,
+                        high: price + 0.02,
+                        low: price - 0.02,
+                        close: price + 0.01,
+                        volume: 1_000.0,
+                        vwap: None,
+                        trade_count: None,
+                        source: "Databento/EQUS.MINI".into(),
+                        data_quality: "vendor_original_dbn".into(),
+                        entitlement: "LICENSED_HISTORICAL_DOWNLOAD".into(),
+                        symbol_mapping_verified: true,
+                    }
+                })
+                .collect())
+        });
+        let results = bundle["results"].as_array().expect("ticker RAG results");
+        assert_eq!(bundle["requested_count"], 4);
+        assert_eq!(bundle["result_count"], 4);
+        assert_eq!(results.len(), 4);
+        assert_eq!(results[0]["requested_symbol"], "GOOG");
+        assert_eq!(results[0]["status"], "NO_STORED_OBSERVATIONS");
+        assert_eq!(results[1]["requested_symbol"], "AMZN");
+        assert_eq!(results[1]["status"], "NO_STORED_OBSERVATIONS");
+        assert_eq!(results[2]["requested_symbol"], "MU");
+        assert_eq!(results[2]["status"], "RETRIEVED");
+        assert_eq!(results[2]["summary"]["public_symbol"], "MU");
+        assert_eq!(results[3]["requested_symbol"], "SNDK");
+        assert_eq!(results[3]["status"], "NO_STORED_OBSERVATIONS");
+        assert!(results[0]["summary"].is_null());
+        assert!(results[1]["summary"].is_null());
+        assert!(results[3]["summary"].is_null());
+        assert_eq!(bundle["probability_published"], false);
+        assert_eq!(bundle["automatic_execution_enabled"], false);
+    }
+
+    #[test]
+    fn ticker_rag_normalization_is_bounded_and_order_preserving() {
+        assert_eq!(
+            normalize_ticker_list("goog, AMZN,us.mu,GOOG").unwrap(),
+            vec!["GOOG", "AMZN", "MU"]
+        );
+        assert!(normalize_ticker_list("GOOG,,MU").is_err());
+        assert!(normalize_ticker_list("../../etc/passwd").is_err());
     }
 
     #[test]

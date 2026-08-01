@@ -314,7 +314,46 @@ export type QuantSessionSummary = {
     last_available_at: string;
     entitlements: string[];
   };
+  freshness: {
+    status: 'NOT_EVALUATED_FOR_LIVE_USE';
+    observation_cutoff: string;
+    available_at: string;
+  };
+  coverage: {
+    expected_regular_session_minutes: 390;
+    observed_regular_session_minutes: number;
+    ratio: number;
+  };
   model_status: 'LIVE_FROZEN_MODEL_RESULT_NOT_AVAILABLE_FOR_THIS_CUTOFF';
+  model_version: null;
+  feature_version: null;
+  probability_published: false;
+  automatic_execution_enabled: false;
+  caveats: string[];
+};
+
+export type QuantTickerRagResult = {
+  requested_symbol: string;
+  canonical_symbol: string;
+  data_symbol: string;
+  status:
+    | 'RETRIEVED'
+    | 'NO_STORED_OBSERVATIONS'
+    | 'INSUFFICIENT_DATA'
+    | 'RETRIEVAL_FAILED';
+  reason_code: string | null;
+  reason: string | null;
+  summary: QuantSessionSummary | null;
+};
+
+export type QuantTickerRagBundle = {
+  schema_version: 'axio.ticker-rag.v1';
+  generated_at: string;
+  requested_count: number;
+  result_count: number;
+  retrieval_policy: 'EXACT_SYMBOL_POINT_IN_TIME_DATABASE_LOOKUP';
+  storage: 'APPEND_ONLY_SQLITE_WITH_POSTGRES_ARCHIVE';
+  results: QuantTickerRagResult[];
   probability_published: false;
   automatic_execution_enabled: false;
   caveats: string[];
@@ -511,6 +550,7 @@ export type ForecastChatResult = {
   disclaimer: string;
   research?: QuantEvidenceEnvelope;
   sessionSummary?: QuantSessionSummary;
+  tickerRag?: QuantTickerRagBundle;
   dailyRegime?: QuantDailyRegimeReport;
   macroContext?: MacroReport | null;
   newsContext?: NewsPulseReport | null;

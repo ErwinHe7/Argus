@@ -36,7 +36,7 @@ test('market chat remains Rust-owned and has no web forecast fallback', () => {
   assert.doesNotMatch(route, /runForecastChat\s*\(|fetchYahoo|from ['"]@\/lib\/forecast-chat['"]/);
 });
 
-test('model-forecast gaps expose a Rust-owned Databento session result', () => {
+test('model-forecast gaps use exact-symbol Rust ticker RAG without scalar fallback', () => {
   const route = read('app/api/ask/route.ts');
   const client = read('lib/quant/research-client.ts');
   const chat = read('components/AxioChat.tsx');
@@ -44,8 +44,11 @@ test('model-forecast gaps expose a Rust-owned Databento session result', () => {
 
   assert.match(
     rustApi,
-    /"\/api\/v1\/research\/session-summary"[\s\S]*get\(research_session_summary\)/
+    /"\/api\/v1\/research\/ticker-rag"[\s\S]*get\(research_ticker_rag\)/
   );
+  assert.match(rustApi, /build_ticker_rag_bundle/);
+  assert.match(rustApi, /EXACT_SYMBOL_POINT_IN_TIME_DATABASE_LOOKUP/);
+  assert.match(rustApi, /NO_STORED_OBSERVATIONS/);
   assert.match(rustApi, /build_session_summary/);
   assert.match(rustApi, /databento_market_data\.sqlite3/);
   assert.match(rustApi, /"SPX"[\s\S]*"SPY"/);
@@ -53,15 +56,19 @@ test('model-forecast gaps expose a Rust-owned Databento session result', () => {
   assert.match(rustApi, /"probability_published":false/);
   assert.match(rustApi, /"automatic_execution_enabled":false/);
 
-  assert.match(client, /requestQuantSessionSummary/);
-  assert.match(client, /axio\.session-summary\.v1/);
-  assert.match(client, /observed Databento session summary is malformed/);
+  assert.match(client, /requestQuantTickerRag/);
+  assert.match(client, /requestQuantResearchUniverse/);
+  assert.match(client, /axio\.ticker-rag\.v1/);
+  assert.match(client, /ticker RAG retrieved evidence does not match its ticker/);
   assert.match(route, /envelope\.candidates\.length === 0/);
   assert.match(route, /compiled\.query\.setup_type === 'model_forecast'/);
-  assert.match(route, /sessionSummaryAnswer/);
-  assert.match(chat, /forecast\.sessionSummary/);
-  assert.match(chat, /SessionSummaryDetails/);
-  assert.match(chat, /Full five-minute session map/);
+  assert.match(route, /requestQuantTickerRag\(compiled\.query\.symbols\)/);
+  assert.match(route, /hasUnconfiguredTarget/);
+  assert.doesNotMatch(route, /compiled\.query\.symbols\[0\]/);
+  assert.match(route, /tickerRagAnswer/);
+  assert.match(chat, /forecast\.tickerRag/);
+  assert.match(chat, /TickerRagDetails/);
+  assert.match(chat, /result\.requested_symbol/);
   assert.doesNotMatch(route, /fetchYahoo|runForecastChat\s*\(/);
 });
 
@@ -582,7 +589,7 @@ test('model knowledge covers the configured public universe and model boundary',
   }
 });
 
-test('allow-listed ticker parsing is case-insensitive without falling back to the default universe', () => {
+test('explicit ticker parsing is case-insensitive and preserves multi-ticker cardinality', () => {
   const bare = compileMarketQuery('nvda').query;
   assert.deepEqual(bare.symbols, ['NVDA']);
   assert.equal(bare.version, 'axio.market-query.v2');
@@ -595,6 +602,12 @@ test('allow-listed ticker parsing is case-insensitive without falling back to th
   assert.deepEqual(compileMarketQuery('scan nvda now').query.symbols, ['NVDA']);
   assert.deepEqual(compileMarketQuery('live $qqq').query.symbols, ['QQQ']);
   assert.deepEqual(compileMarketQuery('be').query.symbols, ['BE']);
+  assert.deepEqual(compileMarketQuery('goog amzn mu sndk').query.symbols, [
+    'GOOG',
+    'AMZN',
+    'MU',
+    'SNDK',
+  ]);
   assert.deepEqual(
     compileMarketQuery('What should be monitored today?').query.symbols,
     ['SPX', 'QQQ', 'NVDA', 'AAPL', 'MU', 'SOXX', 'NBIS', 'BE', 'IGV']

@@ -43,6 +43,7 @@ import type {
   QuantPipelineReadiness,
   QuantResearchCandidate,
   QuantSessionSummary,
+  QuantTickerRagBundle,
 } from '@/lib/forecast-chat-types';
 import styles from './AxioChat.module.css';
 import { trackProductEvent } from '@/components/PostHogProvider';
@@ -1370,6 +1371,15 @@ function PredictionDetails({
       />
     );
   }
+  if (forecast.tickerRag) {
+    return (
+      <TickerRagDetails
+        bundle={forecast.tickerRag}
+        disclaimer={forecast.disclaimer}
+        locale={locale}
+      />
+    );
+  }
   if (forecast.research && forecast.sessionSummary) {
     return (
       <SessionSummaryDetails
@@ -2326,6 +2336,95 @@ function DailyRegimeDetails({
   );
 }
 
+function TickerRagDetails({
+  bundle,
+  disclaimer,
+  locale,
+}: {
+  bundle: QuantTickerRagBundle;
+  disclaimer: string;
+  locale: ConversationReceipt['locale'];
+}) {
+  const chinese = locale === 'zh-CN';
+  const retrieved = bundle.results.filter((result) => result.summary).length;
+  return (
+    <div className={styles.predictionDetails}>
+      <div className={styles.reportMeta}>
+        <span className={`${styles.compliancePill} ${styles.allowed}`}>
+          <ShieldCheck size={13} />
+          {chinese ? 'Ticker RAG 数据库检索' : 'Ticker RAG database retrieval'}
+        </span>
+        <span>
+          {bundle.requested_count} {chinese ? '个请求' : 'requested'} ·{' '}
+          {bundle.result_count} {chinese ? '个返回' : 'returned'}
+        </span>
+        <span>
+          {retrieved} {chinese ? '个有观测数据' : 'with observations'}
+        </span>
+      </div>
+
+      <div className={styles.signalGrid}>
+        {bundle.results.map((result) => {
+          const summary = result.summary;
+          return (
+            <div className={styles.signalCard} key={result.requested_symbol}>
+              <div className={styles.signalTopline}>
+                <strong>
+                  {result.requested_symbol} → {result.data_symbol}
+                </strong>
+                <span>{result.status.replaceAll('_', ' ').toLowerCase()}</span>
+              </div>
+              {summary ? (
+                <>
+                  <p>
+                    {chinese ? '开盘' : 'Open'} {formatNumber(summary.session_open)} ·{' '}
+                    {chinese ? '最高' : 'High'} {formatNumber(summary.session_high)} ·{' '}
+                    {chinese ? '最低' : 'Low'} {formatNumber(summary.session_low)} ·{' '}
+                    {chinese ? '收盘' : 'Close'} {formatNumber(summary.session_close)}
+                  </p>
+                  <p>
+                    {summary.session_date_et} · {formatPercent(summary.session_return_pct)} ·{' '}
+                    {chinese ? '区间' : 'range'} {formatPercent(summary.session_range_pct)}
+                  </p>
+                  <div className={styles.signalLineage}>
+                    <p>{summary.proxy_disclosure}</p>
+                    <p>
+                      {summary.source.provider} {summary.source.dataset} ·{' '}
+                      {summary.minute_rows} {chinese ? '根一分钟数据' : 'one-minute rows'}
+                    </p>
+                    <p>
+                      {chinese ? '可用时间' : 'Available at'}{' '}
+                      {new Date(summary.source.last_available_at).toLocaleString(locale)}
+                    </p>
+                    <p>
+                      {chinese ? '观测截止' : 'Observation cutoff'}{' '}
+                      {new Date(summary.freshness.observation_cutoff).toLocaleString(locale)} ·{' '}
+                      {chinese ? '覆盖率' : 'coverage'}{' '}
+                      {formatPercent(summary.coverage.ratio * 100)}
+                    </p>
+                    <p>
+                      {chinese ? '实时新鲜度未验证；无预测模型版本' : 'Live freshness not evaluated; no forecast model version'}
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <div className={styles.signalLineage}>
+                  <p>{result.reason_code}</p>
+                  <p>{result.reason}</p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className={styles.reportDisclaimer}>
+        {disclaimer} {bundle.caveats.join(' ')}
+      </p>
+    </div>
+  );
+}
+
 function SessionSummaryDetails({
   summary,
   disclaimer,
@@ -2429,6 +2528,15 @@ function SessionSummaryDetails({
               {chinese ? '最后可用时间' : 'Available at'}{' '}
               {new Date(summary.source.last_available_at).toLocaleString(locale)}
             </p>
+            <p>
+              {chinese ? '观测截止' : 'Observation cutoff'}{' '}
+              {new Date(summary.freshness.observation_cutoff).toLocaleString(locale)} ·{' '}
+              {chinese ? '覆盖率' : 'coverage'}{' '}
+              {formatPercent(summary.coverage.ratio * 100)}
+            </p>
+            <p>
+              {chinese ? '实时新鲜度未验证；无预测模型版本' : 'Live freshness not evaluated; no forecast model version'}
+            </p>
           </div>
         </div>
       </div>
@@ -2487,8 +2595,8 @@ function SessionSummaryDetails({
 
       <p className={styles.reportDisclaimer}>
         {chinese
-          ? '这是由 Rust 引擎根据 Databento 数据生成的 SPY→SPX 历史/时段内观测结果，不是实时模型概率、个性化建议或订单。'
-          : `${disclaimer} This observed SPY→SPX result is not a live model probability or an order.`}
+          ? `这是由 Rust 引擎根据 Databento 数据生成的 ${summary.data_symbol}→${summary.public_symbol} 历史/时段内观测结果，不是实时模型概率、个性化建议或订单。`
+          : `${disclaimer} This observed ${summary.data_symbol}→${summary.public_symbol} result is not a live model probability or an order.`}
       </p>
     </div>
   );

@@ -22,6 +22,120 @@ AS $$
     )
 $$;
 
+CREATE TABLE IF NOT EXISTS market_data.instrument_master (
+    instrument_id text NOT NULL,
+    canonical_symbol text NOT NULL CHECK (canonical_symbol = upper(canonical_symbol)),
+    display_name text NOT NULL,
+    asset_class text NOT NULL,
+    listing_exchange text,
+    currency char(3) NOT NULL CHECK (currency = upper(currency)),
+    effective_from timestamptz NOT NULL,
+    effective_to timestamptz,
+    available_at timestamptz NOT NULL,
+    source text NOT NULL,
+    source_record_sha256 text NOT NULL CHECK (source_record_sha256 ~ '^[0-9a-f]{64}$'),
+    attributes jsonb NOT NULL DEFAULT '{}'::jsonb,
+    inserted_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    PRIMARY KEY (instrument_id, effective_from),
+    UNIQUE (canonical_symbol, effective_from),
+    CHECK (effective_to IS NULL OR effective_to > effective_from),
+    CHECK (available_at >= effective_from)
+);
+
+CREATE TABLE IF NOT EXISTS market_data.instrument_aliases (
+    alias text NOT NULL CHECK (alias = upper(alias)),
+    instrument_id text NOT NULL,
+    canonical_symbol text NOT NULL CHECK (canonical_symbol = upper(canonical_symbol)),
+    alias_kind text NOT NULL CHECK (
+        alias_kind IN ('TICKER', 'COMPANY_NAME', 'FORMER_TICKER', 'VENDOR_SYMBOL', 'INDEX_PROXY')
+    ),
+    effective_from timestamptz NOT NULL,
+    effective_to timestamptz,
+    available_at timestamptz NOT NULL,
+    source text NOT NULL,
+    source_record_sha256 text NOT NULL CHECK (source_record_sha256 ~ '^[0-9a-f]{64}$'),
+    inserted_at timestamptz NOT NULL DEFAULT clock_timestamp(),
+    PRIMARY KEY (alias, instrument_id, effective_from),
+    CHECK (effective_to IS NULL OR effective_to > effective_from),
+    CHECK (available_at >= effective_from)
+);
+
+CREATE TABLE IF NOT EXISTS market_data.instrument_reference_receipts (
+    receipt_id text PRIMARY KEY CHECK (receipt_id ~ '^[0-9a-f]{64}$'),
+    provider text NOT NULL,
+    dataset text NOT NULL,
+    source_object_sha256 text NOT NULL CHECK (source_object_sha256 ~ '^[0-9a-f]{64}$'),
+    available_at timestamptz NOT NULL,
+    instrument_rows bigint NOT NULL CHECK (instrument_rows >= 0),
+    alias_rows bigint NOT NULL CHECK (alias_rows >= 0),
+    inserted_at timestamptz NOT NULL DEFAULT clock_timestamp()
+);
+
+CREATE OR REPLACE FUNCTION market_data.resolve_instruments(
+    requested_aliases text[],
+    decision_cutoff timestamptz
+)
+RETURNS TABLE (
+    requested_alias text,
+    requested_ordinal bigint,
+    instrument_id text,
+    canonical_symbol text,
+    display_name text,
+    asset_class text,
+    listing_exchange text,
+    currency char(3),
+    resolution_status text,
+    reference_available_at timestamptz,
+    reference_source text
+)
+LANGUAGE sql
+STABLE
+AS $$
+    WITH requested AS (
+        SELECT upper(trim(value)) AS alias, ordinality
+        FROM unnest(requested_aliases) WITH ORDINALITY AS input(value, ordinality)
+    )
+    SELECT
+        requested.alias,
+        requested.ordinality,
+        resolved.instrument_id,
+        resolved.canonical_symbol,
+        resolved.display_name,
+        resolved.asset_class,
+        resolved.listing_exchange,
+        resolved.currency,
+        CASE WHEN resolved.instrument_id IS NULL THEN 'NOT_CONFIGURED' ELSE 'RESOLVED' END,
+        resolved.available_at,
+        resolved.source
+    FROM requested
+    LEFT JOIN LATERAL (
+        SELECT
+            master.instrument_id,
+            master.canonical_symbol,
+            master.display_name,
+            master.asset_class,
+            master.listing_exchange,
+            master.currency,
+            greatest(master.available_at, coalesce(alias.available_at, master.available_at))
+                AS available_at,
+            master.source
+        FROM market_data.instrument_master AS master
+        LEFT JOIN market_data.instrument_aliases AS alias
+          ON alias.instrument_id = master.instrument_id
+         AND alias.canonical_symbol = master.canonical_symbol
+         AND alias.available_at <= decision_cutoff
+         AND alias.effective_from <= decision_cutoff
+         AND (alias.effective_to IS NULL OR alias.effective_to > decision_cutoff)
+        WHERE master.available_at <= decision_cutoff
+          AND master.effective_from <= decision_cutoff
+          AND (master.effective_to IS NULL OR master.effective_to > decision_cutoff)
+          AND (master.canonical_symbol = requested.alias OR alias.alias = requested.alias)
+        ORDER BY (master.canonical_symbol = requested.alias) DESC, master.effective_from DESC
+        LIMIT 1
+    ) AS resolved ON true
+    ORDER BY requested.ordinality
+$$;
+
 CREATE TABLE IF NOT EXISTS market_data.batches (
     batch_id text PRIMARY KEY,
     provider text NOT NULL,
@@ -316,6 +430,12 @@ CREATE TABLE IF NOT EXISTS market_data.live_archive_receipts (
     )
 );
 
+CREATE INDEX IF NOT EXISTS instrument_master_symbol_cutoff_idx
+    ON market_data.instrument_master(canonical_symbol, effective_from DESC, available_at DESC);
+CREATE INDEX IF NOT EXISTS instrument_aliases_lookup_cutoff_idx
+    ON market_data.instrument_aliases(alias, effective_from DESC, available_at DESC);
+CREATE INDEX IF NOT EXISTS instrument_reference_receipts_available_idx
+    ON market_data.instrument_reference_receipts(provider, dataset, available_at DESC);
 CREATE INDEX IF NOT EXISTS batches_provider_dataset_idx
     ON market_data.batches(provider, dataset, captured_at DESC);
 CREATE INDEX IF NOT EXISTS option_contracts_underlying_expiration_idx
@@ -339,6 +459,24 @@ FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
 DROP TRIGGER IF EXISTS equity_minute_bars_reject_update_delete ON market_data.equity_minute_bars;
 CREATE TRIGGER equity_minute_bars_reject_update_delete
 BEFORE UPDATE OR DELETE ON market_data.equity_minute_bars
+FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
+
+DROP TRIGGER IF EXISTS instrument_master_reject_update_delete
+    ON market_data.instrument_master;
+CREATE TRIGGER instrument_master_reject_update_delete
+BEFORE UPDATE OR DELETE ON market_data.instrument_master
+FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
+
+DROP TRIGGER IF EXISTS instrument_aliases_reject_update_delete
+    ON market_data.instrument_aliases;
+CREATE TRIGGER instrument_aliases_reject_update_delete
+BEFORE UPDATE OR DELETE ON market_data.instrument_aliases
+FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
+
+DROP TRIGGER IF EXISTS instrument_reference_receipts_reject_update_delete
+    ON market_data.instrument_reference_receipts;
+CREATE TRIGGER instrument_reference_receipts_reject_update_delete
+BEFORE UPDATE OR DELETE ON market_data.instrument_reference_receipts
 FOR EACH ROW EXECUTE FUNCTION market_data.reject_mutation();
 
 DROP TRIGGER IF EXISTS live_equity_minute_bars_reject_update_delete

@@ -49,7 +49,25 @@ const GAMMA_DEFAULT_UNIVERSE = [
 ];
 
 const INDEX_DEFAULT_UNIVERSE = ['SPX', 'QQQ', 'SOXX'];
-const PUBLIC_UNIVERSE = new Set(GAMMA_DEFAULT_UNIVERSE);
+const BARE_TICKER_COMMANDS = new Set([
+  'AND',
+  'COMPARE',
+  'CURRENT',
+  'DIRECTION',
+  'FORECAST',
+  'LIVE',
+  'NOW',
+  'OUTLOOK',
+  'PREDICT',
+  'RESEARCH',
+  'SCAN',
+  'SHOW',
+  'TICKER',
+  'TICKERS',
+  'TODAY',
+  'TREND',
+  'VS',
+]);
 type Direction = 'down' | 'up';
 type HorizonMinutes = 5 | 15 | 30 | 60;
 
@@ -154,6 +172,27 @@ function normalizeUniverseSymbol(raw: string) {
   return symbol;
 }
 
+function isTickerSymbol(value: string) {
+  return /^[A-Z][A-Z0-9.-]{0,11}$/.test(value);
+}
+
+function bareTickerList(text: string) {
+  if (!/^[\s,$A-Za-z0-9.-]+$/.test(text)) return [];
+  const tokens = text
+    .split(/[\s,]+/)
+    .map(normalizeUniverseSymbol)
+    .filter(Boolean)
+    .filter((token) => !BARE_TICKER_COMMANDS.has(token));
+  if (
+    tokens.length === 0 ||
+    tokens.length > 20 ||
+    tokens.some((token) => token.length > 5 || !isTickerSymbol(token))
+  ) {
+    return [];
+  }
+  return tokens;
+}
+
 function inferSetupType(text: string): MarketSetupType {
   if (/gamma|gex|squeeze|伽马|挤压|call\s*wall/i.test(text)) {
     return 'gamma_squeeze';
@@ -233,25 +272,25 @@ function inferSymbols(
   const symbols = new Set<string>();
   for (const raw of requested) {
     const symbol = normalizeUniverseSymbol(raw);
-    if (PUBLIC_UNIVERSE.has(symbol)) symbols.add(symbol);
+    if (isTickerSymbol(symbol)) symbols.add(symbol);
   }
   for (const [pattern, symbol] of NAME_ALIASES) {
     if (pattern.test(text)) symbols.add(symbol);
   }
   for (const match of text.matchAll(/\$([A-Za-z][A-Za-z0-9.]{0,9})\b/g)) {
     const symbol = normalizeUniverseSymbol(match[1]);
-    if (PUBLIC_UNIVERSE.has(symbol)) symbols.add(symbol);
+    if (isTickerSymbol(symbol)) symbols.add(symbol);
   }
-  const normalizedStandalone = normalizeUniverseSymbol(text);
+  for (const symbol of bareTickerList(text)) {
+    symbols.add(symbol);
+  }
   for (const raw of text.match(/\b[A-Za-z][A-Za-z0-9.]{1,9}\b/g) || []) {
     const symbol = normalizeUniverseSymbol(raw);
     const explicitlyUppercase = raw === raw.toUpperCase();
-    const unambiguousLowercaseSymbol = symbol !== 'BE';
-    const standaloneSymbol = normalizedStandalone === symbol;
     if (
+      explicitlyUppercase &&
       !RESERVED.has(symbol) &&
-      PUBLIC_UNIVERSE.has(symbol) &&
-      (explicitlyUppercase || unambiguousLowercaseSymbol || standaloneSymbol)
+      isTickerSymbol(symbol)
     ) {
       symbols.add(symbol);
     }

@@ -7,6 +7,7 @@ import type {
   QuantDailyRegimeReport,
   QuantEvidenceEnvelope,
   QuantSessionSummary,
+  QuantTickerRagBundle,
 } from '@/lib/forecast-chat-types';
 import { getCurrentUser } from '@/lib/auth';
 import {
@@ -30,7 +31,8 @@ import {
   QuantBackendUnavailableError,
   requestQuantDailyRegime,
   requestQuantResearch,
-  requestQuantSessionSummary,
+  requestQuantResearchUniverse,
+  requestQuantTickerRag,
 } from '@/lib/quant/research-client';
 import { isSameOriginRequest } from '@/lib/same-origin';
 import { recordBillingUsageEventBestEffort } from '@/lib/refund-requests';
@@ -99,10 +101,27 @@ function researchSources(envelope: QuantEvidenceEnvelope): ForecastSource[] {
   return Array.from(sources.values());
 }
 
+function tickerRagSources(bundle: QuantTickerRagBundle): ForecastSource[] {
+  return bundle.results.flatMap((result) => {
+    if (!result.summary) return [];
+    return [
+      {
+        id: `ticker-rag:${result.data_symbol}:${result.summary.session_date_et}`,
+        name: 'AXIO7 ticker RAG / Databento EQUS.MINI',
+        state: 'historical' as const,
+        role: `${result.requested_symbol} exact-symbol database retrieval`,
+        asOf: result.summary.source.last_available_at,
+        note: `${result.summary.minute_rows} one-minute rows; ${result.summary.five_minute_bar_count} five-minute bars`,
+      },
+    ];
+  });
+}
+
 function toForecast(
   envelope: QuantEvidenceEnvelope,
   compilerNotes: string[],
-  sessionSummary?: QuantSessionSummary
+  sessionSummary?: QuantSessionSummary,
+  tickerRag?: QuantTickerRagBundle
 ): ForecastChatResult {
   const sources = researchSources(envelope);
   if (sessionSummary) {
@@ -115,6 +134,7 @@ function toForecast(
       note: `${sessionSummary.minute_rows} one-minute rows; ${sessionSummary.five_minute_bar_count} five-minute bars`,
     });
   }
+  if (tickerRag) sources.push(...tickerRagSources(tickerRag));
   return {
     generatedAt: envelope.generated_at,
     model: 'AXIO7 Native Quant Engine',
@@ -129,6 +149,25 @@ function toForecast(
       'Impersonal whole-market statistical research only. Scores are not probabilities unless explicitly labeled as calibrated; no output is an order, personalized recommendation, or guaranteed outcome.',
     research: envelope,
     sessionSummary,
+    tickerRag,
+    compilerNotes,
+  };
+}
+
+function tickerRagForecast(
+  bundle: QuantTickerRagBundle,
+  compilerNotes: string[]
+): ForecastChatResult {
+  return {
+    generatedAt: bundle.generated_at,
+    model: 'AXIO7 Rust Ticker RAG',
+    horizon: 'observed_regular_session',
+    assets: [],
+    sources: tickerRagSources(bundle),
+    evidence: [],
+    disclaimer:
+      'Impersonal market research only. Retrieved observations are not calibrated forecasts, orders, personalized recommendations, or guaranteed outcomes.',
+    tickerRag: bundle,
     compilerNotes,
   };
 }
@@ -240,25 +279,47 @@ function sessionSummaryAnswer(
           ? '下跌时段'
           : '平盘时段';
     return [
-      `${summary.session_date_et} 的 SPX 代理观测结果：${trend}。`,
+      `${summary.session_date_et} 的 ${summary.public_symbol} 独立观测结果：${trend}。`,
       `${summary.data_symbol} 常规交易时段收于 ${fixed(summary.session_close)}，相对开盘 ${signedPercent(summary.session_return_pct)}；时段区间 ${fixed(summary.session_range_pct)}%，收盘位于区间的 ${fixed(summary.close_location_pct)}%。`,
       latest
         ? `最新完整 5 分钟窗口收于 ${fixed(latest.close)}，窗口涨跌 ${signedPercent(latest.return_pct)}。`
         : '当前尚无完整的 5 分钟窗口。',
       `Databento 已覆盖 ${summary.minute_rows} 根 1 分钟数据和 ${summary.five_minute_bar_count}${complete ? '/78' : ''} 根 5 分钟数据。`,
-      `这是 SPY 对 SPX 的历史/时段内观测代理，不是实时模型概率或交易建议。`,
+      summary.public_symbol === 'SPX'
+        ? '这是 SPY 对 SPX 的历史/时段内观测代理，不是实时模型概率或交易建议。'
+        : `这是 ${summary.public_symbol} 的独立数据库观测结果，不是实时模型概率或交易建议。`,
     ].join(' ');
   }
   const trend = summary.trend_state.replaceAll('_', ' ').toLowerCase();
   return [
-    `Observed SPX proxy result for ${summary.session_date_et}: ${trend}.`,
+    `Observed ${summary.public_symbol} result for ${summary.session_date_et}: ${trend}.`,
     `${summary.data_symbol} closed the regular session at ${fixed(summary.session_close)}, ${signedPercent(summary.session_return_pct)} from the session open; the range was ${fixed(summary.session_range_pct)}%, with the close at ${fixed(summary.close_location_pct)}% of that range.`,
     latest
       ? `The latest completed five-minute window closed at ${fixed(latest.close)} (${signedPercent(latest.return_pct)} in the window).`
       : 'No completed five-minute window is available yet.',
     `Databento coverage: ${summary.minute_rows} one-minute rows and ${summary.five_minute_bar_count}${complete ? '/78' : ''} five-minute bars.`,
-    `This is an observed SPY proxy for SPX, not a live model probability or trade recommendation.`,
+    summary.public_symbol === 'SPX'
+      ? 'This is an observed SPY proxy for SPX, not a live model probability or trade recommendation.'
+      : `This is an independent database observation for ${summary.public_symbol}, not a live model probability or trade recommendation.`,
   ].join(' ');
+}
+
+function tickerRagAnswer(
+  bundle: QuantTickerRagBundle,
+  locale: 'en-US' | 'zh-CN'
+): string {
+  const retrieved = bundle.results.filter((result) => result.summary).length;
+  const heading =
+    locale === 'zh-CN'
+      ? `Ticker RAG 已按请求顺序返回 ${bundle.result_count} 个独立结果，其中 ${retrieved} 个具有可用数据库观测。`
+      : `Ticker RAG returned ${bundle.result_count} independent results in request order; ${retrieved} have eligible database observations.`;
+  const results = bundle.results.map((result) => {
+    if (result.summary) return sessionSummaryAnswer(result.summary, locale);
+    return locale === 'zh-CN'
+      ? `${result.requested_symbol}：${result.status}（${result.reason_code}）。${result.reason}`
+      : `${result.requested_symbol}: ${result.status} (${result.reason_code}). ${result.reason}`;
+  });
+  return [heading, ...results].join('\n\n');
 }
 
 function quantEnvelopeForExplanation(
@@ -468,31 +529,106 @@ export async function POST(req: NextRequest) {
         }
       );
     }
+    let preloadedTickerRag: QuantTickerRagBundle | undefined;
+    if (compiled.query.setup_type === 'model_forecast') {
+      const [ragResult, universeResult] = await Promise.allSettled([
+        requestQuantTickerRag(compiled.query.symbols),
+        requestQuantResearchUniverse(),
+      ]);
+      if (ragResult.status === 'fulfilled') {
+        preloadedTickerRag = ragResult.value;
+      } else {
+        console.error(
+          '[/api/ask] ticker RAG preload unavailable',
+          ragResult.reason instanceof Error
+            ? ragResult.reason.message
+            : ragResult.reason
+        );
+      }
+      if (universeResult.status === 'fulfilled') {
+        const configured = new Set(
+          universeResult.value.targets.map((target) => target.public_symbol)
+        );
+        const hasUnconfiguredTarget = compiled.query.symbols.some(
+          (symbol) => !configured.has(symbol)
+        );
+        if (hasUnconfiguredTarget && preloadedTickerRag) {
+          const locale = /[\u3400-\u9fff]/.test(parsed.data.query)
+            ? 'zh-CN'
+            : 'en-US';
+          const answer = tickerRagAnswer(preloadedTickerRag, locale);
+          const forecast = tickerRagForecast(
+            preloadedTickerRag,
+            compiled.notes
+          );
+          const usageUser = await getCurrentUser().catch(() => null);
+          if (usageUser?.authenticated) {
+            await recordBillingUsageEventBestEffort({
+              userId: usageUser.id,
+              eventType: 'api_call_completed',
+              metadata: { route: '/api/ask', mode: 'ticker_rag' },
+            });
+          }
+          return NextResponse.json(
+            {
+              answer: monitor ? `${monitor.message}\n\n${answer}` : answer,
+              forecast,
+              monitor,
+              conversation: {
+                mode: 'quant_research',
+                knowledge_version: preloadedTickerRag.schema_version,
+                llm_role: 'deterministic_fallback',
+                locale,
+              },
+            },
+            {
+              headers: {
+                'Cache-Control': 'no-store',
+                'X-AXIO7-Model-Runtime': 'rust',
+                'X-AXIO7-Evidence-Contract': preloadedTickerRag.schema_version,
+                'X-AXIO7-Conversation-Mode': 'ticker_rag',
+                'X-AXIO7-Knowledge-Version': preloadedTickerRag.schema_version,
+                'X-AXIO7-LLM-Role': 'deterministic_fallback',
+                'X-AXIO7-Conversation-Locale': locale,
+              },
+            }
+          );
+        }
+      }
+    }
     const envelope = await requestQuantResearch(compiled.query);
     const conversation = await explainQuantResearchResult(
       parsed.data.query,
       quantEnvelopeForExplanation(envelope),
       compiled.notes
     );
-    let sessionSummary: QuantSessionSummary | undefined;
+    let tickerRag = preloadedTickerRag;
     if (
       envelope.candidates.length === 0 &&
-      compiled.query.setup_type === 'model_forecast'
+      compiled.query.setup_type === 'model_forecast' &&
+      !tickerRag
     ) {
       try {
-        sessionSummary = await requestQuantSessionSummary(
-          compiled.query.symbols[0] ?? 'SPX'
-        );
-      } catch (summaryError) {
+        tickerRag = await requestQuantTickerRag(compiled.query.symbols);
+      } catch (retrievalError) {
         console.error(
-          '[/api/ask] observed session summary unavailable',
-          summaryError instanceof Error ? summaryError.message : summaryError
+          '[/api/ask] ticker RAG unavailable',
+          retrievalError instanceof Error
+            ? retrievalError.message
+            : retrievalError
         );
       }
     }
-    const forecast = toForecast(envelope, compiled.notes, sessionSummary);
-    const answer = sessionSummary
-      ? sessionSummaryAnswer(sessionSummary, conversation.locale)
+    const fallbackTickerRag =
+      envelope.candidates.length === 0 ? tickerRag : undefined;
+    const forecast = toForecast(
+      envelope,
+      compiled.notes,
+      undefined,
+      fallbackTickerRag
+    );
+    const answer = fallbackTickerRag
+      ? tickerRagAnswer(fallbackTickerRag, conversation.locale)
       : conversation.answer;
     const usageUser = await getCurrentUser().catch(() => null);
     if (usageUser?.authenticated) {

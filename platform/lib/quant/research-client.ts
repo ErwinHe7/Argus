@@ -7,6 +7,7 @@ import type {
   QuantPipelineReadiness,
   QuantSessionFiveMinuteBar,
   QuantSessionSummary,
+  QuantTickerRagBundle,
 } from '@/lib/forecast-chat-types';
 import {
   pipelineStatusFromReceipt,
@@ -1182,6 +1183,8 @@ function sessionBar(value: unknown): QuantSessionFiveMinuteBar | null {
 function verifySessionSummary(payload: unknown): QuantSessionSummary {
   const summary = record(payload);
   const source = record(summary?.source);
+  const freshness = record(summary?.freshness);
+  const coverage = record(summary?.coverage);
   const bars = Array.isArray(summary?.five_minute_bars)
     ? summary.five_minute_bars.map(sessionBar)
     : [];
@@ -1195,6 +1198,8 @@ function verifySessionSummary(payload: unknown): QuantSessionSummary {
   const valid =
     summary !== null &&
     source !== null &&
+    freshness !== null &&
+    coverage !== null &&
     summary.schema_version === 'axio.session-summary.v1' &&
     (summary.status === 'COMPLETE_78_BAR_SESSION' ||
       summary.status === 'SESSION_TO_DATE') &&
@@ -1250,8 +1255,21 @@ function verifySessionSummary(payload: unknown): QuantSessionSummary {
     Array.isArray(source.entitlements) &&
     source.entitlements.length > 0 &&
     source.entitlements.every(isNonEmptyString) &&
+    freshness.status === 'NOT_EVALUATED_FOR_LIVE_USE' &&
+    isTimestamp(freshness.observation_cutoff) &&
+    freshness.observation_cutoff === source.last_observed_at &&
+    isTimestamp(freshness.available_at) &&
+    freshness.available_at === source.last_available_at &&
+    coverage.expected_regular_session_minutes === 390 &&
+    coverage.observed_regular_session_minutes === summary.minute_rows &&
+    isFiniteNumber(coverage.ratio) &&
+    coverage.ratio > 0 &&
+    coverage.ratio <= 1 &&
+    Math.abs(coverage.ratio - summary.minute_rows / 390) < 1e-12 &&
     summary.model_status ===
       'LIVE_FROZEN_MODEL_RESULT_NOT_AVAILABLE_FOR_THIS_CUTOFF' &&
+    summary.model_version === null &&
+    summary.feature_version === null &&
     summary.probability_published === false &&
     summary.automatic_execution_enabled === false &&
     Array.isArray(summary.caveats) &&
@@ -1288,6 +1306,151 @@ export async function requestQuantSessionSummary(
     10_000
   );
   return verifySessionSummary(payload);
+}
+
+export function verifyQuantTickerRagPayload(
+  payload: unknown
+): QuantTickerRagBundle {
+  const bundle = record(payload);
+  const results = Array.isArray(bundle?.results) ? bundle.results : [];
+  const validBundle =
+    bundle !== null &&
+    bundle.schema_version === 'axio.ticker-rag.v1' &&
+    isTimestamp(bundle.generated_at) &&
+    isNonnegativeSafeInteger(bundle.requested_count) &&
+    bundle.requested_count > 0 &&
+    bundle.requested_count <= 20 &&
+    bundle.result_count === bundle.requested_count &&
+    results.length === bundle.requested_count &&
+    bundle.retrieval_policy ===
+      'EXACT_SYMBOL_POINT_IN_TIME_DATABASE_LOOKUP' &&
+    bundle.storage === 'APPEND_ONLY_SQLITE_WITH_POSTGRES_ARCHIVE' &&
+    bundle.probability_published === false &&
+    bundle.automatic_execution_enabled === false &&
+    Array.isArray(bundle.caveats) &&
+    bundle.caveats.length > 0 &&
+    bundle.caveats.every(isNonEmptyString);
+  if (!validBundle) {
+    throw contractMismatch('ticker RAG bundle is malformed');
+  }
+  const seen = new Set<string>();
+  for (const value of results) {
+    const result = record(value);
+    const requested = result?.requested_symbol;
+    const canonical = result?.canonical_symbol;
+    const dataSymbol = result?.data_symbol;
+    const status = result?.status;
+    if (
+      result === null ||
+      !isNonEmptyString(requested) ||
+      !/^[A-Z][A-Z0-9.-]{0,11}$/.test(requested) ||
+      !isNonEmptyString(canonical) ||
+      canonical !== requested ||
+      !isNonEmptyString(dataSymbol) ||
+      dataSymbol !== (requested === 'SPX' ? 'SPY' : requested) ||
+      seen.has(requested) ||
+      ![
+        'RETRIEVED',
+        'NO_STORED_OBSERVATIONS',
+        'INSUFFICIENT_DATA',
+        'RETRIEVAL_FAILED',
+      ].includes(String(status))
+    ) {
+      throw contractMismatch('ticker RAG result identity is malformed');
+    }
+    seen.add(requested);
+    if (status === 'RETRIEVED') {
+      const summary = verifySessionSummary(result.summary);
+      if (
+        summary.public_symbol !== requested ||
+        summary.data_symbol !== dataSymbol ||
+        result.reason_code !== null ||
+        result.reason !== null
+      ) {
+        throw contractMismatch('ticker RAG retrieved evidence does not match its ticker');
+      }
+    } else if (
+      result.summary !== null ||
+      !isNonEmptyString(result.reason_code) ||
+      !isNonEmptyString(result.reason)
+    ) {
+      throw contractMismatch('ticker RAG missing-data result is not reason coded');
+    }
+  }
+  return payload as QuantTickerRagBundle;
+}
+
+export async function requestQuantTickerRag(
+  symbols: string[]
+): Promise<QuantTickerRagBundle> {
+  const normalized = symbols.map((symbol) => symbol.trim().toUpperCase());
+  if (
+    normalized.length === 0 ||
+    normalized.length > 20 ||
+    new Set(normalized).size !== normalized.length ||
+    normalized.some((symbol) => !/^[A-Z][A-Z0-9.-]{0,11}$/.test(symbol))
+  ) {
+    throw new QuantBackendUnavailableError(
+      'RUST_TICKER_RAG_SYMBOLS_INVALID',
+      'Ticker RAG requires one to twenty unique ticker symbols.'
+    );
+  }
+  const payload = await fetchQuantJson(
+    `/api/v1/research/ticker-rag?symbols=${encodeURIComponent(
+      normalized.join(',')
+    )}`,
+    15_000
+  );
+  const bundle = verifyQuantTickerRagPayload(payload);
+  const returned = bundle.results.map((result) => result.requested_symbol);
+  if (returned.some((symbol, index) => symbol !== normalized[index])) {
+    throw contractMismatch('ticker RAG response changed requested ticker order');
+  }
+  return bundle;
+}
+
+export type QuantResearchUniverse = {
+  status: 'CONFIGURED_RESEARCH_UNIVERSE';
+  targets: Array<{
+    public_symbol: string;
+    model_symbol: string;
+    price_symbol: string;
+  }>;
+  production_inference_owner: 'quant_engine_rs';
+  execution: 'DISABLED';
+};
+
+export async function requestQuantResearchUniverse(): Promise<QuantResearchUniverse> {
+  const payload = await fetchQuantJson('/api/v1/research/universe', 5_000);
+  const universe = record(payload);
+  const targets = Array.isArray(universe?.targets) ? universe.targets : [];
+  const symbols = new Set<string>();
+  const valid =
+    universe !== null &&
+    universe.status === 'CONFIGURED_RESEARCH_UNIVERSE' &&
+    universe.production_inference_owner === 'quant_engine_rs' &&
+    universe.execution === 'DISABLED' &&
+    targets.length > 0 &&
+    targets.length <= 20 &&
+    targets.every((value) => {
+      const target = record(value);
+      if (
+        target === null ||
+        !isNonEmptyString(target.public_symbol) ||
+        !/^[A-Z][A-Z0-9.-]{0,11}$/.test(target.public_symbol) ||
+        !isNonEmptyString(target.model_symbol) ||
+        !isNonEmptyString(target.price_symbol) ||
+        symbols.has(target.public_symbol)
+      ) {
+        return false;
+      }
+      symbols.add(target.public_symbol);
+      return true;
+    });
+  if (!valid) {
+    throw contractMismatch('configured Rust research universe is malformed');
+  }
+  return payload as QuantResearchUniverse;
 }
 
 const DAILY_REGIMES = new Set([

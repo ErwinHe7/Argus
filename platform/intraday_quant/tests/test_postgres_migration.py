@@ -42,3 +42,18 @@ def test_inspect_sqlite_reports_exact_coverage(tmp_path: Path) -> None:
     assert inventory.minimum_event_at == "2026-07-24T13:30:00+00:00"
     assert inventory.maximum_event_at == "2026-07-24T13:31:00+00:00"
     assert inventory.symbol_counts == {"QQQ": 1, "SPY": 2}
+
+
+def test_market_schema_declares_point_in_time_ticker_rag_registry() -> None:
+    schema = (
+        Path(__file__).parents[2] / "infra" / "market-data" / "postgres" / "schema.sql"
+    ).read_text(encoding="utf-8")
+    assert "market_data.instrument_master" in schema
+    assert "market_data.instrument_aliases" in schema
+    assert "market_data.instrument_reference_receipts" in schema
+    assert "market_data.resolve_instruments" in schema
+    assert "WITH ORDINALITY" in schema
+    assert "decision_cutoff" in schema
+    assert "NOT_CONFIGURED" in schema
+    assert "instrument_master_reject_update_delete" in schema
+    assert "instrument_aliases_reject_update_delete" in schema

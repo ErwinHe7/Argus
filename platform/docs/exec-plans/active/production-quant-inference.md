@@ -2876,3 +2876,28 @@ after-hours readiness receipt reports `liveResearchReady=false`, which is the
 expected truthful state until at least one target has a same-receipt causal,
 ledger-backed, in-SLA research publication; the deployed lower threshold does
 not manufacture a signal merely because services are healthy.
+
+## 2026-08-01Z exact-symbol ticker RAG contract
+
+The customer query path is being changed from a static nine-symbol compiler
+filter plus scalar `symbols[0]` observed-session fallback to an exact-symbol
+structured RAG contract. The query compiler preserves up to twenty explicit
+tickers in request order. Rust owns a new batch retrieval endpoint that reads
+each ticker independently from the append-only market database and returns one
+`RETRIEVED`, `NO_STORED_OBSERVATIONS`, `INSUFFICIENT_DATA`, or
+`RETRIEVAL_FAILED` result per requested ticker. Missing data never inherits
+another ticker's observation, and the web layer only renders the Rust evidence.
+
+The PostgreSQL market schema now declares effective-dated `instrument_master`
+and `instrument_aliases` records, content-hashed reference ingestion receipts,
+and a point-in-time alias resolver. Populating a broad security master and
+backfilling/subscribing additional symbols still requires licensed provider
+reference and market data; the interface does not claim that absent coverage
+already exists. The current online Rust read path remains the append-only SQLite
+store continuously archived to PostgreSQL until a PostgreSQL online reader
+passes replay parity, latency, entitlement, freshness, and rollback gates.
+
+The interface is not production-promoted until TypeScript, Rust, PostgreSQL
+migration, UI cardinality, exact-symbol mismatch, partial-failure, and live-data
+readiness checks pass. Calibrated forecast gates are unchanged and automatic
+execution remains disabled.
