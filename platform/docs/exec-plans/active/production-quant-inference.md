@@ -2847,3 +2847,32 @@ promotion-registry agreement, ledger commits, and the global Rust public
 readiness gate. This policy lets the MVP work from partial but truthful live
 coverage while validation and additional historical partitions continue.
 Automatic execution remains disabled.
+
+## 2026-08-01Z MVP research-readiness AWS deployment receipt
+
+The MVP policy and website state shipped to the canonical AWS single-VM stack
+at exact commit `6d7e7488bb78d7b4b2ed17b7f1705881dd2e4dc2`. The commit-bound
+web, quantd, and market-archive images built successfully; all seven services
+returned healthy or stable-running with zero restarts. The strict runtime
+verifier reported web-to-quantd connectivity, the Rust inference owner, nine
+of nine frozen model artifacts loaded with zero failures, a ready provider
+supervisor, Next.js HTTP 200, and automatic execution disabled.
+
+Before cutover, the repository backup helper correctly stopped at its
+preflight because the old release still has no immutable normalized-data
+manifest. No service was stopped by that failed preflight and no manifest was
+fabricated. Because this release contains no database migration, rollback was
+instead sealed from the retained exact prior release, its server environment
+and Compose/Caddy configuration, plus a consistent custom-format PostgreSQL
+dump. `pg_restore --list` and a SHA-256 manifest verified that package on the
+encrypted migration volume before the symlink changed.
+
+Post-cutover verification returned HTTP 200 for the homepage, `/api/health`,
+`/api/quant/research/status`, and `/research/sector-rotation`; health exposed
+the exact active commit. PostgreSQL retained 2,319,383 append-only minute rows
+and 133 archive receipts at the check. The archiver emitted
+`ARCHIVED_APPEND_ONLY`, and the active checkout was clean. The current
+after-hours readiness receipt reports `liveResearchReady=false`, which is the
+expected truthful state until at least one target has a same-receipt causal,
+ledger-backed, in-SLA research publication; the deployed lower threshold does
+not manufacture a signal merely because services are healthy.
