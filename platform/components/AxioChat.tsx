@@ -93,6 +93,7 @@ type RuntimeState =
   | 'checking'
   | 'models_loaded'
   | 'feed_streaming'
+  | 'research_ready'
   | 'forecast_ready'
   | 'unavailable';
 type RuntimeReceipt = {
@@ -102,6 +103,7 @@ type RuntimeReceipt = {
   requestedModelCount?: number;
   loadedModelCount?: number;
   failedModelCount?: number;
+  liveResearchReady?: boolean;
   liveForecastReady?: boolean;
   pipelineCounts?: {
     targets?: number;
@@ -111,6 +113,7 @@ type RuntimeReceipt = {
     promoted?: number;
     published?: number;
     withinSla?: number;
+    researchReady?: number;
   };
   readiness?: QuantPipelineReadiness;
   marketData?: {
@@ -322,9 +325,11 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
               ? data.liveForecastReady &&
                 data.readiness?.publication?.state === 'ready'
                 ? 'forecast_ready'
-                : data.readiness?.feed?.state === 'ready'
-                  ? 'feed_streaming'
-                  : 'models_loaded'
+                : data.liveResearchReady
+                  ? 'research_ready'
+                  : data.readiness?.feed?.state === 'ready'
+                    ? 'feed_streaming'
+                    : 'models_loaded'
               : 'unavailable'
           );
         }
@@ -727,6 +732,10 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                    ? `${runtimeReceipt?.pipelineCounts?.published ?? 0} of ${
                        runtimeReceipt?.pipelineCounts?.targets ?? 0
                      } target forecasts are ledger-backed, calibrated, promotion-matched, and inside the Rust publication gates. Automatic execution remains disabled.`
+                   : runtimeState === 'research_ready'
+                     ? `${runtimeReceipt?.pipelineCounts?.researchReady ?? 0} of ${
+                         runtimeReceipt?.pipelineCounts?.targets ?? 0
+                       } targets have causal context, completed Rust inference, an in-SLA receipt, and a ledger-backed research publication. Results are unvalidated research output: calibrated probability and official edge remain withheld. Automatic execution remains disabled.`
                    : runtimeState === 'feed_streaming'
                      ? runtimeReceipt?.marketData?.rightsReason ===
                        'OWNER_ATTESTED_WITH_TECHNICAL_ENTITLEMENT'
@@ -758,6 +767,8 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                <i />
                {runtimeState === 'forecast_ready'
                  ? 'Forecast pipeline ready'
+                 : runtimeState === 'research_ready'
+                   ? 'Research signals live · unvalidated'
                  : runtimeState === 'feed_streaming'
                    ? 'Models loaded · live feed ready · forecast gated'
                  : runtimeState === 'models_loaded'

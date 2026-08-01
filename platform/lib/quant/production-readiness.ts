@@ -8,6 +8,7 @@ export type QuantPipelineCounts = {
   promoted: number;
   published: number;
   withinSla: number;
+  researchReady: number;
 };
 
 export type QuantPipelineStatus = {
@@ -16,6 +17,7 @@ export type QuantPipelineStatus = {
     QuantPipelineReadiness,
     'context' | 'inference' | 'publication'
   >;
+  liveResearchReady: boolean;
   liveForecastReady: boolean;
 };
 
@@ -61,6 +63,7 @@ export function pipelineStatusFromReceipt(
     promoted: 0,
     published: 0,
     withinSla: 0,
+    researchReady: 0,
   };
   let waitingForContext = false;
   let inferenceRunning = false;
@@ -99,19 +102,23 @@ export function pipelineStatusFromReceipt(
     if (published) counts.published += 1;
     const endToEndMs = live?.end_to_end_ms;
     const budgetMs = live?.budget_ms;
-    if (
+    const withinSla =
       typeof endToEndMs === 'number' &&
       Number.isFinite(endToEndMs) &&
       endToEndMs >= 0 &&
       typeof budgetMs === 'number' &&
       Number.isFinite(budgetMs) &&
       budgetMs > 0 &&
-      endToEndMs <= budgetMs
-    ) {
+      endToEndMs <= budgetMs;
+    if (withinSla) {
       counts.withinSla += 1;
+    }
+    if (contextReady && inferenceComplete && published && withinSla) {
+      counts.researchReady += 1;
     }
   }
   const all = (count: number) => counts.targets > 0 && count === counts.targets;
+  const liveResearchReady = counts.researchReady > 0;
   const liveForecastReady =
     receipt.public_realtime_research_ready === true &&
     everyForecastRowIsAnObject &&
@@ -150,6 +157,7 @@ export function pipelineStatusFromReceipt(
         detail: `${counts.published} of ${counts.targets} targets are ledger-backed publications; ${counts.calibrated} calibrated and ${counts.promoted} promotion-matched.`,
       },
     },
+    liveResearchReady,
     liveForecastReady,
   };
 }

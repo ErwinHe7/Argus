@@ -2827,3 +2827,23 @@ P0 work is explicitly not implied complete: terminal reason-coded outcomes
 must be made ledger-queryable for every finalized-bar trigger, and the current
 exact-nine atomic publication policy must be reconciled with the PRD's
 per-target independent publication requirement before that interface changes.
+
+## 2026-08-01Z MVP research-readiness policy
+
+The customer surface now exposes a deliberately lower, research-only MVP gate
+without weakening the official forecast gate. A target is `research ready`
+when its same authoritative Rust receipt proves causal context, completed
+inference, an append-only ledger-backed publication, and end-to-end latency
+inside the declared SLA. One qualifying target is enough for the website to
+show live research signals; other malformed, missing, stale, or incomplete
+targets remain visible in the denominator and do not silently inherit that
+state.
+
+This tier is explicitly labeled `unvalidated`. It does not expose a calibrated
+probability, official edge, promoted-forecast claim, or personalized advice.
+The stricter `forecast pipeline ready` state is unchanged and still requires
+the complete configured universe, a validated immutable calibration artifact,
+promotion-registry agreement, ledger commits, and the global Rust public
+readiness gate. This policy lets the MVP work from partial but truthful live
+coverage while validation and additional historical partitions continue.
+Automatic execution remains disabled.

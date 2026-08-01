@@ -43,6 +43,10 @@ export type QuantBackendStatus = {
   marketData?: DatabentoMarketDataStatus;
   readiness?: QuantPipelineReadiness;
   pipelineCounts?: QuantPipelineCounts;
+  /** True when at least one target has causal context, completed Rust
+   * inference, a ledger-backed publication, and an in-budget SLA receipt.
+   * This does not imply calibrated probability or a promoted forecast. */
+  liveResearchReady?: boolean;
   /** True only when every configured target is backed by the authoritative
    * Rust production-readiness receipt and all publication gates pass. */
   liveForecastReady?: boolean;
@@ -1084,6 +1088,7 @@ export async function probeQuantResearchBackend(): Promise<QuantBackendStatus> {
       marketData,
       readiness,
       pipelineCounts: pipeline.counts,
+      liveResearchReady: pipeline.liveResearchReady,
       liveForecastReady: pipeline.liveForecastReady,
       ...common,
     };

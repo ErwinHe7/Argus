@@ -227,6 +227,8 @@ test('website feed banner uses the authoritative sanitized readiness receipt', (
   assert.match(chat, /live feed ready/);
   assert.match(chat, /forecast gated/);
   assert.match(chat, /A ready feed alone is not a publishable forecast/);
+  assert.match(chat, /Research signals live · unvalidated/);
+  assert.match(chat, /calibrated probability and official edge remain withheld/);
   assert.match(chat, /OWNER_ATTESTED_WITH_TECHNICAL_ENTITLEMENT/);
   assert.match(chat, /not vendor-issued confirmation/);
   assert.doesNotMatch(chat, /licensed feed verified/);

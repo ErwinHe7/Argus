@@ -423,6 +423,10 @@ a.monitorEmpty:hover {
   background: #6e879a;
 }
 
+.liveStatus[data-state='research_ready'] i {
+  background: #b59a62;
+}
+
 .liveStatus[data-state='forecast_ready'] i {
   background: #6c8c6e;
 }

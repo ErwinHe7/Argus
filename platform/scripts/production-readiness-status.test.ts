@@ -39,7 +39,9 @@ test('all target gates produce a ready pipeline without reading forecast values'
     promoted: 2,
     published: 2,
     withinSla: 2,
+    researchReady: 2,
   });
+  assert.equal(status.liveResearchReady, true);
   assert.equal(status.liveForecastReady, true);
   assert.equal(status.readiness.context?.state, 'ready');
   assert.equal(status.readiness.inference?.state, 'ready');
@@ -73,6 +75,8 @@ test('a context gap and an uncommitted peer fail closed even if the global flag 
   assert.equal(status.counts.promoted, 1);
   assert.equal(status.counts.published, 1);
   assert.equal(status.counts.withinSla, 1);
+  assert.equal(status.counts.researchReady, 1);
+  assert.equal(status.liveResearchReady, true);
   assert.equal(status.readiness.context?.state, 'waiting');
   assert.equal(status.readiness.inference?.state, 'blocked');
   assert.equal(status.readiness.publication?.state, 'blocked');
@@ -85,6 +89,8 @@ test('missing or malformed forecast rows never become ready', () => {
   });
   assert.equal(status.counts.targets, 2);
   assert.equal(status.counts.contextReady, 0);
+  assert.equal(status.counts.researchReady, 0);
+  assert.equal(status.liveResearchReady, false);
   assert.equal(status.liveForecastReady, false);
   assert.equal(status.readiness.context?.state, 'blocked');
   assert.equal(status.readiness.inference?.state, 'blocked');
@@ -98,6 +104,24 @@ test('a malformed peer cannot disappear from the readiness denominator', () => {
   });
   assert.equal(status.counts.targets, 2);
   assert.equal(status.counts.published, 1);
+  assert.equal(status.counts.researchReady, 1);
+  assert.equal(status.liveResearchReady, true);
+  assert.equal(status.liveForecastReady, false);
+  assert.equal(status.readiness.publication?.state, 'blocked');
+});
+
+test('unpromoted output is usable research while official forecast stays blocked', () => {
+  const researchOnly = readyForecast('SPY');
+  researchOnly.ready = false;
+  researchOnly.calibration = 'UNPROMOTED';
+  researchOnly.promotion_registry_matches = false;
+  const status = pipelineStatusFromReceipt({
+    public_realtime_research_ready: false,
+    forecasts: [researchOnly],
+  });
+
+  assert.equal(status.counts.researchReady, 1);
+  assert.equal(status.liveResearchReady, true);
   assert.equal(status.liveForecastReady, false);
   assert.equal(status.readiness.publication?.state, 'blocked');
 });
