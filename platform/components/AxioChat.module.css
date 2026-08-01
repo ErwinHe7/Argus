@@ -420,6 +420,10 @@ a.monitorEmpty:hover {
 }
 
 .liveStatus[data-state='feed_streaming'] i {
+  background: #6e879a;
+}
+
+.liveStatus[data-state='forecast_ready'] i {
   background: #6c8c6e;
 }
 

@@ -93,6 +93,7 @@ type RuntimeState =
   | 'checking'
   | 'models_loaded'
   | 'feed_streaming'
+  | 'forecast_ready'
   | 'unavailable';
 type RuntimeReceipt = {
   connected?: boolean;
@@ -101,7 +102,16 @@ type RuntimeReceipt = {
   requestedModelCount?: number;
   loadedModelCount?: number;
   failedModelCount?: number;
-  liveForecastReady?: false;
+  liveForecastReady?: boolean;
+  pipelineCounts?: {
+    targets?: number;
+    contextReady?: number;
+    inferred?: number;
+    calibrated?: number;
+    promoted?: number;
+    published?: number;
+    withinSla?: number;
+  };
   readiness?: QuantPipelineReadiness;
   marketData?: {
     ok?: boolean;
@@ -309,9 +319,12 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
           setRuntimeReceipt(data);
           setRuntimeState(
             response.ok && data.connected
-              ? data.readiness?.feed?.state === 'ready'
-                ? 'feed_streaming'
-                : 'models_loaded'
+              ? data.liveForecastReady &&
+                data.readiness?.publication?.state === 'ready'
+                ? 'forecast_ready'
+                : data.readiness?.feed?.state === 'ready'
+                  ? 'feed_streaming'
+                  : 'models_loaded'
               : 'unavailable'
           );
         }
@@ -710,15 +723,27 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
               role="status"
               aria-live="polite"
                title={
-                 runtimeState === 'feed_streaming'
-                   ? runtimeReceipt?.marketData?.rightsReason ===
-                     'OWNER_ATTESTED_WITH_TECHNICAL_ENTITLEMENT'
-                     ? `${runtimeReceipt?.loadedModelCount ?? 'All'} of ${
-                         runtimeReceipt?.requestedModelCount ?? 'all'
-                       } model artifacts are loaded. Rights basis: OWNER_ATTESTED_WITH_TECHNICAL_ENTITLEMENT. This is an account-owner attestation plus a fresh technical-entitlement receipt, not vendor-issued confirmation. Target context, inference, and forecast publication are checked when a request runs.`
-                     : `${runtimeReceipt?.loadedModelCount ?? 'All'} of ${
-                         runtimeReceipt?.requestedModelCount ?? 'all'
-                       } model artifacts are loaded. The authoritative Rust receipt verifies customer-display rights, provider entitlement, stream freshness, and required-symbol feed freshness. Target context, inference, and forecast publication are checked when a request runs.`
+                 runtimeState === 'forecast_ready'
+                   ? `${runtimeReceipt?.pipelineCounts?.published ?? 0} of ${
+                       runtimeReceipt?.pipelineCounts?.targets ?? 0
+                     } target forecasts are ledger-backed, calibrated, promotion-matched, and inside the Rust publication gates. Automatic execution remains disabled.`
+                   : runtimeState === 'feed_streaming'
+                     ? runtimeReceipt?.marketData?.rightsReason ===
+                       'OWNER_ATTESTED_WITH_TECHNICAL_ENTITLEMENT'
+                       ? `${runtimeReceipt?.loadedModelCount ?? 'All'} of ${
+                           runtimeReceipt?.requestedModelCount ?? 'all'
+                         } model artifacts are loaded. Rights basis: OWNER_ATTESTED_WITH_TECHNICAL_ENTITLEMENT. This is an account-owner attestation plus a fresh technical-entitlement receipt, not vendor-issued confirmation. Current pipeline: ${
+                           runtimeReceipt?.pipelineCounts?.contextReady ?? 0
+                         }/${runtimeReceipt?.pipelineCounts?.targets ?? 0} context-ready, ${
+                           runtimeReceipt?.pipelineCounts?.inferred ?? 0
+                         } inferred, ${runtimeReceipt?.pipelineCounts?.published ?? 0} published. A ready feed alone is not a publishable forecast.`
+                       : `${runtimeReceipt?.loadedModelCount ?? 'All'} of ${
+                           runtimeReceipt?.requestedModelCount ?? 'all'
+                         } model artifacts are loaded. The authoritative Rust receipt verifies customer-display rights, provider entitlement, stream freshness, and required-symbol feed freshness. Current pipeline: ${
+                           runtimeReceipt?.pipelineCounts?.contextReady ?? 0
+                         }/${runtimeReceipt?.pipelineCounts?.targets ?? 0} context-ready, ${
+                           runtimeReceipt?.pipelineCounts?.inferred ?? 0
+                         } inferred, ${runtimeReceipt?.pipelineCounts?.published ?? 0} ledger-backed publications. A ready feed alone is not a publishable forecast.`
                    : runtimeState === 'models_loaded'
                      ? `${runtimeReceipt?.loadedModelCount ?? 'All'} of ${
                          runtimeReceipt?.requestedModelCount ?? 'all'
@@ -731,8 +756,10 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                }
              >
                <i />
-               {runtimeState === 'feed_streaming'
-                 ? 'Models loaded · live feed ready'
+               {runtimeState === 'forecast_ready'
+                 ? 'Forecast pipeline ready'
+                 : runtimeState === 'feed_streaming'
+                   ? 'Models loaded · live feed ready · forecast gated'
                  : runtimeState === 'models_loaded'
                    ? 'Models loaded · live feed waiting'
                  : runtimeState === 'checking'

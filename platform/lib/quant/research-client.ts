@@ -8,6 +8,10 @@ import type {
   QuantSessionFiveMinuteBar,
   QuantSessionSummary,
 } from '@/lib/forecast-chat-types';
+import {
+  pipelineStatusFromReceipt,
+  type QuantPipelineCounts,
+} from '@/lib/quant/production-readiness';
 
 function backendUrl() {
   const configured = process.env.INTRADAY_QUANT_API_URL?.trim();
@@ -38,11 +42,10 @@ export type QuantBackendStatus = {
   failedModelCount?: number;
   marketData?: DatabentoMarketDataStatus;
   readiness?: QuantPipelineReadiness;
-  /**
-   * The universe probe cannot prove target context, inference, or publication.
-   * This remains false until a target-specific research receipt says otherwise.
-   */
-  liveForecastReady?: false;
+  pipelineCounts?: QuantPipelineCounts;
+  /** True only when every configured target is backed by the authoritative
+   * Rust production-readiness receipt and all publication gates pass. */
+  liveForecastReady?: boolean;
 };
 
 export type FactorShadowStatus = {
@@ -841,71 +844,90 @@ const READY_MARKET_DATA_RIGHTS_REASONS = new Set([
   'OWNER_ATTESTED_WITH_TECHNICAL_ENTITLEMENT',
 ]);
 
+async function readProductionReadinessReceipt(): Promise<
+  Record<string, unknown>
+> {
+  const receipt = record(await fetchQuantJson('/api/v1/system/readiness'));
+  if (
+    receipt?.schema_version !== 'axio.production_readiness.v2' ||
+    !record(receipt.market_data) ||
+    !record(receipt.artifacts) ||
+    !Array.isArray(receipt.forecasts)
+  ) {
+    throw contractMismatch('production-readiness receipt is malformed');
+  }
+  return receipt;
+}
+
+function marketDataStatusFromReceipt(
+  receipt: Record<string, unknown>,
+  checkedAt: string
+): DatabentoMarketDataStatus {
+  const marketData = record(receipt.market_data);
+  const rights = record(marketData?.public_use_rights);
+  const configured =
+    marketData?.selected_provider === 'databento' &&
+    marketData?.live_enabled === true;
+  const rightsReady =
+    rights?.status === 'READY' &&
+    typeof rights.reason === 'string' &&
+    READY_MARKET_DATA_RIGHTS_REASONS.has(rights.reason);
+  const entitlementVerified = marketData?.provider_entitlement === 'READY';
+  const streamFresh = marketData?.stream_freshness === 'FRESH';
+  const feedFresh = marketData?.feed_freshness === 'FRESH';
+  const ok =
+    configured &&
+    rightsReady &&
+    entitlementVerified &&
+    streamFresh &&
+    feedFresh;
+  const reasonParts = [
+    configured ? null : 'DATABENTO_LIVE_PROVIDER_NOT_CONFIGURED',
+    rightsReady
+      ? null
+      : `PUBLIC_USE_RIGHTS_${String(rights?.reason ?? 'UNAVAILABLE')}`,
+    entitlementVerified ? null : 'PROVIDER_ENTITLEMENT_NOT_READY',
+    streamFresh
+      ? null
+      : `STREAM_FRESHNESS_${String(
+          marketData?.stream_freshness ?? 'UNAVAILABLE'
+        )}`,
+    feedFresh
+      ? null
+      : `ALL_SYMBOL_FEED_FRESHNESS_${String(
+          marketData?.feed_freshness ?? 'UNAVAILABLE'
+        )}`,
+  ].filter((value): value is string => value !== null);
+  return {
+    configured,
+    ok,
+    provider: 'databento',
+    state: ok ? 'AUTHORITATIVE_FEED_RECEIPT_READY' : 'READINESS_BLOCKED',
+    authenticated: entitlementVerified,
+    entitlementVerified,
+    replayRequested: false,
+    executionEnabled: false,
+    dataset:
+      typeof marketData?.selected_product === 'string'
+        ? marketData.selected_product
+        : null,
+    schema: null,
+    checkedAt,
+    updatedAt: null,
+    subscribedSymbols: [],
+    rightsReason:
+      typeof rights?.reason === 'string' ? rights.reason : undefined,
+    reason: ok ? undefined : reasonParts.join(','),
+  };
+}
+
 export async function probeDatabentoMarketData(): Promise<DatabentoMarketDataStatus> {
   const checkedAt = new Date().toISOString();
   try {
-    const receipt = record(
-      await fetchQuantJson('/api/v1/system/readiness')
+    return marketDataStatusFromReceipt(
+      await readProductionReadinessReceipt(),
+      checkedAt
     );
-    const marketData = record(receipt?.market_data);
-    const rights = record(marketData?.public_use_rights);
-    const configured =
-      receipt?.schema_version === 'axio.production_readiness.v2' &&
-      marketData?.selected_provider === 'databento' &&
-      marketData?.live_enabled === true;
-    const rightsReady =
-      rights?.status === 'READY' &&
-      typeof rights.reason === 'string' &&
-      READY_MARKET_DATA_RIGHTS_REASONS.has(rights.reason);
-    const entitlementVerified =
-      marketData?.provider_entitlement === 'READY';
-    const streamFresh = marketData?.stream_freshness === 'FRESH';
-    const feedFresh = marketData?.feed_freshness === 'FRESH';
-    const ok =
-      configured &&
-      rightsReady &&
-      entitlementVerified &&
-      streamFresh &&
-      feedFresh;
-    const reasonParts = [
-      configured ? null : 'DATABENTO_LIVE_PROVIDER_NOT_CONFIGURED',
-      rightsReady
-        ? null
-        : `PUBLIC_USE_RIGHTS_${String(rights?.reason ?? 'UNAVAILABLE')}`,
-      entitlementVerified ? null : 'PROVIDER_ENTITLEMENT_NOT_READY',
-      streamFresh
-        ? null
-        : `STREAM_FRESHNESS_${String(
-            marketData?.stream_freshness ?? 'UNAVAILABLE'
-          )}`,
-      feedFresh
-        ? null
-        : `ALL_SYMBOL_FEED_FRESHNESS_${String(
-            marketData?.feed_freshness ?? 'UNAVAILABLE'
-          )}`,
-    ].filter((value): value is string => value !== null);
-    const result: DatabentoMarketDataStatus = {
-      configured,
-      ok,
-      provider: 'databento',
-      state: ok ? 'AUTHORITATIVE_FEED_RECEIPT_READY' : 'READINESS_BLOCKED',
-      authenticated: entitlementVerified,
-      entitlementVerified,
-      replayRequested: false,
-      executionEnabled: false,
-      dataset:
-        typeof marketData?.selected_product === 'string'
-          ? marketData.selected_product
-          : null,
-      schema: null,
-      checkedAt,
-      updatedAt: null,
-      subscribedSymbols: [],
-      rightsReason:
-        typeof rights?.reason === 'string' ? rights.reason : undefined,
-      reason: ok ? undefined : reasonParts.join(','),
-    };
-    return result;
   } catch (error) {
     return {
       configured: Boolean(process.env.DATABENTO_API_KEY),
@@ -1029,7 +1051,12 @@ export async function probeQuantResearchBackend(): Promise<QuantBackendStatus> {
         ...common,
       };
     }
-    const marketData = await probeDatabentoMarketData();
+    const productionReadiness = await readProductionReadinessReceipt();
+    const marketData = marketDataStatusFromReceipt(
+      productionReadiness,
+      new Date().toISOString()
+    );
+    const pipeline = pipelineStatusFromReceipt(productionReadiness);
     const readiness: QuantPipelineReadiness = {
       model: {
         state: 'ready',
@@ -1049,28 +1076,15 @@ export async function probeQuantResearchBackend(): Promise<QuantBackendStatus> {
             detail:
               'The authoritative Rust production-readiness receipt does not mark the licensed feed ready.',
           },
-      context: {
-        state: 'not_checked',
-        code: 'TARGET_CONTEXT_NOT_CHECKED',
-        detail: 'Context completeness is checked for each requested symbol.',
-      },
-      inference: {
-        state: 'not_checked',
-        code: 'TARGET_INFERENCE_NOT_CHECKED',
-        detail: 'Inference completion is checked for each requested symbol.',
-      },
-      publication: {
-        state: 'not_checked',
-        code: 'TARGET_PUBLICATION_NOT_CHECKED',
-        detail: 'Forecast publication is checked for each requested symbol.',
-      },
+      ...pipeline.readiness,
     };
     return {
       connected: true,
       code: 'CONNECTED',
       marketData,
       readiness,
-      liveForecastReady: false,
+      pipelineCounts: pipeline.counts,
+      liveForecastReady: pipeline.liveForecastReady,
       ...common,
     };
   } catch {

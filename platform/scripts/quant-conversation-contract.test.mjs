@@ -221,9 +221,12 @@ test('website feed banner uses the authoritative sanitized readiness receipt', (
   assert.match(client, /axio\.production_readiness\.v2/);
   assert.match(client, /public_use_rights/);
   assert.match(client, /feed_freshness === 'FRESH'/);
+  assert.match(client, /pipelineStatusFromReceipt/);
   assert.doesNotMatch(client, /fetchQuantJson\('\/api\/v1\/live\/bars'\)/);
   assert.doesNotMatch(client, /fresh_realtime_completed_bar/);
   assert.match(chat, /live feed ready/);
+  assert.match(chat, /forecast gated/);
+  assert.match(chat, /A ready feed alone is not a publishable forecast/);
   assert.match(chat, /OWNER_ATTESTED_WITH_TECHNICAL_ENTITLEMENT/);
   assert.match(chat, /not vendor-issued confirmation/);
   assert.doesNotMatch(chat, /licensed feed verified/);

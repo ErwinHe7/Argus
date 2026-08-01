@@ -19,6 +19,7 @@
     "quant:build": "powershell -NoProfile -Command \"& $env:USERPROFILE/.cargo/bin/cargo.exe build --release --manifest-path quant_engine_rs/Cargo.toml\"",
     "quant:test": "powershell -NoProfile -Command \"& $env:USERPROFILE/.cargo/bin/cargo.exe test --manifest-path quant_engine_rs/Cargo.toml\"",
     "test:quant-conversation": "node --test scripts/quant-conversation-contract.test.mjs",
+    "test:production-readiness": "tsx --test scripts/production-readiness-status.test.ts",
     "test:public-context": "tsx --test scripts/public-context-contract.test.ts",
     "test:ui-navigation": "node --test scripts/ui-navigation-contract.test.mjs",
     "test:paddle-catalog": "node --test scripts/paddle-catalog-contract.test.mjs",

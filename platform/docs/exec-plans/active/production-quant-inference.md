@@ -2796,3 +2796,34 @@ archive receipts at verification time. The new continuous archiver reported
 and both it and PostgreSQL had zero restarts. The active release checkout is
 clean, rollback snapshots and sealed legacy artifacts remain retained, and
 automatic execution remains disabled.
+
+## 2026-08-01Z industrial forecasting PRD P0 adoption
+
+The Industrial Market Forecasting PRD v1.0 was reviewed as a build
+specification, not as evidence of predictive performance. The existing Rust
+runtime already owns causal completed-bar inference, exact-cutoff context
+diagnostics, immutable forecast contracts, calibration and promotion gates,
+bounded nine-target inference, deterministic replay, and the append-only
+prediction ledger. The first P0 implementation slice closes a customer-surface
+truth gap: the public read-only runtime probe no longer labels context,
+inference, and publication as `not_checked` after Rust has already emitted the
+authoritative production-readiness receipt.
+
+Next.js now reduces only sanitized readiness metadata from that Rust receipt.
+It reports exact target denominators and counts for causal context, completed
+inference, promoted calibration, promotion-registry matches, ledger-backed
+publication, and the publication SLA. Malformed or partially missing target
+rows stay in the denominator and fail closed. The reducer never reads or
+calculates expected return, probabilities, quantiles, or trading economics.
+The website status indicator distinguishes `models loaded`, `live feed ready
+but forecast gated`, and `forecast pipeline ready`; a healthy feed can no
+longer appear equivalent to a publishable forecast. Automatic execution
+remains disabled.
+
+Focused contract coverage proves the fully ready case, a context-gap case, an
+uncommitted peer, a malformed peer that cannot disappear from the denominator,
+SLA counting, and the TypeScript quantitative-boundary prohibition. Remaining
+P0 work is explicitly not implied complete: terminal reason-coded outcomes
+must be made ledger-queryable for every finalized-bar trigger, and the current
+exact-nine atomic publication policy must be reconciled with the PRD's
+per-target independent publication requirement before that interface changes.
