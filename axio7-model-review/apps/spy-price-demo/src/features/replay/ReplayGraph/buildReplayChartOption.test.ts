@@ -231,4 +231,16 @@ describe("buildReplayChartOption", () => {
       }),
     );
   });
+
+  it("disables HTML tooltip movement and display transitions", () => {
+    const option = buildReplayChartOption(makeReplayInput(false));
+
+    expect(option.tooltip).toEqual(
+      expect.objectContaining({
+        renderMode: "html",
+        transitionDuration: 0,
+        displayTransition: false,
+      }),
+    );
+  });
 });

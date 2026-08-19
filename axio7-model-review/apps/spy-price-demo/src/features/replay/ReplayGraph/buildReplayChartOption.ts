@@ -243,6 +243,8 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
       triggerOn: "mousemove|click",
       confine: true,
       renderMode: "html",
+      transitionDuration: 0,
+      displayTransition: false,
       backgroundColor: input.theme.background,
       borderColor: input.theme.foreground,
       borderWidth: 1,
