@@ -19,7 +19,7 @@ Direction = Literal["UP", "DOWN", "FLAT"]
 class StrictModel(BaseModel):
     """Reject unknown fields and prevent mutation after validation."""
 
-    model_config = ConfigDict(extra="forbid", frozen=True)
+    model_config = ConfigDict(extra="forbid", frozen=True, allow_inf_nan=False)
 
 
 class Forecast(StrictModel):

@@ -6,7 +6,9 @@ from pydantic import ValidationError
 
 from intraday_quant.demo.contracts import (
     ChartBar,
+    Forecast,
     Manifest,
+    MetricValue,
     SessionArtifact,
     SessionIndexArtifact,
     write_json_schemas,
@@ -127,6 +129,31 @@ def test_manifest_rejects_unknown_contract_version(manifest_payload: dict) -> No
     manifest_payload["contract_version"] = "2.0.0"
     with pytest.raises(ValidationError):
         Manifest.model_validate(manifest_payload)
+
+
+@pytest.mark.parametrize("non_finite_value", [float("nan"), float("inf"), float("-inf")])
+def test_forecast_rejects_non_finite_expected_return(non_finite_value: float) -> None:
+    with pytest.raises(ValidationError):
+        Forecast.model_validate(
+            {
+                "probability_up": 0.6,
+                "probability_status": "RAW_EXPERIMENTAL_PROBABILITY",
+                "expected_return_bps": non_finite_value,
+                "scenario_price": 601.2,
+                "interval_low": 600.5,
+                "interval_high": 602.0,
+                "interval_status": "EXPLORATORY_VALIDATION_RESIDUAL_INTERVAL",
+                "direction": "UP",
+            }
+        )
+
+
+@pytest.mark.parametrize("non_finite_value", [float("nan"), float("inf"), float("-inf")])
+def test_metric_value_rejects_non_finite_numbers(non_finite_value: float) -> None:
+    with pytest.raises(ValidationError):
+        MetricValue.model_validate(
+            {"value": non_finite_value, "baseline": 1.0, "delta": 0.0}
+        )
 
 
 def test_schema_export_is_complete(tmp_path: Path) -> None:
