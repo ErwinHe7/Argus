@@ -205,8 +205,6 @@ def normalize_spy_frame(
     timestamps = validated["timestamp"]
     valid_timestamps = timestamps.notna()
     invalid_ohlcv = _valid_ohlcv_rows(validated)
-    invalid_mask = ~valid_timestamps | ~invalid_ohlcv
-    invalid_rows = int(invalid_mask.sum())
     timestamped = validated.loc[valid_timestamps].copy()
 
     if timestamped.empty:
@@ -219,7 +217,7 @@ def normalize_spy_frame(
             duplicate_rows_removed=0,
             causal_fill_rows=0,
             unresolved_gap_rows=0,
-            invalid_rows=invalid_rows,
+            invalid_rows=source_rows,
             first_timestamp=None,
             last_timestamp=None,
         )
@@ -236,12 +234,13 @@ def normalize_spy_frame(
             duplicate_rows_removed=0,
             causal_fill_rows=0,
             unresolved_gap_rows=0,
-            invalid_rows=invalid_rows + len(timestamped),
+            invalid_rows=source_rows,
             first_timestamp=None,
             last_timestamp=None,
         )
 
     timestamped["session_date"] = local_dates
+    timestamped["official_timestamp"] = timestamped["timestamp"].dt.floor("min")
     timestamped = timestamped.join(schedule, on="session_date", how="left", rsuffix="_official")
     in_official_session = timestamped["open_official"].notna()
     post_close = in_official_session & (timestamped["timestamp"] >= timestamped["close_official"])
@@ -249,21 +248,29 @@ def normalize_spy_frame(
     before_open_or_non_session = ~in_official_session | (
         timestamped["timestamp"] < timestamped["open_official"]
     )
-    invalid_rows += int(before_open_or_non_session.sum())
+    on_minute_grid = timestamped["timestamp"] == timestamped["official_timestamp"]
+    row_invalid = (
+        ~invalid_ohlcv.loc[timestamped.index]
+        | ~on_minute_grid
+        | before_open_or_non_session
+    )
+    invalid_rows = int((~valid_timestamps).sum()) + int(row_invalid.sum())
     allowed_time = ~post_close & ~before_open_or_non_session
-    invalid_in_session = timestamped.loc[allowed_time & ~invalid_ohlcv.loc[timestamped.index]]
-    candidates = timestamped.loc[allowed_time & invalid_ohlcv.loc[timestamped.index]].copy()
+    invalid_in_session = timestamped.loc[allowed_time & row_invalid]
+    candidates = timestamped.loc[allowed_time & ~row_invalid].copy()
 
     duplicate_rows_removed = int(candidates.duplicated(subset="timestamp", keep="last").sum())
     candidates = candidates.drop_duplicates(subset="timestamp", keep="last")
-    blocked_timestamps = set(invalid_in_session["timestamp"]).difference(candidates["timestamp"])
+    blocked_timestamps = set(invalid_in_session["official_timestamp"]).difference(
+        candidates["timestamp"]
+    )
 
     normalized_sessions: list[pd.DataFrame] = []
     causal_fill_rows = 0
     unresolved_gap_rows = 0
     for session_date, bounds in schedule.iterrows():
         session_rows = candidates.loc[candidates["session_date"] == session_date].drop(
-            columns=["open_official", "close_official"], errors="ignore"
+            columns=["official_timestamp", "open_official", "close_official"], errors="ignore"
         )
         normalized_session, fills, gaps = _reindex_session(
             session_date,

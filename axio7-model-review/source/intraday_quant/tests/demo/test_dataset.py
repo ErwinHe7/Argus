@@ -84,3 +84,27 @@ def test_invalid_ohlcv_row_is_removed_without_backward_fill() -> None:
     assert bool(row.is_unresolved_gap)
     assert pd.isna(row.close)
     assert report.invalid_rows == 1
+
+
+def test_off_grid_source_timestamp_blocks_official_minute_from_causal_fill() -> None:
+    frame = bars_for("2026-01-05", periods=3)
+    frame.loc[1, "timestamp"] += pd.Timedelta(seconds=30)
+
+    normalized, report = normalize_spy_frame(frame, max_fill_minutes=2)
+
+    official_minute = normalized.loc[normalized.minute_of_session == 1].iloc[0]
+    assert bool(official_minute.is_unresolved_gap)
+    assert not bool(official_minute.is_causal_fill)
+    assert pd.isna(official_minute.close)
+    assert report.invalid_rows == 1
+
+
+def test_overlapping_invalid_reasons_count_source_row_once() -> None:
+    frame = bars_for("2026-01-05", start="09:29", periods=1)
+    frame.loc[0, "close"] = np.nan
+
+    _, report = normalize_spy_frame(frame)
+
+    assert report.source_rows == 1
+    assert report.invalid_rows == 1
+    assert report.invalid_rows <= report.source_rows
