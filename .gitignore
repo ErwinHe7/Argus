@@ -9,6 +9,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .pytest-tmp*/
+.worktrees/
 node_modules/
 .next/
 
