@@ -1,0 +1,91 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "artifact_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Artifact Sha256",
+      "type": "string"
+    },
+    "caveat_codes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Caveat Codes",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "1.0.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "direction_model": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "integer"
+          }
+        ]
+      },
+      "title": "Direction Model",
+      "type": "object"
+    },
+    "feature_columns": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Feature Columns",
+      "type": "array"
+    },
+    "horizon_minutes": {
+      "const": 5,
+      "title": "Horizon Minutes",
+      "type": "integer"
+    },
+    "interval_status": {
+      "const": "EXPLORATORY_VALIDATION_RESIDUAL_INTERVAL",
+      "title": "Interval Status",
+      "type": "string"
+    },
+    "probability_status": {
+      "const": "RAW_EXPERIMENTAL_PROBABILITY",
+      "title": "Probability Status",
+      "type": "string"
+    },
+    "return_model": {
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "integer"
+          }
+        ]
+      },
+      "title": "Return Model",
+      "type": "object"
+    }
+  },
+  "required": [
+    "contract_version",
+    "artifact_sha256",
+    "horizon_minutes",
+    "feature_columns",
+    "direction_model",
+    "return_model",
+    "probability_status",
+    "interval_status",
+    "caveat_codes"
+  ],
+  "title": "ModelCard",
+  "type": "object"
+}

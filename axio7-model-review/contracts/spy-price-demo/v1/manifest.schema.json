@@ -1,0 +1,255 @@
+{
+  "$defs": {
+    "ArtifactReference": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "const": "sessions/index.json",
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "ArtifactReference",
+      "type": "object"
+    },
+    "QualitySummary": {
+      "additionalProperties": false,
+      "properties": {
+        "causal_fill_rows": {
+          "minimum": 0,
+          "title": "Causal Fill Rows",
+          "type": "integer"
+        },
+        "eligible_examples": {
+          "minimum": 0,
+          "title": "Eligible Examples",
+          "type": "integer"
+        },
+        "excluded_examples": {
+          "minimum": 0,
+          "title": "Excluded Examples",
+          "type": "integer"
+        },
+        "normalized_rows": {
+          "minimum": 0,
+          "title": "Normalized Rows",
+          "type": "integer"
+        },
+        "source_rows": {
+          "minimum": 0,
+          "title": "Source Rows",
+          "type": "integer"
+        },
+        "unresolved_gap_rows": {
+          "minimum": 0,
+          "title": "Unresolved Gap Rows",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_rows",
+        "normalized_rows",
+        "eligible_examples",
+        "excluded_examples",
+        "causal_fill_rows",
+        "unresolved_gap_rows"
+      ],
+      "title": "QualitySummary",
+      "type": "object"
+    },
+    "SplitSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "embargo_sessions": {
+          "maxItems": 2,
+          "minItems": 2,
+          "prefixItems": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "format": "date",
+              "type": "string"
+            }
+          ],
+          "title": "Embargo Sessions",
+          "type": "array"
+        },
+        "test_end": {
+          "format": "date",
+          "title": "Test End",
+          "type": "string"
+        },
+        "test_sessions": {
+          "exclusiveMinimum": 0,
+          "title": "Test Sessions",
+          "type": "integer"
+        },
+        "test_start": {
+          "format": "date",
+          "title": "Test Start",
+          "type": "string"
+        },
+        "train_end": {
+          "format": "date",
+          "title": "Train End",
+          "type": "string"
+        },
+        "train_sessions": {
+          "exclusiveMinimum": 0,
+          "title": "Train Sessions",
+          "type": "integer"
+        },
+        "train_start": {
+          "format": "date",
+          "title": "Train Start",
+          "type": "string"
+        },
+        "validation_end": {
+          "format": "date",
+          "title": "Validation End",
+          "type": "string"
+        },
+        "validation_sessions": {
+          "exclusiveMinimum": 0,
+          "title": "Validation Sessions",
+          "type": "integer"
+        },
+        "validation_start": {
+          "format": "date",
+          "title": "Validation Start",
+          "type": "string"
+        }
+      },
+      "required": [
+        "train_start",
+        "train_end",
+        "train_sessions",
+        "validation_start",
+        "validation_end",
+        "validation_sessions",
+        "test_start",
+        "test_end",
+        "test_sessions",
+        "embargo_sessions"
+      ],
+      "title": "SplitSummary",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Artifact Sha256",
+      "type": "string"
+    },
+    "availability_cutoff": {
+      "format": "date-time",
+      "title": "Availability Cutoff",
+      "type": "string"
+    },
+    "caveat_codes": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Caveat Codes",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "1.0.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "dataset_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Dataset Sha256",
+      "type": "string"
+    },
+    "direction_model_version": {
+      "title": "Direction Model Version",
+      "type": "string"
+    },
+    "feature_version": {
+      "title": "Feature Version",
+      "type": "string"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "interval_status": {
+      "const": "EXPLORATORY_VALIDATION_RESIDUAL_INTERVAL",
+      "title": "Interval Status",
+      "type": "string"
+    },
+    "probability_status": {
+      "const": "RAW_EXPERIMENTAL_PROBABILITY",
+      "title": "Probability Status",
+      "type": "string"
+    },
+    "quality": {
+      "$ref": "#/$defs/QualitySummary"
+    },
+    "return_model_version": {
+      "title": "Return Model Version",
+      "type": "string"
+    },
+    "session_index": {
+      "$ref": "#/$defs/ArtifactReference"
+    },
+    "source_cutoff": {
+      "format": "date-time",
+      "title": "Source Cutoff",
+      "type": "string"
+    },
+    "split": {
+      "$ref": "#/$defs/SplitSummary"
+    },
+    "status": {
+      "enum": [
+        "HISTORICAL_OOS",
+        "UI_FIXTURE"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "symbol": {
+      "const": "SPY",
+      "title": "Symbol",
+      "type": "string"
+    }
+  },
+  "required": [
+    "contract_version",
+    "status",
+    "symbol",
+    "generated_at",
+    "dataset_sha256",
+    "artifact_sha256",
+    "source_cutoff",
+    "availability_cutoff",
+    "feature_version",
+    "direction_model_version",
+    "return_model_version",
+    "split",
+    "quality",
+    "session_index",
+    "probability_status",
+    "interval_status",
+    "caveat_codes"
+  ],
+  "title": "Manifest",
+  "type": "object"
+}

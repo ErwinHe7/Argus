@@ -1,0 +1,64 @@
+{
+  "$defs": {
+    "SessionIndexEntry": {
+      "additionalProperties": false,
+      "properties": {
+        "date": {
+          "format": "date",
+          "title": "Date",
+          "type": "string"
+        },
+        "path": {
+          "pattern": "^sessions/\\d{4}-\\d{2}-\\d{2}\\.json$",
+          "title": "Path",
+          "type": "string"
+        },
+        "rows": {
+          "exclusiveMinimum": 0,
+          "title": "Rows",
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "date",
+        "path",
+        "sha256",
+        "rows"
+      ],
+      "title": "SessionIndexEntry",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Artifact Sha256",
+      "type": "string"
+    },
+    "contract_version": {
+      "const": "1.0.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "sessions": {
+      "items": {
+        "$ref": "#/$defs/SessionIndexEntry"
+      },
+      "title": "Sessions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "contract_version",
+    "artifact_sha256",
+    "sessions"
+  ],
+  "title": "SessionIndexArtifact",
+  "type": "object"
+}
