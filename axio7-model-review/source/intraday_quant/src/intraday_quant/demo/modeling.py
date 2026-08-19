@@ -187,12 +187,12 @@ def predict_examples(
     interval_high = close * (1.0 + expected_return + interval.upper_return)
     if not np.isfinite(interval_low).all() or not np.isfinite(interval_high).all():
         raise ValueError("forecast prices must be finite")
+    if interval.lower_return > interval.upper_return:
+        raise ValueError("validation residual interval bounds must be ordered")
     if not (scenario_price > 0.0).all() or not (interval_low > 0.0).all() or not (
         interval_high > 0.0
     ).all():
         raise ValueError("forecast prices must be positive")
-    if not ((interval_low <= scenario_price) & (scenario_price <= interval_high)).all():
-        raise ValueError("validation residual interval must contain scenario prices")
 
     outcome_close = close * (1.0 + target_return)
     result = frame.copy()

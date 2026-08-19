@@ -7,6 +7,7 @@ from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_er
 
 from intraday_quant.demo.features import FEATURE_COLUMNS
 from intraday_quant.demo.modeling import (
+    ValidationResidualInterval,
     fit_models,
     fit_residual_interval,
     predict_examples,
@@ -85,6 +86,45 @@ def test_residual_interval_uses_only_validation_return_errors(
     assert interval.lower_quantile == 0.10
     assert interval.upper_quantile == 0.90
     assert interval.validation_examples == len(validation_examples)
+
+
+def test_one_sided_validation_residual_interval_remains_unclamped(
+    train_examples: pd.DataFrame, validation_examples: pd.DataFrame
+) -> None:
+    """Fails if one-sided validation residual quantiles reject or alter predictions."""
+    bundle = fit_models(train_examples)
+    one_sided_validation = validation_examples.copy()
+    predicted_return = bundle.return_model.predict(
+        one_sided_validation.loc[:, FEATURE_COLUMNS]
+    )
+    residuals = np.linspace(0.0001, 0.0012, len(one_sided_validation))
+    one_sided_validation["target_return"] = predicted_return + residuals
+    one_sided_validation["target_up"] = (one_sided_validation.target_return > 0.0).astype(int)
+
+    interval = fit_residual_interval(bundle, one_sided_validation)
+    predictions = predict_examples(bundle, one_sided_validation, interval)
+
+    assert interval.lower_return == pytest.approx(np.quantile(residuals, 0.10))
+    assert interval.upper_return == pytest.approx(np.quantile(residuals, 0.90))
+    assert interval.lower_return > 0.0
+    assert (predictions.scenario_price < predictions.interval_low).all()
+
+
+def test_reversed_validation_residual_interval_is_rejected(
+    train_examples: pd.DataFrame, validation_examples: pd.DataFrame
+) -> None:
+    """Fails if modeling can emit a forecast whose interval bounds are reversed."""
+    bundle = fit_models(train_examples)
+    reversed_interval = ValidationResidualInterval(
+        lower_return=0.001,
+        upper_return=-0.001,
+        lower_quantile=0.10,
+        upper_quantile=0.90,
+        validation_examples=len(validation_examples),
+    )
+
+    with pytest.raises(ValueError, match="ordered"):
+        predict_examples(bundle, validation_examples, reversed_interval)
 
 
 def test_prediction_fields_are_precomputed(

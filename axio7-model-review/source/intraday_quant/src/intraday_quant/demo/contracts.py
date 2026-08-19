@@ -33,9 +33,9 @@ class Forecast(StrictModel):
     direction: Direction
 
     @model_validator(mode="after")
-    def contains_scenario_price(self) -> Self:
-        if not self.interval_low <= self.scenario_price <= self.interval_high:
-            raise ValueError("forecast interval must contain scenario_price")
+    def has_ordered_interval_bounds(self) -> Self:
+        if self.interval_low > self.interval_high:
+            raise ValueError("forecast interval_low must not exceed interval_high")
         return self
 
 

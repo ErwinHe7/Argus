@@ -168,9 +168,22 @@ def test_schema_export_is_complete(tmp_path: Path) -> None:
     assert all(path.read_text(encoding="utf-8").endswith("\n") for path in paths)
 
 
-def test_forecast_interval_must_contain_scenario_price() -> None:
+def test_forecast_accepts_one_sided_interval_outside_scenario_price() -> None:
+    """Fails if exploratory residual intervals are treated as scenario containment bounds."""
     payload = _session_payload()
     payload["rows"][0]["forecast"]["scenario_price"] = 603.0  # type: ignore[index]
+
+    artifact = SessionArtifact.model_validate(payload)
+
+    assert artifact.rows[0].forecast.scenario_price == 603.0
+
+
+def test_forecast_rejects_reversed_interval_bounds() -> None:
+    """Fails if the forecast contract stops enforcing an ordered interval."""
+    payload = _session_payload()
+    payload["rows"][0]["forecast"]["interval_low"] = 602.0  # type: ignore[index]
+    payload["rows"][0]["forecast"]["interval_high"] = 600.5  # type: ignore[index]
+
     with pytest.raises(ValidationError, match="interval"):
         SessionArtifact.model_validate(payload)
 
