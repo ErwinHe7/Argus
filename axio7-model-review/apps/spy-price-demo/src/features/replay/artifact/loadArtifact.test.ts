@@ -3,6 +3,7 @@ import fixtureSession from "../../../../public/fixtures/spy-demo/sessions/2026-0
 import fixtureSessionIndex from "../../../../public/fixtures/spy-demo/sessions/index.json";
 import { ArtifactError } from "./ArtifactError";
 import {
+  createReplayLoaders,
   loadManifest,
   loadSession,
   loadSessionIndex,
@@ -84,10 +85,16 @@ describe("artifact loaders", () => {
   });
 
   it("maps a missing session response to MISSING_SESSION", async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({}, 404));
+    const loaders = createReplayLoaders("/generated");
+    fetchMock
+      .mockResolvedValueOnce(fixtureFileResponse(fixtureSessionIndex))
+      .mockResolvedValueOnce(jsonResponse({}, 404));
+    const index = await loaders.loadSessionIndex(
+      validateManifest(fixtureManifest),
+    );
 
     const error = await captureArtifactError(() =>
-      loadSession(fixtureSessionIndex.sessions[0]!),
+      loaders.loadSession(index.sessions[0]!),
     );
 
     expect(error.code).toBe("MISSING_SESSION");
@@ -133,15 +140,66 @@ describe("artifact loaders", () => {
   });
 
   it("rejects session bytes that do not match the validated index entry", async () => {
-    fetchMock.mockResolvedValueOnce(
-      new Response(`${jsonBody(fixtureSession)}\n `),
+    const loaders = createReplayLoaders("/generated");
+    fetchMock
+      .mockResolvedValueOnce(fixtureFileResponse(fixtureSessionIndex))
+      .mockResolvedValueOnce(
+        new Response(`${jsonBody(fixtureSession)}\n `),
+      );
+    const index = await loaders.loadSessionIndex(
+      validateManifest(fixtureManifest),
     );
 
     const error = await captureArtifactError(() =>
-      loadSession(fixtureSessionIndex.sessions[0]!),
+      loaders.loadSession(index.sessions[0]!),
     );
 
     expect(error.code).toBe("HASH_MISMATCH");
+  });
+
+  it("rejects an unassociated structural entry before fetching", async () => {
+    const loaders = createReplayLoaders("/generated");
+    const entry = { ...fixtureSessionIndex.sessions[0]! };
+
+    const error = await captureArtifactError(() =>
+      loaders.loadSession(entry),
+    );
+
+    expect(error.code).toBe("HASH_MISMATCH");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects a clone of an authenticated entry before fetching", async () => {
+    const loaders = createReplayLoaders("/generated");
+    fetchMock.mockResolvedValueOnce(fixtureFileResponse(fixtureSessionIndex));
+    const index = await loaders.loadSessionIndex(
+      validateManifest(fixtureManifest),
+    );
+    fetchMock.mockClear();
+
+    const error = await captureArtifactError(() =>
+      loaders.loadSession({ ...index.sessions[0]! }),
+    );
+
+    expect(error.code).toBe("HASH_MISMATCH");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps authenticated entries isolated between loader instances", async () => {
+    const loaderA = createReplayLoaders("/generated-a");
+    const loaderB = createReplayLoaders("/generated-b");
+    fetchMock.mockResolvedValueOnce(fixtureFileResponse(fixtureSessionIndex));
+    const index = await loaderA.loadSessionIndex(
+      validateManifest(fixtureManifest),
+    );
+    fetchMock.mockClear();
+
+    const error = await captureArtifactError(() =>
+      loaderB.loadSession(index.sessions[0]!),
+    );
+
+    expect(error.code).toBe("HASH_MISMATCH");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("rejects an index artifact identifier that differs from its manifest", async () => {
