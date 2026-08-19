@@ -4,8 +4,10 @@ import hashlib
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+import pandas as pd
 
 from intraday_quant.demo.artifacts import build_bundle, content_hash, write_fixture
 from intraday_quant.demo.contracts import (
@@ -64,6 +66,69 @@ def test_cli_fails_closed_for_missing_input(tmp_path: Path) -> None:
     assert result.returncode != 0
     assert "does not exist" in result.stderr
     assert not (tmp_path / "out" / "manifest.json").exists()
+
+
+def test_cli_missing_input_invalidates_reused_manifest_without_touching_siblings(
+    tmp_path: Path,
+) -> None:
+    """Fails if a rejected rebuild leaves stale published state or escapes its output."""
+    output = tmp_path / "owned-output"
+    output.mkdir()
+    manifest_path = output / "manifest.json"
+    manifest_path.write_text('{"stale":true}\n', encoding="utf-8")
+    sibling = tmp_path / "outside-output.txt"
+    sibling.write_text("preserve me\n", encoding="utf-8")
+
+    result = run_cli(
+        "build",
+        "--input",
+        str(tmp_path / "missing.parquet"),
+        "--output",
+        str(output),
+    )
+
+    assert result.returncode != 0
+    assert "does not exist" in result.stderr
+    assert not manifest_path.exists()
+    assert sibling.read_text(encoding="utf-8") == "preserve me\n"
+
+
+def test_partial_session_cutoffs_use_last_actual_observation(
+    tmp_path: Path, sample_parquet: Path
+) -> None:
+    """Fails if reindexed trailing gaps overstate manifest or session provenance."""
+    source = pd.read_parquet(sample_parquet)
+    source["timestamp"] = pd.to_datetime(source["timestamp"], utc=True)
+    last_session_date = source["timestamp"].dt.tz_convert("America/New_York").dt.date.max()
+    in_last_session = (
+        source["timestamp"].dt.tz_convert("America/New_York").dt.date
+        == last_session_date
+    )
+    last_observation = source.loc[in_last_session, "timestamp"].sort_values().iloc[100]
+    partial = source.loc[~in_last_session | source["timestamp"].le(last_observation)]
+    partial_path = tmp_path / "partial-final-session.parquet"
+    partial.to_parquet(partial_path, index=False)
+
+    output = tmp_path / "bundle"
+    manifest = build_bundle(
+        partial_path,
+        output,
+        datetime(2026, 8, 19, 12, tzinfo=timezone.utc),
+    )
+    index = SessionIndexArtifact.model_validate_json(
+        (output / "sessions" / "index.json").read_bytes()
+    )
+    final_entry = next(entry for entry in index.sessions if entry.date == last_session_date)
+    session = SessionArtifact.model_validate_json((output / final_entry.path).read_bytes())
+
+    expected_cutoff = last_observation.to_pydatetime()
+    expected_availability = expected_cutoff + timedelta(minutes=1)
+    assert session.bars[-1].timestamp > expected_cutoff
+    assert "UNRESOLVED_GAP" in session.bars[-1].quality_flags
+    assert manifest.source_cutoff == expected_cutoff
+    assert manifest.availability_cutoff == expected_availability
+    assert session.provenance.source_cutoff == expected_cutoff
+    assert session.provenance.availability_cutoff == expected_availability
 
 
 def test_manifest_hashes_the_written_index_and_index_hashes_each_session(

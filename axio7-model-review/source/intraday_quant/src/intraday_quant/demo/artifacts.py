@@ -464,7 +464,13 @@ def _session_artifact(
         else "COMPLETE"
     )
     caveats = _FIXTURE_CAVEATS if status == "UI_FIXTURE" else _HISTORICAL_CAVEATS
-    source_cutoff = bars[-1].timestamp
+    actual_observations = session_bars.loc[
+        ~session_bars["is_causal_fill"] & ~session_bars["is_unresolved_gap"],
+        "timestamp",
+    ]
+    if actual_observations.empty:
+        raise ValueError("replay session has no validated source observations")
+    source_cutoff = _timestamp(actual_observations.max())
     return SessionArtifact(
         contract_version=CONTRACT_VERSION,
         status=status,
@@ -492,6 +498,7 @@ def _session_artifact(
 def _build_bundle(
     input_path: Path, output_dir: Path, generated_at: datetime
 ) -> BundleBuildResult:
+    (output_dir / "manifest.json").unlink(missing_ok=True)
     if not input_path.is_file():
         raise FileNotFoundError(f"SPY Parquet input does not exist: {input_path}")
 

@@ -43,7 +43,7 @@ _OUTPUT_COLUMNS = (
 
 @dataclass(frozen=True)
 class DatasetQualityReport:
-    """Explicit accounting for source-data rejections and synthetic gap rows."""
+    """Accounting for source rejections, gaps, and accepted-observation cutoffs."""
 
     source_rows: int
     normalized_rows: int
@@ -261,6 +261,8 @@ def normalize_spy_frame(
 
     duplicate_rows_removed = int(candidates.duplicated(subset="timestamp", keep="last").sum())
     candidates = candidates.drop_duplicates(subset="timestamp", keep="last")
+    first_timestamp = candidates["timestamp"].min() if not candidates.empty else None
+    last_timestamp = candidates["timestamp"].max() if not candidates.empty else None
     blocked_timestamps = set(invalid_in_session["official_timestamp"]).difference(
         candidates["timestamp"]
     )
@@ -285,8 +287,6 @@ def normalize_spy_frame(
         unresolved_gap_rows += gaps
 
     normalized = pd.concat(normalized_sessions, ignore_index=True)
-    first_timestamp = normalized["timestamp"].min() if not normalized.empty else None
-    last_timestamp = normalized["timestamp"].max() if not normalized.empty else None
     return normalized, DatasetQualityReport(
         source_rows=source_rows,
         normalized_rows=len(normalized),
