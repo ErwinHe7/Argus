@@ -4,6 +4,10 @@ This repository currently contains a focused, data-free AXIO7 model and
 real-time inference review snapshot. It is intended for an external engineer to
 inspect and modify from the populated default `main` branch.
 
+**English documentation starts at [`ENGLISH.md`](ENGLISH.md).** The historical
+`.zh-CN.md` filenames are retained so existing review links do not break, but
+their contents are now fully English.
+
 **Before anything else, read `HANDOFF.zh-CN.md`.** The snapshot that landed on
 `main` does not build: `.gitignore` directory-name rules silently excluded three
 source packages. The build is fixed, but the excluded implementations are still
@@ -22,7 +26,7 @@ implementation.
   `axio7-model-review/source/intraday_quant/`
 - C++20 native research source and tests:
   `axio7-model-review/source/quant_core_cpp/`
-- Chinese model/algorithm inventory, technical stack, evidence index, and
+- English model/algorithm inventory, technical stack, evidence index, and
   reviewer checklist:
   `axio7-model-review/review-package/`
 - Selected mathematical and production-contract references:
