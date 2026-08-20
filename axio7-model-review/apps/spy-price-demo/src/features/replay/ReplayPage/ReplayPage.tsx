@@ -253,6 +253,7 @@ function LoadedReplayPage({
     <section
       className={styles.frame}
       aria-label="SPY five-minute historical forecast replay"
+      data-theme={theme}
     >
       <header className={styles.header}>
         <h1 className={styles.symbol}>SPY</h1>
