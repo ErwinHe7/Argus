@@ -46,6 +46,14 @@ afterEach(() => {
 });
 
 describe("useReplayUrl", () => {
+  it("starts an unparameterized replay at the latest validated cutoff", () => {
+    setLocation("?session=2026-07-24");
+
+    render(<ReplayUrlHarness />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("2026-07-24:20");
+  });
+
   it("initializes from a valid session and cutoff query", () => {
     setLocation("?session=2026-07-24&cutoff=20");
 

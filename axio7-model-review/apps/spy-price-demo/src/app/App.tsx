@@ -1,5 +1,11 @@
 import type { JSX } from "react";
+import { ReplayPage } from "../features/replay/ReplayPage/ReplayPage";
+import type { ReplayLoaders } from "../features/replay/artifact/loadArtifact";
 
-export function App(): JSX.Element {
-  return <main aria-label="SPY five-minute replay">SPY</main>;
+interface AppProps {
+  loaders?: ReplayLoaders;
+}
+
+export function App({ loaders }: AppProps = {}): JSX.Element {
+  return loaders === undefined ? <ReplayPage /> : <ReplayPage loaders={loaders} />;
 }

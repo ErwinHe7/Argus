@@ -186,8 +186,8 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
       },
     },
     grid: [
-      { left: 58, right: 18, top: 34, height: "66%" },
-      { left: 58, right: 18, top: "81%", height: "11%" },
+      { left: 58, right: 18, top: 78, height: "64%" },
+      { left: 58, right: 18, top: "80%", height: "10%" },
     ],
     xAxis: [
       {
@@ -224,7 +224,7 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
         axisTick: { show: false },
         axisLabel: { color: input.theme.foreground, fontSize: 11 },
         splitLine: {
-          lineStyle: { color: input.theme.foreground, opacity: 0.18 },
+          lineStyle: { color: input.theme.foreground },
         },
       },
       {

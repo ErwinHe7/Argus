@@ -57,12 +57,15 @@ function stateFromSearch(
   const parameters = new URLSearchParams(search);
   const fallback = fallbackSession(sessions);
   const selected = findSession(sessions, parameters.get("session") ?? "") ?? fallback;
-  const cutoffIndex = parseCutoff(parameters.get("cutoff"));
+  const cutoffParameter = parameters.get("cutoff");
+  const cutoffIndex = parseCutoff(cutoffParameter);
 
   return {
     sessionDate: selected.date,
     cutoffIndex:
-      cutoffIndex !== undefined && isValidCutoff(cutoffIndex, selected)
+      cutoffParameter === null
+        ? selected.rows - 1
+        : cutoffIndex !== undefined && isValidCutoff(cutoffIndex, selected)
         ? cutoffIndex
         : 0,
     revealed: false,
@@ -101,6 +104,19 @@ export function useReplayUrl(sessionIndex: SessionIndexArtifact): ReplayUrlState
       dispatch({ type: "setCutoff", cutoffIndex: nextState.cutoffIndex });
     }
   }, [sessionKey]);
+
+  useEffect(() => {
+    const handlePopState = (): void => {
+      const nextState = stateFromSearch(sessions, window.location.search);
+      dispatch({ type: "setSession", sessionDate: nextState.sessionDate });
+      if (nextState.cutoffIndex !== 0) {
+        dispatch({ type: "setCutoff", cutoffIndex: nextState.cutoffIndex });
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [sessionKey, sessions]);
 
   useEffect(() => {
     replaceReplayUrl(state);
