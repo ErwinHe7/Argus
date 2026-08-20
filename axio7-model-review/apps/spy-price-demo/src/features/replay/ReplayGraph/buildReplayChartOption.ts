@@ -1,5 +1,6 @@
 import type { CustomSeriesRenderItem, EChartsOption } from "echarts";
 import type { ChartBar } from "../artifact/generated/contracts";
+import { formatEasternTime } from "../formatters";
 import { formatTooltip } from "./formatTooltip";
 import type { ChartTheme, ReplayChartInput } from "./types";
 
@@ -110,16 +111,17 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
     },
   };
 
-  const lastVisibleIndex = input.row.bar_index + (input.revealed ? 5 : 0);
-  const outcomeIndex = input.row.bar_index + 5;
-  const labels = input.session.bars.map((bar) => bar.timestamp);
-  const candles = input.session.bars.map((bar, index) => {
+  const outcomeIndex = input.row.outcome.bar_index;
+  const lastVisibleIndex = input.revealed ? outcomeIndex : input.row.bar_index;
+  const chartBars = input.session.bars.slice(0, outcomeIndex + 1);
+  const labels = chartBars.map((bar) => bar.timestamp);
+  const candles = chartBars.map((bar, index) => {
     return index <= lastVisibleIndex ? candleData(bar, input.theme) : "-";
   });
-  const volumes = input.session.bars.map((bar, index) => {
+  const volumes = chartBars.map((bar, index) => {
     return index <= lastVisibleIndex ? volumeData(bar, input.theme) : "-";
   });
-  const forecast = input.session.bars.map<number | null>(() => null);
+  const forecast = chartBars.map<number | null>(() => null);
   forecast[input.row.bar_index] = input.row.close;
   forecast[outcomeIndex] = input.row.forecast.scenario_price;
   const trendColor = forecastColor(input);
@@ -209,7 +211,7 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
         axisLabel: {
           color: input.theme.foreground,
           fontSize: 11,
-          formatter: (timestamp: string) => timestamp.slice(11, 16),
+          formatter: (timestamp: string) => formatEasternTime(timestamp),
         },
         splitLine: { show: false },
       },
@@ -242,6 +244,7 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
       trigger: "axis",
       triggerOn: "mousemove|click",
       confine: true,
+      enterable: true,
       renderMode: "html",
       transitionDuration: 0,
       displayTransition: false,
@@ -249,7 +252,8 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
       borderColor: input.theme.foreground,
       borderWidth: 1,
       padding: 0,
-      extraCssText: "box-shadow:none;border-radius:0;",
+      extraCssText:
+        "box-sizing:border-box;max-width:calc(100% - 8px);max-height:calc(100% - 8px);overflow:auto;overscroll-behavior:contain;white-space:normal;box-shadow:none;border-radius:0;",
       textStyle: { color: input.theme.foreground },
       axisPointer: {
         type: "cross",
@@ -273,6 +277,7 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
         name: "OHLC",
         type: "candlestick",
         data: candles,
+        emphasis: { disabled: true },
         markLine: {
           silent: true,
           symbol: ["none", "none"],
@@ -294,6 +299,7 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
         symbolSize: 8,
         lineStyle: { color: trendColor, width: 2, type: "dashed" },
         itemStyle: { color: trendColor },
+        emphasis: { disabled: true },
       },
       {
         name: "Interval",
@@ -308,6 +314,7 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
         renderItem: renderIntervalWhisker,
         encode: { x: 0, y: [1, 2] },
         tooltip: { show: false },
+        emphasis: { disabled: true },
       },
       {
         name: "Volume",
@@ -316,6 +323,7 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
         yAxisIndex: 1,
         data: volumes,
         barMaxWidth: 7,
+        emphasis: { disabled: true },
       },
     ],
   });

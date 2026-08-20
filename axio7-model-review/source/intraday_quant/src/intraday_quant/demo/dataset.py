@@ -80,8 +80,7 @@ def read_spy_parquet(path: Path) -> pd.DataFrame:
     missing = REQUIRED_COLUMNS.difference(frame.columns)
     if missing:
         raise ValueError(f"SPY Parquet input is missing columns: {sorted(missing)}")
-    if set(frame["symbol"].dropna().unique()) != {"SPY"}:
-        raise ValueError("SPY demo input must contain only symbol SPY")
+    _require_spy_identity(frame)
     frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
     return frame.sort_values("timestamp").reset_index(drop=True)
 
@@ -90,12 +89,19 @@ def _validate_frame(frame: pd.DataFrame) -> pd.DataFrame:
     missing = REQUIRED_COLUMNS.difference(frame.columns)
     if missing:
         raise ValueError(f"SPY input is missing columns: {sorted(missing)}")
-    if set(frame["symbol"].dropna().unique()) != {"SPY"}:
-        raise ValueError("SPY demo input must contain only symbol SPY")
+    _require_spy_identity(frame)
 
     validated = frame.copy()
     validated["timestamp"] = pd.to_datetime(validated["timestamp"], utc=True, errors="coerce")
     return validated.sort_values("timestamp", kind="stable").reset_index(drop=True)
+
+
+def _require_spy_identity(frame: pd.DataFrame) -> None:
+    every_row_is_spy = frame["symbol"].map(
+        lambda value: isinstance(value, str) and value == "SPY"
+    )
+    if not bool(every_row_is_spy.all()):
+        raise ValueError("SPY demo input requires every row to contain only symbol SPY")
 
 
 def _valid_ohlcv_rows(frame: pd.DataFrame) -> pd.Series:
@@ -103,13 +109,27 @@ def _valid_ohlcv_rows(frame: pd.DataFrame) -> pd.Series:
     finite = np.isfinite(numeric.to_numpy(dtype=float)).all(axis=1)
     positive_prices = (numeric.loc[:, ["open", "high", "low", "close"]] > 0.0).all(axis=1)
     non_negative_volume = numeric["volume"] >= 0.0
+    integral_volume = numeric["volume"] == np.floor(numeric["volume"])
     consistent_ohlc = (numeric["low"] <= numeric[["open", "close"]].min(axis=1)) & (
         numeric["high"] >= numeric[["open", "close"]].max(axis=1)
     )
     return pd.Series(
-        finite & positive_prices & non_negative_volume & consistent_ohlc,
+        finite
+        & positive_prices
+        & non_negative_volume
+        & integral_volume
+        & consistent_ohlc,
         index=frame.index,
         dtype=bool,
+    )
+
+
+def _valid_metadata_rows(frame: pd.DataFrame) -> pd.Series:
+    def is_nonempty_string(value: object) -> bool:
+        return isinstance(value, str) and bool(value.strip())
+
+    return frame["source"].map(is_nonempty_string) & frame["data_quality"].map(
+        is_nonempty_string
     )
 
 
@@ -189,7 +209,7 @@ def _reindex_session(
             normalized.loc[gap_rows, "is_unresolved_gap"] = True
             unresolved_gaps += gap_length
 
-    normalized["symbol"] = normalized["symbol"].fillna("SPY")
+    normalized["symbol"] = "SPY"
     return normalized.loc[:, _OUTPUT_COLUMNS], causal_fills, unresolved_gaps
 
 
@@ -204,7 +224,7 @@ def normalize_spy_frame(
     validated = _validate_frame(frame)
     timestamps = validated["timestamp"]
     valid_timestamps = timestamps.notna()
-    invalid_ohlcv = _valid_ohlcv_rows(validated)
+    valid_observations = _valid_ohlcv_rows(validated) & _valid_metadata_rows(validated)
     timestamped = validated.loc[valid_timestamps].copy()
 
     if timestamped.empty:
@@ -250,7 +270,7 @@ def normalize_spy_frame(
     )
     on_minute_grid = timestamped["timestamp"] == timestamped["official_timestamp"]
     row_invalid = (
-        ~invalid_ohlcv.loc[timestamped.index]
+        ~valid_observations.loc[timestamped.index]
         | ~on_minute_grid
         | before_open_or_non_session
     )

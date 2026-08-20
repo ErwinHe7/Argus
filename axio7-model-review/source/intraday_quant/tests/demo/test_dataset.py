@@ -61,6 +61,63 @@ def test_read_spy_parquet_rejects_non_spy_symbol(tmp_path: Path) -> None:
         read_spy_parquet(path)
 
 
+def test_mixed_spy_and_null_symbols_are_rejected_instead_of_repaired() -> None:
+    """Fails if a missing row identity can be rewritten as SPY during reindexing."""
+    frame = bars_for("2026-01-05", periods=2)
+    frame.loc[1, "symbol"] = None
+
+    with pytest.raises(ValueError, match="every row.*symbol SPY"):
+        normalize_spy_frame(frame)
+
+
+@pytest.mark.parametrize(
+    ("column", "invalid_value"),
+    [
+        ("source", None),
+        ("source", ""),
+        ("source", "   "),
+        ("source", 7),
+        ("data_quality", None),
+        ("data_quality", ""),
+        ("data_quality", "   "),
+        ("data_quality", 7),
+    ],
+)
+def test_invalid_source_metadata_marks_the_minute_unresolved(
+    column: str, invalid_value: object
+) -> None:
+    """Fails if source identity or quality metadata is accepted without a real string."""
+    frame = bars_for("2026-01-05", periods=3)
+    frame[column] = frame[column].astype(object)
+    frame.loc[1, column] = invalid_value
+
+    normalized, report = normalize_spy_frame(frame, max_fill_minutes=2)
+
+    rejected = normalized.loc[normalized.minute_of_session == 1].iloc[0]
+    assert bool(rejected.is_unresolved_gap)
+    assert not bool(rejected.is_causal_fill)
+    assert pd.isna(rejected.close)
+    assert report.invalid_rows == 1
+
+
+@pytest.mark.parametrize("invalid_volume", [100.5, -1])
+def test_fractional_or_negative_volume_marks_the_minute_unresolved(
+    invalid_volume: float,
+) -> None:
+    """Fails if volume can be truncated or otherwise repaired into an integer."""
+    frame = bars_for("2026-01-05", periods=3)
+    frame["volume"] = frame["volume"].astype(float)
+    frame.loc[1, "volume"] = invalid_volume
+
+    normalized, report = normalize_spy_frame(frame, max_fill_minutes=2)
+
+    rejected = normalized.loc[normalized.minute_of_session == 1].iloc[0]
+    assert bool(rejected.is_unresolved_gap)
+    assert not bool(rejected.is_causal_fill)
+    assert pd.isna(rejected.volume)
+    assert report.invalid_rows == 1
+
+
 def test_read_spy_parquet_rejects_missing_required_column(tmp_path: Path) -> None:
     path = tmp_path / "missing-column.parquet"
     bars_for("2026-01-05", periods=1).drop(columns="source").to_parquet(path, index=False)

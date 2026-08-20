@@ -3,7 +3,14 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
-from sklearn.metrics import accuracy_score, mean_absolute_error, mean_squared_error
+from sklearn.metrics import (
+    accuracy_score,
+    brier_score_loss,
+    log_loss,
+    mean_absolute_error,
+    mean_squared_error,
+    roc_auc_score,
+)
 
 from intraday_quant.demo.features import FEATURE_COLUMNS
 from intraday_quant.demo.modeling import (
@@ -161,28 +168,87 @@ def test_metrics_include_approved_baselines_and_no_trading_metrics(
     predictions = predict_examples(bundle, validation_examples, interval)
 
     metrics = evaluate_predictions(predictions, bundle.training_up_rate)
-    majority_class = int(bundle.training_up_rate >= 0.5)
-    expected_accuracy_baseline = accuracy_score(
-        predictions.target_up, np.full(len(predictions), majority_class)
-    )
-    expected_zero_return_mae = mean_absolute_error(
-        predictions.target_return, np.zeros(len(predictions))
-    )
-    expected_momentum_rmse = np.sqrt(
-        mean_squared_error(predictions.target_return, predictions.ret_5m)
+    target_up = predictions.target_up.to_numpy()
+    probability_up = predictions.probability_up.to_numpy()
+    baseline_probability = np.full(len(predictions), bundle.training_up_rate)
+    majority_class = np.full(len(predictions), int(bundle.training_up_rate >= 0.5))
+    safe = np.clip(probability_up, np.finfo(float).eps, 1.0 - np.finfo(float).eps)
+    safe_baseline = np.clip(
+        baseline_probability,
+        np.finfo(float).eps,
+        1.0 - np.finfo(float).eps,
     )
 
-    assert metrics["direction_accuracy_baseline"] == pytest.approx(expected_accuracy_baseline)
-    assert metrics["return_mae_zero_return_baseline"] == pytest.approx(expected_zero_return_mae)
-    assert metrics["return_rmse_momentum_baseline"] == pytest.approx(expected_momentum_rmse)
+    def equal_count_ece(probabilities: np.ndarray) -> float:
+        order = np.argsort(probabilities, kind="stable")
+        return float(
+            sum(
+                (len(indices) / len(order))
+                * abs(probabilities[indices].mean() - target_up[indices].mean())
+                for indices in np.array_split(order, min(10, len(order)))
+                if len(indices) > 0
+            )
+        )
+
+    direction_cases = {
+        "roc_auc": (
+            roc_auc_score(target_up, probability_up),
+            roc_auc_score(target_up, baseline_probability),
+        ),
+        "brier_score": (
+            brier_score_loss(target_up, probability_up),
+            brier_score_loss(target_up, baseline_probability),
+        ),
+        "log_loss": (
+            log_loss(target_up, safe, labels=(0, 1)),
+            log_loss(target_up, safe_baseline, labels=(0, 1)),
+        ),
+        "calibration_error": (
+            equal_count_ece(probability_up),
+            equal_count_ece(baseline_probability),
+        ),
+        "accuracy": (
+            accuracy_score(target_up, probability_up >= 0.5),
+            accuracy_score(target_up, majority_class),
+        ),
+    }
+    for name, (value, baseline) in direction_cases.items():
+        assert metrics[f"direction_{name}"] == pytest.approx(value)
+        assert metrics[f"direction_{name}_baseline"] == pytest.approx(baseline)
+        assert metrics[f"direction_{name}_delta"] == pytest.approx(value - baseline)
+
+    target_return = predictions.target_return.to_numpy()
+    expected_return = predictions.expected_return_bps.to_numpy() / 10_000.0
+    zero_return = np.zeros(len(predictions))
+    momentum = predictions.ret_5m.to_numpy()
+    return_cases = {
+        "mae": (
+            mean_absolute_error(target_return, expected_return),
+            mean_absolute_error(target_return, zero_return),
+            mean_absolute_error(target_return, momentum),
+        ),
+        "rmse": (
+            np.sqrt(mean_squared_error(target_return, expected_return)),
+            np.sqrt(mean_squared_error(target_return, zero_return)),
+            np.sqrt(mean_squared_error(target_return, momentum)),
+        ),
+    }
+    for name, (value, zero_baseline, momentum_baseline) in return_cases.items():
+        assert metrics[f"return_{name}"] == pytest.approx(value)
+        assert metrics[f"return_{name}_zero_return_baseline"] == pytest.approx(
+            zero_baseline
+        )
+        assert metrics[f"return_{name}_zero_return_delta"] == pytest.approx(
+            value - zero_baseline
+        )
+        assert metrics[f"return_{name}_momentum_baseline"] == pytest.approx(
+            momentum_baseline
+        )
+        assert metrics[f"return_{name}_momentum_delta"] == pytest.approx(
+            value - momentum_baseline
+        )
+
     assert metrics["direction_coverage_count"] == float(len(predictions))
     assert metrics["return_coverage_count"] == float(len(predictions))
-    for key in (
-        "direction_roc_auc",
-        "direction_brier_score",
-        "direction_log_loss",
-        "return_mae",
-        "return_rmse",
-    ):
-        assert np.isfinite(metrics[key])
+    assert all(np.isfinite(value) for value in metrics.values())
     assert all("pnl" not in key.lower() and "sharpe" not in key.lower() for key in metrics)

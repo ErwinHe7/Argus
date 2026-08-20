@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 ContractVersion = Literal["1.0.0"]
 ProbabilityStatus = Literal["RAW_EXPERIMENTAL_PROBABILITY"]
@@ -40,24 +40,29 @@ class Forecast(StrictModel):
 
 
 class Outcome(StrictModel):
-    timestamp: datetime
+    bar_index: int = Field(ge=0)
+    timestamp: AwareDatetime
+    available_at: AwareDatetime
     close: float = Field(gt=0.0)
     return_bps: float
 
 
 class ChartBar(StrictModel):
-    timestamp: datetime
-    available_at: datetime
-    open: float | None
-    high: float | None
-    low: float | None
-    close: float | None
-    volume: int | None
+    timestamp: AwareDatetime
+    available_at: AwareDatetime
+    open: float | None = Field(gt=0.0)
+    high: float | None = Field(gt=0.0)
+    low: float | None = Field(gt=0.0)
+    close: float | None = Field(gt=0.0)
+    volume: int | None = Field(ge=0)
     direction: Direction
     quality_flags: tuple[str, ...]
 
     @model_validator(mode="after")
     def validates_ohlcv(self) -> Self:
+        if self.available_at != self.timestamp + timedelta(minutes=1):
+            raise ValueError("chart bars must become available exactly one minute after bar start")
+
         ohlcv = (self.open, self.high, self.low, self.close, self.volume)
         if any(value is None for value in ohlcv):
             if "UNRESOLVED_GAP" not in self.quality_flags:
@@ -86,8 +91,8 @@ class ChartBar(StrictModel):
 
 class ReplayRow(StrictModel):
     bar_index: int = Field(ge=0)
-    timestamp: datetime
-    available_at: datetime
+    timestamp: AwareDatetime
+    available_at: AwareDatetime
     open: float = Field(gt=0.0)
     high: float = Field(gt=0.0)
     low: float = Field(gt=0.0)
@@ -109,8 +114,8 @@ class SessionProvenance(StrictModel):
     dataset: str
     dataset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    source_cutoff: datetime
-    availability_cutoff: datetime
+    source_cutoff: AwareDatetime
+    availability_cutoff: AwareDatetime
     calendar_version: str
     feature_version: str
     direction_model_version: str
@@ -132,6 +137,11 @@ class SessionArtifact(StrictModel):
     def validates_replay_alignment(self) -> Self:
         if any(left.timestamp >= right.timestamp for left, right in zip(self.bars, self.bars[1:])):
             raise ValueError("chart bars must be sorted by timestamp")
+        if any(
+            right.timestamp != left.timestamp + timedelta(minutes=1)
+            for left, right in zip(self.bars, self.bars[1:])
+        ):
+            raise ValueError("chart bars must represent contiguous chart minutes")
         if any(left.timestamp >= right.timestamp for left, right in zip(self.rows, self.rows[1:])):
             raise ValueError("replay rows must be sorted by timestamp")
         if any(left.bar_index >= right.bar_index for left, right in zip(self.rows, self.rows[1:])):
@@ -153,8 +163,20 @@ class SessionArtifact(StrictModel):
                 or row.volume != bar.volume
             ):
                 raise ValueError("replay row must match its complete chart bar")
-            if row.outcome.timestamp != row.timestamp + timedelta(minutes=5):
+            expected_outcome_index = row.bar_index + 5
+            if row.outcome.bar_index != expected_outcome_index:
                 raise ValueError("replay outcome timestamp must be exactly five chart minutes later")
+            if expected_outcome_index >= len(self.bars):
+                raise ValueError("replay outcome must point to a complete future chart bar")
+            outcome_bar = self.bars[expected_outcome_index]
+            if not outcome_bar.is_complete:
+                raise ValueError("replay outcome must point to a complete future chart bar")
+            if row.outcome.timestamp != outcome_bar.timestamp:
+                raise ValueError("replay outcome timestamp must be exactly five chart minutes later")
+            if row.outcome.available_at != outcome_bar.available_at:
+                raise ValueError("replay outcome availability must match its future chart bar")
+            if row.outcome.close != outcome_bar.close:
+                raise ValueError("replay outcome close must match its future chart bar")
         return self
 
 
@@ -215,11 +237,11 @@ class Manifest(StrictModel):
     contract_version: ContractVersion
     status: BundleStatus
     symbol: Literal["SPY"]
-    generated_at: datetime
+    generated_at: AwareDatetime
     dataset_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     artifact_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
-    source_cutoff: datetime
-    availability_cutoff: datetime
+    source_cutoff: AwareDatetime
+    availability_cutoff: AwareDatetime
     feature_version: str
     direction_model_version: str
     return_model_version: str

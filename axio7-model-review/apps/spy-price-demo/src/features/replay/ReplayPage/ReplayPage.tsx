@@ -2,6 +2,11 @@ import { useEffect, useMemo, useRef, useState, type JSX } from "react";
 import { ArtifactFailure } from "../../../app/ArtifactFailure";
 import { ThemeToggle } from "../../theme/ThemeToggle/ThemeToggle";
 import { useTheme } from "../../theme/ThemeToggle/useTheme";
+import {
+  formatEasternTimestamp,
+  formatProbability,
+  formatSignedBasisPoints,
+} from "../formatters";
 import { OutcomeReveal } from "../OutcomeReveal/OutcomeReveal";
 import { ReplayControls } from "../ReplayControls/ReplayControls";
 import { ReplayGraph } from "../ReplayGraph/ReplayGraph";
@@ -92,14 +97,6 @@ function formatDate(date: string): string {
     : date;
 }
 
-function formatTime(timestamp: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/New_York",
-  }).format(new Date(timestamp));
-}
-
 function qualitySummary(row: ReplayRow): string {
   return row.quality_flags.length === 0
     ? "complete"
@@ -107,13 +104,13 @@ function qualitySummary(row: ReplayRow): string {
 }
 
 function accessibleSummary(session: SessionArtifact, row: ReplayRow): string {
-  return `SPY candlestick and volume graph for ${formatDate(session.session_date)} at ${formatTime(row.timestamp)} ET. Forecast ${row.forecast.direction}; quality ${qualitySummary(row)}.`;
+  return `SPY candlestick and volume graph for ${formatDate(session.session_date)}, observed through ${formatEasternTimestamp(row.available_at)}. Forecast ${row.forecast.direction}; quality ${qualitySummary(row)}.`;
 }
 
 function liveSummary(row: ReplayRow, revealed: boolean): string {
-  const selected = `Selected cutoff ${formatTime(row.timestamp)} ET. Forecast ${row.forecast.direction}, probability up ${row.forecast.probability_up}, expected return ${row.forecast.expected_return_bps} basis points. Quality ${qualitySummary(row)}.`;
+  const selected = `Selected observation cutoff ${formatEasternTimestamp(row.available_at)}. Forecast ${row.forecast.direction}, probability up ${formatProbability(row.forecast.probability_up)}, expected return ${formatSignedBasisPoints(row.forecast.expected_return_bps)}. Quality ${qualitySummary(row)}.`;
   return revealed
-    ? `${selected} Realized +5 minute return ${row.outcome.return_bps} basis points.`
+    ? `${selected} Realized +5 minute return ${formatSignedBasisPoints(row.outcome.return_bps)}, available ${formatEasternTimestamp(row.outcome.available_at)}.`
     : selected;
 }
 
@@ -276,7 +273,7 @@ function LoadedReplayPage({
       <div className={styles.controls}>
         <ReplayControls
           cutoffIndex={cutoffIndex}
-          cutoffLabel={`Cutoff ${formatTime(row.timestamp)} ET`}
+          cutoffLabel={`Observed through ${formatEasternTimestamp(row.available_at)}`}
           maximumCutoff={maximumCutoff}
           setCutoff={setCutoff}
         />

@@ -25,13 +25,19 @@ const sessionIndex: SessionIndexArtifact = {
 };
 
 function ReplayUrlHarness(): JSX.Element {
-  const { state, setCutoff } = useReplayUrl(sessionIndex);
+  const { state, setCutoff, setSession } = useReplayUrl(sessionIndex);
 
   return (
     <>
       <output>{`${state.sessionDate}:${state.cutoffIndex}`}</output>
       <button type="button" onClick={() => setCutoff(19)}>
         Set cutoff
+      </button>
+      <button type="button" onClick={() => setCutoff(99)}>
+        Set invalid cutoff
+      </button>
+      <button type="button" onClick={() => setSession("not-a-session")}>
+        Set invalid session
       </button>
     </>
   );
@@ -78,5 +84,17 @@ describe("useReplayUrl", () => {
     await user.click(screen.getByRole("button", { name: "Set cutoff" }));
 
     expect(window.location.search).toBe("?session=2026-07-24&cutoff=19");
+  });
+
+  it("ignores invalid setter values without changing state or URL", async () => {
+    const user = userEvent.setup();
+    setLocation("?session=2026-07-24&cutoff=20");
+    render(<ReplayUrlHarness />);
+
+    await user.click(screen.getByRole("button", { name: "Set invalid cutoff" }));
+    await user.click(screen.getByRole("button", { name: "Set invalid session" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent("2026-07-24:20");
+    expect(window.location.search).toBe("?session=2026-07-24&cutoff=20");
   });
 });

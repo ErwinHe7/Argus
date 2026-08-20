@@ -1,25 +1,9 @@
 import { useMemo, type JSX } from "react";
+import { formatEasternTimestamp, formatUsd } from "../formatters";
 import { buildReplayChartOption } from "./buildReplayChartOption";
 import styles from "./ReplayGraph.module.css";
 import type { ReplayChartInput } from "./types";
 import { useECharts } from "./useECharts";
-
-function formatPrice(value: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
-function formatTime(timestamp: string): string {
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: "America/New_York",
-  }).format(new Date(timestamp));
-}
 
 export function ReplayGraph(input: ReplayChartInput): JSX.Element {
   const option = useMemo(() => buildReplayChartOption(input), [input]);
@@ -28,8 +12,8 @@ export function ReplayGraph(input: ReplayChartInput): JSX.Element {
   return (
     <div className={styles.wrap}>
       <div className={styles.cutoff} aria-hidden="true">
-        <strong>{formatPrice(input.row.close)}</strong>
-        <span>{formatTime(input.row.timestamp)} ET</span>
+        <strong>{formatUsd(input.row.close, 2)}</strong>
+        <span>{formatEasternTimestamp(input.row.available_at)}</span>
       </div>
       <div
         ref={chartRef}

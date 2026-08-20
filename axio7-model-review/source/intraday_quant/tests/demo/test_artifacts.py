@@ -9,7 +9,14 @@ from pathlib import Path
 
 import pandas as pd
 
-from intraday_quant.demo.artifacts import build_bundle, content_hash, write_fixture
+import pytest
+
+from intraday_quant.demo.artifacts import (
+    build_bundle,
+    canonical_json_bytes,
+    content_hash,
+    write_fixture,
+)
 from intraday_quant.demo.contracts import (
     Manifest,
     ModelCard,
@@ -40,6 +47,13 @@ def test_canonical_hash_ignores_dictionary_insertion_order() -> None:
     left = {"b": 2, "a": 1}
     right = {"a": 1, "b": 2}
     assert content_hash(left) == content_hash(right)
+
+
+@pytest.mark.parametrize("non_finite", [float("nan"), float("inf"), float("-inf")])
+def test_canonical_json_rejects_non_finite_dictionary_values(non_finite: float) -> None:
+    """Fails if canonical bytes can contain non-standard NaN or Infinity tokens."""
+    with pytest.raises(ValueError, match="Out of range float values"):
+        canonical_json_bytes({"value": non_finite})
 
 
 def test_bundle_is_byte_stable_with_fixed_generation_time(
@@ -206,6 +220,12 @@ def test_fixture_is_only_the_fixed_visibly_labeled_session(tmp_path: Path) -> No
     assert [entry.date.isoformat() for entry in index.sessions] == ["2026-07-24"]
     assert session.session_date.isoformat() == "2026-07-24"
     assert session.rows
+    for row in session.rows:
+        outcome_bar = session.bars[row.outcome.bar_index]
+        assert row.outcome.bar_index == row.bar_index + 5
+        assert row.outcome.timestamp == outcome_bar.timestamp
+        assert row.outcome.available_at == outcome_bar.available_at
+        assert row.outcome.close == outcome_bar.close
 
 
 def test_cli_build_prints_compact_machine_readable_receipt(

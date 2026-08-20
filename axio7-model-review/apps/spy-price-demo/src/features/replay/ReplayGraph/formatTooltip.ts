@@ -1,4 +1,11 @@
 import type { ChartBar } from "../artifact/generated/contracts";
+import {
+  formatEasternTimestamp,
+  formatProbability,
+  formatSignedBasisPoints,
+  formatUsd,
+  formatVolume,
+} from "../formatters";
 import type { ChartTheme, TooltipInput } from "./types";
 
 const ARTIFACT_HASH_PREFIX_LENGTH = 12;
@@ -13,11 +20,7 @@ function escapeHtml(value: string | number): string {
 }
 
 function formatPrice(value: number | null): string {
-  return value === null ? "UNAVAILABLE" : `$${value.toFixed(3)}`;
-}
-
-function formatVolume(value: number | null): string {
-  return value === null ? "UNAVAILABLE" : value.toLocaleString("en-US");
+  return value === null ? "UNAVAILABLE" : formatUsd(value);
 }
 
 function directionColor(
@@ -35,7 +38,7 @@ function directionColor(
 
 function row(label: string, value: string, valueColor?: string): string {
   const color = valueColor === undefined ? "" : `;color:${valueColor}`;
-  return `<div style="display:flex;justify-content:space-between;gap:24px"><span>${escapeHtml(label)}</span><b style="text-align:right${color}">${escapeHtml(value)}</b></div>`;
+  return `<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);align-items:start;gap:8px 12px"><span style="min-width:0">${escapeHtml(label)}</span><b style="min-width:0;text-align:right;overflow-wrap:anywhere${color}">${escapeHtml(value)}</b></div>`;
 }
 
 function section(content: string, foreground: string): string {
@@ -49,7 +52,9 @@ function formatQuality(bar: ChartBar, isCutoff: boolean, input: TooltipInput): s
 
 export function formatTooltip(input: TooltipInput): string {
   const { row: replayRow, session, theme } = input;
-  const lastVisibleIndex = replayRow.bar_index + (input.revealed ? 5 : 0);
+  const lastVisibleIndex = input.revealed
+    ? replayRow.outcome.bar_index
+    : replayRow.bar_index;
   const bar = session.bars[input.barIndex];
 
   if (bar === undefined || input.barIndex > lastVisibleIndex) {
@@ -57,14 +62,14 @@ export function formatTooltip(input: TooltipInput): string {
   }
 
   const isCutoff = input.barIndex === replayRow.bar_index;
-  const isOutcome = input.barIndex === replayRow.bar_index + 5;
+  const isOutcome = input.barIndex === replayRow.outcome.bar_index;
   const trendColor = directionColor(replayRow.forecast.direction, theme);
   const marketRows = [
     row("OPEN", formatPrice(bar.open)),
     row("HIGH", formatPrice(bar.high)),
     row("LOW", formatPrice(bar.low)),
     row("CLOSE", formatPrice(bar.close)),
-    row("VOLUME", formatVolume(bar.volume)),
+    row("VOLUME", bar.volume === null ? "UNAVAILABLE" : formatVolume(bar.volume)),
     row("DIRECTION", bar.direction, directionColor(bar.direction, theme)),
     row("QUALITY FLAGS", formatQuality(bar, isCutoff, input)),
   ].join("");
@@ -79,16 +84,16 @@ export function formatTooltip(input: TooltipInput): string {
           ),
           row(
             "P(UP,+5M)",
-            `${replayRow.forecast.probability_up} · ${replayRow.forecast.probability_status}`,
+            `${formatProbability(replayRow.forecast.probability_up)} · ${replayRow.forecast.probability_status}`,
           ),
           row(
             "EXPECTED RETURN",
-            `${replayRow.forecast.expected_return_bps} BPS`,
+            formatSignedBasisPoints(replayRow.forecast.expected_return_bps),
           ),
-          row("SCENARIO", `$${replayRow.forecast.scenario_price}`),
+          row("SCENARIO", formatUsd(replayRow.forecast.scenario_price)),
           row(
             "INTERVAL",
-            `$${replayRow.forecast.interval_low}—$${replayRow.forecast.interval_high}`,
+            `${formatUsd(replayRow.forecast.interval_low)}—${formatUsd(replayRow.forecast.interval_high)}`,
           ),
           row("INTERVAL STATUS", replayRow.forecast.interval_status),
         ].join(""),
@@ -103,11 +108,14 @@ export function formatTooltip(input: TooltipInput): string {
           row("CONTRACT", session.contract_version),
           row("SOURCE", session.provenance.source),
           row("DATASET", session.provenance.dataset),
-          row("SOURCE CUTOFF", session.provenance.source_cutoff),
-          row("AVAILABLE", replayRow.available_at),
+          row(
+            "SOURCE CUTOFF",
+            formatEasternTimestamp(session.provenance.source_cutoff),
+          ),
+          row("AVAILABLE", formatEasternTimestamp(replayRow.available_at)),
           row(
             "AVAILABILITY CUTOFF",
-            session.provenance.availability_cutoff,
+            formatEasternTimestamp(session.provenance.availability_cutoff),
           ),
           row("COVERAGE", session.provenance.coverage),
           row("CALENDAR", session.provenance.calendar_version),
@@ -141,13 +149,20 @@ export function formatTooltip(input: TooltipInput): string {
     input.revealed && (isCutoff || isOutcome)
       ? section(
           [
-            row("REALIZED AT", replayRow.outcome.timestamp),
-            row("REALIZED CLOSE", `$${replayRow.outcome.close}`),
-            row("REALIZED RETURN", `${replayRow.outcome.return_bps} BPS`),
+            row("REALIZED AT", formatEasternTimestamp(replayRow.outcome.timestamp)),
+            row(
+              "REALIZED AVAILABLE",
+              formatEasternTimestamp(replayRow.outcome.available_at),
+            ),
+            row("REALIZED CLOSE", formatUsd(replayRow.outcome.close)),
+            row(
+              "REALIZED RETURN",
+              formatSignedBasisPoints(replayRow.outcome.return_bps),
+            ),
           ].join(""),
           theme.foreground,
         )
       : "";
 
-  return `<div style="min-width:280px;max-width:440px;padding:10px 11px;color:${theme.foreground};background:${theme.background};font:11px/1.55 Helvetica,Arial,sans-serif"><div style="display:flex;justify-content:space-between;gap:24px;font-weight:500"><span>${escapeHtml(session.symbol)} · ${escapeHtml(session.session_date)}</span><span>${escapeHtml(bar.timestamp)}</span></div>${section(marketRows, theme.foreground)}${forecastRows}${provenanceRows}${outcomeRows}</div>`;
+  return `<div data-spy-tooltip="true" role="tooltip" tabindex="0" style="width:420px;max-width:100%;min-width:0;padding:10px 11px;color:${theme.foreground};background:${theme.background};overflow-wrap:anywhere;font:11px/1.55 Helvetica,Arial,sans-serif"><div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 12px;font-weight:500"><span style="min-width:0">${escapeHtml(session.symbol)} · ${escapeHtml(session.session_date)}</span><span style="min-width:0;text-align:right">${escapeHtml(formatEasternTimestamp(bar.timestamp))}</span></div>${section(marketRows, theme.foreground)}${forecastRows}${provenanceRows}${outcomeRows}</div>`;
 }

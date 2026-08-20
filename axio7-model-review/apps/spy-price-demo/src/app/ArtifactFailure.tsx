@@ -9,15 +9,30 @@ interface ArtifactFailureProps {
   error: ArtifactError;
 }
 
+function sanitizedArtifactPath(error: ArtifactError): string | undefined {
+  if (
+    error.path === "manifest.json" ||
+    error.path === "sessions/index.json" ||
+    /^sessions\/\d{4}-\d{2}-\d{2}\.json$/.test(error.path ?? "")
+  ) {
+    return error.path;
+  }
+  return undefined;
+}
+
 export function ArtifactFailure({
   className,
   error,
 }: ArtifactFailureProps): JSX.Element {
+  const artifactPath = sanitizedArtifactPath(error);
   return (
     <section className={className} aria-labelledby="artifact-failure-title">
       <h1 id="artifact-failure-title">Artifact failure</h1>
       <p>{error.message}</p>
       <code>{error.code}</code>
+      {artifactPath === undefined ? null : (
+        <code aria-label="Artifact path">{artifactPath}</code>
+      )}
       <code>{artifactRemediationCommand}</code>
     </section>
   );

@@ -75,6 +75,10 @@ describe("ReplayPage", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reveal +5m" })).toBeInTheDocument();
     expect(screen.getByText("UI_FIXTURE")).toBeInTheDocument();
+    expect(screen.getByText("Observed through 10:41 AM ET")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Selected observation cutoff 10:41 AM ET",
+    );
     expect(screen.queryByText(/performance|evidence|calibration/i)).not.toBeInTheDocument();
   });
 
@@ -251,7 +255,7 @@ describe("ReplayPage", () => {
 
     selectSession(missingEntry.date);
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
-    rejectMissing?.(ArtifactError.fromResponse(missingEntry.path, 404));
+    rejectMissing?.(ArtifactError.fromResponse(missingEntry.path, 404, "session"));
 
     expect(await screen.findByText("MISSING_SESSION")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();

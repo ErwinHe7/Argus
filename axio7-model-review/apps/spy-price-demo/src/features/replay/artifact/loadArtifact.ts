@@ -4,8 +4,10 @@ import type {
   SessionIndexArtifact,
   SessionIndexEntry,
 } from "./generated/contracts";
-import { ArtifactError } from "./ArtifactError";
+import { ArtifactError, type ArtifactKind } from "./ArtifactError";
 import {
+  assertSessionIndexMatchesManifest,
+  assertSessionMatchesBundle,
   validateManifest,
   validateSession,
   validateSessionIndex,
@@ -21,6 +23,11 @@ export interface ReplayLoaders {
     entry: SessionIndexEntry,
     signal?: AbortSignal,
   ): Promise<SessionArtifact>;
+}
+
+interface AuthenticatedSessionReference {
+  entry: SessionIndexEntry;
+  manifest: Manifest;
 }
 
 function isAbortError(error: unknown): boolean {
@@ -46,10 +53,14 @@ export function createReplayLoaders(base?: string): ReplayLoaders {
     throw new Error("VITE_SPY_ARTIFACT_BASE is required");
   }
   const artifactBase = configuredArtifactBase.replace(/\/+$/, "");
-  const sessionArtifactHashes = new WeakMap<SessionIndexEntry, string>();
+  const authenticatedSessions = new WeakMap<
+    SessionIndexEntry,
+    AuthenticatedSessionReference
+  >();
 
   async function getJson(
     path: string,
+    artifactKind: ArtifactKind,
     expectedSha256?: string,
     signal?: AbortSignal,
   ): Promise<unknown> {
@@ -65,7 +76,7 @@ export function createReplayLoaders(base?: string): ReplayLoaders {
     }
 
     if (!response.ok) {
-      throw ArtifactError.fromResponse(path, response.status);
+      throw ArtifactError.fromResponse(path, response.status, artifactKind);
     }
 
     let body: Uint8Array<ArrayBuffer>;
@@ -92,7 +103,7 @@ export function createReplayLoaders(base?: string): ReplayLoaders {
     signal?: AbortSignal,
   ): Promise<Manifest> {
     return validateManifest(
-      await getJson("manifest.json", undefined, signal),
+      await getJson("manifest.json", "manifest", undefined, signal),
     );
   }
 
@@ -103,18 +114,19 @@ export function createReplayLoaders(base?: string): ReplayLoaders {
     const index = validateSessionIndex(
       await getJson(
         manifest.session_index.path,
+        "session index",
         manifest.session_index.sha256,
         signal,
       ),
     );
-    if (index.artifact_sha256 !== manifest.artifact_sha256) {
-      throw ArtifactError.hashMismatch(manifest.session_index.path, {
-        relation: "manifest-to-index",
-      });
-    }
+    assertSessionIndexMatchesManifest(manifest, index);
+    const authenticatedManifest = structuredClone(manifest);
 
     for (const entry of index.sessions) {
-      sessionArtifactHashes.set(entry, index.artifact_sha256);
+      authenticatedSessions.set(entry, {
+        entry: structuredClone(entry),
+        manifest: authenticatedManifest,
+      });
     }
     return index;
   }
@@ -123,21 +135,26 @@ export function createReplayLoaders(base?: string): ReplayLoaders {
     entry: SessionIndexEntry,
     signal?: AbortSignal,
   ): Promise<SessionArtifact> {
-    const expectedArtifactSha256 = sessionArtifactHashes.get(entry);
-    if (expectedArtifactSha256 === undefined) {
+    const authenticated = authenticatedSessions.get(entry);
+    if (authenticated === undefined) {
       throw ArtifactError.hashMismatch(entry.path, {
         relation: "index-to-session",
       });
     }
 
     const session = validateSession(
-      await getJson(entry.path, entry.sha256, signal),
+      await getJson(
+        authenticated.entry.path,
+        "session",
+        authenticated.entry.sha256,
+        signal,
+      ),
     );
-    if (session.provenance.artifact_sha256 !== expectedArtifactSha256) {
-      throw ArtifactError.hashMismatch(entry.path, {
-        relation: "index-to-session",
-      });
-    }
+    assertSessionMatchesBundle(
+      authenticated.manifest,
+      authenticated.entry,
+      session,
+    );
     return session;
   }
 

@@ -4,7 +4,11 @@ import sessionFixture from "../../../../public/fixtures/spy-demo/sessions/2026-0
 import { validateSession } from "../artifact/validateArtifact";
 import { buildReplayChartOption } from "./buildReplayChartOption";
 import type { ReplayChartInput } from "./types";
-import type { ReplayRow } from "../artifact/generated/contracts";
+import type {
+  ChartBar,
+  ReplayRow,
+  SessionArtifact,
+} from "../artifact/generated/contracts";
 
 const session = validateSession(sessionFixture);
 
@@ -79,6 +83,66 @@ function visibleVolumeCount(option: EChartsOption): number {
   return data.filter((entry) => entry !== "-").length;
 }
 
+function categoryLabels(option: EChartsOption): unknown[][] {
+  const axes = Array.isArray(option.xAxis) ? option.xAxis : [option.xAxis];
+  return axes.map((axis) => {
+    if (axis === undefined || !("data" in axis) || !Array.isArray(axis.data)) {
+      throw new Error("Expected a category-axis data array");
+    }
+    return axis.data;
+  });
+}
+
+function fullSessionRow(barIndex: number): {
+  row: ReplayRow;
+  session: SessionArtifact;
+} {
+  const start = Date.parse("2026-07-24T13:30:00Z");
+  const bars = Array.from({ length: 390 }, (_, index): ChartBar => {
+    const timestamp = new Date(start + index * 60_000).toISOString();
+    const availableAt = new Date(start + (index + 1) * 60_000).toISOString();
+    const open = 600 + index / 100;
+    const close = open + 0.01;
+    return {
+      timestamp,
+      available_at: availableAt,
+      open,
+      high: close + 0.01,
+      low: open - 0.01,
+      close,
+      volume: 100_000 + index,
+      direction: "UP",
+      quality_flags: [],
+    };
+  });
+  const cutoffBar = bars[barIndex]!;
+  const outcomeIndex = barIndex + 5;
+  const outcomeBar = bars[outcomeIndex]!;
+  const sourceRow = session.rows[0]!;
+  const row: ReplayRow = {
+    ...sourceRow,
+    bar_index: barIndex,
+    timestamp: cutoffBar.timestamp,
+    available_at: cutoffBar.available_at,
+    open: cutoffBar.open!,
+    high: cutoffBar.high!,
+    low: cutoffBar.low!,
+    close: cutoffBar.close!,
+    volume: cutoffBar.volume!,
+    outcome: {
+      ...sourceRow.outcome,
+      bar_index: outcomeIndex,
+      timestamp: outcomeBar.timestamp,
+      available_at: outcomeBar.available_at,
+      close: outcomeBar.close!,
+    },
+  };
+  return {
+    row,
+    session: { ...session, bars: bars as SessionArtifact["bars"], rows: [row] },
+  };
+}
+
 describe("buildReplayChartOption", () => {
   it("disables every animation path", () => {
     const option = buildReplayChartOption(makeReplayInput(false));
@@ -120,7 +184,11 @@ describe("buildReplayChartOption", () => {
     expect(visibleVolumeCount(shown)).toBe(input.row.bar_index + 6);
 
     const shownCandles = seriesByType(shown, "candlestick").data;
-    expect(Array.isArray(shownCandles) && shownCandles.at(-1)).toBe("-");
+    expect(Array.isArray(shownCandles) && shownCandles.at(-1)).not.toBe("-");
+    expect(
+      Array.isArray(seriesByType(hidden, "candlestick").data) &&
+        (seriesByType(hidden, "candlestick").data as unknown[]).at(-1),
+    ).toBe("-");
   });
 
   it("preserves an ordered one-sided interval outside its stored scenario", () => {
@@ -209,6 +277,69 @@ describe("buildReplayChartOption", () => {
     );
   });
 
+  it("disables emphasis for every palette-bearing series", () => {
+    const option = buildReplayChartOption(makeReplayInput(false));
+    const series = Array.isArray(option.series) ? option.series : [];
+
+    for (const name of ["OHLC", "Forecast", "Interval", "Volume"]) {
+      expect(series.find((candidate) => candidate.name === name)).toEqual(
+        expect.objectContaining({ emphasis: { disabled: true } }),
+      );
+    }
+  });
+
+  it.each([
+    ["early", 0],
+    ["middle", 194],
+    ["latest", 384],
+  ] as const)(
+    "bounds the real-size %s x-domain at the explicit outcome endpoint",
+    (_position, barIndex) => {
+      const { row, session: fullSession } = fullSessionRow(barIndex);
+      const option = buildReplayChartOption({
+        ...makeReplayInput(false),
+        session: fullSession,
+        row,
+      });
+      const expectedLength = row.outcome.bar_index + 1;
+
+      for (const labels of categoryLabels(option)) {
+        expect(labels).toHaveLength(expectedLength);
+        expect(labels.at(-1)).toBe(row.outcome.timestamp);
+        if (expectedLength < fullSession.bars.length) {
+          expect(labels).not.toContain(fullSession.bars.at(-1)!.timestamp);
+        }
+      }
+      for (const type of ["candlestick", "line", "bar"]) {
+        const data = seriesByType(option, type).data;
+        expect(Array.isArray(data) ? data.length : -1).toBe(expectedLength);
+      }
+      expect(visibleCandleCount(option)).toBe(row.bar_index + 1);
+      expect(visibleVolumeCount(option)).toBe(row.bar_index + 1);
+    },
+  );
+
+  it("formats UTC artifact timestamps as Eastern Time axis labels", () => {
+    const option = buildReplayChartOption(makeReplayInput(false));
+    const axes = Array.isArray(option.xAxis) ? option.xAxis : [];
+    const axisLabel = axes[1]?.axisLabel;
+    if (
+      axisLabel === undefined ||
+      typeof axisLabel !== "object" ||
+      !("formatter" in axisLabel) ||
+      typeof axisLabel.formatter !== "function"
+    ) {
+      throw new Error("Expected the lower x-axis label formatter");
+    }
+
+    const formatter = axisLabel.formatter as (
+      value: string,
+      index: number,
+      extra: undefined,
+    ) => string;
+    expect(formatter("2026-07-24T14:30:00Z", 0, undefined)).toBe("10:30 AM");
+  });
+
   it("links monochrome crosshairs and exposes the supplied accessible summary", () => {
     const input = makeReplayInput(false);
     const option = buildReplayChartOption(input);
@@ -238,8 +369,10 @@ describe("buildReplayChartOption", () => {
     expect(option.tooltip).toEqual(
       expect.objectContaining({
         renderMode: "html",
+        enterable: true,
         transitionDuration: 0,
         displayTransition: false,
+        extraCssText: expect.stringContaining("overflow:auto"),
         axisPointer: expect.objectContaining({
           animation: false,
           animationDurationUpdate: 0,

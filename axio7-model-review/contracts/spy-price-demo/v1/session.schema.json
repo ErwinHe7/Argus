@@ -11,6 +11,7 @@
         "close": {
           "anyOf": [
             {
+              "exclusiveMinimum": 0.0,
               "type": "number"
             },
             {
@@ -31,6 +32,7 @@
         "high": {
           "anyOf": [
             {
+              "exclusiveMinimum": 0.0,
               "type": "number"
             },
             {
@@ -42,6 +44,7 @@
         "low": {
           "anyOf": [
             {
+              "exclusiveMinimum": 0.0,
               "type": "number"
             },
             {
@@ -53,6 +56,7 @@
         "open": {
           "anyOf": [
             {
+              "exclusiveMinimum": 0.0,
               "type": "number"
             },
             {
@@ -76,6 +80,7 @@
         "volume": {
           "anyOf": [
             {
+              "minimum": 0,
               "type": "integer"
             },
             {
@@ -163,6 +168,16 @@
     "Outcome": {
       "additionalProperties": false,
       "properties": {
+        "available_at": {
+          "format": "date-time",
+          "title": "Available At",
+          "type": "string"
+        },
+        "bar_index": {
+          "minimum": 0,
+          "title": "Bar Index",
+          "type": "integer"
+        },
         "close": {
           "exclusiveMinimum": 0.0,
           "title": "Close",
@@ -179,7 +194,9 @@
         }
       },
       "required": [
+        "bar_index",
         "timestamp",
+        "available_at",
         "close",
         "return_bps"
       ],

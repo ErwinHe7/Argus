@@ -46,21 +46,21 @@ describe("formatTooltip", () => {
     expect(markup).toContain(`$${row.close.toFixed(3)}`);
     expect(markup).toContain(row.volume.toLocaleString("en-US"));
     expect(markup).toContain("P(UP,+5M)");
-    expect(markup).toContain(String(row.forecast.probability_up));
-    expect(markup).toContain(String(row.forecast.expected_return_bps));
-    expect(markup).toContain(String(row.forecast.scenario_price));
-    expect(markup).toContain(String(row.forecast.interval_low));
-    expect(markup).toContain(String(row.forecast.interval_high));
+    expect(markup).toContain("58.0% · RAW_EXPERIMENTAL_PROBABILITY");
+    expect(markup).toContain("+3.5 BPS");
+    expect(markup).toContain("$638.613");
+    expect(markup).toContain("$638.103—$639.188");
+    expect(markup).not.toContain("638.6134365");
+    expect(markup).not.toContain("639.1879875");
     expect(markup).toContain(currentSession.provenance.source);
-    expect(markup).toContain(
-      `<span>SESSION STATUS</span><b style="text-align:right">${currentSession.status}`,
-    );
-    expect(markup).toContain(
-      `<span>CONTRACT</span><b style="text-align:right">${currentSession.contract_version}`,
-    );
-    expect(markup).toContain(currentSession.provenance.source_cutoff);
-    expect(markup).toContain(row.available_at);
-    expect(markup).toContain(currentSession.provenance.availability_cutoff);
+    expect(markup).toContain("SESSION STATUS");
+    expect(markup).toContain(currentSession.status);
+    expect(markup).toContain("CONTRACT");
+    expect(markup).toContain(currentSession.contract_version);
+    expect(markup).toContain("SOURCE CUTOFF");
+    expect(markup).toContain("AVAILABLE");
+    expect(markup).toContain("AVAILABILITY CUTOFF");
+    expect(markup).toContain("ET");
     expect(markup).toContain(currentSession.provenance.coverage);
     expect(markup).toContain("COMPLETE");
     expect(markup).toContain(currentSession.provenance.feature_version);
@@ -82,9 +82,36 @@ describe("formatTooltip", () => {
     expect(hidden).not.toContain("REALIZED CLOSE");
     expect(hidden).not.toContain("REALIZED RETURN");
     expect(shown).toContain("REALIZED CLOSE");
-    expect(shown).toContain(String(input.row.outcome.close));
+    expect(shown).toContain(`$${input.row.outcome.close.toFixed(3)}`);
     expect(shown).toContain("REALIZED RETURN");
-    expect(shown).toContain(String(input.row.outcome.return_bps));
+    expect(shown).toContain("REALIZED AVAILABLE");
+    expect(shown).toContain("ET");
+    expect(shown).toContain("+4.2 BPS");
+  });
+
+  it("uses the explicit stored outcome availability instead of deriving it", () => {
+    const input = makeTooltipInput(true);
+    const explicitAvailabilityRow: ReplayRow = {
+      ...input.row,
+      outcome: {
+        ...input.row.outcome,
+        available_at: "2026-07-24T19:59:00Z",
+      },
+    };
+
+    const markup = formatTooltip({ ...input, row: explicitAvailabilityRow });
+
+    expect(markup).toContain("3:59 PM ET");
+  });
+
+  it("returns responsive, keyboard-scrollable tooltip markup", () => {
+    const markup = formatTooltip(makeTooltipInput(true));
+
+    expect(markup).toContain('data-spy-tooltip="true"');
+    expect(markup).toContain('role="tooltip"');
+    expect(markup).toContain('tabindex="0"');
+    expect(markup).toContain("max-width:100%");
+    expect(markup).toContain("overflow-wrap:anywhere");
   });
 
   it("does not expose a future bar through tooltip formatting before reveal", () => {

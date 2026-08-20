@@ -59,7 +59,7 @@ def manifest_payload() -> dict[str, object]:
 def _complete_bar(minute: int, **changes: object) -> dict[str, object]:
     payload: dict[str, object] = {
         "timestamp": f"2026-07-24T19:{minute:02d}:00Z",
-        "available_at": f"2026-07-24T19:{minute:02d}:30Z",
+        "available_at": f"2026-07-24T19:{minute + 1:02d}:00Z",
         "open": 600.0,
         "high": 602.0,
         "low": 599.0,
@@ -74,6 +74,7 @@ def _complete_bar(minute: int, **changes: object) -> dict[str, object]:
 
 def _session_payload() -> dict[str, object]:
     bars = [_complete_bar(minute) for minute in range(6)]
+    bars[-1]["close"] = 601.5
     return {
         "contract_version": "1.0.0",
         "status": "HISTORICAL_OOS",
@@ -98,7 +99,7 @@ def _session_payload() -> dict[str, object]:
             {
                 "bar_index": 0,
                 "timestamp": "2026-07-24T19:00:00Z",
-                "available_at": "2026-07-24T19:00:30Z",
+                "available_at": "2026-07-24T19:01:00Z",
                 "open": 600.0,
                 "high": 602.0,
                 "low": 599.0,
@@ -115,7 +116,9 @@ def _session_payload() -> dict[str, object]:
                     "direction": "UP",
                 },
                 "outcome": {
+                    "bar_index": 5,
                     "timestamp": "2026-07-24T19:05:00Z",
+                    "available_at": "2026-07-24T19:06:00Z",
                     "close": 601.5,
                     "return_bps": 8.3,
                 },
@@ -184,13 +187,24 @@ def test_forecast_rejects_reversed_interval_bounds() -> None:
     payload["rows"][0]["forecast"]["interval_low"] = 602.0  # type: ignore[index]
     payload["rows"][0]["forecast"]["interval_high"] = 600.5  # type: ignore[index]
 
-    with pytest.raises(ValidationError, match="interval"):
+    with pytest.raises(
+        ValidationError,
+        match="forecast interval_low must not exceed interval_high",
+    ):
         SessionArtifact.model_validate(payload)
 
 
 def test_chart_bar_requires_unresolved_gap_for_null_ohlcv() -> None:
     with pytest.raises(ValidationError, match="UNRESOLVED_GAP"):
         ChartBar.model_validate(_complete_bar(0, close=None))
+
+
+def test_chart_bar_availability_is_exactly_one_minute_after_bar_start() -> None:
+    """Fails if bar-start and observation-availability timestamps can be conflated."""
+    with pytest.raises(ValidationError, match="available exactly one minute"):
+        ChartBar.model_validate(
+            _complete_bar(0, available_at="2026-07-24T19:00:00Z")
+        )
 
 
 def test_session_rejects_unsorted_bars() -> None:
@@ -209,6 +223,25 @@ def test_session_replay_must_match_chart_bar_and_five_minute_outcome() -> None:
     payload = _session_payload()
     payload["rows"][0]["outcome"]["timestamp"] = "2026-07-24T19:04:00Z"  # type: ignore[index]
     with pytest.raises(ValidationError, match="five chart minutes"):
+        SessionArtifact.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value", "message"),
+    [
+        ("bar_index", 4, "five chart minutes"),
+        ("available_at", "2026-07-24T19:05:00Z", "availability"),
+        ("close", 600.0, "future chart bar"),
+    ],
+)
+def test_session_outcome_matches_the_exact_future_chart_bar(
+    field: str, invalid_value: object, message: str
+) -> None:
+    """Fails if outcome identity, availability, or close can drift from chart data."""
+    payload = _session_payload()
+    payload["rows"][0]["outcome"][field] = invalid_value  # type: ignore[index]
+
+    with pytest.raises(ValidationError, match=message):
         SessionArtifact.model_validate(payload)
 
 

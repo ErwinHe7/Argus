@@ -3,7 +3,11 @@ export type ArtifactErrorCode =
   | "INVALID_SCHEMA"
   | "UNSUPPORTED_VERSION"
   | "HASH_MISMATCH"
+  | "MISSING_MANIFEST"
+  | "MISSING_SESSION_INDEX"
   | "MISSING_SESSION";
+
+export type ArtifactKind = "manifest" | "session index" | "session";
 
 export class ArtifactError extends Error {
   readonly code: ArtifactErrorCode;
@@ -54,11 +58,30 @@ export class ArtifactError extends Error {
     );
   }
 
-  static fromResponse(path: string, status: number): ArtifactError {
+  static fromResponse(
+    path: string,
+    status: number,
+    artifactKind: ArtifactKind,
+  ): ArtifactError {
     if (status === 404) {
+      const missing = {
+        manifest: {
+          code: "MISSING_MANIFEST" as const,
+          message: "The manifest artifact is unavailable.",
+        },
+        "session index": {
+          code: "MISSING_SESSION_INDEX" as const,
+          message: "The session index artifact is unavailable.",
+        },
+        session: {
+          code: "MISSING_SESSION" as const,
+          message: "The requested session artifact is unavailable.",
+        },
+      } satisfies Record<ArtifactKind, { code: ArtifactErrorCode; message: string }>;
+      const classification = missing[artifactKind];
       return new ArtifactError(
-        "MISSING_SESSION",
-        "A requested artifact is unavailable.",
+        classification.code,
+        classification.message,
         { details: { status }, path },
       );
     }

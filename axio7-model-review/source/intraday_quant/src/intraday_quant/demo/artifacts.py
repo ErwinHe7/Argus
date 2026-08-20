@@ -77,7 +77,14 @@ def canonical_json_bytes(value: BaseModel | dict[str, object]) -> bytes:
     """Serialize a contract model or JSON object with stable keys and whitespace."""
     payload = value.model_dump(mode="json") if isinstance(value, BaseModel) else value
     return (
-        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+        + "\n"
     ).encode("utf-8")
 
 
@@ -384,6 +391,9 @@ def _chart_bars(session_bars: pd.DataFrame) -> tuple[ChartBar, ...]:
 
         open_price = float(row.open)
         close_price = float(row.close)
+        volume = float(row.volume)
+        if volume < 0.0 or not volume.is_integer():
+            raise ValueError("complete chart bars require integral non-negative volume")
         flags = ("CAUSAL_FORWARD_FILL",) if bool(row.is_causal_fill) else ()
         result.append(
             ChartBar(
@@ -393,7 +403,7 @@ def _chart_bars(session_bars: pd.DataFrame) -> tuple[ChartBar, ...]:
                 high=float(row.high),
                 low=float(row.low),
                 close=close_price,
-                volume=int(row.volume),
+                volume=int(volume),
                 direction=_direction(open_price, close_price),
                 quality_flags=flags,
             )
@@ -425,6 +435,13 @@ def _session_artifact(
         assert bar.low is not None
         assert bar.close is not None
         assert bar.volume is not None
+        outcome_index = bar_index + 5
+        if outcome_index >= len(bars) or not bars[outcome_index].is_complete:
+            raise ValueError("eligible replay prediction requires a complete five-minute outcome bar")
+        outcome_bar = bars[outcome_index]
+        if _timestamp(prediction.outcome_timestamp) != outcome_bar.timestamp:
+            raise ValueError("prediction outcome timestamp must match its five-minute chart bar")
+        assert outcome_bar.close is not None
         rows.append(
             ReplayRow(
                 bar_index=bar_index,
@@ -446,8 +463,10 @@ def _session_artifact(
                     direction=str(prediction.direction),
                 ),
                 outcome=Outcome(
-                    timestamp=_timestamp(prediction.outcome_timestamp),
-                    close=float(prediction.outcome_close),
+                    bar_index=outcome_index,
+                    timestamp=outcome_bar.timestamp,
+                    available_at=outcome_bar.available_at,
+                    close=outcome_bar.close,
                     return_bps=float(prediction.outcome_return_bps),
                 ),
                 quality_flags=tuple(str(flag) for flag in prediction.quality_flags),
@@ -689,7 +708,9 @@ def _fixture_session(dataset_sha256: str) -> SessionArtifact:
                     direction="UP" if expected_return > 0.0 else "DOWN",
                 ),
                 outcome=Outcome(
+                    bar_index=index + 5,
                     timestamp=outcome_bar.timestamp,
+                    available_at=outcome_bar.available_at,
                     close=outcome_bar.close,
                     return_bps=(outcome_bar.close / bar.close - 1.0) * 10_000.0,
                 ),
