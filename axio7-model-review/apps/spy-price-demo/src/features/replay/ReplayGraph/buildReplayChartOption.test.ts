@@ -240,6 +240,10 @@ describe("buildReplayChartOption", () => {
         renderMode: "html",
         transitionDuration: 0,
         displayTransition: false,
+        axisPointer: expect.objectContaining({
+          animation: false,
+          animationDurationUpdate: 0,
+        }),
       }),
     );
   });

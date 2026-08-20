@@ -271,6 +271,39 @@ describe("ReplayPage", () => {
     });
   });
 
+  it("retains the newest same-session cutoff when a deferred session resolves", async () => {
+    const shortSession = { ...fixtureSession, rows: fixtureSession.rows.slice(0, 4) };
+    let loadCount = 0;
+    let resolveSession: ((session: SessionArtifact) => void) | undefined;
+    setLocation("?session=2026-07-24&cutoff=10");
+
+    render(
+      <ReplayPage
+        loaders={makeLoaders({
+          loadSession: async () => {
+            loadCount += 1;
+            return new Promise<SessionArtifact>((resolve) => {
+              resolveSession = resolve;
+            });
+          },
+        })}
+      />,
+    );
+    await waitFor(() => expect(resolveSession).toBeDefined());
+
+    selectSession("2026-07-24", 2);
+    await act(async () => {
+      resolveSession?.(shortSession);
+      await Promise.resolve();
+    });
+
+    expect(await screen.findByRole("slider")).toHaveValue("2");
+    expect(loadCount).toBe(1);
+    await waitFor(() => {
+      expect(window.location.search).toBe("?session=2026-07-24&cutoff=2");
+    });
+  });
+
   it("survives StrictMode request cleanup without accepting stale state", async () => {
     render(
       <StrictMode>

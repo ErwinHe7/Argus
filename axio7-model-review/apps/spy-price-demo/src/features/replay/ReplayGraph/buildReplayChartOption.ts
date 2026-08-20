@@ -253,6 +253,8 @@ export function buildReplayChartOption(input: ReplayChartInput): EChartsOption {
       textStyle: { color: input.theme.foreground },
       axisPointer: {
         type: "cross",
+        animation: false,
+        animationDurationUpdate: 0,
         lineStyle: { color: input.theme.foreground, width: 1 },
         crossStyle: { color: input.theme.foreground },
       },

@@ -176,7 +176,6 @@ function LoadedReplayPage({
         });
         return;
       }
-      if (state.cutoffIndex > maximumCutoff) setCutoff(maximumCutoff);
       setSessionState({ status: "ready", date: entry.date, session });
     };
 
@@ -210,6 +209,18 @@ function LoadedReplayPage({
 
     return () => controller.abort();
   }, [loaders, sessionIndex, state.sessionDate]);
+
+  useEffect(() => {
+    if (
+      sessionState.status !== "ready" ||
+      sessionState.date !== state.sessionDate
+    ) {
+      return;
+    }
+
+    const maximumCutoff = sessionState.session.rows.length - 1;
+    if (state.cutoffIndex > maximumCutoff) setCutoff(maximumCutoff);
+  }, [sessionState, state.cutoffIndex, state.sessionDate]);
 
   if (sessionState.status === "failed") {
     return <ArtifactFailure className={styles.failure} error={sessionState.error} />;
