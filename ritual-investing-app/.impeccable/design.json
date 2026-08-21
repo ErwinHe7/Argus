@@ -1,0 +1,87 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-20T00:00:00Z",
+  "title": "Design System: Ritual Investing",
+  "extensions": {
+    "colorMeta": {
+      "light-primary": {
+        "role": "primary",
+        "displayName": "Blackberry Signal",
+        "canonical": "oklch(0.38 0.145 322)",
+        "tonalRamp": ["#230927", "#411047", "#641D6F", "#8E3A98", "#B868BB", "#D697D5", "#E9C5E7", "#FBF0FA"]
+      },
+      "light-gold": {
+        "role": "secondary",
+        "displayName": "Candle Gold",
+        "canonical": "oklch(0.7 0.105 73)",
+        "tonalRamp": ["#2D1C08", "#523715", "#765323", "#9E7436", "#C6944F", "#DBB579", "#EDD4A7", "#FBF2DF"]
+      },
+      "light-page": {
+        "role": "neutral",
+        "displayName": "Lunar Lilac",
+        "canonical": "oklch(0.965 0.025 326)",
+        "tonalRamp": ["#250B27", "#432245", "#624064", "#866686", "#AD91AC", "#CFBCCE", "#E9DDE8", "#FDEEFD"]
+      },
+      "dark-page": {
+        "role": "neutral",
+        "displayName": "Aubergine Night",
+        "canonical": "oklch(0.125 0.036 315)",
+        "tonalRamp": ["#0B0310", "#201325", "#382A3D", "#57475B", "#796A7D", "#9E90A2", "#C8BCCB", "#F1E8F2"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Editorial Reading",
+        "purpose": "Readings and top-level screen titles only."
+      },
+      "body": {
+        "displayName": "Platform Evidence",
+        "purpose": "Controls, data, explanations, and disclosures."
+      }
+    },
+    "shadows": [
+      {
+        "name": "tarot-lift",
+        "value": "0 6px 8px rgba(0,0,0,0.22)",
+        "purpose": "The featured tarot object only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-change",
+        "value": "200ms ease-out",
+        "purpose": "Theme, selection, evidence, and navigation feedback; reduced motion uses an instant change or crossfade."
+      }
+    ],
+    "breakpoints": [
+      {"name": "compact", "value": "0-599dp"},
+      {"name": "medium", "value": "600-839dp"},
+      {"name": "expanded", "value": "840dp+"}
+    ]
+  },
+  "components": [],
+  "narrative": {
+    "northStar": "The Candlelit Observatory",
+    "overview": "The app is an observatory for uncertainty: original tarot art occupies the emotional foreground, while evidence, timing, risk, and simulated portfolio state remain legible underneath. Interaction remains familiar on each operating system.",
+    "keyCharacteristics": [
+      "Original image-first ritual composition.",
+      "Restrained lilac and aubergine surfaces with rare candle-gold emphasis.",
+      "Editorial serif display moments paired with platform-native sans-serif controls.",
+      "Evidence and Demo state visible in the same flow as the mystical interpretation."
+    ],
+    "rules": [
+      {"name": "The Rare Gold Rule", "body": "Candle gold defines ritual structure; if it becomes the default text or button color, it has lost its meaning.", "section": "colors"},
+      {"name": "The Split Voice Rule", "body": "Display serif is forbidden in buttons, evidence data, form labels, transaction values, and navigation.", "section": "typography"},
+      {"name": "The One Physical Object Rule", "body": "Never turn every section into a floating card.", "section": "elevation"}
+    ],
+    "dos": [
+      "Do use the preserved Compass and Rowan assets as visual-fidelity anchors.",
+      "Do keep factual observations, timestamp, uncertainty, and Demo status adjacent to every investment idea."
+    ],
+    "donts": [
+      "Don't build generic navy-and-green brokerage dashboards with mystical decoration added afterward.",
+      "Don't hide market influence, imply supernatural guarantees, or design disclosure language to escape notice.",
+      "Don't use romance, urgency, jealousy, exclusivity, or sexual pressure to influence a financial decision."
+    ]
+  }
+}
