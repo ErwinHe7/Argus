@@ -28,6 +28,23 @@ describe("migration compatibility", () => {
     expect(sql).toMatch(/function\s+ritual_private\.bootstrap_member_account\s*\(verified_subject\s+text\)[\s\S]*security\s+definer[\s\S]*set\s+search_path\s*=\s*pg_catalog,\s*public,\s*ritual_private/i);
   });
 
+  it("keeps the editorial catalog additive and grants only versioned public projections", async () => {
+    const sql = await readFile(`${apiRoot}/drizzle/0004_editorial_catalog.sql`, "utf8");
+
+    expect(sql).toMatch(/^begin;/i);
+    expect(sql).toMatch(/commit;\s*$/i);
+    expect(sql).not.toMatch(/\bdrop\s+(?:table|column|type|role)\b/i);
+    expect(sql).not.toMatch(/\btruncate\b/i);
+    expect(sql).toMatch(/add\s+column\s+if\s+not\s+exists\s+version/i);
+    expect(sql).toMatch(/revoke\s+select\s+on\s+ritual_public\.daily_ritual_preview,[\s\S]*ritual_public\.asset_codex_preview,[\s\S]*ritual_public\.coven_preview[\s\S]*from\s+ritual_public/i);
+    expect(sql).toMatch(/grant\s+select\s+on\s+ritual_public\.daily_ritual_preview_v1,[\s\S]*ritual_public\.discover_v1,[\s\S]*ritual_public\.coven_v1[\s\S]*to\s+ritual_public/i);
+    expect(sql).toMatch(/rowan_revisions_v1[\s\S]*revision\.state\s+in\s*\('published',\s*'withdrawn'\)/i);
+    expect(sql).toMatch(/ritual_revisions_v1[\s\S]*revision\.state\s+in\s*\('published',\s*'withdrawn'\)/i);
+    expect(sql).toMatch(/fixture:non-login:editor[\s\S]*'disabled'/i);
+    expect(sql).toMatch(/create\s+materialized\s+view\s+ritual_catalog\.search_v1/i);
+    expect(sql).toMatch(/using\s+gin\s*\(search_document\)/i);
+  });
+
   it("records an expand-compatible schema contract version", async () => {
     const sql = await readFile(`${apiRoot}/drizzle/0001_ritual_foundation.sql`, "utf8");
 

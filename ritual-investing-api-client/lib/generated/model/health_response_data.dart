@@ -17,7 +17,10 @@ part 'health_response_data.g.dart';
 )
 class HealthResponseData {
   /// Returns a new [HealthResponseData] instance.
-  HealthResponseData({required this.status});
+  HealthResponseData({required this.buildRevision, required this.status});
+
+  @JsonKey(name: r'build_revision', required: true, includeIfNull: false)
+  final String buildRevision;
 
   @JsonKey(
     name: r'status',
@@ -30,10 +33,12 @@ class HealthResponseData {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is HealthResponseData && other.status == status;
+      other is HealthResponseData &&
+          other.buildRevision == buildRevision &&
+          other.status == status;
 
   @override
-  int get hashCode => status.hashCode;
+  int get hashCode => buildRevision.hashCode + status.hashCode;
 
   factory HealthResponseData.fromJson(Map<String, dynamic> json) =>
       _$HealthResponseDataFromJson(json);

@@ -15,12 +15,23 @@ type ApplicationDatabaseRole =
   | "ritual_identity_resolver"
   | "ritual_runtime";
 
+export type DatabasePool = {
+  connect(): Promise<PoolClient>;
+  end(): Promise<void>;
+};
+
+export type DatabasePoolFactory = (databaseUrl: string) => DatabasePool;
+
+const neonPoolFactory: DatabasePoolFactory = (databaseUrl) =>
+  new Pool({ connectionString: databaseUrl, max: 1 });
+
 async function withDatabaseRole<T>(
   databaseUrl: string,
   role: ApplicationDatabaseRole,
   callback: (client: PoolClient) => Promise<T>,
+  poolFactory: DatabasePoolFactory = neonPoolFactory,
 ): Promise<T> {
-  const pool = new Pool({ connectionString: databaseUrl, max: 1 });
+  const pool = poolFactory(databaseUrl);
   let client: PoolClient | undefined;
   try {
     client = await pool.connect();
@@ -87,6 +98,7 @@ export async function withScopedRuntimeClient<T>(
   runtimeDatabaseUrl: string,
   context: RequestDatabaseContext,
   callback: (client: PoolClient) => Promise<T>,
+  poolFactory?: DatabasePoolFactory,
 ): Promise<T> {
   return withDatabaseRole(runtimeDatabaseUrl, "ritual_runtime", async (client) => {
     await client.query(
@@ -99,5 +111,5 @@ export async function withScopedRuntimeClient<T>(
       ],
     );
     return callback(client);
-  });
+  }, poolFactory);
 }

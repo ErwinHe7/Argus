@@ -59,6 +59,927 @@ components:
         - data
         - meta
       type: object
+    ArtReference:
+      additionalProperties: false
+      properties:
+        alt:
+          maxLength: 240
+          minLength: 1
+          type: string
+        key:
+          enum:
+            - the_compass
+          type: string
+      required:
+        - key
+        - alt
+      type: object
+    AssetCodexDetail:
+      additionalProperties: false
+      properties:
+        appearance_reason:
+          maxLength: 1000
+          minLength: 1
+          type: string
+        asset_type:
+          enum:
+            - equity
+            - etf
+            - index
+            - cash
+          type: string
+          x-enum-varnames:
+            - equity
+            - etf
+            - marketIndex
+            - cash
+        currency:
+          enum:
+            - USD
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        evidence:
+          items:
+            $ref: "#/components/schemas/EvidenceSummary"
+          maxItems: 20
+          minItems: 1
+          type: array
+        id:
+          format: uuid
+          type: string
+        limitations:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        metrics_as_of:
+          format: date-time
+          type: string
+        name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        risks:
+          items:
+            additionalProperties: false
+            properties:
+              detail:
+                maxLength: 2000
+                minLength: 1
+                type: string
+              severity:
+                enum:
+                  - low
+                  - medium
+                  - high
+                type: string
+              title:
+                maxLength: 120
+                minLength: 1
+                type: string
+            required:
+              - title
+              - detail
+              - severity
+            type: object
+          maxItems: 20
+          minItems: 1
+          type: array
+        saved:
+          type: boolean
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        symbol:
+          maxLength: 16
+          minLength: 1
+          type: string
+        thesis:
+          maxLength: 10000
+          minLength: 1
+          type: string
+      required:
+        - id
+        - slug
+        - symbol
+        - name
+        - asset_type
+        - currency
+        - revision_id
+        - appearance_reason
+        - demo
+        - thesis
+        - risks
+        - evidence
+        - metrics_as_of
+        - limitations
+        - saved
+      type: object
+    AssetCollectionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/AssetSummary"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    AssetComparison:
+      additionalProperties: false
+      properties:
+        assets:
+          items:
+            additionalProperties: false
+            properties:
+              asset:
+                $ref: "#/components/schemas/AssetSummary"
+              latest_metric:
+                $ref: "#/components/schemas/AssetMetric"
+              risk_count:
+                minimum: 0
+                type: integer
+            required:
+              - asset
+              - latest_metric
+              - risk_count
+            type: object
+          maxItems: 5
+          minItems: 2
+          type: array
+        compared_at:
+          format: date-time
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+      required:
+        - assets
+        - compared_at
+        - demo
+      type: object
+    AssetComparisonResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AssetComparison"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    AssetDetailResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AssetCodexDetail"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    AssetEvidenceResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/EvidenceDetail"
+          type: array
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    AssetMetric:
+      additionalProperties: false
+      properties:
+        change_bps:
+          nullable: true
+          type: integer
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        expense_ratio_bps:
+          minimum: 0
+          nullable: true
+          type: integer
+        observed_at:
+          format: date-time
+          type: string
+        price_minor:
+          minimum: 0
+          type: integer
+        source_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - observed_at
+        - price_minor
+        - change_bps
+        - expense_ratio_bps
+        - source_label
+        - demo
+      type: object
+    AssetMetricsResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/AssetMetric"
+          type: array
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    AssetSummary:
+      additionalProperties: false
+      properties:
+        appearance_reason:
+          maxLength: 1000
+          minLength: 1
+          type: string
+        asset_type:
+          enum:
+            - equity
+            - etf
+            - index
+            - cash
+          type: string
+          x-enum-varnames:
+            - equity
+            - etf
+            - marketIndex
+            - cash
+        currency:
+          enum:
+            - USD
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        id:
+          format: uuid
+          type: string
+        name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        symbol:
+          maxLength: 16
+          minLength: 1
+          type: string
+      required:
+        - id
+        - slug
+        - symbol
+        - name
+        - asset_type
+        - currency
+        - revision_id
+        - appearance_reason
+        - demo
+      type: object
+    CircleTemplateCollectionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/CircleTemplateSummary"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    CircleTemplateDetail:
+      additionalProperties: false
+      properties:
+        assets:
+          items:
+            additionalProperties: false
+            properties:
+              appearance_reason:
+                maxLength: 1000
+                minLength: 1
+                type: string
+              asset_type:
+                enum:
+                  - equity
+                  - etf
+                  - index
+                  - cash
+                type: string
+                x-enum-varnames:
+                  - equity
+                  - etf
+                  - marketIndex
+                  - cash
+              currency:
+                enum:
+                  - USD
+                type: string
+              demo:
+                $ref: "#/components/schemas/DemoDisclosure"
+              id:
+                format: uuid
+                type: string
+              name:
+                maxLength: 120
+                minLength: 1
+                type: string
+              note:
+                maxLength: 2000
+                nullable: true
+                type: string
+              ordinal:
+                maximum: 50
+                minimum: 1
+                type: integer
+              revision_id:
+                format: uuid
+                type: string
+              slug:
+                pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+                type: string
+              symbol:
+                maxLength: 16
+                minLength: 1
+                type: string
+              weight_bps:
+                maximum: 10000
+                minimum: 0
+                nullable: true
+                type: integer
+            required:
+              - id
+              - slug
+              - symbol
+              - name
+              - asset_type
+              - currency
+              - revision_id
+              - appearance_reason
+              - demo
+              - ordinal
+              - weight_bps
+              - note
+            type: object
+          maxItems: 50
+          minItems: 1
+          type: array
+        creator:
+          $ref: "#/components/schemas/SeededCreator"
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        description:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        id:
+          format: uuid
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        theme:
+          maxLength: 64
+          minLength: 1
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - id
+        - slug
+        - title
+        - description
+        - theme
+        - creator
+        - revision_id
+        - demo
+        - assets
+      type: object
+    CircleTemplateDetailResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/CircleTemplateDetail"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    CircleTemplateSummary:
+      additionalProperties: false
+      properties:
+        creator:
+          $ref: "#/components/schemas/SeededCreator"
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        description:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        id:
+          format: uuid
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        theme:
+          maxLength: 64
+          minLength: 1
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - id
+        - slug
+        - title
+        - description
+        - theme
+        - creator
+        - revision_id
+        - demo
+      type: object
+    CollectionMeta:
+      additionalProperties: false
+      properties:
+        has_more:
+          type: boolean
+        next_cursor:
+          maxLength: 2048
+          minLength: 1
+          nullable: true
+          type: string
+        request_id:
+          description: Server-assigned request correlation identifier.
+          example: 018f3c2a-4b67-7a89-8abc-1234567890ab
+          format: uuid
+          type: string
+      required:
+        - request_id
+        - next_cursor
+        - has_more
+      type: object
+    CovenCollectionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/CovenSummary"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    CovenDetailResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/CovenEntryDetail"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    CovenEntryDetail:
+      additionalProperties: false
+      properties:
+        company:
+          maxLength: 120
+          minLength: 1
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        id:
+          format: uuid
+          type: string
+        inclusion_rationale:
+          maxLength: 5000
+          minLength: 1
+          type: string
+        limitations:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        qualifications:
+          items:
+            $ref: "#/components/schemas/CovenQualification"
+          maxItems: 20
+          minItems: 1
+          type: array
+        revision_id:
+          format: uuid
+          type: string
+        saved:
+          type: boolean
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        summary:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        symbol:
+          maxLength: 16
+          minLength: 1
+          nullable: true
+          type: string
+      required:
+        - id
+        - slug
+        - company
+        - symbol
+        - summary
+        - inclusion_rationale
+        - limitations
+        - qualifications
+        - revision_id
+        - saved
+        - demo
+      type: object
+    CovenEvidenceResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/EvidenceDetail"
+          type: array
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    CovenQualification:
+      additionalProperties: false
+      properties:
+        category:
+          enum:
+            - founder
+            - owner
+            - chief_executive
+          type: string
+        effective_date:
+          format: date
+          type: string
+        evidence:
+          items:
+            $ref: "#/components/schemas/EvidenceSummary"
+          maxItems: 20
+          minItems: 1
+          type: array
+        person_name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        valid_to:
+          format: date
+          nullable: true
+          type: string
+        verified_as_of:
+          format: date
+          type: string
+      required:
+        - category
+        - person_name
+        - effective_date
+        - valid_to
+        - verified_as_of
+        - evidence
+      type: object
+    CovenSummary:
+      additionalProperties: false
+      properties:
+        category:
+          enum:
+            - founder
+            - owner
+            - chief_executive
+          type: string
+        company:
+          maxLength: 120
+          minLength: 1
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        effective_date:
+          format: date
+          type: string
+        id:
+          format: uuid
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        teaser:
+          maxLength: 500
+          minLength: 1
+          type: string
+        verified_as_of:
+          format: date
+          type: string
+      required:
+        - slug
+        - company
+        - category
+        - verified_as_of
+        - teaser
+        - demo
+        - id
+        - effective_date
+        - revision_id
+      type: object
+    CreatorCollectionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/SeededCreator"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    DailyRitualDetail:
+      additionalProperties: false
+      properties:
+        art:
+          $ref: "#/components/schemas/ArtReference"
+        assignment_id:
+          format: uuid
+          type: string
+        completed_at:
+          format: date-time
+          nullable: true
+          type: string
+        date:
+          format: date
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        evidence:
+          items:
+            $ref: "#/components/schemas/EvidenceSummary"
+          maxItems: 20
+          minItems: 1
+          type: array
+        guidance:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        ideas:
+          items:
+            $ref: "#/components/schemas/RitualAssetIdea"
+          maxItems: 5
+          minItems: 3
+          type: array
+        interpretation:
+          maxLength: 10000
+          minLength: 1
+          type: string
+        market_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+        mode:
+          enum:
+            - tarot
+            - astrology
+          type: string
+        revealed_at:
+          format: date-time
+          nullable: true
+          type: string
+        revision:
+          additionalProperties: false
+          properties:
+            id:
+              format: uuid
+              type: string
+            number:
+              exclusiveMinimum: true
+              minimum: 0
+              type: integer
+          required:
+            - id
+            - number
+          type: object
+        rowan:
+          $ref: "#/components/schemas/RowanCounsel"
+        state:
+          enum:
+            - assigned
+            - revealed
+            - completed
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - assignment_id
+        - date
+        - mode
+        - revision
+        - title
+        - art
+        - interpretation
+        - guidance
+        - market_label
+        - ideas
+        - evidence
+        - rowan
+        - version
+        - state
+        - revealed_at
+        - completed_at
+        - demo
+      type: object
+    DailyRitualPreview:
+      additionalProperties: false
+      properties:
+        art:
+          $ref: "#/components/schemas/ArtReference"
+        date:
+          format: date
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        idea_teasers:
+          items:
+            $ref: "#/components/schemas/PublicAssetTeaser"
+          maxItems: 5
+          minItems: 3
+          type: array
+        interpretation_excerpt:
+          maxLength: 500
+          minLength: 1
+          type: string
+        market_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+        mode:
+          enum:
+            - tarot
+            - astrology
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - date
+        - mode
+        - title
+        - art
+        - interpretation_excerpt
+        - market_label
+        - idea_teasers
+        - demo
+      type: object
+    DailyRitualResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/DailyRitualDetail"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    DemoDisclosure:
+      additionalProperties: false
+      properties:
+        is_demo:
+          enum:
+            - true
+          type: boolean
+        limitations:
+          items:
+            maxLength: 500
+            minLength: 1
+            type: string
+          maxItems: 20
+          minItems: 1
+          type: array
+        observed_at:
+          format: date-time
+          type: string
+        source_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - is_demo
+        - observed_at
+        - source_label
+        - limitations
+      type: object
+    DiscoverItem:
+      oneOf:
+        - additionalProperties: false
+          properties:
+            asset:
+              $ref: "#/components/schemas/AssetSummary"
+            kind:
+              enum:
+                - asset
+              type: string
+          required:
+            - kind
+            - asset
+          type: object
+        - additionalProperties: false
+          properties:
+            coven:
+              $ref: "#/components/schemas/CovenSummary"
+            kind:
+              enum:
+                - coven
+              type: string
+          required:
+            - kind
+            - coven
+          type: object
+        - additionalProperties: false
+          properties:
+            grimoire:
+              $ref: "#/components/schemas/GrimoireSummary"
+            kind:
+              enum:
+                - grimoire
+              type: string
+          required:
+            - kind
+            - grimoire
+          type: object
+        - additionalProperties: false
+          properties:
+            circle_template:
+              $ref: "#/components/schemas/CircleTemplateSummary"
+            kind:
+              enum:
+                - circle_template
+              type: string
+          required:
+            - kind
+            - circle_template
+          type: object
+    DiscoverResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/DiscoverItem"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
     ErrorResponse:
       additionalProperties: false
       properties:
@@ -100,6 +1021,87 @@ components:
       required:
         - error
       type: object
+    EvidenceDetail:
+      additionalProperties: false
+      properties:
+        claim_id:
+          format: uuid
+          type: string
+        factor_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+        observed_at:
+          format: date-time
+          type: string
+        source:
+          additionalProperties: false
+          properties:
+            published_at:
+              format: date-time
+              nullable: true
+              type: string
+            publisher:
+              maxLength: 120
+              minLength: 1
+              type: string
+            title:
+              maxLength: 240
+              minLength: 1
+              type: string
+            url:
+              format: uri
+              type: string
+          required:
+            - title
+            - publisher
+            - url
+            - published_at
+          type: object
+        summary:
+          maxLength: 1000
+          minLength: 1
+          type: string
+        uncertainty:
+          maxLength: 1000
+          minLength: 1
+          type: string
+      required:
+        - claim_id
+        - factor_label
+        - summary
+        - observed_at
+        - uncertainty
+        - source
+      type: object
+    EvidenceSummary:
+      additionalProperties: false
+      properties:
+        claim_id:
+          format: uuid
+          type: string
+        factor_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+        observed_at:
+          format: date-time
+          type: string
+        summary:
+          maxLength: 1000
+          minLength: 1
+          type: string
+        uncertainty:
+          maxLength: 1000
+          minLength: 1
+          type: string
+      required:
+        - claim_id
+        - factor_label
+        - summary
+        - observed_at
+        - uncertainty
+      type: object
     FieldError:
       additionalProperties: false
       properties:
@@ -114,6 +1116,117 @@ components:
       required:
         - path
         - code
+      type: object
+    GrimoireCollectionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/GrimoireSummary"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    GrimoireDetail:
+      additionalProperties: false
+      properties:
+        assets:
+          items:
+            $ref: "#/components/schemas/AssetSummary"
+          maxItems: 50
+          minItems: 1
+          type: array
+        curator_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        description:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        id:
+          format: uuid
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        theme:
+          maxLength: 64
+          minLength: 1
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - id
+        - slug
+        - title
+        - description
+        - theme
+        - curator_label
+        - revision_id
+        - demo
+        - assets
+      type: object
+    GrimoireDetailResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/GrimoireDetail"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    GrimoireSummary:
+      additionalProperties: false
+      properties:
+        curator_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        description:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        id:
+          format: uuid
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        theme:
+          maxLength: 64
+          minLength: 1
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - id
+        - slug
+        - title
+        - description
+        - theme
+        - curator_label
+        - revision_id
+        - demo
       type: object
     HealthResponse:
       additionalProperties: false
@@ -138,6 +1251,250 @@ components:
         - data
         - meta
       type: object
+    OpenApiDocument:
+      additionalProperties:
+        nullable: true
+      properties:
+        openapi:
+          enum:
+            - 3.0.3
+          type: string
+      required:
+        - openapi
+      type: object
+    PublicAssetTeaser:
+      additionalProperties: false
+      properties:
+        appearance_reason:
+          maxLength: 500
+          minLength: 1
+          type: string
+        name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        symbol:
+          maxLength: 16
+          minLength: 1
+          type: string
+      required:
+        - symbol
+        - name
+        - appearance_reason
+      type: object
+    PublicCovenDetailResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/PublicCovenTeaser"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    PublicCovenResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/PublicCovenTeaser"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    PublicCovenTeaser:
+      additionalProperties: false
+      properties:
+        category:
+          enum:
+            - founder
+            - owner
+            - chief_executive
+          type: string
+        company:
+          maxLength: 120
+          minLength: 1
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        teaser:
+          maxLength: 500
+          minLength: 1
+          type: string
+        verified_as_of:
+          format: date
+          type: string
+      required:
+        - slug
+        - company
+        - category
+        - verified_as_of
+        - teaser
+        - demo
+      type: object
+    PublicDailyRitualResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/DailyRitualPreview"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    PublicDiscoverItem:
+      oneOf:
+        - additionalProperties: false
+          properties:
+            demo:
+              $ref: "#/components/schemas/DemoDisclosure"
+            kind:
+              enum:
+                - asset
+              type: string
+            slug:
+              pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+              type: string
+            symbol:
+              maxLength: 16
+              minLength: 1
+              type: string
+            teaser:
+              maxLength: 500
+              minLength: 1
+              type: string
+            title:
+              maxLength: 120
+              minLength: 1
+              type: string
+          required:
+            - kind
+            - slug
+            - symbol
+            - title
+            - teaser
+            - demo
+          type: object
+        - additionalProperties: false
+          properties:
+            category:
+              enum:
+                - founder
+                - owner
+                - chief_executive
+              type: string
+            demo:
+              $ref: "#/components/schemas/DemoDisclosure"
+            kind:
+              enum:
+                - coven
+              type: string
+            slug:
+              pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+              type: string
+            teaser:
+              maxLength: 500
+              minLength: 1
+              type: string
+            title:
+              maxLength: 120
+              minLength: 1
+              type: string
+            verified_as_of:
+              format: date
+              type: string
+          required:
+            - kind
+            - slug
+            - title
+            - category
+            - verified_as_of
+            - teaser
+            - demo
+          type: object
+        - additionalProperties: false
+          properties:
+            demo:
+              $ref: "#/components/schemas/DemoDisclosure"
+            kind:
+              enum:
+                - grimoire
+              type: string
+            slug:
+              pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+              type: string
+            teaser:
+              maxLength: 500
+              minLength: 1
+              type: string
+            title:
+              maxLength: 120
+              minLength: 1
+              type: string
+          required:
+            - kind
+            - slug
+            - title
+            - teaser
+            - demo
+          type: object
+        - additionalProperties: false
+          properties:
+            creator_label:
+              maxLength: 120
+              minLength: 1
+              type: string
+            demo:
+              $ref: "#/components/schemas/DemoDisclosure"
+            is_fictional:
+              enum:
+                - true
+              type: boolean
+            kind:
+              enum:
+                - circle_template
+              type: string
+            slug:
+              pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+              type: string
+            teaser:
+              maxLength: 500
+              minLength: 1
+              type: string
+            title:
+              maxLength: 120
+              minLength: 1
+              type: string
+          required:
+            - kind
+            - slug
+            - title
+            - teaser
+            - creator_label
+            - is_fictional
+            - demo
+          type: object
+    PublicDiscoverResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/PublicDiscoverItem"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
     ResponseMeta:
       additionalProperties: false
       properties:
@@ -148,6 +1505,227 @@ components:
           type: string
       required:
         - request_id
+      type: object
+    RitualAssetIdea:
+      additionalProperties: false
+      properties:
+        appearance_reason:
+          maxLength: 500
+          minLength: 1
+          type: string
+        asset_id:
+          format: uuid
+          type: string
+        name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        risk_summary:
+          maxLength: 500
+          minLength: 1
+          type: string
+        symbol:
+          maxLength: 16
+          minLength: 1
+          type: string
+      required:
+        - asset_id
+        - symbol
+        - name
+        - appearance_reason
+        - risk_summary
+      type: object
+    RitualEvidenceResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/EvidenceDetail"
+          type: array
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    RitualHistoryItem:
+      additionalProperties: false
+      properties:
+        assignment_id:
+          format: uuid
+          type: string
+        date:
+          format: date
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        mode:
+          enum:
+            - tarot
+            - astrology
+          type: string
+        state:
+          enum:
+            - assigned
+            - revealed
+            - completed
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - assignment_id
+        - date
+        - mode
+        - title
+        - state
+        - demo
+      type: object
+    RitualHistoryResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/RitualHistoryItem"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    RowanCounsel:
+      additionalProperties: false
+      properties:
+        body:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        risk_footer:
+          maxLength: 500
+          minLength: 1
+          type: string
+        script_revision_id:
+          format: uuid
+          type: string
+        surface:
+          enum:
+            - daily_ritual
+            - evidence
+            - asset_codex
+            - coven
+          type: string
+      required:
+        - script_revision_id
+        - surface
+        - body
+        - risk_footer
+      type: object
+    RowanCounselResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/RowanCounsel"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    SearchResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/SearchResult"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    SearchResult:
+      oneOf:
+        - additionalProperties: false
+          properties:
+            asset:
+              $ref: "#/components/schemas/AssetSummary"
+            kind:
+              enum:
+                - asset
+              type: string
+          required:
+            - kind
+            - asset
+          type: object
+        - additionalProperties: false
+          properties:
+            coven:
+              $ref: "#/components/schemas/CovenSummary"
+            kind:
+              enum:
+                - coven
+              type: string
+          required:
+            - kind
+            - coven
+          type: object
+        - additionalProperties: false
+          properties:
+            grimoire:
+              $ref: "#/components/schemas/GrimoireSummary"
+            kind:
+              enum:
+                - grimoire
+              type: string
+          required:
+            - kind
+            - grimoire
+          type: object
+        - additionalProperties: false
+          properties:
+            circle_template:
+              $ref: "#/components/schemas/CircleTemplateSummary"
+            kind:
+              enum:
+                - circle_template
+              type: string
+          required:
+            - kind
+            - circle_template
+          type: object
+    SeededCreator:
+      additionalProperties: false
+      properties:
+        bio:
+          maxLength: 2000
+          minLength: 1
+          type: string
+        demo:
+          $ref: "#/components/schemas/DemoDisclosure"
+        display_name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        id:
+          format: uuid
+          type: string
+        is_fictional:
+          enum:
+            - true
+          type: boolean
+        slug:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+      required:
+        - id
+        - slug
+        - display_name
+        - bio
+        - is_fictional
+        - demo
       type: object
     SessionBootstrap:
       additionalProperties: false
@@ -401,6 +1979,1123 @@ paths:
           CloudflareAccess: []
       tags:
         - Admin Session
+  /v1/assets:
+    get:
+      operationId: listAssets
+      parameters:
+        - in: query
+          name: asset_type
+          required: false
+          schema:
+            enum:
+              - equity
+              - etf
+              - index
+              - cash
+            type: string
+        - in: query
+          name: symbol_prefix
+          required: false
+          schema:
+            maxLength: 8
+            minLength: 1
+            pattern: ^[A-Za-z0-9.-]+$
+            type: string
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetCollectionResponse"
+          description: Published Asset Codex summaries.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published asset not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Assets
+  /v1/assets/{asset_id}:
+    get:
+      operationId: getAsset
+      parameters:
+        - in: path
+          name: asset_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetDetailResponse"
+          description: Published Asset Codex detail.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published asset not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Assets
+  /v1/assets/{asset_id}/evidence:
+    get:
+      operationId: getAssetEvidence
+      parameters:
+        - in: path
+          name: asset_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetEvidenceResponse"
+          description: Published detailed claims and allowlisted sources.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published asset not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Assets
+  /v1/assets/{asset_id}/metrics:
+    get:
+      operationId: getAssetMetrics
+      parameters:
+        - in: path
+          name: asset_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: as_of
+          required: false
+          schema:
+            format: date-time
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetMetricsResponse"
+          description: At most 90 deterministic snapshots.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published asset not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Assets
+  /v1/assets/compare:
+    post:
+      operationId: compareAssets
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                asset_ids:
+                  items:
+                    format: uuid
+                    type: string
+                  maxItems: 5
+                  minItems: 2
+                  type: array
+              required:
+                - asset_ids
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AssetComparisonResponse"
+          description: Normalized comparison of two to five assets.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published asset not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Assets
+  /v1/circle-templates:
+    get:
+      operationId: listCircleTemplates
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: theme
+          required: false
+          schema:
+            maxLength: 64
+            minLength: 1
+            pattern: ^[a-z0-9_]+$
+            type: string
+        - in: query
+          name: creator
+          required: false
+          schema:
+            maxLength: 120
+            minLength: 1
+            pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircleTemplateCollectionResponse"
+          description: Published Circle-template summaries.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Discover
+  /v1/circle-templates/{id}:
+    get:
+      operationId: getCircleTemplate
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircleTemplateDetailResponse"
+          description: Published Circle-template detail.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Discover
+  /v1/community/creators:
+    get:
+      operationId: listSeededCreators
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorCollectionResponse"
+          description: Fictional seeded creator summaries.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Discover
+  /v1/coven:
+    get:
+      operationId: listCoven
+      parameters:
+        - in: query
+          name: category
+          required: false
+          schema:
+            enum:
+              - founder
+              - owner
+              - chief_executive
+            type: string
+        - in: query
+          name: verified_as_of
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CovenCollectionResponse"
+          description: Currently verified published Coven entries.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published Coven entry not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Founders Coven
+  /v1/coven/{entry_id}:
+    get:
+      operationId: getCovenEntry
+      parameters:
+        - in: path
+          name: entry_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CovenDetailResponse"
+          description: Published Coven entry and distinct qualifications.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published Coven entry not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Founders Coven
+  /v1/coven/{entry_id}/evidence:
+    get:
+      operationId: getCovenEvidence
+      parameters:
+        - in: path
+          name: entry_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CovenEvidenceResponse"
+          description: Dated verification evidence without staff internals.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published Coven entry not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Founders Coven
+  /v1/discover:
+    get:
+      operationId: listDiscover
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: section
+          required: false
+          schema:
+            enum:
+              - asset
+              - coven
+              - grimoire
+              - circle_template
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DiscoverResponse"
+          description: Bounded published discovery sections.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Discover
+  /v1/grimoires:
+    get:
+      operationId: listGrimoires
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: theme
+          required: false
+          schema:
+            maxLength: 64
+            minLength: 1
+            pattern: ^[a-z0-9_]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrimoireCollectionResponse"
+          description: Published Grimoire summaries.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Discover
+  /v1/grimoires/{id}:
+    get:
+      operationId: getGrimoire
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GrimoireDetailResponse"
+          description: Published Grimoire detail.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Discover
   /v1/health/live:
     get:
       operationId: getLiveHealth
@@ -414,6 +3109,983 @@ paths:
       security: []
       tags:
         - Platform
+  /v1/openapi.json:
+    get:
+      operationId: getOpenApiDocument
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenApiDocument"
+          description: OpenAPI 3.0.3 contract without runtime configuration.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+            ETag:
+              schema:
+                type: string
+        "304":
+          description: Contract revision unchanged.
+          headers:
+            ETag:
+              schema:
+                type: string
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+          headers:
+            Retry-After:
+              schema:
+                minimum: 1
+                type: integer
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: The health rate limit could not be checked.
+      security: []
+      tags:
+        - Platform
+  /v1/public/coven:
+    get:
+      operationId: listPublicCoven
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 20
+            minimum: 1
+            type: integer
+        - in: query
+          name: category
+          required: false
+          schema:
+            enum:
+              - founder
+              - owner
+              - chief_executive
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicCovenResponse"
+          description: Allowlisted published Coven teasers.
+        "304":
+          description: Published revision unchanged.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid public query.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published content unavailable.
+      security: []
+      tags:
+        - Public Preview
+  /v1/public/coven/{slug}:
+    get:
+      operationId: getPublicCoven
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema:
+            maxLength: 120
+            minLength: 1
+            pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicCovenDetailResponse"
+          description: Allowlisted published Coven teaser detail.
+        "304":
+          description: Published revision unchanged.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid public query.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published content unavailable.
+      security: []
+      tags:
+        - Public Preview
+  /v1/public/discover:
+    get:
+      operationId: listPublicDiscover
+      parameters:
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 20
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicDiscoverResponse"
+          description: Allowlisted published discovery teasers.
+        "304":
+          description: Published revision unchanged.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid public query.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published content unavailable.
+      security: []
+      tags:
+        - Public Preview
+  /v1/public/rituals/daily:
+    get:
+      operationId: getPublicDailyRitual
+      parameters:
+        - in: query
+          name: date
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: mode
+          required: false
+          schema:
+            default: tarot
+            enum:
+              - tarot
+              - astrology
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicDailyRitualResponse"
+          description: Allowlisted published Daily Ritual preview.
+        "304":
+          description: Published revision unchanged.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published item not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid public query.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Published content unavailable.
+      security: []
+      tags:
+        - Public Preview
+  /v1/rituals/{assignment_id}:
+    get:
+      operationId: getRitualAssignment
+      parameters:
+        - in: path
+          name: assignment_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DailyRitualDetail"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Owned frozen assignment.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Assignment not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or state conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Rituals
+  /v1/rituals/{assignment_id}/complete:
+    post:
+      operationId: completeRitual
+      parameters:
+        - in: path
+          name: assignment_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DailyRitualDetail"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Idempotently completed assignment.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Assignment not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or state conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Rituals
+  /v1/rituals/{assignment_id}/evidence:
+    get:
+      operationId: getRitualEvidence
+      parameters:
+        - in: path
+          name: assignment_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RitualEvidenceResponse"
+          description: Evidence frozen to the owned assignment.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Assignment not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or state conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Rituals
+  /v1/rituals/{assignment_id}/reveal:
+    post:
+      operationId: revealRitual
+      parameters:
+        - in: path
+          name: assignment_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DailyRitualDetail"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Idempotently revealed assignment.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Assignment not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or state conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Rituals
+  /v1/rituals/daily:
+    get:
+      operationId: getDailyRitual
+      parameters:
+        - in: query
+          name: date
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: mode
+          required: false
+          schema:
+            default: tarot
+            enum:
+              - tarot
+              - astrology
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DailyRitualResponse"
+          description: Frozen Daily Ritual assignment.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Assignment not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or state conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Rituals
+  /v1/rituals/history:
+    get:
+      operationId: listRitualHistory
+      parameters:
+        - in: query
+          name: mode
+          required: false
+          schema:
+            enum:
+              - tarot
+              - astrology
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RitualHistoryResponse"
+          description: Bounded owned assignment history.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Assignment not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or state conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Rituals
+  /v1/rowan/counsel:
+    get:
+      operationId: getRowanCounsel
+      parameters:
+        - in: query
+          name: surface
+          required: true
+          schema:
+            enum:
+              - daily_ritual
+              - evidence
+              - asset_codex
+              - coven
+            type: string
+        - in: query
+          name: context_code
+          required: true
+          schema:
+            enum:
+              - daily
+              - evidence
+              - asset
+              - coven
+            type: string
+        - in: query
+          name: resource_id
+          required: false
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RowanCounselResponse"
+          description: Reviewed deterministic counsel.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Reviewed Rowan counsel not found.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Rowan
+  /v1/search:
+    get:
+      operationId: searchPublishedCatalog
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema:
+            maxLength: 100
+            minLength: 2
+            pattern: ^[\p{L}\p{N}][\p{L}\p{N}\s&'’.-]*$/u
+            type: string
+        - in: query
+          name: kinds
+          required: true
+          schema:
+            maxLength: 80
+            minLength: 1
+            pattern: ^(asset|coven|grimoire|circle_template)(,(asset|coven|grimoire|circle_template))*$
+            type: string
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+          description: Bounded mixed published search results.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid bounded input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Content storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Search
   /v1/session/bootstrap:
     post:
       operationId: bootstrapSession

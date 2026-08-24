@@ -1,0 +1,25 @@
+# ritual_investing_api_client.model.CovenEntryDetail
+
+## Load the model package
+```dart
+import 'package:ritual_investing_api_client/api.dart';
+```
+
+## Properties
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**company** | **String** |  | 
+**demo** | [**DemoDisclosure**](DemoDisclosure.md) |  | 
+**id** | **String** |  | 
+**inclusionRationale** | **String** |  | 
+**limitations** | **String** |  | 
+**qualifications** | [**List&lt;CovenQualification&gt;**](CovenQualification.md) |  | 
+**revisionId** | **String** |  | 
+**saved** | **bool** |  | 
+**slug** | **String** |  | 
+**summary** | **String** |  | 
+**symbol** | **String** |  | 
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

@@ -185,6 +185,7 @@ describe.skipIf(postgresUrl === undefined)("PostgreSQL restricted-role integrati
       "0001_ritual_foundation.sql",
       "0002_roles_and_rls.sql",
       "0003_identity_bootstrap.sql",
+      "0004_editorial_catalog.sql",
     ].includes(name))).toBe(true);
     expect(await applyReviewedMigrations(postgresUrl)).toEqual([]);
 

@@ -24,5 +24,8 @@ export function errorResponse(
     },
   };
   context.header("cache-control", "private, no-store");
+  if (options.retryAfterSeconds !== undefined) {
+    context.header("retry-after", String(options.retryAfterSeconds));
+  }
   return context.json(body, status);
 }

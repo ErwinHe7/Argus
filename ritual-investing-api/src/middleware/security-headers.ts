@@ -100,6 +100,18 @@ export const rejectRequestBody: MiddlewareHandler<AppEnvironment> = async (conte
   await next();
 };
 
+export const requireRequestBody: MiddlewareHandler<AppEnvironment> = async (context, next) => {
+  if (context.req.raw.body === null) {
+    return errorResponse(
+      context,
+      422,
+      "validation_failed",
+      "This operation requires a JSON request body.",
+    );
+  }
+  await next();
+};
+
 function limitedBody(maxSize: number): MiddlewareHandler<AppEnvironment> {
   return bodyLimit({
     maxSize,

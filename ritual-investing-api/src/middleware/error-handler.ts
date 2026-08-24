@@ -1,4 +1,5 @@
 import type { ErrorHandler } from "hono";
+import { HTTPException } from "hono/http-exception";
 import type { ZodError } from "zod";
 
 import type { AppEnvironment } from "../app.ts";
@@ -25,6 +26,21 @@ export function validationError(
 
 export const errorHandler: ErrorHandler<AppEnvironment> = (error, context) => {
   const requestId = requestIdFrom(context);
+  if (error instanceof HTTPException && error.status === 400) {
+    context.header("cache-control", "private, no-store");
+    return context.json(
+      {
+        error: {
+          code: "validation_failed",
+          message: "The request is invalid.",
+          request_id: requestId,
+          field_errors: [{ path: "request", code: "invalid_json" }],
+          retryable: false,
+        },
+      } satisfies ErrorResponse,
+      422,
+    );
+  }
   console.error("request_failed", {
     request_id: requestId,
     error_type: error.name,

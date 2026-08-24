@@ -2,7 +2,10 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 
 import type { Bindings } from "./config/env.ts";
 import { errorResponseSchema, objectResponse } from "./contracts/common.ts";
+import { buildOpenApiDocument } from "./contracts/openapi.ts";
 import { registerSessionRoutes, type SessionRouteDependencies } from "./domains/session/routes.ts";
+import { registerEditorialContentRoutes } from "./domains/editorial/routes.ts";
+import type { ContentRouteDependencies } from "./domains/editorial/route-support.ts";
 import type { AccountTenantVariables } from "./middleware/account-tenant.ts";
 import type { AuthVariables } from "./middleware/auth0-jwk.ts";
 import type { AccessVariables } from "./middleware/cloudflare-access.ts";
@@ -25,6 +28,9 @@ const healthDataSchema = z.object({
   build_revision: z.string().min(1),
 }).strict();
 const healthResponseSchema = objectResponse(healthDataSchema).openapi("HealthResponse");
+const openApiDocumentSchema = z.object({
+  openapi: z.literal("3.0.3"),
+}).passthrough().openapi("OpenApiDocument");
 
 const healthRoute = createRoute({
   method: "get",
@@ -54,6 +60,37 @@ const liveHealthRoute = createRoute({
   },
 });
 
+const openApiRoute = createRoute({
+  method: "get",
+  path: "/v1/openapi.json",
+  operationId: "getOpenApiDocument",
+  tags: ["Platform"],
+  security: [],
+  responses: {
+    200: {
+      description: "OpenAPI 3.0.3 contract without runtime configuration.",
+      headers: {
+        ETag: { schema: { type: "string" } },
+        "Cache-Control": { schema: { type: "string" } },
+      },
+      content: { "application/json": { schema: openApiDocumentSchema } },
+    },
+    304: {
+      description: "Contract revision unchanged.",
+      headers: { ETag: { schema: { type: "string" } } },
+    },
+    429: {
+      description: "Rate limited.",
+      headers: { "Retry-After": { schema: { type: "integer", minimum: 1 } } },
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+    503: {
+      description: "The health rate limit could not be checked.",
+      content: { "application/json": { schema: errorResponseSchema } },
+    },
+  },
+});
+
 const contractTestRoute = createRoute({
   method: "post",
   path: "/v1/contract-test",
@@ -78,7 +115,7 @@ const contractTestRoute = createRoute({
 
 export type CreateAppOptions = {
   enableContractTestRoute?: boolean;
-  dependencies?: SessionRouteDependencies;
+  dependencies?: SessionRouteDependencies & ContentRouteDependencies;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -92,6 +129,22 @@ export function createApp(options: CreateAppOptions = {}) {
       }
     },
   });
+  let serializedOpenApi: Promise<{ body: string; etag: string }> | undefined;
+
+  function openApiResponse() {
+    serializedOpenApi ??= (async () => {
+      const body = JSON.stringify(buildOpenApiDocument(app));
+      const digest = new Uint8Array(
+        await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body)),
+      );
+      const revision = [...digest]
+        .map((value) => value.toString(16).padStart(2, "0"))
+        .join("")
+        .slice(0, 24);
+      return { body, etag: `"openapi-${revision}"` };
+    })();
+    return serializedOpenApi;
+  }
 
   app.use("*", requestContext);
   app.use("*", securityHeaders);
@@ -114,6 +167,7 @@ export function createApp(options: CreateAppOptions = {}) {
 
   app.use(healthRoute.getRoutingPath(), preAuthRateLimit("RL_HEALTH"));
   app.use(liveHealthRoute.getRoutingPath(), preAuthRateLimit("RL_HEALTH"));
+  app.use(openApiRoute.getRoutingPath(), preAuthRateLimit("RL_HEALTH"));
   const healthHandler = (context: Parameters<Parameters<typeof app.openapi>[1]>[0]) =>
     context.json(
       {
@@ -129,8 +183,16 @@ export function createApp(options: CreateAppOptions = {}) {
     healthHandler(context),
   );
   app.openapi(liveHealthRoute, (context) => healthHandler(context));
+  app.openapi(openApiRoute, async (context) => {
+    const { body, etag } = await openApiResponse();
+    context.header("etag", etag);
+    context.header("cache-control", "public, max-age=300");
+    if (context.req.header("if-none-match") === etag) return context.body(null, 304) as never;
+    return context.body(body, 200, { "content-type": "application/json; charset=UTF-8" }) as never;
+  });
 
   registerSessionRoutes(app, options.dependencies);
+  registerEditorialContentRoutes(app, options.dependencies);
 
   if (options.enableContractTestRoute) {
     app.openapi(contractTestRoute, (context) => context.body(null, 204));

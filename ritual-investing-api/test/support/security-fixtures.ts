@@ -40,6 +40,7 @@ export function testBindings(rateLimit = fakeRateLimit()): Bindings {
     CF_ACCESS_ISSUER: ACCESS_ISSUER,
     CF_ACCESS_AUDIENCE: ACCESS_AUDIENCE,
     CF_ACCESS_JWKS_URL: `${ACCESS_ISSUER}/cdn-cgi/access/certs`,
+    CURSOR_SIGNING_KEY: "ritual-test-cursor-signing-key-32-bytes-minimum",
     RL_HEALTH: rateLimit,
     RL_PUBLIC: rateLimit,
     RL_SEARCH: rateLimit,
@@ -110,4 +111,12 @@ export const sessionSnapshot = {
   },
   server_time: "2026-08-24T04:00:00.000Z",
   contract_version: "1.0.0" as const,
+};
+
+export const resolvedMemberAccount = {
+  accountId: "018f3c2a-4b67-7a89-8abc-123456789001",
+  tenantId: "018f3c2a-4b67-7a89-8abc-123456789099",
+  accountStatus: "active" as const,
+  tenantStatus: "active" as const,
+  revocationEpoch: 0,
 };

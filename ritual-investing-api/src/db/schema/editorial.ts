@@ -101,6 +101,7 @@ export const dailyRitualAssignments = pgTable("daily_ritual_assignments", {
   id: uuid("id").defaultRandom().primaryKey(), tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "cascade" }), localDate: date("local_date").notNull(),
   mode: text("mode").notNull(), scheduleId: uuid("schedule_id").notNull().references(() => ritualSchedules.id), revisionId: uuid("revision_id").notNull().references(() => editorialRevisions.id),
   rowanRevisionId: uuid("rowan_revision_id"), state: text("state").notNull(), revealedAt: timestamp("revealed_at", { withTimezone: true }), completedAt: timestamp("completed_at", { withTimezone: true }),
+  version: integer("version").notNull().default(1),
 }, (table) => [unique("daily_ritual_assignments_tenant_date_mode_unique").on(table.tenantId, table.localDate, table.mode)]);
 
 export const rowanScripts = pgTable("rowan_scripts", { id: uuid("id").defaultRandom().primaryKey(), editorialItemId: uuid("editorial_item_id").notNull().unique().references(() => editorialItems.id), scriptKey: text("script_key").notNull().unique(), surface: text("surface").notNull() });

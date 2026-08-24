@@ -48,13 +48,14 @@ Please follow the [installation procedure](#installation--usage) and then run th
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 
 
-final api = RitualInvestingApiClient().getPlatformApi();
+final api = RitualInvestingApiClient().getAdminSessionApi();
+final String cfAccessJwtAssertion = cfAccessJwtAssertion_example; // String | 
 
 try {
-    final response = await api.getHealth();
+    final response = await api.getAdminSession(cfAccessJwtAssertion);
     print(response);
 } on DioException catch (e) {
-    print("Exception when calling PlatformApi->getHealth: $e\n");
+    print("Exception when calling AdminSessionApi->getAdminSession: $e\n");
 }
 
 ```
@@ -65,20 +66,123 @@ All URIs are relative to *https://api.ritual-investing.example*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+[*AdminSessionApi*](doc/AdminSessionApi.md) | [**getAdminSession**](doc/AdminSessionApi.md#getadminsession) | **GET** /v1/admin/session | 
+[*AssetsApi*](doc/AssetsApi.md) | [**compareAssets**](doc/AssetsApi.md#compareassets) | **POST** /v1/assets/compare | 
+[*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /v1/assets/{asset_id} | 
+[*AssetsApi*](doc/AssetsApi.md) | [**getAssetEvidence**](doc/AssetsApi.md#getassetevidence) | **GET** /v1/assets/{asset_id}/evidence | 
+[*AssetsApi*](doc/AssetsApi.md) | [**getAssetMetrics**](doc/AssetsApi.md#getassetmetrics) | **GET** /v1/assets/{asset_id}/metrics | 
+[*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /v1/assets | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**getCircleTemplate**](doc/DiscoverApi.md#getcircletemplate) | **GET** /v1/circle-templates/{id} | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**getGrimoire**](doc/DiscoverApi.md#getgrimoire) | **GET** /v1/grimoires/{id} | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**listCircleTemplates**](doc/DiscoverApi.md#listcircletemplates) | **GET** /v1/circle-templates | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**listDiscover**](doc/DiscoverApi.md#listdiscover) | **GET** /v1/discover | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**listGrimoires**](doc/DiscoverApi.md#listgrimoires) | **GET** /v1/grimoires | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**listSeededCreators**](doc/DiscoverApi.md#listseededcreators) | **GET** /v1/community/creators | 
+[*FoundersCovenApi*](doc/FoundersCovenApi.md) | [**getCovenEntry**](doc/FoundersCovenApi.md#getcovenentry) | **GET** /v1/coven/{entry_id} | 
+[*FoundersCovenApi*](doc/FoundersCovenApi.md) | [**getCovenEvidence**](doc/FoundersCovenApi.md#getcovenevidence) | **GET** /v1/coven/{entry_id}/evidence | 
+[*FoundersCovenApi*](doc/FoundersCovenApi.md) | [**listCoven**](doc/FoundersCovenApi.md#listcoven) | **GET** /v1/coven | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getHealth**](doc/PlatformApi.md#gethealth) | **GET** /health | 
-[*PlatformApi*](doc/PlatformApi.md) | [**getSession**](doc/PlatformApi.md#getsession) | **GET** /v1/session | 
+[*PlatformApi*](doc/PlatformApi.md) | [**getLiveHealth**](doc/PlatformApi.md#getlivehealth) | **GET** /v1/health/live | 
+[*PlatformApi*](doc/PlatformApi.md) | [**getOpenApiDocument**](doc/PlatformApi.md#getopenapidocument) | **GET** /v1/openapi.json | 
+[*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**getPublicCoven**](doc/PublicPreviewApi.md#getpubliccoven) | **GET** /v1/public/coven/{slug} | 
+[*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**getPublicDailyRitual**](doc/PublicPreviewApi.md#getpublicdailyritual) | **GET** /v1/public/rituals/daily | 
+[*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**listPublicCoven**](doc/PublicPreviewApi.md#listpubliccoven) | **GET** /v1/public/coven | 
+[*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**listPublicDiscover**](doc/PublicPreviewApi.md#listpublicdiscover) | **GET** /v1/public/discover | 
+[*RitualsApi*](doc/RitualsApi.md) | [**completeRitual**](doc/RitualsApi.md#completeritual) | **POST** /v1/rituals/{assignment_id}/complete | 
+[*RitualsApi*](doc/RitualsApi.md) | [**getDailyRitual**](doc/RitualsApi.md#getdailyritual) | **GET** /v1/rituals/daily | 
+[*RitualsApi*](doc/RitualsApi.md) | [**getRitualAssignment**](doc/RitualsApi.md#getritualassignment) | **GET** /v1/rituals/{assignment_id} | 
+[*RitualsApi*](doc/RitualsApi.md) | [**getRitualEvidence**](doc/RitualsApi.md#getritualevidence) | **GET** /v1/rituals/{assignment_id}/evidence | 
+[*RitualsApi*](doc/RitualsApi.md) | [**listRitualHistory**](doc/RitualsApi.md#listritualhistory) | **GET** /v1/rituals/history | 
+[*RitualsApi*](doc/RitualsApi.md) | [**revealRitual**](doc/RitualsApi.md#revealritual) | **POST** /v1/rituals/{assignment_id}/reveal | 
+[*RowanApi*](doc/RowanApi.md) | [**getRowanCounsel**](doc/RowanApi.md#getrowancounsel) | **GET** /v1/rowan/counsel | 
+[*SearchApi*](doc/SearchApi.md) | [**searchPublishedCatalog**](doc/SearchApi.md#searchpublishedcatalog) | **GET** /v1/search | 
+[*SessionApi*](doc/SessionApi.md) | [**bootstrapSession**](doc/SessionApi.md#bootstrapsession) | **POST** /v1/session/bootstrap | 
 
 
 ## Documentation For Models
 
+ - [AdminSession](doc/AdminSession.md)
+ - [AdminSessionResponse](doc/AdminSessionResponse.md)
+ - [ArtReference](doc/ArtReference.md)
+ - [AssetCodexDetail](doc/AssetCodexDetail.md)
+ - [AssetCodexDetailRisksInner](doc/AssetCodexDetailRisksInner.md)
+ - [AssetCollectionResponse](doc/AssetCollectionResponse.md)
+ - [AssetComparison](doc/AssetComparison.md)
+ - [AssetComparisonAssetsInner](doc/AssetComparisonAssetsInner.md)
+ - [AssetComparisonResponse](doc/AssetComparisonResponse.md)
+ - [AssetDetailResponse](doc/AssetDetailResponse.md)
+ - [AssetEvidenceResponse](doc/AssetEvidenceResponse.md)
+ - [AssetMetric](doc/AssetMetric.md)
+ - [AssetMetricsResponse](doc/AssetMetricsResponse.md)
+ - [AssetSummary](doc/AssetSummary.md)
+ - [CircleTemplateCollectionResponse](doc/CircleTemplateCollectionResponse.md)
+ - [CircleTemplateDetail](doc/CircleTemplateDetail.md)
+ - [CircleTemplateDetailAssetsInner](doc/CircleTemplateDetailAssetsInner.md)
+ - [CircleTemplateDetailResponse](doc/CircleTemplateDetailResponse.md)
+ - [CircleTemplateSummary](doc/CircleTemplateSummary.md)
+ - [CollectionMeta](doc/CollectionMeta.md)
+ - [CompareAssetsRequest](doc/CompareAssetsRequest.md)
+ - [CovenCollectionResponse](doc/CovenCollectionResponse.md)
+ - [CovenDetailResponse](doc/CovenDetailResponse.md)
+ - [CovenEntryDetail](doc/CovenEntryDetail.md)
+ - [CovenEvidenceResponse](doc/CovenEvidenceResponse.md)
+ - [CovenQualification](doc/CovenQualification.md)
+ - [CovenSummary](doc/CovenSummary.md)
+ - [CreatorCollectionResponse](doc/CreatorCollectionResponse.md)
+ - [DailyRitualDetail](doc/DailyRitualDetail.md)
+ - [DailyRitualDetailRevision](doc/DailyRitualDetailRevision.md)
+ - [DailyRitualPreview](doc/DailyRitualPreview.md)
+ - [DailyRitualResponse](doc/DailyRitualResponse.md)
+ - [DemoDisclosure](doc/DemoDisclosure.md)
+ - [DiscoverItem](doc/DiscoverItem.md)
+ - [DiscoverItemOneOf](doc/DiscoverItemOneOf.md)
+ - [DiscoverItemOneOf1](doc/DiscoverItemOneOf1.md)
+ - [DiscoverItemOneOf2](doc/DiscoverItemOneOf2.md)
+ - [DiscoverItemOneOf3](doc/DiscoverItemOneOf3.md)
+ - [DiscoverResponse](doc/DiscoverResponse.md)
  - [ErrorResponse](doc/ErrorResponse.md)
  - [ErrorResponseError](doc/ErrorResponseError.md)
+ - [EvidenceDetail](doc/EvidenceDetail.md)
+ - [EvidenceDetailSource](doc/EvidenceDetailSource.md)
+ - [EvidenceSummary](doc/EvidenceSummary.md)
  - [FieldError](doc/FieldError.md)
+ - [GetRitualAssignment200Response](doc/GetRitualAssignment200Response.md)
+ - [GrimoireCollectionResponse](doc/GrimoireCollectionResponse.md)
+ - [GrimoireDetail](doc/GrimoireDetail.md)
+ - [GrimoireDetailResponse](doc/GrimoireDetailResponse.md)
+ - [GrimoireSummary](doc/GrimoireSummary.md)
  - [HealthResponse](doc/HealthResponse.md)
  - [HealthResponseData](doc/HealthResponseData.md)
+ - [OpenApiDocument](doc/OpenApiDocument.md)
+ - [PublicAssetTeaser](doc/PublicAssetTeaser.md)
+ - [PublicCovenDetailResponse](doc/PublicCovenDetailResponse.md)
+ - [PublicCovenResponse](doc/PublicCovenResponse.md)
+ - [PublicCovenTeaser](doc/PublicCovenTeaser.md)
+ - [PublicDailyRitualResponse](doc/PublicDailyRitualResponse.md)
+ - [PublicDiscoverItem](doc/PublicDiscoverItem.md)
+ - [PublicDiscoverItemOneOf](doc/PublicDiscoverItemOneOf.md)
+ - [PublicDiscoverItemOneOf1](doc/PublicDiscoverItemOneOf1.md)
+ - [PublicDiscoverItemOneOf2](doc/PublicDiscoverItemOneOf2.md)
+ - [PublicDiscoverItemOneOf3](doc/PublicDiscoverItemOneOf3.md)
+ - [PublicDiscoverResponse](doc/PublicDiscoverResponse.md)
  - [ResponseMeta](doc/ResponseMeta.md)
- - [SessionResponse](doc/SessionResponse.md)
- - [SessionResponseData](doc/SessionResponseData.md)
+ - [RitualAssetIdea](doc/RitualAssetIdea.md)
+ - [RitualEvidenceResponse](doc/RitualEvidenceResponse.md)
+ - [RitualHistoryItem](doc/RitualHistoryItem.md)
+ - [RitualHistoryResponse](doc/RitualHistoryResponse.md)
+ - [RowanCounsel](doc/RowanCounsel.md)
+ - [RowanCounselResponse](doc/RowanCounselResponse.md)
+ - [SearchResponse](doc/SearchResponse.md)
+ - [SearchResult](doc/SearchResult.md)
+ - [SeededCreator](doc/SeededCreator.md)
+ - [SessionBootstrap](doc/SessionBootstrap.md)
+ - [SessionBootstrapAccount](doc/SessionBootstrapAccount.md)
+ - [SessionBootstrapDefaultPortfolio](doc/SessionBootstrapDefaultPortfolio.md)
+ - [SessionBootstrapEntitlement](doc/SessionBootstrapEntitlement.md)
+ - [SessionBootstrapOnboarding](doc/SessionBootstrapOnboarding.md)
+ - [SessionBootstrapPreferences](doc/SessionBootstrapPreferences.md)
+ - [SessionBootstrapProfile](doc/SessionBootstrapProfile.md)
+ - [SessionBootstrapResponse](doc/SessionBootstrapResponse.md)
 
 
 ## Documentation For Authorization
@@ -91,10 +195,17 @@ Authentication schemes defined for the API:
 - **Flow**: accessCode
 - **Authorization URL**: https://YOUR_AUTH0_DOMAIN/authorize
 - **Scopes**: 
+ - **admin:operations:read**: Read bounded staff operational metadata.
  - **privacy:self**: Run export and deletion requests.
  - **read:self**: Read the member's own Ritual data.
  - **simulate:self**: Run deterministic Demo commands.
  - **write:self**: Update the member's own Ritual data.
+
+### CloudflareAccess
+
+- **Type**: API key
+- **API key parameter name**: Cf-Access-Jwt-Assertion
+- **Location**: HTTP header
 
 
 ## Author

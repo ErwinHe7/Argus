@@ -1,0 +1,19 @@
+# ritual_investing_api_client.model.DiscoverItem
+
+## Load the model package
+```dart
+import 'package:ritual_investing_api_client/api.dart';
+```
+
+## Properties
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**asset** | [**AssetSummary**](AssetSummary.md) |  | 
+**kind** | **String** |  | 
+**coven** | [**CovenSummary**](CovenSummary.md) |  | 
+**grimoire** | [**GrimoireSummary**](GrimoireSummary.md) |  | 
+**circleTemplate** | [**CircleTemplateSummary**](CircleTemplateSummary.md) |  | 
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+
