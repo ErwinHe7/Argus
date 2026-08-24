@@ -10,8 +10,30 @@
   },
   "vars": {
     "ENVIRONMENT": "development",
+    "BUILD_REVISION": "local",
     "API_ORIGIN": "http://localhost:8787",
+    "CONSUMER_ORIGIN": "https://app.ritual-investing.example",
+    "ADMIN_ORIGIN": "https://admin.ritual-investing.example",
+    "ADMIN_HOST": "admin-api.ritual-investing.example",
     "AUTH0_ISSUER": "https://example.auth0.com/",
-    "AUTH0_AUDIENCE": "https://api.ritual-investing.example"
-  }
+    "AUTH0_AUDIENCE": "https://api.ritual-investing.example",
+    "AUTH0_JWKS_URL": "https://example.auth0.com/.well-known/jwks.json",
+    "AUTH0_ADMIN_CLIENT_IDS": "ritual-investing-admin-client",
+    "CF_ACCESS_ISSUER": "https://ritual-investing.cloudflareaccess.com",
+    "CF_ACCESS_AUDIENCE": "replace-with-cloudflare-access-application-aud",
+    "CF_ACCESS_JWKS_URL": "https://ritual-investing.cloudflareaccess.com/cdn-cgi/access/certs"
+  },
+  "ratelimits": [
+    { "name": "RL_HEALTH", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } },
+    { "name": "RL_PUBLIC", "namespace_id": "1002", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RL_SEARCH", "namespace_id": "1003", "simple": { "limit": 15, "period": 60 } },
+    { "name": "RL_MEMBER_READ", "namespace_id": "1004", "simple": { "limit": 120, "period": 60 } },
+    { "name": "RL_MEMBER_WRITE", "namespace_id": "1005", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RL_COMMAND", "namespace_id": "1006", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_SENSITIVE", "namespace_id": "1007", "simple": { "limit": 5, "period": 60 } },
+    { "name": "RL_ADMIN_READ", "namespace_id": "1008", "simple": { "limit": 60, "period": 60 } },
+    { "name": "RL_ADMIN_WRITE", "namespace_id": "1009", "simple": { "limit": 20, "period": 60 } },
+    { "name": "RL_ADMIN_HIGH", "namespace_id": "1010", "simple": { "limit": 5, "period": 60 } },
+    { "name": "RL_UPLOAD", "namespace_id": "1011", "simple": { "limit": 5, "period": 60 } }
+  ]
 }

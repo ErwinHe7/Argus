@@ -30,9 +30,16 @@ export function buildOpenApiDocument(app: OpenAPIHono<AppEnvironment>) {
               "write:self": "Update the member's own Ritual data.",
               "simulate:self": "Run deterministic Demo commands.",
               "privacy:self": "Run export and deletion requests.",
+              "admin:operations:read": "Read bounded staff operational metadata.",
             },
           },
         },
+      },
+      CloudflareAccess: {
+        type: "apiKey",
+        in: "header",
+        name: "Cf-Access-Jwt-Assertion",
+        description: "Cloudflare Access application assertion required in addition to the Auth0 API token.",
       },
     },
     parameters: {

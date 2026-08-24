@@ -34,6 +34,31 @@ components:
             $ref: "#/components/schemas/ErrorResponse"
       description: The request failed strict boundary validation.
   schemas:
+    AdminSession:
+      additionalProperties: false
+      properties:
+        display_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+        staff_id:
+          format: uuid
+          type: string
+      required:
+        - staff_id
+        - display_label
+      type: object
+    AdminSessionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AdminSession"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
     ErrorResponse:
       additionalProperties: false
       properties:
@@ -96,12 +121,16 @@ components:
         data:
           additionalProperties: false
           properties:
+            build_revision:
+              minLength: 1
+              type: string
             status:
               enum:
                 - ok
               type: string
           required:
             - status
+            - build_revision
           type: object
         meta:
           $ref: "#/components/schemas/ResponseMeta"
@@ -120,23 +149,160 @@ components:
       required:
         - request_id
       type: object
-    SessionResponse:
+    SessionBootstrap:
+      additionalProperties: false
+      properties:
+        account:
+          additionalProperties: false
+          properties:
+            id:
+              format: uuid
+              type: string
+            status:
+              enum:
+                - active
+              type: string
+          required:
+            - id
+            - status
+          type: object
+        contract_version:
+          enum:
+            - 1.0.0
+          type: string
+        default_portfolio:
+          additionalProperties: false
+          properties:
+            currency:
+              enum:
+                - USD
+              type: string
+            id:
+              format: uuid
+              type: string
+            name:
+              maxLength: 120
+              minLength: 1
+              type: string
+            status:
+              enum:
+                - active
+              type: string
+            version:
+              exclusiveMinimum: true
+              minimum: 0
+              type: integer
+          required:
+            - id
+            - name
+            - currency
+            - status
+            - version
+          type: object
+        entitlement:
+          additionalProperties: false
+          properties:
+            plan_code:
+              maxLength: 64
+              minLength: 1
+              type: string
+            status:
+              enum:
+                - active
+              type: string
+          required:
+            - plan_code
+            - status
+          type: object
+        onboarding:
+          additionalProperties: false
+          properties:
+            completed_steps:
+              items:
+                maxLength: 64
+                minLength: 1
+                type: string
+              maxItems: 50
+              type: array
+            current_step:
+              maxLength: 64
+              minLength: 1
+              type: string
+            version:
+              exclusiveMinimum: true
+              minimum: 0
+              type: integer
+          required:
+            - current_step
+            - completed_steps
+            - version
+          type: object
+        preferences:
+          additionalProperties: false
+          properties:
+            locale:
+              maxLength: 35
+              minLength: 1
+              type: string
+            ritual_mode:
+              enum:
+                - tarot
+                - astrology
+              type: string
+            theme_mode:
+              enum:
+                - system
+                - light
+                - dark
+              type: string
+            timezone:
+              maxLength: 64
+              minLength: 1
+              type: string
+            version:
+              exclusiveMinimum: true
+              minimum: 0
+              type: integer
+          required:
+            - theme_mode
+            - ritual_mode
+            - timezone
+            - locale
+            - version
+          type: object
+        profile:
+          additionalProperties: false
+          properties:
+            display_name:
+              maxLength: 80
+              minLength: 1
+              type: string
+            locale:
+              maxLength: 35
+              minLength: 1
+              type: string
+          required:
+            - display_name
+            - locale
+          type: object
+        server_time:
+          format: date-time
+          type: string
+      required:
+        - account
+        - profile
+        - preferences
+        - onboarding
+        - entitlement
+        - default_portfolio
+        - server_time
+        - contract_version
+      type: object
+    SessionBootstrapResponse:
       additionalProperties: false
       properties:
         data:
-          additionalProperties: false
-          properties:
-            contract_version:
-              enum:
-                - 1.0.0
-              type: string
-            server_time:
-              format: date-time
-              type: string
-          required:
-            - contract_version
-            - server_time
-          type: object
+          $ref: "#/components/schemas/SessionBootstrap"
         meta:
           $ref: "#/components/schemas/ResponseMeta"
       required:
@@ -150,12 +316,18 @@ components:
         authorizationCode:
           authorizationUrl: https://YOUR_AUTH0_DOMAIN/authorize
           scopes:
+            admin:operations:read: Read bounded staff operational metadata.
             privacy:self: Run export and deletion requests.
             read:self: Read the member's own Ritual data.
             simulate:self: Run deterministic Demo commands.
             write:self: Update the member's own Ritual data.
           tokenUrl: https://YOUR_AUTH0_DOMAIN/oauth/token
       type: oauth2
+    CloudflareAccess:
+      description: Cloudflare Access application assertion required in addition to the Auth0 API token.
+      in: header
+      name: Cf-Access-Jwt-Assertion
+      type: apiKey
 info:
   description: Contract for deterministic research, private member state, simulated investing, and audited staff operations.
   title: Ritual Investing API
@@ -175,25 +347,129 @@ paths:
       security: []
       tags:
         - Platform
-  /v1/session:
+  /v1/admin/session:
     get:
-      operationId: getSession
+      operationId: getAdminSession
+      parameters:
+        - in: header
+          name: cf-access-jwt-assertion
+          required: true
+          schema:
+            maxLength: 16384
+            minLength: 1
+            type: string
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SessionResponse"
-          description: Authenticated member bootstrap.
+                $ref: "#/components/schemas/AdminSessionResponse"
+          description: Verified active staff session.
         "401":
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
-          description: Authentication is not available until the identity module is installed.
+          description: Missing or invalid token pair.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive or unauthorized staff principal.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Admin route is not exposed on this hostname.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Security dependency unavailable.
       security:
-        - Auth0OAuth: []
+        - Auth0OAuth:
+            - admin:operations:read
+          CloudflareAccess: []
+      tags:
+        - Admin Session
+  /v1/health/live:
+    get:
+      operationId: getLiveHealth
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+          description: Worker liveness without a database or provider dependency.
+      security: []
       tags:
         - Platform
+  /v1/session/bootstrap:
+    post:
+      operationId: bootstrapSession
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionBootstrapResponse"
+          description: Provision or return the canonical member session.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or missing permission.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Bootstrap does not accept a request body.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Security dependency unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Session
 servers:
   - url: https://api.ritual-investing.example

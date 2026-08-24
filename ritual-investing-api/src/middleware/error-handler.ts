@@ -1,9 +1,9 @@
 import type { ErrorHandler } from "hono";
 import type { ZodError } from "zod";
 
-import type { Bindings } from "../config/env.ts";
+import type { AppEnvironment } from "../app.ts";
 import type { ErrorResponse } from "../contracts/common.ts";
-import { requestIdFrom, type RequestContextVariables } from "./request-context.ts";
+import { requestIdFrom } from "./request-context.ts";
 
 export function validationError(
   requestId: string,
@@ -23,10 +23,7 @@ export function validationError(
   };
 }
 
-export const errorHandler: ErrorHandler<{
-  Bindings: Bindings;
-  Variables: RequestContextVariables;
-}> = (error, context) => {
+export const errorHandler: ErrorHandler<AppEnvironment> = (error, context) => {
   const requestId = requestIdFrom(context);
   console.error("request_failed", {
     request_id: requestId,

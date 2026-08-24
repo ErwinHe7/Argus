@@ -149,6 +149,26 @@ const seedVersionNumber = (Number.parseInt(seedVersionId.slice(0, 8), 16) % 2_00
 describe.skipIf(postgresUrl === undefined)("PostgreSQL restricted-role integration", () => {
   let owner: pg.Client;
 
+  async function bootstrapInPostgres(subject: string) {
+    const client = new pg.Client({ connectionString: postgresUrl });
+    await client.connect();
+    try {
+      await client.query("begin");
+      await client.query("set local role ritual_bootstrap");
+      const result = await client.query(
+        "select * from ritual_private.bootstrap_member_account($1)",
+        [subject],
+      );
+      await client.query("commit");
+      return result.rows[0];
+    } catch (error) {
+      await client.query("rollback").catch(() => undefined);
+      throw error;
+    } finally {
+      await client.end();
+    }
+  }
+
   beforeAll(async () => {
     if (postgresUrl === undefined) return;
     const bootstrap = new pg.Client({ connectionString: postgresUrl });
@@ -164,6 +184,7 @@ describe.skipIf(postgresUrl === undefined)("PostgreSQL restricted-role integrati
     expect(applied.every((name) => [
       "0001_ritual_foundation.sql",
       "0002_roles_and_rls.sql",
+      "0003_identity_bootstrap.sql",
     ].includes(name))).toBe(true);
     expect(await applyReviewedMigrations(postgresUrl)).toEqual([]);
 
@@ -313,6 +334,61 @@ COMMIT;
     await expect(client.query("select * from accounts")).rejects.toMatchObject({ code: "42501" });
     await client.query("rollback");
     await client.end();
+  });
+
+  it("concurrently bootstraps one canonical account without orphan tenants", async () => {
+    const subject = `auth0|bootstrap-${randomUUID()}`;
+    const [first, second] = await Promise.all([
+      bootstrapInPostgres(subject),
+      bootstrapInPostgres(subject),
+    ]);
+
+    expect(first).toMatchObject({
+      account_id: second.account_id,
+      portfolio_id: second.portfolio_id,
+      account_status: "active",
+    });
+    const rows = await owner.query<{
+      account_count: number;
+      tenant_count: number;
+      profile_count: number;
+      portfolio_count: number;
+      entitlement_count: number;
+    }>(`
+      select
+        count(distinct account.id)::integer as account_count,
+        count(distinct tenant.id)::integer as tenant_count,
+        count(distinct profile.tenant_id)::integer as profile_count,
+        count(distinct portfolio.id)::integer as portfolio_count,
+        count(distinct entitlement.id)::integer as entitlement_count
+      from accounts account
+      join tenants tenant on tenant.id = account.tenant_id
+      join profiles profile on profile.tenant_id = tenant.id
+      join demo_portfolios portfolio on portfolio.tenant_id = tenant.id
+      join tenant_entitlements entitlement on entitlement.tenant_id = tenant.id
+      where account.auth0_subject = $1
+    `, [subject]);
+    expect(rows.rows).toEqual([{
+      account_count: 1,
+      tenant_count: 1,
+      profile_count: 1,
+      portfolio_count: 1,
+      entitlement_count: 1,
+    }]);
+  });
+
+  it("does not bootstrap an inactive or deletion-tombstoned subject", async () => {
+    await owner.query("update accounts set status = 'suspended' where auth0_subject = $1", [subjectA]);
+    await expect(bootstrapInPostgres(subjectA)).rejects.toMatchObject({ message: "subject_not_eligible" });
+    await owner.query("update accounts set status = 'active' where auth0_subject = $1", [subjectA]);
+
+    const deletedSubject = `auth0|deleted-${randomUUID()}`;
+    await owner.query(
+      `insert into deletion_tombstones(tenant_id, subject_hash, effective_at, purge_generation, status)
+       values ($1, encode(digest($2, 'sha256'), 'hex'), now(), 1, 'purged')`,
+      [randomUUID(), deletedSubject],
+    );
+    await expect(bootstrapInPostgres(deletedSubject)).rejects.toMatchObject({ message: "subject_previously_deleted" });
   });
 
   it("defaults to no rows and confines reads and writes to local context", async () => {

@@ -5,14 +5,22 @@ import { createApp } from "../../src/app";
 import { buildOpenApiDocument } from "../../src/contracts/openapi";
 
 describe("OpenAPI contract", () => {
-  it("declares anonymous health and Auth0-protected session routes", async () => {
+  it("declares anonymous liveness and permission-scoped session bootstrap", async () => {
     const document = buildOpenApiDocument(createApp());
     await SwaggerParser.validate(document as never);
 
     expect(document.openapi).toBe("3.0.3");
     expect(document.paths["/health"]?.get?.security).toEqual([]);
-    expect(document.paths["/v1/session"]?.get?.security).toEqual([{ Auth0OAuth: [] }]);
+    expect(document.paths["/v1/health/live"]?.get?.security).toEqual([]);
+    expect(document.paths["/v1/session/bootstrap"]?.post?.security).toEqual([
+      { Auth0OAuth: ["write:self"] },
+    ]);
+    expect(document.paths["/v1/admin/session"]?.get?.security).toEqual([{
+      CloudflareAccess: [],
+      Auth0OAuth: ["admin:operations:read"],
+    }]);
     expect(document.components?.securitySchemes).toHaveProperty("Auth0OAuth");
+    expect(document.components?.securitySchemes).toHaveProperty("CloudflareAccess");
   });
 
   it("contains shared errors and the lower-case idempotency header", () => {
