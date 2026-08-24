@@ -78,12 +78,28 @@ Class | Method | HTTP request | Description
 [*AccountApi*](doc/AccountApi.md) | [**patchProfile**](doc/AccountApi.md#patchprofile) | **PATCH** /v1/me/profile | 
 [*AccountApi*](doc/AccountApi.md) | [**putAstrologyProfile**](doc/AccountApi.md#putastrologyprofile) | **PUT** /v1/me/astrology-profile | 
 [*AccountApi*](doc/AccountApi.md) | [**putInvestorProfile**](doc/AccountApi.md#putinvestorprofile) | **PUT** /v1/me/investor-profile | 
+[*AdminMediaApi*](doc/AdminMediaApi.md) | [**completeMediaUpload**](doc/AdminMediaApi.md#completemediaupload) | **POST** /v1/admin/media/{media_id}/complete | 
+[*AdminMediaApi*](doc/AdminMediaApi.md) | [**deleteAdminMedia**](doc/AdminMediaApi.md#deleteadminmedia) | **DELETE** /v1/admin/media/{media_id} | 
+[*AdminMediaApi*](doc/AdminMediaApi.md) | [**getAdminMedia**](doc/AdminMediaApi.md#getadminmedia) | **GET** /v1/admin/media/{media_id} | 
+[*AdminMediaApi*](doc/AdminMediaApi.md) | [**listAdminMedia**](doc/AdminMediaApi.md#listadminmedia) | **GET** /v1/admin/media | 
+[*AdminMediaApi*](doc/AdminMediaApi.md) | [**requestMediaUpload**](doc/AdminMediaApi.md#requestmediaupload) | **POST** /v1/admin/media/upload-requests | 
+[*AdminMediaApi*](doc/AdminMediaApi.md) | [**uploadMediaQuarantineContent**](doc/AdminMediaApi.md#uploadmediaquarantinecontent) | **PUT** /v1/admin/media/upload-requests/{media_id}/content | 
+[*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**getAdminJob**](doc/AdminOperationsApi.md#getadminjob) | **GET** /v1/admin/jobs/{job_id} | 
+[*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminJobs**](doc/AdminOperationsApi.md#listadminjobs) | **GET** /v1/admin/jobs | 
+[*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**retryAdminJob**](doc/AdminOperationsApi.md#retryadminjob) | **POST** /v1/admin/jobs/{job_id}/retry | 
+[*AdminPrivacyApi*](doc/AdminPrivacyApi.md) | [**getAdminPrivacyRequest**](doc/AdminPrivacyApi.md#getadminprivacyrequest) | **GET** /v1/admin/privacy/requests/{request_id} | 
+[*AdminPrivacyApi*](doc/AdminPrivacyApi.md) | [**listAdminPrivacyRequests**](doc/AdminPrivacyApi.md#listadminprivacyrequests) | **GET** /v1/admin/privacy/requests | 
+[*AdminPrivacyApi*](doc/AdminPrivacyApi.md) | [**retryAdminPrivacyRequest**](doc/AdminPrivacyApi.md#retryadminprivacyrequest) | **POST** /v1/admin/privacy/requests/{request_id}/retry | 
 [*AdminSessionApi*](doc/AdminSessionApi.md) | [**getAdminSession**](doc/AdminSessionApi.md#getadminsession) | **GET** /v1/admin/session | 
 [*AssetsApi*](doc/AssetsApi.md) | [**compareAssets**](doc/AssetsApi.md#compareassets) | **POST** /v1/assets/compare | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /v1/assets/{asset_id} | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAssetEvidence**](doc/AssetsApi.md#getassetevidence) | **GET** /v1/assets/{asset_id}/evidence | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAssetMetrics**](doc/AssetsApi.md#getassetmetrics) | **GET** /v1/assets/{asset_id}/metrics | 
 [*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /v1/assets | 
+[*BriefingsApi*](doc/BriefingsApi.md) | [**getBriefing**](doc/BriefingsApi.md#getbriefing) | **GET** /v1/briefings/{briefing_id} | 
+[*BriefingsApi*](doc/BriefingsApi.md) | [**getDailyBriefing**](doc/BriefingsApi.md#getdailybriefing) | **GET** /v1/briefings/daily | 
+[*BriefingsApi*](doc/BriefingsApi.md) | [**listBriefings**](doc/BriefingsApi.md#listbriefings) | **GET** /v1/briefings | 
+[*BriefingsApi*](doc/BriefingsApi.md) | [**setBriefingReadState**](doc/BriefingsApi.md#setbriefingreadstate) | **PUT** /v1/briefings/{briefing_id}/read-state | 
 [*CirclesApi*](doc/CirclesApi.md) | [**archiveCircle**](doc/CirclesApi.md#archivecircle) | **DELETE** /v1/circles/{id} | 
 [*CirclesApi*](doc/CirclesApi.md) | [**copyCircleTemplate**](doc/CirclesApi.md#copycircletemplate) | **POST** /v1/circle-templates/{id}/copies | 
 [*CirclesApi*](doc/CirclesApi.md) | [**createCircle**](doc/CirclesApi.md#createcircle) | **POST** /v1/circles | 
@@ -116,6 +132,14 @@ Class | Method | HTTP request | Description
 [*IntentionsApi*](doc/IntentionsApi.md) | [**getIntention**](doc/IntentionsApi.md#getintention) | **GET** /v1/intentions/{intention_id} | 
 [*IntentionsApi*](doc/IntentionsApi.md) | [**listIntentions**](doc/IntentionsApi.md#listintentions) | **GET** /v1/intentions | 
 [*IntentionsApi*](doc/IntentionsApi.md) | [**patchIntention**](doc/IntentionsApi.md#patchintention) | **PATCH** /v1/intentions/{intention_id} | 
+[*ModerationApi*](doc/ModerationApi.md) | [**createContentReport**](doc/ModerationApi.md#createcontentreport) | **POST** /v1/content-reports | 
+[*NotificationsApi*](doc/NotificationsApi.md) | [**getNotificationPreferences**](doc/NotificationsApi.md#getnotificationpreferences) | **GET** /v1/me/notification-preferences | 
+[*NotificationsApi*](doc/NotificationsApi.md) | [**listNotifications**](doc/NotificationsApi.md#listnotifications) | **GET** /v1/notifications | 
+[*NotificationsApi*](doc/NotificationsApi.md) | [**patchNotificationPreferences**](doc/NotificationsApi.md#patchnotificationpreferences) | **PATCH** /v1/me/notification-preferences | 
+[*NotificationsApi*](doc/NotificationsApi.md) | [**readAllNotifications**](doc/NotificationsApi.md#readallnotifications) | **POST** /v1/notifications/read-all | 
+[*NotificationsApi*](doc/NotificationsApi.md) | [**registerNotificationDevice**](doc/NotificationsApi.md#registernotificationdevice) | **POST** /v1/me/devices | 
+[*NotificationsApi*](doc/NotificationsApi.md) | [**revokeNotificationDevice**](doc/NotificationsApi.md#revokenotificationdevice) | **DELETE** /v1/me/devices/{installation_id} | 
+[*NotificationsApi*](doc/NotificationsApi.md) | [**setNotificationReadState**](doc/NotificationsApi.md#setnotificationreadstate) | **PUT** /v1/notifications/{notification_id}/read-state | 
 [*OrdersApi*](doc/OrdersApi.md) | [**commitOrder**](doc/OrdersApi.md#commitorder) | **POST** /v1/portfolios/{portfolio_id}/orders | 
 [*OrdersApi*](doc/OrdersApi.md) | [**createOrderPreview**](doc/OrdersApi.md#createorderpreview) | **POST** /v1/portfolios/{portfolio_id}/order-previews | 
 [*OrdersApi*](doc/OrdersApi.md) | [**getOrder**](doc/OrdersApi.md#getorder) | **GET** /v1/orders/{order_id} | 
@@ -134,6 +158,10 @@ Class | Method | HTTP request | Description
 [*PortfoliosApi*](doc/PortfoliosApi.md) | [**listPortfolioSnapshots**](doc/PortfoliosApi.md#listportfoliosnapshots) | **GET** /v1/portfolios/{portfolio_id}/snapshots | 
 [*PortfoliosApi*](doc/PortfoliosApi.md) | [**listPortfolios**](doc/PortfoliosApi.md#listportfolios) | **GET** /v1/portfolios | 
 [*PortfoliosApi*](doc/PortfoliosApi.md) | [**patchPortfolio**](doc/PortfoliosApi.md#patchportfolio) | **PATCH** /v1/portfolios/{portfolio_id} | 
+[*PrivacyApi*](doc/PrivacyApi.md) | [**downloadPrivacyExport**](doc/PrivacyApi.md#downloadprivacyexport) | **GET** /v1/me/privacy/exports/{request_id}/download | 
+[*PrivacyApi*](doc/PrivacyApi.md) | [**getPrivacyExport**](doc/PrivacyApi.md#getprivacyexport) | **GET** /v1/me/privacy/exports/{request_id} | 
+[*PrivacyApi*](doc/PrivacyApi.md) | [**requestAccountDeletion**](doc/PrivacyApi.md#requestaccountdeletion) | **POST** /v1/me/privacy/deletion-requests | 
+[*PrivacyApi*](doc/PrivacyApi.md) | [**requestPrivacyExport**](doc/PrivacyApi.md#requestprivacyexport) | **POST** /v1/me/privacy/exports | 
 [*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**getPublicCoven**](doc/PublicPreviewApi.md#getpubliccoven) | **GET** /v1/public/coven/{slug} | 
 [*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**getPublicDailyRitual**](doc/PublicPreviewApi.md#getpublicdailyritual) | **GET** /v1/public/rituals/daily | 
 [*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**listPublicCoven**](doc/PublicPreviewApi.md#listpubliccoven) | **GET** /v1/public/coven | 
@@ -199,6 +227,9 @@ Class | Method | HTTP request | Description
  - [CommitOrder200Response](doc/CommitOrder200Response.md)
  - [CommitOrderRequest](doc/CommitOrderRequest.md)
  - [CompareAssetsRequest](doc/CompareAssetsRequest.md)
+ - [CompleteMediaUpload202Response](doc/CompleteMediaUpload202Response.md)
+ - [CompleteMediaUpload202ResponseData](doc/CompleteMediaUpload202ResponseData.md)
+ - [CompleteMediaUploadRequest](doc/CompleteMediaUploadRequest.md)
  - [ConfirmDemoCheckout200Response](doc/ConfirmDemoCheckout200Response.md)
  - [ConsentReceipt](doc/ConsentReceipt.md)
  - [ConsentReceiptResponse](doc/ConsentReceiptResponse.md)
@@ -213,6 +244,9 @@ Class | Method | HTTP request | Description
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
  - [CreateCircleRequestAssetsInner](doc/CreateCircleRequestAssetsInner.md)
  - [CreateConsentRequest](doc/CreateConsentRequest.md)
+ - [CreateContentReport201Response](doc/CreateContentReport201Response.md)
+ - [CreateContentReport201ResponseData](doc/CreateContentReport201ResponseData.md)
+ - [CreateContentReportRequest](doc/CreateContentReportRequest.md)
  - [CreateDemoCheckout201Response](doc/CreateDemoCheckout201Response.md)
  - [CreateDemoCheckoutRequest](doc/CreateDemoCheckoutRequest.md)
  - [CreateDemoContributionRequest](doc/CreateDemoContributionRequest.md)
@@ -260,6 +294,17 @@ Class | Method | HTTP request | Description
  - [FieldError](doc/FieldError.md)
  - [FutureMirrorView](doc/FutureMirrorView.md)
  - [FutureMirrorViewPointsInner](doc/FutureMirrorViewPointsInner.md)
+ - [GetAdminJob200Response](doc/GetAdminJob200Response.md)
+ - [GetAdminMedia200Response](doc/GetAdminMedia200Response.md)
+ - [GetAdminPrivacyRequest200Response](doc/GetAdminPrivacyRequest200Response.md)
+ - [GetBriefing200Response](doc/GetBriefing200Response.md)
+ - [GetBriefing200ResponseData](doc/GetBriefing200ResponseData.md)
+ - [GetBriefing200ResponseDataSectionsInner](doc/GetBriefing200ResponseDataSectionsInner.md)
+ - [GetDailyBriefing202Response](doc/GetDailyBriefing202Response.md)
+ - [GetDailyBriefing202ResponseData](doc/GetDailyBriefing202ResponseData.md)
+ - [GetNotificationPreferences200Response](doc/GetNotificationPreferences200Response.md)
+ - [GetNotificationPreferences200ResponseData](doc/GetNotificationPreferences200ResponseData.md)
+ - [GetNotificationPreferences200ResponseDataQuietHours](doc/GetNotificationPreferences200ResponseDataQuietHours.md)
  - [GetOrder200Response](doc/GetOrder200Response.md)
  - [GetRitualAssignment200Response](doc/GetRitualAssignment200Response.md)
  - [GrimoireCollectionResponse](doc/GrimoireCollectionResponse.md)
@@ -272,9 +317,19 @@ Class | Method | HTTP request | Description
  - [Intention](doc/Intention.md)
  - [InvestorProfile](doc/InvestorProfile.md)
  - [InvestorProfileResponse](doc/InvestorProfileResponse.md)
+ - [ListAdminJobs200Response](doc/ListAdminJobs200Response.md)
+ - [ListAdminJobs200ResponseDataInner](doc/ListAdminJobs200ResponseDataInner.md)
+ - [ListAdminMedia200Response](doc/ListAdminMedia200Response.md)
+ - [ListAdminMedia200ResponseDataInner](doc/ListAdminMedia200ResponseDataInner.md)
+ - [ListAdminPrivacyRequests200Response](doc/ListAdminPrivacyRequests200Response.md)
+ - [ListAdminPrivacyRequests200ResponseDataInner](doc/ListAdminPrivacyRequests200ResponseDataInner.md)
+ - [ListBriefings200Response](doc/ListBriefings200Response.md)
+ - [ListBriefings200ResponseDataInner](doc/ListBriefings200ResponseDataInner.md)
  - [ListDemoFundingSources200Response](doc/ListDemoFundingSources200Response.md)
  - [ListDemoPlans200Response](doc/ListDemoPlans200Response.md)
  - [ListIntentions200Response](doc/ListIntentions200Response.md)
+ - [ListNotifications200Response](doc/ListNotifications200Response.md)
+ - [ListNotifications200ResponseDataInner](doc/ListNotifications200ResponseDataInner.md)
  - [ListOrders200Response](doc/ListOrders200Response.md)
  - [ListPortfolioActivity200Response](doc/ListPortfolioActivity200Response.md)
  - [ListPortfolioHoldings200Response](doc/ListPortfolioHoldings200Response.md)
@@ -296,6 +351,7 @@ Class | Method | HTTP request | Description
  - [OrderPreview](doc/OrderPreview.md)
  - [PatchCircleRequest](doc/PatchCircleRequest.md)
  - [PatchIntentionRequest](doc/PatchIntentionRequest.md)
+ - [PatchNotificationPreferencesRequest](doc/PatchNotificationPreferencesRequest.md)
  - [PatchOnboarding200Response](doc/PatchOnboarding200Response.md)
  - [PatchOnboardingRequest](doc/PatchOnboardingRequest.md)
  - [PatchPortfolioRequest](doc/PatchPortfolioRequest.md)
@@ -324,13 +380,32 @@ Class | Method | HTTP request | Description
  - [PutInvestorProfile200Response](doc/PutInvestorProfile200Response.md)
  - [PutInvestorProfileRequest](doc/PutInvestorProfileRequest.md)
  - [Quantity](doc/Quantity.md)
+ - [ReadAllNotifications200Response](doc/ReadAllNotifications200Response.md)
+ - [ReadAllNotifications200ResponseData](doc/ReadAllNotifications200ResponseData.md)
+ - [ReadAllNotificationsRequest](doc/ReadAllNotificationsRequest.md)
  - [RebalancePreview](doc/RebalancePreview.md)
  - [RebalancePreviewTradesInner](doc/RebalancePreviewTradesInner.md)
  - [RecurringPlan](doc/RecurringPlan.md)
  - [RecurringPlanRecentRunsInner](doc/RecurringPlanRecentRunsInner.md)
+ - [RegisterNotificationDevice201Response](doc/RegisterNotificationDevice201Response.md)
+ - [RegisterNotificationDevice201ResponseData](doc/RegisterNotificationDevice201ResponseData.md)
+ - [RegisterNotificationDeviceRequest](doc/RegisterNotificationDeviceRequest.md)
+ - [RequestAccountDeletion202Response](doc/RequestAccountDeletion202Response.md)
+ - [RequestAccountDeletion202ResponseData](doc/RequestAccountDeletion202ResponseData.md)
+ - [RequestAccountDeletionRequest](doc/RequestAccountDeletionRequest.md)
+ - [RequestMediaUpload201Response](doc/RequestMediaUpload201Response.md)
+ - [RequestMediaUpload201ResponseData](doc/RequestMediaUpload201ResponseData.md)
+ - [RequestMediaUploadRequest](doc/RequestMediaUploadRequest.md)
+ - [RequestPrivacyExport202Response](doc/RequestPrivacyExport202Response.md)
+ - [RequestPrivacyExport202ResponseData](doc/RequestPrivacyExport202ResponseData.md)
+ - [RequestPrivacyExport202ResponseDataDownloadLink](doc/RequestPrivacyExport202ResponseDataDownloadLink.md)
+ - [RequestPrivacyExportRequest](doc/RequestPrivacyExportRequest.md)
  - [ResetDemoState200Response](doc/ResetDemoState200Response.md)
  - [ResetDemoStateRequest](doc/ResetDemoStateRequest.md)
  - [ResponseMeta](doc/ResponseMeta.md)
+ - [RetryAdminJobRequest](doc/RetryAdminJobRequest.md)
+ - [RetryAdminPrivacyRequest202Response](doc/RetryAdminPrivacyRequest202Response.md)
+ - [RetryAdminPrivacyRequest202ResponseData](doc/RetryAdminPrivacyRequest202ResponseData.md)
  - [RitualAssetIdea](doc/RitualAssetIdea.md)
  - [RitualEvidenceResponse](doc/RitualEvidenceResponse.md)
  - [RitualHistoryItem](doc/RitualHistoryItem.md)
@@ -350,6 +425,9 @@ Class | Method | HTTP request | Description
  - [SessionBootstrapPreferences](doc/SessionBootstrapPreferences.md)
  - [SessionBootstrapProfile](doc/SessionBootstrapProfile.md)
  - [SessionBootstrapResponse](doc/SessionBootstrapResponse.md)
+ - [SetBriefingReadState200Response](doc/SetBriefingReadState200Response.md)
+ - [SetBriefingReadStateRequest](doc/SetBriefingReadStateRequest.md)
+ - [SetNotificationReadState200Response](doc/SetNotificationReadState200Response.md)
  - [SignedMoney](doc/SignedMoney.md)
  - [SimulatedOrder](doc/SimulatedOrder.md)
  - [SimulatedOrderFill](doc/SimulatedOrderFill.md)
@@ -368,7 +446,12 @@ Authentication schemes defined for the API:
 - **Flow**: accessCode
 - **Authorization URL**: https://YOUR_AUTH0_DOMAIN/authorize
 - **Scopes**: 
+ - **admin:media:read**: Read approved media metadata.
+ - **admin:media:write**: Manage quarantined media upload intents and approved derivatives.
  - **admin:operations:read**: Read bounded staff operational metadata.
+ - **admin:operations:write**: Retry bounded operational work with audit evidence.
+ - **admin:privacy:read**: Read minimized privacy operation metadata.
+ - **admin:privacy:write**: Retry verified privacy work with audit evidence.
  - **privacy:self**: Run export and deletion requests.
  - **read:self**: Read the member's own Ritual data.
  - **simulate:self**: Run deterministic Demo commands.

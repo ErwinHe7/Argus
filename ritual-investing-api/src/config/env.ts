@@ -1,18 +1,41 @@
 import { z } from "zod";
 
-const httpsUrl = z.string().url().refine((value) => value.startsWith("https://"), {
-  message: "must use https",
-});
-const postgresUrl = z.string().url().refine(
-  (value) => ["postgres:", "postgresql:"].includes(new URL(value).protocol),
-  { message: "must use a PostgreSQL connection URL" },
-);
+const httpsUrl = z
+  .string()
+  .url()
+  .refine((value) => value.startsWith("https://"), {
+    message: "must use https",
+  });
+const postgresUrl = z
+  .string()
+  .url()
+  .refine(
+    (value) => ["postgres:", "postgresql:"].includes(new URL(value).protocol),
+    { message: "must use a PostgreSQL connection URL" },
+  );
 const rateLimitBinding = z.custom<RateLimit>(
-  (value) => typeof value === "object"
-    && value !== null
-    && "limit" in value
-    && typeof value.limit === "function",
+  (value) =>
+    typeof value === "object" &&
+    value !== null &&
+    "limit" in value &&
+    typeof value.limit === "function",
   { message: "must be a Cloudflare RateLimit binding" },
+);
+const r2Binding = z.custom<R2Bucket>(
+  (value) =>
+    typeof value === "object" &&
+    value !== null &&
+    "get" in value &&
+    "put" in value,
+  { message: "must be an R2 bucket binding" },
+);
+const queueBinding = z.custom<Queue>(
+  (value) => typeof value === "object" && value !== null && "send" in value,
+  { message: "must be a Queue producer binding" },
+);
+const serviceBinding = z.custom<Fetcher>(
+  (value) => typeof value === "object" && value !== null && "fetch" in value,
+  { message: "must be a service binding" },
 );
 
 export const environmentSchema = z
@@ -37,7 +60,30 @@ export const environmentSchema = z
     STAFF_DATABASE_URL: postgresUrl.optional(),
     PUBLIC_DATABASE_URL: postgresUrl.optional(),
     RUNTIME_DATABASE_URL: postgresUrl.optional(),
+    SCHEDULER_DATABASE_URL: postgresUrl.optional(),
+    PRIVACY_DATABASE_URL: postgresUrl.optional(),
+    MEDIA_DATABASE_URL: postgresUrl.optional(),
     CURSOR_SIGNING_KEY: z.string().min(32).max(512).optional(),
+    PUSH_TOKEN_ENCRYPTION_KEY: z.string().min(43).max(128).optional(),
+    EXPECTED_RESTORE_EPOCH: z
+      .string()
+      .regex(/^[A-Za-z0-9._:-]{1,128}$/)
+      .optional(),
+    KILL_SWITCH_SCHEDULED: z.enum(["off", "on"]).default("off"),
+    KILL_SWITCH_QUEUE: z.enum(["off", "on"]).default("off"),
+    KILL_SWITCH_NOTIFICATIONS: z.enum(["off", "on"]).default("off"),
+    KILL_SWITCH_EXPORTS: z.enum(["off", "on"]).default("off"),
+    KILL_SWITCH_PURGE: z.enum(["off", "on"]).default("off"),
+    KILL_SWITCH_MEDIA: z.enum(["off", "on"]).default("off"),
+    ASYNC_QUEUE: queueBinding.optional(),
+    JOBS_DLQ: queueBinding.optional(),
+    MEDIA_QUARANTINE: r2Binding.optional(),
+    MEDIA_PUBLIC: r2Binding.optional(),
+    PRIVACY_EXPORTS: r2Binding.optional(),
+    DELETION_DENY_JOURNAL: r2Binding.optional(),
+    MEDIA_SCANNER: serviceBinding.optional(),
+    MEDIA_PROCESSOR: serviceBinding.optional(),
+    PUSH_PROVIDER: serviceBinding.optional(),
     RL_HEALTH: rateLimitBinding,
     RL_PUBLIC: rateLimitBinding,
     RL_SEARCH: rateLimitBinding,

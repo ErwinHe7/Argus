@@ -16,6 +16,7 @@ import {
   consumerBodyLimit,
   requestMediaBoundary,
 } from "../../middleware/security-headers.ts";
+import { requireRecentAuth } from "../../middleware/recent-auth.ts";
 import {
   createPostgresMemberRepository,
   type MemberContext,
@@ -39,6 +40,43 @@ export function memberSecurity(
     auth0Jwk(dependencies.auth0Keys),
     requirePermission(write ? "write:self" : "read:self"),
     subjectRateLimit(rate),
+    requestMediaBoundary,
+    consumerBodyLimit,
+    accountTenant(dependencies.accountResolver),
+  ].map((middleware) => async (context, next) => {
+    if (context.req.method !== method.toUpperCase()) return next();
+    return middleware(context, next);
+  });
+}
+
+export function privacySecurity(
+  dependencies: MemberRouteDependencies,
+  method: string,
+): MiddlewareHandler<AppEnvironment>[] {
+  return [
+    preAuthRateLimit("RL_SENSITIVE"),
+    auth0Jwk(dependencies.auth0Keys),
+    requirePermission("privacy:self"),
+    subjectRateLimit("RL_SENSITIVE"),
+    requestMediaBoundary,
+    consumerBodyLimit,
+    requireRecentAuth(300),
+    accountTenant(dependencies.accountResolver),
+  ].map((middleware) => async (context, next) => {
+    if (context.req.method !== method.toUpperCase()) return next();
+    return middleware(context, next);
+  });
+}
+
+export function sensitiveMemberSecurity(
+  dependencies: MemberRouteDependencies,
+  method: string,
+): MiddlewareHandler<AppEnvironment>[] {
+  return [
+    preAuthRateLimit("RL_SENSITIVE"),
+    auth0Jwk(dependencies.auth0Keys),
+    requirePermission("write:self"),
+    subjectRateLimit("RL_SENSITIVE"),
     requestMediaBoundary,
     consumerBodyLimit,
     accountTenant(dependencies.accountResolver),

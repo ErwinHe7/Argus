@@ -20,7 +20,8 @@ export function buildOpenApiDocument(app: OpenAPIHono<AppEnvironment>) {
       ...document.components?.securitySchemes,
       Auth0OAuth: {
         type: "oauth2",
-        description: "Auth0 Authorization Code with PKCE access token for the Ritual API audience.",
+        description:
+          "Auth0 Authorization Code with PKCE access token for the Ritual API audience.",
         flows: {
           authorizationCode: {
             authorizationUrl: "https://YOUR_AUTH0_DOMAIN/authorize",
@@ -30,7 +31,17 @@ export function buildOpenApiDocument(app: OpenAPIHono<AppEnvironment>) {
               "write:self": "Update the member's own Ritual data.",
               "simulate:self": "Run deterministic Demo commands.",
               "privacy:self": "Run export and deletion requests.",
-              "admin:operations:read": "Read bounded staff operational metadata.",
+              "admin:operations:read":
+                "Read bounded staff operational metadata.",
+              "admin:operations:write":
+                "Retry bounded operational work with audit evidence.",
+              "admin:privacy:read":
+                "Read minimized privacy operation metadata.",
+              "admin:privacy:write":
+                "Retry verified privacy work with audit evidence.",
+              "admin:media:read": "Read approved media metadata.",
+              "admin:media:write":
+                "Manage quarantined media upload intents and approved derivatives.",
             },
           },
         },
@@ -39,7 +50,8 @@ export function buildOpenApiDocument(app: OpenAPIHono<AppEnvironment>) {
         type: "apiKey",
         in: "header",
         name: "Cf-Access-Jwt-Assertion",
-        description: "Cloudflare Access application assertion required in addition to the Auth0 API token.",
+        description:
+          "Cloudflare Access application assertion required in addition to the Auth0 API token.",
       },
     },
     parameters: {

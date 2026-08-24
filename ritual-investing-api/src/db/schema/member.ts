@@ -140,6 +140,11 @@ export const briefings = pgTable(
     generation: integer("generation").notNull(),
     supersedesId: uuid("supersedes_id"),
     sourceWatermark: uuid("source_watermark"),
+    sourceSequence: bigint("source_sequence", { mode: "number" })
+      .notNull()
+      .default(0),
+    resetGeneration: integer("reset_generation").notNull().default(0),
+    deletionGeneration: integer("deletion_generation").notNull().default(0),
     sourceHash: text("source_hash").notNull(),
     generatedAt: timestamp("generated_at", { withTimezone: true }).notNull(),
     readAt: timestamp("read_at", { withTimezone: true }),
@@ -284,6 +289,9 @@ export const notifications = pgTable(
     deepLink: text("deep_link"),
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
     readAt: timestamp("read_at", { withTimezone: true }),
+    sourceOutboxId: uuid("source_outbox_id"),
+    resetGeneration: integer("reset_generation").notNull().default(0),
+    deletionGeneration: integer("deletion_generation").notNull().default(0),
   },
   (t) => [unique("notifications_tenant_id_id_unique").on(t.tenantId, t.id)],
 );
@@ -332,6 +340,12 @@ export const privacyRequests = pgTable(
     status: text("status").notNull(),
     snapshotAt: timestamp("snapshot_at", { withTimezone: true }),
     sourceWatermark: uuid("source_watermark"),
+    sourceSequence: bigint("source_sequence", { mode: "number" }),
+    idempotencyKey: text("idempotency_key"),
+    requestHash: text("request_hash"),
+    purgeGeneration: integer("purge_generation"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    exportFormat: text("export_format").notNull().default("zip"),
     archiveSchemaVersion: integer("archive_schema_version"),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
     queuedAt: timestamp("queued_at", { withTimezone: true }),
@@ -353,6 +367,10 @@ export const privacyExportArtifacts = pgTable(
     publicationState: text("publication_state").notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     downloadedAt: timestamp("downloaded_at", { withTimezone: true }),
+    linkNonceHash: text("link_nonce_hash"),
+    linkExpiresAt: timestamp("link_expires_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
   },
   (t) => [
     foreignKey({

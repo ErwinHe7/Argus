@@ -10,6 +10,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -154,10 +155,9 @@ export const deviceInstallations = pgTable(
       table.tenantId,
       table.id,
     ),
-    unique("device_installations_active_token_unique").on(
-      table.tenantId,
-      table.pushTokenHash,
-    ),
+    uniqueIndex("device_installations_active_token_global_unique")
+      .on(table.pushTokenHash)
+      .where(sql`${table.status} = 'active'`),
   ],
 );
 
@@ -168,6 +168,8 @@ export const notificationPreferences = pgTable("notification_preferences", {
   dailyRitual: boolean("daily_ritual").notNull().default(true),
   weeklyRecap: boolean("weekly_recap").notNull().default(true),
   moonCycle: boolean("moon_cycle").notNull().default(true),
-  quietHours: jsonb("quiet_hours").notNull().default({}),
+  quietHours: jsonb("quiet_hours")
+    .notNull()
+    .default({ enabled: false, start: "22:00", end: "07:00", timezone: "UTC" }),
   version: integer("version").notNull().default(1),
 });

@@ -41,6 +41,12 @@ export function testBindings(rateLimit = fakeRateLimit()): Bindings {
     CF_ACCESS_AUDIENCE: ACCESS_AUDIENCE,
     CF_ACCESS_JWKS_URL: `${ACCESS_ISSUER}/cdn-cgi/access/certs`,
     CURSOR_SIGNING_KEY: "ritual-test-cursor-signing-key-32-bytes-minimum",
+    KILL_SWITCH_SCHEDULED: "off",
+    KILL_SWITCH_QUEUE: "off",
+    KILL_SWITCH_NOTIFICATIONS: "off",
+    KILL_SWITCH_EXPORTS: "off",
+    KILL_SWITCH_PURGE: "off",
+    KILL_SWITCH_MEDIA: "off",
     RL_HEALTH: rateLimit,
     RL_PUBLIC: rateLimit,
     RL_SEARCH: rateLimit,
@@ -82,16 +88,25 @@ export function accessClaims(overrides: Record<string, unknown> = {}) {
   };
 }
 
-export function memberToken(key: TestRsaKey, overrides: Record<string, unknown> = {}) {
+export function memberToken(
+  key: TestRsaKey,
+  overrides: Record<string, unknown> = {},
+) {
   return signRs256(key, auth0Claims(overrides));
 }
 
-export function accessToken(key: TestRsaKey, overrides: Record<string, unknown> = {}) {
+export function accessToken(
+  key: TestRsaKey,
+  overrides: Record<string, unknown> = {},
+) {
   return signRs256(key, accessClaims(overrides));
 }
 
 export const sessionSnapshot = {
-  account: { id: "018f3c2a-4b67-7a89-8abc-123456789001", status: "active" as const },
+  account: {
+    id: "018f3c2a-4b67-7a89-8abc-123456789001",
+    status: "active" as const,
+  },
   profile: { display_name: "Ritual Member", locale: "en-US" },
   preferences: {
     theme_mode: "system" as const,

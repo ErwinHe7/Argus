@@ -673,6 +673,27 @@ COMMIT;
     });
 
     it("allows only the scoped purge function to remove one purging tenant", async () => {
+      await owner.query(
+        `insert into deletion_journal_confirmations(
+           tombstone_id,purge_generation,r2_key,body_checksum,confirmed_at
+         ) values ($1,1,$2,$3,now())
+         on conflict (tombstone_id,purge_generation) do nothing`,
+        [tombstoneId, `deletion-deny/v1/${tombstoneId}/1.json`, "d".repeat(64)],
+      );
+      await owner.query(
+        `insert into deletion_object_receipts(
+           tombstone_id,purge_generation,object_class,prefix,listing_checksum,confirmed_empty_at
+         ) values
+           ($1,1,'privacy_exports',$2,$4,now()),
+           ($1,1,'tenant_quarantine',$3,$4,now())
+         on conflict (tombstone_id,purge_generation,object_class) do nothing`,
+        [
+          tombstoneId,
+          `privacy-exports/v1/${tenantPurge}/`,
+          `tenant-quarantine/v1/${tenantPurge}/`,
+          "e".repeat(64),
+        ],
+      );
       const purge = new pg.Client({ connectionString: postgresUrl });
       await purge.connect();
       await purge.query("begin");

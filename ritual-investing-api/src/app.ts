@@ -37,6 +37,27 @@ import {
   exactOriginCors,
   securityHeaders,
 } from "./middleware/security-headers.ts";
+import { requireRestoreCutover } from "./middleware/restore-cutover.ts";
+import {
+  registerBriefingRoutes,
+  type BriefingRouteDependencies,
+} from "./domains/briefings/routes.ts";
+import {
+  registerNotificationRoutes,
+  type NotificationRouteDependencies,
+} from "./domains/notifications/routes.ts";
+import {
+  registerPrivacyRoutes,
+  type PrivacyRouteDependencies,
+} from "./domains/privacy/routes.ts";
+import {
+  registerMediaRoutes,
+  type MediaRouteDependencies,
+} from "./domains/media/routes.ts";
+import {
+  registerAdminOperationsRoutes,
+  type AdminOperationsRouteDependencies,
+} from "./domains/admin-operations/routes.ts";
 
 export type AppEnvironment = {
   Bindings: Bindings;
@@ -147,7 +168,12 @@ export type CreateAppOptions = {
   dependencies?: SessionRouteDependencies &
     ContentRouteDependencies &
     MemberRouteDependencies &
-    SimulationRouteDependencies;
+    SimulationRouteDependencies &
+    BriefingRouteDependencies &
+    NotificationRouteDependencies &
+    PrivacyRouteDependencies &
+    MediaRouteDependencies &
+    AdminOperationsRouteDependencies;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -181,6 +207,7 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use("*", requestContext);
   app.use("*", securityHeaders);
   app.use("*", exactOriginCors);
+  app.use("/v1/*", requireRestoreCutover);
   app.onError(errorHandler);
   app.notFound((context) =>
     context.json(
@@ -238,6 +265,11 @@ export function createApp(options: CreateAppOptions = {}) {
   registerRebalanceRoutes(app, options.dependencies);
   registerIntentionRoutes(app, options.dependencies);
   registerEntitlementRoutes(app, options.dependencies);
+  registerBriefingRoutes(app, options.dependencies);
+  registerNotificationRoutes(app, options.dependencies);
+  registerPrivacyRoutes(app, options.dependencies);
+  registerMediaRoutes(app, options.dependencies);
+  registerAdminOperationsRoutes(app, options.dependencies);
 
   if (options.enableContractTestRoute) {
     app.openapi(contractTestRoute, (context) => context.body(null, 204));

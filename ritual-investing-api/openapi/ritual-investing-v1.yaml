@@ -3277,7 +3277,12 @@ components:
         authorizationCode:
           authorizationUrl: https://YOUR_AUTH0_DOMAIN/authorize
           scopes:
+            admin:media:read: Read approved media metadata.
+            admin:media:write: Manage quarantined media upload intents and approved derivatives.
             admin:operations:read: Read bounded staff operational metadata.
+            admin:operations:write: Retry bounded operational work with audit evidence.
+            admin:privacy:read: Read minimized privacy operation metadata.
+            admin:privacy:write: Retry verified privacy work with audit evidence.
             privacy:self: Run export and deletion requests.
             read:self: Read the member's own Ritual data.
             simulate:self: Run deterministic Demo commands.
@@ -3308,6 +3313,1566 @@ paths:
       security: []
       tags:
         - Platform
+  /v1/admin/jobs:
+    get:
+      operationId: listAdminJobs
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - leased
+              - completed
+              - retry
+              - dead_letter
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 1
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      additionalProperties: false
+                      properties:
+                        attempt:
+                          minimum: 0
+                          type: integer
+                        completed_at:
+                          format: date-time
+                          nullable: true
+                          type: string
+                        consumer:
+                          maxLength: 64
+                          minLength: 1
+                          type: string
+                        correlation_id:
+                          format: uuid
+                          type: string
+                        created_at:
+                          format: date-time
+                          type: string
+                        failure_code:
+                          maxLength: 64
+                          nullable: true
+                          type: string
+                        id:
+                          format: uuid
+                          type: string
+                        outbox_id:
+                          format: uuid
+                          type: string
+                        status:
+                          enum:
+                            - leased
+                            - completed
+                            - retry
+                            - dead_letter
+                          type: string
+                      required:
+                        - id
+                        - outbox_id
+                        - consumer
+                        - status
+                        - attempt
+                        - correlation_id
+                        - failure_code
+                        - created_at
+                        - completed_at
+                      type: object
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Bounded redacted job metadata.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Staff permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not retryable or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Operations unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:operations:read
+          CloudflareAccess: []
+      tags:
+        - Admin Operations
+  /v1/admin/jobs/{job_id}:
+    get:
+      operationId: getAdminJob
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      attempt:
+                        minimum: 0
+                        type: integer
+                      completed_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      consumer:
+                        maxLength: 64
+                        minLength: 1
+                        type: string
+                      correlation_id:
+                        format: uuid
+                        type: string
+                      created_at:
+                        format: date-time
+                        type: string
+                      failure_code:
+                        maxLength: 64
+                        nullable: true
+                        type: string
+                      id:
+                        format: uuid
+                        type: string
+                      outbox_id:
+                        format: uuid
+                        type: string
+                      status:
+                        enum:
+                          - leased
+                          - completed
+                          - retry
+                          - dead_letter
+                        type: string
+                    required:
+                      - id
+                      - outbox_id
+                      - consumer
+                      - status
+                      - attempt
+                      - correlation_id
+                      - failure_code
+                      - created_at
+                      - completed_at
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Redacted job metadata without payload/provider body.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Staff permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not retryable or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Operations unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:operations:read
+          CloudflareAccess: []
+      tags:
+        - Admin Operations
+  /v1/admin/jobs/{job_id}/retry:
+    post:
+      operationId: retryAdminJob
+      parameters:
+        - in: path
+          name: job_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                reason:
+                  maxLength: 500
+                  minLength: 8
+                  type: string
+              required:
+                - reason
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      attempt:
+                        minimum: 0
+                        type: integer
+                      completed_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      consumer:
+                        maxLength: 64
+                        minLength: 1
+                        type: string
+                      correlation_id:
+                        format: uuid
+                        type: string
+                      created_at:
+                        format: date-time
+                        type: string
+                      failure_code:
+                        maxLength: 64
+                        nullable: true
+                        type: string
+                      id:
+                        format: uuid
+                        type: string
+                      outbox_id:
+                        format: uuid
+                        type: string
+                      status:
+                        enum:
+                          - leased
+                          - completed
+                          - retry
+                          - dead_letter
+                        type: string
+                    required:
+                      - id
+                      - outbox_id
+                      - consumer
+                      - status
+                      - attempt
+                      - correlation_id
+                      - failure_code
+                      - created_at
+                      - completed_at
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Audited retry queued exactly once.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Staff permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not retryable or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Operations unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:operations:write
+          CloudflareAccess: []
+      tags:
+        - Admin Operations
+  /v1/admin/media:
+    get:
+      operationId: listAdminMedia
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - issued
+              - uploaded
+              - scanning
+              - accepted
+              - rejected
+              - expired
+            type: string
+        - in: query
+          name: mime_type
+          required: false
+          schema:
+            enum:
+              - image/jpeg
+              - image/png
+              - image/webp
+            type: string
+        - in: query
+          name: search
+          required: false
+          schema:
+            maxLength: 64
+            minLength: 4
+            pattern: ^[a-f0-9-]+$/i
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 1
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      additionalProperties: false
+                      properties:
+                        byte_size:
+                          exclusiveMinimum: true
+                          minimum: 0
+                          type: integer
+                        checksum:
+                          pattern: ^[a-f0-9]{64}$
+                          type: string
+                        derivative_status:
+                          enum:
+                            - unavailable
+                            - uploading
+                            - active
+                            - retired
+                          type: string
+                        id:
+                          format: uuid
+                          type: string
+                        mime_type:
+                          enum:
+                            - image/jpeg
+                            - image/png
+                            - image/webp
+                          type: string
+                        quarantine_status:
+                          enum:
+                            - pending
+                            - clear
+                            - rejected
+                          type: string
+                        reference_count:
+                          minimum: 0
+                          type: integer
+                        scan_result:
+                          maxLength: 64
+                          nullable: true
+                          type: string
+                        upload_status:
+                          enum:
+                            - issued
+                            - uploaded
+                            - scanning
+                            - accepted
+                            - rejected
+                            - expired
+                          type: string
+                        version:
+                          exclusiveMinimum: true
+                          minimum: 0
+                          type: integer
+                      required:
+                        - id
+                        - mime_type
+                        - byte_size
+                        - checksum
+                        - upload_status
+                        - quarantine_status
+                        - scan_result
+                        - derivative_status
+                        - reference_count
+                        - version
+                      type: object
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Bounded media lifecycle metadata without scanner bodies or write URLs.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine validation failed.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Editor permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: State, reference, or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload too large.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine service unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:media:read
+          CloudflareAccess: []
+      tags:
+        - Admin Media
+  /v1/admin/media/{media_id}:
+    delete:
+      operationId: deleteAdminMedia
+      parameters:
+        - in: path
+          name: media_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                reason:
+                  maxLength: 500
+                  minLength: 8
+                  type: string
+              required:
+                - reason
+              type: object
+        required: true
+      responses:
+        "204":
+          description: Unreferenced media retired and derivative cleanup queued.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine validation failed.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Editor permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: State, reference, or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload too large.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine service unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:media:write
+          CloudflareAccess: []
+      tags:
+        - Admin Media
+    get:
+      operationId: getAdminMedia
+      parameters:
+        - in: path
+          name: media_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      byte_size:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        type: integer
+                      checksum:
+                        pattern: ^[a-f0-9]{64}$
+                        type: string
+                      derivative_status:
+                        enum:
+                          - unavailable
+                          - uploading
+                          - active
+                          - retired
+                        type: string
+                      id:
+                        format: uuid
+                        type: string
+                      mime_type:
+                        enum:
+                          - image/jpeg
+                          - image/png
+                          - image/webp
+                        type: string
+                      quarantine_status:
+                        enum:
+                          - pending
+                          - clear
+                          - rejected
+                        type: string
+                      reference_count:
+                        minimum: 0
+                        type: integer
+                      scan_result:
+                        maxLength: 64
+                        nullable: true
+                        type: string
+                      upload_status:
+                        enum:
+                          - issued
+                          - uploaded
+                          - scanning
+                          - accepted
+                          - rejected
+                          - expired
+                        type: string
+                      version:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        type: integer
+                    required:
+                      - id
+                      - mime_type
+                      - byte_size
+                      - checksum
+                      - upload_status
+                      - quarantine_status
+                      - scan_result
+                      - derivative_status
+                      - reference_count
+                      - version
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Quarantine, scan, reference, derivative, and version status.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine validation failed.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Editor permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: State, reference, or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload too large.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine service unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:media:read
+          CloudflareAccess: []
+      tags:
+        - Admin Media
+  /v1/admin/media/{media_id}/complete:
+    post:
+      operationId: completeMediaUpload
+      parameters:
+        - in: path
+          name: media_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                checksum:
+                  pattern: ^[a-f0-9]{64}$
+                  type: string
+              required:
+                - checksum
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      media_id:
+                        format: uuid
+                        type: string
+                      outbox_id:
+                        format: uuid
+                        type: string
+                      status:
+                        enum:
+                          - scanning
+                        type: string
+                    required:
+                      - media_id
+                      - status
+                      - outbox_id
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Actor-bound quarantine object accepted for asynchronous validation.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine validation failed.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Editor permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: State, reference, or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload too large.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine service unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:media:write
+          CloudflareAccess: []
+      tags:
+        - Admin Media
+  /v1/admin/media/upload-requests:
+    post:
+      operationId: requestMediaUpload
+      parameters:
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                byte_size:
+                  exclusiveMinimum: true
+                  maximum: 10485760
+                  minimum: 0
+                  type: integer
+                checksum:
+                  pattern: ^[a-f0-9]{64}$
+                  type: string
+                mime_type:
+                  enum:
+                    - image/jpeg
+                    - image/png
+                    - image/webp
+                  type: string
+              required:
+                - mime_type
+                - byte_size
+                - checksum
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      expires_at:
+                        format: date-time
+                        type: string
+                      media_id:
+                        format: uuid
+                        type: string
+                      quarantine_key:
+                        maxLength: 512
+                        minLength: 1
+                        type: string
+                      upload_url:
+                        format: uri
+                        type: string
+                    required:
+                      - media_id
+                      - quarantine_key
+                      - upload_url
+                      - expires_at
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Single-use actor-bound quarantine upload intent.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine validation failed.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Editor permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: State, reference, or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload too large.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine service unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:media:write
+          CloudflareAccess: []
+      tags:
+        - Admin Media
+  /v1/admin/media/upload-requests/{media_id}/content:
+    put:
+      operationId: uploadMediaQuarantineContent
+      parameters:
+        - in: path
+          name: media_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          image/jpeg:
+            schema:
+              nullable: true
+          image/png:
+            schema:
+              nullable: true
+          image/webp:
+            schema:
+              nullable: true
+        required: true
+      responses:
+        "204":
+          description: Bytes stored in R2 quarantine only.
+        "400":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine validation failed.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Editor permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: State, reference, or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload too large.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Upload rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Quarantine service unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:media:write
+          CloudflareAccess: []
+      tags:
+        - Admin Media
+  /v1/admin/privacy/requests:
+    get:
+      operationId: listAdminPrivacyRequests
+      parameters:
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - requested
+              - verified
+              - queued
+              - processing
+              - completed
+              - failed
+              - cancelled
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 1
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      additionalProperties: false
+                      properties:
+                        completed_at:
+                          format: date-time
+                          nullable: true
+                          type: string
+                        failure_code:
+                          maxLength: 64
+                          nullable: true
+                          type: string
+                        id:
+                          format: uuid
+                          type: string
+                        purge_generation:
+                          exclusiveMinimum: true
+                          minimum: 0
+                          nullable: true
+                          type: integer
+                        queued_at:
+                          format: date-time
+                          nullable: true
+                          type: string
+                        request_type:
+                          enum:
+                            - export
+                            - delete
+                          type: string
+                        snapshot_at:
+                          format: date-time
+                          nullable: true
+                          type: string
+                        status:
+                          enum:
+                            - requested
+                            - verified
+                            - queued
+                            - processing
+                            - completed
+                            - failed
+                            - cancelled
+                          type: string
+                        tenant_id:
+                          format: uuid
+                          type: string
+                      required:
+                        - id
+                        - tenant_id
+                        - request_type
+                        - status
+                        - snapshot_at
+                        - queued_at
+                        - completed_at
+                        - failure_code
+                        - purge_generation
+                      type: object
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Bounded minimized privacy operation metadata.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Staff permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not retryable or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Operations unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:privacy:read
+          CloudflareAccess: []
+      tags:
+        - Admin Privacy
+  /v1/admin/privacy/requests/{request_id}:
+    get:
+      operationId: getAdminPrivacyRequest
+      parameters:
+        - in: path
+          name: request_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      completed_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      failure_code:
+                        maxLength: 64
+                        nullable: true
+                        type: string
+                      id:
+                        format: uuid
+                        type: string
+                      purge_generation:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        nullable: true
+                        type: integer
+                      queued_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      request_type:
+                        enum:
+                          - export
+                          - delete
+                        type: string
+                      snapshot_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      status:
+                        enum:
+                          - requested
+                          - verified
+                          - queued
+                          - processing
+                          - completed
+                          - failed
+                          - cancelled
+                        type: string
+                      tenant_id:
+                        format: uuid
+                        type: string
+                    required:
+                      - id
+                      - tenant_id
+                      - request_type
+                      - status
+                      - snapshot_at
+                      - queued_at
+                      - completed_at
+                      - failure_code
+                      - purge_generation
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Minimized privacy operation metadata.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Staff permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not retryable or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Operations unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:privacy:read
+          CloudflareAccess: []
+      tags:
+        - Admin Privacy
+  /v1/admin/privacy/requests/{request_id}/retry:
+    post:
+      operationId: retryAdminPrivacyRequest
+      parameters:
+        - in: path
+          name: request_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                reason:
+                  maxLength: 500
+                  minLength: 8
+                  type: string
+              required:
+                - reason
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      outbox_id:
+                        format: uuid
+                        type: string
+                    required:
+                      - outbox_id
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Audited privacy retry queued exactly once.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Dual authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Staff permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not retryable or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Operations unavailable.
+      security:
+        - Auth0OAuth:
+            - admin:privacy:write
+          CloudflareAccess: []
+      tags:
+        - Admin Privacy
   /v1/admin/session:
     get:
       operationId: getAdminSession
@@ -3755,6 +5320,563 @@ paths:
             - read:self
       tags:
         - Assets
+  /v1/briefings:
+    get:
+      operationId: listBriefings
+      parameters:
+        - in: query
+          name: type
+          required: false
+          schema:
+            enum:
+              - daily
+              - weekly
+              - moon_cycle
+            type: string
+        - in: query
+          name: period_start
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: period_end
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 1
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      additionalProperties: false
+                      properties:
+                        briefing_type:
+                          enum:
+                            - daily
+                            - weekly
+                            - moon_cycle
+                          type: string
+                        generated_at:
+                          format: date-time
+                          type: string
+                        generation:
+                          exclusiveMinimum: true
+                          minimum: 0
+                          type: integer
+                        id:
+                          format: uuid
+                          type: string
+                        period_end:
+                          format: date
+                          type: string
+                        period_start:
+                          format: date
+                          type: string
+                        read_at:
+                          format: date-time
+                          nullable: true
+                          type: string
+                        source_sequence:
+                          minimum: 0
+                          type: integer
+                      required:
+                        - id
+                        - briefing_type
+                        - period_start
+                        - period_end
+                        - generation
+                        - source_sequence
+                        - generated_at
+                        - read_at
+                      type: object
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Bounded immutable current briefings.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Briefings
+  /v1/briefings/{briefing_id}:
+    get:
+      operationId: getBriefing
+      parameters:
+        - in: path
+          name: briefing_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      briefing_type:
+                        enum:
+                          - daily
+                          - weekly
+                          - moon_cycle
+                        type: string
+                      generated_at:
+                        format: date-time
+                        type: string
+                      generation:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        type: integer
+                      id:
+                        format: uuid
+                        type: string
+                      period_end:
+                        format: date
+                        type: string
+                      period_start:
+                        format: date
+                        type: string
+                      read_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      sections:
+                        items:
+                          additionalProperties: false
+                          properties:
+                            ordinal:
+                              exclusiveMinimum: true
+                              minimum: 0
+                              type: integer
+                            payload:
+                              additionalProperties:
+                                nullable: true
+                              type: object
+                            schema_version:
+                              exclusiveMinimum: true
+                              minimum: 0
+                              type: integer
+                            section_type:
+                              maxLength: 64
+                              minLength: 1
+                              type: string
+                          required:
+                            - section_type
+                            - ordinal
+                            - payload
+                            - schema_version
+                          type: object
+                        maxItems: 32
+                        type: array
+                      source_sequence:
+                        minimum: 0
+                        type: integer
+                    required:
+                      - id
+                      - briefing_type
+                      - period_start
+                      - period_end
+                      - generation
+                      - source_sequence
+                      - generated_at
+                      - read_at
+                      - sections
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Immutable briefing detail.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Briefings
+  /v1/briefings/{briefing_id}/read-state:
+    put:
+      operationId: setBriefingReadState
+      parameters:
+        - in: path
+          name: briefing_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                read:
+                  type: boolean
+              required:
+                - read
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      briefing_type:
+                        enum:
+                          - daily
+                          - weekly
+                          - moon_cycle
+                        type: string
+                      generated_at:
+                        format: date-time
+                        type: string
+                      generation:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        type: integer
+                      id:
+                        format: uuid
+                        type: string
+                      period_end:
+                        format: date
+                        type: string
+                      period_start:
+                        format: date
+                        type: string
+                      read_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      source_sequence:
+                        minimum: 0
+                        type: integer
+                    required:
+                      - id
+                      - briefing_type
+                      - period_start
+                      - period_end
+                      - generation
+                      - source_sequence
+                      - generated_at
+                      - read_at
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated member read state only.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Briefings
+  /v1/briefings/daily:
+    get:
+      operationId: getDailyBriefing
+      parameters:
+        - in: query
+          name: local_date
+          required: false
+          schema:
+            format: date
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      briefing_type:
+                        enum:
+                          - daily
+                          - weekly
+                          - moon_cycle
+                        type: string
+                      generated_at:
+                        format: date-time
+                        type: string
+                      generation:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        type: integer
+                      id:
+                        format: uuid
+                        type: string
+                      period_end:
+                        format: date
+                        type: string
+                      period_start:
+                        format: date
+                        type: string
+                      read_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      sections:
+                        items:
+                          additionalProperties: false
+                          properties:
+                            ordinal:
+                              exclusiveMinimum: true
+                              minimum: 0
+                              type: integer
+                            payload:
+                              additionalProperties:
+                                nullable: true
+                              type: object
+                            schema_version:
+                              exclusiveMinimum: true
+                              minimum: 0
+                              type: integer
+                            section_type:
+                              maxLength: 64
+                              minLength: 1
+                              type: string
+                          required:
+                            - section_type
+                            - ordinal
+                            - payload
+                            - schema_version
+                          type: object
+                        maxItems: 32
+                        type: array
+                      source_sequence:
+                        minimum: 0
+                        type: integer
+                    required:
+                      - id
+                      - briefing_type
+                      - period_start
+                      - period_end
+                      - generation
+                      - source_sequence
+                      - generated_at
+                      - read_at
+                      - sections
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Already-generated Daily briefing; this read never generates content.
+        "202":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      local_date:
+                        format: date
+                        type: string
+                      status:
+                        enum:
+                          - briefing_pending
+                        type: string
+                    required:
+                      - status
+                      - local_date
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Daily briefing generation remains queued; this GET performs no generation.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Briefings
   /v1/circle-templates:
     get:
       operationId: listCircleTemplates
@@ -4804,6 +6926,128 @@ paths:
             - read:self
       tags:
         - Discover
+  /v1/content-reports:
+    post:
+      operationId: createContentReport
+      parameters:
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                detail:
+                  maxLength: 1000
+                  minLength: 1
+                  type: string
+                reason_code:
+                  enum:
+                    - incorrect
+                    - unsafe
+                    - spam
+                    - rights
+                    - other
+                  type: string
+                target_id:
+                  format: uuid
+                  type: string
+                target_kind:
+                  enum:
+                    - ritual
+                    - codex
+                    - coven
+                    - grimoire
+                  type: string
+              required:
+                - target_kind
+                - target_id
+                - reason_code
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      id:
+                        format: uuid
+                        type: string
+                      status:
+                        enum:
+                          - received
+                        type: string
+                    required:
+                      - id
+                      - status
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Nontoxic report receipt.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optimistic concurrency or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Moderation
   /v1/coven:
     get:
       operationId: listCoven
@@ -7250,6 +9494,181 @@ paths:
             - simulate:self
       tags:
         - Simulation
+  /v1/me/devices:
+    post:
+      operationId: registerNotificationDevice
+      parameters:
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                platform:
+                  enum:
+                    - ios
+                    - android
+                  type: string
+                push_token:
+                  maxLength: 4096
+                  minLength: 16
+                  type: string
+              required:
+                - platform
+                - push_token
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      id:
+                        format: uuid
+                        type: string
+                      platform:
+                        enum:
+                          - ios
+                          - android
+                        type: string
+                      status:
+                        enum:
+                          - active
+                          - revoked
+                        type: string
+                    required:
+                      - id
+                      - platform
+                      - status
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Registered encrypted device token.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optimistic concurrency or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Notifications
+  /v1/me/devices/{installation_id}:
+    delete:
+      operationId: revokeNotificationDevice
+      parameters:
+        - in: path
+          name: installation_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "204":
+          description: Device revoked.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optimistic concurrency or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Notifications
   /v1/me/entitlements:
     get:
       operationId: getDemoEntitlement
@@ -7711,6 +10130,258 @@ paths:
             - write:self
       tags:
         - Account
+  /v1/me/notification-preferences:
+    get:
+      operationId: getNotificationPreferences
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      daily_ritual:
+                        type: boolean
+                      moon_cycle:
+                        type: boolean
+                      quiet_hours:
+                        additionalProperties: false
+                        properties:
+                          enabled:
+                            type: boolean
+                          end:
+                            pattern: ^([01]\d|2[0-3]):[0-5]\d$
+                            type: string
+                          start:
+                            pattern: ^([01]\d|2[0-3]):[0-5]\d$
+                            type: string
+                          timezone:
+                            maxLength: 64
+                            minLength: 1
+                            type: string
+                        required:
+                          - enabled
+                          - start
+                          - end
+                          - timezone
+                        type: object
+                      version:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        type: integer
+                      weekly_recap:
+                        type: boolean
+                    required:
+                      - daily_ritual
+                      - weekly_recap
+                      - moon_cycle
+                      - quiet_hours
+                      - version
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Member notification preferences.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optimistic concurrency or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Notifications
+    patch:
+      operationId: patchNotificationPreferences
+      parameters:
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                daily_ritual:
+                  type: boolean
+                moon_cycle:
+                  type: boolean
+                quiet_hours:
+                  additionalProperties: false
+                  properties:
+                    enabled:
+                      type: boolean
+                    end:
+                      pattern: ^([01]\d|2[0-3]):[0-5]\d$
+                      type: string
+                    start:
+                      pattern: ^([01]\d|2[0-3]):[0-5]\d$
+                      type: string
+                    timezone:
+                      maxLength: 64
+                      minLength: 1
+                      type: string
+                  required:
+                    - enabled
+                    - start
+                    - end
+                    - timezone
+                  type: object
+                weekly_recap:
+                  type: boolean
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      daily_ritual:
+                        type: boolean
+                      moon_cycle:
+                        type: boolean
+                      quiet_hours:
+                        additionalProperties: false
+                        properties:
+                          enabled:
+                            type: boolean
+                          end:
+                            pattern: ^([01]\d|2[0-3]):[0-5]\d$
+                            type: string
+                          start:
+                            pattern: ^([01]\d|2[0-3]):[0-5]\d$
+                            type: string
+                          timezone:
+                            maxLength: 64
+                            minLength: 1
+                            type: string
+                        required:
+                          - enabled
+                          - start
+                          - end
+                          - timezone
+                        type: object
+                      version:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        type: integer
+                      weekly_recap:
+                        type: boolean
+                    required:
+                      - daily_ritual
+                      - weekly_recap
+                      - moon_cycle
+                      - quiet_hours
+                      - version
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated preferences.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optimistic concurrency or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Notifications
   /v1/me/onboarding:
     get:
       operationId: getOnboarding
@@ -8069,6 +10740,486 @@ paths:
             - write:self
       tags:
         - Account
+  /v1/me/privacy/deletion-requests:
+    post:
+      operationId: requestAccountDeletion
+      parameters:
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                confirmation:
+                  enum:
+                    - DELETE
+                  type: string
+              required:
+                - confirmation
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      effective_at:
+                        format: date-time
+                        type: string
+                      purge_by:
+                        format: date-time
+                        type: string
+                      purge_generation:
+                        exclusiveMinimum: true
+                        minimum: 0
+                        type: integer
+                      request_id:
+                        format: uuid
+                        type: string
+                      status:
+                        enum:
+                          - queued
+                        type: string
+                      tombstone_id:
+                        format: uuid
+                        type: string
+                    required:
+                      - request_id
+                      - tombstone_id
+                      - status
+                      - effective_at
+                      - purge_by
+                      - purge_generation
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Immediate revocation and verified purge queued.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Privacy permission and recent authentication required.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflicting idempotency replay.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Sensitive route rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - privacy:self
+      tags:
+        - Privacy
+  /v1/me/privacy/exports:
+    post:
+      operationId: requestPrivacyExport
+      parameters:
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                format:
+                  enum:
+                    - zip
+                  type: string
+              required:
+                - format
+              type: object
+        required: true
+      responses:
+        "202":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      completed_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      download_link:
+                        additionalProperties: false
+                        nullable: true
+                        properties:
+                          expires_at:
+                            format: date-time
+                            type: string
+                          url:
+                            format: uri
+                            type: string
+                        required:
+                          - url
+                          - expires_at
+                        type: object
+                      expires_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      failure_code:
+                        maxLength: 64
+                        nullable: true
+                        type: string
+                      format:
+                        enum:
+                          - zip
+                        type: string
+                      id:
+                        format: uuid
+                        type: string
+                      request_type:
+                        enum:
+                          - export
+                          - delete
+                        type: string
+                      snapshot_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      status:
+                        enum:
+                          - requested
+                          - verified
+                          - queued
+                          - processing
+                          - completed
+                          - failed
+                          - cancelled
+                        type: string
+                    required:
+                      - id
+                      - request_type
+                      - status
+                      - snapshot_at
+                      - completed_at
+                      - expires_at
+                      - failure_code
+                      - format
+                      - download_link
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Queued coherent ZIP snapshot export.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Privacy permission and recent authentication required.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflicting idempotency replay.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Sensitive route rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - privacy:self
+      tags:
+        - Privacy
+  /v1/me/privacy/exports/{request_id}:
+    get:
+      operationId: getPrivacyExport
+      parameters:
+        - in: path
+          name: request_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      completed_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      download_link:
+                        additionalProperties: false
+                        nullable: true
+                        properties:
+                          expires_at:
+                            format: date-time
+                            type: string
+                          url:
+                            format: uri
+                            type: string
+                        required:
+                          - url
+                          - expires_at
+                        type: object
+                      expires_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      failure_code:
+                        maxLength: 64
+                        nullable: true
+                        type: string
+                      format:
+                        enum:
+                          - zip
+                        type: string
+                      id:
+                        format: uuid
+                        type: string
+                      request_type:
+                        enum:
+                          - export
+                          - delete
+                        type: string
+                      snapshot_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      status:
+                        enum:
+                          - requested
+                          - verified
+                          - queued
+                          - processing
+                          - completed
+                          - failed
+                          - cancelled
+                        type: string
+                    required:
+                      - id
+                      - request_type
+                      - status
+                      - snapshot_at
+                      - completed_at
+                      - expires_at
+                      - failure_code
+                      - format
+                      - download_link
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Export status with a short-lived link when ready.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Privacy permission and recent authentication required.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflicting idempotency replay.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Sensitive route rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - privacy:self
+      tags:
+        - Privacy
+  /v1/me/privacy/exports/{request_id}/download:
+    get:
+      operationId: downloadPrivacyExport
+      parameters:
+        - in: path
+          name: request_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: token
+          required: true
+          schema:
+            pattern: ^[a-f0-9]{64}$
+            type: string
+      responses:
+        "200":
+          content:
+            application/zip:
+              schema:
+                nullable: true
+          description: One-time ZIP archive download.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Privacy permission and recent authentication required.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Conflicting idempotency replay.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Sensitive route rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - privacy:self
+      tags:
+        - Privacy
   /v1/me/profile:
     patch:
       operationId: patchProfile
@@ -8718,6 +11869,354 @@ paths:
             - write:self
       tags:
         - Saves
+  /v1/notifications:
+    get:
+      operationId: listNotifications
+      parameters:
+        - in: query
+          name: read
+          required: false
+          schema:
+            default: all
+            enum:
+              - all
+              - read
+              - unread
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 1
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      additionalProperties: false
+                      properties:
+                        body:
+                          maxLength: 1000
+                          minLength: 1
+                          type: string
+                        deep_link:
+                          nullable: true
+                          pattern: ^\/[a-z0-9/_-]+$
+                          type: string
+                        id:
+                          format: uuid
+                          type: string
+                        kind:
+                          maxLength: 64
+                          minLength: 1
+                          type: string
+                        read_at:
+                          format: date-time
+                          nullable: true
+                          type: string
+                        scheduled_at:
+                          format: date-time
+                          nullable: true
+                          type: string
+                        title:
+                          maxLength: 160
+                          minLength: 1
+                          type: string
+                      required:
+                        - id
+                        - kind
+                        - title
+                        - body
+                        - deep_link
+                        - scheduled_at
+                        - read_at
+                      type: object
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Bounded member notifications.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optimistic concurrency or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Notifications
+  /v1/notifications/{notification_id}/read-state:
+    put:
+      operationId: setNotificationReadState
+      parameters:
+        - in: path
+          name: notification_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                read:
+                  type: boolean
+              required:
+                - read
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      body:
+                        maxLength: 1000
+                        minLength: 1
+                        type: string
+                      deep_link:
+                        nullable: true
+                        pattern: ^\/[a-z0-9/_-]+$
+                        type: string
+                      id:
+                        format: uuid
+                        type: string
+                      kind:
+                        maxLength: 64
+                        minLength: 1
+                        type: string
+                      read_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      scheduled_at:
+                        format: date-time
+                        nullable: true
+                        type: string
+                      title:
+                        maxLength: 160
+                        minLength: 1
+                        type: string
+                    required:
+                      - id
+                      - kind
+                      - title
+                      - body
+                      - deep_link
+                      - scheduled_at
+                      - read_at
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated notification read state.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optimistic concurrency or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Notifications
+  /v1/notifications/read-all:
+    post:
+      operationId: readAllNotifications
+      parameters:
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                before:
+                  format: date-time
+                  type: string
+              type: object
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    additionalProperties: false
+                    properties:
+                      updated_count:
+                        maximum: 100
+                        minimum: 0
+                        type: integer
+                    required:
+                      - updated_count
+                    type: object
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: A bounded page of notifications marked read.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication required.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optimistic concurrency or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Temporarily unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Notifications
   /v1/openapi.json:
     get:
       operationId: getOpenApiDocument

@@ -8,17 +8,24 @@ import 'package:ritual_investing_api_client/generated/auth/basic_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/bearer_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/oauth.dart';
 import 'package:ritual_investing_api_client/generated/api/account_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_media_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_operations_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_privacy_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_session_api.dart';
 import 'package:ritual_investing_api_client/generated/api/assets_api.dart';
+import 'package:ritual_investing_api_client/generated/api/briefings_api.dart';
 import 'package:ritual_investing_api_client/generated/api/circles_api.dart';
 import 'package:ritual_investing_api_client/generated/api/demo_entitlements_api.dart';
 import 'package:ritual_investing_api_client/generated/api/discover_api.dart';
 import 'package:ritual_investing_api_client/generated/api/founders_coven_api.dart';
 import 'package:ritual_investing_api_client/generated/api/future_mirror_api.dart';
 import 'package:ritual_investing_api_client/generated/api/intentions_api.dart';
+import 'package:ritual_investing_api_client/generated/api/moderation_api.dart';
+import 'package:ritual_investing_api_client/generated/api/notifications_api.dart';
 import 'package:ritual_investing_api_client/generated/api/orders_api.dart';
 import 'package:ritual_investing_api_client/generated/api/platform_api.dart';
 import 'package:ritual_investing_api_client/generated/api/portfolios_api.dart';
+import 'package:ritual_investing_api_client/generated/api/privacy_api.dart';
 import 'package:ritual_investing_api_client/generated/api/public_preview_api.dart';
 import 'package:ritual_investing_api_client/generated/api/rebalancing_api.dart';
 import 'package:ritual_investing_api_client/generated/api/recurring_plans_api.dart';
@@ -158,6 +165,24 @@ class RitualInvestingApiClient {
     return AccountApi(dio);
   }
 
+  /// Get AdminMediaApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminMediaApi getAdminMediaApi() {
+    return AdminMediaApi(dio);
+  }
+
+  /// Get AdminOperationsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminOperationsApi getAdminOperationsApi() {
+    return AdminOperationsApi(dio);
+  }
+
+  /// Get AdminPrivacyApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminPrivacyApi getAdminPrivacyApi() {
+    return AdminPrivacyApi(dio);
+  }
+
   /// Get AdminSessionApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   AdminSessionApi getAdminSessionApi() {
@@ -168,6 +193,12 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   AssetsApi getAssetsApi() {
     return AssetsApi(dio);
+  }
+
+  /// Get BriefingsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  BriefingsApi getBriefingsApi() {
+    return BriefingsApi(dio);
   }
 
   /// Get CirclesApi instance, base route and serializer can be overridden by a given but be careful,
@@ -206,6 +237,18 @@ class RitualInvestingApiClient {
     return IntentionsApi(dio);
   }
 
+  /// Get ModerationApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  ModerationApi getModerationApi() {
+    return ModerationApi(dio);
+  }
+
+  /// Get NotificationsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  NotificationsApi getNotificationsApi() {
+    return NotificationsApi(dio);
+  }
+
   /// Get OrdersApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   OrdersApi getOrdersApi() {
@@ -222,6 +265,12 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   PortfoliosApi getPortfoliosApi() {
     return PortfoliosApi(dio);
+  }
+
+  /// Get PrivacyApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  PrivacyApi getPrivacyApi() {
+    return PrivacyApi(dio);
   }
 
   /// Get PublicPreviewApi instance, base route and serializer can be overridden by a given but be careful,

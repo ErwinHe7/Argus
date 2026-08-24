@@ -1,5 +1,7 @@
 import { createApp } from "./app.ts";
 import { validateBindings, type Bindings } from "./config/env.ts";
+import { runQueue } from "./jobs/queue-runtime.ts";
+import { runScheduled } from "./jobs/scheduled.ts";
 
 const app = createApp();
 
@@ -8,11 +10,13 @@ const worker = {
     const bindings = validateBindings(environment);
     return app.fetch(request, bindings, executionContext);
   },
-  async scheduled(_controller, environment, _executionContext) {
-    validateBindings(environment);
+  async scheduled(controller, environment, executionContext) {
+    const bindings = validateBindings(environment);
+    executionContext.waitUntil(runScheduled(controller, bindings));
   },
-  async queue(_batch, environment, _executionContext) {
-    validateBindings(environment);
+  async queue(batch, environment, executionContext) {
+    const bindings = validateBindings(environment);
+    executionContext.waitUntil(runQueue(batch, bindings));
   },
 } satisfies ExportedHandler<Bindings>;
 

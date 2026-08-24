@@ -24,6 +24,23 @@ export const staffPrincipals = pgTable("staff_principals", {
   lastVerifiedAt: timestamp("last_verified_at", { withTimezone: true }),
 });
 
+export const mediaUploadIntents = pgTable("media_upload_intents", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  actorStaffId: uuid("actor_staff_id")
+    .notNull()
+    .references(() => staffPrincipals.id),
+  r2Key: text("r2_key").notNull().unique(),
+  expectedMime: text("expected_mime").notNull(),
+  expectedByteSize: bigint("expected_byte_size", { mode: "number" }).notNull(),
+  expectedChecksum: text("expected_checksum").notNull(),
+  status: text("status").notNull().default("issued"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const mediaAssets = pgTable("media_assets", {
   id: uuid("id").defaultRandom().primaryKey(),
   r2Key: text("r2_key").notNull().unique(),
@@ -35,6 +52,13 @@ export const mediaAssets = pgTable("media_assets", {
   quarantineStatus: text("quarantine_status").notNull(),
   scanResult: text("scan_result"),
   status: text("status").notNull(),
+  uploadIntentId: uuid("upload_intent_id")
+    .unique()
+    .references(() => mediaUploadIntents.id),
+  actorStaffId: uuid("actor_staff_id").references(() => staffPrincipals.id),
+  schemaVersion: integer("schema_version").notNull().default(1),
+  acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+  version: integer("version").notNull().default(1),
 });
 
 export const editorialItems = pgTable("editorial_items", {

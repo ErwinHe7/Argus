@@ -27,6 +27,9 @@ import 'package:ritual_investing_api_client/generated/model/collection_meta.dart
 import 'package:ritual_investing_api_client/generated/model/commit_order200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/commit_order_request.dart';
 import 'package:ritual_investing_api_client/generated/model/compare_assets_request.dart';
+import 'package:ritual_investing_api_client/generated/model/complete_media_upload202_response.dart';
+import 'package:ritual_investing_api_client/generated/model/complete_media_upload202_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/complete_media_upload_request.dart';
 import 'package:ritual_investing_api_client/generated/model/confirm_demo_checkout200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/consent_receipt.dart';
 import 'package:ritual_investing_api_client/generated/model/consent_receipt_response.dart';
@@ -41,6 +44,9 @@ import 'package:ritual_investing_api_client/generated/model/coven_summary.dart';
 import 'package:ritual_investing_api_client/generated/model/create_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_circle_request_assets_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/create_consent_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_content_report201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_content_report201_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/create_content_report_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_demo_checkout201_response.dart';
 import 'package:ritual_investing_api_client/generated/model/create_demo_checkout_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_demo_contribution_request.dart';
@@ -88,6 +94,17 @@ import 'package:ritual_investing_api_client/generated/model/evidence_summary.dar
 import 'package:ritual_investing_api_client/generated/model/field_error.dart';
 import 'package:ritual_investing_api_client/generated/model/future_mirror_view.dart';
 import 'package:ritual_investing_api_client/generated/model/future_mirror_view_points_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/get_admin_job200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_admin_media200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_admin_privacy_request200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_briefing200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_briefing200_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/get_briefing200_response_data_sections_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/get_daily_briefing202_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_daily_briefing202_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/get_notification_preferences200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_notification_preferences200_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/get_notification_preferences200_response_data_quiet_hours.dart';
 import 'package:ritual_investing_api_client/generated/model/get_order200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_ritual_assignment200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/grimoire_collection_response.dart';
@@ -100,9 +117,19 @@ import 'package:ritual_investing_api_client/generated/model/input_money.dart';
 import 'package:ritual_investing_api_client/generated/model/intention.dart';
 import 'package:ritual_investing_api_client/generated/model/investor_profile.dart';
 import 'package:ritual_investing_api_client/generated/model/investor_profile_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_jobs200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_jobs200_response_data_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_media200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_media200_response_data_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_privacy_requests200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_privacy_requests200_response_data_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_briefings200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_briefings200_response_data_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/list_demo_funding_sources200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_demo_plans200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_intentions200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_notifications200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_notifications200_response_data_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/list_orders200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_portfolio_activity200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_portfolio_holdings200_response.dart';
@@ -124,6 +151,7 @@ import 'package:ritual_investing_api_client/generated/model/open_api_document.da
 import 'package:ritual_investing_api_client/generated/model/order_preview.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_intention_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_notification_preferences_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_onboarding200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_onboarding_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_portfolio_request.dart';
@@ -152,13 +180,32 @@ import 'package:ritual_investing_api_client/generated/model/put_circle_asset_req
 import 'package:ritual_investing_api_client/generated/model/put_investor_profile200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/put_investor_profile_request.dart';
 import 'package:ritual_investing_api_client/generated/model/quantity.dart';
+import 'package:ritual_investing_api_client/generated/model/read_all_notifications200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/read_all_notifications200_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/read_all_notifications_request.dart';
 import 'package:ritual_investing_api_client/generated/model/rebalance_preview.dart';
 import 'package:ritual_investing_api_client/generated/model/rebalance_preview_trades_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/recurring_plan.dart';
 import 'package:ritual_investing_api_client/generated/model/recurring_plan_recent_runs_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/register_notification_device201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/register_notification_device201_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/register_notification_device_request.dart';
+import 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response.dart';
+import 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/request_account_deletion_request.dart';
+import 'package:ritual_investing_api_client/generated/model/request_media_upload201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/request_media_upload201_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/request_media_upload_request.dart';
+import 'package:ritual_investing_api_client/generated/model/request_privacy_export202_response.dart';
+import 'package:ritual_investing_api_client/generated/model/request_privacy_export202_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/request_privacy_export202_response_data_download_link.dart';
+import 'package:ritual_investing_api_client/generated/model/request_privacy_export_request.dart';
 import 'package:ritual_investing_api_client/generated/model/reset_demo_state200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/reset_demo_state_request.dart';
 import 'package:ritual_investing_api_client/generated/model/response_meta.dart';
+import 'package:ritual_investing_api_client/generated/model/retry_admin_job_request.dart';
+import 'package:ritual_investing_api_client/generated/model/retry_admin_privacy_request202_response.dart';
+import 'package:ritual_investing_api_client/generated/model/retry_admin_privacy_request202_response_data.dart';
 import 'package:ritual_investing_api_client/generated/model/ritual_asset_idea.dart';
 import 'package:ritual_investing_api_client/generated/model/ritual_evidence_response.dart';
 import 'package:ritual_investing_api_client/generated/model/ritual_history_item.dart';
@@ -178,6 +225,9 @@ import 'package:ritual_investing_api_client/generated/model/session_bootstrap_on
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_preferences.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_profile.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_response.dart';
+import 'package:ritual_investing_api_client/generated/model/set_briefing_read_state200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/set_briefing_read_state_request.dart';
+import 'package:ritual_investing_api_client/generated/model/set_notification_read_state200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/signed_money.dart';
 import 'package:ritual_investing_api_client/generated/model/simulated_order.dart';
 import 'package:ritual_investing_api_client/generated/model/simulated_order_fill.dart';
@@ -295,6 +345,19 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'CompareAssetsRequest':
       return CompareAssetsRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'CompleteMediaUpload202Response':
+      return CompleteMediaUpload202Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CompleteMediaUpload202ResponseData':
+      return CompleteMediaUpload202ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CompleteMediaUploadRequest':
+      return CompleteMediaUploadRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'ConfirmDemoCheckout200Response':
       return ConfirmDemoCheckout200Response.fromJson(
             value as Map<String, dynamic>,
@@ -341,6 +404,19 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'CreateConsentRequest':
       return CreateConsentRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateContentReport201Response':
+      return CreateContentReport201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateContentReport201ResponseData':
+      return CreateContentReport201ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateContentReportRequest':
+      return CreateContentReportRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'CreateDemoCheckout201Response':
       return CreateDemoCheckout201Response.fromJson(
@@ -506,6 +582,51 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'FutureMirrorViewPointsInner':
       return FutureMirrorViewPointsInner.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'GetAdminJob200Response':
+      return GetAdminJob200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'GetAdminMedia200Response':
+      return GetAdminMedia200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'GetAdminPrivacyRequest200Response':
+      return GetAdminPrivacyRequest200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'GetBriefing200Response':
+      return GetBriefing200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'GetBriefing200ResponseData':
+      return GetBriefing200ResponseData.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'GetBriefing200ResponseDataSectionsInner':
+      return GetBriefing200ResponseDataSectionsInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'GetDailyBriefing202Response':
+      return GetDailyBriefing202Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'GetDailyBriefing202ResponseData':
+      return GetDailyBriefing202ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'GetNotificationPreferences200Response':
+      return GetNotificationPreferences200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'GetNotificationPreferences200ResponseData':
+      return GetNotificationPreferences200ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'GetNotificationPreferences200ResponseDataQuietHours':
+      return GetNotificationPreferences200ResponseDataQuietHours.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'GetOrder200Response':
       return GetOrder200Response.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -542,6 +663,40 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'InvestorProfileResponse':
       return InvestorProfileResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'ListAdminJobs200Response':
+      return ListAdminJobs200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ListAdminJobs200ResponseDataInner':
+      return ListAdminJobs200ResponseDataInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminMedia200Response':
+      return ListAdminMedia200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ListAdminMedia200ResponseDataInner':
+      return ListAdminMedia200ResponseDataInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminPrivacyRequests200Response':
+      return ListAdminPrivacyRequests200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminPrivacyRequests200ResponseDataInner':
+      return ListAdminPrivacyRequests200ResponseDataInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListBriefings200Response':
+      return ListBriefings200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ListBriefings200ResponseDataInner':
+      return ListBriefings200ResponseDataInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'ListDemoFundingSources200Response':
       return ListDemoFundingSources200Response.fromJson(
             value as Map<String, dynamic>,
@@ -552,6 +707,16 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'ListIntentions200Response':
       return ListIntentions200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ListNotifications200Response':
+      return ListNotifications200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListNotifications200ResponseDataInner':
+      return ListNotifications200ResponseDataInner.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'ListOrders200Response':
       return ListOrders200Response.fromJson(value as Map<String, dynamic>)
@@ -623,6 +788,11 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'PatchIntentionRequest':
       return PatchIntentionRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchNotificationPreferencesRequest':
+      return PatchNotificationPreferencesRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'PatchOnboarding200Response':
       return PatchOnboarding200Response.fromJson(value as Map<String, dynamic>)
@@ -711,6 +881,19 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'Quantity':
       return Quantity.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'ReadAllNotifications200Response':
+      return ReadAllNotifications200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ReadAllNotifications200ResponseData':
+      return ReadAllNotifications200ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ReadAllNotificationsRequest':
+      return ReadAllNotificationsRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'RebalancePreview':
       return RebalancePreview.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -725,6 +908,67 @@ ReturnType deserialize<ReturnType, BaseType>(
             value as Map<String, dynamic>,
           )
           as ReturnType;
+    case 'RegisterNotificationDevice201Response':
+      return RegisterNotificationDevice201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RegisterNotificationDevice201ResponseData':
+      return RegisterNotificationDevice201ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RegisterNotificationDeviceRequest':
+      return RegisterNotificationDeviceRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestAccountDeletion202Response':
+      return RequestAccountDeletion202Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestAccountDeletion202ResponseData':
+      return RequestAccountDeletion202ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestAccountDeletionRequest':
+      return RequestAccountDeletionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestMediaUpload201Response':
+      return RequestMediaUpload201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestMediaUpload201ResponseData':
+      return RequestMediaUpload201ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestMediaUploadRequest':
+      return RequestMediaUploadRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'RequestPrivacyExport202Response':
+      return RequestPrivacyExport202Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestPrivacyExport202ResponseData':
+      return RequestPrivacyExport202ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestPrivacyExport202ResponseDataDownloadLink':
+      return RequestPrivacyExport202ResponseDataDownloadLink.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestPrivacyExportRequest':
+      return RequestPrivacyExportRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'ResetDemoState200Response':
       return ResetDemoState200Response.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -733,6 +977,19 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'ResponseMeta':
       return ResponseMeta.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'RetryAdminJobRequest':
+      return RetryAdminJobRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'RetryAdminPrivacyRequest202Response':
+      return RetryAdminPrivacyRequest202Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RetryAdminPrivacyRequest202ResponseData':
+      return RetryAdminPrivacyRequest202ResponseData.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'RitualAssetIdea':
       return RitualAssetIdea.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -789,6 +1046,19 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'SessionBootstrapResponse':
       return SessionBootstrapResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'SetBriefingReadState200Response':
+      return SetBriefingReadState200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'SetBriefingReadStateRequest':
+      return SetBriefingReadStateRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'SetNotificationReadState200Response':
+      return SetNotificationReadState200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'SignedMoney':
       return SignedMoney.fromJson(value as Map<String, dynamic>) as ReturnType;
