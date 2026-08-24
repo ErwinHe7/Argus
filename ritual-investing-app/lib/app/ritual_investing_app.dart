@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_initializing_formals
+
 import 'package:flutter/material.dart';
 
 import '../features/shell/presentation/app_shell.dart';
@@ -6,8 +8,11 @@ import '../core/auth/auth_controller.dart';
 import '../core/bootstrap/dependency_container.dart';
 
 class RitualInvestingApp extends StatefulWidget {
-  const RitualInvestingApp({super.key, this.container});
-  final DependencyContainer? container;
+  const RitualInvestingApp({super.key, required DependencyContainer container})
+    : _container = container;
+  const RitualInvestingApp.fixture({super.key}) : _container = null;
+
+  final DependencyContainer? _container;
 
   @override
   State<RitualInvestingApp> createState() => _RitualInvestingAppState();
@@ -16,7 +21,7 @@ class RitualInvestingApp extends StatefulWidget {
 class _RitualInvestingAppState extends State<RitualInvestingApp> {
   ThemeMode _themeMode = ThemeMode.system;
   late final DependencyContainer _container =
-      widget.container ?? DependencyContainer.fixture();
+      widget._container ?? DependencyContainer.fixture();
 
   @override
   void initState() {

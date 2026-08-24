@@ -38,12 +38,10 @@ class GeneratedDiscoverApiService implements DiscoverService {
   @override
   Future<DiscoverModel> fetch() async {
     try {
-      final responses = await Future.wait([
-        _api.listGrimoires(limit: 3),
-        _api.listCircleTemplates(limit: 2),
-      ]);
-      final grimoires = responses[0].data as GrimoireCollectionResponse;
-      final circles = responses[1].data as CircleTemplateCollectionResponse;
+      final grimoiresRequest = _api.listGrimoires(limit: 3);
+      final circlesRequest = _api.listCircleTemplates(limit: 2);
+      final grimoires = (await grimoiresRequest).data!;
+      final circles = (await circlesRequest).data!;
       return DiscoverModel(
         grimoires: grimoires.data
             .map(

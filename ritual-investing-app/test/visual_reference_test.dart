@@ -17,7 +17,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const RitualInvestingApp());
+    await tester.pumpWidget(const RitualInvestingApp.fixture());
     await tester.runAsync(() async {
       final context = tester.element(find.byType(Scaffold).first);
       await Future.wait([

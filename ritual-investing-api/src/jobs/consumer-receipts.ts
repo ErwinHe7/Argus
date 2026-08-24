@@ -1,6 +1,7 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 
 import type { DatabasePoolFactory } from "../db/client.ts";
+import { sha256TextHex as outcomeHash } from "../security/sha256.ts";
 import type { QueueWorkMessage } from "./queue-consumer.ts";
 
 export type OutboxEvent = {
@@ -30,16 +31,6 @@ function atOrBeyond(
     if (current[index]! < incoming[index]!) return false;
   }
   return true;
-}
-
-async function outcomeHash(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 export async function consumeWithReceipt(

@@ -5,7 +5,7 @@ import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import '../data/admin_gateway.dart';
 import '../domain/admin_models.dart';
 
-enum AdminSessionPhase { loading, signedOut, ready, denied, failure }
+enum AdminSessionPhase { loading, signedOut, ready, denied }
 
 abstract interface class AdminCredentialRepository {
   Future<String?> restore();

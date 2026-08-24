@@ -1,7 +1,9 @@
 import { Pool } from "@neondatabase/serverless";
 
+import { parsePagePosition } from "../../contracts/page-position.ts";
 import type { DatabasePoolFactory } from "../../db/client.ts";
 import type { StaffPrincipal } from "../../middleware/cloudflare-access.ts";
+import { sha256TextHex as digest } from "../../security/sha256.ts";
 import type { AdminMedia, MediaUploadRequest } from "./schemas.ts";
 
 export type UploadIntent = {
@@ -66,25 +68,6 @@ export class MediaConflictError extends Error {
     this.name = "MediaConflictError";
     this.code = code;
   }
-}
-
-async function digest(value: string): Promise<string> {
-  const result = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(result)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-function pagePosition(
-  value: string | undefined,
-): [string | null, string | null] {
-  if (value === undefined) return [null, null];
-  const separator = value.lastIndexOf("|");
-  if (separator <= 0) throw new Error("invalid_cursor_position");
-  return [value.slice(0, separator), value.slice(separator + 1)];
 }
 
 type AdminMediaRow = AdminMedia & { created_at: Date };
@@ -234,7 +217,7 @@ export function createPostgresMediaRepository(
     },
     list: (staff, input) =>
       scoped(staff, async (client) => {
-        const [afterCreated, afterId] = pagePosition(input.after);
+        const [afterCreated, afterId] = parsePagePosition(input.after);
         const rows = (
           await client.query<AdminMediaRow>(
             `select ${mediaColumns}

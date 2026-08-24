@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { DatabasePoolFactory } from "../db/client.ts";
 import { verifyDeletionDenyEntry } from "../domains/privacy/service.ts";
+import { sha256TextHex as sha256 } from "../security/sha256.ts";
 
 const denialSchema = z
   .object({
@@ -14,16 +15,6 @@ const denialSchema = z
     purge_generation: z.number().int().positive(),
   })
   .strict();
-
-async function sha256(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 async function listJournal(bucket: R2Bucket) {
   let cursor: string | undefined;

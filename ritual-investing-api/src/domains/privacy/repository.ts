@@ -6,6 +6,7 @@ import {
 } from "../../db/client.ts";
 import { createRequestDatabaseContext } from "../../db/request-context.ts";
 import { enqueueOutbox } from "../../jobs/outbox.ts";
+import { sha256TextHex as digest } from "../../security/sha256.ts";
 import type { MemberContext } from "../accounts/repository.ts";
 import type { DeletionReceipt, PrivacyRequest } from "./schemas.ts";
 
@@ -19,16 +20,6 @@ export class PrivacyConflictError extends Error {
     super(code);
     this.name = "PrivacyConflictError";
   }
-}
-
-async function digest(value: string): Promise<string> {
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(hash)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 type PrivacyRow = Omit<

@@ -6,6 +6,7 @@ import {
 } from "../../db/client.ts";
 import { createRequestDatabaseContext } from "../../db/request-context.ts";
 import { enqueueOutbox } from "../../jobs/outbox.ts";
+import { sha256TextHex as digest } from "../../security/sha256.ts";
 import type { MemberContext } from "../accounts/repository.ts";
 import type {
   ContentReportCreate,
@@ -62,16 +63,6 @@ export class NotificationConflictError extends Error {
   }
 }
 export class NotificationContentNotFoundError extends Error {}
-
-async function digest(value: string): Promise<string> {
-  const result = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(result)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 const contextFor = (member: MemberContext) =>
   createRequestDatabaseContext({

@@ -1,12 +1,17 @@
+// ignore_for_file: prefer_initializing_formals
+
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../data/admin_gateway.dart';
 import '../domain/admin_models.dart';
 
 class WorkspaceController extends ChangeNotifier {
-  WorkspaceController({required this.destination, required this.gateway})
-    : _gateway = gateway;
-  final AdminGateway gateway;
+  // The public named argument stays `gateway`; the stored dependency is private.
+  WorkspaceController({
+    required this.destination,
+    required AdminGateway gateway,
+  }) : _gateway = gateway;
   final AdminDestination destination;
   final AdminGateway _gateway;
   List<AdminRecord> _records = const [];
@@ -62,7 +67,7 @@ class WorkspaceController extends ChangeNotifier {
       await action();
       _records = await _gateway.list(destination);
     } catch (error) {
-      _error = error.toString().contains('409')
+      _error = error is DioException && error.response?.statusCode == 409
           ? 'This record changed. Refresh before retrying the transition.'
           : 'The reviewed transition could not be applied.';
     } finally {

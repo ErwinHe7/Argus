@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_admin/application/admin_session_controller.dart';
@@ -321,8 +322,11 @@ class _ConflictGateway extends FixtureAdminGateway {
       );
 
   @override
-  Future<void> requestReview(
-    AdminDestination destination,
-    AdminRecord record,
-  ) => throw Exception('409 version_conflict');
+  Future<void> requestReview(AdminDestination destination, AdminRecord record) {
+    final request = RequestOptions(path: destination.apiPath);
+    throw DioException(
+      requestOptions: request,
+      response: Response<void>(requestOptions: request, statusCode: 409),
+    );
+  }
 }

@@ -9,6 +9,7 @@ import {
   buildPrivacyZip,
   verifyDeletionDenyEntry,
 } from "../domains/privacy/service.ts";
+import { sha256TextHex as hash } from "../security/sha256.ts";
 import { enqueueOutbox } from "./outbox.ts";
 import type { ConsumerEffect, OutboxEvent } from "./consumer-receipts.ts";
 import type { QueueWorkMessage } from "./queue-consumer.ts";
@@ -25,16 +26,6 @@ const payloadIds = z
     briefing_type: z.enum(["daily", "weekly", "moon_cycle"]).optional(),
   })
   .strict();
-
-async function hash(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 function briefingBuilder(): ConsumerEffect {
   return async (client, event) => {

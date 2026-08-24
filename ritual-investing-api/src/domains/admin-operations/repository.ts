@@ -1,7 +1,9 @@
 import { Pool } from "@neondatabase/serverless";
 
+import { parsePagePosition } from "../../contracts/page-position.ts";
 import type { DatabasePoolFactory } from "../../db/client.ts";
 import type { StaffPrincipal } from "../../middleware/cloudflare-access.ts";
+import { sha256TextHex as digest } from "../../security/sha256.ts";
 import type { AdminJob, AdminPrivacy } from "./schemas.ts";
 
 type JobRow = Omit<AdminJob, "created_at" | "completed_at"> & {
@@ -30,25 +32,6 @@ const privacyView = (row: PrivacyRow): AdminPrivacy => ({
   queued_at: row.queued_at?.toISOString() ?? null,
   completed_at: row.completed_at?.toISOString() ?? null,
 });
-
-function pagePosition(
-  value: string | undefined,
-): [string | null, string | null] {
-  if (value === undefined) return [null, null];
-  const separator = value.lastIndexOf("|");
-  if (separator <= 0) throw new Error("invalid_cursor_position");
-  return [value.slice(0, separator), value.slice(separator + 1)];
-}
-
-async function digest(value: string): Promise<string> {
-  const hash = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(value),
-  );
-  return [...new Uint8Array(hash)]
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-}
 
 export class AdminOperationConflictError extends Error {
   readonly code: "idempotency_conflict" | "not_retryable" | "not_found";
@@ -129,7 +112,7 @@ export function createPostgresAdminOperationsRepository(
   return {
     listJobs: (staff, input) =>
       scoped(staff, async (client) => {
-        const [afterCreated, afterId] = pagePosition(input.after);
+        const [afterCreated, afterId] = parsePagePosition(input.after);
         const rows = (
           await client.query(
             "select * from ritual_private.admin_job_page($1,$2,$3,$4)",
@@ -175,7 +158,7 @@ export function createPostgresAdminOperationsRepository(
     },
     listPrivacy: (staff, input) =>
       scoped(staff, async (client) => {
-        const [afterQueued, afterId] = pagePosition(input.after);
+        const [afterQueued, afterId] = parsePagePosition(input.after);
         const rows = (
           await client.query(
             "select * from ritual_private.admin_privacy_page($1,$2,$3,$4)",
