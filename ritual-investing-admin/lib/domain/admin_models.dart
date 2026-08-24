@@ -40,6 +40,14 @@ abstract final class AdminPermission {
 
 enum AdminWorkspaceKind { editorial, catalog, verification, operations }
 
+enum AdminReviewDecision {
+  approved('approved'),
+  changesRequested('changes_requested');
+
+  const AdminReviewDecision(this.wireValue);
+  final String wireValue;
+}
+
 @immutable
 class AdminDestination {
   const AdminDestination({

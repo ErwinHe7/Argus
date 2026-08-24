@@ -63,6 +63,10 @@ describe("migration compatibility", () => {
     expect(sql).not.toMatch(/\btruncate\b/i);
     expect(sql).toMatch(/enqueue_due_recurring_plans[\s\S]*for update of plan skip locked/i);
     expect(sql).toMatch(/enqueue_expired_privacy_exports[\s\S]*for update of artifact skip locked/i);
+    expect(sql).toMatch(/recurring_plans_scheduler_due_idx[\s\S]*where status='active'/i);
+    expect(sql).toMatch(/privacy_export_artifacts_retention_due_idx[\s\S]*publication_state in \('published','revoked'\)/i);
+    expect(sql).toMatch(/enqueue_due_recurring_plans[\s\S]*not exists[\s\S]*recurring\.plan\.due/i);
+    expect(sql).toMatch(/enqueue_expired_privacy_exports[\s\S]*not exists[\s\S]*privacy\.export\.retention\.requested/i);
     expect(sql).toMatch(/finish_job_attempt[\s\S]*status='failed'/i);
     expect(sql).toMatch(/apply_due_recurring_plan_event[\s\S]*recurring_plan_runs/i);
   });

@@ -7,6 +7,12 @@ CREATE TABLE outbox_dispatch_failures (
   failed_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE INDEX recurring_plans_scheduler_due_idx
+  ON recurring_plans(next_run_at,id) WHERE status='active';
+CREATE INDEX privacy_export_artifacts_retention_due_idx
+  ON privacy_export_artifacts(expires_at,id)
+  WHERE publication_state IN ('published','revoked');
+
 CREATE FUNCTION ritual_private.terminalize_unroutable_outbox(target_ids uuid[])
 RETURNS integer
 LANGUAGE plpgsql
@@ -52,6 +58,12 @@ BEGIN
       JOIN tenant_demo_states state ON state.tenant_id=plan.tenant_id
         AND state.reset_generation=plan.reset_generation
      WHERE plan.status='active' AND plan.next_run_at<=target_now
+       AND NOT EXISTS (
+         SELECT 1 FROM outbox_events event
+          WHERE event.topic='recurring.plan.due'
+            AND event.dedupe_key=plan.id::text || ':' || plan.reset_generation::text
+              || ':' || plan.version::text || ':' || plan.next_run_at::text
+       )
      ORDER BY plan.next_run_at,plan.id
      LIMIT target_limit
      FOR UPDATE OF plan SKIP LOCKED
@@ -100,6 +112,12 @@ BEGIN
       LEFT JOIN tenant_demo_states state ON state.tenant_id=artifact.tenant_id
      WHERE artifact.publication_state IN ('published','revoked')
        AND artifact.expires_at<=target_now
+       AND NOT EXISTS (
+         SELECT 1 FROM outbox_events event
+          WHERE event.topic='privacy.export.retention.requested'
+            AND event.dedupe_key='retention:' || artifact.id::text || ':'
+              || artifact.expires_at::text
+       )
      ORDER BY artifact.expires_at,artifact.id
      LIMIT target_limit
      FOR UPDATE OF artifact SKIP LOCKED
@@ -306,13 +324,26 @@ BEGIN
     IF allocation_count=0 THEN RAISE EXCEPTION 'recurring_plan_delivery_failed'; END IF;
   END IF;
 
-  SELECT coalesce(sum(entry.amount_minor),0)::bigint INTO cash_total
-    FROM ledger_transactions transaction
-    JOIN cash_ledger_entries entry ON entry.tenant_id=transaction.tenant_id
-      AND entry.transaction_id=transaction.id
-   WHERE transaction.tenant_id=event.tenant_id
-     AND transaction.portfolio_id=plan.portfolio_id
-     AND transaction.reset_generation=event.reset_generation;
+  IF portfolio.current_snapshot_id IS NULL THEN
+    SELECT coalesce(sum(entry.amount_minor),0)::bigint INTO cash_total
+      FROM ledger_transactions transaction
+      JOIN cash_ledger_entries entry ON entry.tenant_id=transaction.tenant_id
+        AND entry.transaction_id=transaction.id
+     WHERE transaction.tenant_id=event.tenant_id
+       AND transaction.portfolio_id=plan.portfolio_id
+       AND transaction.reset_generation=event.reset_generation;
+  ELSE
+    SELECT snapshot.cash_minor+coalesce((
+      SELECT sum(entry.amount_minor) FROM cash_ledger_entries entry
+       WHERE entry.tenant_id=event.tenant_id AND entry.transaction_id=transaction_id
+    ),0)::bigint INTO cash_total
+      FROM portfolio_balance_snapshots snapshot
+     WHERE snapshot.tenant_id=event.tenant_id
+       AND snapshot.portfolio_id=plan.portfolio_id
+       AND snapshot.id=portfolio.current_snapshot_id
+       AND snapshot.ledger_watermark=portfolio.current_ledger_watermark;
+    IF cash_total IS NULL THEN RAISE EXCEPTION 'recurring_plan_delivery_failed'; END IF;
+  END IF;
   SELECT coalesce(sum(position.quantity*coalesce(metric.price_minor,0)),0)::bigint
     INTO market_total
     FROM portfolio_positions position

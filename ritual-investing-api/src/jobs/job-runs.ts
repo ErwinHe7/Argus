@@ -1,36 +1,7 @@
-import { Pool } from "@neondatabase/serverless";
-
 import type { DatabasePoolFactory } from "../db/client.ts";
 import type { QueueWorkMessage } from "./queue-consumer.ts";
 import type { RetryDecision } from "./retry-policy.ts";
-
-async function schedulerTransaction<T>(
-  databaseUrl: string,
-  callback: (
-    client: Awaited<ReturnType<ReturnType<DatabasePoolFactory>["connect"]>>,
-  ) => Promise<T>,
-  poolFactory?: DatabasePoolFactory,
-): Promise<T> {
-  const pool =
-    poolFactory?.(databaseUrl) ??
-    new Pool({ connectionString: databaseUrl, max: 1 });
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await client.query("set local role ritual_scheduler");
-    await client.query("set local lock_timeout='5s'");
-    await client.query("set local statement_timeout='45s'");
-    const result = await callback(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-    await pool.end();
-  }
-}
+import { withSchedulerTransaction } from "./scheduler-transaction.ts";
 
 export type JobLease = { id: string; owner: string };
 
@@ -40,7 +11,7 @@ export function leaseJob(
   attempt: number,
   poolFactory?: DatabasePoolFactory,
 ): Promise<JobLease | null> {
-  return schedulerTransaction(
+  return withSchedulerTransaction(
     databaseUrl,
     async (client) => {
       const owner = crypto.randomUUID();
@@ -73,7 +44,7 @@ export function completeJob(
   lease: JobLease,
   poolFactory?: DatabasePoolFactory,
 ): Promise<void> {
-  return schedulerTransaction(
+  return withSchedulerTransaction(
     databaseUrl,
     async (client) => {
       await client.query(
@@ -91,7 +62,7 @@ export function failJob(
   decision: RetryDecision,
   poolFactory?: DatabasePoolFactory,
 ): Promise<void> {
-  return schedulerTransaction(
+  return withSchedulerTransaction(
     databaseUrl,
     async (client) => {
       await client.query(

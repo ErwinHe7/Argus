@@ -609,179 +609,179 @@ function privacyExport(environment: Bindings): ConsumerEffect {
           ).rows.map((row) => row.value),
       });
     };
-    await snapshot(
+    snapshot(
       "account",
       `select id,status,created_at,last_seen_at from accounts where tenant_id=$1`,
     );
-    await snapshot(
+    snapshot(
       "profile",
       `select display_name,avatar_media_id,locale from profiles where tenant_id=$1`,
     );
-    await snapshot(
+    snapshot(
       "preferences",
       `select theme_mode,ritual_mode,timezone,locale,version from preferences where tenant_id=$1`,
     );
-    await snapshot(
+    snapshot(
       "onboarding",
       `select current_step,completed_steps,completed_at,version from onboarding_states where tenant_id=$1`,
     );
-    await snapshot(
+    snapshot(
       "astrology_profile",
       `select birth_date,derived_profile_code,algorithm_version,enabled_at from astrology_profiles where tenant_id=$1`,
     );
-    await snapshot(
+    snapshot(
       "investor_profile",
       `select goal_type,time_horizon,risk_comfort,version from investor_profiles where tenant_id=$1`,
     );
-    await snapshot(
+    snapshot(
       "consents",
       `select policy_code,policy_version,decision,recorded_at from consent_records where tenant_id=$1 order by recorded_at,id`,
     );
-    await snapshot(
+    snapshot(
       "daily_ritual_assignments",
       `select id,local_date,mode,state,revealed_at,completed_at from daily_ritual_assignments where tenant_id=$1 order by local_date,id`,
     );
-    await snapshot(
+    snapshot(
       "saved_assets",
       `select asset_id,source_kind,source_id,saved_at from saved_assets where tenant_id=$1 order by asset_id`,
     );
-    await snapshot(
+    snapshot(
       "saved_grimoires",
       `select grimoire_id,revision_id,saved_at from saved_grimoires where tenant_id=$1 order by grimoire_id`,
     );
-    await snapshot(
+    snapshot(
       "saved_circle_templates",
       `select template_id,revision_id,saved_at from saved_circle_templates where tenant_id=$1 order by template_id`,
     );
-    await snapshot(
+    snapshot(
       "saved_coven_entries",
       `select entry_id,verification_id,saved_at from saved_coven_entries where tenant_id=$1 order by entry_id`,
     );
-    await snapshot(
+    snapshot(
       "circles",
       `select id,title,description,source_template_id,source_revision_id,version,archived_at from circles where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "circle_assets",
       `select id,circle_id,asset_id,ordinal,weight_bps,note from circle_assets where tenant_id=$1 order by circle_id,ordinal,id`,
     );
-    await snapshot(
+    snapshot(
       "demo_portfolios",
       `select id,name,currency,status,version,reset_generation,is_default,current_ledger_watermark::text from demo_portfolios where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "portfolio_target_allocations",
       `select portfolio_id,asset_id,target_bps,version from portfolio_target_allocations where tenant_id=$1 order by portfolio_id,asset_id`,
     );
-    await snapshot(
+    snapshot(
       "portfolio_positions",
       `select portfolio_id,asset_id,quantity::text,cost_basis_minor::text,as_of_transaction_id,ledger_watermark::text from portfolio_positions where tenant_id=$1 order by portfolio_id,asset_id`,
     );
-    await snapshot(
+    snapshot(
       "portfolio_balance_snapshots",
       `select id,portfolio_id,as_of_transaction_id,projection_generation,as_of,cash_minor::text,market_value_minor::text from portfolio_balance_snapshots where tenant_id=$1 order by portfolio_id,projection_generation`,
     );
-    await snapshot(
+    snapshot(
       "demo_funding_sources",
       `select id,fixture_key,display_label,fictional_last4,status,reset_generation from demo_funding_sources where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "simulation_activity",
       `select id,portfolio_id,command_type,status,rejection_code,committed_at,reset_generation from simulation_commands where tenant_id=$1 order by committed_at,id`,
     );
-    await snapshot(
+    snapshot(
       "simulated_orders",
       `select simulated_order.id,simulated_order.portfolio_id,simulated_order.asset_id,simulated_order.status,simulated_order.side,simulated_order.order_type,simulated_order.requested_notional_minor::text,simulated_order.requested_quantity::text,command.committed_at from simulated_orders simulated_order join simulation_commands command on command.tenant_id=simulated_order.tenant_id and command.id=simulated_order.command_id where simulated_order.tenant_id=$1 order by simulated_order.id`,
     );
-    await snapshot(
+    snapshot(
       "simulated_order_fills",
       `select fill.id,fill.order_id,fill.quantity::text,fill.price_minor::text,fill.filled_at from simulated_order_fills fill where fill.tenant_id=$1 order by fill.id`,
     );
-    await snapshot(
+    snapshot(
       "ledger_transactions",
       `select id,portfolio_id,entry_type,effective_at,description_code,ledger_sequence::text,reset_generation from ledger_transactions where tenant_id=$1 order by ledger_sequence`,
     );
-    await snapshot(
+    snapshot(
       "cash_ledger_entries",
       `select id,transaction_id,currency,amount_minor::text from cash_ledger_entries where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "position_ledger_entries",
       `select id,transaction_id,asset_id,quantity::text,unit_price_minor::text from position_ledger_entries where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "recurring_plans",
       `select id,portfolio_id,plan_type,amount_minor::text,frequency,next_run_at,last_scheduled_for,status,version,reset_generation from recurring_plans where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "recurring_plan_allocations",
       `select plan_id,asset_id,weight_bps from recurring_plan_allocations where tenant_id=$1 order by plan_id,asset_id`,
     );
-    await snapshot(
+    snapshot(
       "recurring_plan_runs",
       `select id,plan_id,scheduled_for,status,attempted_at,reset_generation from recurring_plan_runs where tenant_id=$1 order by plan_id,scheduled_for`,
     );
-    await snapshot(
+    snapshot(
       "rebalance_previews",
       `select id,portfolio_id,input_version,expires_at,status,reset_generation from rebalance_previews where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "rebalance_preview_trades",
       `select id,preview_id,asset_id,side,quantity::text,notional_minor::text from rebalance_preview_trades where tenant_id=$1 order by preview_id,id`,
     );
-    await snapshot(
+    snapshot(
       "intentions",
       `select id,title,target_minor::text,target_date,status,version,currency,portfolio_id,reset_generation,current_projection_generation,current_projection_watermark::text from intentions where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "projection_runs",
       `select id,intention_id,projection_generation,input_hash,model_version,generated_at,status,ledger_watermark::text,assumptions from projection_runs where tenant_id=$1 order by intention_id,projection_generation`,
     );
-    await snapshot(
+    snapshot(
       "projection_points",
       `select run_id,point_date,low_minor::text,mid_minor::text,high_minor::text from projection_points where tenant_id=$1 order by run_id,point_date`,
     );
-    await snapshot(
+    snapshot(
       "briefings",
       `select id,briefing_type,period_start,period_end,generation,source_sequence,generated_at,read_at,is_current from briefings where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "briefing_sections",
       `select id,briefing_id,section_type,ordinal,payload,schema_version from briefing_sections where tenant_id=$1 order by briefing_id,ordinal`,
     );
-    await snapshot(
+    snapshot(
       "demo_checkout_sessions",
       `select session.id,plan.code plan_code,session.status,session.expires_at from demo_checkout_sessions session join demo_plans plan on plan.id=session.plan_id where session.tenant_id=$1 order by session.id`,
     );
-    await snapshot(
+    snapshot(
       "entitlements",
       `select entitlement.id,plan.code plan_code,entitlement.status,entitlement.source,entitlement.starts_at,entitlement.ends_at,entitlement.version from tenant_entitlements entitlement join demo_plans plan on plan.id=entitlement.plan_id where entitlement.tenant_id=$1 order by entitlement.id`,
     );
-    await snapshot(
+    snapshot(
       "entitlement_events",
       `select id,entitlement_id,event_type,occurred_at from entitlement_events where tenant_id=$1 order by occurred_at,id`,
     );
-    await snapshot(
+    snapshot(
       "notification_preferences",
       `select daily_ritual,weekly_recap,moon_cycle,quiet_hours,version from notification_preferences where tenant_id=$1`,
     );
-    await snapshot(
+    snapshot(
       "devices",
       `select id,platform,status,last_seen_at from device_installations where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "notifications",
       `select id,kind,title,body,deep_link,scheduled_at,read_at from notifications where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "notification_deliveries",
       `select id,notification_id,installation_id,status,attempt,provider_code,sent_at from notification_deliveries where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "content_reports",
       `select id,target_kind,target_id,reason_code,detail,created_at from content_reports where tenant_id=$1 order by id`,
     );
-    await snapshot(
+    snapshot(
       "privacy_requests",
       `select id,request_type,status,snapshot_at,archive_schema_version,verified_at,queued_at,completed_at,failure_code from privacy_requests where tenant_id=$1 order by id`,
     );

@@ -86,13 +86,7 @@ export async function verifyDeletionDenyEntry(
 }
 
 function crc32(bytes: Uint8Array): number {
-  let crc = 0xffffffff;
-  for (const byte of bytes) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1)
-      crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
-  }
-  return (crc ^ 0xffffffff) >>> 0;
+  return (updateCrc32(0xffffffff, bytes) ^ 0xffffffff) >>> 0;
 }
 
 function littleEndian(values: Array<[number, number]>): Uint8Array {
@@ -118,75 +112,6 @@ function concatenate(parts: Uint8Array[]): Uint8Array {
     offset += part.length;
   }
   return output;
-}
-
-export function buildPrivacyZip(manifest: Record<string, unknown>): Uint8Array {
-  const files = [
-    [
-      "manifest.json",
-      JSON.stringify({
-        schema_version: 1,
-        archive_format: "ritual-privacy-export",
-        manifest,
-      }),
-    ],
-    ["data.json", JSON.stringify(manifest.data ?? {})],
-  ] as const;
-  const locals: Uint8Array[] = [];
-  const central: Uint8Array[] = [];
-  let offset = 0;
-  for (const [name, content] of files) {
-    const nameBytes = new TextEncoder().encode(name);
-    const contentBytes = new TextEncoder().encode(content);
-    const checksum = crc32(contentBytes);
-    const localHeader = littleEndian([
-      [0x04034b50, 4],
-      [20, 2],
-      [0, 2],
-      [0, 2],
-      [0, 2],
-      [0, 2],
-      [checksum, 4],
-      [contentBytes.length, 4],
-      [contentBytes.length, 4],
-      [nameBytes.length, 2],
-      [0, 2],
-    ]);
-    locals.push(localHeader, nameBytes, contentBytes);
-    const centralHeader = littleEndian([
-      [0x02014b50, 4],
-      [20, 2],
-      [20, 2],
-      [0, 2],
-      [0, 2],
-      [0, 2],
-      [0, 2],
-      [checksum, 4],
-      [contentBytes.length, 4],
-      [contentBytes.length, 4],
-      [nameBytes.length, 2],
-      [0, 2],
-      [0, 2],
-      [0, 2],
-      [0, 2],
-      [0, 4],
-      [offset, 4],
-    ]);
-    central.push(centralHeader, nameBytes);
-    offset += localHeader.length + nameBytes.length + contentBytes.length;
-  }
-  const centralBytes = concatenate(central);
-  const end = littleEndian([
-    [0x06054b50, 4],
-    [0, 2],
-    [0, 2],
-    [files.length, 2],
-    [files.length, 2],
-    [centralBytes.length, 4],
-    [offset, 4],
-    [0, 2],
-  ]);
-  return concatenate([...locals, centralBytes, end]);
 }
 
 export type StreamingExportCollection = {

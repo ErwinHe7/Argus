@@ -78,7 +78,7 @@ abstract interface class AdminGateway {
   Future<void> decideReview(
     AdminDestination destination,
     AdminRecord record,
-    String decision,
+    AdminReviewDecision decision,
   );
   Future<void> publish(AdminDestination destination, AdminRecord record);
   Future<void> withdraw(AdminDestination destination, AdminRecord record);
@@ -555,14 +555,19 @@ class OpenApiAdminGateway implements AdminGateway {
   Future<void> decideReview(
     AdminDestination destination,
     AdminRecord record,
-    String decision,
+    AdminReviewDecision decision,
   ) async {
     final revision = _revision(record);
-    final key = _commandKey('decision-$decision', revision);
-    final request = DecideAdminAssetCodexReviewRequest.fromJson({
-      'decision': decision,
-      'reason': 'Recorded from the reviewed staff dashboard.',
-    });
+    final key = _commandKey('decision-${decision.wireValue}', revision);
+    final request = DecideAdminAssetCodexReviewRequest(
+      decision: switch (decision) {
+        AdminReviewDecision.approved =>
+          DecideAdminAssetCodexReviewRequestDecisionEnum.approved,
+        AdminReviewDecision.changesRequested =>
+          DecideAdminAssetCodexReviewRequestDecisionEnum.changesRequested,
+      },
+      reason: 'Recorded from the reviewed staff dashboard.',
+    );
     await switch (destination.apiPath) {
       '/v1/admin/ritual-scenarios' =>
         _client.getAdminRitualScenarioApi().decideAdminRitualScenarioReview(
@@ -990,13 +995,10 @@ class FixtureAdminGateway implements AdminGateway {
   Future<void> decideReview(
     AdminDestination destination,
     AdminRecord record,
-    String decision,
+    AdminReviewDecision decision,
   ) async {
-    transitions.add('$decision:${record.id}');
-    _updateStatus(
-      record.id,
-      decision == 'approved' ? 'approved' : 'changes_requested',
-    );
+    transitions.add('${decision.wireValue}:${record.id}');
+    _updateStatus(record.id, decision.wireValue);
   }
 
   @override

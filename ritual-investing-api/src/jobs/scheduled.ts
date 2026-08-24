@@ -1,5 +1,3 @@
-import { Pool } from "@neondatabase/serverless";
-
 import type { Bindings } from "../config/env.ts";
 import type { DatabasePoolFactory } from "../db/client.ts";
 import {
@@ -7,6 +5,7 @@ import {
   restoreCutoverReady,
 } from "./deletion-restore.ts";
 import type { QueueWorkMessage } from "./queue-consumer.ts";
+import { withSchedulerTransaction } from "./scheduler-transaction.ts";
 import {
   emitOperationalTelemetry,
   type TelemetrySink,
@@ -51,41 +50,12 @@ export function consumersForTopic(
   return consumersByTopic.find(([pattern]) => pattern.test(topic))?.[1] ?? [];
 }
 
-async function schedulerClient<T>(
-  databaseUrl: string,
-  callback: (
-    client: Awaited<ReturnType<ReturnType<DatabasePoolFactory>["connect"]>>,
-  ) => Promise<T>,
-  poolFactory?: DatabasePoolFactory,
-  role: "ritual_scheduler" | "ritual_audit_reconciler" = "ritual_scheduler",
-) {
-  const pool =
-    poolFactory?.(databaseUrl) ??
-    new Pool({ connectionString: databaseUrl, max: 1 });
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await client.query(`set local role ${role}`);
-    await client.query("set local lock_timeout='5s'");
-    await client.query("set local statement_timeout='45s'");
-    const result = await callback(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback").catch(() => undefined);
-    throw error;
-  } finally {
-    client.release();
-    await pool.end();
-  }
-}
-
 export async function scheduleDueRecurringPlans(
   databaseUrl: string,
   scheduledTime: number,
   poolFactory?: DatabasePoolFactory,
 ) {
-  return schedulerClient(
+  return withSchedulerTransaction(
     databaseUrl,
     async (client) =>
       client.query("select ritual_private.enqueue_due_recurring_plans(to_timestamp($1::double precision / 1000),100)", [scheduledTime]),
@@ -98,7 +68,7 @@ export async function schedulePrivacyExportRetention(
   scheduledTime: number,
   poolFactory?: DatabasePoolFactory,
 ) {
-  return schedulerClient(
+  return withSchedulerTransaction(
     databaseUrl,
     async (client) =>
       client.query("select ritual_private.enqueue_expired_privacy_exports(to_timestamp($1::double precision / 1000),100)", [scheduledTime]),
@@ -120,7 +90,7 @@ export async function scheduleBriefings(
         ? "moon_cycle"
         : "daily";
   const sequence = Math.floor(scheduledTime / 1000);
-  return schedulerClient(
+  return withSchedulerTransaction(
     databaseUrl,
     async (client) => {
       await client.query(
@@ -139,7 +109,7 @@ export async function publishDueOutbox(
 ) {
   let published = 0;
   for (let batchNumber = 0; batchNumber < MAX_OUTBOX_BATCHES; batchNumber += 1) {
-    const due = await schedulerClient(
+    const due = await withSchedulerTransaction(
       databaseUrl,
       async (client) =>
         (
@@ -154,7 +124,7 @@ export async function publishDueOutbox(
       (event) => consumersForTopic(event.topic).length === 0,
     );
     if (unroutable.length > 0)
-      await schedulerClient(
+      await withSchedulerTransaction(
         databaseUrl,
         async (client) => {
           await client.query(
@@ -175,7 +145,7 @@ export async function publishDueOutbox(
     for (let offset = 0; offset < messages.length; offset += OUTBOX_BATCH_SIZE)
       await queue.sendBatch(messages.slice(offset, offset + OUTBOX_BATCH_SIZE));
     if (routable.length > 0)
-      await schedulerClient(
+      await withSchedulerTransaction(
         databaseUrl,
         async (client) => {
           await client.query(
@@ -196,7 +166,7 @@ export async function reconcileAdminAudit(
   cutoff: number,
   poolFactory?: DatabasePoolFactory,
 ) {
-  return schedulerClient(
+  return withSchedulerTransaction(
     databaseUrl,
     async (client) =>
       (

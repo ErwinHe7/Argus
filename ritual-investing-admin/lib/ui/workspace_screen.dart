@@ -312,7 +312,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           () => widget.gateway.decideReview(
             widget.destination,
             record,
-            'approved',
+            AdminReviewDecision.approved,
           ),
         );
         add(
@@ -321,7 +321,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           () => widget.gateway.decideReview(
             widget.destination,
             record,
-            'changes_requested',
+            AdminReviewDecision.changesRequested,
           ),
         );
       }

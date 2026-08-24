@@ -87,21 +87,9 @@ describe("privacy artifacts", () => {
         },
       ],
     });
-    const reader = archive.body.getReader();
-    const chunks: Uint8Array[] = [];
-    for (;;) {
-      const next = await reader.read();
-      if (next.done) break;
-      chunks.push(next.value);
-    }
     const bytes = new Uint8Array(
-      chunks.reduce((total, chunk) => total + chunk.length, 0),
+      await new Response(archive.body).arrayBuffer(),
     );
-    let cursor = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, cursor);
-      cursor += chunk.length;
-    }
     const completed = await archive.completion;
     const readable = new TextDecoder().decode(bytes);
     expect(offsets).toEqual([0, 2, 4]);

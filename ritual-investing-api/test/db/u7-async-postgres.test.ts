@@ -239,6 +239,41 @@ describe.skipIf(databaseUrl === undefined)(
       expect(Number(posted.rows[0]?.basis)).toBeGreaterThan(0);
       expect(Number(posted.rows[0]?.basis)).toBeLessThanOrEqual(1000);
       expect(posted.rows[0]?.plan_version).toBe(2);
+
+      await ownerQuery(
+        "select ritual_private.enqueue_due_recurring_plans(now()+interval '8 days',100)",
+      );
+      const nextDue = await ownerQuery<{ id: string }>(
+        `select id from outbox_events
+          where tenant_id=$1 and topic='recurring.plan.due' and aggregate_id=$2
+            and aggregate_version=2`,
+        [recurringTenantId, planId],
+      );
+      const nextMessage = { ...message, outbox_id: nextDue.rows[0]!.id };
+      await expect(
+        consumeWithReceipt(
+          databaseUrl!,
+          nextMessage,
+          handlerFor(nextMessage, {} as never),
+          pgPoolFactory,
+        ),
+      ).resolves.toBe("applied");
+      const advanced = await ownerQuery<{
+        runs: string;
+        commands: string;
+        plan_version: number;
+      }>(
+        `select
+          (select count(*) from recurring_plan_runs where tenant_id=$1 and plan_id=$2)::text runs,
+          (select count(*) from simulation_commands where tenant_id=$1 and command_type='recurring')::text commands,
+          (select version from recurring_plans where tenant_id=$1 and id=$2) plan_version`,
+        [recurringTenantId, planId],
+      );
+      expect(advanced.rows[0]).toEqual({
+        runs: "2",
+        commands: "2",
+        plan_version: 3,
+      });
     });
 
     it("schedules retention and deletes the exact expired export object", async () => {
@@ -991,21 +1026,7 @@ describe.skipIf(databaseUrl === undefined)(
           } else if (value instanceof Uint8Array) {
             bytes = value;
           } else if (value instanceof ReadableStream) {
-            const chunks: Uint8Array[] = [];
-            const reader = value.getReader();
-            for (;;) {
-              const next = await reader.read();
-              if (next.done) break;
-              chunks.push(next.value);
-            }
-            bytes = new Uint8Array(
-              chunks.reduce((length, chunk) => length + chunk.length, 0),
-            );
-            let offset = 0;
-            for (const chunk of chunks) {
-              bytes.set(chunk, offset);
-              offset += chunk.length;
-            }
+            bytes = new Uint8Array(await new Response(value).arrayBuffer());
           } else {
             bytes = new Uint8Array(value);
           }

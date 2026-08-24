@@ -284,28 +284,8 @@ async function main(): Promise<void> {
     const client = new pg.Client({ connectionString: upgradeUrl });
     await client.connect();
     try {
-      await client.query("create schema if not exists ritual_private");
-      await client.query(`
-        create table ritual_private.applied_migrations (
-          name text primary key,
-          checksum text not null,
-          applied_at timestamptz not null default now()
-        )
-      `);
-      for (const migration of prior) {
-        await client.query("begin");
-        try {
-          await client.query(migration.body);
-          await client.query(
-            "insert into ritual_private.applied_migrations(name, checksum) values ($1, $2)",
-            [migration.name, migration.checksum],
-          );
-          await client.query("commit");
-        } catch (error) {
-          await client.query("rollback");
-          throw error;
-        }
-      }
+      await prepareMigrationLedger(client);
+      for (const migration of prior) await applyMigration(client, migration);
       for (const relation of [
         "public.outbox_events",
         "public.deletion_tombstones",
