@@ -1,3 +1,18 @@
+import 'package:ritual_investing_api_client/generated/model/admin_asset.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_asset_metric_snapshot.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_audit_event.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_coven_qualification.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_coven_verification.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_evidence_claim.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_evidence_source.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_health.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_health_dependencies.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_me.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_moderation_case.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_moderation_case_decisions_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_moderation_report.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_ritual_schedule.dart';
+import 'package:ritual_investing_api_client/generated/model/admin_seeded_creator.dart';
 import 'package:ritual_investing_api_client/generated/model/admin_session.dart';
 import 'package:ritual_investing_api_client/generated/model/admin_session_response.dart';
 import 'package:ritual_investing_api_client/generated/model/art_reference.dart';
@@ -41,12 +56,36 @@ import 'package:ritual_investing_api_client/generated/model/coven_entry_detail.d
 import 'package:ritual_investing_api_client/generated/model/coven_evidence_response.dart';
 import 'package:ritual_investing_api_client/generated/model/coven_qualification.dart';
 import 'package:ritual_investing_api_client/generated/model/coven_summary.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_asset201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_asset_codex201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_asset_metric_snapshot201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_asset_metric_snapshot_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_asset_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_coven_qualification201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_coven_qualification_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_evidence_claim201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_evidence_claim_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_evidence_source201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_evidence_source_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_moderation_case_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_ritual_schedule201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_ritual_schedule_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_seeded_creator201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_seeded_creator_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_asset_codex_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_asset_codex_revision_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_briefing_template_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_briefing_template_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_circle_request_assets_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/create_circle_template_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_circle_template_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_consent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_content_report201_response.dart';
 import 'package:ritual_investing_api_client/generated/model/create_content_report201_response_data.dart';
 import 'package:ritual_investing_api_client/generated/model/create_content_report_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_coven_entry_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_coven_entry_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_demo_checkout201_response.dart';
 import 'package:ritual_investing_api_client/generated/model/create_demo_checkout_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_demo_contribution_request.dart';
@@ -55,6 +94,8 @@ import 'package:ritual_investing_api_client/generated/model/create_demo_funding_
 import 'package:ritual_investing_api_client/generated/model/create_future_mirror200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/create_future_mirror_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_future_mirror_request_annual_return_bps.dart';
+import 'package:ritual_investing_api_client/generated/model/create_grimoire_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_grimoire_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_intention201_response.dart';
 import 'package:ritual_investing_api_client/generated/model/create_intention_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_order_preview200_response.dart';
@@ -67,11 +108,16 @@ import 'package:ritual_investing_api_client/generated/model/create_rebalance_pre
 import 'package:ritual_investing_api_client/generated/model/create_recurring_plan201_response.dart';
 import 'package:ritual_investing_api_client/generated/model/create_recurring_plan_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_recurring_plan_request_allocations_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/create_ritual_scenario_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_ritual_scenario_revision_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_rowan_script_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_rowan_script_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/creator_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/daily_ritual_detail.dart';
 import 'package:ritual_investing_api_client/generated/model/daily_ritual_detail_revision.dart';
 import 'package:ritual_investing_api_client/generated/model/daily_ritual_preview.dart';
 import 'package:ritual_investing_api_client/generated/model/daily_ritual_response.dart';
+import 'package:ritual_investing_api_client/generated/model/decide_admin_asset_codex_review_request.dart';
 import 'package:ritual_investing_api_client/generated/model/demo_checkout_session.dart';
 import 'package:ritual_investing_api_client/generated/model/demo_disclosure.dart';
 import 'package:ritual_investing_api_client/generated/model/demo_entitlement.dart';
@@ -94,8 +140,12 @@ import 'package:ritual_investing_api_client/generated/model/evidence_summary.dar
 import 'package:ritual_investing_api_client/generated/model/field_error.dart';
 import 'package:ritual_investing_api_client/generated/model/future_mirror_view.dart';
 import 'package:ritual_investing_api_client/generated/model/future_mirror_view_points_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/get_admin_asset_codex_revision200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_admin_health_ready200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_admin_job200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_admin_me200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_admin_media200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_admin_moderation_case200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_admin_privacy_request200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_briefing200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_briefing200_response_data.dart';
@@ -117,12 +167,36 @@ import 'package:ritual_investing_api_client/generated/model/input_money.dart';
 import 'package:ritual_investing_api_client/generated/model/intention.dart';
 import 'package:ritual_investing_api_client/generated/model/investor_profile.dart';
 import 'package:ritual_investing_api_client/generated/model/investor_profile_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of1.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of1_risks_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of2.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of3.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of3_assets_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of4.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of4_assets_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of5.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of6.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of6_sections_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of_evidence_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_asset_codex200_response_data_inner_revision_payload_any_of_ideas_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_assets200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_audit_events200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_evidence_claims200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_evidence_sources200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_admin_jobs200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_admin_jobs200_response_data_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/list_admin_media200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_admin_media200_response_data_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_moderation_reports200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_admin_privacy_requests200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_admin_privacy_requests200_response_data_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_ritual_schedules200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_seeded_creators200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_briefings200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/list_briefings200_response_data_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/list_demo_funding_sources200_response.dart';
@@ -149,7 +223,17 @@ import 'package:ritual_investing_api_client/generated/model/onboarding_response.
 import 'package:ritual_investing_api_client/generated/model/onboarding_state.dart';
 import 'package:ritual_investing_api_client/generated/model/open_api_document.dart';
 import 'package:ritual_investing_api_client/generated/model/order_preview.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_admin_asset_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_admin_evidence_source_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_admin_moderation_case_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_admin_ritual_schedule_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_admin_seeded_creator_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_asset_codex_revision_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_briefing_template_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_circle_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_circle_template_revision_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_coven_entry_revision_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_grimoire_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_intention_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_notification_preferences_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_onboarding200_response.dart';
@@ -159,6 +243,8 @@ import 'package:ritual_investing_api_client/generated/model/patch_preferences200
 import 'package:ritual_investing_api_client/generated/model/patch_preferences_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_profile_request.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_recurring_plan_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_ritual_scenario_revision_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_rowan_script_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/portfolio_activity.dart';
 import 'package:ritual_investing_api_client/generated/model/portfolio_snapshot.dart';
 import 'package:ritual_investing_api_client/generated/model/portfolio_view.dart';
@@ -174,6 +260,7 @@ import 'package:ritual_investing_api_client/generated/model/public_discover_item
 import 'package:ritual_investing_api_client/generated/model/public_discover_item_one_of2.dart';
 import 'package:ritual_investing_api_client/generated/model/public_discover_item_one_of3.dart';
 import 'package:ritual_investing_api_client/generated/model/public_discover_response.dart';
+import 'package:ritual_investing_api_client/generated/model/publish_admin_asset_codex_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/put_astrology_profile200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/put_astrology_profile_request.dart';
 import 'package:ritual_investing_api_client/generated/model/put_circle_asset_request.dart';
@@ -193,6 +280,7 @@ import 'package:ritual_investing_api_client/generated/model/register_notificatio
 import 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response.dart';
 import 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response_data.dart';
 import 'package:ritual_investing_api_client/generated/model/request_account_deletion_request.dart';
+import 'package:ritual_investing_api_client/generated/model/request_admin_asset_codex_review_request.dart';
 import 'package:ritual_investing_api_client/generated/model/request_media_upload201_response.dart';
 import 'package:ritual_investing_api_client/generated/model/request_media_upload201_response_data.dart';
 import 'package:ritual_investing_api_client/generated/model/request_media_upload_request.dart';
@@ -234,6 +322,9 @@ import 'package:ritual_investing_api_client/generated/model/simulated_order_fill
 import 'package:ritual_investing_api_client/generated/model/simulation_demo_disclosure.dart';
 import 'package:ritual_investing_api_client/generated/model/simulation_result.dart';
 import 'package:ritual_investing_api_client/generated/model/simulation_result_response.dart';
+import 'package:ritual_investing_api_client/generated/model/verify_admin_coven_qualification201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/verify_admin_coven_qualification_request.dart';
+import 'package:ritual_investing_api_client/generated/model/withdraw_admin_asset_codex_request.dart';
 
 final _regList = RegExp(r'^List<(.*)>$');
 final _regSet = RegExp(r'^Set<(.*)>$');
@@ -257,6 +348,50 @@ ReturnType deserialize<ReturnType, BaseType>(
       return (valueString == 'true' || valueString == '1') as ReturnType;
     case 'double':
       return (value is double ? value : double.parse('$value')) as ReturnType;
+    case 'AdminAsset':
+      return AdminAsset.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'AdminAssetMetricSnapshot':
+      return AdminAssetMetricSnapshot.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminAuditEvent':
+      return AdminAuditEvent.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminCovenQualification':
+      return AdminCovenQualification.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminCovenVerification':
+      return AdminCovenVerification.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminEvidenceClaim':
+      return AdminEvidenceClaim.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminEvidenceSource':
+      return AdminEvidenceSource.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminHealth':
+      return AdminHealth.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'AdminHealthDependencies':
+      return AdminHealthDependencies.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminMe':
+      return AdminMe.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'AdminModerationCase':
+      return AdminModerationCase.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminModerationCaseDecisionsInner':
+      return AdminModerationCaseDecisionsInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'AdminModerationReport':
+      return AdminModerationReport.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminRitualSchedule':
+      return AdminRitualSchedule.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AdminSeededCreator':
+      return AdminSeededCreator.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'AdminSession':
       return AdminSession.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'AdminSessionResponse':
@@ -394,11 +529,113 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'CovenSummary':
       return CovenSummary.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'CreateAdminAsset201Response':
+      return CreateAdminAsset201Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateAdminAssetCodex201Response':
+      return CreateAdminAssetCodex201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminAssetMetricSnapshot201Response':
+      return CreateAdminAssetMetricSnapshot201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminAssetMetricSnapshotRequest':
+      return CreateAdminAssetMetricSnapshotRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminAssetRequest':
+      return CreateAdminAssetRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateAdminCovenQualification201Response':
+      return CreateAdminCovenQualification201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminCovenQualificationRequest':
+      return CreateAdminCovenQualificationRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminEvidenceClaim201Response':
+      return CreateAdminEvidenceClaim201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminEvidenceClaimRequest':
+      return CreateAdminEvidenceClaimRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminEvidenceSource201Response':
+      return CreateAdminEvidenceSource201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminEvidenceSourceRequest':
+      return CreateAdminEvidenceSourceRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminModerationCaseRequest':
+      return CreateAdminModerationCaseRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminRitualSchedule201Response':
+      return CreateAdminRitualSchedule201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminRitualScheduleRequest':
+      return CreateAdminRitualScheduleRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminSeededCreator201Response':
+      return CreateAdminSeededCreator201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAdminSeededCreatorRequest':
+      return CreateAdminSeededCreatorRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateAssetCodexRequest':
+      return CreateAssetCodexRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateAssetCodexRevisionRequest':
+      return CreateAssetCodexRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateBriefingTemplateRequest':
+      return CreateBriefingTemplateRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateBriefingTemplateRevisionRequest':
+      return CreateBriefingTemplateRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'CreateCircleRequest':
       return CreateCircleRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'CreateCircleRequestAssetsInner':
       return CreateCircleRequestAssetsInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateCircleTemplateRequest':
+      return CreateCircleTemplateRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateCircleTemplateRevisionRequest':
+      return CreateCircleTemplateRevisionRequest.fromJson(
             value as Map<String, dynamic>,
           )
           as ReturnType;
@@ -417,6 +654,14 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'CreateContentReportRequest':
       return CreateContentReportRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateCovenEntryRequest':
+      return CreateCovenEntryRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateCovenEntryRevisionRequest':
+      return CreateCovenEntryRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'CreateDemoCheckout201Response':
       return CreateDemoCheckout201Response.fromJson(
@@ -451,6 +696,14 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'CreateFutureMirrorRequestAnnualReturnBps':
       return CreateFutureMirrorRequestAnnualReturnBps.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateGrimoireRequest':
+      return CreateGrimoireRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateGrimoireRevisionRequest':
+      return CreateGrimoireRevisionRequest.fromJson(
             value as Map<String, dynamic>,
           )
           as ReturnType;
@@ -502,6 +755,22 @@ ReturnType deserialize<ReturnType, BaseType>(
             value as Map<String, dynamic>,
           )
           as ReturnType;
+    case 'CreateRitualScenarioRequest':
+      return CreateRitualScenarioRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateRitualScenarioRevisionRequest':
+      return CreateRitualScenarioRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateRowanScriptRequest':
+      return CreateRowanScriptRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateRowanScriptRevisionRequest':
+      return CreateRowanScriptRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'CreatorCollectionResponse':
       return CreatorCollectionResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -516,6 +785,11 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'DailyRitualResponse':
       return DailyRitualResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'DecideAdminAssetCodexReviewRequest':
+      return DecideAdminAssetCodexReviewRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'DemoCheckoutSession':
       return DemoCheckoutSession.fromJson(value as Map<String, dynamic>)
@@ -582,11 +856,29 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'FutureMirrorViewPointsInner':
       return FutureMirrorViewPointsInner.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'GetAdminAssetCodexRevision200Response':
+      return GetAdminAssetCodexRevision200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'GetAdminHealthReady200Response':
+      return GetAdminHealthReady200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'GetAdminJob200Response':
       return GetAdminJob200Response.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'GetAdminMe200Response':
+      return GetAdminMe200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'GetAdminMedia200Response':
       return GetAdminMedia200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'GetAdminModerationCase200Response':
+      return GetAdminModerationCase200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'GetAdminPrivacyRequest200Response':
       return GetAdminPrivacyRequest200Response.fromJson(
@@ -663,6 +955,109 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'InvestorProfileResponse':
       return InvestorProfileResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'ListAdminAssetCodex200Response':
+      return ListAdminAssetCodex200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInner':
+      return ListAdminAssetCodex200ResponseDataInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevision':
+      return ListAdminAssetCodex200ResponseDataInnerRevision.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayload':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayload.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf1':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf1.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf1RisksInner':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf1RisksInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf2':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf2.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf3':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf3.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf3AssetsInner':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf3AssetsInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf4':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf4.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf4AssetsInner':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf4AssetsInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf5':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf5.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf6':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf6.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf6SectionsInner':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf6SectionsInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOfEvidenceInner':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOfEvidenceInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOfIdeasInner':
+      return ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOfIdeasInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminAssets200Response':
+      return ListAdminAssets200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ListAdminAuditEvents200Response':
+      return ListAdminAuditEvents200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminEvidenceClaims200Response':
+      return ListAdminEvidenceClaims200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminEvidenceSources200Response':
+      return ListAdminEvidenceSources200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'ListAdminJobs200Response':
       return ListAdminJobs200Response.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -679,6 +1074,11 @@ ReturnType deserialize<ReturnType, BaseType>(
             value as Map<String, dynamic>,
           )
           as ReturnType;
+    case 'ListAdminModerationReports200Response':
+      return ListAdminModerationReports200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'ListAdminPrivacyRequests200Response':
       return ListAdminPrivacyRequests200Response.fromJson(
             value as Map<String, dynamic>,
@@ -686,6 +1086,16 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'ListAdminPrivacyRequests200ResponseDataInner':
       return ListAdminPrivacyRequests200ResponseDataInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminRitualSchedules200Response':
+      return ListAdminRitualSchedules200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'ListAdminSeededCreators200Response':
+      return ListAdminSeededCreators200Response.fromJson(
             value as Map<String, dynamic>,
           )
           as ReturnType;
@@ -783,8 +1193,56 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'OrderPreview':
       return OrderPreview.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'PatchAdminAssetRequest':
+      return PatchAdminAssetRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchAdminEvidenceSourceRequest':
+      return PatchAdminEvidenceSourceRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PatchAdminModerationCaseRequest':
+      return PatchAdminModerationCaseRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PatchAdminRitualScheduleRequest':
+      return PatchAdminRitualScheduleRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PatchAdminSeededCreatorRequest':
+      return PatchAdminSeededCreatorRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PatchAssetCodexRevisionRequest':
+      return PatchAssetCodexRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PatchBriefingTemplateRevisionRequest':
+      return PatchBriefingTemplateRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'PatchCircleRequest':
       return PatchCircleRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchCircleTemplateRevisionRequest':
+      return PatchCircleTemplateRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PatchCovenEntryRevisionRequest':
+      return PatchCovenEntryRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PatchGrimoireRevisionRequest':
+      return PatchGrimoireRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'PatchIntentionRequest':
       return PatchIntentionRequest.fromJson(value as Map<String, dynamic>)
@@ -814,6 +1272,16 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'PatchRecurringPlanRequest':
       return PatchRecurringPlanRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchRitualScenarioRevisionRequest':
+      return PatchRitualScenarioRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PatchRowanScriptRevisionRequest':
+      return PatchRowanScriptRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'PortfolioActivity':
       return PortfolioActivity.fromJson(value as Map<String, dynamic>)
@@ -859,6 +1327,11 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'PublicDiscoverResponse':
       return PublicDiscoverResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PublishAdminAssetCodexRevisionRequest':
+      return PublishAdminAssetCodexRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'PutAstrologyProfile200Response':
       return PutAstrologyProfile200Response.fromJson(
@@ -935,6 +1408,11 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'RequestAccountDeletionRequest':
       return RequestAccountDeletionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestAdminAssetCodexReviewRequest':
+      return RequestAdminAssetCodexReviewRequest.fromJson(
             value as Map<String, dynamic>,
           )
           as ReturnType;
@@ -1076,6 +1554,21 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'SimulationResultResponse':
       return SimulationResultResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'VerifyAdminCovenQualification201Response':
+      return VerifyAdminCovenQualification201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'VerifyAdminCovenQualificationRequest':
+      return VerifyAdminCovenQualificationRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'WithdrawAdminAssetCodexRequest':
+      return WithdrawAdminAssetCodexRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     default:
       RegExpMatch? match;

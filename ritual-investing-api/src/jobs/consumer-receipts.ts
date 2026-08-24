@@ -60,10 +60,13 @@ export async function consumeWithReceipt(
     deliveryLock = true;
     await client.query("begin isolation level repeatable read");
     const privacyPurge = message.consumer === "privacy-purge";
+    const editorialPublisher = message.consumer === "editorial-publisher";
     const mediaWorker = message.consumer.startsWith("media-");
     await client.query(
       privacyPurge
         ? "set local role ritual_privacy_purge"
+        : editorialPublisher
+          ? "set local role ritual_scheduler"
         : mediaWorker
           ? "set local role ritual_media_worker"
           : "set local role ritual_runtime",
@@ -88,7 +91,13 @@ export async function consumeWithReceipt(
       return "duplicate";
     }
     let outcome: DeliveryOutcome = "applied";
-    if (mediaWorker) {
+    if (editorialPublisher) {
+      if (
+        event.tenant_id !== null ||
+        event.topic !== "editorial.publication.scheduled"
+      )
+        outcome = "stale";
+    } else if (mediaWorker) {
       if (event.tenant_id !== null) outcome = "stale";
     } else if (event.tenant_id === null) {
       outcome = "deleted";

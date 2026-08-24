@@ -58,6 +58,22 @@ import {
   registerAdminOperationsRoutes,
   type AdminOperationsRouteDependencies,
 } from "./domains/admin-operations/routes.ts";
+import {
+  registerAdminEditorialRoutes,
+  type AdminEditorialRouteDependencies,
+} from "./domains/admin/editorial-workflow/routes.ts";
+import {
+  registerAdminRoutes,
+  type AdminBaseRouteDependencies,
+} from "./domains/admin/routes.ts";
+import {
+  registerAdminCatalogRoutes,
+  type AdminCatalogRouteDependencies,
+} from "./domains/admin/catalog/routes.ts";
+import {
+  registerAdminModerationRoutes,
+  type AdminModerationRouteDependencies,
+} from "./domains/moderation/routes.ts";
 
 export type AppEnvironment = {
   Bindings: Bindings;
@@ -173,7 +189,11 @@ export type CreateAppOptions = {
     NotificationRouteDependencies &
     PrivacyRouteDependencies &
     MediaRouteDependencies &
-    AdminOperationsRouteDependencies;
+    AdminOperationsRouteDependencies &
+    AdminEditorialRouteDependencies &
+    AdminBaseRouteDependencies &
+    AdminCatalogRouteDependencies &
+    AdminModerationRouteDependencies;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -270,6 +290,10 @@ export function createApp(options: CreateAppOptions = {}) {
   registerPrivacyRoutes(app, options.dependencies);
   registerMediaRoutes(app, options.dependencies);
   registerAdminOperationsRoutes(app, options.dependencies);
+  registerAdminRoutes(app, options.dependencies);
+  registerAdminEditorialRoutes(app, options.dependencies);
+  registerAdminCatalogRoutes(app, options.dependencies);
+  registerAdminModerationRoutes(app, options.dependencies);
 
   if (options.enableContractTestRoute) {
     app.openapi(contractTestRoute, (context) => context.body(null, 204));

@@ -14,7 +14,8 @@
     "API_ORIGIN": "http://localhost:8787",
     "CONSUMER_ORIGIN": "https://app.ritual-investing.example",
     "ADMIN_ORIGIN": "https://admin.ritual-investing.example",
-    "ADMIN_HOST": "admin-api.ritual-investing.example",
+    "ADMIN_HOST": "admin.ritual-investing.example",
+    "ADMIN_UI_HOST": "admin.ritual-investing.example",
     "AUTH0_ISSUER": "https://example.auth0.com/",
     "AUTH0_AUDIENCE": "https://api.ritual-investing.example",
     "AUTH0_JWKS_URL": "https://example.auth0.com/.well-known/jwks.json",
@@ -28,6 +29,12 @@
     "KILL_SWITCH_EXPORTS": "off",
     "KILL_SWITCH_PURGE": "off",
     "KILL_SWITCH_MEDIA": "off"
+  },
+  "assets": {
+    "binding": "ADMIN_ASSETS",
+    "directory": "../ritual-investing-admin/build/web",
+    "run_worker_first": true,
+    "not_found_handling": "single-page-application"
   },
   "triggers": {
     "crons": ["0 5 * * *", "0 6 * * 1", "0 7 1,15 * *"]

@@ -1,0 +1,73 @@
+import 'package:flutter/foundation.dart';
+
+import '../data/admin_gateway.dart';
+import '../domain/admin_models.dart';
+
+class WorkspaceController extends ChangeNotifier {
+  WorkspaceController({required this.destination, required this.gateway})
+    : _gateway = gateway;
+  final AdminGateway gateway;
+  final AdminDestination destination;
+  final AdminGateway _gateway;
+  List<AdminRecord> _records = const [];
+  AdminRecord? _selected;
+  bool _loading = false;
+  String? _error;
+
+  List<AdminRecord> get records => _records;
+  AdminRecord? get selected => _selected;
+  bool get loading => _loading;
+  String? get error => _error;
+
+  Future<void> load() async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _records = await _gateway.list(destination);
+    } catch (_) {
+      _error = 'This workspace could not be loaded.';
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+
+  void select(AdminRecord record) {
+    _selected = record;
+    notifyListeners();
+  }
+
+  Future<void> requestReview() async {
+    final record = _selected;
+    if (record == null) return;
+    await runAction(() => _gateway.requestReview(destination, record));
+  }
+
+  Future<void> publish() async {
+    final record = _selected;
+    if (record == null) return;
+    await runAction(() => _gateway.publish(destination, record));
+  }
+
+  Future<void> createDraft(String slug, Map<String, Object?> payload) async {
+    await runAction(() => _gateway.createDraft(destination, slug, payload));
+  }
+
+  Future<void> runAction(Future<void> Function() action) async {
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      await action();
+      _records = await _gateway.list(destination);
+    } catch (error) {
+      _error = error.toString().contains('409')
+          ? 'This record changed. Refresh before retrying the transition.'
+          : 'The reviewed transition could not be applied.';
+    } finally {
+      _loading = false;
+      notifyListeners();
+    }
+  }
+}

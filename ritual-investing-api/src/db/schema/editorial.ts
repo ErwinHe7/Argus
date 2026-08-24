@@ -67,6 +67,10 @@ export const editorialItems = pgTable("editorial_items", {
   slug: text("slug").notNull().unique(),
   currentPublishedRevisionId: uuid("current_published_revision_id"),
   status: text("status").notNull().default("draft"),
+  version: integer("version").notNull().default(1),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 
 export const editorialRevisions = pgTable(
@@ -82,6 +86,9 @@ export const editorialRevisions = pgTable(
       .notNull()
       .references(() => staffPrincipals.id),
     contentHash: text("content_hash").notNull(),
+    payload: jsonb("payload").notNull().default({}),
+    version: integer("version").notNull().default(1),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -152,6 +159,7 @@ export const assets = pgTable(
     exchange: text("exchange"),
     isDemo: boolean("is_demo").notNull().default(true),
     status: text("status").notNull(),
+    version: integer("version").notNull().default(1),
   },
   (table) => [
     unique("assets_symbol_exchange_unique").on(table.symbol, table.exchange),
@@ -194,6 +202,7 @@ export const evidenceSources = pgTable("evidence_sources", {
   retrievedAt: timestamp("retrieved_at", { withTimezone: true }).notNull(),
   sourceKind: text("source_kind").notNull(),
   status: text("status").notNull(),
+  version: integer("version").notNull().default(1),
 });
 
 export const evidenceClaims = pgTable("evidence_claims", {
@@ -281,6 +290,7 @@ export const ritualSchedules = pgTable(
     audience: text("audience").notNull(),
     state: text("state").notNull(),
     effectiveAt: timestamp("effective_at", { withTimezone: true }).notNull(),
+    version: integer("version").notNull().default(1),
   },
   (table) => [
     unique("ritual_schedules_date_mode_audience_unique").on(
@@ -432,7 +442,30 @@ export const covenQualifications = pgTable("coven_qualifications", {
   validFrom: date("valid_from").notNull(),
   validTo: date("valid_to"),
   currentVerificationId: uuid("current_verification_id"),
+  submittedBy: uuid("submitted_by")
+    .references(() => staffPrincipals.id),
 });
+
+export const briefingTemplates = pgTable("briefing_templates", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  editorialItemId: uuid("editorial_item_id")
+    .notNull()
+    .unique()
+    .references(() => editorialItems.id),
+  templateKey: text("template_key").notNull().unique(),
+  briefingType: text("briefing_type").notNull(),
+});
+
+export const briefingTemplateRevisions = pgTable(
+  "briefing_template_revisions",
+  {
+    revisionId: uuid("revision_id")
+      .primaryKey()
+      .references(() => editorialRevisions.id),
+    title: text("title").notNull(),
+    sections: jsonb("sections").notNull(),
+  },
+);
 export const covenVerifications = pgTable("coven_verifications", {
   id: uuid("id").defaultRandom().primaryKey(),
   qualificationId: uuid("qualification_id")

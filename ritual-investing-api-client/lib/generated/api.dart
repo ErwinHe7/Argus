@@ -8,9 +8,23 @@ import 'package:ritual_investing_api_client/generated/auth/basic_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/bearer_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/oauth.dart';
 import 'package:ritual_investing_api_client/generated/api/account_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_asset_codex_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_assets_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_audit_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_briefing_template_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_catalog_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_circle_template_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_coven_entry_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_evidence_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_grimoire_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_media_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_moderation_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_operations_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_privacy_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_ritual_scenario_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_rowan_script_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_scheduling_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_seeded_community_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_session_api.dart';
 import 'package:ritual_investing_api_client/generated/api/assets_api.dart';
 import 'package:ritual_investing_api_client/generated/api/briefings_api.dart';
@@ -165,10 +179,70 @@ class RitualInvestingApiClient {
     return AccountApi(dio);
   }
 
+  /// Get AdminAssetCodexApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminAssetCodexApi getAdminAssetCodexApi() {
+    return AdminAssetCodexApi(dio);
+  }
+
+  /// Get AdminAssetsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminAssetsApi getAdminAssetsApi() {
+    return AdminAssetsApi(dio);
+  }
+
+  /// Get AdminAuditApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminAuditApi getAdminAuditApi() {
+    return AdminAuditApi(dio);
+  }
+
+  /// Get AdminBriefingTemplateApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminBriefingTemplateApi getAdminBriefingTemplateApi() {
+    return AdminBriefingTemplateApi(dio);
+  }
+
+  /// Get AdminCatalogApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminCatalogApi getAdminCatalogApi() {
+    return AdminCatalogApi(dio);
+  }
+
+  /// Get AdminCircleTemplateApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminCircleTemplateApi getAdminCircleTemplateApi() {
+    return AdminCircleTemplateApi(dio);
+  }
+
+  /// Get AdminCovenEntryApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminCovenEntryApi getAdminCovenEntryApi() {
+    return AdminCovenEntryApi(dio);
+  }
+
+  /// Get AdminEvidenceApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminEvidenceApi getAdminEvidenceApi() {
+    return AdminEvidenceApi(dio);
+  }
+
+  /// Get AdminGrimoireApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminGrimoireApi getAdminGrimoireApi() {
+    return AdminGrimoireApi(dio);
+  }
+
   /// Get AdminMediaApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   AdminMediaApi getAdminMediaApi() {
     return AdminMediaApi(dio);
+  }
+
+  /// Get AdminModerationApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminModerationApi getAdminModerationApi() {
+    return AdminModerationApi(dio);
   }
 
   /// Get AdminOperationsApi instance, base route and serializer can be overridden by a given but be careful,
@@ -181,6 +255,30 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   AdminPrivacyApi getAdminPrivacyApi() {
     return AdminPrivacyApi(dio);
+  }
+
+  /// Get AdminRitualScenarioApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminRitualScenarioApi getAdminRitualScenarioApi() {
+    return AdminRitualScenarioApi(dio);
+  }
+
+  /// Get AdminRowanScriptApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminRowanScriptApi getAdminRowanScriptApi() {
+    return AdminRowanScriptApi(dio);
+  }
+
+  /// Get AdminSchedulingApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminSchedulingApi getAdminSchedulingApi() {
+    return AdminSchedulingApi(dio);
+  }
+
+  /// Get AdminSeededCommunityApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminSeededCommunityApi getAdminSeededCommunityApi() {
+    return AdminSeededCommunityApi(dio);
   }
 
   /// Get AdminSessionApi instance, base route and serializer can be overridden by a given but be careful,

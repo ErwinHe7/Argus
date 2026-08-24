@@ -78,18 +78,124 @@ Class | Method | HTTP request | Description
 [*AccountApi*](doc/AccountApi.md) | [**patchProfile**](doc/AccountApi.md#patchprofile) | **PATCH** /v1/me/profile | 
 [*AccountApi*](doc/AccountApi.md) | [**putAstrologyProfile**](doc/AccountApi.md#putastrologyprofile) | **PUT** /v1/me/astrology-profile | 
 [*AccountApi*](doc/AccountApi.md) | [**putInvestorProfile**](doc/AccountApi.md#putinvestorprofile) | **PUT** /v1/me/investor-profile | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**createAdminAssetCodex**](doc/AdminAssetCodexApi.md#createadminassetcodex) | **POST** /v1/admin/asset-codex | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**createAdminAssetCodexRevision**](doc/AdminAssetCodexApi.md#createadminassetcodexrevision) | **POST** /v1/admin/asset-codex/{item_id}/revisions | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**decideAdminAssetCodexReview**](doc/AdminAssetCodexApi.md#decideadminassetcodexreview) | **POST** /v1/admin/asset-codex/{item_id}/revisions/{revision_id}/review-decisions | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**getAdminAssetCodex**](doc/AdminAssetCodexApi.md#getadminassetcodex) | **GET** /v1/admin/asset-codex/{item_id} | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**getAdminAssetCodexRevision**](doc/AdminAssetCodexApi.md#getadminassetcodexrevision) | **GET** /v1/admin/asset-codex/{item_id}/revisions/{revision_id} | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**listAdminAssetCodex**](doc/AdminAssetCodexApi.md#listadminassetcodex) | **GET** /v1/admin/asset-codex | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**patchAdminAssetCodexRevision**](doc/AdminAssetCodexApi.md#patchadminassetcodexrevision) | **PATCH** /v1/admin/asset-codex/{item_id}/revisions/{revision_id} | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**previewAdminAssetCodexRevision**](doc/AdminAssetCodexApi.md#previewadminassetcodexrevision) | **GET** /v1/admin/asset-codex/{item_id}/revisions/{revision_id}/preview | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**publishAdminAssetCodexRevision**](doc/AdminAssetCodexApi.md#publishadminassetcodexrevision) | **POST** /v1/admin/asset-codex/{item_id}/revisions/{revision_id}/publications | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**requestAdminAssetCodexReview**](doc/AdminAssetCodexApi.md#requestadminassetcodexreview) | **POST** /v1/admin/asset-codex/{item_id}/revisions/{revision_id}/review-requests | 
+[*AdminAssetCodexApi*](doc/AdminAssetCodexApi.md) | [**withdrawAdminAssetCodex**](doc/AdminAssetCodexApi.md#withdrawadminassetcodex) | **POST** /v1/admin/asset-codex/{item_id}/withdrawals | 
+[*AdminAssetsApi*](doc/AdminAssetsApi.md) | [**createAdminAsset**](doc/AdminAssetsApi.md#createadminasset) | **POST** /v1/admin/assets | 
+[*AdminAssetsApi*](doc/AdminAssetsApi.md) | [**getAdminAsset**](doc/AdminAssetsApi.md#getadminasset) | **GET** /v1/admin/assets/{asset_id} | 
+[*AdminAssetsApi*](doc/AdminAssetsApi.md) | [**listAdminAssets**](doc/AdminAssetsApi.md#listadminassets) | **GET** /v1/admin/assets | 
+[*AdminAssetsApi*](doc/AdminAssetsApi.md) | [**patchAdminAsset**](doc/AdminAssetsApi.md#patchadminasset) | **PATCH** /v1/admin/assets/{asset_id} | 
+[*AdminAuditApi*](doc/AdminAuditApi.md) | [**listAdminAuditEvents**](doc/AdminAuditApi.md#listadminauditevents) | **GET** /v1/admin/audit-events | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**createAdminBriefingTemplate**](doc/AdminBriefingTemplateApi.md#createadminbriefingtemplate) | **POST** /v1/admin/briefing-templates | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**createAdminBriefingTemplateRevision**](doc/AdminBriefingTemplateApi.md#createadminbriefingtemplaterevision) | **POST** /v1/admin/briefing-templates/{item_id}/revisions | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**decideAdminBriefingTemplateReview**](doc/AdminBriefingTemplateApi.md#decideadminbriefingtemplatereview) | **POST** /v1/admin/briefing-templates/{item_id}/revisions/{revision_id}/review-decisions | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**getAdminBriefingTemplate**](doc/AdminBriefingTemplateApi.md#getadminbriefingtemplate) | **GET** /v1/admin/briefing-templates/{item_id} | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**getAdminBriefingTemplateRevision**](doc/AdminBriefingTemplateApi.md#getadminbriefingtemplaterevision) | **GET** /v1/admin/briefing-templates/{item_id}/revisions/{revision_id} | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**listAdminBriefingTemplate**](doc/AdminBriefingTemplateApi.md#listadminbriefingtemplate) | **GET** /v1/admin/briefing-templates | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**patchAdminBriefingTemplateRevision**](doc/AdminBriefingTemplateApi.md#patchadminbriefingtemplaterevision) | **PATCH** /v1/admin/briefing-templates/{item_id}/revisions/{revision_id} | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**previewAdminBriefingTemplateRevision**](doc/AdminBriefingTemplateApi.md#previewadminbriefingtemplaterevision) | **GET** /v1/admin/briefing-templates/{item_id}/revisions/{revision_id}/preview | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**publishAdminBriefingTemplateRevision**](doc/AdminBriefingTemplateApi.md#publishadminbriefingtemplaterevision) | **POST** /v1/admin/briefing-templates/{item_id}/revisions/{revision_id}/publications | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**requestAdminBriefingTemplateReview**](doc/AdminBriefingTemplateApi.md#requestadminbriefingtemplatereview) | **POST** /v1/admin/briefing-templates/{item_id}/revisions/{revision_id}/review-requests | 
+[*AdminBriefingTemplateApi*](doc/AdminBriefingTemplateApi.md) | [**withdrawAdminBriefingTemplate**](doc/AdminBriefingTemplateApi.md#withdrawadminbriefingtemplate) | **POST** /v1/admin/briefing-templates/{item_id}/withdrawals | 
+[*AdminCatalogApi*](doc/AdminCatalogApi.md) | [**createAdminAssetMetricSnapshot**](doc/AdminCatalogApi.md#createadminassetmetricsnapshot) | **POST** /v1/admin/assets/{asset_id}/metric-snapshots | 
+[*AdminCatalogApi*](doc/AdminCatalogApi.md) | [**createAdminCovenQualification**](doc/AdminCatalogApi.md#createadmincovenqualification) | **POST** /v1/admin/coven-entries/{entry_id}/qualifications | 
+[*AdminCatalogApi*](doc/AdminCatalogApi.md) | [**verifyAdminCovenQualification**](doc/AdminCatalogApi.md#verifyadmincovenqualification) | **POST** /v1/admin/coven-qualifications/{qualification_id}/verifications | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**createAdminCircleTemplate**](doc/AdminCircleTemplateApi.md#createadmincircletemplate) | **POST** /v1/admin/circle-templates | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**createAdminCircleTemplateRevision**](doc/AdminCircleTemplateApi.md#createadmincircletemplaterevision) | **POST** /v1/admin/circle-templates/{item_id}/revisions | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**decideAdminCircleTemplateReview**](doc/AdminCircleTemplateApi.md#decideadmincircletemplatereview) | **POST** /v1/admin/circle-templates/{item_id}/revisions/{revision_id}/review-decisions | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**getAdminCircleTemplate**](doc/AdminCircleTemplateApi.md#getadmincircletemplate) | **GET** /v1/admin/circle-templates/{item_id} | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**getAdminCircleTemplateRevision**](doc/AdminCircleTemplateApi.md#getadmincircletemplaterevision) | **GET** /v1/admin/circle-templates/{item_id}/revisions/{revision_id} | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**listAdminCircleTemplate**](doc/AdminCircleTemplateApi.md#listadmincircletemplate) | **GET** /v1/admin/circle-templates | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**patchAdminCircleTemplateRevision**](doc/AdminCircleTemplateApi.md#patchadmincircletemplaterevision) | **PATCH** /v1/admin/circle-templates/{item_id}/revisions/{revision_id} | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**previewAdminCircleTemplateRevision**](doc/AdminCircleTemplateApi.md#previewadmincircletemplaterevision) | **GET** /v1/admin/circle-templates/{item_id}/revisions/{revision_id}/preview | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**publishAdminCircleTemplateRevision**](doc/AdminCircleTemplateApi.md#publishadmincircletemplaterevision) | **POST** /v1/admin/circle-templates/{item_id}/revisions/{revision_id}/publications | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**requestAdminCircleTemplateReview**](doc/AdminCircleTemplateApi.md#requestadmincircletemplatereview) | **POST** /v1/admin/circle-templates/{item_id}/revisions/{revision_id}/review-requests | 
+[*AdminCircleTemplateApi*](doc/AdminCircleTemplateApi.md) | [**withdrawAdminCircleTemplate**](doc/AdminCircleTemplateApi.md#withdrawadmincircletemplate) | **POST** /v1/admin/circle-templates/{item_id}/withdrawals | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**createAdminCovenEntry**](doc/AdminCovenEntryApi.md#createadmincovenentry) | **POST** /v1/admin/coven-entries | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**createAdminCovenEntryRevision**](doc/AdminCovenEntryApi.md#createadmincovenentryrevision) | **POST** /v1/admin/coven-entries/{item_id}/revisions | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**decideAdminCovenEntryReview**](doc/AdminCovenEntryApi.md#decideadmincovenentryreview) | **POST** /v1/admin/coven-entries/{item_id}/revisions/{revision_id}/review-decisions | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**getAdminCovenEntry**](doc/AdminCovenEntryApi.md#getadmincovenentry) | **GET** /v1/admin/coven-entries/{item_id} | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**getAdminCovenEntryRevision**](doc/AdminCovenEntryApi.md#getadmincovenentryrevision) | **GET** /v1/admin/coven-entries/{item_id}/revisions/{revision_id} | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**listAdminCovenEntry**](doc/AdminCovenEntryApi.md#listadmincovenentry) | **GET** /v1/admin/coven-entries | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**patchAdminCovenEntryRevision**](doc/AdminCovenEntryApi.md#patchadmincovenentryrevision) | **PATCH** /v1/admin/coven-entries/{item_id}/revisions/{revision_id} | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**previewAdminCovenEntryRevision**](doc/AdminCovenEntryApi.md#previewadmincovenentryrevision) | **GET** /v1/admin/coven-entries/{item_id}/revisions/{revision_id}/preview | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**publishAdminCovenEntryRevision**](doc/AdminCovenEntryApi.md#publishadmincovenentryrevision) | **POST** /v1/admin/coven-entries/{item_id}/revisions/{revision_id}/publications | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**requestAdminCovenEntryReview**](doc/AdminCovenEntryApi.md#requestadmincovenentryreview) | **POST** /v1/admin/coven-entries/{item_id}/revisions/{revision_id}/review-requests | 
+[*AdminCovenEntryApi*](doc/AdminCovenEntryApi.md) | [**withdrawAdminCovenEntry**](doc/AdminCovenEntryApi.md#withdrawadmincovenentry) | **POST** /v1/admin/coven-entries/{item_id}/withdrawals | 
+[*AdminEvidenceApi*](doc/AdminEvidenceApi.md) | [**createAdminEvidenceClaim**](doc/AdminEvidenceApi.md#createadminevidenceclaim) | **POST** /v1/admin/evidence-claims | 
+[*AdminEvidenceApi*](doc/AdminEvidenceApi.md) | [**createAdminEvidenceSource**](doc/AdminEvidenceApi.md#createadminevidencesource) | **POST** /v1/admin/evidence-sources | 
+[*AdminEvidenceApi*](doc/AdminEvidenceApi.md) | [**getAdminEvidenceClaim**](doc/AdminEvidenceApi.md#getadminevidenceclaim) | **GET** /v1/admin/evidence-claims/{claim_id} | 
+[*AdminEvidenceApi*](doc/AdminEvidenceApi.md) | [**getAdminEvidenceSource**](doc/AdminEvidenceApi.md#getadminevidencesource) | **GET** /v1/admin/evidence-sources/{source_id} | 
+[*AdminEvidenceApi*](doc/AdminEvidenceApi.md) | [**listAdminEvidenceClaims**](doc/AdminEvidenceApi.md#listadminevidenceclaims) | **GET** /v1/admin/evidence-claims | 
+[*AdminEvidenceApi*](doc/AdminEvidenceApi.md) | [**listAdminEvidenceSources**](doc/AdminEvidenceApi.md#listadminevidencesources) | **GET** /v1/admin/evidence-sources | 
+[*AdminEvidenceApi*](doc/AdminEvidenceApi.md) | [**patchAdminEvidenceSource**](doc/AdminEvidenceApi.md#patchadminevidencesource) | **PATCH** /v1/admin/evidence-sources/{source_id} | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**createAdminGrimoire**](doc/AdminGrimoireApi.md#createadmingrimoire) | **POST** /v1/admin/grimoires | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**createAdminGrimoireRevision**](doc/AdminGrimoireApi.md#createadmingrimoirerevision) | **POST** /v1/admin/grimoires/{item_id}/revisions | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**decideAdminGrimoireReview**](doc/AdminGrimoireApi.md#decideadmingrimoirereview) | **POST** /v1/admin/grimoires/{item_id}/revisions/{revision_id}/review-decisions | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**getAdminGrimoire**](doc/AdminGrimoireApi.md#getadmingrimoire) | **GET** /v1/admin/grimoires/{item_id} | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**getAdminGrimoireRevision**](doc/AdminGrimoireApi.md#getadmingrimoirerevision) | **GET** /v1/admin/grimoires/{item_id}/revisions/{revision_id} | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**listAdminGrimoire**](doc/AdminGrimoireApi.md#listadmingrimoire) | **GET** /v1/admin/grimoires | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**patchAdminGrimoireRevision**](doc/AdminGrimoireApi.md#patchadmingrimoirerevision) | **PATCH** /v1/admin/grimoires/{item_id}/revisions/{revision_id} | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**previewAdminGrimoireRevision**](doc/AdminGrimoireApi.md#previewadmingrimoirerevision) | **GET** /v1/admin/grimoires/{item_id}/revisions/{revision_id}/preview | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**publishAdminGrimoireRevision**](doc/AdminGrimoireApi.md#publishadmingrimoirerevision) | **POST** /v1/admin/grimoires/{item_id}/revisions/{revision_id}/publications | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**requestAdminGrimoireReview**](doc/AdminGrimoireApi.md#requestadmingrimoirereview) | **POST** /v1/admin/grimoires/{item_id}/revisions/{revision_id}/review-requests | 
+[*AdminGrimoireApi*](doc/AdminGrimoireApi.md) | [**withdrawAdminGrimoire**](doc/AdminGrimoireApi.md#withdrawadmingrimoire) | **POST** /v1/admin/grimoires/{item_id}/withdrawals | 
 [*AdminMediaApi*](doc/AdminMediaApi.md) | [**completeMediaUpload**](doc/AdminMediaApi.md#completemediaupload) | **POST** /v1/admin/media/{media_id}/complete | 
 [*AdminMediaApi*](doc/AdminMediaApi.md) | [**deleteAdminMedia**](doc/AdminMediaApi.md#deleteadminmedia) | **DELETE** /v1/admin/media/{media_id} | 
 [*AdminMediaApi*](doc/AdminMediaApi.md) | [**getAdminMedia**](doc/AdminMediaApi.md#getadminmedia) | **GET** /v1/admin/media/{media_id} | 
 [*AdminMediaApi*](doc/AdminMediaApi.md) | [**listAdminMedia**](doc/AdminMediaApi.md#listadminmedia) | **GET** /v1/admin/media | 
 [*AdminMediaApi*](doc/AdminMediaApi.md) | [**requestMediaUpload**](doc/AdminMediaApi.md#requestmediaupload) | **POST** /v1/admin/media/upload-requests | 
 [*AdminMediaApi*](doc/AdminMediaApi.md) | [**uploadMediaQuarantineContent**](doc/AdminMediaApi.md#uploadmediaquarantinecontent) | **PUT** /v1/admin/media/upload-requests/{media_id}/content | 
+[*AdminModerationApi*](doc/AdminModerationApi.md) | [**createAdminModerationCase**](doc/AdminModerationApi.md#createadminmoderationcase) | **POST** /v1/admin/moderation/reports/{report_id}/cases | 
+[*AdminModerationApi*](doc/AdminModerationApi.md) | [**getAdminModerationCase**](doc/AdminModerationApi.md#getadminmoderationcase) | **GET** /v1/admin/moderation/cases/{case_id} | 
+[*AdminModerationApi*](doc/AdminModerationApi.md) | [**listAdminModerationReports**](doc/AdminModerationApi.md#listadminmoderationreports) | **GET** /v1/admin/moderation/reports | 
+[*AdminModerationApi*](doc/AdminModerationApi.md) | [**patchAdminModerationCase**](doc/AdminModerationApi.md#patchadminmoderationcase) | **PATCH** /v1/admin/moderation/cases/{case_id} | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**getAdminJob**](doc/AdminOperationsApi.md#getadminjob) | **GET** /v1/admin/jobs/{job_id} | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminJobs**](doc/AdminOperationsApi.md#listadminjobs) | **GET** /v1/admin/jobs | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**retryAdminJob**](doc/AdminOperationsApi.md#retryadminjob) | **POST** /v1/admin/jobs/{job_id}/retry | 
 [*AdminPrivacyApi*](doc/AdminPrivacyApi.md) | [**getAdminPrivacyRequest**](doc/AdminPrivacyApi.md#getadminprivacyrequest) | **GET** /v1/admin/privacy/requests/{request_id} | 
 [*AdminPrivacyApi*](doc/AdminPrivacyApi.md) | [**listAdminPrivacyRequests**](doc/AdminPrivacyApi.md#listadminprivacyrequests) | **GET** /v1/admin/privacy/requests | 
 [*AdminPrivacyApi*](doc/AdminPrivacyApi.md) | [**retryAdminPrivacyRequest**](doc/AdminPrivacyApi.md#retryadminprivacyrequest) | **POST** /v1/admin/privacy/requests/{request_id}/retry | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**createAdminRitualScenario**](doc/AdminRitualScenarioApi.md#createadminritualscenario) | **POST** /v1/admin/ritual-scenarios | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**createAdminRitualScenarioRevision**](doc/AdminRitualScenarioApi.md#createadminritualscenariorevision) | **POST** /v1/admin/ritual-scenarios/{item_id}/revisions | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**decideAdminRitualScenarioReview**](doc/AdminRitualScenarioApi.md#decideadminritualscenarioreview) | **POST** /v1/admin/ritual-scenarios/{item_id}/revisions/{revision_id}/review-decisions | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**getAdminRitualScenario**](doc/AdminRitualScenarioApi.md#getadminritualscenario) | **GET** /v1/admin/ritual-scenarios/{item_id} | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**getAdminRitualScenarioRevision**](doc/AdminRitualScenarioApi.md#getadminritualscenariorevision) | **GET** /v1/admin/ritual-scenarios/{item_id}/revisions/{revision_id} | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**listAdminRitualScenario**](doc/AdminRitualScenarioApi.md#listadminritualscenario) | **GET** /v1/admin/ritual-scenarios | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**patchAdminRitualScenarioRevision**](doc/AdminRitualScenarioApi.md#patchadminritualscenariorevision) | **PATCH** /v1/admin/ritual-scenarios/{item_id}/revisions/{revision_id} | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**previewAdminRitualScenarioRevision**](doc/AdminRitualScenarioApi.md#previewadminritualscenariorevision) | **GET** /v1/admin/ritual-scenarios/{item_id}/revisions/{revision_id}/preview | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**publishAdminRitualScenarioRevision**](doc/AdminRitualScenarioApi.md#publishadminritualscenariorevision) | **POST** /v1/admin/ritual-scenarios/{item_id}/revisions/{revision_id}/publications | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**requestAdminRitualScenarioReview**](doc/AdminRitualScenarioApi.md#requestadminritualscenarioreview) | **POST** /v1/admin/ritual-scenarios/{item_id}/revisions/{revision_id}/review-requests | 
+[*AdminRitualScenarioApi*](doc/AdminRitualScenarioApi.md) | [**withdrawAdminRitualScenario**](doc/AdminRitualScenarioApi.md#withdrawadminritualscenario) | **POST** /v1/admin/ritual-scenarios/{item_id}/withdrawals | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**createAdminRowanScript**](doc/AdminRowanScriptApi.md#createadminrowanscript) | **POST** /v1/admin/rowan-scripts | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**createAdminRowanScriptRevision**](doc/AdminRowanScriptApi.md#createadminrowanscriptrevision) | **POST** /v1/admin/rowan-scripts/{item_id}/revisions | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**decideAdminRowanScriptReview**](doc/AdminRowanScriptApi.md#decideadminrowanscriptreview) | **POST** /v1/admin/rowan-scripts/{item_id}/revisions/{revision_id}/review-decisions | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**getAdminRowanScript**](doc/AdminRowanScriptApi.md#getadminrowanscript) | **GET** /v1/admin/rowan-scripts/{item_id} | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**getAdminRowanScriptRevision**](doc/AdminRowanScriptApi.md#getadminrowanscriptrevision) | **GET** /v1/admin/rowan-scripts/{item_id}/revisions/{revision_id} | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**listAdminRowanScript**](doc/AdminRowanScriptApi.md#listadminrowanscript) | **GET** /v1/admin/rowan-scripts | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**patchAdminRowanScriptRevision**](doc/AdminRowanScriptApi.md#patchadminrowanscriptrevision) | **PATCH** /v1/admin/rowan-scripts/{item_id}/revisions/{revision_id} | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**previewAdminRowanScriptRevision**](doc/AdminRowanScriptApi.md#previewadminrowanscriptrevision) | **GET** /v1/admin/rowan-scripts/{item_id}/revisions/{revision_id}/preview | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**publishAdminRowanScriptRevision**](doc/AdminRowanScriptApi.md#publishadminrowanscriptrevision) | **POST** /v1/admin/rowan-scripts/{item_id}/revisions/{revision_id}/publications | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**requestAdminRowanScriptReview**](doc/AdminRowanScriptApi.md#requestadminrowanscriptreview) | **POST** /v1/admin/rowan-scripts/{item_id}/revisions/{revision_id}/review-requests | 
+[*AdminRowanScriptApi*](doc/AdminRowanScriptApi.md) | [**withdrawAdminRowanScript**](doc/AdminRowanScriptApi.md#withdrawadminrowanscript) | **POST** /v1/admin/rowan-scripts/{item_id}/withdrawals | 
+[*AdminSchedulingApi*](doc/AdminSchedulingApi.md) | [**createAdminRitualSchedule**](doc/AdminSchedulingApi.md#createadminritualschedule) | **POST** /v1/admin/ritual-schedules | 
+[*AdminSchedulingApi*](doc/AdminSchedulingApi.md) | [**listAdminRitualSchedules**](doc/AdminSchedulingApi.md#listadminritualschedules) | **GET** /v1/admin/ritual-schedules | 
+[*AdminSchedulingApi*](doc/AdminSchedulingApi.md) | [**patchAdminRitualSchedule**](doc/AdminSchedulingApi.md#patchadminritualschedule) | **PATCH** /v1/admin/ritual-schedules/{schedule_id} | 
+[*AdminSchedulingApi*](doc/AdminSchedulingApi.md) | [**withdrawAdminRitualSchedule**](doc/AdminSchedulingApi.md#withdrawadminritualschedule) | **DELETE** /v1/admin/ritual-schedules/{schedule_id} | 
+[*AdminSeededCommunityApi*](doc/AdminSeededCommunityApi.md) | [**createAdminSeededCreator**](doc/AdminSeededCommunityApi.md#createadminseededcreator) | **POST** /v1/admin/seeded-creators | 
+[*AdminSeededCommunityApi*](doc/AdminSeededCommunityApi.md) | [**getAdminSeededCreator**](doc/AdminSeededCommunityApi.md#getadminseededcreator) | **GET** /v1/admin/seeded-creators/{creator_id} | 
+[*AdminSeededCommunityApi*](doc/AdminSeededCommunityApi.md) | [**listAdminSeededCreators**](doc/AdminSeededCommunityApi.md#listadminseededcreators) | **GET** /v1/admin/seeded-creators | 
+[*AdminSeededCommunityApi*](doc/AdminSeededCommunityApi.md) | [**patchAdminSeededCreator**](doc/AdminSeededCommunityApi.md#patchadminseededcreator) | **PATCH** /v1/admin/seeded-creators/{creator_id} | 
+[*AdminSessionApi*](doc/AdminSessionApi.md) | [**getAdminHealthReady**](doc/AdminSessionApi.md#getadminhealthready) | **GET** /v1/admin/health/ready | 
+[*AdminSessionApi*](doc/AdminSessionApi.md) | [**getAdminMe**](doc/AdminSessionApi.md#getadminme) | **GET** /v1/admin/me | 
 [*AdminSessionApi*](doc/AdminSessionApi.md) | [**getAdminSession**](doc/AdminSessionApi.md#getadminsession) | **GET** /v1/admin/session | 
 [*AssetsApi*](doc/AssetsApi.md) | [**compareAssets**](doc/AssetsApi.md#compareassets) | **POST** /v1/assets/compare | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /v1/assets/{asset_id} | 
@@ -198,6 +304,21 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [AdminAsset](doc/AdminAsset.md)
+ - [AdminAssetMetricSnapshot](doc/AdminAssetMetricSnapshot.md)
+ - [AdminAuditEvent](doc/AdminAuditEvent.md)
+ - [AdminCovenQualification](doc/AdminCovenQualification.md)
+ - [AdminCovenVerification](doc/AdminCovenVerification.md)
+ - [AdminEvidenceClaim](doc/AdminEvidenceClaim.md)
+ - [AdminEvidenceSource](doc/AdminEvidenceSource.md)
+ - [AdminHealth](doc/AdminHealth.md)
+ - [AdminHealthDependencies](doc/AdminHealthDependencies.md)
+ - [AdminMe](doc/AdminMe.md)
+ - [AdminModerationCase](doc/AdminModerationCase.md)
+ - [AdminModerationCaseDecisionsInner](doc/AdminModerationCaseDecisionsInner.md)
+ - [AdminModerationReport](doc/AdminModerationReport.md)
+ - [AdminRitualSchedule](doc/AdminRitualSchedule.md)
+ - [AdminSeededCreator](doc/AdminSeededCreator.md)
  - [AdminSession](doc/AdminSession.md)
  - [AdminSessionResponse](doc/AdminSessionResponse.md)
  - [ArtReference](doc/ArtReference.md)
@@ -241,12 +362,36 @@ Class | Method | HTTP request | Description
  - [CovenEvidenceResponse](doc/CovenEvidenceResponse.md)
  - [CovenQualification](doc/CovenQualification.md)
  - [CovenSummary](doc/CovenSummary.md)
+ - [CreateAdminAsset201Response](doc/CreateAdminAsset201Response.md)
+ - [CreateAdminAssetCodex201Response](doc/CreateAdminAssetCodex201Response.md)
+ - [CreateAdminAssetMetricSnapshot201Response](doc/CreateAdminAssetMetricSnapshot201Response.md)
+ - [CreateAdminAssetMetricSnapshotRequest](doc/CreateAdminAssetMetricSnapshotRequest.md)
+ - [CreateAdminAssetRequest](doc/CreateAdminAssetRequest.md)
+ - [CreateAdminCovenQualification201Response](doc/CreateAdminCovenQualification201Response.md)
+ - [CreateAdminCovenQualificationRequest](doc/CreateAdminCovenQualificationRequest.md)
+ - [CreateAdminEvidenceClaim201Response](doc/CreateAdminEvidenceClaim201Response.md)
+ - [CreateAdminEvidenceClaimRequest](doc/CreateAdminEvidenceClaimRequest.md)
+ - [CreateAdminEvidenceSource201Response](doc/CreateAdminEvidenceSource201Response.md)
+ - [CreateAdminEvidenceSourceRequest](doc/CreateAdminEvidenceSourceRequest.md)
+ - [CreateAdminModerationCaseRequest](doc/CreateAdminModerationCaseRequest.md)
+ - [CreateAdminRitualSchedule201Response](doc/CreateAdminRitualSchedule201Response.md)
+ - [CreateAdminRitualScheduleRequest](doc/CreateAdminRitualScheduleRequest.md)
+ - [CreateAdminSeededCreator201Response](doc/CreateAdminSeededCreator201Response.md)
+ - [CreateAdminSeededCreatorRequest](doc/CreateAdminSeededCreatorRequest.md)
+ - [CreateAssetCodexRequest](doc/CreateAssetCodexRequest.md)
+ - [CreateAssetCodexRevisionRequest](doc/CreateAssetCodexRevisionRequest.md)
+ - [CreateBriefingTemplateRequest](doc/CreateBriefingTemplateRequest.md)
+ - [CreateBriefingTemplateRevisionRequest](doc/CreateBriefingTemplateRevisionRequest.md)
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
  - [CreateCircleRequestAssetsInner](doc/CreateCircleRequestAssetsInner.md)
+ - [CreateCircleTemplateRequest](doc/CreateCircleTemplateRequest.md)
+ - [CreateCircleTemplateRevisionRequest](doc/CreateCircleTemplateRevisionRequest.md)
  - [CreateConsentRequest](doc/CreateConsentRequest.md)
  - [CreateContentReport201Response](doc/CreateContentReport201Response.md)
  - [CreateContentReport201ResponseData](doc/CreateContentReport201ResponseData.md)
  - [CreateContentReportRequest](doc/CreateContentReportRequest.md)
+ - [CreateCovenEntryRequest](doc/CreateCovenEntryRequest.md)
+ - [CreateCovenEntryRevisionRequest](doc/CreateCovenEntryRevisionRequest.md)
  - [CreateDemoCheckout201Response](doc/CreateDemoCheckout201Response.md)
  - [CreateDemoCheckoutRequest](doc/CreateDemoCheckoutRequest.md)
  - [CreateDemoContributionRequest](doc/CreateDemoContributionRequest.md)
@@ -255,6 +400,8 @@ Class | Method | HTTP request | Description
  - [CreateFutureMirror200Response](doc/CreateFutureMirror200Response.md)
  - [CreateFutureMirrorRequest](doc/CreateFutureMirrorRequest.md)
  - [CreateFutureMirrorRequestAnnualReturnBps](doc/CreateFutureMirrorRequestAnnualReturnBps.md)
+ - [CreateGrimoireRequest](doc/CreateGrimoireRequest.md)
+ - [CreateGrimoireRevisionRequest](doc/CreateGrimoireRevisionRequest.md)
  - [CreateIntention201Response](doc/CreateIntention201Response.md)
  - [CreateIntentionRequest](doc/CreateIntentionRequest.md)
  - [CreateOrderPreview200Response](doc/CreateOrderPreview200Response.md)
@@ -267,11 +414,16 @@ Class | Method | HTTP request | Description
  - [CreateRecurringPlan201Response](doc/CreateRecurringPlan201Response.md)
  - [CreateRecurringPlanRequest](doc/CreateRecurringPlanRequest.md)
  - [CreateRecurringPlanRequestAllocationsInner](doc/CreateRecurringPlanRequestAllocationsInner.md)
+ - [CreateRitualScenarioRequest](doc/CreateRitualScenarioRequest.md)
+ - [CreateRitualScenarioRevisionRequest](doc/CreateRitualScenarioRevisionRequest.md)
+ - [CreateRowanScriptRequest](doc/CreateRowanScriptRequest.md)
+ - [CreateRowanScriptRevisionRequest](doc/CreateRowanScriptRevisionRequest.md)
  - [CreatorCollectionResponse](doc/CreatorCollectionResponse.md)
  - [DailyRitualDetail](doc/DailyRitualDetail.md)
  - [DailyRitualDetailRevision](doc/DailyRitualDetailRevision.md)
  - [DailyRitualPreview](doc/DailyRitualPreview.md)
  - [DailyRitualResponse](doc/DailyRitualResponse.md)
+ - [DecideAdminAssetCodexReviewRequest](doc/DecideAdminAssetCodexReviewRequest.md)
  - [DemoCheckoutSession](doc/DemoCheckoutSession.md)
  - [DemoDisclosure](doc/DemoDisclosure.md)
  - [DemoEntitlement](doc/DemoEntitlement.md)
@@ -294,8 +446,12 @@ Class | Method | HTTP request | Description
  - [FieldError](doc/FieldError.md)
  - [FutureMirrorView](doc/FutureMirrorView.md)
  - [FutureMirrorViewPointsInner](doc/FutureMirrorViewPointsInner.md)
+ - [GetAdminAssetCodexRevision200Response](doc/GetAdminAssetCodexRevision200Response.md)
+ - [GetAdminHealthReady200Response](doc/GetAdminHealthReady200Response.md)
  - [GetAdminJob200Response](doc/GetAdminJob200Response.md)
+ - [GetAdminMe200Response](doc/GetAdminMe200Response.md)
  - [GetAdminMedia200Response](doc/GetAdminMedia200Response.md)
+ - [GetAdminModerationCase200Response](doc/GetAdminModerationCase200Response.md)
  - [GetAdminPrivacyRequest200Response](doc/GetAdminPrivacyRequest200Response.md)
  - [GetBriefing200Response](doc/GetBriefing200Response.md)
  - [GetBriefing200ResponseData](doc/GetBriefing200ResponseData.md)
@@ -317,12 +473,36 @@ Class | Method | HTTP request | Description
  - [Intention](doc/Intention.md)
  - [InvestorProfile](doc/InvestorProfile.md)
  - [InvestorProfileResponse](doc/InvestorProfileResponse.md)
+ - [ListAdminAssetCodex200Response](doc/ListAdminAssetCodex200Response.md)
+ - [ListAdminAssetCodex200ResponseDataInner](doc/ListAdminAssetCodex200ResponseDataInner.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevision](doc/ListAdminAssetCodex200ResponseDataInnerRevision.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayload](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayload.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf1](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf1.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf1RisksInner](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf1RisksInner.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf2](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf2.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf3](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf3.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf3AssetsInner](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf3AssetsInner.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf4](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf4.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf4AssetsInner](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf4AssetsInner.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf5](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf5.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf6](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf6.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf6SectionsInner](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf6SectionsInner.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOfEvidenceInner](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOfEvidenceInner.md)
+ - [ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOfIdeasInner](doc/ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOfIdeasInner.md)
+ - [ListAdminAssets200Response](doc/ListAdminAssets200Response.md)
+ - [ListAdminAuditEvents200Response](doc/ListAdminAuditEvents200Response.md)
+ - [ListAdminEvidenceClaims200Response](doc/ListAdminEvidenceClaims200Response.md)
+ - [ListAdminEvidenceSources200Response](doc/ListAdminEvidenceSources200Response.md)
  - [ListAdminJobs200Response](doc/ListAdminJobs200Response.md)
  - [ListAdminJobs200ResponseDataInner](doc/ListAdminJobs200ResponseDataInner.md)
  - [ListAdminMedia200Response](doc/ListAdminMedia200Response.md)
  - [ListAdminMedia200ResponseDataInner](doc/ListAdminMedia200ResponseDataInner.md)
+ - [ListAdminModerationReports200Response](doc/ListAdminModerationReports200Response.md)
  - [ListAdminPrivacyRequests200Response](doc/ListAdminPrivacyRequests200Response.md)
  - [ListAdminPrivacyRequests200ResponseDataInner](doc/ListAdminPrivacyRequests200ResponseDataInner.md)
+ - [ListAdminRitualSchedules200Response](doc/ListAdminRitualSchedules200Response.md)
+ - [ListAdminSeededCreators200Response](doc/ListAdminSeededCreators200Response.md)
  - [ListBriefings200Response](doc/ListBriefings200Response.md)
  - [ListBriefings200ResponseDataInner](doc/ListBriefings200ResponseDataInner.md)
  - [ListDemoFundingSources200Response](doc/ListDemoFundingSources200Response.md)
@@ -349,7 +529,17 @@ Class | Method | HTTP request | Description
  - [OnboardingState](doc/OnboardingState.md)
  - [OpenApiDocument](doc/OpenApiDocument.md)
  - [OrderPreview](doc/OrderPreview.md)
+ - [PatchAdminAssetRequest](doc/PatchAdminAssetRequest.md)
+ - [PatchAdminEvidenceSourceRequest](doc/PatchAdminEvidenceSourceRequest.md)
+ - [PatchAdminModerationCaseRequest](doc/PatchAdminModerationCaseRequest.md)
+ - [PatchAdminRitualScheduleRequest](doc/PatchAdminRitualScheduleRequest.md)
+ - [PatchAdminSeededCreatorRequest](doc/PatchAdminSeededCreatorRequest.md)
+ - [PatchAssetCodexRevisionRequest](doc/PatchAssetCodexRevisionRequest.md)
+ - [PatchBriefingTemplateRevisionRequest](doc/PatchBriefingTemplateRevisionRequest.md)
  - [PatchCircleRequest](doc/PatchCircleRequest.md)
+ - [PatchCircleTemplateRevisionRequest](doc/PatchCircleTemplateRevisionRequest.md)
+ - [PatchCovenEntryRevisionRequest](doc/PatchCovenEntryRevisionRequest.md)
+ - [PatchGrimoireRevisionRequest](doc/PatchGrimoireRevisionRequest.md)
  - [PatchIntentionRequest](doc/PatchIntentionRequest.md)
  - [PatchNotificationPreferencesRequest](doc/PatchNotificationPreferencesRequest.md)
  - [PatchOnboarding200Response](doc/PatchOnboarding200Response.md)
@@ -359,6 +549,8 @@ Class | Method | HTTP request | Description
  - [PatchPreferencesRequest](doc/PatchPreferencesRequest.md)
  - [PatchProfileRequest](doc/PatchProfileRequest.md)
  - [PatchRecurringPlanRequest](doc/PatchRecurringPlanRequest.md)
+ - [PatchRitualScenarioRevisionRequest](doc/PatchRitualScenarioRevisionRequest.md)
+ - [PatchRowanScriptRevisionRequest](doc/PatchRowanScriptRevisionRequest.md)
  - [PortfolioActivity](doc/PortfolioActivity.md)
  - [PortfolioSnapshot](doc/PortfolioSnapshot.md)
  - [PortfolioView](doc/PortfolioView.md)
@@ -374,6 +566,7 @@ Class | Method | HTTP request | Description
  - [PublicDiscoverItemOneOf2](doc/PublicDiscoverItemOneOf2.md)
  - [PublicDiscoverItemOneOf3](doc/PublicDiscoverItemOneOf3.md)
  - [PublicDiscoverResponse](doc/PublicDiscoverResponse.md)
+ - [PublishAdminAssetCodexRevisionRequest](doc/PublishAdminAssetCodexRevisionRequest.md)
  - [PutAstrologyProfile200Response](doc/PutAstrologyProfile200Response.md)
  - [PutAstrologyProfileRequest](doc/PutAstrologyProfileRequest.md)
  - [PutCircleAssetRequest](doc/PutCircleAssetRequest.md)
@@ -393,6 +586,7 @@ Class | Method | HTTP request | Description
  - [RequestAccountDeletion202Response](doc/RequestAccountDeletion202Response.md)
  - [RequestAccountDeletion202ResponseData](doc/RequestAccountDeletion202ResponseData.md)
  - [RequestAccountDeletionRequest](doc/RequestAccountDeletionRequest.md)
+ - [RequestAdminAssetCodexReviewRequest](doc/RequestAdminAssetCodexReviewRequest.md)
  - [RequestMediaUpload201Response](doc/RequestMediaUpload201Response.md)
  - [RequestMediaUpload201ResponseData](doc/RequestMediaUpload201ResponseData.md)
  - [RequestMediaUploadRequest](doc/RequestMediaUploadRequest.md)
@@ -434,6 +628,9 @@ Class | Method | HTTP request | Description
  - [SimulationDemoDisclosure](doc/SimulationDemoDisclosure.md)
  - [SimulationResult](doc/SimulationResult.md)
  - [SimulationResultResponse](doc/SimulationResultResponse.md)
+ - [VerifyAdminCovenQualification201Response](doc/VerifyAdminCovenQualification201Response.md)
+ - [VerifyAdminCovenQualificationRequest](doc/VerifyAdminCovenQualificationRequest.md)
+ - [WithdrawAdminAssetCodexRequest](doc/WithdrawAdminAssetCodexRequest.md)
 
 
 ## Documentation For Authorization
@@ -446,8 +643,18 @@ Authentication schemes defined for the API:
 - **Flow**: accessCode
 - **Authorization URL**: https://YOUR_AUTH0_DOMAIN/authorize
 - **Scopes**: 
+ - **admin:audit:read**: Read immutable redacted staff audit history.
+ - **admin:catalog:read**: Read global editorial catalog records.
+ - **admin:catalog:write**: Create and update global editorial catalog records.
+ - **admin:coven:verify**: Record high-trust Coven verification decisions.
+ - **admin:editorial:publish**: Publish or withdraw approved editorial truth.
+ - **admin:editorial:read**: Read staff editorial drafts and reviews.
+ - **admin:editorial:review**: Record editorial review decisions.
+ - **admin:editorial:write**: Create and edit staff editorial drafts.
  - **admin:media:read**: Read approved media metadata.
  - **admin:media:write**: Manage quarantined media upload intents and approved derivatives.
+ - **admin:moderation:read**: Read redacted content moderation metadata.
+ - **admin:moderation:write**: Open and resolve audited moderation cases.
  - **admin:operations:read**: Read bounded staff operational metadata.
  - **admin:operations:write**: Retry bounded operational work with audit evidence.
  - **admin:privacy:read**: Read minimized privacy operation metadata.

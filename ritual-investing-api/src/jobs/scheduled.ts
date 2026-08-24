@@ -20,6 +20,7 @@ const consumersByTopic: ReadonlyArray<
   [/^content-report\.created$/, ["moderation-triage"]],
   [/^privacy\.export\.requested$/, ["privacy-export"]],
   [/^privacy\.deletion\.requested$/, ["privacy-purge"]],
+  [/^editorial\.publication\.scheduled$/, ["editorial-publisher"]],
 ];
 
 export function consumersForTopic(

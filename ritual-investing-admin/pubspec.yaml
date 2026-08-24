@@ -1,0 +1,28 @@
+name: ritual_investing_admin
+description: Staff-only Ritual Investing operations dashboard.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.13.1
+
+dependencies:
+  auth0_flutter: ^1.14.0
+  dio: ^5.11.0
+  flutter:
+    sdk: flutter
+  flutter_web_plugins:
+    sdk: flutter
+  go_router: ^17.0.0
+  ritual_investing_api_client:
+    path: ../ritual-investing-api-client
+
+dev_dependencies:
+  flutter_lints: ^6.0.0
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

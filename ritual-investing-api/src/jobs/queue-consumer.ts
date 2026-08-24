@@ -9,6 +9,7 @@ export const queueConsumerSchema = z.enum([
   "media-scan",
   "media-cleanup",
   "moderation-triage",
+  "editorial-publisher",
 ]);
 
 const queueWorkSchema = z

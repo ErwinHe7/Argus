@@ -42,6 +42,17 @@ export function buildOpenApiDocument(app: OpenAPIHono<AppEnvironment>) {
               "admin:media:read": "Read approved media metadata.",
               "admin:media:write":
                 "Manage quarantined media upload intents and approved derivatives.",
+              "admin:editorial:read": "Read staff editorial drafts and reviews.",
+              "admin:editorial:write": "Create and edit staff editorial drafts.",
+              "admin:editorial:review": "Record editorial review decisions.",
+              "admin:editorial:publish":
+                "Publish or withdraw approved editorial truth.",
+              "admin:audit:read": "Read immutable redacted staff audit history.",
+              "admin:catalog:read": "Read global editorial catalog records.",
+              "admin:catalog:write": "Create and update global editorial catalog records.",
+              "admin:coven:verify": "Record high-trust Coven verification decisions.",
+              "admin:moderation:read": "Read redacted content moderation metadata.",
+              "admin:moderation:write": "Open and resolve audited moderation cases.",
             },
           },
         },

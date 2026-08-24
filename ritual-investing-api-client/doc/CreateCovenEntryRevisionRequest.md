@@ -1,0 +1,16 @@
+# ritual_investing_api_client.model.CreateCovenEntryRevisionRequest
+
+## Load the model package
+```dart
+import 'package:ritual_investing_api_client/api.dart';
+```
+
+## Properties
+Name | Type | Description | Notes
+------------ | ------------- | ------------- | -------------
+**payload** | [**ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf2**](ListAdminAssetCodex200ResponseDataInnerRevisionPayloadAnyOf2.md) |  | 
+**sourceRevisionId** | **String** |  | 
+
+[[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
+
+

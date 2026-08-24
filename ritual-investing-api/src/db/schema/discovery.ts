@@ -72,6 +72,7 @@ export const seededCreators = pgTable("seeded_creators", {
   avatarMediaId: uuid("avatar_media_id").references(() => mediaAssets.id),
   isFictional: boolean("is_fictional").notNull().default(true),
   status: text("status").notNull(),
+  version: integer("version").notNull().default(1),
 });
 
 export const circleTemplates = pgTable("circle_templates", {

@@ -23,6 +23,21 @@ export const moderationCases = pgTable("moderation_cases", {
   assigneeId: uuid("assignee_id").references(() => staffPrincipals.id),
   resolutionCode: text("resolution_code"),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  version: integer("version").notNull().default(1),
+});
+export const moderationCaseDecisions = pgTable("moderation_case_decisions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  caseId: uuid("case_id")
+    .notNull()
+    .references(() => moderationCases.id),
+  actorStaffId: uuid("actor_staff_id")
+    .notNull()
+    .references(() => staffPrincipals.id),
+  outcome: text("outcome").notNull(),
+  reason: text("reason").notNull(),
+  decidedAt: timestamp("decided_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
 });
 export const adminAuditEvents = pgTable("admin_audit_events", {
   id: uuid("id").defaultRandom().primaryKey(),

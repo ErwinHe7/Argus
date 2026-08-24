@@ -138,6 +138,21 @@ function notificationWriter(): ConsumerEffect {
   };
 }
 
+function editorialPublisher(): ConsumerEffect {
+  return async (client, event) => {
+    if (
+      event.tenant_id !== null ||
+      event.topic !== "editorial.publication.scheduled"
+    )
+      return "editorial-publication-stale";
+    const result = await client.query<{ outcome: string }>(
+      "select ritual_private.apply_scheduled_publication($1) outcome",
+      [event.id],
+    );
+    return `editorial-publication:${result.rows[0]?.outcome ?? "stale"}`;
+  };
+}
+
 function providerCode(
   status: number,
 ): "accepted" | "invalid_token" | "provider_rejected" {
@@ -843,5 +858,7 @@ export function handlerFor(
       return mediaScan(environment);
     case "media-cleanup":
       return mediaCleanup(environment);
+    case "editorial-publisher":
+      return editorialPublisher();
   }
 }
