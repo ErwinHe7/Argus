@@ -211,7 +211,7 @@ jobs:
           --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com
           --dart-define=AUTH0_ADMIN_CLIENT_ID=ritual-admin-ci
           --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
-      - name: Real Chrome admin workflows
+      - name: Fixture-backed Chrome dashboard interaction (UI only)
         working-directory: ritual-investing-admin
         run: |
           chromedriver --port=4444 &
@@ -242,6 +242,7 @@ jobs:
     environment: ritual-staging
     env:
       STAGING_BASE_URL: ${{ secrets.RITUAL_STAGING_BASE_URL }}
+      STAGING_ADMIN_UI_URL: ${{ secrets.RITUAL_STAGING_ADMIN_UI_URL }}
       STAGING_MEMBER_TOKEN: ${{ secrets.RITUAL_STAGING_MEMBER_TOKEN }}
       STAGING_ADMIN_TOKEN: ${{ secrets.RITUAL_STAGING_ADMIN_TOKEN }}
       STAGING_CF_ACCESS_ASSERTION: ${{ secrets.RITUAL_STAGING_CF_ACCESS_ASSERTION }}

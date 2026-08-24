@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
+import 'dart:typed_data';
 import 'package:ritual_investing_api_client/generated/model/error_response.dart';
 import 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response.dart';
 import 'package:ritual_investing_api_client/generated/model/request_account_deletion_request.dart';
@@ -33,9 +34,9 @@ class PrivacyApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [Object] as data
+  /// Returns a [Future] containing a [Response] with a [Uint8List] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<Object>> downloadPrivacyExport({
+  Future<Response<Uint8List>> downloadPrivacyExport({
     required String requestId,
     required String token,
     CancelToken? cancelToken,
@@ -53,6 +54,7 @@ class PrivacyApi {
     );
     final _options = Options(
       method: r'GET',
+      responseType: ResponseType.bytes,
       headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
@@ -74,13 +76,11 @@ class PrivacyApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    Object? _responseData;
+    Uint8List? _responseData;
 
     try {
       final rawData = _response.data;
-      _responseData = rawData == null
-          ? null
-          : deserialize<Object, Object>(rawData, 'Object', growable: true);
+      _responseData = rawData == null ? null : rawData as Uint8List;
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -91,7 +91,7 @@ class PrivacyApi {
       );
     }
 
-    return Response<Object>(
+    return Response<Uint8List>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

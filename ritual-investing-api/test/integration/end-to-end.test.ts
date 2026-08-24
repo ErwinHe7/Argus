@@ -72,6 +72,7 @@ describe("production-shaped member and staff flow", () => {
 
   const stagingConfigured = [
     process.env.STAGING_BASE_URL,
+    process.env.STAGING_ADMIN_UI_URL,
     process.env.STAGING_MEMBER_TOKEN,
     process.env.STAGING_ADMIN_TOKEN,
     process.env.STAGING_CF_ACCESS_ASSERTION,
@@ -81,6 +82,7 @@ describe("production-shaped member and staff flow", () => {
     if (process.env.REQUIRE_STAGING_E2E !== "true") return;
     const required = [
       "STAGING_BASE_URL",
+      "STAGING_ADMIN_UI_URL",
       "STAGING_MEMBER_TOKEN",
       "STAGING_ADMIN_TOKEN",
       "STAGING_CF_ACCESS_ASSERTION",
@@ -93,6 +95,13 @@ describe("production-shaped member and staff flow", () => {
     "proves production-equivalent staging bindings",
     async () => {
       const base = process.env.STAGING_BASE_URL!;
+      const adminUi = await fetch(process.env.STAGING_ADMIN_UI_URL!);
+      expect(adminUi.status).toBe(200);
+      expect(adminUi.headers.get("cache-control")).toMatch(/no-store/);
+      expect(adminUi.headers.get("x-content-type-options")).toBe("nosniff");
+      const adminHtml = await adminUi.text();
+      expect(adminHtml).toContain("flutter_bootstrap.js");
+      expect(adminHtml).not.toContain("dashboard is not configured");
       const preview = await fetch(`${base}/v1/public/rituals/daily`);
       expect(preview.status).toBe(200);
       expect(preview.headers.get("cache-control")).toMatch(/public/);

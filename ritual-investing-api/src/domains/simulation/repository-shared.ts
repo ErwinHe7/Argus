@@ -332,7 +332,7 @@ export async function portfolioView(
            'market_value_minor',round(position.quantity * coalesce(metric.price_minor,0))::bigint,
            'as_of_transaction_id',position.as_of_transaction_id,
            'ledger_watermark',position.ledger_watermark
-         ) order by asset.symbol)
+         ) order by position.asset_id)
          from portfolio_positions position
          join assets asset on asset.id=position.asset_id
          left join lateral (
@@ -392,6 +392,15 @@ export async function orderView(
   tenantId: string,
   orderId: string,
 ): Promise<OrderView | null> {
+  return (await orderViews(client, tenantId, [orderId]))[0] ?? null;
+}
+
+export async function orderViews(
+  client: PoolClient,
+  tenantId: string,
+  orderIds: readonly string[],
+): Promise<OrderView[]> {
+  if (orderIds.length === 0) return [];
   const result = await client.query(
     `select orders.id,orders.portfolio_id,orders.command_id,orders.asset_id,asset.symbol,
        orders.side,orders.status,orders.requested_notional_minor,orders.requested_quantity,
@@ -402,11 +411,19 @@ export async function orderView(
      join simulation_commands command on command.tenant_id=orders.tenant_id and command.id=orders.command_id
        and command.reset_generation=state.reset_generation
      left join simulated_order_fills fill on fill.tenant_id=orders.tenant_id and fill.order_id=orders.id
-     where orders.tenant_id=$1 and orders.id=$2`,
-    [tenantId, orderId],
+     where orders.tenant_id=$1 and orders.id=any($2::uuid[])`,
+    [tenantId, orderIds],
   );
-  const row = result.rows[0];
-  if (row === undefined) return null;
+  const byId = new Map(
+    result.rows.map((row) => [row.id, orderRow(row)] as const),
+  );
+  return orderIds.flatMap((id) => {
+    const view = byId.get(id);
+    return view === undefined ? [] : [view];
+  });
+}
+
+function orderRow(row: any): OrderView {
   const observedAt =
     row.filled_at === null ? new Date().toISOString() : toIso(row.filled_at);
   return {
@@ -443,6 +460,15 @@ export async function recurringPlanView(
   tenantId: string,
   planId: string,
 ): Promise<RecurringPlan | null> {
+  return (await recurringPlanViews(client, tenantId, [planId]))[0] ?? null;
+}
+
+export async function recurringPlanViews(
+  client: PoolClient,
+  tenantId: string,
+  planIds: readonly string[],
+): Promise<RecurringPlan[]> {
+  if (planIds.length === 0) return [];
   const result = await client.query(
     `select plan.id,plan.portfolio_id,plan.plan_type,plan.amount_minor::text,
        plan.frequency,plan.next_run_at,plan.status,plan.version,
@@ -453,13 +479,20 @@ export async function recurringPlanView(
            where tenant_id=plan.tenant_id and plan_id=plan.id order by scheduled_for desc limit 10) run_view),'[]') recent_runs
      from recurring_plans plan
      join tenant_demo_states state on state.tenant_id=plan.tenant_id and state.reset_generation=plan.reset_generation
-     where plan.tenant_id=$1 and plan.id=$2`,
-    [tenantId, planId],
+     where plan.tenant_id=$1 and plan.id=any($2::uuid[])`,
+    [tenantId, planIds],
   );
-  const row = result.rows[0];
-  return row === undefined
-    ? null
-    : ({
+  const byId = new Map(
+    result.rows.map((row) => [row.id, recurringPlanRow(row)] as const),
+  );
+  return planIds.flatMap((id) => {
+    const view = byId.get(id);
+    return view === undefined ? [] : [view];
+  });
+}
+
+function recurringPlanRow(row: any): RecurringPlan {
+  return {
         id: row.id,
         portfolio_id: row.portfolio_id,
         type: row.plan_type,
@@ -474,7 +507,7 @@ export async function recurringPlanView(
         })),
         version: Number(row.version),
         demo: demo(new Date().toISOString()),
-      } as RecurringPlan);
+      } as RecurringPlan;
 }
 
 export async function intentionView(

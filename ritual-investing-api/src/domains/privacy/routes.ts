@@ -109,7 +109,11 @@ const download = createRoute({
   responses: {
     200: {
       description: "One-time ZIP archive download.",
-      content: { "application/zip": { schema: z.any() } },
+      content: {
+        "application/zip": {
+          schema: z.string().openapi({ format: "binary" }),
+        },
+      },
     },
     ...errors,
   },

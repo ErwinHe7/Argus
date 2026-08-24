@@ -37,9 +37,23 @@ describe("private Circles and saves", () => {
       patchCircle: vi.fn(async () => null),
       archiveCircle: vi.fn(async () => false),
       putCircleAsset: vi.fn(async () => null),
+      replaceCircleAssets: vi.fn(async () => null),
       deleteCircleAsset: vi.fn(async () => null),
     });
     const requests = (id: string) => [
+      application.request(
+        `/v1/circles/${id}/assets`,
+        {
+          method: "PUT",
+          headers: {
+            ...headers(),
+            "content-type": "application/json",
+            "if-match": '"v1"',
+          },
+          body: JSON.stringify({ assets: [] }),
+        },
+        testBindings(),
+      ),
       application.request(
         `/v1/circles/${id}`,
         { headers: headers() },
@@ -620,6 +634,16 @@ describePostgres("private Circle PostgreSQL invariants", () => {
           await runtime<any>(
             tenantA,
             accountA,
+            "select * from ritual_private.replace_circle_assets($1,$2,1,$3::jsonb)",
+            [tenantA, id, "[]"],
+          )
+        ).rowCount,
+      ).toBe(0);
+      expect(
+        (
+          await runtime<any>(
+            tenantA,
+            accountA,
             "select * from ritual_private.delete_circle_asset($1,$2,$3,1)",
             [tenantA, id, assetA],
           )
@@ -658,6 +682,19 @@ describePostgres("private Circle PostgreSQL invariants", () => {
       ),
     ).rejects.toThrow(/invalid_weight_total/);
 
+    const replacement = JSON.stringify([
+      { asset_id: assetA, ordinal: 2, weight_bps: 5000 },
+      { asset_id: assetB, ordinal: 1, weight_bps: 5000 },
+    ]);
+    await expect(
+      runtime(
+        tenantA,
+        accountA,
+        "select * from ritual_private.replace_circle_assets($1,$2,1,$3::jsonb)",
+        [tenantA, circle, replacement],
+      ),
+    ).resolves.toMatchObject({ rowCount: 1 });
+
     const unchanged = await runtime<any>(
       tenantA,
       accountA,
@@ -665,7 +702,7 @@ describePostgres("private Circle PostgreSQL invariants", () => {
       [tenantA, circle],
     );
     expect(unchanged.rows[0]).toMatchObject({
-      version: 1,
+      version: 2,
       asset_count: 2,
       total: 10000,
     });

@@ -113,6 +113,12 @@ export interface MemberRepository {
     input: CircleAssetInput,
     version: number,
   ): Promise<CircleView | null>;
+  replaceCircleAssets(
+    context: MemberContext,
+    circleId: string,
+    assets: CircleAssetInput[],
+    version: number,
+  ): Promise<CircleView | null>;
   deleteCircleAsset(
     context: MemberContext,
     circleId: string,
@@ -572,6 +578,29 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
             message.includes("duplicate_ordinal")
           )
             throw new MemberInputError(message);
+          throw error;
+        }
+      }),
+    replaceCircleAssets: (c, id, assets, v) =>
+      scoped(url, c, async (db) => {
+        try {
+          const result = await db.query(
+            "select ok from ritual_private.replace_circle_assets($1,$2,$3,$4)",
+            [c.tenantId, id, v, JSON.stringify(assets)],
+          );
+          return !result.rowCount ? null : circle(db, c.tenantId, id);
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "";
+          if (message.includes("version_conflict"))
+            throw new VersionConflictError();
+          if (
+            message.includes("invalid_weight_total") ||
+            message.includes("asset_cap") ||
+            message.includes("duplicate_asset") ||
+            message.includes("duplicate_ordinal")
+          )
+            throw new MemberInputError(message);
+          if (message.includes("invalid_child")) throw new InvalidChildError();
           throw error;
         }
       }),

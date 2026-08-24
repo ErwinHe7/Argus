@@ -110,6 +110,7 @@ export async function withScopedRuntimeClient<T>(
         String(context.revocationEpoch),
       ],
     );
+    await client.query("select ritual_private.assert_runtime_scope()");
     return callback(client);
   }, poolFactory);
 }

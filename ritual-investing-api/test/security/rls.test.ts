@@ -546,6 +546,47 @@ COMMIT;
       await client.end();
     });
 
+    it("revalidates member identity inside the runtime transaction", async () => {
+      const runtime = new pg.Client({ connectionString: postgresUrl });
+      await runtime.connect();
+      await runtime.query("begin");
+      await runtime.query("set local role ritual_runtime");
+      await runtime.query(
+        `select set_config('ritual.tenant_id',$1,true),
+                set_config('ritual.principal',$2,true),
+                set_config('ritual.account_id',$3,true),
+                set_config('ritual.revocation_epoch','0',true)`,
+        [tenantA, subjectA, accountA],
+      );
+      await expect(
+        runtime.query("select ritual_private.assert_runtime_scope()"),
+      ).resolves.toMatchObject({ rowCount: 1 });
+      await runtime.query("rollback");
+
+      await owner.query(
+        "update accounts set revocation_epoch=1 where id=$1",
+        [accountA],
+      );
+      await runtime.query("begin");
+      await runtime.query("set local role ritual_runtime");
+      await runtime.query(
+        `select set_config('ritual.tenant_id',$1,true),
+                set_config('ritual.principal',$2,true),
+                set_config('ritual.account_id',$3,true),
+                set_config('ritual.revocation_epoch','0',true)`,
+        [tenantA, subjectA, accountA],
+      );
+      await expect(
+        runtime.query("select ritual_private.assert_runtime_scope()"),
+      ).rejects.toMatchObject({ code: "42501" });
+      await runtime.query("rollback");
+      await runtime.end();
+      await owner.query(
+        "update accounts set revocation_epoch=0 where id=$1",
+        [accountA],
+      );
+    });
+
     it("rejects WITH CHECK tenant overrides and cross-tenant attachments", async () => {
       const tenantOverride = new pg.Client({ connectionString: postgresUrl });
       await tenantOverride.connect();

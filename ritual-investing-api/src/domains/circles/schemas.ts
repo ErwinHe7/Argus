@@ -45,6 +45,42 @@ export const circleAssetViewSchema = z
     note: z.string().max(2_000).nullable(),
   })
   .strict();
+function validateAssetCollection(
+  assets: ReadonlyArray<z.infer<typeof circleAssetInputSchema>>,
+  ctx: z.core.$RefinementCtx<unknown>,
+) {
+  if (new Set(assets.map((x) => x.asset_id)).size !== assets.length)
+    ctx.addIssue({
+      code: "custom",
+      path: ["assets"],
+      message: "assets must be unique",
+      input: assets,
+    });
+  if (new Set(assets.map((x) => x.ordinal)).size !== assets.length)
+    ctx.addIssue({
+      code: "custom",
+      path: ["assets"],
+      message: "ordinals must be unique",
+      input: assets,
+    });
+  const weighted = assets.filter((x) => x.weight_bps !== undefined);
+  if (
+    weighted.length > 0 &&
+    (weighted.length !== assets.length ||
+      weighted.reduce((sum, x) => sum + (x.weight_bps ?? 0), 0) !== 10_000)
+  )
+    ctx.addIssue({
+      code: "custom",
+      path: ["assets"],
+      message: "weights must all be present and total 10000",
+      input: assets,
+    });
+}
+
+export const circleAssetCollectionMutationSchema = z
+  .object({ assets: z.array(circleAssetInputSchema).max(50) })
+  .strict()
+  .superRefine((value, ctx) => validateAssetCollection(value.assets, ctx));
 export const circleCreateSchema = z
   .object({
     title: circleTitle,
@@ -52,32 +88,9 @@ export const circleCreateSchema = z
     assets: z.array(circleAssetInputSchema).max(50).optional(),
   })
   .strict()
-  .superRefine((value, ctx) => {
-    const assets = value.assets ?? [];
-    if (new Set(assets.map((x) => x.asset_id)).size !== assets.length)
-      ctx.addIssue({
-        code: "custom",
-        path: ["assets"],
-        message: "assets must be unique",
-      });
-    if (new Set(assets.map((x) => x.ordinal)).size !== assets.length)
-      ctx.addIssue({
-        code: "custom",
-        path: ["assets"],
-        message: "ordinals must be unique",
-      });
-    const weighted = assets.filter((x) => x.weight_bps !== undefined);
-    if (
-      weighted.length > 0 &&
-      (weighted.length !== assets.length ||
-        weighted.reduce((sum, x) => sum + (x.weight_bps ?? 0), 0) !== 10_000)
-    )
-      ctx.addIssue({
-        code: "custom",
-        path: ["assets"],
-        message: "weights must all be present and total 10000",
-      });
-  });
+  .superRefine((value, ctx) =>
+    validateAssetCollection(value.assets ?? [], ctx),
+  );
 export const circlePatchSchema = z
   .object({
     title: circleTitle.optional(),

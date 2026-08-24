@@ -11,6 +11,7 @@ import {
   demo,
   executeTrades,
   orderView,
+  orderViews,
   portfolioView,
   quantity,
   quantityScale,
@@ -246,11 +247,11 @@ export function createOrderRepository(
           ],
         );
         const ids = result.rows.slice(0, limit).map((row) => row.id);
-        const items: OrderView[] = [];
-        for (const id of ids) {
-          const item = await orderView(client, context.tenantId, id);
-          if (item !== null) items.push(item);
-        }
+        const items: OrderView[] = await orderViews(
+          client,
+          context.tenantId,
+          ids,
+        );
         return {
           items,
           nextPosition:

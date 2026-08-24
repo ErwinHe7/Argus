@@ -36832,15 +36832,10 @@ paths:
             type: string
       requestBody:
         content:
-          image/jpeg:
+          application/octet-stream:
             schema:
-              nullable: true
-          image/png:
-            schema:
-              nullable: true
-          image/webp:
-            schema:
-              nullable: true
+              format: binary
+              type: string
         required: true
       responses:
         "204":
@@ -51761,6 +51756,133 @@ paths:
             - write:self
       tags:
         - Circles
+  /v1/circles/{id}/assets:
+    put:
+      operationId: replaceCircleAssets
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                assets:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      asset_id:
+                        format: uuid
+                        type: string
+                      note:
+                        maxLength: 2000
+                        minLength: 0
+                        type: string
+                      ordinal:
+                        maximum: 50
+                        minimum: 1
+                        type: integer
+                      weight_bps:
+                        maximum: 10000
+                        minimum: 0
+                        type: integer
+                    required:
+                      - asset_id
+                      - ordinal
+                    type: object
+                  maxItems: 50
+                  type: array
+              required:
+                - assets
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CircleView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Atomically replaced the complete versioned asset set.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Circles
   /v1/circles/{id}/assets/{asset_id}:
     delete:
       operationId: deleteCircleAsset
@@ -56302,7 +56424,8 @@ paths:
           content:
             application/zip:
               schema:
-                nullable: true
+                format: binary
+                type: string
           description: One-time ZIP archive download.
         "401":
           content:

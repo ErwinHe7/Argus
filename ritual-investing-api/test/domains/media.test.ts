@@ -207,6 +207,39 @@ describe("admin media contracts", () => {
     );
   });
 
+  it("accepts generated-client octet streams bound to the intent MIME", async () => {
+    const repo = repository();
+    repo.getIntentForCompletion.mockResolvedValue({
+      id: mediaId,
+      r2Key: `quarantine/v1/${staff.id}/${mediaId}`,
+      expectedMime: "image/png",
+      expectedByteSize: 4,
+    });
+    repo.markUploaded.mockResolvedValue(true);
+    const environment = bindings();
+    const response = await appFor(repo).request(
+      `https://admin-api.ritual-investing.test/v1/admin/media/upload-requests/${mediaId}/content`,
+      {
+        method: "PUT",
+        headers: {
+          ...(await headers("write")),
+          "content-type": "application/octet-stream",
+        },
+        body: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+      },
+      environment,
+    );
+
+    expect(response.status, await response.clone().text()).toBe(204);
+    expect(environment.MEDIA_QUARANTINE.put).toHaveBeenCalledWith(
+      `quarantine/v1/${staff.id}/${mediaId}`,
+      expect.any(ArrayBuffer),
+      expect.objectContaining({
+        httpMetadata: { contentType: "image/png" },
+      }),
+    );
+  });
+
   it("audits binary upload permission denials before touching quarantine storage", async () => {
     const repo = repository();
     const auditDeniedAdminAttempt = vi.fn(async () => undefined);

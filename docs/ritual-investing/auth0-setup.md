@@ -6,7 +6,13 @@ Create separate Auth0 applications for the Flutter mobile client and Flutter Web
 
 - Mobile: native application, Authorization Code + PKCE, exact Android/iOS callback and logout URLs from the application manifests, refresh-token rotation enabled, no client secret.
 - Admin: regular web/SPA application for the staff hostname, exact HTTPS callback/logout/origin allowlists, MFA required, and only the admin client ID accepted by the API.
-- API: one explicit audience. Member tokens receive only `read:self` and `write:self`. Staff permissions use the `admin:*` allowlist in OpenAPI.
+- API: one explicit audience. Member tokens receive `read:self`, `write:self`, `simulate:self`, and `privacy:self`; route middleware still requires only the least privilege declared in OpenAPI. Staff permissions use the `admin:*` allowlist in OpenAPI.
+
+## Recent-authentication claim
+
+Sensitive privacy routes require the credential authentication event to be no more than five minutes old. Token issuance time (`iat`) is not sufficient because a refresh token can mint a new access token without a new credential challenge.
+
+Configure a post-login Auth0 Action to copy the transaction's credential authentication time into the namespaced numeric access-token claim `https://ritual-investing.app/authenticated_at`. Step-up login must use `prompt=login` or `max_age=300` and return a token containing a refreshed claim. The API fails closed when the claim is absent, in the future, or older than five minutes. The standard OIDC `auth_time` claim is accepted as a compatibility fallback, but the namespaced Action claim is the production contract.
 
 Cloudflare Access is an independent staff factor. The API requires both a valid Access assertion and an Auth0 staff token, then resolves an active staff mapping and revocation epoch. Neither identity may substitute for the other.
 

@@ -9,10 +9,12 @@ export function requireRecentAuth(
   return async (context, next) => {
     const principal = context.get("authPrincipal");
     const now = Math.floor(Date.now() / 1000);
+    const authenticatedAt = principal?.authenticatedAt;
     if (
       principal === undefined ||
-      principal.issuedAt > now + 30 ||
-      now - principal.issuedAt > maximumAgeSeconds
+      authenticatedAt === undefined ||
+      authenticatedAt > now + 30 ||
+      now - authenticatedAt > maximumAgeSeconds
     ) {
       return errorResponse(
         context,

@@ -301,10 +301,10 @@ async function main(): Promise<void> {
       await client.query("begin");
       await client.query(latest.body);
       await client.query("rollback");
-      const rolledBack = await client.query<{ relation: string | null }>(
-        "select to_regclass('public.outbox_dispatch_failures')::text as relation",
+      const rolledBack = await client.query<{ marker: string | null }>(
+        "select to_regprocedure('ritual_private.assert_runtime_scope()')::text as marker",
       );
-      if (rolledBack.rows[0]?.relation !== null) {
+      if (rolledBack.rows[0]?.marker !== null) {
         throw new Error("interrupted migration left N schema objects behind");
       }
       const interrupted = await client.query<{ applied: string | null }>(
@@ -331,6 +331,17 @@ async function main(): Promise<void> {
     ]);
     if ((await applyReviewedMigrations(upgradeUrl)).length !== 0) {
       throw new Error("upgraded database repeat migration was not a no-op");
+    }
+    const upgraded = new pg.Client({ connectionString: upgradeUrl });
+    await upgraded.connect();
+    try {
+      const marker = await upgraded.query<{ marker: string | null }>(
+        "select to_regprocedure('ritual_private.assert_runtime_scope()')::text as marker",
+      );
+      if (marker.rows[0]?.marker === null)
+        throw new Error("latest migration marker is missing after upgrade");
+    } finally {
+      await upgraded.end();
     }
     process.stdout.write(
       `verified empty, N-1 to N, interrupted, and repeat migration paths (${migrations.length} migrations)\n`,

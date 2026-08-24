@@ -7,12 +7,14 @@ import { bearerToken, verifyManagedJwt } from "./managed-jwks.ts";
 import { errorResponse } from "./responses.ts";
 
 const permissionSchema = z.string().min(1).max(128);
+const authenticatedAtClaim = "https://ritual-investing.app/authenticated_at";
 
 export type VerifiedAuth0Principal = Readonly<{
   subject: string;
   permissions: readonly string[];
   authorizedParty?: string;
   issuedAt: number;
+  authenticatedAt?: number;
 }>;
 
 export type AuthVariables = {
@@ -59,6 +61,8 @@ export function auth0Jwk(
           permissions: z.array(permissionSchema).max(64),
           azp: z.string().min(1).max(255).optional(),
           iat: z.number().int().nonnegative(),
+          auth_time: z.number().int().nonnegative().optional(),
+          [authenticatedAtClaim]: z.number().int().nonnegative().optional(),
           exp: z.number().int().positive(),
         })
         .passthrough()
@@ -70,12 +74,17 @@ export function auth0Jwk(
         parsed.data.iat > Math.floor(Date.now() / 1_000) + 60
       )
         throw new Error("invalid_claims");
+      const authenticatedAt =
+        parsed.data[authenticatedAtClaim] ?? parsed.data.auth_time;
       context.set(
         "authPrincipal",
         Object.freeze({
           subject: parsed.data.sub,
           permissions: Object.freeze([...parsed.data.permissions]),
           issuedAt: parsed.data.iat,
+          ...(authenticatedAt === undefined
+            ? {}
+            : { authenticatedAt }),
           ...(parsed.data.azp === undefined
             ? {}
             : { authorizedParty: parsed.data.azp }),

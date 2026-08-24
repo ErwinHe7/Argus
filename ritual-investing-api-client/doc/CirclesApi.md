@@ -17,6 +17,7 @@ Method | HTTP request | Description
 [**listCircles**](CirclesApi.md#listcircles) | **GET** /v1/circles | 
 [**patchCircle**](CirclesApi.md#patchcircle) | **PATCH** /v1/circles/{id} | 
 [**putCircleAsset**](CirclesApi.md#putcircleasset) | **PUT** /v1/circles/{id}/assets/{asset_id} | 
+[**replaceCircleAssets**](CirclesApi.md#replacecircleassets) | **PUT** /v1/circles/{id}/assets | 
 
 
 # **archiveCircle**
@@ -372,6 +373,53 @@ Name | Type | Description  | Notes
  **assetId** | **String**|  | 
  **ifMatch** | **String**|  | 
  **putCircleAssetRequest** | [**PutCircleAssetRequest**](PutCircleAssetRequest.md)|  | 
+
+### Return type
+
+[**CopyCircleTemplate201Response**](CopyCircleTemplate201Response.md)
+
+### Authorization
+
+[Auth0OAuth](../README.md#Auth0OAuth)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **replaceCircleAssets**
+> CopyCircleTemplate201Response replaceCircleAssets(id, ifMatch, replaceCircleAssetsRequest)
+
+
+
+### Example
+```dart
+import 'package:ritual_investing_api_client/api.dart';
+// TODO Configure OAuth2 access token for authorization: Auth0OAuth
+//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
+
+final api = RitualInvestingApiClient().getCirclesApi();
+final String id = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+final String ifMatch = "v3"; // String | 
+final ReplaceCircleAssetsRequest replaceCircleAssetsRequest = ; // ReplaceCircleAssetsRequest | 
+
+try {
+    final response = api.replaceCircleAssets(id, ifMatch, replaceCircleAssetsRequest);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling CirclesApi->replaceCircleAssets: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **String**|  | 
+ **ifMatch** | **String**|  | 
+ **replaceCircleAssetsRequest** | [**ReplaceCircleAssetsRequest**](ReplaceCircleAssetsRequest.md)|  | 
 
 ### Return type
 

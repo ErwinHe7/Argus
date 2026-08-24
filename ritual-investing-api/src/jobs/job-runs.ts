@@ -17,11 +17,30 @@ export function leaseJob(
       const owner = crypto.randomUUID();
       const attemptNumber = Math.max(0, attempt - 1);
       const claimed = await client.query<{ id: string }>(
-        `update job_runs
+        `with eligible as (
+           select candidate.id
+             from job_runs candidate
+            where candidate.outbox_id=$1 and candidate.consumer=$2
+              and (
+                (candidate.attempt=$3 and candidate.status='retry'
+                  and candidate.lease_owner is null
+                  and candidate.next_attempt_at<=now())
+                or
+                (candidate.status='leased' and candidate.lease_until<=now()
+                  and not exists (
+                    select 1 from job_runs newer
+                     where newer.outbox_id=candidate.outbox_id
+                       and newer.consumer=candidate.consumer
+                       and newer.attempt>candidate.attempt
+                  ))
+              )
+            order by candidate.attempt desc
+            limit 1 for update skip locked
+         )
+         update job_runs
             set status='leased',lease_owner=$4,lease_until=now()+interval '60 seconds',
                 next_attempt_at=null,failure_code=null,completed_at=null
-          where outbox_id=$1 and consumer=$2 and attempt=$3 and status='retry'
-            and lease_owner is null and next_attempt_at<=now()
+          where id=(select id from eligible)
           returning id`,
         [message.outbox_id, message.consumer, attemptNumber, owner],
       );

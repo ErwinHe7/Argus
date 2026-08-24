@@ -46,6 +46,15 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
     _set(const AuthState(phase: AuthPhase.signedOut));
   }
 
+  void markBootstrapFailure() {
+    _set(
+      const AuthState(
+        phase: AuthPhase.failure,
+        message: 'Your account could not be prepared. Please try again.',
+      ),
+    );
+  }
+
   void _set(AuthState value) {
     _state = value;
     notifyListeners();

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { validateQuarantinedMedia } from "../../src/domains/media/service";
+import {
+  inspectQuarantinedObject,
+  validateQuarantinedMedia,
+} from "../../src/domains/media/service";
 
 const cleanPng = {
   declaredMime: "image/png",
@@ -49,4 +52,59 @@ describe("R2 media quarantine completion", () => {
       code,
     });
   });
+
+  it.each([
+    ["VP8X", 640, 480],
+    ["VP8 ", 641, 481],
+    ["VP8L", 642, 482],
+  ])("reads %s WebP dimensions", async (chunk, width, height) => {
+    const bytes = webpHeader(chunk, width, height);
+    const expectedChecksum = [
+      ...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+    ]
+      .map((byte) => byte.toString(16).padStart(2, "0"))
+      .join("");
+    const result = await inspectQuarantinedObject(bytes, {
+      declaredMime: "image/webp",
+      expectedChecksum,
+      scanResult: "clean",
+      actorId: cleanPng.actorId,
+      intendedActorId: cleanPng.intendedActorId,
+      uploadIntentId: cleanPng.uploadIntentId,
+      expectedUploadIntentId: cleanPng.expectedUploadIntentId,
+    });
+    expect(result.validation).toEqual({ ok: true });
+    expect({ width: result.width, height: result.height }).toEqual({
+      width,
+      height,
+    });
+  });
 });
+
+function webpHeader(chunk: string, width: number, height: number): Uint8Array {
+  const bytes = new Uint8Array(30);
+  bytes.set(new TextEncoder().encode("RIFF"), 0);
+  bytes.set(new TextEncoder().encode("WEBP"), 8);
+  bytes.set(new TextEncoder().encode(chunk), 12);
+  const view = new DataView(bytes.buffer);
+  if (chunk === "VP8X") {
+    const encodedWidth = width - 1;
+    const encodedHeight = height - 1;
+    bytes.set(
+      [encodedWidth, encodedWidth >>> 8, encodedWidth >>> 16],
+      24,
+    );
+    bytes.set(
+      [encodedHeight, encodedHeight >>> 8, encodedHeight >>> 16],
+      27,
+    );
+  } else if (chunk === "VP8 ") {
+    bytes.set([0x9d, 0x01, 0x2a], 23);
+    view.setUint16(26, width, true);
+    view.setUint16(28, height, true);
+  } else {
+    bytes[20] = 0x2f;
+    view.setUint32(21, (width - 1) | ((height - 1) << 14), true);
+  }
+  return bytes;
+}

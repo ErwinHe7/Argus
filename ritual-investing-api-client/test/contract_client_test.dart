@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:test/test.dart';
 
@@ -49,4 +52,54 @@ void main() {
       expect(RitualInvestingApiClient.basePath, startsWith('https://'));
     },
   );
+
+  test(
+    'sends media bytes raw and receives privacy archives as bytes',
+    () async {
+      final adapter = _RecordingAdapter();
+      final dio = Dio()..httpClientAdapter = adapter;
+      final upload = MultipartFile.fromBytes([0xff, 0xd8, 0xff, 0xd9]);
+
+      await AdminMediaApi(dio).uploadMediaQuarantineContent(
+        mediaId: '018f3c2a-4b67-7a89-8abc-1234567890ab',
+        body: upload,
+      );
+
+      expect(adapter.requests.single.data, same(upload));
+      expect(adapter.requests.single.data, isNot(isA<String>()));
+      expect(adapter.requests.single.contentType, 'application/octet-stream');
+
+      final archive = await PrivacyApi(dio).downloadPrivacyExport(
+        requestId: '018f3c2a-4b67-7a89-8abc-1234567890ab',
+        token: 'a' * 64,
+      );
+      expect(archive.data, Uint8List.fromList([0x50, 0x4b, 0x03, 0x04]));
+      expect(adapter.requests.last.responseType, ResponseType.bytes);
+    },
+  );
+}
+
+class _RecordingAdapter implements HttpClientAdapter {
+  final requests = <RequestOptions>[];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    return options.path.contains('/download')
+        ? ResponseBody.fromBytes(
+            [0x50, 0x4b, 0x03, 0x04],
+            200,
+            headers: {
+              Headers.contentTypeHeader: ['application/zip'],
+            },
+          )
+        : ResponseBody.fromBytes([], 204);
+  }
+
+  @override
+  void close({bool force = false}) {}
 }

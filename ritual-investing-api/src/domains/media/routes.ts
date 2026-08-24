@@ -33,6 +33,8 @@ import {
   mediaUploadRequestSchema,
 } from "./schemas.ts";
 
+const binaryBodySchema = z.string().openapi({ format: "binary" });
+
 const errors = {
   400: {
     description: "Quarantine validation failed.",
@@ -137,9 +139,7 @@ const uploadContent = createRoute({
     body: {
       required: true,
       content: {
-        "image/jpeg": { schema: z.any() },
-        "image/png": { schema: z.any() },
-        "image/webp": { schema: z.any() },
+        "application/octet-stream": { schema: binaryBodySchema },
       },
     },
   },
@@ -365,7 +365,9 @@ export function registerMediaRoutes(
     const contentType = context.req.header("content-type")?.split(";", 1)[0];
     const bytes = await context.req.arrayBuffer();
     if (
-      contentType !== intent.expectedMime ||
+      !["application/octet-stream", intent.expectedMime].includes(
+        contentType ?? "",
+      ) ||
       bytes.byteLength !== intent.expectedByteSize
     )
       return context.json(
@@ -381,7 +383,7 @@ export function registerMediaRoutes(
         400,
       );
     await bucket.put(intent.r2Key, bytes, {
-      httpMetadata: { contentType },
+      httpMetadata: { contentType: intent.expectedMime },
       customMetadata: { upload_intent_id: intent.id, actor_staff_id: staff.id },
     });
     if (!(await repo.markUploaded(staff, intent.id))) {

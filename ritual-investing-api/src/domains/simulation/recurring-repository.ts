@@ -12,6 +12,7 @@ import {
   idempotentMutation,
   quantityScale,
   recurringPlanView,
+  recurringPlanViews,
   scoped,
   sha256,
   toNumber,
@@ -58,11 +59,11 @@ export function createRecurringRepository(
           ],
         );
         const ids = result.rows.slice(0, limit).map((row) => row.id);
-        const items: RecurringPlan[] = [];
-        for (const id of ids) {
-          const plan = await recurringPlanView(client, context.tenantId, id);
-          if (plan !== null) items.push(plan);
-        }
+        const items: RecurringPlan[] = await recurringPlanViews(
+          client,
+          context.tenantId,
+          ids,
+        );
         return {
           items,
           nextPosition:
@@ -82,7 +83,7 @@ export function createRecurringRepository(
             [context.tenantId, portfolioId, generation],
           );
           const source = await client.query(
-            "select 1 from demo_funding_sources where tenant_id=$1 and id=$2 and reset_generation=$3 and status='active'",
+            "select 1 from demo_funding_sources where tenant_id=$1 and id=$2 and reset_generation=$3 and status='active' for update",
             [context.tenantId, input.source_id, generation],
           );
           if (portfolio.rowCount !== 1 || source.rowCount !== 1)

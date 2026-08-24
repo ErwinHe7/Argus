@@ -16,7 +16,7 @@ Method | HTTP request | Description
 
 
 # **downloadPrivacyExport**
-> Object downloadPrivacyExport(requestId, token)
+> Uint8List downloadPrivacyExport(requestId, token)
 
 
 
@@ -47,7 +47,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-**Object**
+[**Uint8List**](Uint8List.md)
 
 ### Authorization
 

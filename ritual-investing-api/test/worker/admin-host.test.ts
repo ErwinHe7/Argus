@@ -5,7 +5,12 @@ import { testBindings } from "../support/security-fixtures";
 
 describe("admin Flutter Web host", () => {
   it("serves only the bound staff dashboard on the explicit UI hostname", async () => {
-    const fetch = vi.fn(async () => new Response("<html>admin</html>"));
+    const fetch = vi.fn(
+      async () =>
+        new Response("<html>admin</html>", {
+          headers: { "content-type": "text/html; charset=utf-8" },
+        }),
+    );
     const bindings = {
       ...testBindings(),
       ADMIN_UI_HOST: "admin.ritual-investing.test",
@@ -23,6 +28,7 @@ describe("admin Flutter Web host", () => {
       "frame-ancestors 'none'",
     );
     expect(response.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
   it("keeps API paths behind the staff middleware on the same hostname", async () => {

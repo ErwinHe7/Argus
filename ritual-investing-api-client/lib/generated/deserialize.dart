@@ -277,6 +277,7 @@ import 'package:ritual_investing_api_client/generated/model/recurring_plan_recen
 import 'package:ritual_investing_api_client/generated/model/register_notification_device201_response.dart';
 import 'package:ritual_investing_api_client/generated/model/register_notification_device201_response_data.dart';
 import 'package:ritual_investing_api_client/generated/model/register_notification_device_request.dart';
+import 'package:ritual_investing_api_client/generated/model/replace_circle_assets_request.dart';
 import 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response.dart';
 import 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response_data.dart';
 import 'package:ritual_investing_api_client/generated/model/request_account_deletion_request.dart';
@@ -1395,6 +1396,9 @@ ReturnType deserialize<ReturnType, BaseType>(
       return RegisterNotificationDeviceRequest.fromJson(
             value as Map<String, dynamic>,
           )
+          as ReturnType;
+    case 'ReplaceCircleAssetsRequest':
+      return ReplaceCircleAssetsRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'RequestAccountDeletion202Response':
       return RequestAccountDeletion202Response.fromJson(

@@ -353,6 +353,12 @@ export function createPortfolioRepository(
     deleteFundingSource: (context, sourceId) =>
       scoped(database, context, async (client) => {
         const generation = await currentGeneration(client, context.tenantId);
+        const source = await client.query(
+          `select 1 from demo_funding_sources where tenant_id=$1 and id=$2
+             and reset_generation=$3 for update`,
+          [context.tenantId, sourceId, generation],
+        );
+        if (source.rowCount !== 1) return false;
         const dependent = await client.query(
           `select 1 from recurring_plans where tenant_id=$1 and source_id=$2
              and reset_generation=$3 and status='active'`,

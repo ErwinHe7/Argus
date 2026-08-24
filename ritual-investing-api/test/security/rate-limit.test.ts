@@ -105,4 +105,23 @@ describe("binding-backed rate limits", () => {
     );
     expect(response.status).toBe(503);
   });
+
+  it("shares one limiter bucket across arbitrary path parameter values", async () => {
+    const limiter = fakeRateLimit();
+    const app = new Hono();
+    app.use("/catalog/:slug", preAuthRateLimit("RL_PUBLIC") as never);
+    app.get("/catalog/:slug", (context) => context.text("ok"));
+
+    for (const slug of ["quiet-power", "attacker-chosen-unbounded-slug"]) {
+      const response = await app.request(
+        `/catalog/${slug}`,
+        { headers: { "cf-connecting-ip": "203.0.113.42" } },
+        testBindings(limiter),
+      );
+      expect(response.status).toBe(200);
+    }
+
+    expect(limiter.keys).toHaveLength(2);
+    expect(limiter.keys[0]).toBe(limiter.keys[1]);
+  });
 });

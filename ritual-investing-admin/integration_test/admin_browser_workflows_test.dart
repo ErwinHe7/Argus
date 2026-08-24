@@ -9,6 +9,10 @@ import 'package:ritual_investing_admin/ui/admin_app.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
+  // This suite proves browser rendering and permission-aware UI behavior with
+  // deterministic fixtures. Managed Auth0, Cloudflare Access, live HTTP, and
+  // the deployed production entrypoint are strict staging gates instead.
+
   testWidgets('staff can review an editorial draft in the browser', (
     tester,
   ) async {

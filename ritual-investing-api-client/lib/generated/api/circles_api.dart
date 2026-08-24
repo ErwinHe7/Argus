@@ -17,6 +17,7 @@ import 'package:ritual_investing_api_client/generated/model/create_circle_reques
 import 'package:ritual_investing_api_client/generated/model/error_response.dart';
 import 'package:ritual_investing_api_client/generated/model/patch_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/put_circle_asset_request.dart';
+import 'package:ritual_investing_api_client/generated/model/replace_circle_assets_request.dart';
 
 class CirclesApi {
   final Dio _dio;
@@ -697,6 +698,106 @@ class CirclesApi {
 
     try {
       _bodyData = jsonEncode(putCircleAssetRequest);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(_dio.options, _path),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    CopyCircleTemplate201Response? _responseData;
+
+    try {
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<
+              CopyCircleTemplate201Response,
+              CopyCircleTemplate201Response
+            >(rawData, 'CopyCircleTemplate201Response', growable: true);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<CopyCircleTemplate201Response>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// replaceCircleAssets
+  ///
+  ///
+  /// Parameters:
+  /// * [id]
+  /// * [ifMatch]
+  /// * [replaceCircleAssetsRequest]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [CopyCircleTemplate201Response] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<CopyCircleTemplate201Response>> replaceCircleAssets({
+    required String id,
+    required String ifMatch,
+    required ReplaceCircleAssetsRequest replaceCircleAssetsRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/circles/{id}/assets'.replaceAll(
+      '{'
+      r'id'
+      '}',
+      id.toString(),
+    );
+    final _options = Options(
+      method: r'PUT',
+      headers: <String, dynamic>{r'if-match': ifMatch, ...?headers},
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {'type': 'oauth2', 'name': 'Auth0OAuth'},
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      _bodyData = jsonEncode(replaceCircleAssetsRequest);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _options.compose(_dio.options, _path),

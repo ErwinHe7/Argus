@@ -345,6 +345,54 @@ describe.skipIf(databaseUrl === undefined)(
       expect(portfolio).not.toBeNull();
     });
 
+    it("serializes funding-source deletion against recurring plan creation", async () => {
+      const repository = createPostgresSimulationRepository(
+        databaseUrl!,
+        pgPoolFactory,
+      );
+      const source = await repository.createFundingSource(
+        fixture.context,
+        { fixture_key: "constellation_savings" },
+        `source-${randomUUID()}`,
+      );
+      const outcomes = await Promise.allSettled([
+        repository.createRecurringPlan(
+          fixture.context,
+          fixture.portfolioId,
+          {
+            type: "allocation",
+            amount: { minor_units: 2_000, currency: "USD" },
+            frequency: "weekly",
+            source_id: source.id,
+            allocations: [{ asset_id: fixture.assetId, weight_bps: 10_000 }],
+            first_run_at: new Date(Date.now() + 60_000).toISOString(),
+          },
+          `plan-source-race-${randomUUID()}`,
+        ),
+        repository.deleteFundingSource(fixture.context, source.id),
+      ]);
+
+      expect(outcomes.filter((outcome) => outcome.status === "fulfilled"))
+        .toHaveLength(1);
+      const state = await ownerQuery<{
+        status: string;
+        active_plans: string;
+      }>(
+        databaseUrl!,
+        `select source.status,
+           (select count(*) from recurring_plans plan
+             where plan.tenant_id=source.tenant_id and plan.source_id=source.id
+               and plan.status='active')::text active_plans
+         from demo_funding_sources source where source.id=$1`,
+        [source.id],
+      );
+      const row = state.rows[0]!;
+      expect(
+        (row.status === "active" && row.active_plans === "1") ||
+          (row.status === "inactive" && row.active_plans === "0"),
+      ).toBe(true);
+    });
+
     it("serializes deterministic Future Mirror generations and permits bounded large outputs", async () => {
       const repository = createPostgresSimulationRepository(
         databaseUrl!,

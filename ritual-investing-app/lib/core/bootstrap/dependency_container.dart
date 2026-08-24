@@ -33,8 +33,10 @@ class DependencyContainer {
     required this.covenController,
     required this.profileController,
     required this.portfolioController,
+    required SessionBootstrapService sessionBootstrapService,
     required ReadCache cache,
-  }) : _cache = cache;
+  }) : _sessionBootstrapService = sessionBootstrapService,
+       _cache = cache;
 
   final AuthController authController;
   final DailyRitualController dailyRitualController;
@@ -42,6 +44,7 @@ class DependencyContainer {
   final CovenController covenController;
   final ProfileController profileController;
   final PortfolioController portfolioController;
+  final SessionBootstrapService _sessionBootstrapService;
   final ReadCache _cache;
   bool _legacyMutationsCleared = false;
 
@@ -57,6 +60,12 @@ class DependencyContainer {
 
   Future<void> _loadAuthenticatedState() async {
     if (authController.state.phase != AuthPhase.signedIn) return;
+    try {
+      await _sessionBootstrapService.bootstrap();
+    } catch (_) {
+      authController.markBootstrapFailure();
+      return;
+    }
     if (!_legacyMutationsCleared) {
       await _cache.clearLegacyMutations();
       _legacyMutationsCleared = true;
@@ -84,6 +93,7 @@ class DependencyContainer {
     );
     return DependencyContainer(
       authController: auth,
+      sessionBootstrapService: GeneratedSessionBootstrapService(client),
       dailyRitualController: DailyRitualController(
         repository: DailyRitualRepository(
           service: GeneratedRitualApiService(client),
@@ -121,12 +131,15 @@ class DependencyContainer {
   factory DependencyContainer.fixture({
     ReadCache? cache,
     SessionRepository? sessionRepository,
+    SessionBootstrapService? sessionBootstrapService,
   }) {
     final fixtureCache = cache ?? MemoryReadCache();
     return DependencyContainer(
       authController: AuthController(
         repository: sessionRepository ?? _FixtureSessionRepository(),
       ),
+      sessionBootstrapService:
+          sessionBootstrapService ?? _FixtureSessionBootstrapService(),
       dailyRitualController: DailyRitualController(
         repository: DailyRitualRepository(
           service: _FixtureRitualService(),
@@ -160,6 +173,11 @@ class DependencyContainer {
       cache: fixtureCache,
     );
   }
+}
+
+class _FixtureSessionBootstrapService implements SessionBootstrapService {
+  @override
+  Future<void> bootstrap() async {}
 }
 
 class _FixtureSessionRepository implements SessionRepository {

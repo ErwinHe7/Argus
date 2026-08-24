@@ -330,6 +330,7 @@ export 'package:ritual_investing_api_client/generated/model/recurring_plan_recen
 export 'package:ritual_investing_api_client/generated/model/register_notification_device201_response.dart';
 export 'package:ritual_investing_api_client/generated/model/register_notification_device201_response_data.dart';
 export 'package:ritual_investing_api_client/generated/model/register_notification_device_request.dart';
+export 'package:ritual_investing_api_client/generated/model/replace_circle_assets_request.dart';
 export 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response.dart';
 export 'package:ritual_investing_api_client/generated/model/request_account_deletion202_response_data.dart';
 export 'package:ritual_investing_api_client/generated/model/request_account_deletion_request.dart';

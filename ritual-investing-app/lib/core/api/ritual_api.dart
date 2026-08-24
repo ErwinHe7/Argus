@@ -13,6 +13,30 @@ import '../../features/ritual/data/daily_ritual_repository.dart';
 import '../../features/ritual/domain/daily_ritual.dart';
 import 'view_state.dart';
 
+abstract interface class SessionBootstrapService {
+  Future<void> bootstrap();
+}
+
+class GeneratedSessionBootstrapService implements SessionBootstrapService {
+  GeneratedSessionBootstrapService(RitualInvestingApiClient client)
+    : _api = client.getSessionApi();
+
+  final SessionApi _api;
+
+  @override
+  Future<void> bootstrap() async {
+    try {
+      final response = await _api.bootstrapSession();
+      if (response.data?.data.contractVersion !=
+          SessionBootstrapContractVersionEnum.n1period0Period0) {
+        throw StateError('Unsupported API contract version.');
+      }
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+}
+
 class GeneratedRitualApiService implements DailyRitualService {
   GeneratedRitualApiService(RitualInvestingApiClient client)
     : _api = RitualsApi(client.dio);

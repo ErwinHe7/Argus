@@ -214,6 +214,7 @@ Class | Method | HTTP request | Description
 [*CirclesApi*](doc/CirclesApi.md) | [**listCircles**](doc/CirclesApi.md#listcircles) | **GET** /v1/circles | 
 [*CirclesApi*](doc/CirclesApi.md) | [**patchCircle**](doc/CirclesApi.md#patchcircle) | **PATCH** /v1/circles/{id} | 
 [*CirclesApi*](doc/CirclesApi.md) | [**putCircleAsset**](doc/CirclesApi.md#putcircleasset) | **PUT** /v1/circles/{id}/assets/{asset_id} | 
+[*CirclesApi*](doc/CirclesApi.md) | [**replaceCircleAssets**](doc/CirclesApi.md#replacecircleassets) | **PUT** /v1/circles/{id}/assets | 
 [*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**confirmDemoCheckout**](doc/DemoEntitlementsApi.md#confirmdemocheckout) | **POST** /v1/demo-checkout-sessions/{session_id}/confirm | 
 [*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**createDemoCheckout**](doc/DemoEntitlementsApi.md#createdemocheckout) | **POST** /v1/demo-checkout-sessions | 
 [*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**downgradeDemoEntitlement**](doc/DemoEntitlementsApi.md#downgradedemoentitlement) | **POST** /v1/me/entitlements/downgrade | 
@@ -583,6 +584,7 @@ Class | Method | HTTP request | Description
  - [RegisterNotificationDevice201Response](doc/RegisterNotificationDevice201Response.md)
  - [RegisterNotificationDevice201ResponseData](doc/RegisterNotificationDevice201ResponseData.md)
  - [RegisterNotificationDeviceRequest](doc/RegisterNotificationDeviceRequest.md)
+ - [ReplaceCircleAssetsRequest](doc/ReplaceCircleAssetsRequest.md)
  - [RequestAccountDeletion202Response](doc/RequestAccountDeletion202Response.md)
  - [RequestAccountDeletion202ResponseData](doc/RequestAccountDeletion202ResponseData.md)
  - [RequestAccountDeletionRequest](doc/RequestAccountDeletionRequest.md)

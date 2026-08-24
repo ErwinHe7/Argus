@@ -516,7 +516,7 @@ class AdminMediaApi {
   /// Throws [DioException] if API call or serialization fails
   Future<Response<void>> uploadMediaQuarantineContent({
     required String mediaId,
-    Object? body,
+    required MultipartFile body,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -546,22 +546,11 @@ class AdminMediaApi {
         ],
         ...?extra,
       },
-      contentType: 'image/jpeg',
+      contentType: 'application/octet-stream',
       validateStatus: validateStatus,
     );
 
-    dynamic _bodyData;
-
-    try {
-      _bodyData = jsonEncode(body);
-    } catch (error, stackTrace) {
-      throw DioException(
-        requestOptions: _options.compose(_dio.options, _path),
-        type: DioExceptionType.unknown,
-        error: error,
-        stackTrace: stackTrace,
-      );
-    }
+    final _bodyData = body;
 
     final _response = await _dio.request<Object>(
       _path,

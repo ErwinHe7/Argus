@@ -14,7 +14,9 @@ function secureAdminAsset(response: Response, pathname: string): Response {
   );
   headers.set(
     "cache-control",
-    pathname === "/" || pathname.endsWith(".html")
+    pathname === "/" ||
+      pathname.endsWith(".html") ||
+      response.headers.get("content-type")?.toLowerCase().includes("text/html")
       ? "no-store"
       : "public, max-age=31536000, immutable",
   );

@@ -587,15 +587,19 @@ function privacyExport(environment: Bindings): ConsumerEffect {
       snapshot_at: Date;
       source_sequence: string;
     }>(
-      `select snapshot_at,source_sequence from privacy_requests where tenant_id=$1 and id=$2 and request_type='export' and status in ('queued','processing') for update`,
+      `update privacy_requests request
+          set status='processing',snapshot_at=transaction_timestamp(),
+              source_sequence=coalesce((
+                select max(event.aggregate_version) from outbox_events event
+                 where event.tenant_id=request.tenant_id
+              ),0)
+        where request.tenant_id=$1 and request.id=$2
+          and request.request_type='export' and request.status in ('queued','processing')
+        returning request.snapshot_at,request.source_sequence`,
       [event.tenant_id, payload.request_id],
     );
     const state = request.rows[0];
     if (state === undefined) return "export-cancelled";
-    await client.query(
-      `update privacy_requests set status='processing' where tenant_id=$1 and id=$2 and status='queued'`,
-      [event.tenant_id, payload.request_id],
-    );
     const collections: StreamingExportCollection[] = [];
     const snapshot = (name: string, sql: string) => {
       collections.push({

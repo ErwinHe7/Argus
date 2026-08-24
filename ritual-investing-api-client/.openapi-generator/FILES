@@ -317,6 +317,7 @@ doc/RecurringPlansApi.md
 doc/RegisterNotificationDevice201Response.md
 doc/RegisterNotificationDevice201ResponseData.md
 doc/RegisterNotificationDeviceRequest.md
+doc/ReplaceCircleAssetsRequest.md
 doc/RequestAccountDeletion202Response.md
 doc/RequestAccountDeletion202ResponseData.md
 doc/RequestAccountDeletionRequest.md
@@ -699,6 +700,7 @@ lib/generated/model/recurring_plan_recent_runs_inner.dart
 lib/generated/model/register_notification_device201_response.dart
 lib/generated/model/register_notification_device201_response_data.dart
 lib/generated/model/register_notification_device_request.dart
+lib/generated/model/replace_circle_assets_request.dart
 lib/generated/model/request_account_deletion202_response.dart
 lib/generated/model/request_account_deletion202_response_data.dart
 lib/generated/model/request_account_deletion_request.dart

@@ -73,7 +73,10 @@ describe("U7 member routes", () => {
         },
       },
     });
-    const makeRequest = async (issuedAt: number) =>
+    const makeRequest = async (
+      issuedAt: number,
+      authenticatedAt?: number,
+    ) =>
       app.request(
         "/v1/me/privacy/exports",
         {
@@ -82,6 +85,12 @@ describe("U7 member routes", () => {
             authorization: `Bearer ${await memberToken(key, {
               permissions: ["privacy:self"],
               iat: issuedAt,
+              ...(authenticatedAt === undefined
+                ? {}
+                : {
+                    "https://ritual-investing.app/authenticated_at":
+                      authenticatedAt,
+                  }),
             })}`,
             "content-type": "application/json",
             "idempotency-key": "privacy-export-00000001",
@@ -91,8 +100,9 @@ describe("U7 member routes", () => {
         testBindings(),
       );
     const now = Math.floor(Date.now() / 1000);
-    expect((await makeRequest(now - 301)).status).toBe(403);
-    const current = await makeRequest(now - 5);
+    expect((await makeRequest(now - 5)).status).toBe(403);
+    expect((await makeRequest(now, now - 301)).status).toBe(403);
+    const current = await makeRequest(now, now - 5);
     expect(current.status, await current.clone().text()).toBe(202);
     expect(requestExport).toHaveBeenCalledOnce();
   });

@@ -286,7 +286,7 @@ import 'package:ritual_investing_api_client/api.dart';
 
 final api = RitualInvestingApiClient().getAdminMediaApi();
 final String mediaId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
-final Object body = ; // Object | 
+final MultipartFile body = BINARY_DATA_HERE; // MultipartFile | 
 
 try {
     api.uploadMediaQuarantineContent(mediaId, body);
@@ -300,7 +300,7 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **mediaId** | **String**|  | 
- **body** | **Object**|  | 
+ **body** | **MultipartFile**|  | 
 
 ### Return type
 
@@ -312,7 +312,7 @@ void (empty response body)
 
 ### HTTP request headers
 
- - **Content-Type**: image/jpeg, image/png, image/webp
+ - **Content-Type**: application/octet-stream
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

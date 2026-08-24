@@ -26,6 +26,7 @@ import { InvalidCursorError } from "../editorial/cursor.ts";
 import { resolveSignedPage } from "../editorial/pagination.ts";
 import {
   circleAssetMutationSchema,
+  circleAssetCollectionMutationSchema,
   circleAssetParamsSchema,
   circleCreateSchema,
   circleIdParamsSchema,
@@ -216,6 +217,32 @@ const putAssetRoute = createRoute({
   responses: {
     200: {
       description: "Updated Circle.",
+      content: {
+        "application/json": { schema: objectResponse(circleViewSchema) },
+      },
+    },
+    ...errors,
+  },
+});
+const replaceAssetsRoute = createRoute({
+  method: "put",
+  path: "/v1/circles/{id}/assets",
+  operationId: "replaceCircleAssets",
+  tags: ["Circles"],
+  security: writeSecurity,
+  request: {
+    params: circleIdParamsSchema,
+    headers: ifMatch,
+    body: {
+      required: true,
+      content: {
+        "application/json": { schema: circleAssetCollectionMutationSchema },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Atomically replaced the complete versioned asset set.",
       content: {
         "application/json": { schema: objectResponse(circleViewSchema) },
       },
@@ -438,6 +465,27 @@ export function registerCircleRoutes(
           versionFrom(context.req.header("if-match"))!,
         );
       }) as never,
+  );
+
+  secure(replaceAssetsRoute, true);
+  app.openapi(
+    replaceAssetsRoute,
+    (context) =>
+      run(context, (member) =>
+        member.repository.replaceCircleAssets(
+          member.member,
+          context.req.valid("param").id,
+          context.req.valid("json").assets.map((asset) => ({
+            asset_id: asset.asset_id,
+            ordinal: asset.ordinal,
+            ...(asset.weight_bps === undefined
+              ? {}
+              : { weight_bps: asset.weight_bps }),
+            ...(asset.note === undefined ? {} : { note: asset.note }),
+          })),
+          versionFrom(context.req.header("if-match"))!,
+        ),
+      ) as never,
   );
 
   secure(deleteAssetRoute, true);

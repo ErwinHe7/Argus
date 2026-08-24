@@ -31,6 +31,41 @@ run(
   ],
   apiRoot,
 );
+
+// OpenAPI Generator 7.24 correctly types an OAS binary request as
+// MultipartFile but its dart-dio template still JSON-encodes that value. Keep
+// the workaround in the reproducible generation pipeline until the pinned
+// upstream generator emits raw binary request bodies itself.
+const adminMediaApiPath = resolve(
+  clientRoot,
+  "lib/generated/api/admin_media_api.dart",
+);
+const adminMediaApi = await readFile(adminMediaApiPath, "utf8");
+const uploadMethod = adminMediaApi.indexOf(
+  "Future<Response<void>> uploadMediaQuarantineContent",
+);
+const encodedBodyStart = adminMediaApi.indexOf(
+  "    dynamic _bodyData;",
+  uploadMethod,
+);
+const requestStart = adminMediaApi.indexOf(
+  "    final _response",
+  encodedBodyStart,
+);
+const encodedBody = adminMediaApi.slice(encodedBodyStart, requestStart);
+if (
+  uploadMethod < 0 ||
+  encodedBodyStart < 0 ||
+  requestStart < 0 ||
+  !encodedBody.includes("jsonEncode(body)")
+) {
+  throw new Error("generated binary upload shape changed; review the workaround");
+}
+await writeFile(
+  adminMediaApiPath,
+  `${adminMediaApi.slice(0, encodedBodyStart)}    final _bodyData = body;\n\n${adminMediaApi.slice(requestStart)}`,
+  "utf8",
+);
 run(dart, ["pub", "get"], clientRoot);
 run(
   dart,

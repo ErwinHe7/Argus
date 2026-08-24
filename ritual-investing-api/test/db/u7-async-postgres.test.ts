@@ -16,6 +16,7 @@ import {
 import { replayDeletionDenyJournal } from "../../src/jobs/deletion-restore.ts";
 import { runQueue } from "../../src/jobs/queue-runtime.ts";
 import { handlerFor } from "../../src/jobs/handlers.ts";
+import { completeJob, leaseJob } from "../../src/jobs/job-runs.ts";
 import { pgPoolFactory } from "../helpers/simulation-postgres.ts";
 
 const databaseUrl = process.env.TEST_DATABASE_URL;
@@ -773,8 +774,8 @@ describe.skipIf(databaseUrl === undefined)(
         databaseUrl!,
         pgPoolFactory,
       );
-      const context = (tenant: string, account: string) => ({
-        subject: `auth0|device-${tenant}`,
+      const context = (tenant: string, account: string, subject: string) => ({
+        subject,
         tenantId: tenant,
         accountId: account,
         accountStatus: "active" as const,
@@ -793,19 +794,19 @@ describe.skipIf(databaseUrl === undefined)(
       };
       const firstKey = `device-a-${randomUUID()}`;
       const first = await repository.registerDevice(
-        context(tenantId, accountId),
+        context(tenantId, accountId, `auth0|u7-${tenantId}`),
         input,
         key,
         firstKey,
       );
       const second = await repository.registerDevice(
-        context(secondTenant, secondAccount),
+        context(secondTenant, secondAccount, `auth0|device-${secondTenant}`),
         input,
         key,
         `device-b-${randomUUID()}`,
       );
       const replay = await repository.registerDevice(
-        context(tenantId, accountId),
+        context(tenantId, accountId, `auth0|u7-${tenantId}`),
         input,
         key,
         firstKey,
@@ -978,6 +979,37 @@ describe.skipIf(databaseUrl === undefined)(
       );
     });
 
+    it("reclaims an expired job lease after a worker crash", async () => {
+      const outboxId = randomUUID();
+      const jobId = randomUUID();
+      const priorOwner = randomUUID();
+      await ownerQuery(
+        `insert into outbox_events(id,topic,aggregate_kind,aggregate_id,aggregate_version,tenant_id,reset_generation,deletion_generation,dedupe_key,payload,schema_version,available_at)
+         values($1::uuid,'briefing.daily.generated','briefing',$2,1,$3,0,0,($1::uuid)::text,'{}',1,now())`,
+        [outboxId, randomUUID(), tenantId],
+      );
+      await ownerQuery(
+        `insert into job_runs(id,outbox_id,consumer,status,attempt,lease_until,correlation_id,lease_owner)
+         values($1,$2,'briefing-builder','leased',0,now()-interval '1 minute',$3,$4)`,
+        [jobId, outboxId, randomUUID(), priorOwner],
+      );
+
+      const lease = await leaseJob(
+        databaseUrl!,
+        {
+          schema_version: 1,
+          outbox_id: outboxId,
+          consumer: "briefing-builder",
+        },
+        2,
+        pgPoolFactory,
+      );
+
+      expect(lease?.id).toBe(jobId);
+      expect(lease?.owner).not.toBe(priorOwner);
+      await completeJob(databaseUrl!, lease!, pgPoolFactory);
+    });
+
     it("exports one coherent tenant ZIP and lets deletion revoke links and fence queued export work", async () => {
       const foreignTenant = randomUUID();
       await ownerQuery("insert into tenants(id,status) values ($1,'active')", [
@@ -995,7 +1027,7 @@ describe.skipIf(databaseUrl === undefined)(
       const outboxId = randomUUID();
       await ownerQuery(
         `insert into privacy_requests(id,tenant_id,request_type,status,snapshot_at,source_sequence,archive_schema_version,verified_at,queued_at,expires_at)
-       values ($1,$2,'export','queued',now(),7,1,now(),now(),now()+interval '7 days')`,
+       values ($1,$2,'export','queued','2000-01-01T00:00:00Z',7,1,now(),now(),now()+interval '7 days')`,
         [requestId, tenantId],
       );
       await ownerQuery(
@@ -1130,6 +1162,8 @@ describe.skipIf(databaseUrl === undefined)(
       expect(readable).toContain("Export Member");
       expect(readable).not.toContain("Mutated During Export");
       expect(readable).not.toContain("Foreign Secret Member");
+      expect(readable).not.toContain("2000-01-01T00:00:00.000Z");
+      expect(readable).not.toContain('"source_sequence":7');
       for (const section of [
         "account",
         "profile",
@@ -1192,9 +1226,9 @@ describe.skipIf(databaseUrl === undefined)(
         [queuedOutbox, queuedId, tenantId],
       );
       await privacy.requestDeletion(member, `delete-export-${randomUUID()}`);
-      expect(
-        await privacy.consumeDownload(member, requestId, token),
-      ).toBeNull();
+      await expect(
+        privacy.consumeDownload(member, requestId, token),
+      ).rejects.toMatchObject({ code: "42501" });
       const staleMessage = {
         schema_version: 1 as const,
         outbox_id: queuedOutbox,

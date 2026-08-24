@@ -28,6 +28,15 @@ function normalizedRoute(pathname: string): string {
   );
 }
 
+function requestRoute(
+  context: Parameters<MiddlewareHandler<AppEnvironment>>[0],
+): string {
+  const routePath = context.req.routePath;
+  return routePath.length > 0
+    ? routePath.replace(/\{[^}]+\}|:[^/]+/g, ":id")
+    : normalizedRoute(new URL(context.req.url).pathname);
+}
+
 function ipPrefix(
   context: Parameters<MiddlewareHandler<AppEnvironment>>[0],
 ): string {
@@ -90,7 +99,8 @@ export function preAuthRateLimit(
     const denial = await enforce(context, rateClass, [
       "ip",
       ipPrefix(context),
-      normalizedRoute(new URL(context.req.url).pathname),
+      context.req.method,
+      requestRoute(context),
     ]);
     if (denial !== undefined) return denial;
     await next();
@@ -113,7 +123,8 @@ export function subjectRateLimit(
     const denial = await enforce(context, rateClass, [
       "subject",
       principal.subject,
-      normalizedRoute(new URL(context.req.url).pathname),
+      context.req.method,
+      requestRoute(context),
     ]);
     if (denial !== undefined) return denial;
     await next();
@@ -137,7 +148,7 @@ export function tenantRateLimit(
       "tenant",
       account.tenantId,
       context.req.method,
-      normalizedRoute(new URL(context.req.url).pathname),
+      requestRoute(context),
     ]);
     if (denial !== undefined) return denial;
     await next();
@@ -160,7 +171,8 @@ export function staffRateLimit(
     const denial = await enforce(context, rateClass, [
       "staff",
       staff.id,
-      normalizedRoute(new URL(context.req.url).pathname),
+      context.req.method,
+      requestRoute(context),
     ]);
     if (denial !== undefined) return denial;
     await next();
