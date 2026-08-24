@@ -14,10 +14,16 @@
     "openapi:check": "npm run openapi:generate -- --check",
     "bindings:generate": "node scripts/generate-bindings.mjs",
     "client:generate": "node scripts/generate-client.mjs",
+    "db:migrate": "node --experimental-strip-types scripts/migrate.ts",
+    "db:migrate:check": "node --experimental-strip-types scripts/migrate.ts --check",
+    "test:postgres": "vitest run test/security/rls.test.ts",
+    "test:security": "vitest run test/security",
     "deploy:dry-run": "wrangler deploy --dry-run"
   },
   "dependencies": {
     "@hono/zod-openapi": "1.6.1",
+    "@neondatabase/serverless": "1.1.0",
+    "drizzle-orm": "0.45.2",
     "hono": "4.13.3",
     "zod": "4.4.3"
   },
@@ -26,6 +32,9 @@
     "@cloudflare/vitest-plugin": "1.0.0",
     "@openapitools/openapi-generator-cli": "2.40.1",
     "@types/node": "26.2.0",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.10",
+    "pg": "8.23.0",
     "typescript": "7.0.2",
     "vitest": "4.1.11",
     "wrangler": "4.125.0",
