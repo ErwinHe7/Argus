@@ -1,0 +1,13 @@
+analyzer:
+  language:
+    strict-inference: true
+    strict-raw-types: true
+    strict-casts: false
+  exclude:
+    - test/*.dart
+    - lib/generated/model/*.g.dart
+  errors:
+    deprecated_member_use_from_same_package: ignore
+    # OpenAPI Generator imports shared error models into each tagged API even
+    # when Dio handles all non-success responses as exceptions.
+    unused_import: ignore

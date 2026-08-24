@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ritual-investing-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "ENVIRONMENT": "development",
+    "API_ORIGIN": "http://localhost:8787",
+    "AUTH0_ISSUER": "https://example.auth0.com/",
+    "AUTH0_AUDIENCE": "https://api.ritual-investing.example"
+  }
+}

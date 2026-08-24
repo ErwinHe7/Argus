@@ -1,0 +1,199 @@
+components:
+  parameters:
+    IdempotencyKey:
+      in: header
+      name: idempotency-key
+      required: true
+      schema:
+        maxLength: 64
+        minLength: 16
+        pattern: ^[\x21-\x7E]{16,64}$
+        type: string
+  responses:
+    RateLimited:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: The applicable route and actor quota was exceeded.
+      headers:
+        Retry-After:
+          schema:
+            minimum: 1
+            type: integer
+    Unauthorized:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: A valid member access token is required.
+    ValidationError:
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+      description: The request failed strict boundary validation.
+  schemas:
+    ErrorResponse:
+      additionalProperties: false
+      properties:
+        error:
+          additionalProperties: false
+          properties:
+            code:
+              maxLength: 64
+              minLength: 1
+              type: string
+            field_errors:
+              items:
+                $ref: "#/components/schemas/FieldError"
+              maxItems: 50
+              type: array
+            message:
+              maxLength: 500
+              minLength: 1
+              type: string
+            request_id:
+              description: Server-assigned request correlation identifier.
+              example: 018f3c2a-4b67-7a89-8abc-1234567890ab
+              format: uuid
+              type: string
+            retry_after_seconds:
+              exclusiveMinimum: true
+              maximum: 86400
+              minimum: 0
+              type: integer
+            retryable:
+              type: boolean
+          required:
+            - code
+            - message
+            - request_id
+            - field_errors
+            - retryable
+          type: object
+      required:
+        - error
+      type: object
+    FieldError:
+      additionalProperties: false
+      properties:
+        code:
+          maxLength: 64
+          minLength: 1
+          type: string
+        path:
+          maxLength: 256
+          minLength: 1
+          type: string
+      required:
+        - path
+        - code
+      type: object
+    HealthResponse:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            status:
+              enum:
+                - ok
+              type: string
+          required:
+            - status
+          type: object
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    ResponseMeta:
+      additionalProperties: false
+      properties:
+        request_id:
+          description: Server-assigned request correlation identifier.
+          example: 018f3c2a-4b67-7a89-8abc-1234567890ab
+          format: uuid
+          type: string
+      required:
+        - request_id
+      type: object
+    SessionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          additionalProperties: false
+          properties:
+            contract_version:
+              enum:
+                - 1.0.0
+              type: string
+            server_time:
+              format: date-time
+              type: string
+          required:
+            - contract_version
+            - server_time
+          type: object
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+  securitySchemes:
+    Auth0OAuth:
+      description: Auth0 Authorization Code with PKCE access token for the Ritual API audience.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://YOUR_AUTH0_DOMAIN/authorize
+          scopes:
+            privacy:self: Run export and deletion requests.
+            read:self: Read the member's own Ritual data.
+            simulate:self: Run deterministic Demo commands.
+            write:self: Update the member's own Ritual data.
+          tokenUrl: https://YOUR_AUTH0_DOMAIN/oauth/token
+      type: oauth2
+info:
+  description: Contract for deterministic research, private member state, simulated investing, and audited staff operations.
+  title: Ritual Investing API
+  version: 1.0.0
+openapi: 3.0.3
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+          description: Worker liveness without a database dependency.
+      security: []
+      tags:
+        - Platform
+  /v1/session:
+    get:
+      operationId: getSession
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+          description: Authenticated member bootstrap.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Authentication is not available until the identity module is installed.
+      security:
+        - Auth0OAuth: []
+      tags:
+        - Platform
+servers:
+  - url: https://api.ritual-investing.example

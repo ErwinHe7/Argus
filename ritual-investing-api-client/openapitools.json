@@ -1,0 +1,31 @@
+{
+  "$schema": "../ritual-investing-api/node_modules/@openapitools/openapi-generator-cli/config.schema.json",
+  "spaces": 2,
+  "generator-cli": {
+    "version": "7.24.0",
+    "useDocker": true,
+    "dockerImageName": "openapitools/openapi-generator-cli",
+    "generators": {
+      "ritual": {
+        "generatorName": "dart-dio",
+        "inputSpec": "openapi/ritual-investing-v1.yaml",
+        "output": "../ritual-investing-api-client",
+        "templateDir": "../ritual-investing-api-client/templates/dart-dio",
+        "globalProperty": {
+          "apiTests": "false",
+          "modelTests": "false"
+        },
+        "additionalProperties": {
+          "pubName": "ritual_investing_api_client",
+          "pubVersion": "0.1.0",
+          "pubPublishTo": "none",
+          "sourceFolder": "generated",
+          "serializationLibrary": "json_serializable",
+          "useEnumExtension": "true",
+          "enumUnknownDefaultCase": "true",
+          "disallowAdditionalPropertiesIfNotPresent": "false"
+        }
+      }
+    }
+  }
+}
