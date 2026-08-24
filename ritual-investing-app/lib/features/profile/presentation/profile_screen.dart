@@ -1,12 +1,22 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/api/state_status.dart';
+import '../application/controller.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key});
+  const ProfileScreen({super.key, required this.controller});
+  final ProfileController controller;
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => _content(context),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final colors = context.ritualColors;
     return SafeArea(
       child: ListView(
@@ -15,9 +25,16 @@ class ProfileScreen extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Text(
-                  'Your chamber',
-                  style: Theme.of(context).textTheme.displaySmall,
+                child: Semantics(
+                  container: true,
+                  excludeSemantics: true,
+                  label: controller.state.value == null
+                      ? 'Your chamber'
+                      : 'Your chamber for ${controller.state.value!.displayName}',
+                  child: Text(
+                    'Your chamber',
+                    style: Theme.of(context).textTheme.displaySmall,
+                  ),
                 ),
               ),
               Container(
@@ -46,126 +63,132 @@ class ProfileScreen extends StatelessWidget {
             'A locally simulated portfolio. No money or account is connected.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 22),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: colors.coven,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'SIMULATED BALANCE',
-                  style: TextStyle(
-                    color: Color(0xFFDCCBDE),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 9),
-                const Text(
-                  r'$12,480.36',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'LibreBaskerville',
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '+1.8% this moon cycle',
-                  style: TextStyle(
-                    color: colors.gold,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 26),
-          Text('Intentions', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 10),
-          _ProgressRow(colors: colors),
-          const SizedBox(height: 26),
-          Text(
-            'Future Mirror',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Explore how fictional contributions and modeled returns could change the path. Projections are not guarantees.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 12),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'steady', label: Text('Steady')),
-              ButtonSegment(value: 'bright', label: Text('Bright')),
-              ButtonSegment(value: 'storm', label: Text('Storm')),
-            ],
-            selected: const {'steady'},
-            onSelectionChanged: (_) {},
-          ),
-          const SizedBox(height: 26),
-          Text(
-            'Demo actions',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 4),
-          const _ActionRow(
-            icon: Icons.account_balance_outlined,
-            title: 'Link a fictional bank',
-            subtitle: 'No credentials collected',
-          ),
-          const _ActionRow(
-            icon: Icons.autorenew,
-            title: 'Recurring ritual',
-            subtitle: r'Preview a $25 weekly demo plan',
-          ),
-          const _ActionRow(
-            icon: Icons.balance_outlined,
-            title: 'Rebalance a Circle',
-            subtitle: 'Simulate allocation changes',
-          ),
-          const _ActionRow(
-            icon: Icons.workspace_premium_outlined,
-            title: 'Premium chamber',
-            subtitle: 'Preview simulated upgrade and restore',
-          ),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: colors.screenSoft,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: colors.gold,
-                  foregroundImage: const AssetImage(
-                    'assets/images/persona-triptych.png',
-                  ),
-                ),
-                const SizedBox(width: 13),
-                Expanded(
-                  child: Text(
-                    'Rowan can explain the model. He never decides for you.',
+          StateStatus(phase: controller.state.phase, onRetry: controller.load),
+          if (controller.state.value != null) ...[
+            const SizedBox(height: 22),
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: colors.coven,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'SIMULATED BALANCE',
                     style: TextStyle(
-                      color: colors.ink,
-                      fontWeight: FontWeight.w600,
-                      height: 1.35,
+                      color: Color(0xFFDCCBDE),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.5,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 9),
+                  const Text(
+                    r'$12,480.36',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'LibreBaskerville',
+                      fontSize: 36,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    '+1.8% this moon cycle',
+                    style: TextStyle(
+                      color: colors.gold,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+            const SizedBox(height: 26),
+            Text(
+              'Intentions',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 10),
+            _ProgressRow(colors: colors),
+            const SizedBox(height: 26),
+            Text(
+              'Future Mirror',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Explore how fictional contributions and modeled returns could change the path. Projections are not guarantees.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'steady', label: Text('Steady')),
+                ButtonSegment(value: 'bright', label: Text('Bright')),
+                ButtonSegment(value: 'storm', label: Text('Storm')),
+              ],
+              selected: const {'steady'},
+              onSelectionChanged: (_) {},
+            ),
+            const SizedBox(height: 26),
+            Text(
+              'Demo actions',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 4),
+            const _ActionRow(
+              icon: Icons.account_balance_outlined,
+              title: 'Link a fictional bank',
+              subtitle: 'No credentials collected',
+            ),
+            const _ActionRow(
+              icon: Icons.autorenew,
+              title: 'Recurring ritual',
+              subtitle: r'Preview a $25 weekly demo plan',
+            ),
+            const _ActionRow(
+              icon: Icons.balance_outlined,
+              title: 'Rebalance a Circle',
+              subtitle: 'Simulate allocation changes',
+            ),
+            const _ActionRow(
+              icon: Icons.workspace_premium_outlined,
+              title: 'Premium chamber',
+              subtitle: 'Preview simulated upgrade and restore',
+            ),
+            const SizedBox(height: 24),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: colors.screenSoft,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 25,
+                    backgroundColor: colors.gold,
+                    foregroundImage: const AssetImage(
+                      'assets/images/persona-triptych.png',
+                    ),
+                  ),
+                  const SizedBox(width: 13),
+                  Expanded(
+                    child: Text(
+                      'Rowan can explain the model. He never decides for you.',
+                      style: TextStyle(
+                        color: colors.ink,
+                        fontWeight: FontWeight.w600,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

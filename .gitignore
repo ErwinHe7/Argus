@@ -44,6 +44,12 @@ logs/
 !**/include/data/
 !**/tests/data/
 
+# Ritual feature-first data layers are source, not runtime datasets.
+!ritual-investing-api/src/**/data/
+!ritual-investing-api-client/lib/**/data/
+!ritual-investing-app/lib/**/data/
+!ritual-investing-admin/lib/**/data/
+
 *.db
 *.db-*
 *.sqlite

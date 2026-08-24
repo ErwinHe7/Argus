@@ -48,14 +48,14 @@ Please follow the [installation procedure](#installation--usage) and then run th
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 
 
-final api = RitualInvestingApiClient().getAdminSessionApi();
-final String cfAccessJwtAssertion = cfAccessJwtAssertion_example; // String | 
+final api = RitualInvestingApiClient().getAccountApi();
+final CreateConsentRequest createConsentRequest = ; // CreateConsentRequest | 
 
 try {
-    final response = await api.getAdminSession(cfAccessJwtAssertion);
+    final response = await api.createConsent(createConsentRequest);
     print(response);
 } on DioException catch (e) {
-    print("Exception when calling AdminSessionApi->getAdminSession: $e\n");
+    print("Exception when calling AccountApi->createConsent: $e\n");
 }
 
 ```
@@ -66,12 +66,32 @@ All URIs are relative to *https://api.ritual-investing.example*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+[*AccountApi*](doc/AccountApi.md) | [**createConsent**](doc/AccountApi.md#createconsent) | **POST** /v1/me/consents | 
+[*AccountApi*](doc/AccountApi.md) | [**deleteAstrologyProfile**](doc/AccountApi.md#deleteastrologyprofile) | **DELETE** /v1/me/astrology-profile | 
+[*AccountApi*](doc/AccountApi.md) | [**getAstrologyProfile**](doc/AccountApi.md#getastrologyprofile) | **GET** /v1/me/astrology-profile | 
+[*AccountApi*](doc/AccountApi.md) | [**getInvestorProfile**](doc/AccountApi.md#getinvestorprofile) | **GET** /v1/me/investor-profile | 
+[*AccountApi*](doc/AccountApi.md) | [**getMe**](doc/AccountApi.md#getme) | **GET** /v1/me | 
+[*AccountApi*](doc/AccountApi.md) | [**getOnboarding**](doc/AccountApi.md#getonboarding) | **GET** /v1/me/onboarding | 
+[*AccountApi*](doc/AccountApi.md) | [**getPreferences**](doc/AccountApi.md#getpreferences) | **GET** /v1/me/preferences | 
+[*AccountApi*](doc/AccountApi.md) | [**patchOnboarding**](doc/AccountApi.md#patchonboarding) | **PATCH** /v1/me/onboarding | 
+[*AccountApi*](doc/AccountApi.md) | [**patchPreferences**](doc/AccountApi.md#patchpreferences) | **PATCH** /v1/me/preferences | 
+[*AccountApi*](doc/AccountApi.md) | [**patchProfile**](doc/AccountApi.md#patchprofile) | **PATCH** /v1/me/profile | 
+[*AccountApi*](doc/AccountApi.md) | [**putAstrologyProfile**](doc/AccountApi.md#putastrologyprofile) | **PUT** /v1/me/astrology-profile | 
+[*AccountApi*](doc/AccountApi.md) | [**putInvestorProfile**](doc/AccountApi.md#putinvestorprofile) | **PUT** /v1/me/investor-profile | 
 [*AdminSessionApi*](doc/AdminSessionApi.md) | [**getAdminSession**](doc/AdminSessionApi.md#getadminsession) | **GET** /v1/admin/session | 
 [*AssetsApi*](doc/AssetsApi.md) | [**compareAssets**](doc/AssetsApi.md#compareassets) | **POST** /v1/assets/compare | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /v1/assets/{asset_id} | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAssetEvidence**](doc/AssetsApi.md#getassetevidence) | **GET** /v1/assets/{asset_id}/evidence | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAssetMetrics**](doc/AssetsApi.md#getassetmetrics) | **GET** /v1/assets/{asset_id}/metrics | 
 [*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /v1/assets | 
+[*CirclesApi*](doc/CirclesApi.md) | [**archiveCircle**](doc/CirclesApi.md#archivecircle) | **DELETE** /v1/circles/{id} | 
+[*CirclesApi*](doc/CirclesApi.md) | [**copyCircleTemplate**](doc/CirclesApi.md#copycircletemplate) | **POST** /v1/circle-templates/{id}/copies | 
+[*CirclesApi*](doc/CirclesApi.md) | [**createCircle**](doc/CirclesApi.md#createcircle) | **POST** /v1/circles | 
+[*CirclesApi*](doc/CirclesApi.md) | [**deleteCircleAsset**](doc/CirclesApi.md#deletecircleasset) | **DELETE** /v1/circles/{id}/assets/{asset_id} | 
+[*CirclesApi*](doc/CirclesApi.md) | [**getCircle**](doc/CirclesApi.md#getcircle) | **GET** /v1/circles/{id} | 
+[*CirclesApi*](doc/CirclesApi.md) | [**listCircles**](doc/CirclesApi.md#listcircles) | **GET** /v1/circles | 
+[*CirclesApi*](doc/CirclesApi.md) | [**patchCircle**](doc/CirclesApi.md#patchcircle) | **PATCH** /v1/circles/{id} | 
+[*CirclesApi*](doc/CirclesApi.md) | [**putCircleAsset**](doc/CirclesApi.md#putcircleasset) | **PUT** /v1/circles/{id}/assets/{asset_id} | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**getCircleTemplate**](doc/DiscoverApi.md#getcircletemplate) | **GET** /v1/circle-templates/{id} | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**getGrimoire**](doc/DiscoverApi.md#getgrimoire) | **GET** /v1/grimoires/{id} | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listCircleTemplates**](doc/DiscoverApi.md#listcircletemplates) | **GET** /v1/circle-templates | 
@@ -95,6 +115,14 @@ Class | Method | HTTP request | Description
 [*RitualsApi*](doc/RitualsApi.md) | [**listRitualHistory**](doc/RitualsApi.md#listritualhistory) | **GET** /v1/rituals/history | 
 [*RitualsApi*](doc/RitualsApi.md) | [**revealRitual**](doc/RitualsApi.md#revealritual) | **POST** /v1/rituals/{assignment_id}/reveal | 
 [*RowanApi*](doc/RowanApi.md) | [**getRowanCounsel**](doc/RowanApi.md#getrowancounsel) | **GET** /v1/rowan/counsel | 
+[*SavesApi*](doc/SavesApi.md) | [**saveAsset**](doc/SavesApi.md#saveasset) | **PUT** /v1/me/saved-assets/{id} | 
+[*SavesApi*](doc/SavesApi.md) | [**saveCircleTemplate**](doc/SavesApi.md#savecircletemplate) | **PUT** /v1/me/saved-circle-templates/{id} | 
+[*SavesApi*](doc/SavesApi.md) | [**saveCoven**](doc/SavesApi.md#savecoven) | **PUT** /v1/me/saved-coven/{id} | 
+[*SavesApi*](doc/SavesApi.md) | [**saveGrimoire**](doc/SavesApi.md#savegrimoire) | **PUT** /v1/me/saved-grimoires/{id} | 
+[*SavesApi*](doc/SavesApi.md) | [**unsaveAsset**](doc/SavesApi.md#unsaveasset) | **DELETE** /v1/me/saved-assets/{id} | 
+[*SavesApi*](doc/SavesApi.md) | [**unsaveCircleTemplate**](doc/SavesApi.md#unsavecircletemplate) | **DELETE** /v1/me/saved-circle-templates/{id} | 
+[*SavesApi*](doc/SavesApi.md) | [**unsaveCoven**](doc/SavesApi.md#unsavecoven) | **DELETE** /v1/me/saved-coven/{id} | 
+[*SavesApi*](doc/SavesApi.md) | [**unsaveGrimoire**](doc/SavesApi.md#unsavegrimoire) | **DELETE** /v1/me/saved-grimoires/{id} | 
 [*SearchApi*](doc/SearchApi.md) | [**searchPublishedCatalog**](doc/SearchApi.md#searchpublishedcatalog) | **GET** /v1/search | 
 [*SessionApi*](doc/SessionApi.md) | [**bootstrapSession**](doc/SessionApi.md#bootstrapsession) | **POST** /v1/session/bootstrap | 
 
@@ -115,19 +143,32 @@ Class | Method | HTTP request | Description
  - [AssetMetric](doc/AssetMetric.md)
  - [AssetMetricsResponse](doc/AssetMetricsResponse.md)
  - [AssetSummary](doc/AssetSummary.md)
+ - [AstrologyProfile](doc/AstrologyProfile.md)
+ - [AstrologyProfileResponse](doc/AstrologyProfileResponse.md)
+ - [CircleCollectionResponse](doc/CircleCollectionResponse.md)
+ - [CircleResponse](doc/CircleResponse.md)
  - [CircleTemplateCollectionResponse](doc/CircleTemplateCollectionResponse.md)
  - [CircleTemplateDetail](doc/CircleTemplateDetail.md)
  - [CircleTemplateDetailAssetsInner](doc/CircleTemplateDetailAssetsInner.md)
  - [CircleTemplateDetailResponse](doc/CircleTemplateDetailResponse.md)
  - [CircleTemplateSummary](doc/CircleTemplateSummary.md)
+ - [CircleView](doc/CircleView.md)
+ - [CircleViewAssetsInner](doc/CircleViewAssetsInner.md)
  - [CollectionMeta](doc/CollectionMeta.md)
  - [CompareAssetsRequest](doc/CompareAssetsRequest.md)
+ - [ConsentReceipt](doc/ConsentReceipt.md)
+ - [ConsentReceiptResponse](doc/ConsentReceiptResponse.md)
+ - [CopyCircleTemplate201Response](doc/CopyCircleTemplate201Response.md)
+ - [CopyCircleTemplateRequest](doc/CopyCircleTemplateRequest.md)
  - [CovenCollectionResponse](doc/CovenCollectionResponse.md)
  - [CovenDetailResponse](doc/CovenDetailResponse.md)
  - [CovenEntryDetail](doc/CovenEntryDetail.md)
  - [CovenEvidenceResponse](doc/CovenEvidenceResponse.md)
  - [CovenQualification](doc/CovenQualification.md)
  - [CovenSummary](doc/CovenSummary.md)
+ - [CreateCircleRequest](doc/CreateCircleRequest.md)
+ - [CreateCircleRequestAssetsInner](doc/CreateCircleRequestAssetsInner.md)
+ - [CreateConsentRequest](doc/CreateConsentRequest.md)
  - [CreatorCollectionResponse](doc/CreatorCollectionResponse.md)
  - [DailyRitualDetail](doc/DailyRitualDetail.md)
  - [DailyRitualDetailRevision](doc/DailyRitualDetailRevision.md)
@@ -153,7 +194,24 @@ Class | Method | HTTP request | Description
  - [GrimoireSummary](doc/GrimoireSummary.md)
  - [HealthResponse](doc/HealthResponse.md)
  - [HealthResponseData](doc/HealthResponseData.md)
+ - [InvestorProfile](doc/InvestorProfile.md)
+ - [InvestorProfileResponse](doc/InvestorProfileResponse.md)
+ - [MemberAccountResponse](doc/MemberAccountResponse.md)
+ - [MemberAccountView](doc/MemberAccountView.md)
+ - [MemberAccountViewAccount](doc/MemberAccountViewAccount.md)
+ - [MemberPreferences](doc/MemberPreferences.md)
+ - [MemberPreferencesResponse](doc/MemberPreferencesResponse.md)
+ - [MemberProfile](doc/MemberProfile.md)
+ - [MemberProfileResponse](doc/MemberProfileResponse.md)
+ - [OnboardingResponse](doc/OnboardingResponse.md)
+ - [OnboardingState](doc/OnboardingState.md)
  - [OpenApiDocument](doc/OpenApiDocument.md)
+ - [PatchCircleRequest](doc/PatchCircleRequest.md)
+ - [PatchOnboarding200Response](doc/PatchOnboarding200Response.md)
+ - [PatchOnboardingRequest](doc/PatchOnboardingRequest.md)
+ - [PatchPreferences200Response](doc/PatchPreferences200Response.md)
+ - [PatchPreferencesRequest](doc/PatchPreferencesRequest.md)
+ - [PatchProfileRequest](doc/PatchProfileRequest.md)
  - [PublicAssetTeaser](doc/PublicAssetTeaser.md)
  - [PublicCovenDetailResponse](doc/PublicCovenDetailResponse.md)
  - [PublicCovenResponse](doc/PublicCovenResponse.md)
@@ -165,6 +223,11 @@ Class | Method | HTTP request | Description
  - [PublicDiscoverItemOneOf2](doc/PublicDiscoverItemOneOf2.md)
  - [PublicDiscoverItemOneOf3](doc/PublicDiscoverItemOneOf3.md)
  - [PublicDiscoverResponse](doc/PublicDiscoverResponse.md)
+ - [PutAstrologyProfile200Response](doc/PutAstrologyProfile200Response.md)
+ - [PutAstrologyProfileRequest](doc/PutAstrologyProfileRequest.md)
+ - [PutCircleAssetRequest](doc/PutCircleAssetRequest.md)
+ - [PutInvestorProfile200Response](doc/PutInvestorProfile200Response.md)
+ - [PutInvestorProfileRequest](doc/PutInvestorProfileRequest.md)
  - [ResponseMeta](doc/ResponseMeta.md)
  - [RitualAssetIdea](doc/RitualAssetIdea.md)
  - [RitualEvidenceResponse](doc/RitualEvidenceResponse.md)
@@ -172,11 +235,13 @@ Class | Method | HTTP request | Description
  - [RitualHistoryResponse](doc/RitualHistoryResponse.md)
  - [RowanCounsel](doc/RowanCounsel.md)
  - [RowanCounselResponse](doc/RowanCounselResponse.md)
+ - [SaveAsset200Response](doc/SaveAsset200Response.md)
+ - [SaveAssetRequest](doc/SaveAssetRequest.md)
+ - [SavedItemReceipt](doc/SavedItemReceipt.md)
  - [SearchResponse](doc/SearchResponse.md)
  - [SearchResult](doc/SearchResult.md)
  - [SeededCreator](doc/SeededCreator.md)
  - [SessionBootstrap](doc/SessionBootstrap.md)
- - [SessionBootstrapAccount](doc/SessionBootstrapAccount.md)
  - [SessionBootstrapDefaultPortfolio](doc/SessionBootstrapDefaultPortfolio.md)
  - [SessionBootstrapEntitlement](doc/SessionBootstrapEntitlement.md)
  - [SessionBootstrapOnboarding](doc/SessionBootstrapOnboarding.md)

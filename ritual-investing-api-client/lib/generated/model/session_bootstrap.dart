@@ -5,10 +5,10 @@
 // ignore_for_file: unused_element
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_preferences.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_profile.dart';
-import 'package:ritual_investing_api_client/generated/model/session_bootstrap_account.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_entitlement.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_onboarding.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_default_portfolio.dart';
+import 'package:ritual_investing_api_client/generated/model/member_account_view_account.dart';
 import 'package:copy_with_extension/copy_with_extension.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -42,7 +42,7 @@ class SessionBootstrap {
   });
 
   @JsonKey(name: r'account', required: true, includeIfNull: false)
-  final SessionBootstrapAccount account;
+  final MemberAccountViewAccount account;
 
   @JsonKey(
     name: r'contract_version',

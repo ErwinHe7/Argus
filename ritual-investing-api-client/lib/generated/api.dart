@@ -7,14 +7,17 @@ import 'package:ritual_investing_api_client/generated/auth/api_key_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/basic_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/bearer_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/oauth.dart';
+import 'package:ritual_investing_api_client/generated/api/account_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_session_api.dart';
 import 'package:ritual_investing_api_client/generated/api/assets_api.dart';
+import 'package:ritual_investing_api_client/generated/api/circles_api.dart';
 import 'package:ritual_investing_api_client/generated/api/discover_api.dart';
 import 'package:ritual_investing_api_client/generated/api/founders_coven_api.dart';
 import 'package:ritual_investing_api_client/generated/api/platform_api.dart';
 import 'package:ritual_investing_api_client/generated/api/public_preview_api.dart';
 import 'package:ritual_investing_api_client/generated/api/rituals_api.dart';
 import 'package:ritual_investing_api_client/generated/api/rowan_api.dart';
+import 'package:ritual_investing_api_client/generated/api/saves_api.dart';
 import 'package:ritual_investing_api_client/generated/api/search_api.dart';
 import 'package:ritual_investing_api_client/generated/api/session_api.dart';
 
@@ -141,6 +144,12 @@ class RitualInvestingApiClient {
     }
   }
 
+  /// Get AccountApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AccountApi getAccountApi() {
+    return AccountApi(dio);
+  }
+
   /// Get AdminSessionApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   AdminSessionApi getAdminSessionApi() {
@@ -151,6 +160,12 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   AssetsApi getAssetsApi() {
     return AssetsApi(dio);
+  }
+
+  /// Get CirclesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  CirclesApi getCirclesApi() {
+    return CirclesApi(dio);
   }
 
   /// Get DiscoverApi instance, base route and serializer can be overridden by a given but be careful,
@@ -187,6 +202,12 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   RowanApi getRowanApi() {
     return RowanApi(dio);
+  }
+
+  /// Get SavesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  SavesApi getSavesApi() {
+    return SavesApi(dio);
   }
 
   /// Get SearchApi instance, base route and serializer can be overridden by a given but be careful,

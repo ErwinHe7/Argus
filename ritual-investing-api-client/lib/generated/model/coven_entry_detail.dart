@@ -24,6 +24,8 @@ class CovenEntryDetail {
 
     required this.demo,
 
+    required this.focus,
+
     required this.id,
 
     required this.inclusionRationale,
@@ -48,6 +50,9 @@ class CovenEntryDetail {
 
   @JsonKey(name: r'demo', required: true, includeIfNull: false)
   final DemoDisclosure demo;
+
+  @JsonKey(name: r'focus', required: true, includeIfNull: false)
+  final String focus;
 
   @JsonKey(name: r'id', required: true, includeIfNull: false)
   final String id;
@@ -82,6 +87,7 @@ class CovenEntryDetail {
       other is CovenEntryDetail &&
           other.company == company &&
           other.demo == demo &&
+          other.focus == focus &&
           other.id == id &&
           other.inclusionRationale == inclusionRationale &&
           other.limitations == limitations &&
@@ -96,6 +102,7 @@ class CovenEntryDetail {
   int get hashCode =>
       company.hashCode +
       demo.hashCode +
+      focus.hashCode +
       id.hashCode +
       inclusionRationale.hashCode +
       limitations.hashCode +

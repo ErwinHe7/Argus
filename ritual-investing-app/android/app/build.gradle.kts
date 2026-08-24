@@ -27,6 +27,8 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["auth0Domain"] = project.findProperty("auth0Domain")?.toString() ?: "ritual-investing.invalid"
+        manifestPlaceholders["auth0Scheme"] = "com.ritualinvesting.ritual_investing_app"
     }
 
     buildTypes {

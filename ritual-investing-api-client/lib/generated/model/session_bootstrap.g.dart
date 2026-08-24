@@ -7,7 +7,7 @@ part of 'session_bootstrap.dart';
 // **************************************************************************
 
 abstract class _$SessionBootstrapCWProxy {
-  SessionBootstrap account(SessionBootstrapAccount account);
+  SessionBootstrap account(MemberAccountViewAccount account);
 
   SessionBootstrap contractVersion(
     SessionBootstrapContractVersionEnum contractVersion,
@@ -34,7 +34,7 @@ abstract class _$SessionBootstrapCWProxy {
   /// SessionBootstrap(...).copyWith(id: 12, name: "My name")
   /// ````
   SessionBootstrap call({
-    SessionBootstrapAccount account,
+    MemberAccountViewAccount account,
     SessionBootstrapContractVersionEnum contractVersion,
     SessionBootstrapDefaultPortfolio defaultPortfolio,
     SessionBootstrapEntitlement entitlement,
@@ -52,7 +52,7 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
   final SessionBootstrap _value;
 
   @override
-  SessionBootstrap account(SessionBootstrapAccount account) =>
+  SessionBootstrap account(MemberAccountViewAccount account) =>
       this(account: account);
 
   @override
@@ -106,7 +106,7 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
       account: account == const $CopyWithPlaceholder()
           ? _value.account
           // ignore: cast_nullable_to_non_nullable
-          : account as SessionBootstrapAccount,
+          : account as MemberAccountViewAccount,
       contractVersion: contractVersion == const $CopyWithPlaceholder()
           ? _value.contractVersion
           // ignore: cast_nullable_to_non_nullable
@@ -170,7 +170,7 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
         final val = SessionBootstrap(
           account: $checkedConvert(
             'account',
-            (v) => SessionBootstrapAccount.fromJson(v as Map<String, dynamic>),
+            (v) => MemberAccountViewAccount.fromJson(v as Map<String, dynamic>),
           ),
           contractVersion: $checkedConvert(
             'contract_version',

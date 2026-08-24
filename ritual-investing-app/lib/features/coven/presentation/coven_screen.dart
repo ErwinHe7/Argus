@@ -1,13 +1,25 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/api/state_status.dart';
+import '../application/controller.dart';
+import '../domain/model.dart';
 
 class CovenScreen extends StatelessWidget {
-  const CovenScreen({super.key});
+  const CovenScreen({super.key, required this.controller});
+  final CovenController controller;
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => _content(context),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final colors = context.ritualColors;
+    final entries = controller.state.value?.entries ?? const <CovenEntry>[];
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
@@ -21,6 +33,7 @@ class CovenScreen extends StatelessWidget {
             'A demo directory that states exactly why each company belongs.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
+          StateStatus(phase: controller.state.phase, onRetry: controller.load),
           const SizedBox(height: 18),
           Container(
             padding: const EdgeInsets.all(18),
@@ -68,30 +81,13 @@ class CovenScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          const _CompanyRow(
-            name: 'Aurora Healthworks',
-            symbol: 'AURA',
-            category: 'Woman founder',
-            focus: 'Preventive health technology',
-          ),
-          const _CompanyRow(
-            name: 'Juniper Robotics',
-            symbol: 'JNPR',
-            category: 'Woman chief executive',
-            focus: 'Industrial automation',
-          ),
-          const _CompanyRow(
-            name: 'Morrow Energy',
-            symbol: 'MROW',
-            category: 'Women-owned',
-            focus: 'Distributed clean energy',
-          ),
-          const _CompanyRow(
-            name: 'Thistle Foods',
-            symbol: 'THST',
-            category: 'Woman founder',
-            focus: 'Sustainable nutrition',
-          ),
+          for (final entry in entries)
+            _CompanyRow(
+              name: entry.name,
+              symbol: entry.symbol ?? '—',
+              category: entry.category,
+              focus: entry.focus,
+            ),
           const SizedBox(height: 22),
           Text(
             'Seeded examples are fictional and are not investment recommendations.',

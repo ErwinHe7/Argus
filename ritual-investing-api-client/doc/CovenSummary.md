@@ -12,9 +12,11 @@ Name | Type | Description | Notes
 **company** | **String** |  | 
 **demo** | [**DemoDisclosure**](DemoDisclosure.md) |  | 
 **effectiveDate** | [**DateTime**](DateTime.md) |  | 
+**focus** | **String** |  | 
 **id** | **String** |  | 
 **revisionId** | **String** |  | 
 **slug** | **String** |  | 
+**symbol** | **String** |  | 
 **teaser** | **String** |  | 
 **verifiedAsOf** | [**DateTime**](DateTime.md) |  | 
 

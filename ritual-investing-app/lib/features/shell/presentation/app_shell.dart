@@ -4,14 +4,29 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../coven/presentation/coven_screen.dart';
+import '../../coven/application/controller.dart';
 import '../../discover/presentation/discover_screen.dart';
+import '../../discover/application/controller.dart';
 import '../../profile/presentation/profile_screen.dart';
+import '../../profile/application/controller.dart';
 import '../../ritual/presentation/daily_ritual_screen.dart';
+import '../../ritual/application/daily_ritual_controller.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, required this.onToggleTheme});
+  const AppShell({
+    super.key,
+    required this.onToggleTheme,
+    required this.dailyRitualController,
+    required this.discoverController,
+    required this.covenController,
+    required this.profileController,
+  });
 
   final ValueChanged<Brightness> onToggleTheme;
+  final DailyRitualController dailyRitualController;
+  final DiscoverController discoverController;
+  final CovenController covenController;
+  final ProfileController profileController;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -26,12 +41,13 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final screens = [
       DailyRitualScreen(
+        controller: widget.dailyRitualController,
         onOpenCoven: () => _select(2),
         onToggleTheme: () => widget.onToggleTheme(Theme.of(context).brightness),
       ),
-      const DiscoverScreen(),
-      const CovenScreen(),
-      const ProfileScreen(),
+      DiscoverScreen(controller: widget.discoverController),
+      CovenScreen(controller: widget.covenController),
+      ProfileScreen(controller: widget.profileController),
     ];
 
     return Scaffold(

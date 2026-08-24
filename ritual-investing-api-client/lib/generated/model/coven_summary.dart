@@ -27,11 +27,15 @@ class CovenSummary {
 
     required this.effectiveDate,
 
+    required this.focus,
+
     required this.id,
 
     required this.revisionId,
 
     required this.slug,
+
+    required this.symbol,
 
     required this.teaser,
 
@@ -55,6 +59,9 @@ class CovenSummary {
   @JsonKey(name: r'effective_date', required: true, includeIfNull: false)
   final DateTime effectiveDate;
 
+  @JsonKey(name: r'focus', required: true, includeIfNull: false)
+  final String focus;
+
   @JsonKey(name: r'id', required: true, includeIfNull: false)
   final String id;
 
@@ -63,6 +70,9 @@ class CovenSummary {
 
   @JsonKey(name: r'slug', required: true, includeIfNull: false)
   final String slug;
+
+  @JsonKey(name: r'symbol', required: true, includeIfNull: true)
+  final String? symbol;
 
   @JsonKey(name: r'teaser', required: true, includeIfNull: false)
   final String teaser;
@@ -78,9 +88,11 @@ class CovenSummary {
           other.company == company &&
           other.demo == demo &&
           other.effectiveDate == effectiveDate &&
+          other.focus == focus &&
           other.id == id &&
           other.revisionId == revisionId &&
           other.slug == slug &&
+          other.symbol == symbol &&
           other.teaser == teaser &&
           other.verifiedAsOf == verifiedAsOf;
 
@@ -90,9 +102,11 @@ class CovenSummary {
       company.hashCode +
       demo.hashCode +
       effectiveDate.hashCode +
+      focus.hashCode +
       id.hashCode +
       revisionId.hashCode +
       slug.hashCode +
+      (symbol == null ? 0 : symbol.hashCode) +
       teaser.hashCode +
       verifiedAsOf.hashCode;
 

@@ -1,13 +1,27 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/api/state_status.dart';
+import '../application/controller.dart';
+import '../domain/model.dart';
 
 class DiscoverScreen extends StatelessWidget {
-  const DiscoverScreen({super.key});
+  const DiscoverScreen({super.key, required this.controller});
+  final DiscoverController controller;
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => _content(context),
+    );
+  }
+
+  Widget _content(BuildContext context) {
     final colors = context.ritualColors;
+    final value = controller.state.value;
+    final grimoires = value?.grimoires ?? const <DiscoverCard>[];
+    final circles = value?.circles ?? const <DiscoverCard>[];
     return SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
@@ -28,94 +42,87 @@ class DiscoverScreen extends StatelessWidget {
             'Research paths shaped like rituals, not a stock screener.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
-          const SizedBox(height: 20),
-          const TextField(
-            readOnly: true,
-            decoration: InputDecoration(
-              prefixIcon: Icon(Icons.search),
-              hintText: 'Search the Asset Codex',
+          StateStatus(phase: controller.state.phase, onRetry: controller.load),
+          if (value != null) ...[
+            const SizedBox(height: 20),
+            const TextField(
+              readOnly: true,
+              decoration: InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Search the Asset Codex',
+              ),
             ),
-          ),
-          const SizedBox(height: 28),
-          const _SectionTitle(
-            title: 'Grimoires',
-            trailing: 'Curated demo research',
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 154,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: const [
-                _GrimoireTile(
-                  title: 'Quiet Power',
-                  subtitle: 'Durability over drama',
-                  icon: Icons.shield_moon_outlined,
-                ),
-                _GrimoireTile(
-                  title: 'New Moons',
-                  subtitle: 'Early themes to study',
-                  icon: Icons.dark_mode_outlined,
-                ),
-                _GrimoireTile(
-                  title: 'Long Horizon',
-                  subtitle: 'Patient compounding',
-                  icon: Icons.hourglass_bottom,
-                ),
-              ],
+            const SizedBox(height: 28),
+            const _SectionTitle(
+              title: 'Grimoires',
+              trailing: 'Curated demo research',
             ),
-          ),
-          const SizedBox(height: 28),
-          const _SectionTitle(
-            title: 'Circles',
-            trailing: 'Seeded community examples',
-          ),
-          const SizedBox(height: 8),
-          _DiscoveryRow(
-            icon: Icons.spa_outlined,
-            title: 'Soft Power Portfolio',
-            subtitle: 'A fictional curator’s diversified demo circle',
-            colors: colors,
-          ),
-          _DiscoveryRow(
-            icon: Icons.public,
-            title: 'Climate Keepers',
-            subtitle: 'Themes to compare, edit, and save locally',
-            colors: colors,
-          ),
-          const SizedBox(height: 28),
-          const _SectionTitle(
-            title: 'Weekly omen',
-            trailing: 'Simulated briefing',
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: colors.coven,
-              borderRadius: BorderRadius.circular(16),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 154,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  for (final (index, item) in grimoires.indexed)
+                    _GrimoireTile(
+                      title: item.title,
+                      subtitle: item.subtitle,
+                      icon: [
+                        Icons.shield_moon_outlined,
+                        Icons.dark_mode_outlined,
+                        Icons.hourglass_bottom,
+                      ][index % 3],
+                    ),
+                ],
+              ),
             ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Noise is rising. Your plan doesn’t have to.',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'LibreBaskerville',
-                    fontSize: 24,
-                    fontWeight: FontWeight.w700,
-                    height: 1.1,
+            const SizedBox(height: 28),
+            const _SectionTitle(
+              title: 'Circles',
+              trailing: 'Seeded community examples',
+            ),
+            const SizedBox(height: 8),
+            for (final (index, item) in circles.indexed)
+              _DiscoveryRow(
+                icon: index.isEven ? Icons.spa_outlined : Icons.public,
+                title: item.title,
+                subtitle: item.subtitle,
+                colors: colors,
+              ),
+            const SizedBox(height: 28),
+            const _SectionTitle(
+              title: 'Weekly omen',
+              trailing: 'Simulated briefing',
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: colors.coven,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Noise is rising. Your plan doesn’t have to.',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontFamily: 'LibreBaskerville',
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                      height: 1.1,
+                    ),
                   ),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  'Rowan separates what changed from what merely got louder.',
-                  style: TextStyle(color: Color(0xFFDCCBDE), height: 1.4),
-                ),
-              ],
+                  SizedBox(height: 8),
+                  Text(
+                    'Rowan separates what changed from what merely got louder.',
+                    style: TextStyle(color: Color(0xFFDCCBDE), height: 1.4),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

@@ -1,6 +1,9 @@
 import { Pool, type PoolClient } from "@neondatabase/serverless";
 
-import { type DatabasePoolFactory, withScopedRuntimeClient } from "../../db/client.ts";
+import {
+  type DatabasePoolFactory,
+  withScopedRuntimeClient,
+} from "../../db/client.ts";
 import { createRequestDatabaseContext } from "../../db/request-context.ts";
 import {
   assetCodexDetailSchema,
@@ -43,7 +46,8 @@ import {
 async function withPublicClient<T>(
   databaseUrl: string,
   callback: (client: PoolClient) => Promise<T>,
-  poolFactory: DatabasePoolFactory = (connectionString) => new Pool({ connectionString, max: 1 }),
+  poolFactory: DatabasePoolFactory = (connectionString) =>
+    new Pool({ connectionString, max: 1 }),
 ): Promise<T> {
   const pool = poolFactory(databaseUrl);
   let client: PoolClient | undefined;
@@ -77,16 +81,33 @@ async function withMemberClient<T>(
     accountStatus: context.accountStatus,
     tenantStatus: context.tenantStatus,
   });
-  return withScopedRuntimeClient(databaseUrl, databaseContext, callback, poolFactory);
+  return withScopedRuntimeClient(
+    databaseUrl,
+    databaseContext,
+    callback,
+    poolFactory,
+  );
 }
 
 async function assertPosition(
   client: PoolClient,
-  view: "ritual_public.discover_v1" | "ritual_public.coven_v1" | "ritual_catalog.assets_v1" | "ritual_catalog.coven_v1" | "ritual_catalog.discover_v1" | "ritual_catalog.grimoires_v1" | "ritual_catalog.creators_v1" | "ritual_catalog.circle_templates_v1" | "ritual_catalog.search_v1",
+  view:
+    | "ritual_public.discover_v1"
+    | "ritual_public.coven_v1"
+    | "ritual_catalog.assets_v1"
+    | "ritual_catalog.coven_v1"
+    | "ritual_catalog.discover_v1"
+    | "ritual_catalog.grimoires_v1"
+    | "ritual_catalog.creators_v1"
+    | "ritual_catalog.circle_templates_v1"
+    | "ritual_catalog.search_v1",
   after: string | undefined,
 ): Promise<void> {
   if (after === undefined) return;
-  const result = await client.query(`select 1 from ${view} where sort_key = $1 limit 1`, [after]);
+  const result = await client.query(
+    `select 1 from ${view} where sort_key = $1 limit 1`,
+    [after],
+  );
   if (result.rowCount !== 1) throw new ContentCursorStaleError();
 }
 
@@ -99,12 +120,21 @@ function pageFromRows<T>(
   const items = values.slice(0, limit);
   return {
     items,
-    nextPosition: hasMore && items.length > 0 ? position(items[items.length - 1]!) : null,
+    nextPosition:
+      hasMore && items.length > 0 ? position(items[items.length - 1]!) : null,
   };
 }
 
 function summaryFromAsset(detail: AssetCodexDetail): AssetSummary {
-  const { thesis: _thesis, risks: _risks, evidence: _evidence, metrics_as_of: _asOf, limitations: _limitations, saved: _saved, ...summary } = detail;
+  const {
+    thesis: _thesis,
+    risks: _risks,
+    evidence: _evidence,
+    metrics_as_of: _asOf,
+    limitations: _limitations,
+    saved: _saved,
+    ...summary
+  } = detail;
   return summary;
 }
 
@@ -114,6 +144,8 @@ function summaryFromCoven(detail: CovenDetail) {
     id: detail.id,
     slug: detail.slug,
     company: detail.company,
+    symbol: detail.symbol,
+    focus: detail.focus,
     category: qualification.category,
     effective_date: qualification.effective_date,
     verified_as_of: qualification.verified_as_of,
@@ -145,21 +177,32 @@ export function createPostgresPublicContentRepository(
           "select payload from ritual_public.daily_ritual_preview_v1 where local_date = $1 and mode = $2 and revision_id = $3 limit 1",
           [input.date, input.mode, revisionId],
         );
-        return result.rows[0] === undefined ? null : dailyRitualPreviewSchema.parse(result.rows[0].payload);
+        return result.rows[0] === undefined
+          ? null
+          : dailyRitualPreviewSchema.parse(result.rows[0].payload);
       });
     },
     async resolveDiscoverRevision() {
       return publicClient(async (client) => {
-        const result = await client.query<{ revision: string }>("select coalesce(md5(string_agg(revision_id::text, ',' order by revision_id)), 'empty') as revision from ritual_public.discover_v1");
+        const result = await client.query<{ revision: string }>(
+          "select coalesce(md5(string_agg(revision_id::text, ',' order by revision_id)), 'empty') as revision from ritual_public.discover_v1",
+        );
         return result.rows[0]?.revision ?? "empty";
       });
     },
     async listDiscover(input, revisionId) {
       return publicClient(async (client) => {
-        const current = await client.query<{ revision: string }>("select coalesce(md5(string_agg(revision_id::text, ',' order by revision_id)), 'empty') as revision from ritual_public.discover_v1");
-        if (current.rows[0]?.revision !== revisionId) throw new ContentCursorStaleError();
+        const current = await client.query<{ revision: string }>(
+          "select coalesce(md5(string_agg(revision_id::text, ',' order by revision_id)), 'empty') as revision from ritual_public.discover_v1",
+        );
+        if (current.rows[0]?.revision !== revisionId)
+          throw new ContentCursorStaleError();
         await assertPosition(client, "ritual_public.discover_v1", input.after);
-        const result = await client.query<{ revision_id: string; sort_key: string; payload: unknown }>(
+        const result = await client.query<{
+          revision_id: string;
+          sort_key: string;
+          payload: unknown;
+        }>(
           "select revision_id, sort_key, payload from ritual_public.discover_v1 where ($1::text is null or sort_key > $1) order by sort_key, revision_id limit $2",
           [input.after ?? null, input.limit + 1],
         );
@@ -178,10 +221,17 @@ export function createPostgresPublicContentRepository(
     },
     async listCoven(input, revisionId) {
       return publicClient(async (client) => {
-        const current = await client.query<{ revision: string | null }>("select case when count(*) = 0 then null else md5(string_agg(revision_id::text, ',' order by revision_id)) end as revision from ritual_public.coven_v1");
-        if (current.rows[0]?.revision !== revisionId) throw new ContentCursorStaleError();
+        const current = await client.query<{ revision: string | null }>(
+          "select case when count(*) = 0 then null else md5(string_agg(revision_id::text, ',' order by revision_id)) end as revision from ritual_public.coven_v1",
+        );
+        if (current.rows[0]?.revision !== revisionId)
+          throw new ContentCursorStaleError();
         await assertPosition(client, "ritual_public.coven_v1", input.after);
-        const result = await client.query<{ revision_id: string; sort_key: string; payload: unknown }>(
+        const result = await client.query<{
+          revision_id: string;
+          sort_key: string;
+          payload: unknown;
+        }>(
           "select revision_id, sort_key, payload from ritual_public.coven_v1 where ($1::text is null or sort_key > $1) and ($2::text is null or category = $2) order by sort_key, revision_id limit $3",
           [input.after ?? null, input.category ?? null, input.limit + 1],
         );
@@ -190,14 +240,19 @@ export function createPostgresPublicContentRepository(
     },
     async getCoven(slug, revisionId) {
       return publicClient(async (client) => {
-        const current = await client.query<{ revision: string | null }>("select case when count(*) = 0 then null else md5(string_agg(revision_id::text, ',' order by revision_id)) end as revision from ritual_public.coven_v1 where slug = $1", [slug]);
+        const current = await client.query<{ revision: string | null }>(
+          "select case when count(*) = 0 then null else md5(string_agg(revision_id::text, ',' order by revision_id)) end as revision from ritual_public.coven_v1 where slug = $1",
+          [slug],
+        );
         if (current.rows[0]?.revision !== revisionId) return null;
         const result = await client.query<{ payload: unknown }>(
           "select payload from ritual_public.coven_v1 where slug = $1 order by sort_key limit 1",
           [slug],
         );
         const row = result.rows[0];
-        return row === undefined ? null : publicCovenTeaserSchema.parse(row.payload);
+        return row === undefined
+          ? null
+          : publicCovenTeaserSchema.parse(row.payload);
       });
     },
   };
@@ -207,22 +262,31 @@ export function createPostgresMemberContentRepository(
   databaseUrl: string,
   poolFactory?: DatabasePoolFactory,
 ): MemberContentRepository {
-  const memberClient = <T>(context: MemberRequestContext, callback: (client: PoolClient) => Promise<T>) =>
-    withMemberClient(databaseUrl, context, callback, poolFactory);
+  const memberClient = <T>(
+    context: MemberRequestContext,
+    callback: (client: PoolClient) => Promise<T>,
+  ) => withMemberClient(databaseUrl, context, callback, poolFactory);
   const repository: MemberContentRepository = {
     async getOrCreateDaily(context, input) {
       return memberClient(context, async (client) => {
-        const resolvedDate = input.date ?? (await client.query<{ local_date: string }>(
-          `select to_char(clock_timestamp() at time zone preferences.timezone, 'YYYY-MM-DD') as local_date
+        const resolvedDate =
+          input.date ??
+          (
+            await client.query<{ local_date: string }>(
+              `select to_char(clock_timestamp() at time zone preferences.timezone, 'YYYY-MM-DD') as local_date
            from preferences where tenant_id = $1`,
-          [context.tenantId],
-        )).rows[0]?.local_date;
+              [context.tenantId],
+            )
+          ).rows[0]?.local_date;
         if (resolvedDate === undefined) return null;
         if (input.mode === "astrology") {
           const profile = await client.query<{ derived_profile_code: string }>(
             `select derived_profile_code from astrology_profiles
              where tenant_id = $1 and derived_profile_code = any($2::text[])`,
-            [context.tenantId, ["lunar_patient", "solar_builder", "rising_explorer"]],
+            [
+              context.tenantId,
+              ["lunar_patient", "solar_builder", "rising_explorer"],
+            ],
           );
           if (profile.rowCount !== 1) return null;
         }
@@ -246,12 +310,16 @@ export function createPostgresMemberContentRepository(
            on conflict (tenant_id, local_date, mode) do nothing`,
           [context.tenantId, resolvedDate, input.mode],
         );
-        return loadAssignment(client, context.tenantId, { date: resolvedDate, mode: input.mode });
+        return loadAssignment(client, context.tenantId, {
+          date: resolvedDate,
+          mode: input.mode,
+        });
       });
     },
     async getAssignment(context, assignmentId) {
       return memberClient(context, (client) =>
-        loadAssignment(client, context.tenantId, { assignmentId }));
+        loadAssignment(client, context.tenantId, { assignmentId }),
+      );
     },
     async getAssignmentEvidence(context, assignmentId) {
       return memberClient(context, async (client) => {
@@ -266,12 +334,21 @@ export function createPostgresMemberContentRepository(
     },
     async transitionAssignment(context, assignmentId, transition, version) {
       return memberClient(context, async (client) => {
-        const current = await loadAssignment(client, context.tenantId, { assignmentId });
+        const current = await loadAssignment(client, context.tenantId, {
+          assignmentId,
+        });
         if (current === null) return null;
-        if (transition === "reveal" && ["revealed", "completed"].includes(current.state)) return current;
-        if (transition === "complete" && current.state === "completed") return current;
-        if (current.version !== version) throw new ContentVersionConflictError();
-        if (transition === "complete" && current.state === "assigned") throw new ContentInvalidStateError();
+        if (
+          transition === "reveal" &&
+          ["revealed", "completed"].includes(current.state)
+        )
+          return current;
+        if (transition === "complete" && current.state === "completed")
+          return current;
+        if (current.version !== version)
+          throw new ContentVersionConflictError();
+        if (transition === "complete" && current.state === "assigned")
+          throw new ContentInvalidStateError();
         const result = await client.query(
           `update daily_ritual_assignments
            set state = case when $3 = 'reveal' then 'revealed' else 'completed' end,
@@ -296,31 +373,65 @@ export function createPostgresMemberContentRepository(
           );
           if (position.rowCount !== 1) throw new ContentCursorStaleError();
         }
-        const result = await client.query<{ id: string; local_date: string; mode: "tarot" | "astrology" }>(
+        const result = await client.query<{
+          id: string;
+          local_date: string;
+          mode: "tarot" | "astrology";
+        }>(
           `select id, local_date::text, mode from daily_ritual_assignments
            where tenant_id = $1 and ($2::text is null or mode = $2)
              and ($3::date is null or local_date >= $3) and ($4::date is null or local_date <= $4)
              and ($5::text is null or (local_date::text || '|' || id::text) < $5)
            order by local_date desc, id desc limit $6`,
-          [context.tenantId, input.mode ?? null, input.from ?? null, input.to ?? null, input.after ?? null, input.limit + 1],
+          [
+            context.tenantId,
+            input.mode ?? null,
+            input.from ?? null,
+            input.to ?? null,
+            input.after ?? null,
+            input.limit + 1,
+          ],
         );
         const values: Array<{ sortKey: string; value: DailyRitualDetail }> = [];
         for (const row of result.rows) {
-          const detail = await loadAssignment(client, context.tenantId, { assignmentId: row.id });
-          if (detail !== null) values.push({ sortKey: `${row.local_date}|${row.id}`, value: detail });
+          const detail = await loadAssignment(client, context.tenantId, {
+            assignmentId: row.id,
+          });
+          if (detail !== null)
+            values.push({
+              sortKey: `${row.local_date}|${row.id}`,
+              value: detail,
+            });
         }
-        const page = pageFromRows(values, input.limit, (entry) => entry.sortKey);
-        return { items: page.items.map((entry) => entry.value), nextPosition: page.nextPosition };
+        const page = pageFromRows(
+          values,
+          input.limit,
+          (entry) => entry.sortKey,
+        );
+        return {
+          items: page.items.map((entry) => entry.value),
+          nextPosition: page.nextPosition,
+        };
       });
     },
     async resolveRowan(context, input) {
       return memberClient(context, async (client) => {
         if (input.resourceId !== undefined) {
-          const owned = input.surface === "daily_ritual" || input.surface === "evidence"
-            ? await client.query("select 1 from daily_ritual_assignments where tenant_id = $1 and id = $2", [context.tenantId, input.resourceId])
-            : input.surface === "asset_codex"
-              ? await client.query("select 1 from ritual_catalog.assets_v1 where id = $1", [input.resourceId])
-              : await client.query("select 1 from ritual_catalog.coven_v1 where id = $1", [input.resourceId]);
+          const owned =
+            input.surface === "daily_ritual" || input.surface === "evidence"
+              ? await client.query(
+                  "select 1 from daily_ritual_assignments where tenant_id = $1 and id = $2",
+                  [context.tenantId, input.resourceId],
+                )
+              : input.surface === "asset_codex"
+                ? await client.query(
+                    "select 1 from ritual_catalog.assets_v1 where id = $1",
+                    [input.resourceId],
+                  )
+                : await client.query(
+                    "select 1 from ritual_catalog.coven_v1 where id = $1",
+                    [input.resourceId],
+                  );
           if (owned.rowCount !== 1) return null;
         }
         const result = await client.query<{ payload: unknown }>(
@@ -336,21 +447,41 @@ export function createPostgresMemberContentRepository(
     async listAssets(context, input) {
       return memberClient(context, async (client) => {
         await assertPosition(client, "ritual_catalog.assets_v1", input.after);
-        const result = await client.query<{ sort_key: string; payload: unknown }>(
+        const result = await client.query<{
+          sort_key: string;
+          payload: unknown;
+        }>(
           `select sort_key, payload from ritual_catalog.assets_v1
            where ($1::text is null or sort_key > $1)
              and ($2::text is null or asset_type = $2)
              and ($3::text is null or symbol like ($3 || '%'))
            order by sort_key limit $4`,
-          [input.after ?? null, input.assetType ?? null, input.symbolPrefix?.toUpperCase() ?? null, input.limit + 1],
+          [
+            input.after ?? null,
+            input.assetType ?? null,
+            input.symbolPrefix?.toUpperCase() ?? null,
+            input.limit + 1,
+          ],
         );
-        const values = result.rows.map((row) => ({ sortKey: row.sort_key, value: summaryFromAsset(assetCodexDetailSchema.parse(row.payload)) }));
-        const page = pageFromRows(values, input.limit, (entry) => entry.sortKey);
-        return { items: page.items.map((entry) => entry.value), nextPosition: page.nextPosition };
+        const values = result.rows.map((row) => ({
+          sortKey: row.sort_key,
+          value: summaryFromAsset(assetCodexDetailSchema.parse(row.payload)),
+        }));
+        const page = pageFromRows(
+          values,
+          input.limit,
+          (entry) => entry.sortKey,
+        );
+        return {
+          items: page.items.map((entry) => entry.value),
+          nextPosition: page.nextPosition,
+        };
       });
     },
     async getAsset(context, id) {
-      return memberClient(context, (client) => loadAsset(client, context.tenantId, id));
+      return memberClient(context, (client) =>
+        loadAsset(client, context.tenantId, id),
+      );
     },
     async getAssetEvidence(context, id) {
       return memberClient(context, async (client) => {
@@ -360,12 +491,17 @@ export function createPostgresMemberContentRepository(
           "select payload from ritual_catalog.asset_evidence_v1 where asset_id = $1 order by ordinal",
           [id],
         );
-        return result.rows.map((row) => evidenceDetailSchema.parse(row.payload));
+        return result.rows.map((row) =>
+          evidenceDetailSchema.parse(row.payload),
+        );
       });
     },
     async getAssetMetrics(context, id, asOf) {
       return memberClient(context, async (client) => {
-        const exists = await client.query("select 1 from ritual_catalog.assets_v1 where id = $1", [id]);
+        const exists = await client.query(
+          "select 1 from ritual_catalog.assets_v1 where id = $1",
+          [id],
+        );
         if (exists.rowCount !== 1) return null;
         const result = await client.query<{ payload: unknown }>(
           `select payload from ritual_catalog.asset_metrics_v1
@@ -388,30 +524,61 @@ export function createPostgresMemberContentRepository(
           );
           const latest = metric.rows[0];
           if (latest === undefined) return null;
-          entries.push({ asset: summaryFromAsset(asset), latest_metric: assetMetricSchema.parse(latest.payload), risk_count: asset.risks.length });
+          entries.push({
+            asset: summaryFromAsset(asset),
+            latest_metric: assetMetricSchema.parse(latest.payload),
+            risk_count: asset.risks.length,
+          });
         }
-        const observed = entries.map((entry) => entry.latest_metric.observed_at).sort().at(-1)!;
-        return assetComparisonSchema.parse({ assets: entries, compared_at: observed, demo: entries[0]!.asset.demo });
+        const observed = entries
+          .map((entry) => entry.latest_metric.observed_at)
+          .sort()
+          .at(-1)!;
+        return assetComparisonSchema.parse({
+          assets: entries,
+          compared_at: observed,
+          demo: entries[0]!.asset.demo,
+        });
       });
     },
     async listMemberCoven(context, input) {
       return memberClient(context, async (client) => {
         await assertPosition(client, "ritual_catalog.coven_v1", input.after);
-        const result = await client.query<{ sort_key: string; payload: unknown }>(
+        const result = await client.query<{
+          sort_key: string;
+          payload: unknown;
+        }>(
           `select sort_key, payload from ritual_catalog.coven_v1
            where ($1::text is null or sort_key > $1)
              and ($2::text is null or $2 = any(categories))
              and ($3::date is null or verified_as_of <= $3)
            order by sort_key limit $4`,
-          [input.after ?? null, input.category ?? null, input.verifiedAsOf ?? null, input.limit + 1],
+          [
+            input.after ?? null,
+            input.category ?? null,
+            input.verifiedAsOf ?? null,
+            input.limit + 1,
+          ],
         );
-        const values = result.rows.map((row) => ({ sortKey: row.sort_key, value: summaryFromCoven(covenDetailSchema.parse(row.payload)) }));
-        const page = pageFromRows(values, input.limit, (entry) => entry.sortKey);
-        return { items: page.items.map((entry) => entry.value), nextPosition: page.nextPosition };
+        const values = result.rows.map((row) => ({
+          sortKey: row.sort_key,
+          value: summaryFromCoven(covenDetailSchema.parse(row.payload)),
+        }));
+        const page = pageFromRows(
+          values,
+          input.limit,
+          (entry) => entry.sortKey,
+        );
+        return {
+          items: page.items.map((entry) => entry.value),
+          nextPosition: page.nextPosition,
+        };
       });
     },
     async getMemberCoven(context, id) {
-      return memberClient(context, (client) => loadCoven(client, context.tenantId, id));
+      return memberClient(context, (client) =>
+        loadCoven(client, context.tenantId, id),
+      );
     },
     async getMemberCovenEvidence(context, id) {
       return memberClient(context, async (client) => {
@@ -421,50 +588,80 @@ export function createPostgresMemberContentRepository(
           "select payload from ritual_catalog.coven_evidence_v1 where entry_id = $1 order by ordinal",
           [id],
         );
-        return result.rows.map((row) => evidenceDetailSchema.parse(row.payload));
+        return result.rows.map((row) =>
+          evidenceDetailSchema.parse(row.payload),
+        );
       });
     },
     async listMemberDiscover(context, input) {
       return memberClient(context, async (client) => {
-        const profile = await client.query<{ ritual_mode: string; risk_comfort: string }>(
+        const profile = await client.query<{
+          ritual_mode: string;
+          risk_comfort: string;
+        }>(
           `select preferences.ritual_mode, investor_profiles.risk_comfort
            from preferences left join investor_profiles using (tenant_id)
            where preferences.tenant_id = $1`,
           [context.tenantId],
         );
-        const ritualMode = ["tarot", "astrology"].includes(profile.rows[0]?.ritual_mode ?? "")
+        const ritualMode = ["tarot", "astrology"].includes(
+          profile.rows[0]?.ritual_mode ?? "",
+        )
           ? profile.rows[0]!.ritual_mode
           : "tarot";
-        const riskComfort = ["cautious", "balanced", "adventurous"].includes(profile.rows[0]?.risk_comfort ?? "")
+        const riskComfort = ["cautious", "balanced", "adventurous"].includes(
+          profile.rows[0]?.risk_comfort ?? "",
+        )
           ? profile.rows[0]!.risk_comfort
           : "balanced";
-        const preferredKind = riskComfort === "cautious"
-          ? "grimoire"
-          : riskComfort === "adventurous"
-            ? "circle_template"
-            : ritualMode === "astrology" ? "coven" : "asset";
+        const preferredKind =
+          riskComfort === "cautious"
+            ? "grimoire"
+            : riskComfort === "adventurous"
+              ? "circle_template"
+              : ritualMode === "astrology"
+                ? "coven"
+                : "asset";
         const personalizedView = `
           select kind, payload,
                  lpad((case when kind = $1 then 0 else 1 end)::text, 2, '0') || '|' || sort_key as page_sort
           from ritual_catalog.discover_v1
           where ($2::text is null or kind = $2)`;
         if (input.after !== undefined) {
-          const position = await client.query(`select 1 from (${personalizedView}) personalized where page_sort = $3 limit 1`, [preferredKind, input.section ?? null, input.after]);
+          const position = await client.query(
+            `select 1 from (${personalizedView}) personalized where page_sort = $3 limit 1`,
+            [preferredKind, input.section ?? null, input.after],
+          );
           if (position.rowCount !== 1) throw new ContentCursorStaleError();
         }
-        const result = await client.query<{ sort_key: string; payload: unknown }>(
+        const result = await client.query<{
+          sort_key: string;
+          payload: unknown;
+        }>(
           `select page_sort as sort_key, payload from (${personalizedView}) personalized
            where ($3::text is null or page_sort > $3)
            order by page_sort limit $4`,
-          [preferredKind, input.section ?? null, input.after ?? null, input.limit + 1],
+          [
+            preferredKind,
+            input.section ?? null,
+            input.after ?? null,
+            input.limit + 1,
+          ],
         );
         return parsedPage(result.rows, input.limit, discoverItemSchema);
       });
     },
     async listGrimoires(context, input) {
       return memberClient(context, async (client) => {
-        await assertPosition(client, "ritual_catalog.grimoires_v1", input.after);
-        const result = await client.query<{ sort_key: string; payload: unknown }>(
+        await assertPosition(
+          client,
+          "ritual_catalog.grimoires_v1",
+          input.after,
+        );
+        const result = await client.query<{
+          sort_key: string;
+          payload: unknown;
+        }>(
           `select sort_key, payload from ritual_catalog.grimoires_v1
            where ($1::text is null or sort_key > $1) and ($2::text is null or theme = $2)
            order by sort_key limit $3`,
@@ -475,14 +672,22 @@ export function createPostgresMemberContentRepository(
     },
     async getGrimoire(context, id) {
       return memberClient(context, async (client) => {
-        const result = await client.query<{ payload: unknown }>("select detail_payload as payload from ritual_catalog.grimoires_v1 where id = $1", [id]);
-        return result.rows[0] === undefined ? null : grimoireDetailSchema.parse(result.rows[0].payload);
+        const result = await client.query<{ payload: unknown }>(
+          "select detail_payload as payload from ritual_catalog.grimoires_v1 where id = $1",
+          [id],
+        );
+        return result.rows[0] === undefined
+          ? null
+          : grimoireDetailSchema.parse(result.rows[0].payload);
       });
     },
     async listCreators(context, input) {
       return memberClient(context, async (client) => {
         await assertPosition(client, "ritual_catalog.creators_v1", input.after);
-        const result = await client.query<{ sort_key: string; payload: unknown }>(
+        const result = await client.query<{
+          sort_key: string;
+          payload: unknown;
+        }>(
           "select sort_key, payload from ritual_catalog.creators_v1 where ($1::text is null or sort_key > $1) order by sort_key limit $2",
           [input.after ?? null, input.limit + 1],
         );
@@ -491,26 +696,50 @@ export function createPostgresMemberContentRepository(
     },
     async listCircleTemplates(context, input) {
       return memberClient(context, async (client) => {
-        await assertPosition(client, "ritual_catalog.circle_templates_v1", input.after);
-        const result = await client.query<{ sort_key: string; payload: unknown }>(
+        await assertPosition(
+          client,
+          "ritual_catalog.circle_templates_v1",
+          input.after,
+        );
+        const result = await client.query<{
+          sort_key: string;
+          payload: unknown;
+        }>(
           `select sort_key, payload from ritual_catalog.circle_templates_v1
            where ($1::text is null or sort_key > $1) and ($2::text is null or theme = $2) and ($3::text is null or creator_slug = $3)
            order by sort_key limit $4`,
-          [input.after ?? null, input.theme ?? null, input.creator ?? null, input.limit + 1],
+          [
+            input.after ?? null,
+            input.theme ?? null,
+            input.creator ?? null,
+            input.limit + 1,
+          ],
         );
-        return parsedPage(result.rows, input.limit, circleTemplateSummarySchema);
+        return parsedPage(
+          result.rows,
+          input.limit,
+          circleTemplateSummarySchema,
+        );
       });
     },
     async getCircleTemplate(context, id) {
       return memberClient(context, async (client) => {
-        const result = await client.query<{ payload: unknown }>("select detail_payload as payload from ritual_catalog.circle_templates_v1 where id = $1", [id]);
-        return result.rows[0] === undefined ? null : circleTemplateDetailSchema.parse(result.rows[0].payload);
+        const result = await client.query<{ payload: unknown }>(
+          "select detail_payload as payload from ritual_catalog.circle_templates_v1 where id = $1",
+          [id],
+        );
+        return result.rows[0] === undefined
+          ? null
+          : circleTemplateDetailSchema.parse(result.rows[0].payload);
       });
     },
     async search(context, input) {
       return memberClient(context, async (client) => {
         await assertPosition(client, "ritual_catalog.search_v1", input.after);
-        const result = await client.query<{ sort_key: string; payload: unknown }>(
+        const result = await client.query<{
+          sort_key: string;
+          payload: unknown;
+        }>(
           `select sort_key, payload from ritual_catalog.search_v1
            where ($1::text is null or sort_key > $1)
              and kind = any($2::text[])
@@ -530,23 +759,80 @@ function parsedPage<T>(
   limit: number,
   schema: { parse(value: unknown): T },
 ): PageResult<T> {
-  const values = rows.map((row) => ({ sortKey: row.sort_key, value: schema.parse(row.payload) }));
+  const values = rows.map((row) => ({
+    sortKey: row.sort_key,
+    value: schema.parse(row.payload),
+  }));
   const page = pageFromRows(values, limit, (entry) => entry.sortKey);
-  return { items: page.items.map((entry) => entry.value), nextPosition: page.nextPosition };
+  return {
+    items: page.items.map((entry) => entry.value),
+    nextPosition: page.nextPosition,
+  };
 }
 
-async function loadAsset(client: PoolClient, tenantId: string, id: string): Promise<AssetCodexDetail | null> {
+async function loadAsset(
+  client: PoolClient,
+  tenantId: string,
+  id: string,
+): Promise<AssetCodexDetail | null> {
   const result = await client.query<{ payload: unknown }>(
-    `select jsonb_set(payload, '{saved}', to_jsonb(exists(
-       select 1 from saved_assets saved where saved.tenant_id = $1 and saved.asset_id = assets.id
-     ))) as payload
-     from ritual_catalog.assets_v1 assets where id = $2`,
+    `select jsonb_build_object(
+       'id', asset.id, 'slug', asset.slug, 'symbol', asset.symbol,
+       'name', asset.name, 'asset_type', asset.asset_type,
+       'currency', asset.currency, 'revision_id', revision.id,
+       'appearance_reason', typed.appearance_reason, 'thesis', typed.thesis,
+       'risks', (
+         select jsonb_agg(jsonb_build_object(
+           'title', risk.title, 'detail', risk.detail, 'severity', risk.severity
+         ) order by risk.ordinal)
+         from asset_codex_risks risk where risk.revision_id = revision.id
+       ),
+       'evidence', (
+         select jsonb_agg(jsonb_build_object(
+           'claim_id', claim.id, 'factor_label', claim.claim_type,
+           'summary', claim.summary,
+           'observed_at', to_char(claim.observed_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+           'uncertainty', claim.uncertainty
+         ) order by evidence.ordinal)
+         from asset_codex_evidence evidence
+         join evidence_claims claim on claim.id = evidence.claim_id
+         where evidence.revision_id = revision.id
+       ),
+       'metrics_as_of', to_char(typed.metrics_as_of at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+       'limitations', typed.limitations,
+       'saved', saved.asset_id is not null,
+       'demo', jsonb_build_object(
+         'is_demo', true,
+         'observed_at', to_char(typed.metrics_as_of at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+         'source_label', 'Ritual fixture ' || asset.symbol,
+         'limitations', jsonb_build_array(
+           'Deterministic demo data; prices and signals are fictional.',
+           'Educational exploration only; not investment advice.'
+         )
+       )
+     ) as payload
+     from asset_codex_entries entry
+     join editorial_items item on item.id = entry.editorial_item_id
+     join assets asset on asset.id = entry.asset_id and asset.status = 'active'
+     left join saved_assets saved on saved.tenant_id = $1 and saved.asset_id = asset.id
+     join editorial_revisions revision
+       on revision.id = coalesce(saved.revision_id, item.current_published_revision_id)
+       and revision.item_id = item.id
+     join asset_codex_revisions typed on typed.revision_id = revision.id
+     where asset.id = $2
+       and (saved.revision_id is not null or (item.status = 'published' and revision.state = 'published'))`,
     [tenantId, id],
   );
-  return result.rows[0] === undefined ? null : assetCodexDetailSchema.parse(result.rows[0].payload);
+  return result.rows[0] === undefined
+    ? null
+    : assetCodexDetailSchema.parse(result.rows[0].payload);
 }
 
-async function loadCoven(client: PoolClient, tenantId: string, id: string): Promise<CovenDetail | null> {
+async function loadCoven(
+  client: PoolClient,
+  tenantId: string,
+  id: string,
+): Promise<CovenDetail | null> {
   const result = await client.query<{ payload: unknown }>(
     `select jsonb_set(payload, '{saved}', to_jsonb(exists(
        select 1 from saved_coven_entries saved where saved.tenant_id = $1 and saved.entry_id = coven.id
@@ -554,7 +840,9 @@ async function loadCoven(client: PoolClient, tenantId: string, id: string): Prom
      from ritual_catalog.coven_v1 coven where id = $2`,
     [tenantId, id],
   );
-  return result.rows[0] === undefined ? null : covenDetailSchema.parse(result.rows[0].payload);
+  return result.rows[0] === undefined
+    ? null
+    : covenDetailSchema.parse(result.rows[0].payload);
 }
 
 async function loadEvidence(client: PoolClient, revisionId: string) {
@@ -568,7 +856,9 @@ async function loadEvidence(client: PoolClient, revisionId: string) {
 async function loadAssignment(
   client: PoolClient,
   tenantId: string,
-  selector: { assignmentId: string } | { date: string; mode: "tarot" | "astrology" },
+  selector:
+    | { assignmentId: string }
+    | { date: string; mode: "tarot" | "astrology" },
 ): Promise<DailyRitualDetail | null> {
   const byId = "assignmentId" in selector;
   const result = await client.query<{
@@ -591,7 +881,9 @@ async function loadAssignment(
      join ritual_catalog.rowan_revisions_v1 rowan on rowan.revision_id = assignment.rowan_revision_id
      where assignment.tenant_id = $1 and ${byId ? "assignment.id = $2" : "assignment.local_date = $2 and assignment.mode = $3"}
      limit 1`,
-    byId ? [tenantId, selector.assignmentId] : [tenantId, selector.date, selector.mode],
+    byId
+      ? [tenantId, selector.assignmentId]
+      : [tenantId, selector.date, selector.mode],
   );
   const row = result.rows[0];
   if (row === undefined) return null;
@@ -603,7 +895,11 @@ async function loadAssignment(
     mode: row.mode,
     state: row.state,
     version: Number(row.version),
-    revealed_at: row.revealed_at === null ? null : new Date(row.revealed_at).toISOString(),
-    completed_at: row.completed_at === null ? null : new Date(row.completed_at).toISOString(),
+    revealed_at:
+      row.revealed_at === null ? null : new Date(row.revealed_at).toISOString(),
+    completed_at:
+      row.completed_at === null
+        ? null
+        : new Date(row.completed_at).toISOString(),
   });
 }

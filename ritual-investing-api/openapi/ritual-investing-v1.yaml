@@ -354,6 +354,71 @@ components:
         - appearance_reason
         - demo
       type: object
+    AstrologyProfile:
+      additionalProperties: false
+      properties:
+        algorithm_version:
+          enum:
+            - v1
+          type: string
+        birth_date:
+          format: date
+          type: string
+        derived_profile_code:
+          enum:
+            - lunar_patient
+            - solar_builder
+            - rising_explorer
+          type: string
+        enabled_at:
+          format: date-time
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - birth_date
+        - derived_profile_code
+        - algorithm_version
+        - enabled_at
+        - version
+      type: object
+    AstrologyProfileResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/AstrologyProfile"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    CircleCollectionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/CircleView"
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    CircleResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/CircleView"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
     CircleTemplateCollectionResponse:
       additionalProperties: false
       properties:
@@ -528,6 +593,74 @@ components:
         - revision_id
         - demo
       type: object
+    CircleView:
+      additionalProperties: false
+      properties:
+        archived_at:
+          format: date-time
+          nullable: true
+          type: string
+        assets:
+          items:
+            additionalProperties: false
+            properties:
+              asset_id:
+                format: uuid
+                type: string
+              note:
+                maxLength: 2000
+                nullable: true
+                type: string
+              ordinal:
+                maximum: 50
+                minimum: 1
+                type: integer
+              weight_bps:
+                maximum: 10000
+                minimum: 0
+                nullable: true
+                type: integer
+            required:
+              - asset_id
+              - ordinal
+              - weight_bps
+              - note
+            type: object
+          type: array
+        description:
+          type: string
+        id:
+          format: uuid
+          type: string
+        private:
+          enum:
+            - true
+          type: boolean
+        source_revision_id:
+          format: uuid
+          nullable: true
+          type: string
+        source_template_id:
+          format: uuid
+          nullable: true
+          type: string
+        title:
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - id
+        - title
+        - description
+        - private
+        - source_template_id
+        - source_revision_id
+        - assets
+        - version
+        - archived_at
+      type: object
     CollectionMeta:
       additionalProperties: false
       properties:
@@ -547,6 +680,50 @@ components:
         - request_id
         - next_cursor
         - has_more
+      type: object
+    ConsentReceipt:
+      additionalProperties: false
+      properties:
+        decision:
+          enum:
+            - accepted
+            - declined
+            - withdrawn
+          type: string
+        id:
+          format: uuid
+          type: string
+        policy_code:
+          enum:
+            - terms
+            - privacy
+            - demo_disclosure
+            - astrology
+          type: string
+        policy_version:
+          maxLength: 40
+          minLength: 1
+          type: string
+        recorded_at:
+          format: date-time
+          type: string
+      required:
+        - policy_code
+        - policy_version
+        - decision
+        - id
+        - recorded_at
+      type: object
+    ConsentReceiptResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/ConsentReceipt"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
       type: object
     CovenCollectionResponse:
       additionalProperties: false
@@ -581,6 +758,10 @@ components:
           type: string
         demo:
           $ref: "#/components/schemas/DemoDisclosure"
+        focus:
+          maxLength: 120
+          minLength: 1
+          type: string
         id:
           format: uuid
           type: string
@@ -620,6 +801,7 @@ components:
         - slug
         - company
         - symbol
+        - focus
         - summary
         - inclusion_rationale
         - limitations
@@ -696,6 +878,10 @@ components:
         effective_date:
           format: date
           type: string
+        focus:
+          maxLength: 120
+          minLength: 1
+          type: string
         id:
           format: uuid
           type: string
@@ -704,6 +890,11 @@ components:
           type: string
         slug:
           pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        symbol:
+          maxLength: 16
+          minLength: 1
+          nullable: true
           type: string
         teaser:
           maxLength: 500
@@ -720,6 +911,8 @@ components:
         - teaser
         - demo
         - id
+        - symbol
+        - focus
         - effective_date
         - revision_id
       type: object
@@ -1251,6 +1444,204 @@ components:
         - data
         - meta
       type: object
+    InvestorProfile:
+      additionalProperties: false
+      properties:
+        goal_type:
+          enum:
+            - calm_fund
+            - long_term_growth
+            - income
+            - exploration
+          type: string
+        is_demo:
+          enum:
+            - true
+          type: boolean
+        risk_comfort:
+          enum:
+            - low
+            - moderate
+            - high
+          type: string
+        time_horizon:
+          enum:
+            - short
+            - medium
+            - long
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - goal_type
+        - time_horizon
+        - risk_comfort
+        - version
+        - is_demo
+      type: object
+    InvestorProfileResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/InvestorProfile"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    MemberAccountResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/MemberAccountView"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    MemberAccountView:
+      additionalProperties: false
+      properties:
+        account:
+          additionalProperties: false
+          properties:
+            id:
+              format: uuid
+              type: string
+            status:
+              enum:
+                - active
+              type: string
+          required:
+            - id
+            - status
+          type: object
+        profile:
+          $ref: "#/components/schemas/MemberProfile"
+      required:
+        - account
+        - profile
+      type: object
+    MemberPreferences:
+      additionalProperties: false
+      properties:
+        locale:
+          maxLength: 35
+          pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
+          type: string
+        ritual_mode:
+          enum:
+            - tarot
+            - astrology
+          type: string
+        theme_mode:
+          enum:
+            - system
+            - light
+            - dark
+          type: string
+        timezone:
+          maxLength: 64
+          minLength: 1
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - theme_mode
+        - ritual_mode
+        - timezone
+        - locale
+        - version
+      type: object
+    MemberPreferencesResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/MemberPreferences"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    MemberProfile:
+      additionalProperties: false
+      properties:
+        display_name:
+          maxLength: 80
+          minLength: 1
+          type: string
+        locale:
+          maxLength: 35
+          pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - display_name
+        - locale
+        - version
+      type: object
+    MemberProfileResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/MemberAccountView"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    OnboardingResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/OnboardingState"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    OnboardingState:
+      additionalProperties: false
+      properties:
+        completed_at:
+          format: date-time
+          nullable: true
+          type: string
+        completed_steps:
+          items:
+            pattern: ^(welcome|ritual|profile)$
+            type: string
+          maxItems: 3
+          type: array
+        current_step:
+          enum:
+            - welcome
+            - ritual
+            - profile
+            - complete
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - current_step
+        - completed_steps
+        - completed_at
+        - version
+      type: object
     OpenApiDocument:
       additionalProperties:
         nullable: true
@@ -1632,6 +2023,20 @@ components:
       required:
         - data
         - meta
+      type: object
+    SavedItemReceipt:
+      additionalProperties: false
+      properties:
+        saved:
+          enum:
+            - true
+          type: boolean
+        saved_at:
+          format: date-time
+          type: string
+      required:
+        - saved
+        - saved_at
       type: object
     SearchResponse:
       additionalProperties: false
@@ -2537,6 +2942,811 @@ paths:
             - read:self
       tags:
         - Discover
+  /v1/circle-templates/{id}/copies:
+    post:
+      operationId: copyCircleTemplate
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                title:
+                  maxLength: 80
+                  minLength: 1
+                  type: string
+              type: object
+        required: false
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CircleView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Private frozen copy.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Circles
+  /v1/circles:
+    get:
+      operationId: listCircles
+      parameters:
+        - in: query
+          name: archived
+          required: false
+          schema:
+            default: exclude
+            enum:
+              - exclude
+              - include
+              - only
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircleCollectionResponse"
+          description: Private Circles.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Circles
+    post:
+      operationId: createCircle
+      parameters:
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                assets:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      asset_id:
+                        format: uuid
+                        type: string
+                      note:
+                        maxLength: 2000
+                        type: string
+                      ordinal:
+                        maximum: 50
+                        minimum: 1
+                        type: integer
+                      weight_bps:
+                        maximum: 10000
+                        minimum: 0
+                        type: integer
+                    required:
+                      - asset_id
+                      - ordinal
+                    type: object
+                  maxItems: 50
+                  type: array
+                description:
+                  maxLength: 10000
+                  type: string
+                title:
+                  maxLength: 80
+                  minLength: 1
+                  type: string
+              required:
+                - title
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CircleView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Created Circle.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Circles
+  /v1/circles/{id}:
+    delete:
+      operationId: archiveCircle
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "204":
+          description: Archived.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Circles
+    get:
+      operationId: getCircle
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CircleResponse"
+          description: Private Circle.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Circles
+    patch:
+      operationId: patchCircle
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                description:
+                  maxLength: 10000
+                  type: string
+                title:
+                  maxLength: 80
+                  minLength: 1
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CircleView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated Circle.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Circles
+  /v1/circles/{id}/assets/{asset_id}:
+    delete:
+      operationId: deleteCircleAsset
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: asset_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CircleView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated Circle.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Circles
+    put:
+      operationId: putCircleAsset
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: asset_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                note:
+                  maxLength: 2000
+                  type: string
+                ordinal:
+                  maximum: 50
+                  minimum: 1
+                  type: integer
+                weight_bps:
+                  maximum: 10000
+                  minimum: 0
+                  type: integer
+              required:
+                - ordinal
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/CircleView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated Circle.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Circles
   /v1/community/creators:
     get:
       operationId: listSeededCreators
@@ -3109,6 +4319,1616 @@ paths:
       security: []
       tags:
         - Platform
+  /v1/me:
+    get:
+      operationId: getMe
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberAccountResponse"
+          description: Account and profile.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Account
+  /v1/me/astrology-profile:
+    delete:
+      operationId: deleteAstrologyProfile
+      parameters:
+        - in: header
+          name: if-match
+          required: false
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "204":
+          description: Deleted idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Account
+    get:
+      operationId: getAstrologyProfile
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AstrologyProfileResponse"
+          description: Astrology profile.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Account
+    put:
+      operationId: putAstrologyProfile
+      parameters:
+        - in: header
+          name: if-match
+          required: false
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                algorithm_version:
+                  enum:
+                    - v1
+                  type: string
+                birth_date:
+                  format: date
+                  type: string
+                derived_profile_code:
+                  enum:
+                    - lunar_patient
+                    - solar_builder
+                    - rising_explorer
+                  type: string
+              required:
+                - birth_date
+                - derived_profile_code
+                - algorithm_version
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/AstrologyProfile"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Astrology profile.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Account
+  /v1/me/consents:
+    post:
+      operationId: createConsent
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                decision:
+                  enum:
+                    - accepted
+                    - declined
+                    - withdrawn
+                  type: string
+                policy_code:
+                  enum:
+                    - terms
+                    - privacy
+                    - demo_disclosure
+                    - astrology
+                  type: string
+                policy_version:
+                  maxLength: 40
+                  minLength: 1
+                  type: string
+              required:
+                - policy_code
+                - policy_version
+                - decision
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentReceiptResponse"
+          description: Idempotent consent receipt.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Account
+  /v1/me/investor-profile:
+    get:
+      operationId: getInvestorProfile
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvestorProfileResponse"
+          description: Demo investor profile.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Account
+    put:
+      operationId: putInvestorProfile
+      parameters:
+        - in: header
+          name: if-match
+          required: false
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                goal_type:
+                  enum:
+                    - calm_fund
+                    - long_term_growth
+                    - income
+                    - exploration
+                  type: string
+                risk_comfort:
+                  enum:
+                    - low
+                    - moderate
+                    - high
+                  type: string
+                time_horizon:
+                  enum:
+                    - short
+                    - medium
+                    - long
+                  type: string
+              required:
+                - goal_type
+                - time_horizon
+                - risk_comfort
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/InvestorProfile"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Demo investor profile.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Account
+  /v1/me/onboarding:
+    get:
+      operationId: getOnboarding
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OnboardingResponse"
+          description: Onboarding state.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Account
+    patch:
+      operationId: patchOnboarding
+      parameters:
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                completed_steps:
+                  items:
+                    pattern: ^(welcome|ritual|profile)$
+                    type: string
+                  maxItems: 3
+                  type: array
+                current_step:
+                  enum:
+                    - ritual
+                    - profile
+                    - complete
+                  type: string
+              required:
+                - current_step
+                - completed_steps
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/OnboardingState"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Advanced onboarding.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Account
+  /v1/me/preferences:
+    get:
+      operationId: getPreferences
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberPreferencesResponse"
+          description: Preferences.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Account
+    patch:
+      operationId: patchPreferences
+      parameters:
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                locale:
+                  maxLength: 35
+                  pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
+                  type: string
+                ritual_mode:
+                  enum:
+                    - tarot
+                    - astrology
+                  type: string
+                theme_mode:
+                  enum:
+                    - system
+                    - light
+                    - dark
+                  type: string
+                timezone:
+                  maxLength: 64
+                  minLength: 1
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/MemberPreferences"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated preferences.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Account
+  /v1/me/profile:
+    patch:
+      operationId: patchProfile
+      parameters:
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            example: '"v3"'
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                display_name:
+                  maxLength: 80
+                  minLength: 1
+                  type: string
+                locale:
+                  maxLength: 35
+                  pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberProfileResponse"
+          description: Updated profile.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account or permission denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Optional member state not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Version conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Body too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Storage unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Account
+  /v1/me/saved-assets/{id}:
+    delete:
+      operationId: unsaveAsset
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "204":
+          description: Removed idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Saves
+    put:
+      operationId: saveAsset
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                source_id:
+                  format: uuid
+                  type: string
+                source_kind:
+                  enum:
+                    - ritual
+                    - circle
+                    - discover
+                    - search
+                    - direct
+                  type: string
+              type: object
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SavedItemReceipt"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Saved idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Saves
+  /v1/me/saved-circle-templates/{id}:
+    delete:
+      operationId: unsaveCircleTemplate
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "204":
+          description: Removed idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Saves
+    put:
+      operationId: saveCircleTemplate
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                source_id:
+                  format: uuid
+                  type: string
+                source_kind:
+                  enum:
+                    - ritual
+                    - circle
+                    - discover
+                    - search
+                    - direct
+                  type: string
+              type: object
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SavedItemReceipt"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Saved idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Saves
+  /v1/me/saved-coven/{id}:
+    delete:
+      operationId: unsaveCoven
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "204":
+          description: Removed idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Saves
+    put:
+      operationId: saveCoven
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                source_id:
+                  format: uuid
+                  type: string
+                source_kind:
+                  enum:
+                    - ritual
+                    - circle
+                    - discover
+                    - search
+                    - direct
+                  type: string
+              type: object
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SavedItemReceipt"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Saved idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Saves
+  /v1/me/saved-grimoires/{id}:
+    delete:
+      operationId: unsaveGrimoire
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "204":
+          description: Removed idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Saves
+    put:
+      operationId: saveGrimoire
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                source_id:
+                  format: uuid
+                  type: string
+                source_kind:
+                  enum:
+                    - ritual
+                    - circle
+                    - discover
+                    - search
+                    - direct
+                  type: string
+              type: object
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SavedItemReceipt"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Saved idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Saves
   /v1/openapi.json:
     get:
       operationId: getOpenApiDocument

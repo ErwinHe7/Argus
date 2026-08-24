@@ -1,19 +1,30 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/api/state_status.dart';
+import '../application/daily_ritual_controller.dart';
 
 class DailyRitualScreen extends StatelessWidget {
   const DailyRitualScreen({
     super.key,
     required this.onOpenCoven,
     required this.onToggleTheme,
+    required this.controller,
   });
 
   final VoidCallback onOpenCoven;
   final VoidCallback onToggleTheme;
+  final DailyRitualController controller;
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => _buildContent(context),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     final colors = context.ritualColors;
     return ColoredBox(
       color: colors.page,
@@ -58,72 +69,78 @@ class DailyRitualScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
             sliver: SliverList.list(
               children: [
-                Text(
-                  'YOUR DAILY SIGNAL',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: colors.gold,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 2.2,
-                  ),
+                StateStatus(
+                  phase: controller.state.phase,
+                  onRetry: controller.load,
                 ),
-                const SizedBox(height: 12),
-                _CardStage(colors: colors),
-                const SizedBox(height: 18),
-                Text(
-                  'Direction, not urgency.',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.displaySmall,
-                ),
-                const SizedBox(height: 10),
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 420),
-                    child: Text(
-                      'The strongest path today rewards patience. Favor durable momentum; let noisy names pass without you.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyMedium
-                          ?.copyWith(fontSize: 14, height: 1.4),
+                if (controller.state.value != null) ...[
+                  Text(
+                    'YOUR DAILY SIGNAL',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colors.gold,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 2.2,
                     ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Center(
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(0, 44),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 8,
+                  const SizedBox(height: 12),
+                  _CardStage(colors: colors),
+                  const SizedBox(height: 18),
+                  Text(
+                    controller.state.value!.title,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.displaySmall,
+                  ),
+                  const SizedBox(height: 10),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 420),
+                      child: Text(
+                        controller.state.value!.interpretation,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium
+                            ?.copyWith(fontSize: 14, height: 1.4),
                       ),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    onPressed: () => _showEvidence(context),
-                    icon: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: colors.positive,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const SizedBox(width: 8, height: 8),
-                    ),
-                    label: const Text('Market-informed · reveal the pattern'),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Divider(color: colors.line),
-                const SizedBox(height: 8),
-                _Constellation(colors: colors),
-                const SizedBox(height: 16),
-                _CovenStrip(colors: colors, onTap: onOpenCoven),
-                const SizedBox(height: 14),
-                _RowanCounsel(colors: colors),
-                const SizedBox(height: 18),
-                Text(
-                  'Demo market scenario · educational exploration only',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: colors.faint, fontSize: 12),
-                ),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(0, 44),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onPressed: () => _showEvidence(context),
+                      icon: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.positive,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const SizedBox(width: 8, height: 8),
+                      ),
+                      label: const Text('Market-informed · reveal the pattern'),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Divider(color: colors.line),
+                  const SizedBox(height: 8),
+                  _Constellation(colors: colors),
+                  const SizedBox(height: 16),
+                  _CovenStrip(colors: colors, onTap: onOpenCoven),
+                  const SizedBox(height: 14),
+                  _RowanCounsel(colors: colors),
+                  const SizedBox(height: 18),
+                  Text(
+                    'Demo market scenario · educational exploration only',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: colors.faint, fontSize: 12),
+                  ),
+                ],
               ],
             ),
           ),

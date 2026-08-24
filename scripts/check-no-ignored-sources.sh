@@ -33,6 +33,14 @@ source_globs=(
   "axio7-model-review/source/quant_core_cpp/include"
   "axio7-model-review/source/quant_core_cpp/apps"
   "axio7-model-review/source/quant_core_cpp/tests"
+  "ritual-investing-api/src"
+  "ritual-investing-api/test"
+  "ritual-investing-api-client/lib"
+  "ritual-investing-api-client/test"
+  "ritual-investing-app/lib"
+  "ritual-investing-app/test"
+  "ritual-investing-admin/lib"
+  "ritual-investing-admin/test"
 )
 
 violations=""

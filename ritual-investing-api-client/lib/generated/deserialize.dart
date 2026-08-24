@@ -12,19 +12,32 @@ import 'package:ritual_investing_api_client/generated/model/asset_evidence_respo
 import 'package:ritual_investing_api_client/generated/model/asset_metric.dart';
 import 'package:ritual_investing_api_client/generated/model/asset_metrics_response.dart';
 import 'package:ritual_investing_api_client/generated/model/asset_summary.dart';
+import 'package:ritual_investing_api_client/generated/model/astrology_profile.dart';
+import 'package:ritual_investing_api_client/generated/model/astrology_profile_response.dart';
+import 'package:ritual_investing_api_client/generated/model/circle_collection_response.dart';
+import 'package:ritual_investing_api_client/generated/model/circle_response.dart';
 import 'package:ritual_investing_api_client/generated/model/circle_template_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/circle_template_detail.dart';
 import 'package:ritual_investing_api_client/generated/model/circle_template_detail_assets_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/circle_template_detail_response.dart';
 import 'package:ritual_investing_api_client/generated/model/circle_template_summary.dart';
+import 'package:ritual_investing_api_client/generated/model/circle_view.dart';
+import 'package:ritual_investing_api_client/generated/model/circle_view_assets_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/collection_meta.dart';
 import 'package:ritual_investing_api_client/generated/model/compare_assets_request.dart';
+import 'package:ritual_investing_api_client/generated/model/consent_receipt.dart';
+import 'package:ritual_investing_api_client/generated/model/consent_receipt_response.dart';
+import 'package:ritual_investing_api_client/generated/model/copy_circle_template201_response.dart';
+import 'package:ritual_investing_api_client/generated/model/copy_circle_template_request.dart';
 import 'package:ritual_investing_api_client/generated/model/coven_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/coven_detail_response.dart';
 import 'package:ritual_investing_api_client/generated/model/coven_entry_detail.dart';
 import 'package:ritual_investing_api_client/generated/model/coven_evidence_response.dart';
 import 'package:ritual_investing_api_client/generated/model/coven_qualification.dart';
 import 'package:ritual_investing_api_client/generated/model/coven_summary.dart';
+import 'package:ritual_investing_api_client/generated/model/create_circle_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_circle_request_assets_inner.dart';
+import 'package:ritual_investing_api_client/generated/model/create_consent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/creator_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/daily_ritual_detail.dart';
 import 'package:ritual_investing_api_client/generated/model/daily_ritual_detail_revision.dart';
@@ -50,7 +63,24 @@ import 'package:ritual_investing_api_client/generated/model/grimoire_detail_resp
 import 'package:ritual_investing_api_client/generated/model/grimoire_summary.dart';
 import 'package:ritual_investing_api_client/generated/model/health_response.dart';
 import 'package:ritual_investing_api_client/generated/model/health_response_data.dart';
+import 'package:ritual_investing_api_client/generated/model/investor_profile.dart';
+import 'package:ritual_investing_api_client/generated/model/investor_profile_response.dart';
+import 'package:ritual_investing_api_client/generated/model/member_account_response.dart';
+import 'package:ritual_investing_api_client/generated/model/member_account_view.dart';
+import 'package:ritual_investing_api_client/generated/model/member_account_view_account.dart';
+import 'package:ritual_investing_api_client/generated/model/member_preferences.dart';
+import 'package:ritual_investing_api_client/generated/model/member_preferences_response.dart';
+import 'package:ritual_investing_api_client/generated/model/member_profile.dart';
+import 'package:ritual_investing_api_client/generated/model/member_profile_response.dart';
+import 'package:ritual_investing_api_client/generated/model/onboarding_response.dart';
+import 'package:ritual_investing_api_client/generated/model/onboarding_state.dart';
 import 'package:ritual_investing_api_client/generated/model/open_api_document.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_circle_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_onboarding200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_onboarding_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_preferences200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_preferences_request.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_profile_request.dart';
 import 'package:ritual_investing_api_client/generated/model/public_asset_teaser.dart';
 import 'package:ritual_investing_api_client/generated/model/public_coven_detail_response.dart';
 import 'package:ritual_investing_api_client/generated/model/public_coven_response.dart';
@@ -62,6 +92,11 @@ import 'package:ritual_investing_api_client/generated/model/public_discover_item
 import 'package:ritual_investing_api_client/generated/model/public_discover_item_one_of2.dart';
 import 'package:ritual_investing_api_client/generated/model/public_discover_item_one_of3.dart';
 import 'package:ritual_investing_api_client/generated/model/public_discover_response.dart';
+import 'package:ritual_investing_api_client/generated/model/put_astrology_profile200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/put_astrology_profile_request.dart';
+import 'package:ritual_investing_api_client/generated/model/put_circle_asset_request.dart';
+import 'package:ritual_investing_api_client/generated/model/put_investor_profile200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/put_investor_profile_request.dart';
 import 'package:ritual_investing_api_client/generated/model/response_meta.dart';
 import 'package:ritual_investing_api_client/generated/model/ritual_asset_idea.dart';
 import 'package:ritual_investing_api_client/generated/model/ritual_evidence_response.dart';
@@ -69,11 +104,13 @@ import 'package:ritual_investing_api_client/generated/model/ritual_history_item.
 import 'package:ritual_investing_api_client/generated/model/ritual_history_response.dart';
 import 'package:ritual_investing_api_client/generated/model/rowan_counsel.dart';
 import 'package:ritual_investing_api_client/generated/model/rowan_counsel_response.dart';
+import 'package:ritual_investing_api_client/generated/model/save_asset200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/save_asset_request.dart';
+import 'package:ritual_investing_api_client/generated/model/saved_item_receipt.dart';
 import 'package:ritual_investing_api_client/generated/model/search_response.dart';
 import 'package:ritual_investing_api_client/generated/model/search_result.dart';
 import 'package:ritual_investing_api_client/generated/model/seeded_creator.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap.dart';
-import 'package:ritual_investing_api_client/generated/model/session_bootstrap_account.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_default_portfolio.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_entitlement.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_onboarding.dart';
@@ -141,6 +178,18 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'AssetSummary':
       return AssetSummary.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'AstrologyProfile':
+      return AstrologyProfile.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AstrologyProfileResponse':
+      return AstrologyProfileResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CircleCollectionResponse':
+      return CircleCollectionResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CircleResponse':
+      return CircleResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'CircleTemplateCollectionResponse':
       return CircleTemplateCollectionResponse.fromJson(
             value as Map<String, dynamic>,
@@ -162,11 +211,30 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'CircleTemplateSummary':
       return CircleTemplateSummary.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'CircleView':
+      return CircleView.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'CircleViewAssetsInner':
+      return CircleViewAssetsInner.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'CollectionMeta':
       return CollectionMeta.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'CompareAssetsRequest':
       return CompareAssetsRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ConsentReceipt':
+      return ConsentReceipt.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ConsentReceiptResponse':
+      return ConsentReceiptResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CopyCircleTemplate201Response':
+      return CopyCircleTemplate201Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CopyCircleTemplateRequest':
+      return CopyCircleTemplateRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'CovenCollectionResponse':
       return CovenCollectionResponse.fromJson(value as Map<String, dynamic>)
@@ -185,6 +253,17 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'CovenSummary':
       return CovenSummary.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'CreateCircleRequest':
+      return CreateCircleRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateCircleRequestAssetsInner':
+      return CreateCircleRequestAssetsInner.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateConsentRequest':
+      return CreateConsentRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'CreatorCollectionResponse':
       return CreatorCollectionResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -260,8 +339,59 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'HealthResponseData':
       return HealthResponseData.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'InvestorProfile':
+      return InvestorProfile.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'InvestorProfileResponse':
+      return InvestorProfileResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberAccountResponse':
+      return MemberAccountResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberAccountView':
+      return MemberAccountView.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberAccountViewAccount':
+      return MemberAccountViewAccount.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberPreferences':
+      return MemberPreferences.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberPreferencesResponse':
+      return MemberPreferencesResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberProfile':
+      return MemberProfile.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberProfileResponse':
+      return MemberProfileResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'OnboardingResponse':
+      return OnboardingResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'OnboardingState':
+      return OnboardingState.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'OpenApiDocument':
       return OpenApiDocument.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchCircleRequest':
+      return PatchCircleRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchOnboarding200Response':
+      return PatchOnboarding200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchOnboardingRequest':
+      return PatchOnboardingRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchPreferences200Response':
+      return PatchPreferences200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchPreferencesRequest':
+      return PatchPreferencesRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchProfileRequest':
+      return PatchProfileRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'PublicAssetTeaser':
       return PublicAssetTeaser.fromJson(value as Map<String, dynamic>)
@@ -296,6 +426,25 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'PublicDiscoverResponse':
       return PublicDiscoverResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'PutAstrologyProfile200Response':
+      return PutAstrologyProfile200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PutAstrologyProfileRequest':
+      return PutAstrologyProfileRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PutCircleAssetRequest':
+      return PutCircleAssetRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PutInvestorProfile200Response':
+      return PutInvestorProfile200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'PutInvestorProfileRequest':
+      return PutInvestorProfileRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'ResponseMeta':
       return ResponseMeta.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'RitualAssetIdea':
@@ -315,6 +464,15 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'RowanCounselResponse':
       return RowanCounselResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'SaveAsset200Response':
+      return SaveAsset200Response.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'SaveAssetRequest':
+      return SaveAssetRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'SavedItemReceipt':
+      return SavedItemReceipt.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'SearchResponse':
       return SearchResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -325,9 +483,6 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'SessionBootstrap':
       return SessionBootstrap.fromJson(value as Map<String, dynamic>)
-          as ReturnType;
-    case 'SessionBootstrapAccount':
-      return SessionBootstrapAccount.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'SessionBootstrapDefaultPortfolio':
       return SessionBootstrapDefaultPortfolio.fromJson(

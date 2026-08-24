@@ -15,11 +15,15 @@ abstract class _$CovenSummaryCWProxy {
 
   CovenSummary effectiveDate(DateTime effectiveDate);
 
+  CovenSummary focus(String focus);
+
   CovenSummary id(String id);
 
   CovenSummary revisionId(String revisionId);
 
   CovenSummary slug(String slug);
+
+  CovenSummary symbol(String? symbol);
 
   CovenSummary teaser(String teaser);
 
@@ -36,9 +40,11 @@ abstract class _$CovenSummaryCWProxy {
     String company,
     DemoDisclosure demo,
     DateTime effectiveDate,
+    String focus,
     String id,
     String revisionId,
     String slug,
+    String? symbol,
     String teaser,
     DateTime verifiedAsOf,
   });
@@ -65,6 +71,9 @@ class _$CovenSummaryCWProxyImpl implements _$CovenSummaryCWProxy {
       this(effectiveDate: effectiveDate);
 
   @override
+  CovenSummary focus(String focus) => this(focus: focus);
+
+  @override
   CovenSummary id(String id) => this(id: id);
 
   @override
@@ -72,6 +81,9 @@ class _$CovenSummaryCWProxyImpl implements _$CovenSummaryCWProxy {
 
   @override
   CovenSummary slug(String slug) => this(slug: slug);
+
+  @override
+  CovenSummary symbol(String? symbol) => this(symbol: symbol);
 
   @override
   CovenSummary teaser(String teaser) => this(teaser: teaser);
@@ -92,9 +104,11 @@ class _$CovenSummaryCWProxyImpl implements _$CovenSummaryCWProxy {
     Object? company = const $CopyWithPlaceholder(),
     Object? demo = const $CopyWithPlaceholder(),
     Object? effectiveDate = const $CopyWithPlaceholder(),
+    Object? focus = const $CopyWithPlaceholder(),
     Object? id = const $CopyWithPlaceholder(),
     Object? revisionId = const $CopyWithPlaceholder(),
     Object? slug = const $CopyWithPlaceholder(),
+    Object? symbol = const $CopyWithPlaceholder(),
     Object? teaser = const $CopyWithPlaceholder(),
     Object? verifiedAsOf = const $CopyWithPlaceholder(),
   }) {
@@ -115,6 +129,10 @@ class _$CovenSummaryCWProxyImpl implements _$CovenSummaryCWProxy {
           ? _value.effectiveDate
           // ignore: cast_nullable_to_non_nullable
           : effectiveDate as DateTime,
+      focus: focus == const $CopyWithPlaceholder()
+          ? _value.focus
+          // ignore: cast_nullable_to_non_nullable
+          : focus as String,
       id: id == const $CopyWithPlaceholder()
           ? _value.id
           // ignore: cast_nullable_to_non_nullable
@@ -127,6 +145,10 @@ class _$CovenSummaryCWProxyImpl implements _$CovenSummaryCWProxy {
           ? _value.slug
           // ignore: cast_nullable_to_non_nullable
           : slug as String,
+      symbol: symbol == const $CopyWithPlaceholder()
+          ? _value.symbol
+          // ignore: cast_nullable_to_non_nullable
+          : symbol as String?,
       teaser: teaser == const $CopyWithPlaceholder()
           ? _value.teaser
           // ignore: cast_nullable_to_non_nullable
@@ -161,9 +183,11 @@ CovenSummary _$CovenSummaryFromJson(Map<String, dynamic> json) =>
             'company',
             'demo',
             'effective_date',
+            'focus',
             'id',
             'revision_id',
             'slug',
+            'symbol',
             'teaser',
             'verified_as_of',
           ],
@@ -186,9 +210,11 @@ CovenSummary _$CovenSummaryFromJson(Map<String, dynamic> json) =>
             'effective_date',
             (v) => DateTime.parse(v as String),
           ),
+          focus: $checkedConvert('focus', (v) => v as String),
           id: $checkedConvert('id', (v) => v as String),
           revisionId: $checkedConvert('revision_id', (v) => v as String),
           slug: $checkedConvert('slug', (v) => v as String),
+          symbol: $checkedConvert('symbol', (v) => v as String?),
           teaser: $checkedConvert('teaser', (v) => v as String),
           verifiedAsOf: $checkedConvert(
             'verified_as_of',
@@ -210,9 +236,11 @@ Map<String, dynamic> _$CovenSummaryToJson(CovenSummary instance) =>
       'company': instance.company,
       'demo': instance.demo.toJson(),
       'effective_date': instance.effectiveDate.toIso8601String(),
+      'focus': instance.focus,
       'id': instance.id,
       'revision_id': instance.revisionId,
       'slug': instance.slug,
+      'symbol': instance.symbol,
       'teaser': instance.teaser,
       'verified_as_of': instance.verifiedAsOf.toIso8601String(),
     };

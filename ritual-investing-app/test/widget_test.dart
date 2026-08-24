@@ -6,6 +6,8 @@ import 'package:ritual_investing_app/app/ritual_investing_app.dart';
 void main() {
   testWidgets('opens on the approved daily ritual', (tester) async {
     await tester.pumpWidget(const RitualInvestingApp());
+    await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
     expect(find.text('Direction, not urgency.'), findsOneWidget);
 
@@ -22,6 +24,8 @@ void main() {
 
   testWidgets('primary navigation reaches the Coven', (tester) async {
     await tester.pumpWidget(const RitualInvestingApp());
+    await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Coven').last);
     await tester.pumpAndSettle();
@@ -38,8 +42,25 @@ void main() {
     );
   });
 
+  testWidgets('server-backed Profile controller reaches its screen', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(const RitualInvestingApp());
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('You').last);
+    await tester.pumpAndSettle();
+    expect(
+      find.bySemanticsLabel('Your chamber for Ritual Member'),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
   testWidgets('theme control switches the application theme', (tester) async {
     await tester.pumpWidget(const RitualInvestingApp());
+    await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
     final before = tester
         .widget<MaterialApp>(find.byType(MaterialApp))
         .themeMode;

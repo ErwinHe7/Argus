@@ -10,6 +10,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **company** | **String** |  | 
 **demo** | [**DemoDisclosure**](DemoDisclosure.md) |  | 
+**focus** | **String** |  | 
 **id** | **String** |  | 
 **inclusionRationale** | **String** |  | 
 **limitations** | **String** |  | 

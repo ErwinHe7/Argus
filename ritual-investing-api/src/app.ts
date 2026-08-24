@@ -3,8 +3,15 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import type { Bindings } from "./config/env.ts";
 import { errorResponseSchema, objectResponse } from "./contracts/common.ts";
 import { buildOpenApiDocument } from "./contracts/openapi.ts";
-import { registerSessionRoutes, type SessionRouteDependencies } from "./domains/session/routes.ts";
+import {
+  registerSessionRoutes,
+  type SessionRouteDependencies,
+} from "./domains/session/routes.ts";
 import { registerEditorialContentRoutes } from "./domains/editorial/routes.ts";
+import { registerAccountRoutes } from "./domains/accounts/routes.ts";
+import type { MemberRouteDependencies } from "./domains/accounts/access.ts";
+import { registerCircleRoutes } from "./domains/circles/routes.ts";
+import { registerSaveRoutes } from "./domains/saves/routes.ts";
 import type { ContentRouteDependencies } from "./domains/editorial/route-support.ts";
 import type { AccountTenantVariables } from "./middleware/account-tenant.ts";
 import type { AuthVariables } from "./middleware/auth0-jwk.ts";
@@ -16,21 +23,33 @@ import {
   requestIdFrom,
   type RequestContextVariables,
 } from "./middleware/request-context.ts";
-import { exactOriginCors, securityHeaders } from "./middleware/security-headers.ts";
+import {
+  exactOriginCors,
+  securityHeaders,
+} from "./middleware/security-headers.ts";
 
 export type AppEnvironment = {
   Bindings: Bindings;
-  Variables: RequestContextVariables & AuthVariables & AccountTenantVariables & AccessVariables;
+  Variables: RequestContextVariables &
+    AuthVariables &
+    AccountTenantVariables &
+    AccessVariables;
 };
 
-const healthDataSchema = z.object({
-  status: z.literal("ok"),
-  build_revision: z.string().min(1),
-}).strict();
-const healthResponseSchema = objectResponse(healthDataSchema).openapi("HealthResponse");
-const openApiDocumentSchema = z.object({
-  openapi: z.literal("3.0.3"),
-}).passthrough().openapi("OpenApiDocument");
+const healthDataSchema = z
+  .object({
+    status: z.literal("ok"),
+    build_revision: z.string().min(1),
+  })
+  .strict();
+const healthResponseSchema =
+  objectResponse(healthDataSchema).openapi("HealthResponse");
+const openApiDocumentSchema = z
+  .object({
+    openapi: z.literal("3.0.3"),
+  })
+  .passthrough()
+  .openapi("OpenApiDocument");
 
 const healthRoute = createRoute({
   method: "get",
@@ -115,7 +134,9 @@ const contractTestRoute = createRoute({
 
 export type CreateAppOptions = {
   enableContractTestRoute?: boolean;
-  dependencies?: SessionRouteDependencies & ContentRouteDependencies;
+  dependencies?: SessionRouteDependencies &
+    ContentRouteDependencies &
+    MemberRouteDependencies;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -168,7 +189,9 @@ export function createApp(options: CreateAppOptions = {}) {
   app.use(healthRoute.getRoutingPath(), preAuthRateLimit("RL_HEALTH"));
   app.use(liveHealthRoute.getRoutingPath(), preAuthRateLimit("RL_HEALTH"));
   app.use(openApiRoute.getRoutingPath(), preAuthRateLimit("RL_HEALTH"));
-  const healthHandler = (context: Parameters<Parameters<typeof app.openapi>[1]>[0]) =>
+  const healthHandler = (
+    context: Parameters<Parameters<typeof app.openapi>[1]>[0],
+  ) =>
     context.json(
       {
         data: {
@@ -179,20 +202,24 @@ export function createApp(options: CreateAppOptions = {}) {
       },
       200,
     );
-  app.openapi(healthRoute, (context) =>
-    healthHandler(context),
-  );
+  app.openapi(healthRoute, (context) => healthHandler(context));
   app.openapi(liveHealthRoute, (context) => healthHandler(context));
   app.openapi(openApiRoute, async (context) => {
     const { body, etag } = await openApiResponse();
     context.header("etag", etag);
     context.header("cache-control", "public, max-age=300");
-    if (context.req.header("if-none-match") === etag) return context.body(null, 304) as never;
-    return context.body(body, 200, { "content-type": "application/json; charset=UTF-8" }) as never;
+    if (context.req.header("if-none-match") === etag)
+      return context.body(null, 304) as never;
+    return context.body(body, 200, {
+      "content-type": "application/json; charset=UTF-8",
+    }) as never;
   });
 
   registerSessionRoutes(app, options.dependencies);
   registerEditorialContentRoutes(app, options.dependencies);
+  registerAccountRoutes(app, options.dependencies);
+  registerCircleRoutes(app, options.dependencies);
+  registerSaveRoutes(app, options.dependencies);
 
   if (options.enableContractTestRoute) {
     app.openapi(contractTestRoute, (context) => context.body(null, 204));

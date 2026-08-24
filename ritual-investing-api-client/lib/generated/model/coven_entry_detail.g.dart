@@ -11,6 +11,8 @@ abstract class _$CovenEntryDetailCWProxy {
 
   CovenEntryDetail demo(DemoDisclosure demo);
 
+  CovenEntryDetail focus(String focus);
+
   CovenEntryDetail id(String id);
 
   CovenEntryDetail inclusionRationale(String inclusionRationale);
@@ -38,6 +40,7 @@ abstract class _$CovenEntryDetailCWProxy {
   CovenEntryDetail call({
     String company,
     DemoDisclosure demo,
+    String focus,
     String id,
     String inclusionRationale,
     String limitations,
@@ -61,6 +64,9 @@ class _$CovenEntryDetailCWProxyImpl implements _$CovenEntryDetailCWProxy {
 
   @override
   CovenEntryDetail demo(DemoDisclosure demo) => this(demo: demo);
+
+  @override
+  CovenEntryDetail focus(String focus) => this(focus: focus);
 
   @override
   CovenEntryDetail id(String id) => this(id: id);
@@ -103,6 +109,7 @@ class _$CovenEntryDetailCWProxyImpl implements _$CovenEntryDetailCWProxy {
   CovenEntryDetail call({
     Object? company = const $CopyWithPlaceholder(),
     Object? demo = const $CopyWithPlaceholder(),
+    Object? focus = const $CopyWithPlaceholder(),
     Object? id = const $CopyWithPlaceholder(),
     Object? inclusionRationale = const $CopyWithPlaceholder(),
     Object? limitations = const $CopyWithPlaceholder(),
@@ -122,6 +129,10 @@ class _$CovenEntryDetailCWProxyImpl implements _$CovenEntryDetailCWProxy {
           ? _value.demo
           // ignore: cast_nullable_to_non_nullable
           : demo as DemoDisclosure,
+      focus: focus == const $CopyWithPlaceholder()
+          ? _value.focus
+          // ignore: cast_nullable_to_non_nullable
+          : focus as String,
       id: id == const $CopyWithPlaceholder()
           ? _value.id
           // ignore: cast_nullable_to_non_nullable
@@ -182,6 +193,7 @@ CovenEntryDetail _$CovenEntryDetailFromJson(Map<String, dynamic> json) =>
           requiredKeys: const [
             'company',
             'demo',
+            'focus',
             'id',
             'inclusion_rationale',
             'limitations',
@@ -199,6 +211,7 @@ CovenEntryDetail _$CovenEntryDetailFromJson(Map<String, dynamic> json) =>
             'demo',
             (v) => DemoDisclosure.fromJson(v as Map<String, dynamic>),
           ),
+          focus: $checkedConvert('focus', (v) => v as String),
           id: $checkedConvert('id', (v) => v as String),
           inclusionRationale: $checkedConvert(
             'inclusion_rationale',
@@ -231,6 +244,7 @@ Map<String, dynamic> _$CovenEntryDetailToJson(CovenEntryDetail instance) =>
     <String, dynamic>{
       'company': instance.company,
       'demo': instance.demo.toJson(),
+      'focus': instance.focus,
       'id': instance.id,
       'inclusion_rationale': instance.inclusionRationale,
       'limitations': instance.limitations,

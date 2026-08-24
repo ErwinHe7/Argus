@@ -8,7 +8,7 @@ import 'package:ritual_investing_api_client/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**account** | [**SessionBootstrapAccount**](SessionBootstrapAccount.md) |  | 
+**account** | [**MemberAccountViewAccount**](MemberAccountViewAccount.md) |  | 
 **contractVersion** | **String** |  | 
 **defaultPortfolio** | [**SessionBootstrapDefaultPortfolio**](SessionBootstrapDefaultPortfolio.md) |  | 
 **entitlement** | [**SessionBootstrapEntitlement**](SessionBootstrapEntitlement.md) |  | 
