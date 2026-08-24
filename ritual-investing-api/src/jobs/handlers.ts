@@ -5,8 +5,8 @@ import { inspectQuarantinedObject } from "../domains/media/service.ts";
 import { unprotectPushToken } from "../domains/notifications/service.ts";
 import {
   buildDeletionDenyEntry,
-  buildExportManifest,
-  buildPrivacyZip,
+  buildStreamingPrivacyZip,
+  type StreamingExportCollection,
   verifyDeletionDenyEntry,
 } from "../domains/privacy/service.ts";
 import { sha256TextHex as hash } from "../security/sha256.ts";
@@ -24,8 +24,28 @@ const payloadIds = z
     actor_staff_id: z.string().uuid().optional(),
     local_date: z.string().date().optional(),
     briefing_type: z.enum(["daily", "weekly", "moon_cycle"]).optional(),
+    plan_id: z.string().uuid().optional(),
+    scheduled_for: z.string().datetime({ offset: true }).optional(),
+    reset_generation: z.number().int().positive().optional(),
+    artifact_id: z.string().uuid().optional(),
   })
   .strict();
+
+async function dependencyFetch(
+  fetcher: Fetcher,
+  input: string,
+  init: RequestInit,
+  failureCode: string,
+): Promise<Response> {
+  try {
+    return await fetcher.fetch(input, {
+      ...init,
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch {
+    throw new Error(failureCode);
+  }
+}
 
 function briefingBuilder(): ConsumerEffect {
   return async (client, event) => {
@@ -203,7 +223,8 @@ function notificationDelivery(environment: Bindings): ConsumerEffect {
         environment.PUSH_TOKEN_ENCRYPTION_KEY,
       );
       const idempotencyKey = await hash(`${event.id}:${device.id}`);
-      const response = await environment.PUSH_PROVIDER.fetch(
+      const response = await dependencyFetch(
+        environment.PUSH_PROVIDER,
         "https://push-provider.internal/v1/send",
         {
           method: "POST",
@@ -218,6 +239,7 @@ function notificationDelivery(environment: Bindings): ConsumerEffect {
             deep_link: notification.deep_link,
           }),
         },
+        "notification_provider_unavailable",
       );
       if (response.status === 429)
         throw new Error("notification_provider_rate_limited");
@@ -293,7 +315,8 @@ function mediaScan(environment: Bindings): ConsumerEffect {
     )
       throw new Error("media_quarantine_mismatch");
     const originalBytes = new Uint8Array(await quarantined.arrayBuffer());
-    const scanResponse = await environment.MEDIA_SCANNER.fetch(
+    const scanResponse = await dependencyFetch(
+      environment.MEDIA_SCANNER,
       "https://media-scanner.internal/v1/scan",
       {
         method: "POST",
@@ -303,6 +326,7 @@ function mediaScan(environment: Bindings): ConsumerEffect {
         },
         body: originalBytes,
       },
+      "media_scanner_unavailable",
     );
     if (!scanResponse.ok) throw new Error("media_scanner_unavailable");
     const scanPayload = (await scanResponse.json().catch(() => ({}))) as {
@@ -338,7 +362,8 @@ function mediaScan(environment: Bindings): ConsumerEffect {
       });
       return `media-rejected:${inspected.validation.code}`;
     }
-    const processed = await environment.MEDIA_PROCESSOR.fetch(
+    const processed = await dependencyFetch(
+      environment.MEDIA_PROCESSOR,
       "https://media-processor.internal/v1/rasterize",
       {
         method: "POST",
@@ -348,6 +373,7 @@ function mediaScan(environment: Bindings): ConsumerEffect {
         },
         body: originalBytes,
       },
+      "media_processor_unavailable",
     );
     if (!processed.ok) throw new Error("media_processor_unavailable");
     const derivativeBytes = new Uint8Array(await processed.arrayBuffer());
@@ -497,6 +523,59 @@ function moderationTriage(): ConsumerEffect {
   };
 }
 
+function recurringPlanDelivery(): ConsumerEffect {
+  return async (client, event) => {
+    const payload = payloadIds.parse(event.payload);
+    if (
+      event.tenant_id === null ||
+      payload.plan_id === undefined ||
+      payload.scheduled_for === undefined ||
+      payload.reset_generation === undefined ||
+      event.aggregate_id !== payload.plan_id ||
+      event.reset_generation !== payload.reset_generation
+    )
+      throw new Error("invalid_event_payload");
+    const result = await client.query<{ outcome: string }>(
+      "select ritual_private.apply_due_recurring_plan_event($1) outcome",
+      [event.id],
+    );
+    return `recurring-plan:${result.rows[0]?.outcome ?? "stale"}`;
+  };
+}
+
+function privacyExportRetention(environment: Bindings): ConsumerEffect {
+  return async (client, event) => {
+    if (event.tenant_id === null || environment.PRIVACY_EXPORTS === undefined)
+      throw new Error("privacy_export_retention_failed");
+    const payload = payloadIds.parse(event.payload);
+    if (
+      payload.artifact_id === undefined ||
+      event.aggregate_id !== payload.artifact_id
+    )
+      throw new Error("invalid_event_payload");
+    const artifact = (
+      await client.query<{ r2_key: string }>(
+        `select r2_key from privacy_export_artifacts
+          where tenant_id=$1 and id=$2 and publication_state in ('published','revoked')
+            and expires_at<=now() for update`,
+        [event.tenant_id, payload.artifact_id],
+      )
+    ).rows[0];
+    if (artifact === undefined) return "retention-stale";
+    await environment.PRIVACY_EXPORTS.delete(artifact.r2_key).catch(() => {
+      throw new Error("privacy_export_retention_failed");
+    });
+    await client.query(
+      `update privacy_export_artifacts
+          set publication_state='deleted',deleted_at=coalesce(deleted_at,now()),
+              link_nonce_hash=null,link_expires_at=null
+        where tenant_id=$1 and id=$2 and publication_state in ('published','revoked')`,
+      [event.tenant_id, payload.artifact_id],
+    );
+    return `retained:${payload.artifact_id}`;
+  };
+}
+
 function privacyExport(environment: Bindings): ConsumerEffect {
   return async (client, event) => {
     if (event.tenant_id === null || environment.PRIVACY_EXPORTS === undefined)
@@ -517,9 +596,18 @@ function privacyExport(environment: Bindings): ConsumerEffect {
       `update privacy_requests set status='processing' where tenant_id=$1 and id=$2 and status='queued'`,
       [event.tenant_id, payload.request_id],
     );
-    const rows: Record<string, unknown[]> = {};
-    const snapshot = async (name: string, sql: string) => {
-      rows[name] = (await client.query(sql, [event.tenant_id])).rows;
+    const collections: StreamingExportCollection[] = [];
+    const snapshot = (name: string, sql: string) => {
+      collections.push({
+        name,
+        readPage: async (offset, limit) =>
+          (
+            await client.query<{ value: unknown }>(
+              `select to_jsonb(export_row) value from (${sql}) export_row limit $2 offset $3`,
+              [event.tenant_id, limit, offset],
+            )
+          ).rows.map((row) => row.value),
+      });
     };
     await snapshot(
       "account",
@@ -697,26 +785,26 @@ function privacyExport(environment: Bindings): ConsumerEffect {
       "privacy_requests",
       `select id,request_type,status,snapshot_at,archive_schema_version,verified_at,queued_at,completed_at,failure_code from privacy_requests where tenant_id=$1 order by id`,
     );
-    const manifest = await buildExportManifest({
+    const archive = buildStreamingPrivacyZip({
       tenantId: event.tenant_id,
       requestId: payload.request_id,
       snapshotAt: state.snapshot_at.toISOString(),
       sourceSequence: Number(state.source_sequence),
-      rows,
+      collections,
+      pageSize: 100,
     });
-    const archive = buildPrivacyZip(manifest);
-    const checksum = await hash(JSON.stringify(manifest));
     const key = `privacy-exports/v1/${event.tenant_id}/${payload.request_id}.zip`;
-    await environment.PRIVACY_EXPORTS.put(key, archive, {
+    await environment.PRIVACY_EXPORTS.put(key, archive.body, {
       httpMetadata: { contentType: "application/zip" },
-      customMetadata: { manifest_checksum: checksum, schema_version: "1" },
+      customMetadata: { schema_version: "2" },
     });
+    const { manifestChecksum: checksum } = await archive.completion;
     await client.query(
       `insert into privacy_export_artifacts(tenant_id,request_id,r2_key,manifest_checksum,publication_state,expires_at) values ($1,$2,$3,$4,'published',least(now()+interval '7 days',(select expires_at from privacy_requests where tenant_id=$1 and id=$2))) on conflict (tenant_id,request_id) do update set r2_key=excluded.r2_key,manifest_checksum=excluded.manifest_checksum,publication_state='published',expires_at=excluded.expires_at,revoked_at=null,deleted_at=null`,
       [event.tenant_id, payload.request_id, key, checksum],
     );
     await client.query(
-      `update privacy_requests set status='completed',completed_at=now(),failure_code=null where tenant_id=$1 and id=$2 and status='processing'`,
+      `update privacy_requests set status='completed',archive_schema_version=2,completed_at=now(),failure_code=null where tenant_id=$1 and id=$2 and status='processing'`,
       [event.tenant_id, payload.request_id],
     );
     return checksum;
@@ -725,21 +813,22 @@ function privacyExport(environment: Bindings): ConsumerEffect {
 
 async function deletePrefix(bucket: R2Bucket, prefix: string): Promise<string> {
   let cursor: string | undefined;
-  const keys: string[] = [];
+  let checksum = await hash("");
   do {
     const listed = await bucket.list({
       prefix,
       ...(cursor === undefined ? {} : { cursor }),
     });
-    for (const object of listed.objects) {
-      keys.push(object.key);
-      await bucket.delete(object.key);
+    const keys = listed.objects.map((object) => object.key).sort();
+    if (keys.length > 0) {
+      checksum = await hash(`${checksum}\n${keys.join("\n")}`);
+      for (const key of keys) await bucket.delete(key);
     }
     cursor = listed.truncated ? listed.cursor : undefined;
   } while (cursor !== undefined);
   const confirmation = await bucket.list({ prefix, limit: 1 });
   if (confirmation.objects.length !== 0) throw new Error("r2_purge_incomplete");
-  return hash(keys.sort().join("\n"));
+  return checksum;
 }
 
 function privacyPurge(environment: Bindings): ConsumerEffect {
@@ -851,5 +940,9 @@ export function handlerFor(
       return mediaCleanup(environment);
     case "editorial-publisher":
       return editorialPublisher();
+    case "recurring-plan-delivery":
+      return recurringPlanDelivery();
+    case "privacy-export-retention":
+      return privacyExportRetention(environment);
   }
 }

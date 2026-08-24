@@ -7,11 +7,15 @@ class CovenEntry {
     required this.symbol,
     required this.category,
     required this.focus,
+    required this.effectiveDate,
+    required this.verifiedAsOf,
   });
   final String name;
   final String? symbol;
   final String category;
   final String focus;
+  final DateTime effectiveDate;
+  final DateTime verifiedAsOf;
 }
 
 @immutable

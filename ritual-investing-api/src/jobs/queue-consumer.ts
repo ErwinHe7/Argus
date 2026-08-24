@@ -10,6 +10,8 @@ export const queueConsumerSchema = z.enum([
   "media-cleanup",
   "moderation-triage",
   "editorial-publisher",
+  "recurring-plan-delivery",
+  "privacy-export-retention",
 ]);
 
 const queueWorkSchema = z

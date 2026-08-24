@@ -25,7 +25,13 @@ const consumersByTopic: ReadonlyArray<
   [/^privacy\.export\.requested$/, ["privacy-export"]],
   [/^privacy\.deletion\.requested$/, ["privacy-purge"]],
   [/^editorial\.publication\.scheduled$/, ["editorial-publisher"]],
+  [/^recurring\.plan\.due$/, ["recurring-plan-delivery"]],
+  [/^privacy\.export\.retention\.requested$/, ["privacy-export-retention"]],
 ];
+
+const OUTBOX_BATCH_SIZE = 100;
+const MAX_OUTBOX_BATCHES = 10;
+const BRIEFING_CRONS = new Set(["0 5 * * *", "0 6 * * 1", "0 7 1,15 * *"]);
 
 function scheduledFailureCode(error: unknown): string {
   return error instanceof Error &&
@@ -60,6 +66,8 @@ async function schedulerClient<T>(
   try {
     await client.query("begin");
     await client.query(`set local role ${role}`);
+    await client.query("set local lock_timeout='5s'");
+    await client.query("set local statement_timeout='45s'");
     const result = await callback(client);
     await client.query("commit");
     return result;
@@ -70,6 +78,32 @@ async function schedulerClient<T>(
     client.release();
     await pool.end();
   }
+}
+
+export async function scheduleDueRecurringPlans(
+  databaseUrl: string,
+  scheduledTime: number,
+  poolFactory?: DatabasePoolFactory,
+) {
+  return schedulerClient(
+    databaseUrl,
+    async (client) =>
+      client.query("select ritual_private.enqueue_due_recurring_plans(to_timestamp($1::double precision / 1000),100)", [scheduledTime]),
+    poolFactory,
+  );
+}
+
+export async function schedulePrivacyExportRetention(
+  databaseUrl: string,
+  scheduledTime: number,
+  poolFactory?: DatabasePoolFactory,
+) {
+  return schedulerClient(
+    databaseUrl,
+    async (client) =>
+      client.query("select ritual_private.enqueue_expired_privacy_exports(to_timestamp($1::double precision / 1000),100)", [scheduledTime]),
+    poolFactory,
+  );
 }
 
 export async function scheduleBriefings(
@@ -103,33 +137,56 @@ export async function publishDueOutbox(
   queue: Queue<QueueWorkMessage>,
   poolFactory?: DatabasePoolFactory,
 ) {
-  const due = await schedulerClient(
-    databaseUrl,
-    async (client) =>
-      (
-        await client.query<{ id: string; topic: string }>(
-          `select id,topic from outbox_events where published_at is null and available_at<=now() order by available_at,id limit 100 for update skip locked`,
-        )
-      ).rows,
-    poolFactory,
-  );
   let published = 0;
-  for (const event of due) {
-    const consumers = consumersForTopic(event.topic);
-    if (consumers.length === 0) continue;
-    for (const consumer of consumers)
-      await queue.send({ schema_version: 1, outbox_id: event.id, consumer });
-    await schedulerClient(
+  for (let batchNumber = 0; batchNumber < MAX_OUTBOX_BATCHES; batchNumber += 1) {
+    const due = await schedulerClient(
       databaseUrl,
-      async (client) => {
-        await client.query(
-          `update outbox_events set published_at=coalesce(published_at,now()) where id=$1`,
-          [event.id],
-        );
-      },
+      async (client) =>
+        (
+          await client.query<{ id: string; topic: string }>(
+            `select id,topic from outbox_events where published_at is null and available_at<=now() order by available_at,id limit ${OUTBOX_BATCH_SIZE} for update skip locked`,
+          )
+        ).rows,
       poolFactory,
     );
-    published += 1;
+    if (due.length === 0) break;
+    const unroutable = due.filter(
+      (event) => consumersForTopic(event.topic).length === 0,
+    );
+    if (unroutable.length > 0)
+      await schedulerClient(
+        databaseUrl,
+        async (client) => {
+          await client.query(
+            "select ritual_private.terminalize_unroutable_outbox($1::uuid[])",
+            [unroutable.map((event) => event.id)],
+          );
+        },
+        poolFactory,
+      );
+    const routable = due.filter(
+      (event) => consumersForTopic(event.topic).length > 0,
+    );
+    const messages = routable.flatMap((event) =>
+      consumersForTopic(event.topic).map((consumer) => ({
+        body: { schema_version: 1 as const, outbox_id: event.id, consumer },
+      })),
+    );
+    for (let offset = 0; offset < messages.length; offset += OUTBOX_BATCH_SIZE)
+      await queue.sendBatch(messages.slice(offset, offset + OUTBOX_BATCH_SIZE));
+    if (routable.length > 0)
+      await schedulerClient(
+        databaseUrl,
+        async (client) => {
+          await client.query(
+            `update outbox_events set published_at=coalesce(published_at,now()) where id=any($1::uuid[])`,
+            [routable.map((event) => event.id)],
+          );
+        },
+        poolFactory,
+      );
+    published += routable.length;
+    if (due.length < OUTBOX_BATCH_SIZE) break;
   }
   return published;
 }
@@ -212,15 +269,34 @@ export async function runScheduled(
         environment.EXPECTED_RESTORE_EPOCH,
       );
     }
-    await scheduleBriefings(
-      databaseUrl,
-      controller.cron,
-      controller.scheduledTime,
-      poolFactory,
-    );
-    if (environment.ASYNC_QUEUE !== undefined)
+    if (BRIEFING_CRONS.has(controller.cron))
+      await scheduleBriefings(
+        databaseUrl,
+        controller.cron,
+        controller.scheduledTime,
+        poolFactory,
+      );
+    if (controller.cron === "* * * * *") {
+      await scheduleDueRecurringPlans(
+        databaseUrl,
+        controller.scheduledTime,
+        poolFactory,
+      );
+      await schedulePrivacyExportRetention(
+        databaseUrl,
+        controller.scheduledTime,
+        poolFactory,
+      );
+    }
+    if (
+      environment.KILL_SWITCH_QUEUE !== "on" &&
+      environment.ASYNC_QUEUE !== undefined
+    )
       await publishDueOutbox(databaseUrl, environment.ASYNC_QUEUE, poolFactory);
-    if (environment.AUDIT_DATABASE_URL !== undefined)
+    if (
+      controller.cron === "0 5 * * *" &&
+      environment.AUDIT_DATABASE_URL !== undefined
+    )
       await reconcileAdminAudit(
         environment.AUDIT_DATABASE_URL,
         controller.scheduledTime,

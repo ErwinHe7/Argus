@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../core/api/state_status.dart';
 import '../application/daily_ritual_controller.dart';
+import '../domain/daily_ritual.dart';
 
 class DailyRitualScreen extends StatelessWidget {
   const DailyRitualScreen({
@@ -41,7 +42,7 @@ class DailyRitualScreen extends StatelessWidget {
                     _Sigil(colors: colors),
                     Expanded(
                       child: Text(
-                        'August 20',
+                        _formatDate(controller.state.value?.date),
                         textAlign: TextAlign.center,
                         style: Theme.of(context).textTheme.titleLarge,
                       ),
@@ -85,7 +86,7 @@ class DailyRitualScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _CardStage(colors: colors),
+                  _CardStage(colors: colors, art: controller.state.value!.art),
                   const SizedBox(height: 18),
                   Text(
                     controller.state.value!.title,
@@ -115,7 +116,8 @@ class DailyRitualScreen extends StatelessWidget {
                         ),
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                       ),
-                      onPressed: () => _showEvidence(context),
+                      onPressed: () =>
+                          _showEvidence(context, controller.state.value!),
                       icon: DecoratedBox(
                         decoration: BoxDecoration(
                           color: colors.positive,
@@ -123,17 +125,23 @@ class DailyRitualScreen extends StatelessWidget {
                         ),
                         child: const SizedBox(width: 8, height: 8),
                       ),
-                      label: const Text('Market-informed · reveal the pattern'),
+                      label: Text(controller.state.value!.marketLabel),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Divider(color: colors.line),
                   const SizedBox(height: 8),
-                  _Constellation(colors: colors),
+                  _Constellation(
+                    colors: colors,
+                    ideas: controller.state.value!.ideas,
+                  ),
                   const SizedBox(height: 16),
                   _CovenStrip(colors: colors, onTap: onOpenCoven),
                   const SizedBox(height: 14),
-                  _RowanCounsel(colors: colors),
+                  _RowanCounsel(
+                    colors: colors,
+                    counsel: controller.state.value!.rowan,
+                  ),
                   const SizedBox(height: 18),
                   Text(
                     'Demo market scenario · educational exploration only',
@@ -149,7 +157,7 @@ class DailyRitualScreen extends StatelessWidget {
     );
   }
 
-  void _showEvidence(BuildContext context) {
+  void _showEvidence(BuildContext context, DailyRitual ritual) {
     final colors = context.ritualColors;
     showModalBottomSheet<void>(
       context: context,
@@ -158,53 +166,94 @@ class DailyRitualScreen extends StatelessWidget {
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'What moved beneath the reading',
-                  style: Theme.of(context).textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Observed in this deterministic demo at 9:35 AM ET. These are research cues, not predictions or instructions to buy.',
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 18),
-                const _EvidenceRow(
-                  symbol: 'VIG',
-                  factor: 'Lower volatility and durable dividend momentum',
-                ),
-                const _EvidenceRow(
-                  symbol: 'XLV',
-                  factor: 'Defensive relative strength in the scenario window',
-                ),
-                const _EvidenceRow(
-                  symbol: 'WOMN',
-                  factor: 'Broad leadership exposure with positive breadth',
-                ),
-                const SizedBox(height: 16),
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: colors.goldSoft,
-                    borderRadius: BorderRadius.circular(12),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'What moved beneath the reading',
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Text(
-                      'Uncertainty remains high: the scenario is simulated, prices are fictional, and short-term conditions can reverse.',
-                      style: TextStyle(color: colors.ink, height: 1.4),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Observed ${_formatTimestamp(ritual.demo.observedAt)} by ${ritual.demo.sourceLabel}. These are research cues, not predictions or instructions to buy.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 18),
+                  for (final evidence in ritual.evidence)
+                    _EvidenceRow(
+                      symbol: evidence.factorLabel,
+                      factor: evidence.summary,
+                    ),
+                  const SizedBox(height: 16),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.goldSoft,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(14),
+                      child: Text.rich(
+                        TextSpan(
+                          style: TextStyle(color: colors.ink, height: 1.4),
+                          children: [
+                            TextSpan(text: ritual.guidance),
+                            TextSpan(text: '\n${ritual.rowan.riskFooter}'),
+                            for (final limitation in ritual.demo.limitations)
+                              TextSpan(text: '\n$limitation'),
+                            if (ritual.evidence.isNotEmpty)
+                              TextSpan(
+                                text: '\n${ritual.evidence.first.uncertainty}',
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                  if (ritual.ideas.isNotEmpty) ...[
+                    const SizedBox(height: 18),
+                    Text(
+                      'Ideas shown in this reading',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 10),
+                    for (final idea in ritual.ideas)
+                      _EvidenceRow(
+                        symbol: idea.symbol,
+                        factor: '${idea.appearanceReason}. ${idea.riskSummary}',
+                      ),
+                  ],
+                ],
+              ),
             ),
           ),
         );
       },
     );
   }
+
+  String _formatDate(DateTime? value) {
+    if (value == null) return 'Daily ritual';
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${months[value.month - 1]} ${value.day}';
+  }
+
+  String _formatTimestamp(DateTime value) =>
+      '${value.toUtc().toIso8601String().substring(0, 16).replaceFirst('T', ' ')} UTC';
 }
 
 class _Sigil extends StatelessWidget {
@@ -231,9 +280,10 @@ class _Sigil extends StatelessWidget {
 }
 
 class _CardStage extends StatelessWidget {
-  const _CardStage({required this.colors});
+  const _CardStage({required this.colors, required this.art});
 
   final RitualColors colors;
+  final RitualArt art;
 
   @override
   Widget build(BuildContext context) {
@@ -268,7 +318,7 @@ class _CardStage extends StatelessWidget {
               ),
               Semantics(
                 image: true,
-                label: 'The Compass tarot card: a woman holding a lantern at a celestial crossroads',
+                label: art.alt,
                 child: Container(
                   width: 170,
                   height: 255,
@@ -285,13 +335,18 @@ class _CardStage extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: Image.asset(
-                      'assets/images/the-compass.png',
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                  child: art.key == 'the_compass'
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: Image.asset(
+                            'assets/images/the-compass.png',
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Icon(
+                          Icons.image_not_supported_outlined,
+                          color: colors.gold,
+                        ),
                 ),
               ),
             ],
@@ -303,9 +358,10 @@ class _CardStage extends StatelessWidget {
 }
 
 class _Constellation extends StatelessWidget {
-  const _Constellation({required this.colors});
+  const _Constellation({required this.colors, required this.ideas});
 
   final RitualColors colors;
+  final List<RitualIdea> ideas;
 
   @override
   Widget build(BuildContext context) {
@@ -325,7 +381,7 @@ class _Constellation extends StatelessWidget {
               ),
             ),
             Text(
-              '3 of 5 aligned',
+              '${ideas.length} of 5 aligned',
               style: TextStyle(color: colors.faint, fontSize: 12),
             ),
           ],
@@ -340,25 +396,16 @@ class _Constellation extends StatelessWidget {
               right: 42,
               child: Divider(color: colors.gold.withValues(alpha: 0.6)),
             ),
-            const Row(
+            Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _AssetStar(
-                  symbol: 'VIG',
-                  change: '+0.42%',
-                  note: 'steady wealth',
-                ),
-                _AssetStar(
-                  symbol: 'XLV',
-                  change: '+0.31%',
-                  note: 'defensive orbit',
-                  selected: true,
-                ),
-                _AssetStar(
-                  symbol: 'WOMN',
-                  change: '+0.27%',
-                  note: 'leadership ETF',
-                ),
+                for (final (index, idea) in ideas.take(5).indexed)
+                  _AssetStar(
+                    symbol: idea.symbol,
+                    change: idea.changeLabel,
+                    note: idea.appearanceReason,
+                    selected: index == 1,
+                  ),
               ],
             ),
           ],
@@ -371,13 +418,13 @@ class _Constellation extends StatelessWidget {
 class _AssetStar extends StatelessWidget {
   const _AssetStar({
     required this.symbol,
-    required this.change,
+    this.change,
     required this.note,
     this.selected = false,
   });
 
   final String symbol;
-  final String change;
+  final String? change;
   final String note;
   final bool selected;
 
@@ -387,7 +434,7 @@ class _AssetStar extends StatelessWidget {
     return Expanded(
       child: Semantics(
         button: true,
-        label: '$symbol, $change, $note, demo asset idea',
+        label: [symbol, ?change, note, 'demo asset idea'].join(', '),
         child: Column(
           children: [
             Container(
@@ -411,14 +458,15 @@ class _AssetStar extends StatelessWidget {
               style: Theme.of(context).textTheme.titleLarge
                   ?.copyWith(fontSize: 18),
             ),
-            Text(
-              change,
-              style: TextStyle(
-                color: colors.positive,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
+            if (change != null)
+              Text(
+                change!,
+                style: TextStyle(
+                  color: colors.positive,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
             const SizedBox(height: 2),
             Text(
               note,
@@ -498,9 +546,10 @@ class _CovenStrip extends StatelessWidget {
 }
 
 class _RowanCounsel extends StatelessWidget {
-  const _RowanCounsel({required this.colors});
+  const _RowanCounsel({required this.colors, required this.counsel});
 
   final RitualColors colors;
+  final RitualCounsel counsel;
 
   @override
   Widget build(BuildContext context) {
@@ -535,9 +584,7 @@ class _RowanCounsel extends StatelessWidget {
                     fontWeight: FontWeight.w800,
                   ),
                 ),
-                const TextSpan(
-                  text: '“I’ll show you what changed beneath the reading.”',
-                ),
+                TextSpan(text: '“${counsel.body}”'),
               ],
             ),
           ),

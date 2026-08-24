@@ -153,6 +153,147 @@ describe.skipIf(databaseUrl === undefined)(
       });
     });
 
+    it("schedules and atomically posts one recurring allocation", async () => {
+      const recurringTenantId = randomUUID();
+      const portfolioId = randomUUID();
+      const sourceId = randomUUID();
+      const planId = randomUUID();
+      const scheduledFor = new Date(Date.now() - 60_000);
+      const seed = await ownerQuery<{ id: string }>(
+        "select id from demo_seed_versions where is_current order by version desc limit 1",
+      );
+      await ownerQuery("insert into tenants(id,status) values ($1,'active')", [
+        recurringTenantId,
+      ]);
+      await ownerQuery(
+        "insert into tenant_demo_states(tenant_id,seed_version_id,reset_generation) values($1,$2,1)",
+        [recurringTenantId, seed.rows[0]!.id],
+      );
+      await ownerQuery(
+        `insert into demo_portfolios(id,tenant_id,reset_generation,name,currency,status,is_default)
+         values($1,$2,1,'Recurring fixture','USD','active',true)`,
+        [portfolioId, recurringTenantId],
+      );
+      await ownerQuery(
+        `insert into demo_funding_sources(id,tenant_id,reset_generation,fixture_key,display_label,fictional_last4,status)
+         values($1,$2,1,'recurring-test','Recurring test source','0000','active')`,
+        [sourceId, recurringTenantId],
+      );
+      await ownerQuery(
+        `insert into recurring_plans(id,tenant_id,portfolio_id,plan_type,amount_minor,frequency,next_run_at,status,version,reset_generation,source_id)
+         values($1,$2,$3,'allocation',1000,'weekly',$4,'active',1,1,$5)`,
+        [planId, recurringTenantId, portfolioId, scheduledFor, sourceId],
+      );
+      await ownerQuery(
+        `insert into recurring_plan_allocations(tenant_id,plan_id,asset_id,weight_bps)
+         values($1,$2,'20000000-0000-4000-8000-000000000001',10000)`,
+        [recurringTenantId, planId],
+      );
+      await ownerQuery(
+        "select ritual_private.enqueue_due_recurring_plans(now(),100)",
+      );
+      const due = await ownerQuery<{ id: string }>(
+        `select id from outbox_events
+          where tenant_id=$1 and topic='recurring.plan.due' and aggregate_id=$2`,
+        [recurringTenantId, planId],
+      );
+      const message = {
+        schema_version: 1,
+        outbox_id: due.rows[0]!.id,
+        consumer: "recurring-plan-delivery",
+      } as const;
+      await expect(
+        consumeWithReceipt(
+          databaseUrl!,
+          message,
+          handlerFor(message, {} as never),
+          pgPoolFactory,
+        ),
+      ).resolves.toBe("applied");
+      await expect(
+        consumeWithReceipt(
+          databaseUrl!,
+          message,
+          handlerFor(message, {} as never),
+          pgPoolFactory,
+        ),
+      ).resolves.toBe("duplicate");
+      const posted = await ownerQuery<{
+        runs: string;
+        commands: string;
+        quantity: string;
+        basis: string;
+        plan_version: number;
+      }>(
+        `select
+          (select count(*) from recurring_plan_runs where tenant_id=$1 and plan_id=$2)::text runs,
+          (select count(*) from simulation_commands where tenant_id=$1 and command_type='recurring')::text commands,
+          (select quantity::text from portfolio_positions where tenant_id=$1 and portfolio_id=$3) quantity,
+          (select cost_basis_minor::text from portfolio_positions where tenant_id=$1 and portfolio_id=$3) basis,
+          (select version from recurring_plans where tenant_id=$1 and id=$2) plan_version`,
+        [recurringTenantId, planId, portfolioId],
+      );
+      expect(posted.rows[0]?.runs).toBe("1");
+      expect(posted.rows[0]?.commands).toBe("1");
+      expect(Number(posted.rows[0]?.quantity)).toBeGreaterThan(0);
+      expect(Number(posted.rows[0]?.basis)).toBeGreaterThan(0);
+      expect(Number(posted.rows[0]?.basis)).toBeLessThanOrEqual(1000);
+      expect(posted.rows[0]?.plan_version).toBe(2);
+    });
+
+    it("schedules retention and deletes the exact expired export object", async () => {
+      const requestId = randomUUID();
+      const artifactId = randomUUID();
+      const key = `privacy-exports/v1/${tenantId}/${requestId}.zip`;
+      await ownerQuery(
+        `insert into privacy_requests(id,tenant_id,request_type,status,snapshot_at,source_sequence,archive_schema_version,verified_at,queued_at,completed_at,expires_at)
+         values($1,$2,'export','completed',now(),1,2,now(),now(),now(),now()-interval '1 minute')`,
+        [requestId, tenantId],
+      );
+      await ownerQuery(
+        `insert into privacy_export_artifacts(id,tenant_id,request_id,r2_key,manifest_checksum,publication_state,expires_at)
+         values($1,$2,$3,$4,$5,'published',now()-interval '1 minute')`,
+        [artifactId, tenantId, requestId, key, "a".repeat(64)],
+      );
+      await ownerQuery(
+        "select ritual_private.enqueue_expired_privacy_exports(now(),100)",
+      );
+      const due = await ownerQuery<{ id: string }>(
+        `select id from outbox_events
+          where tenant_id=$1 and topic='privacy.export.retention.requested' and aggregate_id=$2`,
+        [tenantId, artifactId],
+      );
+      const deleteObject = vi.fn(async () => undefined);
+      const message = {
+        schema_version: 1,
+        outbox_id: due.rows[0]!.id,
+        consumer: "privacy-export-retention",
+      } as const;
+      await expect(
+        consumeWithReceipt(
+          databaseUrl!,
+          message,
+          handlerFor(message, {
+            PRIVACY_EXPORTS: { delete: deleteObject } as unknown as R2Bucket,
+          } as never),
+          pgPoolFactory,
+        ),
+      ).resolves.toBe("applied");
+      expect(deleteObject).toHaveBeenCalledWith(key);
+      const retained = await ownerQuery<{
+        publication_state: string;
+        deleted: boolean;
+      }>(
+        `select publication_state,deleted_at is not null deleted
+           from privacy_export_artifacts where id=$1`,
+        [artifactId],
+      );
+      expect(retained.rows[0]).toEqual({
+        publication_state: "deleted",
+        deleted: true,
+      });
+    });
+
     it("queues and executes actor-bound media work through the restricted worker role", async () => {
       const staffId = randomUUID();
       await ownerQuery(
@@ -689,6 +830,25 @@ describe.skipIf(databaseUrl === undefined)(
         key,
       );
       expect(replay).toEqual(first);
+      expect(first.id).not.toBe(jobId);
+      expect(first.outbox_id).not.toBe(outboxId);
+      expect(first.attempt).toBe(0);
+      expect(first.status).toBe("retry");
+      const retriedOutbox = await ownerQuery<{
+        id: string;
+        topic: string;
+        payload: unknown;
+      }>(
+        "select id,topic,payload from outbox_events where id=$1",
+        [first.outbox_id],
+      );
+      expect(retriedOutbox.rows).toEqual([
+        {
+          id: first.outbox_id,
+          topic: "content-report.created",
+          payload: {},
+        },
+      ]);
       const evidence = await ownerQuery<{ receipts: string; audits: string }>(
         `select
         (select count(*) from admin_operation_receipts where actor_staff_id=$1 and operation='job.retry' and idempotency_key=$2)::text receipts,
@@ -696,6 +856,26 @@ describe.skipIf(databaseUrl === undefined)(
         [staffId, key, jobId],
       );
       expect(evidence.rows[0]).toEqual({ receipts: "1", audits: "1" });
+      const receipt = await ownerQuery<{ retry_id: string; outbox_id: string }>(
+        `select response->>'retry_id' retry_id,response->>'outbox_id' outbox_id
+         from admin_operation_receipts
+         where actor_staff_id=$1 and operation='job.retry' and idempotency_key=$2`,
+        [staffId, key],
+      );
+      expect(receipt.rows).toEqual([
+        { retry_id: first.id, outbox_id: first.outbox_id },
+      ]);
+      const retryJob = await ownerQuery<{
+        id: string;
+        status: string;
+        attempt: number;
+      }>(
+        "select id,status,attempt from job_runs where id=$1 and outbox_id=$2",
+        [first.id, first.outbox_id],
+      );
+      expect(retryJob.rows).toEqual([
+        { id: first.id, status: "retry", attempt: 0 },
+      ]);
       await expect(
         repository.retryJob(
           staff,
@@ -799,18 +979,36 @@ describe.skipIf(databaseUrl === undefined)(
       const bucket = {
         put: async (
           key: string,
-          value: Uint8Array | ArrayBuffer | string,
+          value: Uint8Array | ArrayBuffer | ReadableStream<Uint8Array> | string,
           options?: {
             httpMetadata?: { contentType?: string };
             customMetadata?: Record<string, string>;
           },
         ) => {
-          const bytes =
-            typeof value === "string"
-              ? new TextEncoder().encode(value)
-              : value instanceof Uint8Array
-                ? value
-                : new Uint8Array(value);
+          let bytes: Uint8Array;
+          if (typeof value === "string") {
+            bytes = new TextEncoder().encode(value);
+          } else if (value instanceof Uint8Array) {
+            bytes = value;
+          } else if (value instanceof ReadableStream) {
+            const chunks: Uint8Array[] = [];
+            const reader = value.getReader();
+            for (;;) {
+              const next = await reader.read();
+              if (next.done) break;
+              chunks.push(next.value);
+            }
+            bytes = new Uint8Array(
+              chunks.reduce((length, chunk) => length + chunk.length, 0),
+            );
+            let offset = 0;
+            for (const chunk of chunks) {
+              bytes.set(chunk, offset);
+              offset += chunk.length;
+            }
+          } else {
+            bytes = new Uint8Array(value);
+          }
           objects.set(key, {
             bytes,
             ...(options?.httpMetadata?.contentType === undefined

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildDeletionDenyEntry,
   buildExportManifest,
+  buildStreamingPrivacyZip,
   verifyDeletionDenyEntry,
 } from "../../src/domains/privacy/service";
 
@@ -61,5 +62,56 @@ describe("privacy artifacts", () => {
         entry.checksum,
       ),
     ).toBe(false);
+  });
+
+  it("streams every export row through bounded deterministic pages", async () => {
+    const rows = Array.from({ length: 5 }, (_, index) => ({
+      id: index,
+      display_name: `Member ${index}`,
+      push_token_ciphertext: "never-export",
+    }));
+    const offsets: number[] = [];
+    const archive = buildStreamingPrivacyZip({
+      tenantId: "tenant-a",
+      requestId: "request-a",
+      snapshotAt: "2026-08-24T10:00:00.000Z",
+      sourceSequence: 42,
+      pageSize: 2,
+      collections: [
+        {
+          name: "profiles",
+          readPage: async (offset, limit) => {
+            offsets.push(offset);
+            return rows.slice(offset, offset + limit);
+          },
+        },
+      ],
+    });
+    const reader = archive.body.getReader();
+    const chunks: Uint8Array[] = [];
+    for (;;) {
+      const next = await reader.read();
+      if (next.done) break;
+      chunks.push(next.value);
+    }
+    const bytes = new Uint8Array(
+      chunks.reduce((total, chunk) => total + chunk.length, 0),
+    );
+    let cursor = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, cursor);
+      cursor += chunk.length;
+    }
+    const completed = await archive.completion;
+    const readable = new TextDecoder().decode(bytes);
+    expect(offsets).toEqual([0, 2, 4]);
+    expect([...bytes.slice(0, 2)]).toEqual([0x50, 0x4b]);
+    expect(readable).toContain("Member 4");
+    expect(readable).not.toContain("never-export");
+    expect(completed.manifest).toMatchObject({
+      schema_version: 2,
+      collections: { profiles: 5 },
+    });
+    expect(completed.manifestChecksum).toMatch(/^[a-f0-9]{64}$/);
   });
 });

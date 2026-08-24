@@ -37,7 +37,7 @@
     "not_found_handling": "single-page-application"
   },
   "triggers": {
-    "crons": ["0 5 * * *", "0 6 * * 1", "0 7 1,15 * *"]
+    "crons": ["* * * * *", "0 5 * * *", "0 6 * * 1", "0 7 1,15 * *"]
   },
   "queues": {
     "producers": [

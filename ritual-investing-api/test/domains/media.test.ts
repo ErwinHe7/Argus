@@ -66,13 +66,19 @@ describe("admin media contracts", () => {
     get: vi.fn().mockResolvedValue(record),
     retire: vi.fn().mockResolvedValue(outboxId),
   });
-  const appFor = (repo: ReturnType<typeof repository>) =>
+  const appFor = (
+    repo: ReturnType<typeof repository>,
+    auditDeniedAdminAttempt?: () => Promise<void>,
+  ) =>
     createApp({
       dependencies: {
         auth0Keys: [auth0Key.publicJwk],
         accessKeys: [accessKey.publicJwk],
         resolveStaff: async () => staff,
         mediaRepository: repo,
+        ...(auditDeniedAdminAttempt === undefined
+          ? {}
+          : { auditDeniedAdminAttempt }),
       },
     } as never);
   const bindings = () => {
@@ -199,5 +205,70 @@ describe("admin media contracts", () => {
       "No longer approved for use",
       expect.any(String),
     );
+  });
+
+  it("audits binary upload permission denials before touching quarantine storage", async () => {
+    const repo = repository();
+    const auditDeniedAdminAttempt = vi.fn(async () => undefined);
+    const app = appFor(repo, auditDeniedAdminAttempt);
+    const environment = bindings();
+    const response = await app.request(
+      `https://admin-api.ritual-investing.test/v1/admin/media/upload-requests/${mediaId}/content`,
+      {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${await memberToken(auth0Key, {
+            sub: staff.auth0Subject,
+            azp: ADMIN_CLIENT_ID,
+            permissions: [],
+          })}`,
+          "cf-access-jwt-assertion": await accessToken(accessKey, {
+            email: staff.accessIdentity,
+          }),
+          "content-type": "image/png",
+        },
+        body: new Uint8Array(24),
+      },
+      environment,
+    );
+
+    expect(response.status).toBe(403);
+    expect(auditDeniedAdminAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorStaffId: staff.id,
+        permission: "admin:media:write",
+        method: "PUT",
+      }),
+      environment,
+    );
+    expect(environment.MEDIA_QUARANTINE.put).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when a binary upload denial cannot be audited", async () => {
+    const repo = repository();
+    const app = appFor(repo, async () => {
+      throw new Error("audit_unavailable");
+    });
+    const response = await app.request(
+      `https://admin-api.ritual-investing.test/v1/admin/media/upload-requests/${mediaId}/content`,
+      {
+        method: "PUT",
+        headers: {
+          authorization: `Bearer ${await memberToken(auth0Key, {
+            sub: staff.auth0Subject,
+            azp: ADMIN_CLIENT_ID,
+            permissions: [],
+          })}`,
+          "cf-access-jwt-assertion": await accessToken(accessKey, {
+            email: staff.accessIdentity,
+          }),
+          "content-type": "image/png",
+        },
+        body: new Uint8Array(24),
+      },
+      bindings(),
+    );
+
+    expect(response.status).toBe(503);
   });
 });

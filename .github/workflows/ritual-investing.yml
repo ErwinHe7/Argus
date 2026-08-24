@@ -157,7 +157,13 @@ jobs:
       - working-directory: ritual-investing-app
         run: flutter test
       - working-directory: ritual-investing-app
-        run: flutter build apk --debug
+        run: >-
+          flutter build apk --debug
+          --dart-define=RITUAL_API_BASE_URL=https://api.ritual-investing.invalid
+          --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com
+          --dart-define=AUTH0_CLIENT_ID=ritual-mobile-ci
+          --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
+          --android-project-arg=auth0Domain=ritual-investing-ci.us.auth0.com
 
   mobile-ios:
     runs-on: macos-15
@@ -171,7 +177,12 @@ jobs:
       - working-directory: ritual-investing-app
         run: flutter pub get --enforce-lockfile
       - working-directory: ritual-investing-app
-        run: flutter build ios --debug --no-codesign
+        run: >-
+          flutter build ios --debug --no-codesign
+          --dart-define=RITUAL_API_BASE_URL=https://api.ritual-investing.invalid
+          --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com
+          --dart-define=AUTH0_CLIENT_ID=ritual-mobile-ci
+          --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
 
   admin-web-browser:
     runs-on: ubuntu-24.04
@@ -194,12 +205,21 @@ jobs:
       - working-directory: ritual-investing-admin
         run: flutter test
       - working-directory: ritual-investing-admin
-        run: flutter build web --release
+        run: >-
+          flutter build web --release
+          --dart-define=ADMIN_API_BASE_URL=https://admin-api.ritual-investing.invalid
+          --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com
+          --dart-define=AUTH0_ADMIN_CLIENT_ID=ritual-admin-ci
+          --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
       - name: Real Chrome admin workflows
         working-directory: ritual-investing-admin
         run: |
           chromedriver --port=4444 &
-          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/admin_browser_workflows_test.dart -d chrome
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/admin_browser_workflows_test.dart -d chrome \
+            --dart-define=ADMIN_API_BASE_URL=https://admin-api.ritual-investing.invalid \
+            --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com \
+            --dart-define=AUTH0_ADMIN_CLIENT_ID=ritual-admin-ci \
+            --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
       - working-directory: ritual-investing-api
         run: npm ci
       - working-directory: ritual-investing-api
@@ -225,6 +245,7 @@ jobs:
       STAGING_MEMBER_TOKEN: ${{ secrets.RITUAL_STAGING_MEMBER_TOKEN }}
       STAGING_ADMIN_TOKEN: ${{ secrets.RITUAL_STAGING_ADMIN_TOKEN }}
       STAGING_CF_ACCESS_ASSERTION: ${{ secrets.RITUAL_STAGING_CF_ACCESS_ASSERTION }}
+      REQUIRE_STAGING_E2E: "true"
       CAPACITY_BASE_URL: ${{ secrets.RITUAL_STAGING_BASE_URL }}
       CAPACITY_DISTRIBUTED_RUNNER_URL: ${{ vars.RITUAL_CAPACITY_DISTRIBUTED_RUNNER_URL }}
       CAPACITY_DISTRIBUTED_RUNNER_TOKEN: ${{ secrets.RITUAL_CAPACITY_DISTRIBUTED_RUNNER_TOKEN }}

@@ -99,7 +99,58 @@ export const environmentSchema = z
     RL_ADMIN_HIGH: rateLimitBinding,
     RL_UPLOAD: rateLimitBinding,
   })
-  .passthrough();
+  .passthrough()
+  .superRefine((environment, context) => {
+    if (!['staging', 'production'].includes(environment.ENVIRONMENT)) return;
+    const required = [
+      "IDENTITY_DATABASE_URL",
+      "BOOTSTRAP_DATABASE_URL",
+      "STAFF_DATABASE_URL",
+      "PUBLIC_DATABASE_URL",
+      "RUNTIME_DATABASE_URL",
+      "SCHEDULER_DATABASE_URL",
+      "PRIVACY_DATABASE_URL",
+      "MEDIA_DATABASE_URL",
+      "AUDIT_DATABASE_URL",
+      "CURSOR_SIGNING_KEY",
+      "PUSH_TOKEN_ENCRYPTION_KEY",
+      "ASYNC_QUEUE",
+      "JOBS_DLQ",
+      "MEDIA_QUARANTINE",
+      "MEDIA_PUBLIC",
+      "PRIVACY_EXPORTS",
+      "DELETION_DENY_JOURNAL",
+      "MEDIA_SCANNER",
+      "MEDIA_PROCESSOR",
+      "PUSH_PROVIDER",
+    ] as const;
+    for (const binding of required)
+      if (environment[binding] === undefined)
+        context.addIssue({
+          code: "custom",
+          path: [binding],
+          message: `${binding} is required in ${environment.ENVIRONMENT}`,
+        });
+    if (
+      environment.ASYNC_QUEUE !== undefined &&
+      typeof (environment.ASYNC_QUEUE as { sendBatch?: unknown }).sendBatch !==
+        "function"
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["ASYNC_QUEUE"],
+        message: "ASYNC_QUEUE must support sendBatch",
+      });
+    if (
+      environment.ADMIN_UI_HOST !== undefined &&
+      environment.ADMIN_ASSETS === undefined
+    )
+      context.addIssue({
+        code: "custom",
+        path: ["ADMIN_ASSETS"],
+        message: "ADMIN_ASSETS is required when ADMIN_UI_HOST is configured",
+      });
+  });
 
 export type Bindings = z.infer<typeof environmentSchema>;
 

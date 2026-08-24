@@ -53,4 +53,17 @@ describe("migration compatibility", () => {
     expect(sql).toMatch(/'n-1'/i);
     expect(sql).toMatch(/'n'/i);
   });
+
+  it("keeps async runtime hardening additive, bounded, and retry-safe", async () => {
+    const sql = await readFile(`${apiRoot}/drizzle/0010_async_runtime_hardening.sql`, "utf8");
+
+    expect(sql).toMatch(/^begin;/i);
+    expect(sql).toMatch(/commit;\s*$/i);
+    expect(sql).not.toMatch(/\bdrop\s+(?:table|column|type|role)\b/i);
+    expect(sql).not.toMatch(/\btruncate\b/i);
+    expect(sql).toMatch(/enqueue_due_recurring_plans[\s\S]*for update of plan skip locked/i);
+    expect(sql).toMatch(/enqueue_expired_privacy_exports[\s\S]*for update of artifact skip locked/i);
+    expect(sql).toMatch(/finish_job_attempt[\s\S]*status='failed'/i);
+    expect(sql).toMatch(/apply_due_recurring_plan_event[\s\S]*recurring_plan_runs/i);
+  });
 });

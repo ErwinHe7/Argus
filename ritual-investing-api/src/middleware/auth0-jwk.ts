@@ -1,10 +1,9 @@
 import type { MiddlewareHandler } from "hono";
-import { jwk } from "hono/jwk";
 import type { HonoJsonWebKey } from "hono/utils/jwt/jws";
-import type { JWTPayload } from "hono/utils/jwt/types";
 import { z } from "zod";
 
 import type { AppEnvironment } from "../app.ts";
+import { bearerToken, verifyManagedJwt } from "./managed-jwks.ts";
 import { errorResponse } from "./responses.ts";
 
 const permissionSchema = z.string().min(1).max(128);
@@ -17,7 +16,6 @@ export type VerifiedAuth0Principal = Readonly<{
 }>;
 
 export type AuthVariables = {
-  jwtPayload: JWTPayload;
   authPrincipal: VerifiedAuth0Principal;
 };
 
@@ -34,20 +32,27 @@ export function auth0Jwk(
         "A valid API access token is required.",
       );
     }
+    const token = bearerToken(authorization);
+    if (token === null)
+      return errorResponse(
+        context,
+        401,
+        "unauthorized",
+        "A valid API access token is required.",
+      );
     const issuer = context.env.AUTH0_ISSUER;
     const audience = context.env.AUTH0_AUDIENCE;
-    const verify = jwk({
-      ...(keys === undefined
-        ? { jwks_uri: context.env.AUTH0_JWKS_URL }
-        : { keys: [...keys] }),
-      alg: ["RS256"],
-      verification: { iss: issuer, aud: audience, exp: true, iat: true, nbf: true },
-    });
 
     try {
-      await verify(context, async () => {
-        const payload = context.get("jwtPayload");
-        const parsed = z.object({
+      const payload = await verifyManagedJwt({
+        token,
+        issuer,
+        audience,
+        jwksUrl: context.env.AUTH0_JWKS_URL,
+        ...(keys === undefined ? {} : { keys }),
+      });
+      const parsed = z
+        .object({
           iss: z.literal(issuer),
           aud: z.literal(audience),
           sub: z.string().min(1).max(255),
@@ -55,18 +60,27 @@ export function auth0Jwk(
           azp: z.string().min(1).max(255).optional(),
           iat: z.number().int().nonnegative(),
           exp: z.number().int().positive(),
-        }).passthrough().safeParse(payload);
-        if (!parsed.success || new Set(parsed.data.permissions).size !== parsed.data.permissions.length) {
-          return;
-        }
-        context.set("authPrincipal", Object.freeze({
+        })
+        .passthrough()
+        .safeParse(payload);
+      if (
+        !parsed.success ||
+        new Set(parsed.data.permissions).size !==
+          parsed.data.permissions.length ||
+        parsed.data.iat > Math.floor(Date.now() / 1_000) + 60
+      )
+        throw new Error("invalid_claims");
+      context.set(
+        "authPrincipal",
+        Object.freeze({
           subject: parsed.data.sub,
           permissions: Object.freeze([...parsed.data.permissions]),
           issuedAt: parsed.data.iat,
-          ...(parsed.data.azp === undefined ? {} : { authorizedParty: parsed.data.azp }),
-        }));
-        await next();
-      });
+          ...(parsed.data.azp === undefined
+            ? {}
+            : { authorizedParty: parsed.data.azp }),
+        }),
+      );
     } catch {
       return errorResponse(
         context,
@@ -76,13 +90,6 @@ export function auth0Jwk(
       );
     }
 
-    if (context.get("authPrincipal") === undefined) {
-      return errorResponse(
-        context,
-        401,
-        "unauthorized",
-        "A valid API access token is required.",
-      );
-    }
+    await next();
   };
 }

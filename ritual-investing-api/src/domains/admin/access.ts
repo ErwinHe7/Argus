@@ -1,4 +1,5 @@
 import type { MiddlewareHandler } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import type { HonoJsonWebKey } from "hono/utils/jwt/jws";
 import { Pool } from "@neondatabase/serverless";
 
@@ -147,6 +148,36 @@ export function adminSecurity(
     staffRateLimit(rate),
   ].map((middleware) => async (context, next) => {
     if (context.req.method !== method.toUpperCase()) return next();
+    return middleware(context, next);
+  });
+}
+
+export function adminBinaryUploadSecurity(
+  dependencies: AdminRouteDependencies,
+): MiddlewareHandler<AppEnvironment>[] {
+  return [
+    requireAdminHost,
+    preAuthRateLimit("RL_UPLOAD"),
+    bodyLimit({
+      maxSize: 10 * 1024 * 1024,
+      onError: (context) =>
+        errorResponse(
+          context,
+          413,
+          "payload_too_large",
+          "The upload exceeds 10 MiB.",
+        ),
+    }) as MiddlewareHandler<AppEnvironment>,
+    cloudflareAccessJwk(dependencies.accessKeys),
+    auth0Jwk(dependencies.auth0Keys),
+    authorizeStaff(dependencies.resolveStaff),
+    requireAuditedAdminPermission(
+      "admin:media:write",
+      dependencies.auditDeniedAdminAttempt ?? defaultDenialAuditor,
+    ),
+    staffRateLimit("RL_UPLOAD"),
+  ].map((middleware) => async (context, next) => {
+    if (context.req.method !== "PUT") return next();
     return middleware(context, next);
   });
 }

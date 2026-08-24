@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 import {
   CAPACITY_PROFILES,
@@ -104,5 +106,22 @@ describe("capacity and latency envelope", () => {
         request: async () => ({ status: 503 }),
       }),
     ).rejects.toThrow(/status 503/i);
+  });
+
+  it("bounds queue fan-out and documents the R2 orphan backstop", async () => {
+    const root = resolve(import.meta.dirname, "../..");
+    const [wrangler, runtime, handlers, privacyService, retention] = await Promise.all([
+      readFile(resolve(root, "wrangler.jsonc"), "utf8"),
+      readFile(resolve(root, "src/jobs/queue-runtime.ts"), "utf8"),
+      readFile(resolve(root, "src/jobs/handlers.ts"), "utf8"),
+      readFile(resolve(root, "src/domains/privacy/service.ts"), "utf8"),
+      readFile(resolve(root, "operations/privacy-export-retention.md"), "utf8"),
+    ]);
+    expect(wrangler).toMatch(/"crons": \["\* \* \* \* \*"/);
+    expect(wrangler).toMatch(/"max_concurrency": 4/);
+    expect(runtime).toMatch(/MAX_BATCH_CONCURRENCY = 5/);
+    expect(handlers).toMatch(/buildStreamingPrivacyZip[\s\S]*pageSize: 100/);
+    expect(privacyService).toMatch(/pageSize > 500[\s\S]*ReadableStream/);
+    expect(retention).toMatch(/lifecycle rule[\s\S]*eight days[\s\S]*orphan backstop/i);
   });
 });

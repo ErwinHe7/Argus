@@ -87,6 +87,8 @@ class CovenScreen extends StatelessWidget {
               symbol: entry.symbol ?? '—',
               category: entry.category,
               focus: entry.focus,
+              effectiveDate: entry.effectiveDate,
+              verifiedAsOf: entry.verifiedAsOf,
             ),
           const SizedBox(height: 22),
           Text(
@@ -105,12 +107,16 @@ class _CompanyRow extends StatelessWidget {
     required this.symbol,
     required this.category,
     required this.focus,
+    required this.effectiveDate,
+    required this.verifiedAsOf,
   });
 
   final String name;
   final String symbol;
   final String category;
   final String focus;
+  final DateTime effectiveDate;
+  final DateTime verifiedAsOf;
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +176,7 @@ class _CompanyRow extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$focus · Demo record Aug 20, 2026',
+                  '$focus · Effective ${_formatDate(effectiveDate)} · verified ${_formatDate(verifiedAsOf)}',
                   style: TextStyle(color: colors.muted, fontSize: 12),
                 ),
               ],
@@ -179,5 +185,23 @@ class _CompanyRow extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime value) {
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return '${months[value.month - 1]} ${value.day}, ${value.year}';
   }
 }

@@ -78,6 +78,7 @@ describe("managed asynchronous effects", () => {
           "content-type": "application/json",
           "idempotency-key": expect.stringMatching(/^[a-f0-9]{64}$/),
         });
+        expect(init?.signal).toBeInstanceOf(AbortSignal);
         expect(JSON.parse(String(init?.body))).toEqual({
           token: rawToken,
           title: "A safe title",
@@ -313,5 +314,38 @@ describe("managed asynchronous effects", () => {
     ).rejects.toThrow("media_quarantine_mismatch");
     expect(scanner.fetch).not.toHaveBeenCalled();
     expect(publicBucket.put).not.toHaveBeenCalled();
+  });
+
+  it("binds recurring delivery to the outbox plan and reset generation", async () => {
+    const planId = "018f3c2a-4b67-7a89-8abc-123456789016";
+    const query = vi.fn(async () => ({
+      rows: [{ outcome: "completed" }],
+      rowCount: 1,
+    }));
+    const effect = handlerFor(message("recurring-plan-delivery"), {} as never);
+    const recurringEvent = event({
+      topic: "recurring.plan.due",
+      aggregate_kind: "recurring-plan",
+      aggregate_id: planId,
+      reset_generation: 3,
+      payload: {
+        plan_id: planId,
+        scheduled_for: "2026-08-24T10:00:00.000Z",
+        reset_generation: 3,
+      },
+    });
+    await expect(effect({ query } as never, recurringEvent)).resolves.toBe(
+      "recurring-plan:completed",
+    );
+    expect(query).toHaveBeenCalledWith(
+      "select ritual_private.apply_due_recurring_plan_event($1) outcome",
+      [eventId],
+    );
+    await expect(
+      effect({ query } as never, {
+        ...recurringEvent,
+        reset_generation: 4,
+      }),
+    ).rejects.toThrow("invalid_event_payload");
   });
 });

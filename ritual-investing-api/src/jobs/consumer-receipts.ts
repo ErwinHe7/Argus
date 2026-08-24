@@ -45,11 +45,14 @@ export async function consumeWithReceipt(
   const client = await pool.connect();
   let deliveryLock = false;
   try {
+    await client.query("set statement_timeout='45s'");
     await client.query("select pg_advisory_lock(hashtextextended($1,0))", [
       message.outbox_id,
     ]);
     deliveryLock = true;
     await client.query("begin isolation level repeatable read");
+    await client.query("set local lock_timeout='5s'");
+    await client.query("set local statement_timeout='45s'");
     const privacyPurge = message.consumer === "privacy-purge";
     const editorialPublisher = message.consumer === "editorial-publisher";
     const mediaWorker = message.consumer.startsWith("media-");

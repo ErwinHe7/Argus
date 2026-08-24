@@ -182,6 +182,11 @@ describePostgres(
         current_published_revision_id: revision.id,
       });
       expect(persisted.rows[0].audit_count).toBeGreaterThanOrEqual(4);
+      const publicationState = await owner.query<{ state: string }>(
+        "select state from editorial_revisions where id=$1",
+        [revision.id],
+      );
+      expect(publicationState.rows).toEqual([{ state: "published" }]);
 
       await expect(
         owner.query("update editorial_revisions set payload='{}' where id=$1", [
@@ -342,6 +347,34 @@ describePostgres(
         status: "verified",
         verified_by: reviewerId,
       });
+
+      const unknownQualificationId = randomUUID();
+      await owner.query(
+        `insert into coven_qualifications(
+           id,entry_id,category,person_name,valid_from,submitted_by
+         ) values($1,$2,'owner','Unknown legacy submitter','2026-08-24',null)`,
+        [unknownQualificationId, entryId],
+      );
+      const unknownDenial = await repository.append({
+        actorStaffId: reviewerId,
+        action: "coven_verification",
+        parentId: unknownQualificationId,
+        payload: {
+          evidence_claim_ids: ["30000000-0000-4000-8000-000000000001"],
+          effective_as_of: "2026-08-24",
+          decision: "verified",
+          reason: "Legacy provenance is not independently verifiable.",
+        },
+        requestId: randomUUID(),
+        idempotencyKey: `unknown-submitter-${randomUUID()}`,
+      });
+      expect(unknownDenial).toEqual({ _denied: "unknown_submitter" });
+      const unknownDenialAudit = await owner.query(
+        `select outcome from admin_audit_events
+         where actor_staff_id=$1 and target_id=$2 and outcome='denied'`,
+        [reviewerId, unknownQualificationId],
+      );
+      expect(unknownDenialAudit.rowCount).toBe(1);
     });
 
     it("publishes scheduled revisions monotonically when N+1 arrives before N", async () => {
@@ -445,6 +478,11 @@ describePostgres(
       expect(item.rows[0]!.current_published_revision_id).toBe(
         approvedRevisions[1],
       );
+      const revision = await owner.query<{ state: string }>(
+        "select state from editorial_revisions where id=$1",
+        [approvedRevisions[1]],
+      );
+      expect(revision.rows).toEqual([{ state: "published" }]);
       expect(
         (
           await owner.query(

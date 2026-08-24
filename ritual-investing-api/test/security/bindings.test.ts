@@ -21,4 +21,13 @@ describe("security binding validation", () => {
       IDENTITY_DATABASE_URL: "postgresql://user:password@database.example/ritual",
     }).IDENTITY_DATABASE_URL).toContain("database.example");
   });
+
+  it("fails closed when a staging deployment omits an async dependency", () => {
+    expect(() =>
+      validateBindings({
+        ...testBindings(),
+        ENVIRONMENT: "staging",
+      }),
+    ).toThrow(/IDENTITY_DATABASE_URL.*required|required in staging/);
+  });
 });

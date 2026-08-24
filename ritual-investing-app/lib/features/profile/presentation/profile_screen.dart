@@ -2,16 +2,23 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../core/api/state_status.dart';
+import '../../portfolio/application/controller.dart';
+import '../../portfolio/domain/model.dart';
 import '../application/controller.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({super.key, required this.controller});
+  const ProfileScreen({
+    super.key,
+    required this.controller,
+    required this.portfolioController,
+  });
   final ProfileController controller;
+  final PortfolioController portfolioController;
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: Listenable.merge([controller, portfolioController]),
       builder: (context, _) => _content(context),
     );
   }
@@ -60,103 +67,20 @@ class ProfileScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'A locally simulated portfolio. No money or account is connected.',
+            'An authenticated simulated portfolio. No money or account is connected.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           StateStatus(phase: controller.state.phase, onRetry: controller.load),
-          if (controller.state.value != null) ...[
+          StateStatus(
+            phase: portfolioController.state.phase,
+            onRetry: portfolioController.load,
+          ),
+          if (controller.state.value != null &&
+              portfolioController.state.value?.items.isNotEmpty == true) ...[
             const SizedBox(height: 22),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: colors.coven,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'SIMULATED BALANCE',
-                    style: TextStyle(
-                      color: Color(0xFFDCCBDE),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 9),
-                  const Text(
-                    r'$12,480.36',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: 'LibreBaskerville',
-                      fontSize: 36,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '+1.8% this moon cycle',
-                    style: TextStyle(
-                      color: colors.gold,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 26),
-            Text(
-              'Intentions',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 10),
-            _ProgressRow(colors: colors),
-            const SizedBox(height: 26),
-            Text(
-              'Future Mirror',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Explore how fictional contributions and modeled returns could change the path. Projections are not guarantees.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 12),
-            SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(value: 'steady', label: Text('Steady')),
-                ButtonSegment(value: 'bright', label: Text('Bright')),
-                ButtonSegment(value: 'storm', label: Text('Storm')),
-              ],
-              selected: const {'steady'},
-              onSelectionChanged: (_) {},
-            ),
-            const SizedBox(height: 26),
-            Text(
-              'Demo actions',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 4),
-            const _ActionRow(
-              icon: Icons.account_balance_outlined,
-              title: 'Link a fictional bank',
-              subtitle: 'No credentials collected',
-            ),
-            const _ActionRow(
-              icon: Icons.autorenew,
-              title: 'Recurring ritual',
-              subtitle: r'Preview a $25 weekly demo plan',
-            ),
-            const _ActionRow(
-              icon: Icons.balance_outlined,
-              title: 'Rebalance a Circle',
-              subtitle: 'Simulate allocation changes',
-            ),
-            const _ActionRow(
-              icon: Icons.workspace_premium_outlined,
-              title: 'Premium chamber',
-              subtitle: 'Preview simulated upgrade and restore',
+            _PortfolioCard(
+              colors: colors,
+              portfolio: portfolioController.state.value!.items.first,
             ),
             const SizedBox(height: 24),
             Container(
@@ -195,63 +119,68 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-class _ProgressRow extends StatelessWidget {
-  const _ProgressRow({required this.colors});
+class _PortfolioCard extends StatelessWidget {
+  const _PortfolioCard({required this.colors, required this.portfolio});
 
   final RitualColors colors;
+  final PortfolioSummary portfolio;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
+    return Semantics(
+      container: true,
+      label:
+          '${portfolio.name}, simulated value ${_formatMoney(portfolio.valuationMinor)}, cash ${_formatMoney(portfolio.cashMinor)}, version ${portfolio.version}, ledger watermark ${portfolio.ledgerWatermark}',
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: colors.coven,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Text(
-                'Build a six-month calm fund',
-                style: TextStyle(fontWeight: FontWeight.w700),
+            const Text(
+              'SIMULATED BALANCE',
+              style: TextStyle(
+                color: Color(0xFFDCCBDE),
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 1.5,
               ),
             ),
-            Text('42%'),
+            const SizedBox(height: 9),
+            Text(
+              _formatMoney(portfolio.valuationMinor),
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'LibreBaskerville',
+                fontSize: 36,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              '${portfolio.name} · ${_formatMoney(portfolio.cashMinor)} cash',
+              style: TextStyle(color: colors.gold, fontWeight: FontWeight.w700),
+            ),
           ],
         ),
-        const SizedBox(height: 9),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(99),
-          child: LinearProgressIndicator(
-            minHeight: 10,
-            value: 0.42,
-            color: Theme.of(context).colorScheme.primary,
-            backgroundColor: colors.screenSoft,
-          ),
-        ),
-      ],
+      ),
     );
   }
-}
 
-class _ActionRow extends StatelessWidget {
-  const _ActionRow({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      minTileHeight: 64,
-      contentPadding: EdgeInsets.zero,
-      leading: Icon(icon, color: context.ritualColors.gold),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      subtitle: Text(subtitle),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () {},
-    );
+  static String _formatMoney(int minorUnits) {
+    final absolute = minorUnits.abs();
+    final whole = absolute ~/ 100;
+    final cents = (absolute % 100).toString().padLeft(2, '0');
+    final groups = <String>[];
+    var remaining = whole.toString();
+    while (remaining.length > 3) {
+      groups.insert(0, remaining.substring(remaining.length - 3));
+      remaining = remaining.substring(0, remaining.length - 3);
+    }
+    groups.insert(0, remaining);
+    return '${minorUnits < 0 ? '-' : ''}\$${groups.join(',')}.$cents';
   }
 }

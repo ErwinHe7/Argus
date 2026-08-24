@@ -22,8 +22,67 @@ class GeneratedRitualApiService implements DailyRitualService {
     try {
       final data = (await _api.getDailyRitual()).data!.data;
       return DailyRitual(
+        assignmentId: data.assignmentId,
+        date: data.date,
+        mode: switch (data.mode) {
+          DailyRitualDetailModeEnum.tarot => DailyRitualMode.tarot,
+          DailyRitualDetailModeEnum.astrology => DailyRitualMode.astrology,
+          DailyRitualDetailModeEnum.unknownDefaultOpenApi =>
+            DailyRitualMode.unknown,
+        },
+        revision: RitualRevision(
+          id: data.revision.id,
+          number: data.revision.number,
+        ),
         title: data.title,
+        art: RitualArt(key: data.art.key.value, alt: data.art.alt),
         interpretation: data.interpretation,
+        guidance: data.guidance,
+        marketLabel: data.marketLabel,
+        ideas: data.ideas
+            .map(
+              (idea) => RitualIdea(
+                assetId: idea.assetId,
+                symbol: idea.symbol,
+                name: idea.name,
+                appearanceReason: idea.appearanceReason,
+                riskSummary: idea.riskSummary,
+              ),
+            )
+            .toList(growable: false),
+        evidence: data.evidence
+            .map(
+              (evidence) => RitualEvidence(
+                claimId: evidence.claimId,
+                factorLabel: evidence.factorLabel,
+                observedAt: evidence.observedAt,
+                summary: evidence.summary,
+                uncertainty: evidence.uncertainty,
+              ),
+            )
+            .toList(growable: false),
+        rowan: RitualCounsel(
+          scriptRevisionId: data.rowan.scriptRevisionId,
+          surface: data.rowan.surface.value,
+          body: data.rowan.body,
+          riskFooter: data.rowan.riskFooter,
+        ),
+        version: data.version,
+        state: switch (data.state) {
+          DailyRitualDetailStateEnum.assigned => DailyRitualState.assigned,
+          DailyRitualDetailStateEnum.revealed => DailyRitualState.revealed,
+          DailyRitualDetailStateEnum.completed => DailyRitualState.completed,
+          DailyRitualDetailStateEnum.unknownDefaultOpenApi =>
+            DailyRitualState.unknown,
+        },
+        revealedAt: data.revealedAt,
+        completedAt: data.completedAt,
+        demo: RitualDisclosure(
+          isDemo: data.demo.isDemo,
+          observedAt: data.demo.observedAt,
+          sourceLabel: data.demo.sourceLabel,
+          limitations: data.demo.limitations,
+        ),
       );
     } on DioException catch (error) {
       _throwApiFailure(error);
@@ -40,8 +99,14 @@ class GeneratedDiscoverApiService implements DiscoverService {
     try {
       final grimoiresRequest = _api.listGrimoires(limit: 3);
       final circlesRequest = _api.listCircleTemplates(limit: 2);
-      final grimoires = (await grimoiresRequest).data!;
-      final circles = (await circlesRequest).data!;
+      final responses = await Future.wait<Object>([
+        grimoiresRequest,
+        circlesRequest,
+      ]);
+      final grimoires =
+          (responses[0] as Response<GrimoireCollectionResponse>).data!;
+      final circles =
+          (responses[1] as Response<CircleTemplateCollectionResponse>).data!;
       return DiscoverModel(
         grimoires: grimoires.data
             .map(
@@ -85,6 +150,8 @@ class GeneratedCovenApiService implements CovenService {
                     'Verified qualification',
                 },
                 focus: item.focus,
+                effectiveDate: item.effectiveDate,
+                verifiedAsOf: item.verifiedAsOf,
               ),
             )
             .toList(),

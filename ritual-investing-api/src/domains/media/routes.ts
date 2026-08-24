@@ -1,6 +1,4 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { bodyLimit } from "hono/body-limit";
-import type { MiddlewareHandler } from "hono";
 
 import type { AppEnvironment } from "../../app.ts";
 import {
@@ -9,20 +7,13 @@ import {
   idempotencyKeySchema,
   objectResponse,
 } from "../../contracts/common.ts";
-import { auth0Jwk } from "../../middleware/auth0-jwk.ts";
-import {
-  authorizeStaff,
-  cloudflareAccessJwk,
-  requireAdminHost,
-} from "../../middleware/cloudflare-access.ts";
-import { requirePermission } from "../../middleware/permissions.ts";
-import {
-  preAuthRateLimit,
-  staffRateLimit,
-} from "../../middleware/rate-limit.ts";
 import { requestIdFrom } from "../../middleware/request-context.ts";
 import { errorResponse } from "../../middleware/responses.ts";
-import { adminSecurity, type AdminRouteDependencies } from "../admin/access.ts";
+import {
+  adminBinaryUploadSecurity,
+  adminSecurity,
+  type AdminRouteDependencies,
+} from "../admin/access.ts";
 import {
   decodeCursor,
   encodeCursor,
@@ -275,29 +266,8 @@ export function registerMediaRoutes(
     "RL_ADMIN_WRITE",
   ))
     app.use(deleteMedia.getRoutingPath(), middleware);
-  const binarySecurity: MiddlewareHandler<AppEnvironment>[] = [
-    requireAdminHost,
-    preAuthRateLimit("RL_UPLOAD"),
-    bodyLimit({
-      maxSize: 10 * 1024 * 1024,
-      onError: (context) =>
-        errorResponse(
-          context as never,
-          413,
-          "payload_too_large",
-          "The upload exceeds 10 MiB.",
-        ),
-    }) as MiddlewareHandler<AppEnvironment>,
-    cloudflareAccessJwk(dependencies.accessKeys),
-    auth0Jwk(dependencies.auth0Keys),
-    requirePermission("admin:media:write"),
-    authorizeStaff(dependencies.resolveStaff),
-    staffRateLimit("RL_UPLOAD"),
-  ];
-  for (const middleware of binarySecurity)
-    app.use(uploadContent.getRoutingPath(), async (context, next) =>
-      context.req.method === "PUT" ? middleware(context, next) : next(),
-    );
+  for (const middleware of adminBinaryUploadSecurity(dependencies))
+    app.use(uploadContent.getRoutingPath(), middleware);
   const repository = (context: any) =>
     dependencies.mediaRepository ??
     (context.env.STAFF_DATABASE_URL === undefined

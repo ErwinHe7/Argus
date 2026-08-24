@@ -9,6 +9,7 @@ import '../../discover/presentation/discover_screen.dart';
 import '../../discover/application/controller.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../profile/application/controller.dart';
+import '../../portfolio/application/controller.dart';
 import '../../ritual/presentation/daily_ritual_screen.dart';
 import '../../ritual/application/daily_ritual_controller.dart';
 
@@ -20,6 +21,7 @@ class AppShell extends StatefulWidget {
     required this.discoverController,
     required this.covenController,
     required this.profileController,
+    required this.portfolioController,
   });
 
   final ValueChanged<Brightness> onToggleTheme;
@@ -27,6 +29,7 @@ class AppShell extends StatefulWidget {
   final DiscoverController discoverController;
   final CovenController covenController;
   final ProfileController profileController;
+  final PortfolioController portfolioController;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -47,7 +50,10 @@ class _AppShellState extends State<AppShell> {
       ),
       DiscoverScreen(controller: widget.discoverController),
       CovenScreen(controller: widget.covenController),
-      ProfileScreen(controller: widget.profileController),
+      ProfileScreen(
+        controller: widget.profileController,
+        portfolioController: widget.portfolioController,
+      ),
     ];
 
     return Scaffold(

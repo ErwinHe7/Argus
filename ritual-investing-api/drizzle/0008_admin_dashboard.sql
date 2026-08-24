@@ -16,15 +16,6 @@ ALTER TABLE evidence_sources ADD COLUMN IF NOT EXISTS version integer NOT NULL D
 ALTER TABLE seeded_creators ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1 CHECK (version > 0);
 ALTER TABLE ritual_schedules ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1 CHECK (version > 0);
 ALTER TABLE coven_qualifications ADD COLUMN IF NOT EXISTS submitted_by uuid REFERENCES staff_principals(id);
-UPDATE coven_qualifications qualification
-SET submitted_by = verification.verified_by
-FROM coven_verifications verification
-WHERE qualification.submitted_by IS NULL
-  AND verification.qualification_id=qualification.id
-  AND verification.verified_by IS NOT NULL;
-UPDATE coven_qualifications
-SET submitted_by=(SELECT id FROM staff_principals ORDER BY id LIMIT 1)
-WHERE submitted_by IS NULL;
 ALTER TABLE moderation_cases ADD COLUMN IF NOT EXISTS version integer NOT NULL DEFAULT 1 CHECK (version > 0);
 ALTER TABLE admin_operation_receipts
   DROP CONSTRAINT admin_operation_receipts_operation_check,
@@ -144,6 +135,12 @@ BEGIN
   IF OLD.state='submitted' AND NEW.state IN ('approved','rejected') THEN
     IF NEW.payload<>OLD.payload OR NEW.content_hash<>OLD.content_hash OR NEW.version<>OLD.version THEN
       RAISE EXCEPTION 'immutable reviewed payload';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF OLD.state='approved' AND NEW.state='published' THEN
+    IF NEW.payload<>OLD.payload OR NEW.content_hash<>OLD.content_hash OR NEW.version<>OLD.version THEN
+      RAISE EXCEPTION 'immutable published payload';
     END IF;
     RETURN NEW;
   END IF;
@@ -460,6 +457,9 @@ BEGIN
   event_action=CASE WHEN target_effective_at<=now() THEN 'publish' ELSE 'schedule' END;
   INSERT INTO publication_events(item_id,revision_id,action,effective_at,actor_id,reason) VALUES(target_item_id,target_revision_id,event_action,target_effective_at,target_staff_id,target_reason);
   IF event_action='publish' THEN
+    UPDATE editorial_revisions SET state='published'
+    WHERE id=target_revision_id AND item_id=target_item_id AND state='approved';
+    IF NOT FOUND THEN RAISE EXCEPTION 'invalid_transition'; END IF;
     UPDATE editorial_items SET current_published_revision_id=target_revision_id,status='published',version=version+1,updated_at=now() WHERE id=target_item_id;
   ELSE
     UPDATE editorial_items SET version=version+1,updated_at=now() WHERE id=target_item_id;
@@ -579,7 +579,9 @@ BEGIN
     SELECT to_jsonb(qualification) INTO result FROM coven_qualifications qualification WHERE id=created_id;
   ELSIF target_action='append:coven_verification' THEN
     SELECT * INTO qualification_record FROM coven_qualifications WHERE id=target_id FOR UPDATE; IF qualification_record.id IS NULL THEN RAISE EXCEPTION 'not_found'; END IF;
-    IF qualification_record.submitted_by=target_staff_id THEN
+    IF qualification_record.submitted_by IS NULL THEN
+      INSERT INTO admin_audit_events(actor_staff_id,action,target_kind,target_id,reason,request_id,outcome) VALUES(target_staff_id,operation,'coven_qualification',target_id,'Verification denied because the qualification submitter is unknown.',target_request_id,'denied'); RETURN jsonb_build_object('_denied','unknown_submitter');
+    ELSIF qualification_record.submitted_by=target_staff_id THEN
       INSERT INTO admin_audit_events(actor_staff_id,action,target_kind,target_id,reason,request_id,outcome) VALUES(target_staff_id,operation,'coven_qualification',target_id,'Self-verification denied.',target_request_id,'denied'); RETURN jsonb_build_object('_denied','self_approval');
     END IF;
     INSERT INTO coven_verifications(qualification_id,status,effective_as_of,verified_at,verified_by,supersedes_id) VALUES(target_id,target_payload->>'decision',(target_payload->>'effective_as_of')::date,now(),target_staff_id,qualification_record.current_verification_id) RETURNING id INTO created_id;
@@ -657,12 +659,21 @@ END $$;
 
 CREATE OR REPLACE FUNCTION ritual_private.apply_scheduled_publication(target_event_id uuid)
 RETURNS text LANGUAGE plpgsql SECURITY DEFINER SET search_path=pg_catalog,public,ritual_private AS $$
-DECLARE item_id uuid; revision_id uuid; expected_version integer;
+DECLARE scheduled_item_id uuid; scheduled_revision_id uuid; expected_version integer; revision_state text;
 BEGIN
-  SELECT event.aggregate_id,event.aggregate_version,(event.payload->>'revision_id')::uuid INTO item_id,expected_version,revision_id FROM outbox_events event WHERE event.id=target_event_id AND event.topic='editorial.publication.scheduled';
-  IF item_id IS NULL THEN RETURN 'stale'; END IF;
-  UPDATE editorial_items SET current_published_revision_id=revision_id,status='published',updated_at=now() WHERE id=item_id AND version=expected_version;
+  SELECT event.aggregate_id,event.aggregate_version,(event.payload->>'revision_id')::uuid INTO scheduled_item_id,expected_version,scheduled_revision_id FROM outbox_events event WHERE event.id=target_event_id AND event.topic='editorial.publication.scheduled';
+  IF scheduled_item_id IS NULL THEN RETURN 'stale'; END IF;
+  SELECT revision.state INTO revision_state
+  FROM editorial_items item
+  JOIN editorial_revisions revision ON revision.id=scheduled_revision_id AND revision.item_id=item.id
+  WHERE item.id=scheduled_item_id AND item.version=expected_version
+  FOR UPDATE OF item,revision;
+  IF revision_state IS DISTINCT FROM 'approved' THEN RETURN 'stale'; END IF;
+  UPDATE editorial_revisions SET state='published'
+  WHERE id=scheduled_revision_id AND item_id=scheduled_item_id AND state='approved';
   IF NOT FOUND THEN RETURN 'stale'; END IF;
+  UPDATE editorial_items SET current_published_revision_id=scheduled_revision_id,status='published',updated_at=now() WHERE id=scheduled_item_id AND version=expected_version;
+  IF NOT FOUND THEN RAISE EXCEPTION 'scheduled publication item changed'; END IF;
   RETURN 'published';
 END $$;
 

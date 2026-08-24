@@ -66,6 +66,7 @@ class WorkspaceController extends ChangeNotifier {
     try {
       await action();
       _records = await _gateway.list(destination);
+      _selected = _recordWithId(_selected?.id);
     } catch (error) {
       _error = error is DioException && error.response?.statusCode == 409
           ? 'This record changed. Refresh before retrying the transition.'
@@ -74,5 +75,13 @@ class WorkspaceController extends ChangeNotifier {
       _loading = false;
       notifyListeners();
     }
+  }
+
+  AdminRecord? _recordWithId(String? id) {
+    if (id == null) return null;
+    for (final record in _records) {
+      if (record.id == id) return record;
+    }
+    return null;
   }
 }

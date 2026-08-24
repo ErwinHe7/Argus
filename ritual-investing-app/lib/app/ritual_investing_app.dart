@@ -55,6 +55,7 @@ class _RitualInvestingAppState extends State<RitualInvestingApp> {
                 discoverController: _container.discoverController,
                 covenController: _container.covenController,
                 profileController: _container.profileController,
+                portfolioController: _container.portfolioController,
               ),
               AuthPhase.loading => const _AuthGate.loading(),
               AuthPhase.failure => _AuthGate(

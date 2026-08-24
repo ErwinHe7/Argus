@@ -12,6 +12,9 @@ import 'package:ritual_investing_app/features/profile/application/controller.dar
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/domain/model.dart';
 import 'package:ritual_investing_app/features/profile/presentation/profile_screen.dart';
+import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
+import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
+import 'package:ritual_investing_app/features/portfolio/domain/model.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
@@ -88,14 +91,23 @@ void main() {
     expect(find.text('VIG'), findsNothing);
 
     final profile = ProfileController(repository: _FailureProfileRepository());
+    final portfolio = PortfolioController(
+      repository: _FailurePortfolioRepository(),
+    );
     await profile.load();
+    await portfolio.load();
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
-        home: Scaffold(body: ProfileScreen(controller: profile)),
+        home: Scaffold(
+          body: ProfileScreen(
+            controller: profile,
+            portfolioController: portfolio,
+          ),
+        ),
       ),
     );
-    expect(find.byKey(const Key('state-forbidden')), findsOneWidget);
+    expect(find.byKey(const Key('state-forbidden')), findsNWidgets(2));
     expect(find.text('SIMULATED BALANCE'), findsNothing);
     expect(find.text('Build a six-month calm fund'), findsNothing);
   });
@@ -117,4 +129,18 @@ class _FailureProfileRepository implements ProfileRepository {
   @override
   Future<RepositoryRead<ProfileModel>> load() =>
       Future.error(const LoadFailure(LoadPhase.forbidden));
+}
+
+class _FailurePortfolioRepository implements PortfolioRepository {
+  @override
+  Future<RepositoryRead<PortfolioCollection>> load() =>
+      Future.error(const LoadFailure(LoadPhase.forbidden));
+
+  @override
+  Future<ContributionReceipt> contribute({
+    required String portfolioId,
+    required String sourceId,
+    required int minorUnits,
+    required String idempotencyKey,
+  }) => Future.error(const LoadFailure(LoadPhase.forbidden));
 }

@@ -175,9 +175,90 @@ class _FixtureSessionRepository implements SessionRepository {
 
 class _FixtureRitualService implements DailyRitualService {
   @override
-  Future<DailyRitual> fetchDaily() async => const DailyRitual(
+  Future<DailyRitual> fetchDaily() async => DailyRitual(
+    assignmentId: '00000000-0000-4000-8000-000000000101',
+    date: DateTime.utc(2026, 8, 20),
+    mode: DailyRitualMode.tarot,
+    revision: const RitualRevision(
+      id: '10000000-0000-4000-8000-000000000001',
+      number: 1,
+    ),
     title: 'Direction, not urgency.',
+    art: const RitualArt(
+      key: 'the_compass',
+      alt: 'The Compass tarot card: a woman holding a lantern at a celestial crossroads',
+    ),
     interpretation: 'The strongest path today rewards patience. Favor durable momentum; let noisy names pass without you.',
+    guidance: 'Inspect the evidence, compare risks, and choose whether any research path deserves more attention.',
+    marketLabel: 'Market-informed · reveal the pattern',
+    ideas: const [
+      RitualIdea(
+        assetId: '20000000-0000-4000-8000-000000000001',
+        symbol: 'VIG',
+        name: 'Vanguard Dividend Appreciation ETF',
+        appearanceReason: 'steady wealth',
+        riskSummary: 'Short windows can reverse.',
+        changeLabel: '+0.42%',
+      ),
+      RitualIdea(
+        assetId: '20000000-0000-4000-8000-000000000002',
+        symbol: 'XLV',
+        name: 'Health Care Select Sector SPDR Fund',
+        appearanceReason: 'defensive orbit',
+        riskSummary: 'Sector concentration can underperform.',
+        changeLabel: '+0.31%',
+      ),
+      RitualIdea(
+        assetId: '20000000-0000-4000-8000-000000000003',
+        symbol: 'WOMN',
+        name: "Impact Shares YWCA Women's Empowerment ETF",
+        appearanceReason: 'leadership ETF',
+        riskSummary: 'The observation may not generalize.',
+        changeLabel: '+0.27%',
+      ),
+    ],
+    evidence: [
+      RitualEvidence(
+        claimId: '21000000-0000-4000-8000-000000000001',
+        factorLabel: 'Durable dividend momentum',
+        observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+        summary: 'Lower volatility and durable dividend momentum in the scenario window.',
+        uncertainty: 'Uncertainty remains high: the scenario is simulated, prices are fictional, and short-term conditions can reverse.',
+      ),
+      RitualEvidence(
+        claimId: '21000000-0000-4000-8000-000000000002',
+        factorLabel: 'Defensive relative strength',
+        observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+        summary: 'Defensive relative strength in the scenario window.',
+        uncertainty: 'Short windows can reverse.',
+      ),
+      RitualEvidence(
+        claimId: '21000000-0000-4000-8000-000000000003',
+        factorLabel: 'Positive breadth',
+        observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+        summary: 'Broad leadership exposure with positive breadth.',
+        uncertainty: 'The observation may not generalize.',
+      ),
+    ],
+    rowan: const RitualCounsel(
+      scriptRevisionId: '10000000-0000-4000-8000-000000000002',
+      surface: 'daily_ritual',
+      body: 'I’ll show you what changed beneath the reading.',
+      riskFooter: 'This deterministic demo explains uncertainty and never tells you to trade.',
+    ),
+    version: 1,
+    state: DailyRitualState.assigned,
+    revealedAt: null,
+    completedAt: null,
+    demo: RitualDisclosure(
+      isDemo: true,
+      observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+      sourceLabel: 'Ritual deterministic demonstration',
+      limitations: const [
+        'Deterministic demo data; prices and signals are fictional.',
+        'Educational exploration only; not investment advice.',
+      ],
+    ),
   );
 }
 
@@ -205,30 +286,38 @@ class _FixtureDiscoverService implements DiscoverService {
 class _FixtureCovenService implements CovenService {
   @override
   Future<CovenModel> fetch() async => CovenModel(
-    entries: const [
+    entries: [
       CovenEntry(
         name: 'Aurora Healthworks',
         symbol: 'AURA',
         category: 'Woman founder',
         focus: 'Preventive health technology',
+        effectiveDate: DateTime.utc(2026, 8, 20),
+        verifiedAsOf: DateTime.utc(2026, 8, 20),
       ),
       CovenEntry(
         name: 'Juniper Robotics',
         symbol: 'JNPR',
         category: 'Woman chief executive',
         focus: 'Industrial automation',
+        effectiveDate: DateTime.utc(2026, 8, 20),
+        verifiedAsOf: DateTime.utc(2026, 8, 20),
       ),
       CovenEntry(
         name: 'Morrow Energy',
         symbol: 'MROW',
         category: 'Women-owned',
         focus: 'Distributed clean energy',
+        effectiveDate: DateTime.utc(2026, 8, 20),
+        verifiedAsOf: DateTime.utc(2026, 8, 20),
       ),
       CovenEntry(
         name: 'Thistle Foods',
         symbol: 'THST',
         category: 'Woman founder',
         focus: 'Sustainable nutrition',
+        effectiveDate: DateTime.utc(2026, 8, 20),
+        verifiedAsOf: DateTime.utc(2026, 8, 20),
       ),
     ],
   );

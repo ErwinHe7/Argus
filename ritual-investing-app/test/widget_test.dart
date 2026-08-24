@@ -18,8 +18,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Market-informed · reveal the pattern'), findsOneWidget);
+    expect(find.text('VIG'), findsOneWidget);
     expect(find.text('Founders’ Coven'), findsOneWidget);
     expect(find.textContaining('Demo market scenario'), findsOneWidget);
+
+    await tester.tap(find.text('Market-informed · reveal the pattern'));
+    await tester.pumpAndSettle();
+    expect(find.text('Durable dividend momentum'), findsOneWidget);
+    expect(
+      find.textContaining('Inspect the evidence, compare risks'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('primary navigation reaches the Coven', (tester) async {
@@ -32,6 +41,10 @@ void main() {
 
     expect(find.text('Founders’ Coven'), findsOneWidget);
     expect(find.text('DEMO DIRECTORY'), findsOneWidget);
+    expect(
+      find.textContaining('Effective Aug 20, 2026 · verified Aug 20, 2026'),
+      findsWidgets,
+    );
 
     await tester.drag(find.byType(ListView).last, const Offset(0, -500));
     await tester.pumpAndSettle();
@@ -54,6 +67,10 @@ void main() {
       find.bySemanticsLabel('Your chamber for Ritual Member'),
       findsOneWidget,
     );
+    expect(find.text(r'$1,000.00'), findsOneWidget);
+    expect(find.text(r'Demo Portfolio · $1,000.00 cash'), findsOneWidget);
+    expect(find.text('Future Mirror'), findsNothing);
+    expect(find.text('Link a fictional bank'), findsNothing);
     semantics.dispose();
   });
 

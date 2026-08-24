@@ -1,6 +1,22 @@
-import { Pool } from "@neondatabase/serverless";
+import { Pool, type PoolClient } from "@neondatabase/serverless";
+import { z } from "zod";
 import type { DatabasePoolFactory } from "../../db/client.ts";
 import { adminRequestHash } from "../admin/request-hash.ts";
+import {
+  moderationCaseSchema,
+  moderationReportSchema,
+  type AdminModerationCase,
+  type AdminModerationReport,
+} from "./schemas.ts";
+
+const moderationPageSchema = z
+  .object({
+    items: z.array(moderationReportSchema),
+    next: z.string().nullable(),
+  })
+  .strict();
+
+type JsonValueRow = { value: unknown };
 
 export interface AdminModerationRepository {
   list(input: {
@@ -8,22 +24,25 @@ export interface AdminModerationRepository {
     filters: Record<string, unknown>;
     limit: number;
     after?: string;
-  }): Promise<{ items: unknown[]; next: string | null }>;
+  }): Promise<{ items: AdminModerationReport[]; next: string | null }>;
   createCase(input: {
     actorStaffId: string;
     reportId: string;
     payload: unknown;
     requestId: string;
     idempotencyKey: string;
-  }): Promise<any>;
-  getCase(input: { actorStaffId: string; caseId: string }): Promise<any | null>;
+  }): Promise<AdminModerationCase>;
+  getCase(input: {
+    actorStaffId: string;
+    caseId: string;
+  }): Promise<AdminModerationCase | null>;
   patchCase(input: {
     actorStaffId: string;
     caseId: string;
     payload: unknown;
     expectedVersion: number;
     requestId: string;
-  }): Promise<any>;
+  }): Promise<AdminModerationCase>;
 }
 export function createPostgresAdminModerationRepository(
   databaseUrl: string,
@@ -31,7 +50,7 @@ export function createPostgresAdminModerationRepository(
 ): AdminModerationRepository {
   const scoped = async <T>(
     staffId: string,
-    fn: (client: any) => Promise<T>,
+    fn: (client: PoolClient) => Promise<T>,
   ) => {
     const pool =
       poolFactory?.(databaseUrl) ??
@@ -54,7 +73,7 @@ export function createPostgresAdminModerationRepository(
       await pool.end();
     }
   };
-  const command = (input: {
+  const command = async (input: {
     actorStaffId: string;
     action: string;
     targetId: string;
@@ -62,42 +81,50 @@ export function createPostgresAdminModerationRepository(
     expectedVersion?: number;
     requestId: string;
     idempotencyKey?: string;
-  }) =>
-    scoped(
-      input.actorStaffId,
-      async (client) =>
-        (
-          await client.query(
-            "select ritual_private.admin_moderation_command($1,$2,$3,$4::jsonb,$5,$6,$7,$8)::jsonb value",
-            [
-              input.actorStaffId,
-              input.action,
-              input.targetId,
-              JSON.stringify(input.payload),
-              input.expectedVersion ?? null,
-              input.requestId,
-              input.idempotencyKey ?? null,
-              await adminRequestHash({
-                action: input.action,
-                targetId: input.targetId,
-                payload: input.payload,
-                expectedVersion: input.expectedVersion,
-              }),
-            ],
-          )
-        ).rows[0]!.value,
+  }): Promise<AdminModerationCase> =>
+    moderationCaseSchema.parse(
+      await scoped(
+        input.actorStaffId,
+        async (client) =>
+          (
+            await client.query<JsonValueRow>(
+              "select ritual_private.admin_moderation_command($1,$2,$3,$4::jsonb,$5,$6,$7,$8)::jsonb value",
+              [
+                input.actorStaffId,
+                input.action,
+                input.targetId,
+                JSON.stringify(input.payload),
+                input.expectedVersion ?? null,
+                input.requestId,
+                input.idempotencyKey ?? null,
+                await adminRequestHash({
+                  action: input.action,
+                  targetId: input.targetId,
+                  payload: input.payload,
+                  expectedVersion: input.expectedVersion,
+                }),
+              ],
+            )
+          ).rows[0]!.value,
+      ),
     );
   return {
     list: (input) =>
       scoped(
         input.actorStaffId,
         async (client) =>
-          (
-            await client.query(
-              "select ritual_private.admin_moderation_page($1::jsonb,$2,$3)::jsonb value",
-              [JSON.stringify(input.filters), input.after ?? null, input.limit],
-            )
-          ).rows[0]?.value ?? { items: [], next: null },
+          moderationPageSchema.parse(
+            (
+              await client.query<JsonValueRow>(
+                "select ritual_private.admin_moderation_page($1::jsonb,$2,$3)::jsonb value",
+                [
+                  JSON.stringify(input.filters),
+                  input.after ?? null,
+                  input.limit,
+                ],
+              )
+            ).rows[0]?.value ?? { items: [], next: null },
+          ),
       ),
     createCase: (input) =>
       command({ ...input, action: "create_case", targetId: input.reportId }),
@@ -105,12 +132,17 @@ export function createPostgresAdminModerationRepository(
       scoped(
         input.actorStaffId,
         async (client) =>
-          (
-            await client.query(
-              "select ritual_private.admin_moderation_case($1)::jsonb value",
-              [input.caseId],
-            )
-          ).rows[0]?.value ?? null,
+          ((value: unknown) =>
+            value === null || value === undefined
+              ? null
+              : moderationCaseSchema.parse(value))(
+            (
+              await client.query<JsonValueRow>(
+                "select ritual_private.admin_moderation_case($1)::jsonb value",
+                [input.caseId],
+              )
+            ).rows[0]?.value,
+          ),
       ),
     patchCase: (input) =>
       command({

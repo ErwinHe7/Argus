@@ -83,7 +83,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(gateway.transitions, contains('review:item-1:revision-1'));
-    expect(find.text('Status: draft'), findsOneWidget);
+    expect(find.text('Status: in_review'), findsOneWidget);
   });
 
   testWidgets('exposes the complete editorial decision controls', (

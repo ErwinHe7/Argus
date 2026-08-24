@@ -75,7 +75,19 @@ describe("production-shaped member and staff flow", () => {
     process.env.STAGING_MEMBER_TOKEN,
     process.env.STAGING_ADMIN_TOKEN,
     process.env.STAGING_CF_ACCESS_ASSERTION,
-  ].every((value) => value !== undefined && value.length > 0);
+  ].every((value) => value !== undefined && value.trim().length > 0);
+
+  it("requires every staging credential when staging verification is requested", () => {
+    if (process.env.REQUIRE_STAGING_E2E !== "true") return;
+    const required = [
+      "STAGING_BASE_URL",
+      "STAGING_MEMBER_TOKEN",
+      "STAGING_ADMIN_TOKEN",
+      "STAGING_CF_ACCESS_ASSERTION",
+    ] as const;
+    const missing = required.filter((name) => !process.env[name]?.trim());
+    expect(missing, `Missing required staging credentials: ${missing.join(", ")}`).toEqual([]);
+  });
 
   it.skipIf(!stagingConfigured)(
     "proves production-equivalent staging bindings",

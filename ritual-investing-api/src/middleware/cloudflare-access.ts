@@ -1,10 +1,10 @@
 import { Pool } from "@neondatabase/serverless";
 import type { MiddlewareHandler } from "hono";
-import { jwk } from "hono/jwk";
 import type { HonoJsonWebKey } from "hono/utils/jwt/jws";
 import { z } from "zod";
 
 import type { AppEnvironment } from "../app.ts";
+import { verifyManagedJwt } from "./managed-jwks.ts";
 import { errorResponse } from "./responses.ts";
 
 export type VerifiedAccessPrincipal = Readonly<{
@@ -54,49 +54,50 @@ export function cloudflareAccessJwk(
       return errorResponse(context, 401, "unauthorized", "A Cloudflare Access assertion is required.");
     }
 
-    const headers = new Headers(context.req.raw.headers);
-    headers.set("x-ritual-access-assertion", `Bearer ${assertion}`);
-    context.req.raw = new Request(context.req.raw, { headers });
     const issuer = context.env.CF_ACCESS_ISSUER;
     const audience = context.env.CF_ACCESS_AUDIENCE;
-    const verify = jwk({
-      ...(keys === undefined
-        ? { jwks_uri: context.env.CF_ACCESS_JWKS_URL }
-        : { keys: [...keys] }),
-      headerName: "x-ritual-access-assertion",
-      alg: ["RS256"],
-      verification: { iss: issuer, aud: audience, exp: true, iat: true, nbf: true },
-    });
 
     try {
-      await verify(context, async () => {
-        const exactAudience = z.union([
-          z.literal(audience),
-          z.tuple([z.literal(audience)]),
-        ]);
-        const parsed = z.object({
+      const payload = await verifyManagedJwt({
+        token: assertion,
+        issuer,
+        audience,
+        jwksUrl: context.env.CF_ACCESS_JWKS_URL,
+        ...(keys === undefined ? {} : { keys }),
+      });
+      const exactAudience = z.union([
+        z.literal(audience),
+        z.tuple([z.literal(audience)]),
+      ]);
+      const parsed = z
+        .object({
           iss: z.literal(issuer),
           aud: exactAudience,
           sub: z.string().min(1).max(255),
           email: z.string().email().max(320),
           iat: z.number().int().nonnegative(),
           exp: z.number().int().positive(),
-        }).passthrough().safeParse(context.get("jwtPayload"));
-        if (!parsed.success) return;
-        context.set("accessPrincipal", Object.freeze({
+        })
+        .passthrough()
+        .safeParse(payload);
+      if (
+        !parsed.success ||
+        parsed.data.iat > Math.floor(Date.now() / 1_000) + 60
+      )
+        throw new Error("invalid_claims");
+      context.set(
+        "accessPrincipal",
+        Object.freeze({
           subject: parsed.data.sub,
           identity: parsed.data.email.trim().toLowerCase(),
           issuedAt: parsed.data.iat,
-        }));
-        await next();
-      });
+        }),
+      );
     } catch {
       return errorResponse(context, 401, "unauthorized", "A valid Cloudflare Access assertion is required.");
     }
 
-    if (context.get("accessPrincipal") === undefined) {
-      return errorResponse(context, 401, "unauthorized", "A valid Cloudflare Access assertion is required.");
-    }
+    await next();
   };
 }
 

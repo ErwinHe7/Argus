@@ -80,3 +80,6 @@ export const patchModerationCaseSchema = z
     reason: text(500),
   })
   .strict();
+
+export type AdminModerationReport = z.infer<typeof moderationReportSchema>;
+export type AdminModerationCase = z.infer<typeof moderationCaseSchema>;

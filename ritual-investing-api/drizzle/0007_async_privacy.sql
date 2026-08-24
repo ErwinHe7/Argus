@@ -108,6 +108,18 @@ ALTER TABLE notification_preferences
 
 ALTER TABLE device_installations
   DROP CONSTRAINT device_installations_tenant_id_push_token_hash_key;
+-- A token shared by active registrations cannot be attributed safely to one
+-- tenant. Revoke every ambiguous registration before enforcing global scope.
+UPDATE device_installations installation
+SET status='revoked', push_token_ciphertext='revoked'
+WHERE installation.status='active'
+  AND EXISTS (
+    SELECT 1
+    FROM device_installations duplicate
+    WHERE duplicate.status='active'
+      AND duplicate.push_token_hash=installation.push_token_hash
+      AND duplicate.id<>installation.id
+  );
 CREATE UNIQUE INDEX device_installations_active_token_global_unique
   ON device_installations(push_token_hash) WHERE status='active';
 
@@ -843,6 +855,11 @@ AS $$
 DECLARE claimed integer;
 DECLARE receipt admin_operation_receipts%ROWTYPE;
 DECLARE target job_runs%ROWTYPE;
+DECLARE source_event outbox_events%ROWTYPE;
+DECLARE retry_id uuid:=gen_random_uuid();
+DECLARE retry_outbox_id uuid;
+DECLARE retry_correlation_id uuid:=gen_random_uuid();
+DECLARE retry_created_at timestamptz;
 BEGIN
   IF nullif(current_setting('ritual.staff_id',true),'')::uuid IS DISTINCT FROM target_staff_id
      OR NOT EXISTS (SELECT 1 FROM staff_principals staff WHERE staff.id=target_staff_id AND staff.status='active') THEN
@@ -862,11 +879,33 @@ BEGIN
   IF target.id IS NULL THEN RAISE EXCEPTION 'operation not found' USING ERRCODE='P0002'; END IF;
   IF target.status NOT IN ('retry','dead_letter') THEN RAISE EXCEPTION 'operation not retryable' USING ERRCODE='23514'; END IF;
   IF claimed=1 THEN
+    SELECT event.* INTO source_event FROM outbox_events event WHERE event.id=target.outbox_id FOR UPDATE;
+    IF source_event.id IS NULL THEN RAISE EXCEPTION 'source outbox event not found' USING ERRCODE='P0002'; END IF;
+    INSERT INTO outbox_events AS retry_event(topic,aggregate_kind,aggregate_id,aggregate_version,tenant_id,reset_generation,deletion_generation,dedupe_key,payload,schema_version,available_at)
+    VALUES(source_event.topic,source_event.aggregate_kind,source_event.aggregate_id,source_event.aggregate_version,source_event.tenant_id,source_event.reset_generation,source_event.deletion_generation,
+           'admin-retry:'||target.id::text||':'||retry_id::text,source_event.payload,source_event.schema_version,now())
+    RETURNING retry_event.id,retry_event.created_at INTO retry_outbox_id,retry_created_at;
+    INSERT INTO job_runs(
+      id,outbox_id,consumer,status,attempt,next_attempt_at,correlation_id,created_at
+    ) VALUES (
+      retry_id,retry_outbox_id,target.consumer,'retry',0,now(),
+      retry_correlation_id,retry_created_at
+    );
+    UPDATE admin_operation_receipts
+    SET response=jsonb_build_object('job_id',target.id,'retry_id',retry_id,'outbox_id',retry_outbox_id,
+                                    'consumer',target.consumer,'correlation_id',retry_correlation_id,
+                                    'created_at',retry_created_at)
+    WHERE actor_staff_id=target_staff_id AND operation='job.retry' AND idempotency_key=target_key;
     INSERT INTO admin_audit_events(actor_staff_id,action,target_kind,target_id,reason,request_id,outcome)
     VALUES(target_staff_id,'job.retry','job_run',target.id,target_reason,target_request_id,'allowed');
+  ELSE
+    retry_id=(receipt.response->>'retry_id')::uuid;
+    retry_outbox_id=(receipt.response->>'outbox_id')::uuid;
+    retry_correlation_id=(receipt.response->>'correlation_id')::uuid;
+    retry_created_at=(receipt.response->>'created_at')::timestamptz;
   END IF;
-  RETURN QUERY SELECT target.id,target.outbox_id,target.consumer,target.status,target.attempt,
-                      target.correlation_id,target.failure_code,target.created_at,target.completed_at;
+  RETURN QUERY SELECT retry_id,retry_outbox_id,target.consumer,'retry'::text,0::integer,
+                      retry_correlation_id,NULL::text,retry_created_at,NULL::timestamptz;
 END
 $$;
 ALTER FUNCTION ritual_private.admin_retry_job_command(uuid,uuid,text,uuid,text,text) OWNER TO ritual_function_owner;
@@ -976,11 +1015,22 @@ BEGIN
     RAISE EXCEPTION 'job runs cannot be deleted' USING ERRCODE = '55000';
   END IF;
   IF ROW(NEW.id,NEW.outbox_id,NEW.consumer,NEW.attempt,NEW.correlation_id,
-         NEW.lease_owner,NEW.created_at)
+         NEW.created_at)
      IS DISTINCT FROM
      ROW(OLD.id,OLD.outbox_id,OLD.consumer,OLD.attempt,OLD.correlation_id,
-         OLD.lease_owner,OLD.created_at) THEN
+         OLD.created_at) THEN
     RAISE EXCEPTION 'job run identity is immutable' USING ERRCODE = '55000';
+  END IF;
+  IF OLD.status='retry' AND NEW.status='leased' THEN
+    IF OLD.lease_owner IS NOT NULL OR NEW.lease_owner IS NULL
+       OR NEW.lease_until IS NULL OR NEW.next_attempt_at IS NOT NULL
+       OR NEW.failure_code IS NOT NULL OR NEW.completed_at IS NOT NULL THEN
+      RAISE EXCEPTION 'invalid retry lease claim' USING ERRCODE = '23514';
+    END IF;
+    RETURN NEW;
+  END IF;
+  IF NEW.lease_owner IS DISTINCT FROM OLD.lease_owner THEN
+    RAISE EXCEPTION 'job run lease identity is immutable' USING ERRCODE = '55000';
   END IF;
   IF OLD.status <> 'leased' OR NEW.status NOT IN ('completed','retry','dead_letter') THEN
     RAISE EXCEPTION 'invalid job run transition' USING ERRCODE = '23514';

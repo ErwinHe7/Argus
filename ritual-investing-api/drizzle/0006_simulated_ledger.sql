@@ -118,11 +118,114 @@ CREATE TRIGGER portfolio_positions_ledger_watermark
   ON portfolio_positions
   FOR EACH ROW EXECUTE FUNCTION ritual_private.validate_position_ledger_watermark();
 
+-- The append-only trigger predates this additive backfill. Remove it only for
+-- the duration of the transactional migration, then restore it immediately.
+DROP TRIGGER IF EXISTS position_ledger_entries_immutable ON position_ledger_entries;
 ALTER TABLE position_ledger_entries ADD COLUMN IF NOT EXISTS cost_basis_delta_minor bigint;
-UPDATE position_ledger_entries
-SET cost_basis_delta_minor = round(quantity * unit_price_minor)::bigint
-WHERE cost_basis_delta_minor IS NULL;
+
+-- Legacy entries predate an explicit cost-basis delta. Reconstruct the same
+-- weighted-average basis arithmetic used by the simulation writer: purchases
+-- add their truncated notional, while sales remove their pro-rata basis.
+DO $$
+BEGIN
+  IF EXISTS (
+    WITH ordered AS (
+      SELECT entry.quantity,
+             coalesce(sum(entry.quantity) OVER (
+               PARTITION BY transaction.tenant_id, transaction.portfolio_id,
+                            transaction.reset_generation, entry.asset_id
+               ORDER BY transaction.effective_at, transaction.ledger_sequence, entry.id
+               ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+             ), 0) AS prior_quantity
+      FROM ledger_transactions transaction
+      JOIN position_ledger_entries entry
+        ON entry.tenant_id=transaction.tenant_id AND entry.transaction_id=transaction.id
+      WHERE entry.cost_basis_delta_minor IS NULL
+    )
+    SELECT 1 FROM ordered
+    WHERE quantity < 0 AND (prior_quantity <= 0 OR prior_quantity + quantity < 0)
+  ) THEN
+    RAISE EXCEPTION 'legacy position ledger contains an unreplayable sale';
+  END IF;
+END $$;
+
+WITH RECURSIVE ordered AS (
+  SELECT transaction.tenant_id, transaction.portfolio_id, transaction.reset_generation,
+         entry.asset_id, entry.id, entry.quantity, entry.unit_price_minor,
+         row_number() OVER (
+           PARTITION BY transaction.tenant_id, transaction.portfolio_id,
+                        transaction.reset_generation, entry.asset_id
+           ORDER BY transaction.effective_at, transaction.ledger_sequence, entry.id
+         ) AS sequence
+  FROM ledger_transactions transaction
+  JOIN position_ledger_entries entry
+    ON entry.tenant_id=transaction.tenant_id AND entry.transaction_id=transaction.id
+  WHERE entry.cost_basis_delta_minor IS NULL
+), replayed AS (
+  SELECT tenant_id, portfolio_id, reset_generation, asset_id, id, sequence,
+         quantity AS running_quantity,
+         trunc(quantity * unit_price_minor)::bigint AS running_basis,
+         trunc(quantity * unit_price_minor)::bigint AS cost_basis_delta_minor
+  FROM ordered
+  WHERE sequence=1
+  UNION ALL
+  SELECT next.tenant_id, next.portfolio_id, next.reset_generation, next.asset_id,
+         next.id, next.sequence,
+         (replayed.running_quantity + next.quantity)::numeric(30,12),
+         replayed.running_basis + CASE
+           WHEN next.quantity > 0
+             THEN trunc(next.quantity * next.unit_price_minor)::bigint
+           ELSE -trunc((replayed.running_basis * -next.quantity) / replayed.running_quantity)::bigint
+         END,
+         CASE
+           WHEN next.quantity > 0
+             THEN trunc(next.quantity * next.unit_price_minor)::bigint
+           ELSE -trunc((replayed.running_basis * -next.quantity) / replayed.running_quantity)::bigint
+         END
+  FROM replayed
+  JOIN ordered next
+    ON next.tenant_id=replayed.tenant_id
+   AND next.portfolio_id=replayed.portfolio_id
+   AND next.reset_generation=replayed.reset_generation
+   AND next.asset_id=replayed.asset_id
+   AND next.sequence=replayed.sequence+1
+)
+UPDATE position_ledger_entries entry
+SET cost_basis_delta_minor=replayed.cost_basis_delta_minor
+FROM replayed
+WHERE entry.id=replayed.id;
+
+DO $$
+BEGIN
+  IF EXISTS (
+    WITH derived AS (
+      SELECT transaction.tenant_id, transaction.portfolio_id, transaction.reset_generation,
+             entry.asset_id, sum(entry.quantity) AS quantity,
+             sum(entry.cost_basis_delta_minor) AS cost_basis_minor
+      FROM ledger_transactions transaction
+      JOIN position_ledger_entries entry
+        ON entry.tenant_id=transaction.tenant_id AND entry.transaction_id=transaction.id
+      GROUP BY transaction.tenant_id, transaction.portfolio_id,
+               transaction.reset_generation, entry.asset_id
+      HAVING sum(entry.quantity) <> 0
+    )
+    SELECT 1
+    FROM derived
+    FULL OUTER JOIN portfolio_positions position
+      ON position.tenant_id=derived.tenant_id
+     AND position.portfolio_id=derived.portfolio_id
+     AND position.asset_id=derived.asset_id
+    WHERE coalesce(derived.quantity, 0) <> coalesce(position.quantity, 0)
+       OR coalesce(derived.cost_basis_minor, 0) <> coalesce(position.cost_basis_minor, 0)
+  ) THEN
+    RAISE EXCEPTION 'legacy position ledger does not reconcile with portfolio positions';
+  END IF;
+END $$;
+
 ALTER TABLE position_ledger_entries ALTER COLUMN cost_basis_delta_minor SET NOT NULL;
+CREATE TRIGGER position_ledger_entries_immutable
+  BEFORE UPDATE OR DELETE ON position_ledger_entries
+  FOR EACH ROW EXECUTE FUNCTION ritual_private.reject_immutable_change();
 
 ALTER TABLE portfolio_balance_snapshots
   ADD COLUMN IF NOT EXISTS reset_generation integer,

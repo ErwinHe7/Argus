@@ -44,7 +44,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(gateway.transitions, contains('approved:ritual-1'));
-    expect(find.text('Status: in_review'), findsOneWidget);
+    expect(find.text('Status: approved'), findsOneWidget);
   });
 
   testWidgets('direct navigation stays permission protected in the browser', (

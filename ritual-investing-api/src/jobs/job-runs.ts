@@ -18,6 +18,8 @@ async function schedulerTransaction<T>(
   try {
     await client.query("begin");
     await client.query("set local role ritual_scheduler");
+    await client.query("set local lock_timeout='5s'");
+    await client.query("set local statement_timeout='45s'");
     const result = await callback(client);
     await client.query("commit");
     return result;
@@ -42,9 +44,21 @@ export function leaseJob(
     databaseUrl,
     async (client) => {
       const owner = crypto.randomUUID();
+      const attemptNumber = Math.max(0, attempt - 1);
+      const claimed = await client.query<{ id: string }>(
+        `update job_runs
+            set status='leased',lease_owner=$4,lease_until=now()+interval '60 seconds',
+                next_attempt_at=null,failure_code=null,completed_at=null
+          where outbox_id=$1 and consumer=$2 and attempt=$3 and status='retry'
+            and lease_owner is null and next_attempt_at<=now()
+          returning id`,
+        [message.outbox_id, message.consumer, attemptNumber, owner],
+      );
+      if (claimed.rows[0] !== undefined)
+        return { id: claimed.rows[0].id, owner };
       const result = await client.query<{ id: string }>(
         `insert into job_runs(outbox_id,consumer,status,attempt,lease_until,correlation_id,lease_owner) values ($1,$2,'leased',$3,now()+interval '60 seconds',gen_random_uuid(),$4) on conflict (outbox_id,consumer,attempt) do nothing returning id`,
-        [message.outbox_id, message.consumer, Math.max(0, attempt - 1), owner],
+        [message.outbox_id, message.consumer, attemptNumber, owner],
       );
       return result.rows[0] === undefined
         ? null
@@ -81,7 +95,7 @@ export function failJob(
     databaseUrl,
     async (client) => {
       await client.query(
-        `update job_runs set status=$3,failure_code=$4,lease_until=null,next_attempt_at=case when $3='retry' then now()+make_interval(secs=>$5) else null end,completed_at=case when $3='dead_letter' then now() else null end where id=$1 and lease_owner=$2 and status='leased'`,
+        `select ritual_private.finish_job_attempt($1,$2,$3,$4,$5)`,
         [
           lease.id,
           lease.owner,
