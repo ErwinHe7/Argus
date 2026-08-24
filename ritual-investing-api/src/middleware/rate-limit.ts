@@ -17,13 +17,20 @@ export type RateLimitClass =
   | "RL_UPLOAD";
 
 function normalizedRoute(pathname: string): string {
-  return pathname
-    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi, ":id")
-    .replace(/\/{2,}/g, "/")
-    .replace(/\/$/, "") || "/";
+  return (
+    pathname
+      .replace(
+        /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi,
+        ":id",
+      )
+      .replace(/\/{2,}/g, "/")
+      .replace(/\/$/, "") || "/"
+  );
 }
 
-function ipPrefix(context: Parameters<MiddlewareHandler<AppEnvironment>>[0]): string {
+function ipPrefix(
+  context: Parameters<MiddlewareHandler<AppEnvironment>>[0],
+): string {
   const address = context.req.header("cf-connecting-ip") ?? "unknown";
   if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(address)) {
     return `${address.split(".").slice(0, 3).join(".")}.0/24`;
@@ -52,7 +59,9 @@ async function enforce(
 ): Promise<Response | undefined> {
   try {
     const binding = context.env[rateClass];
-    const outcome = await binding.limit({ key: await pseudonymousKey(keyParts) });
+    const outcome = await binding.limit({
+      key: await pseudonymousKey(keyParts),
+    });
     if (!outcome.success) {
       context.header("retry-after", "60");
       return errorResponse(
@@ -74,7 +83,9 @@ async function enforce(
   }
 }
 
-export function preAuthRateLimit(rateClass: RateLimitClass): MiddlewareHandler<AppEnvironment> {
+export function preAuthRateLimit(
+  rateClass: RateLimitClass,
+): MiddlewareHandler<AppEnvironment> {
   return async (context, next) => {
     const denial = await enforce(context, rateClass, [
       "ip",
@@ -86,11 +97,18 @@ export function preAuthRateLimit(rateClass: RateLimitClass): MiddlewareHandler<A
   };
 }
 
-export function subjectRateLimit(rateClass: RateLimitClass): MiddlewareHandler<AppEnvironment> {
+export function subjectRateLimit(
+  rateClass: RateLimitClass,
+): MiddlewareHandler<AppEnvironment> {
   return async (context, next) => {
     const principal = context.get("authPrincipal");
     if (principal === undefined) {
-      return errorResponse(context, 401, "unauthorized", "A valid API access token is required.");
+      return errorResponse(
+        context,
+        401,
+        "unauthorized",
+        "A valid API access token is required.",
+      );
     }
     const denial = await enforce(context, rateClass, [
       "subject",
@@ -102,11 +120,42 @@ export function subjectRateLimit(rateClass: RateLimitClass): MiddlewareHandler<A
   };
 }
 
-export function staffRateLimit(rateClass: RateLimitClass): MiddlewareHandler<AppEnvironment> {
+export function tenantRateLimit(
+  rateClass: RateLimitClass,
+): MiddlewareHandler<AppEnvironment> {
+  return async (context, next) => {
+    const account = context.get("accountTenant");
+    if (account === undefined) {
+      return errorResponse(
+        context,
+        401,
+        "unauthorized",
+        "An active member account is required.",
+      );
+    }
+    const denial = await enforce(context, rateClass, [
+      "tenant",
+      account.tenantId,
+      context.req.method,
+      normalizedRoute(new URL(context.req.url).pathname),
+    ]);
+    if (denial !== undefined) return denial;
+    await next();
+  };
+}
+
+export function staffRateLimit(
+  rateClass: RateLimitClass,
+): MiddlewareHandler<AppEnvironment> {
   return async (context, next) => {
     const staff = context.get("staffPrincipal");
     if (staff === undefined) {
-      return errorResponse(context, 403, "forbidden", "An active staff principal is required.");
+      return errorResponse(
+        context,
+        403,
+        "forbidden",
+        "An active staff principal is required.",
+      );
     }
     const denial = await enforce(context, rateClass, [
       "staff",

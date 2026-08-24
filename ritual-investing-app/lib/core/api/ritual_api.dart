@@ -7,6 +7,8 @@ import '../../features/discover/data/repository.dart';
 import '../../features/discover/domain/model.dart';
 import '../../features/profile/data/repository.dart';
 import '../../features/profile/domain/model.dart';
+import '../../features/portfolio/data/repository.dart';
+import '../../features/portfolio/domain/model.dart';
 import '../../features/ritual/data/daily_ritual_repository.dart';
 import '../../features/ritual/domain/daily_ritual.dart';
 import 'view_state.dart';
@@ -104,6 +106,66 @@ class GeneratedProfileApiService implements ProfileService {
     try {
       return ProfileModel(
         displayName: (await _api.getMe()).data!.data.profile.displayName,
+      );
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+}
+
+class GeneratedPortfolioApiService implements PortfolioService {
+  GeneratedPortfolioApiService(RitualInvestingApiClient client)
+    : _portfolios = PortfoliosApi(client.dio),
+      _simulation = SimulationApi(client.dio);
+
+  final PortfoliosApi _portfolios;
+  final SimulationApi _simulation;
+
+  @override
+  Future<PortfolioCollection> fetch() async {
+    try {
+      final values = (await _portfolios.listPortfolios()).data!.data;
+      return PortfolioCollection(
+        items: values
+            .map(
+              (item) => PortfolioSummary(
+                id: item.id,
+                name: item.name,
+                cashMinor: item.cash.minorUnits,
+                valuationMinor: item.latestValuation.minorUnits,
+                version: item.version,
+                ledgerWatermark: item.ledgerWatermark,
+              ),
+            )
+            .toList(growable: false),
+      );
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<ContributionReceipt> contribute({
+    required String portfolioId,
+    required String sourceId,
+    required int minorUnits,
+    required String idempotencyKey,
+  }) async {
+    try {
+      final result = (await _simulation.createDemoContribution(
+        portfolioId: portfolioId,
+        idempotencyKey: idempotencyKey,
+        createDemoContributionRequest: CreateDemoContributionRequest(
+          amount: PositiveInputMoney(
+            currency: PositiveInputMoneyCurrencyEnum.USD,
+            minorUnits: minorUnits,
+          ),
+          sourceId: sourceId,
+        ),
+      )).data!.data;
+      return ContributionReceipt(
+        commandId: result.commandId,
+        portfolioVersion: result.portfolioVersion,
       );
     } on DioException catch (error) {
       _throwApiFailure(error);

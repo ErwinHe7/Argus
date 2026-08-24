@@ -47,6 +47,8 @@ const tenantTables = [
   "recurring_plan_runs",
   "rebalance_previews",
   "rebalance_preview_trades",
+  "rebalance_preview_allocations",
+  "order_previews",
   "intentions",
   "projection_runs",
   "projection_points",
@@ -55,6 +57,7 @@ const tenantTables = [
   "tenant_entitlements",
   "entitlement_events",
   "demo_checkout_sessions",
+  "demo_reset_events",
   "notifications",
   "notification_deliveries",
   "privacy_requests",
@@ -64,10 +67,13 @@ const tenantTables = [
 
 describe("restricted database roles and RLS", () => {
   it("forces RLS and defines USING plus WITH CHECK for tenant tables", async () => {
-    const sql = await readFile(
+    const sql = `${await readFile(
       `${apiRoot}/drizzle/0002_roles_and_rls.sql`,
       "utf8",
-    );
+    )}\n${await readFile(
+      `${apiRoot}/drizzle/0006_simulated_ledger.sql`,
+      "utf8",
+    )}`;
 
     for (const table of tenantTables) {
       expect(sql, `RLS is not enabled for ${table}`).toMatch(
@@ -239,6 +245,7 @@ describe.skipIf(postgresUrl === undefined)(
             "0003_identity_bootstrap.sql",
             "0004_editorial_catalog.sql",
             "0005_member_state.sql",
+            "0006_simulated_ledger.sql",
           ].includes(name),
         ),
       ).toBe(true);
@@ -310,8 +317,9 @@ describe.skipIf(postgresUrl === undefined)(
         [tenantA, seedVersionId],
       );
       await owner.query(
-        `insert into demo_portfolios(id, tenant_id, name, currency, status)
-       values ($1, $2, 'Demo Portfolio', 'USD', 'active')`,
+        `insert into demo_portfolios(
+           id, tenant_id, name, currency, status, reset_generation, is_default
+         ) values ($1, $2, 'Demo Portfolio', 'USD', 'active', 2, true)`,
         [portfolioA, tenantA],
       );
     }, 30_000);

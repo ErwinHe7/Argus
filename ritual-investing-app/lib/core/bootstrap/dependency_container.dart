@@ -13,6 +13,9 @@ import '../../features/discover/domain/model.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/data/repository.dart';
 import '../../features/profile/domain/model.dart';
+import '../../features/portfolio/application/controller.dart';
+import '../../features/portfolio/data/repository.dart';
+import '../../features/portfolio/domain/model.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/ritual/data/daily_ritual_repository.dart';
 import '../../features/ritual/domain/daily_ritual.dart';
@@ -29,6 +32,7 @@ class DependencyContainer {
     required this.discoverController,
     required this.covenController,
     required this.profileController,
+    required this.portfolioController,
     required ReadCache cache,
   }) : _cache = cache;
 
@@ -37,6 +41,7 @@ class DependencyContainer {
   final DiscoverController discoverController;
   final CovenController covenController;
   final ProfileController profileController;
+  final PortfolioController portfolioController;
   final ReadCache _cache;
   bool _legacyMutationsCleared = false;
 
@@ -61,6 +66,7 @@ class DependencyContainer {
       discoverController.load(),
       covenController.load(),
       profileController.load(),
+      portfolioController.load(),
     ]);
   }
 
@@ -102,6 +108,12 @@ class DependencyContainer {
           cache: cache,
         ),
       ),
+      portfolioController: PortfolioController(
+        repository: CachedPortfolioRepository(
+          service: GeneratedPortfolioApiService(client),
+          cache: cache,
+        ),
+      ),
       cache: cache,
     );
   }
@@ -136,6 +148,12 @@ class DependencyContainer {
       profileController: ProfileController(
         repository: CachedProfileRepository(
           service: _FixtureProfileService(),
+          cache: fixtureCache,
+        ),
+      ),
+      portfolioController: PortfolioController(
+        repository: CachedPortfolioRepository(
+          service: _FixturePortfolioService(),
           cache: fixtureCache,
         ),
       ),
@@ -220,4 +238,31 @@ class _FixtureProfileService implements ProfileService {
   @override
   Future<ProfileModel> fetch() async =>
       const ProfileModel(displayName: 'Ritual Member');
+}
+
+class _FixturePortfolioService implements PortfolioService {
+  @override
+  Future<PortfolioCollection> fetch() async => const PortfolioCollection(
+    items: [
+      PortfolioSummary(
+        id: '00000000-0000-4000-8000-000000000601',
+        name: 'Demo Portfolio',
+        cashMinor: 100000,
+        valuationMinor: 100000,
+        version: 1,
+        ledgerWatermark: 0,
+      ),
+    ],
+  );
+
+  @override
+  Future<ContributionReceipt> contribute({
+    required String portfolioId,
+    required String sourceId,
+    required int minorUnits,
+    required String idempotencyKey,
+  }) async => const ContributionReceipt(
+    commandId: '00000000-0000-4000-8000-000000000602',
+    portfolioVersion: 2,
+  );
 }

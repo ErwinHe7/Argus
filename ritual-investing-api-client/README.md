@@ -92,6 +92,13 @@ Class | Method | HTTP request | Description
 [*CirclesApi*](doc/CirclesApi.md) | [**listCircles**](doc/CirclesApi.md#listcircles) | **GET** /v1/circles | 
 [*CirclesApi*](doc/CirclesApi.md) | [**patchCircle**](doc/CirclesApi.md#patchcircle) | **PATCH** /v1/circles/{id} | 
 [*CirclesApi*](doc/CirclesApi.md) | [**putCircleAsset**](doc/CirclesApi.md#putcircleasset) | **PUT** /v1/circles/{id}/assets/{asset_id} | 
+[*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**confirmDemoCheckout**](doc/DemoEntitlementsApi.md#confirmdemocheckout) | **POST** /v1/demo-checkout-sessions/{session_id}/confirm | 
+[*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**createDemoCheckout**](doc/DemoEntitlementsApi.md#createdemocheckout) | **POST** /v1/demo-checkout-sessions | 
+[*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**downgradeDemoEntitlement**](doc/DemoEntitlementsApi.md#downgradedemoentitlement) | **POST** /v1/me/entitlements/downgrade | 
+[*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**getDemoCheckout**](doc/DemoEntitlementsApi.md#getdemocheckout) | **GET** /v1/demo-checkout-sessions/{session_id} | 
+[*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**getDemoEntitlement**](doc/DemoEntitlementsApi.md#getdemoentitlement) | **GET** /v1/me/entitlements | 
+[*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**listDemoPlans**](doc/DemoEntitlementsApi.md#listdemoplans) | **GET** /v1/demo-plans | 
+[*DemoEntitlementsApi*](doc/DemoEntitlementsApi.md) | [**restoreDemoEntitlement**](doc/DemoEntitlementsApi.md#restoredemoentitlement) | **POST** /v1/me/entitlements/restore | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**getCircleTemplate**](doc/DiscoverApi.md#getcircletemplate) | **GET** /v1/circle-templates/{id} | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**getGrimoire**](doc/DiscoverApi.md#getgrimoire) | **GET** /v1/grimoires/{id} | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listCircleTemplates**](doc/DiscoverApi.md#listcircletemplates) | **GET** /v1/circle-templates | 
@@ -101,13 +108,45 @@ Class | Method | HTTP request | Description
 [*FoundersCovenApi*](doc/FoundersCovenApi.md) | [**getCovenEntry**](doc/FoundersCovenApi.md#getcovenentry) | **GET** /v1/coven/{entry_id} | 
 [*FoundersCovenApi*](doc/FoundersCovenApi.md) | [**getCovenEvidence**](doc/FoundersCovenApi.md#getcovenevidence) | **GET** /v1/coven/{entry_id}/evidence | 
 [*FoundersCovenApi*](doc/FoundersCovenApi.md) | [**listCoven**](doc/FoundersCovenApi.md#listcoven) | **GET** /v1/coven | 
+[*FutureMirrorApi*](doc/FutureMirrorApi.md) | [**createFutureMirror**](doc/FutureMirrorApi.md#createfuturemirror) | **POST** /v1/intentions/{intention_id}/future-mirror | 
+[*FutureMirrorApi*](doc/FutureMirrorApi.md) | [**getFutureMirror**](doc/FutureMirrorApi.md#getfuturemirror) | **GET** /v1/intentions/{intention_id}/future-mirror/{run_id} | 
+[*FutureMirrorApi*](doc/FutureMirrorApi.md) | [**getLatestFutureMirror**](doc/FutureMirrorApi.md#getlatestfuturemirror) | **GET** /v1/intentions/{intention_id}/future-mirror/latest | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**archiveIntention**](doc/IntentionsApi.md#archiveintention) | **DELETE** /v1/intentions/{intention_id} | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**createIntention**](doc/IntentionsApi.md#createintention) | **POST** /v1/intentions | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**getIntention**](doc/IntentionsApi.md#getintention) | **GET** /v1/intentions/{intention_id} | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**listIntentions**](doc/IntentionsApi.md#listintentions) | **GET** /v1/intentions | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**patchIntention**](doc/IntentionsApi.md#patchintention) | **PATCH** /v1/intentions/{intention_id} | 
+[*OrdersApi*](doc/OrdersApi.md) | [**commitOrder**](doc/OrdersApi.md#commitorder) | **POST** /v1/portfolios/{portfolio_id}/orders | 
+[*OrdersApi*](doc/OrdersApi.md) | [**createOrderPreview**](doc/OrdersApi.md#createorderpreview) | **POST** /v1/portfolios/{portfolio_id}/order-previews | 
+[*OrdersApi*](doc/OrdersApi.md) | [**getOrder**](doc/OrdersApi.md#getorder) | **GET** /v1/orders/{order_id} | 
+[*OrdersApi*](doc/OrdersApi.md) | [**listOrders**](doc/OrdersApi.md#listorders) | **GET** /v1/orders | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getHealth**](doc/PlatformApi.md#gethealth) | **GET** /health | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getLiveHealth**](doc/PlatformApi.md#getlivehealth) | **GET** /v1/health/live | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getOpenApiDocument**](doc/PlatformApi.md#getopenapidocument) | **GET** /v1/openapi.json | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**archivePortfolio**](doc/PortfoliosApi.md#archiveportfolio) | **DELETE** /v1/portfolios/{portfolio_id} | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**createDemoFundingSource**](doc/PortfoliosApi.md#createdemofundingsource) | **POST** /v1/demo-funding-sources | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**createPortfolio**](doc/PortfoliosApi.md#createportfolio) | **POST** /v1/portfolios | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**deleteDemoFundingSource**](doc/PortfoliosApi.md#deletedemofundingsource) | **DELETE** /v1/demo-funding-sources/{source_id} | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**getPortfolio**](doc/PortfoliosApi.md#getportfolio) | **GET** /v1/portfolios/{portfolio_id} | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**listDemoFundingSources**](doc/PortfoliosApi.md#listdemofundingsources) | **GET** /v1/demo-funding-sources | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**listPortfolioActivity**](doc/PortfoliosApi.md#listportfolioactivity) | **GET** /v1/portfolios/{portfolio_id}/activity | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**listPortfolioHoldings**](doc/PortfoliosApi.md#listportfolioholdings) | **GET** /v1/portfolios/{portfolio_id}/holdings | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**listPortfolioSnapshots**](doc/PortfoliosApi.md#listportfoliosnapshots) | **GET** /v1/portfolios/{portfolio_id}/snapshots | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**listPortfolios**](doc/PortfoliosApi.md#listportfolios) | **GET** /v1/portfolios | 
+[*PortfoliosApi*](doc/PortfoliosApi.md) | [**patchPortfolio**](doc/PortfoliosApi.md#patchportfolio) | **PATCH** /v1/portfolios/{portfolio_id} | 
 [*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**getPublicCoven**](doc/PublicPreviewApi.md#getpubliccoven) | **GET** /v1/public/coven/{slug} | 
 [*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**getPublicDailyRitual**](doc/PublicPreviewApi.md#getpublicdailyritual) | **GET** /v1/public/rituals/daily | 
 [*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**listPublicCoven**](doc/PublicPreviewApi.md#listpubliccoven) | **GET** /v1/public/coven | 
 [*PublicPreviewApi*](doc/PublicPreviewApi.md) | [**listPublicDiscover**](doc/PublicPreviewApi.md#listpublicdiscover) | **GET** /v1/public/discover | 
+[*RebalancingApi*](doc/RebalancingApi.md) | [**commitRebalance**](doc/RebalancingApi.md#commitrebalance) | **POST** /v1/portfolios/{portfolio_id}/rebalances | 
+[*RebalancingApi*](doc/RebalancingApi.md) | [**createRebalancePreview**](doc/RebalancingApi.md#createrebalancepreview) | **POST** /v1/portfolios/{portfolio_id}/rebalance-previews | 
+[*RecurringPlansApi*](doc/RecurringPlansApi.md) | [**cancelRecurringPlan**](doc/RecurringPlansApi.md#cancelrecurringplan) | **DELETE** /v1/recurring-plans/{plan_id} | 
+[*RecurringPlansApi*](doc/RecurringPlansApi.md) | [**createRecurringPlan**](doc/RecurringPlansApi.md#createrecurringplan) | **POST** /v1/portfolios/{portfolio_id}/recurring-plans | 
+[*RecurringPlansApi*](doc/RecurringPlansApi.md) | [**getRecurringPlan**](doc/RecurringPlansApi.md#getrecurringplan) | **GET** /v1/recurring-plans/{plan_id} | 
+[*RecurringPlansApi*](doc/RecurringPlansApi.md) | [**listRecurringPlans**](doc/RecurringPlansApi.md#listrecurringplans) | **GET** /v1/portfolios/{portfolio_id}/recurring-plans | 
+[*RecurringPlansApi*](doc/RecurringPlansApi.md) | [**patchRecurringPlan**](doc/RecurringPlansApi.md#patchrecurringplan) | **PATCH** /v1/recurring-plans/{plan_id} | 
+[*RecurringPlansApi*](doc/RecurringPlansApi.md) | [**pauseRecurringPlan**](doc/RecurringPlansApi.md#pauserecurringplan) | **POST** /v1/recurring-plans/{plan_id}/pause | 
+[*RecurringPlansApi*](doc/RecurringPlansApi.md) | [**resumeRecurringPlan**](doc/RecurringPlansApi.md#resumerecurringplan) | **POST** /v1/recurring-plans/{plan_id}/resume | 
 [*RitualsApi*](doc/RitualsApi.md) | [**completeRitual**](doc/RitualsApi.md#completeritual) | **POST** /v1/rituals/{assignment_id}/complete | 
 [*RitualsApi*](doc/RitualsApi.md) | [**getDailyRitual**](doc/RitualsApi.md#getdailyritual) | **GET** /v1/rituals/daily | 
 [*RitualsApi*](doc/RitualsApi.md) | [**getRitualAssignment**](doc/RitualsApi.md#getritualassignment) | **GET** /v1/rituals/{assignment_id} | 
@@ -125,6 +164,8 @@ Class | Method | HTTP request | Description
 [*SavesApi*](doc/SavesApi.md) | [**unsaveGrimoire**](doc/SavesApi.md#unsavegrimoire) | **DELETE** /v1/me/saved-grimoires/{id} | 
 [*SearchApi*](doc/SearchApi.md) | [**searchPublishedCatalog**](doc/SearchApi.md#searchpublishedcatalog) | **GET** /v1/search | 
 [*SessionApi*](doc/SessionApi.md) | [**bootstrapSession**](doc/SessionApi.md#bootstrapsession) | **POST** /v1/session/bootstrap | 
+[*SimulationApi*](doc/SimulationApi.md) | [**createDemoContribution**](doc/SimulationApi.md#createdemocontribution) | **POST** /v1/portfolios/{portfolio_id}/contributions | 
+[*SimulationApi*](doc/SimulationApi.md) | [**resetDemoState**](doc/SimulationApi.md#resetdemostate) | **POST** /v1/me/demo-reset | 
 
 
 ## Documentation For Models
@@ -155,7 +196,10 @@ Class | Method | HTTP request | Description
  - [CircleView](doc/CircleView.md)
  - [CircleViewAssetsInner](doc/CircleViewAssetsInner.md)
  - [CollectionMeta](doc/CollectionMeta.md)
+ - [CommitOrder200Response](doc/CommitOrder200Response.md)
+ - [CommitOrderRequest](doc/CommitOrderRequest.md)
  - [CompareAssetsRequest](doc/CompareAssetsRequest.md)
+ - [ConfirmDemoCheckout200Response](doc/ConfirmDemoCheckout200Response.md)
  - [ConsentReceipt](doc/ConsentReceipt.md)
  - [ConsentReceiptResponse](doc/ConsentReceiptResponse.md)
  - [CopyCircleTemplate201Response](doc/CopyCircleTemplate201Response.md)
@@ -169,12 +213,39 @@ Class | Method | HTTP request | Description
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
  - [CreateCircleRequestAssetsInner](doc/CreateCircleRequestAssetsInner.md)
  - [CreateConsentRequest](doc/CreateConsentRequest.md)
+ - [CreateDemoCheckout201Response](doc/CreateDemoCheckout201Response.md)
+ - [CreateDemoCheckoutRequest](doc/CreateDemoCheckoutRequest.md)
+ - [CreateDemoContributionRequest](doc/CreateDemoContributionRequest.md)
+ - [CreateDemoFundingSource201Response](doc/CreateDemoFundingSource201Response.md)
+ - [CreateDemoFundingSourceRequest](doc/CreateDemoFundingSourceRequest.md)
+ - [CreateFutureMirror200Response](doc/CreateFutureMirror200Response.md)
+ - [CreateFutureMirrorRequest](doc/CreateFutureMirrorRequest.md)
+ - [CreateFutureMirrorRequestAnnualReturnBps](doc/CreateFutureMirrorRequestAnnualReturnBps.md)
+ - [CreateIntention201Response](doc/CreateIntention201Response.md)
+ - [CreateIntentionRequest](doc/CreateIntentionRequest.md)
+ - [CreateOrderPreview200Response](doc/CreateOrderPreview200Response.md)
+ - [CreateOrderPreviewRequest](doc/CreateOrderPreviewRequest.md)
+ - [CreatePortfolio201Response](doc/CreatePortfolio201Response.md)
+ - [CreatePortfolioRequest](doc/CreatePortfolioRequest.md)
+ - [CreatePortfolioRequestTargetAllocationInner](doc/CreatePortfolioRequestTargetAllocationInner.md)
+ - [CreateRebalancePreview200Response](doc/CreateRebalancePreview200Response.md)
+ - [CreateRebalancePreviewRequest](doc/CreateRebalancePreviewRequest.md)
+ - [CreateRecurringPlan201Response](doc/CreateRecurringPlan201Response.md)
+ - [CreateRecurringPlanRequest](doc/CreateRecurringPlanRequest.md)
+ - [CreateRecurringPlanRequestAllocationsInner](doc/CreateRecurringPlanRequestAllocationsInner.md)
  - [CreatorCollectionResponse](doc/CreatorCollectionResponse.md)
  - [DailyRitualDetail](doc/DailyRitualDetail.md)
  - [DailyRitualDetailRevision](doc/DailyRitualDetailRevision.md)
  - [DailyRitualPreview](doc/DailyRitualPreview.md)
  - [DailyRitualResponse](doc/DailyRitualResponse.md)
+ - [DemoCheckoutSession](doc/DemoCheckoutSession.md)
  - [DemoDisclosure](doc/DemoDisclosure.md)
+ - [DemoEntitlement](doc/DemoEntitlement.md)
+ - [DemoFundingSource](doc/DemoFundingSource.md)
+ - [DemoPlan](doc/DemoPlan.md)
+ - [DemoResetResult](doc/DemoResetResult.md)
+ - [DemoResetResultDefaultPortfolio](doc/DemoResetResultDefaultPortfolio.md)
+ - [DemoResetResultEntitlement](doc/DemoResetResultEntitlement.md)
  - [DiscoverItem](doc/DiscoverItem.md)
  - [DiscoverItemOneOf](doc/DiscoverItemOneOf.md)
  - [DiscoverItemOneOf1](doc/DiscoverItemOneOf1.md)
@@ -187,6 +258,9 @@ Class | Method | HTTP request | Description
  - [EvidenceDetailSource](doc/EvidenceDetailSource.md)
  - [EvidenceSummary](doc/EvidenceSummary.md)
  - [FieldError](doc/FieldError.md)
+ - [FutureMirrorView](doc/FutureMirrorView.md)
+ - [FutureMirrorViewPointsInner](doc/FutureMirrorViewPointsInner.md)
+ - [GetOrder200Response](doc/GetOrder200Response.md)
  - [GetRitualAssignment200Response](doc/GetRitualAssignment200Response.md)
  - [GrimoireCollectionResponse](doc/GrimoireCollectionResponse.md)
  - [GrimoireDetail](doc/GrimoireDetail.md)
@@ -194,8 +268,20 @@ Class | Method | HTTP request | Description
  - [GrimoireSummary](doc/GrimoireSummary.md)
  - [HealthResponse](doc/HealthResponse.md)
  - [HealthResponseData](doc/HealthResponseData.md)
+ - [InputMoney](doc/InputMoney.md)
+ - [Intention](doc/Intention.md)
  - [InvestorProfile](doc/InvestorProfile.md)
  - [InvestorProfileResponse](doc/InvestorProfileResponse.md)
+ - [ListDemoFundingSources200Response](doc/ListDemoFundingSources200Response.md)
+ - [ListDemoPlans200Response](doc/ListDemoPlans200Response.md)
+ - [ListIntentions200Response](doc/ListIntentions200Response.md)
+ - [ListOrders200Response](doc/ListOrders200Response.md)
+ - [ListPortfolioActivity200Response](doc/ListPortfolioActivity200Response.md)
+ - [ListPortfolioHoldings200Response](doc/ListPortfolioHoldings200Response.md)
+ - [ListPortfolioHoldings200ResponseDataInner](doc/ListPortfolioHoldings200ResponseDataInner.md)
+ - [ListPortfolioSnapshots200Response](doc/ListPortfolioSnapshots200Response.md)
+ - [ListPortfolios200Response](doc/ListPortfolios200Response.md)
+ - [ListRecurringPlans200Response](doc/ListRecurringPlans200Response.md)
  - [MemberAccountResponse](doc/MemberAccountResponse.md)
  - [MemberAccountView](doc/MemberAccountView.md)
  - [MemberAccountViewAccount](doc/MemberAccountViewAccount.md)
@@ -203,15 +289,24 @@ Class | Method | HTTP request | Description
  - [MemberPreferencesResponse](doc/MemberPreferencesResponse.md)
  - [MemberProfile](doc/MemberProfile.md)
  - [MemberProfileResponse](doc/MemberProfileResponse.md)
+ - [Money](doc/Money.md)
  - [OnboardingResponse](doc/OnboardingResponse.md)
  - [OnboardingState](doc/OnboardingState.md)
  - [OpenApiDocument](doc/OpenApiDocument.md)
+ - [OrderPreview](doc/OrderPreview.md)
  - [PatchCircleRequest](doc/PatchCircleRequest.md)
+ - [PatchIntentionRequest](doc/PatchIntentionRequest.md)
  - [PatchOnboarding200Response](doc/PatchOnboarding200Response.md)
  - [PatchOnboardingRequest](doc/PatchOnboardingRequest.md)
+ - [PatchPortfolioRequest](doc/PatchPortfolioRequest.md)
  - [PatchPreferences200Response](doc/PatchPreferences200Response.md)
  - [PatchPreferencesRequest](doc/PatchPreferencesRequest.md)
  - [PatchProfileRequest](doc/PatchProfileRequest.md)
+ - [PatchRecurringPlanRequest](doc/PatchRecurringPlanRequest.md)
+ - [PortfolioActivity](doc/PortfolioActivity.md)
+ - [PortfolioSnapshot](doc/PortfolioSnapshot.md)
+ - [PortfolioView](doc/PortfolioView.md)
+ - [PositiveInputMoney](doc/PositiveInputMoney.md)
  - [PublicAssetTeaser](doc/PublicAssetTeaser.md)
  - [PublicCovenDetailResponse](doc/PublicCovenDetailResponse.md)
  - [PublicCovenResponse](doc/PublicCovenResponse.md)
@@ -228,6 +323,13 @@ Class | Method | HTTP request | Description
  - [PutCircleAssetRequest](doc/PutCircleAssetRequest.md)
  - [PutInvestorProfile200Response](doc/PutInvestorProfile200Response.md)
  - [PutInvestorProfileRequest](doc/PutInvestorProfileRequest.md)
+ - [Quantity](doc/Quantity.md)
+ - [RebalancePreview](doc/RebalancePreview.md)
+ - [RebalancePreviewTradesInner](doc/RebalancePreviewTradesInner.md)
+ - [RecurringPlan](doc/RecurringPlan.md)
+ - [RecurringPlanRecentRunsInner](doc/RecurringPlanRecentRunsInner.md)
+ - [ResetDemoState200Response](doc/ResetDemoState200Response.md)
+ - [ResetDemoStateRequest](doc/ResetDemoStateRequest.md)
  - [ResponseMeta](doc/ResponseMeta.md)
  - [RitualAssetIdea](doc/RitualAssetIdea.md)
  - [RitualEvidenceResponse](doc/RitualEvidenceResponse.md)
@@ -248,6 +350,12 @@ Class | Method | HTTP request | Description
  - [SessionBootstrapPreferences](doc/SessionBootstrapPreferences.md)
  - [SessionBootstrapProfile](doc/SessionBootstrapProfile.md)
  - [SessionBootstrapResponse](doc/SessionBootstrapResponse.md)
+ - [SignedMoney](doc/SignedMoney.md)
+ - [SimulatedOrder](doc/SimulatedOrder.md)
+ - [SimulatedOrderFill](doc/SimulatedOrderFill.md)
+ - [SimulationDemoDisclosure](doc/SimulationDemoDisclosure.md)
+ - [SimulationResult](doc/SimulationResult.md)
+ - [SimulationResultResponse](doc/SimulationResultResponse.md)
 
 
 ## Documentation For Authorization

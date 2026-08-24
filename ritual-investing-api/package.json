@@ -16,7 +16,7 @@
     "client:generate": "node scripts/generate-client.mjs",
     "db:migrate": "node --experimental-strip-types scripts/migrate.ts",
     "db:migrate:check": "node --experimental-strip-types scripts/migrate.ts --check",
-    "test:postgres": "vitest run test/security/rls.test.ts test/domains/editorial-postgres.test.ts test/domains/circles.test.ts",
+    "test:postgres": "vitest run test/security/rls.test.ts test/domains/editorial-postgres.test.ts test/domains/circles.test.ts test/security/idempotency-concurrency.test.ts test/security/idempotency-crash-recovery.test.ts test/security/demo-reset-generation.test.ts test/db/ledger-reconciliation.test.ts",
     "test:security": "vitest run test/security",
     "deploy:dry-run": "wrangler deploy --dry-run"
   },

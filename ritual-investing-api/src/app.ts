@@ -12,6 +12,16 @@ import { registerAccountRoutes } from "./domains/accounts/routes.ts";
 import type { MemberRouteDependencies } from "./domains/accounts/access.ts";
 import { registerCircleRoutes } from "./domains/circles/routes.ts";
 import { registerSaveRoutes } from "./domains/saves/routes.ts";
+import {
+  registerSimulationRoutes,
+  type SimulationRouteDependencies,
+} from "./domains/simulation/routes.ts";
+import { registerPortfolioRoutes } from "./domains/portfolios/routes.ts";
+import { registerOrderRoutes } from "./domains/orders/routes.ts";
+import { registerRecurringPlanRoutes } from "./domains/recurring-plans/routes.ts";
+import { registerRebalanceRoutes } from "./domains/rebalancing/routes.ts";
+import { registerIntentionRoutes } from "./domains/intentions/routes.ts";
+import { registerEntitlementRoutes } from "./domains/entitlements/routes.ts";
 import type { ContentRouteDependencies } from "./domains/editorial/route-support.ts";
 import type { AccountTenantVariables } from "./middleware/account-tenant.ts";
 import type { AuthVariables } from "./middleware/auth0-jwk.ts";
@@ -136,7 +146,8 @@ export type CreateAppOptions = {
   enableContractTestRoute?: boolean;
   dependencies?: SessionRouteDependencies &
     ContentRouteDependencies &
-    MemberRouteDependencies;
+    MemberRouteDependencies &
+    SimulationRouteDependencies;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -220,6 +231,13 @@ export function createApp(options: CreateAppOptions = {}) {
   registerAccountRoutes(app, options.dependencies);
   registerCircleRoutes(app, options.dependencies);
   registerSaveRoutes(app, options.dependencies);
+  registerSimulationRoutes(app, options.dependencies);
+  registerPortfolioRoutes(app, options.dependencies);
+  registerOrderRoutes(app, options.dependencies);
+  registerRecurringPlanRoutes(app, options.dependencies);
+  registerRebalanceRoutes(app, options.dependencies);
+  registerIntentionRoutes(app, options.dependencies);
+  registerEntitlementRoutes(app, options.dependencies);
 
   if (options.enableContractTestRoute) {
     app.openapi(contractTestRoute, (context) => context.body(null, 204));

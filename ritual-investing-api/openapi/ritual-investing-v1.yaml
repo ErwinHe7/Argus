@@ -1082,6 +1082,40 @@ components:
         - data
         - meta
       type: object
+    DemoCheckoutSession:
+      additionalProperties: false
+      properties:
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        expires_at:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        plan_code:
+          enum:
+            - premium_demo
+          type: string
+        status:
+          enum:
+            - open
+            - completed
+            - expired
+            - cancelled
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - id
+        - plan_code
+        - status
+        - expires_at
+        - version
+        - demo
+      type: object
     DemoDisclosure:
       additionalProperties: false
       properties:
@@ -1109,6 +1143,179 @@ components:
         - observed_at
         - source_label
         - limitations
+      type: object
+    DemoEntitlement:
+      additionalProperties: false
+      properties:
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        ends_at:
+          format: date-time
+          nullable: true
+          type: string
+        id:
+          format: uuid
+          type: string
+        plan_code:
+          enum:
+            - free
+            - premium_demo
+          type: string
+        source:
+          enum:
+            - demo
+          type: string
+        starts_at:
+          format: date-time
+          type: string
+        status:
+          enum:
+            - active
+            - expired
+            - revoked
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - id
+        - plan_code
+        - status
+        - source
+        - starts_at
+        - ends_at
+        - version
+        - demo
+      type: object
+    DemoFundingSource:
+      additionalProperties: false
+      properties:
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        display_label:
+          maxLength: 80
+          minLength: 1
+          type: string
+        fictional_last4:
+          pattern: ^\d{4}$
+          type: string
+        fixture_key:
+          enum:
+            - moon_reserve
+            - constellation_savings
+          type: string
+        id:
+          format: uuid
+          type: string
+        status:
+          enum:
+            - active
+            - inactive
+          type: string
+      required:
+        - id
+        - fixture_key
+        - display_label
+        - fictional_last4
+        - status
+        - demo
+      type: object
+    DemoPlan:
+      additionalProperties: false
+      properties:
+        code:
+          enum:
+            - free
+            - premium_demo
+          type: string
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        display_name:
+          type: string
+        feature_codes:
+          items:
+            type: string
+          type: array
+        price_copy:
+          type: string
+      required:
+        - code
+        - display_name
+        - price_copy
+        - feature_codes
+        - demo
+      type: object
+    DemoResetResult:
+      additionalProperties: false
+      properties:
+        default_portfolio:
+          additionalProperties: false
+          properties:
+            currency:
+              enum:
+                - USD
+              type: string
+            id:
+              format: uuid
+              type: string
+            name:
+              type: string
+            status:
+              enum:
+                - active
+              type: string
+            version:
+              exclusiveMinimum: true
+              minimum: 0
+              type: integer
+          required:
+            - id
+            - name
+            - currency
+            - status
+            - version
+          type: object
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        entitlement:
+          additionalProperties: false
+          properties:
+            id:
+              format: uuid
+              type: string
+            plan_code:
+              enum:
+                - free
+              type: string
+            source:
+              enum:
+                - demo
+              type: string
+            status:
+              enum:
+                - active
+              type: string
+            version:
+              exclusiveMinimum: true
+              minimum: 0
+              type: integer
+          required:
+            - id
+            - plan_code
+            - status
+            - source
+            - version
+          type: object
+        reset_generation:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - reset_generation
+        - default_portfolio
+        - entitlement
+        - demo
       type: object
     DiscoverItem:
       oneOf:
@@ -1310,6 +1517,102 @@ components:
         - path
         - code
       type: object
+    FutureMirrorView:
+      additionalProperties: false
+      properties:
+        assumptions:
+          additionalProperties: false
+          properties:
+            annual_return_bps:
+              additionalProperties: false
+              properties:
+                high:
+                  maximum: 5000
+                  minimum: -5000
+                  type: integer
+                low:
+                  maximum: 5000
+                  minimum: -5000
+                  type: integer
+                mid:
+                  maximum: 5000
+                  minimum: -5000
+                  type: integer
+              required:
+                - low
+                - mid
+                - high
+              type: object
+            monthly_contribution:
+              $ref: "#/components/schemas/InputMoney"
+            name:
+              maxLength: 80
+              minLength: 1
+              type: string
+          required:
+            - name
+            - monthly_contribution
+            - annual_return_bps
+          type: object
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        generated_at:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        input_hash:
+          pattern: ^[a-f0-9]{64}$
+          type: string
+        intention_id:
+          format: uuid
+          type: string
+        ledger_watermark:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        model_version:
+          enum:
+            - ritual-demo-v1
+          type: string
+        points:
+          items:
+            additionalProperties: false
+            properties:
+              date:
+                format: date
+                type: string
+              high:
+                $ref: "#/components/schemas/Money"
+              low:
+                $ref: "#/components/schemas/Money"
+              mid:
+                $ref: "#/components/schemas/Money"
+            required:
+              - date
+              - low
+              - mid
+              - high
+            type: object
+          maxItems: 120
+          minItems: 1
+          type: array
+        uncertainty:
+          minLength: 1
+          type: string
+      required:
+        - id
+        - intention_id
+        - assumptions
+        - points
+        - generated_at
+        - model_version
+        - input_hash
+        - ledger_watermark
+        - uncertainty
+        - demo
+      type: object
     GrimoireCollectionResponse:
       additionalProperties: false
       properties:
@@ -1443,6 +1746,72 @@ components:
       required:
         - data
         - meta
+      type: object
+    InputMoney:
+      additionalProperties: false
+      properties:
+        currency:
+          enum:
+            - USD
+          type: string
+        minor_units:
+          maximum: 1000000000
+          minimum: 0
+          type: integer
+      required:
+        - minor_units
+        - currency
+      type: object
+    Intention:
+      additionalProperties: false
+      properties:
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        id:
+          format: uuid
+          type: string
+        latest_projection_id:
+          format: uuid
+          nullable: true
+          type: string
+        portfolio_id:
+          format: uuid
+          type: string
+        progress:
+          $ref: "#/components/schemas/Money"
+        progress_bps:
+          maximum: 10000
+          minimum: 0
+          type: integer
+        status:
+          enum:
+            - active
+            - completed
+            - archived
+          type: string
+        target:
+          $ref: "#/components/schemas/Money"
+        target_date:
+          format: date
+          type: string
+        title:
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - id
+        - portfolio_id
+        - title
+        - target
+        - target_date
+        - status
+        - progress
+        - progress_bps
+        - latest_projection_id
+        - version
+        - demo
       type: object
     InvestorProfile:
       additionalProperties: false
@@ -1601,6 +1970,21 @@ components:
         - data
         - meta
       type: object
+    Money:
+      additionalProperties: false
+      properties:
+        currency:
+          enum:
+            - USD
+          type: string
+        minor_units:
+          maximum: 9007199254740991
+          minimum: 0
+          type: integer
+      required:
+        - minor_units
+        - currency
+      type: object
     OnboardingResponse:
       additionalProperties: false
       properties:
@@ -1652,6 +2036,254 @@ components:
           type: string
       required:
         - openapi
+      type: object
+    OrderPreview:
+      additionalProperties: false
+      properties:
+        asset_id:
+          format: uuid
+          type: string
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        expires_at:
+          format: date-time
+          type: string
+        frozen_price:
+          $ref: "#/components/schemas/Money"
+        id:
+          format: uuid
+          type: string
+        notional:
+          $ref: "#/components/schemas/Money"
+        observed_at:
+          format: date-time
+          type: string
+        portfolio_id:
+          format: uuid
+          type: string
+        portfolio_version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        quantity:
+          $ref: "#/components/schemas/Quantity"
+        quote_snapshot_id:
+          format: uuid
+          type: string
+        side:
+          enum:
+            - buy
+            - sell
+          type: string
+        status:
+          enum:
+            - active
+            - executed
+            - expired
+            - invalidated
+          type: string
+        symbol:
+          maxLength: 16
+          minLength: 1
+          type: string
+      required:
+        - id
+        - portfolio_id
+        - asset_id
+        - symbol
+        - side
+        - notional
+        - quantity
+        - frozen_price
+        - quote_snapshot_id
+        - portfolio_version
+        - observed_at
+        - expires_at
+        - status
+        - demo
+      type: object
+    PortfolioActivity:
+      additionalProperties: false
+      properties:
+        cash:
+          $ref: "#/components/schemas/SignedMoney"
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        description_code:
+          maxLength: 80
+          minLength: 1
+          type: string
+        effective_at:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        ledger_watermark:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        type:
+          enum:
+            - contribution
+            - order
+            - rebalance
+            - recurring
+          type: string
+      required:
+        - id
+        - type
+        - effective_at
+        - description_code
+        - cash
+        - ledger_watermark
+        - demo
+      type: object
+    PortfolioSnapshot:
+      additionalProperties: false
+      properties:
+        as_of:
+          format: date-time
+          type: string
+        as_of_transaction_id:
+          format: uuid
+          type: string
+        cash:
+          $ref: "#/components/schemas/Money"
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        id:
+          format: uuid
+          type: string
+        ledger_watermark:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        market_value:
+          $ref: "#/components/schemas/Money"
+      required:
+        - id
+        - as_of_transaction_id
+        - ledger_watermark
+        - as_of
+        - cash
+        - market_value
+        - demo
+      type: object
+    PortfolioView:
+      additionalProperties: false
+      properties:
+        as_of_transaction_id:
+          format: uuid
+          nullable: true
+          type: string
+        cash:
+          $ref: "#/components/schemas/Money"
+        currency:
+          enum:
+            - USD
+          type: string
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        id:
+          format: uuid
+          type: string
+        is_default:
+          type: boolean
+        latest_valuation:
+          $ref: "#/components/schemas/Money"
+        ledger_watermark:
+          minimum: 0
+          type: integer
+        name:
+          maxLength: 80
+          minLength: 1
+          type: string
+        positions:
+          items:
+            additionalProperties: false
+            properties:
+              as_of_transaction_id:
+                format: uuid
+                type: string
+              asset_id:
+                format: uuid
+                type: string
+              ledger_watermark:
+                minimum: 0
+                type: integer
+              market_value:
+                $ref: "#/components/schemas/Money"
+              quantity:
+                $ref: "#/components/schemas/Quantity"
+              symbol:
+                maxLength: 16
+                minLength: 1
+                type: string
+            required:
+              - asset_id
+              - symbol
+              - quantity
+              - market_value
+              - as_of_transaction_id
+              - ledger_watermark
+            type: object
+          type: array
+        status:
+          enum:
+            - active
+            - archived
+          type: string
+        target_allocation:
+          items:
+            additionalProperties: false
+            properties:
+              asset_id:
+                format: uuid
+                type: string
+              target_bps:
+                maximum: 10000
+                minimum: 0
+                type: integer
+            required:
+              - asset_id
+              - target_bps
+            type: object
+          maxItems: 50
+          type: array
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - id
+        - name
+        - currency
+        - status
+        - is_default
+        - cash
+        - positions
+        - target_allocation
+        - latest_valuation
+        - as_of_transaction_id
+        - ledger_watermark
+        - version
+        - demo
+      type: object
+    PositiveInputMoney:
+      additionalProperties: false
+      properties:
+        currency:
+          enum:
+            - USD
+          type: string
+        minor_units:
+          maximum: 1000000000
+          minimum: 1
+          type: integer
+      required:
+        - minor_units
+        - currency
       type: object
     PublicAssetTeaser:
       additionalProperties: false
@@ -1885,6 +2517,189 @@ components:
       required:
         - data
         - meta
+      type: object
+    Quantity:
+      additionalProperties: false
+      properties:
+        scale:
+          maximum: 12
+          minimum: 0
+          type: integer
+        value:
+          maxLength: 23
+          pattern: ^(?:0|[1-9]\d*)(?:\.\d{1,12})?$
+          type: string
+      required:
+        - value
+        - scale
+      type: object
+    RebalancePreview:
+      additionalProperties: false
+      properties:
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        expires_at:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        portfolio_id:
+          format: uuid
+          type: string
+        portfolio_version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        status:
+          enum:
+            - active
+            - executed
+            - expired
+            - invalidated
+          type: string
+        target_allocation:
+          items:
+            additionalProperties: false
+            properties:
+              asset_id:
+                format: uuid
+                type: string
+              target_bps:
+                maximum: 10000
+                minimum: 0
+                type: integer
+            required:
+              - asset_id
+              - target_bps
+            type: object
+          maxItems: 50
+          type: array
+        trades:
+          items:
+            additionalProperties: false
+            properties:
+              asset_id:
+                format: uuid
+                type: string
+              notional:
+                $ref: "#/components/schemas/Money"
+              quantity:
+                $ref: "#/components/schemas/Quantity"
+              side:
+                enum:
+                  - buy
+                  - sell
+                type: string
+            required:
+              - asset_id
+              - side
+              - quantity
+              - notional
+            type: object
+          maxItems: 50
+          type: array
+      required:
+        - id
+        - portfolio_id
+        - portfolio_version
+        - target_allocation
+        - trades
+        - expires_at
+        - status
+        - demo
+      type: object
+    RecurringPlan:
+      additionalProperties: false
+      properties:
+        allocations:
+          items:
+            additionalProperties: false
+            properties:
+              asset_id:
+                format: uuid
+                type: string
+              weight_bps:
+                maximum: 10000
+                minimum: 0
+                type: integer
+            required:
+              - asset_id
+              - weight_bps
+            type: object
+          maxItems: 50
+          minItems: 1
+          type: array
+        amount:
+          $ref: "#/components/schemas/Money"
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        frequency:
+          enum:
+            - weekly
+            - monthly
+          type: string
+        id:
+          format: uuid
+          type: string
+        next_run_at:
+          format: date-time
+          type: string
+        portfolio_id:
+          format: uuid
+          type: string
+        recent_runs:
+          items:
+            additionalProperties: false
+            properties:
+              id:
+                format: uuid
+                type: string
+              scheduled_for:
+                format: date-time
+                type: string
+              status:
+                enum:
+                  - due
+                  - running
+                  - completed
+                  - rejected
+                type: string
+            required:
+              - id
+              - scheduled_for
+              - status
+            type: object
+          maxItems: 10
+          type: array
+        status:
+          enum:
+            - active
+            - paused
+            - cancelled
+            - completed
+          type: string
+        type:
+          enum:
+            - contribution
+            - allocation
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - id
+        - portfolio_id
+        - type
+        - amount
+        - frequency
+        - next_run_at
+        - status
+        - allocations
+        - recent_runs
+        - version
+        - demo
       type: object
     ResponseMeta:
       additionalProperties: false
@@ -2286,6 +3101,169 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/SessionBootstrap"
+        meta:
+          $ref: "#/components/schemas/ResponseMeta"
+      required:
+        - data
+        - meta
+      type: object
+    SignedMoney:
+      additionalProperties: false
+      properties:
+        currency:
+          enum:
+            - USD
+          type: string
+        minor_units:
+          maximum: 9007199254740991
+          minimum: -9007199254740991
+          type: integer
+      required:
+        - minor_units
+        - currency
+      type: object
+    SimulatedOrder:
+      additionalProperties: false
+      properties:
+        asset_id:
+          format: uuid
+          type: string
+        command_id:
+          format: uuid
+          type: string
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        fill:
+          additionalProperties: false
+          nullable: true
+          properties:
+            filled_at:
+              format: date-time
+              type: string
+            price:
+              $ref: "#/components/schemas/Money"
+            quantity:
+              $ref: "#/components/schemas/Quantity"
+          required:
+            - quantity
+            - price
+            - filled_at
+          type: object
+        id:
+          format: uuid
+          type: string
+        notional:
+          allOf:
+            - $ref: "#/components/schemas/Money"
+            - nullable: true
+        portfolio_id:
+          format: uuid
+          type: string
+        quantity:
+          allOf:
+            - $ref: "#/components/schemas/Quantity"
+            - nullable: true
+        side:
+          enum:
+            - buy
+            - sell
+          type: string
+        status:
+          enum:
+            - accepted
+            - rejected
+          type: string
+        symbol:
+          maxLength: 16
+          minLength: 1
+          type: string
+      required:
+        - id
+        - portfolio_id
+        - command_id
+        - asset_id
+        - symbol
+        - side
+        - status
+        - quantity
+        - notional
+        - fill
+        - demo
+      type: object
+    SimulationDemoDisclosure:
+      additionalProperties: false
+      properties:
+        is_demo:
+          enum:
+            - true
+          type: boolean
+        limitations:
+          items:
+            maxLength: 240
+            minLength: 1
+            type: string
+          maxItems: 8
+          minItems: 1
+          type: array
+        observed_at:
+          format: date-time
+          type: string
+        source_label:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - is_demo
+        - observed_at
+        - source_label
+        - limitations
+      type: object
+    SimulationResult:
+      additionalProperties: false
+      properties:
+        command_id:
+          format: uuid
+          type: string
+        demo:
+          $ref: "#/components/schemas/SimulationDemoDisclosure"
+        ledger_transaction_ids:
+          items:
+            format: uuid
+            type: string
+          maxItems: 1
+          type: array
+        portfolio_version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        projection_links:
+          items:
+            type: string
+          maxItems: 20
+          type: array
+        status:
+          enum:
+            - committed
+            - rejected
+          type: string
+        summary:
+          additionalProperties:
+            nullable: true
+          type: object
+      required:
+        - command_id
+        - status
+        - portfolio_version
+        - ledger_transaction_ids
+        - summary
+        - projection_links
+        - demo
+      type: object
+    SimulationResultResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/SimulationResult"
         meta:
           $ref: "#/components/schemas/ResponseMeta"
       required:
@@ -4060,6 +5038,636 @@ paths:
             - read:self
       tags:
         - Founders Coven
+  /v1/demo-checkout-sessions:
+    post:
+      operationId: createDemoCheckout
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                plan_code:
+                  enum:
+                    - premium_demo
+                  type: string
+              required:
+                - plan_code
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DemoCheckoutSession"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Fixture-only Demo checkout.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Demo Entitlements
+  /v1/demo-checkout-sessions/{session_id}:
+    get:
+      operationId: getDemoCheckout
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DemoCheckoutSession"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Demo checkout state.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Demo Entitlements
+  /v1/demo-checkout-sessions/{session_id}/confirm:
+    post:
+      operationId: confirmDemoCheckout
+      parameters:
+        - in: path
+          name: session_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties: {}
+              type: object
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DemoEntitlement"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Granted Demo entitlement; no charge.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Demo Entitlements
+  /v1/demo-funding-sources:
+    get:
+      operationId: listDemoFundingSources
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      $ref: "#/components/schemas/DemoFundingSource"
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Fictional fixtures only.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Portfolios
+    post:
+      operationId: createDemoFundingSource
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                fixture_key:
+                  enum:
+                    - moon_reserve
+                    - constellation_savings
+                  type: string
+              required:
+                - fixture_key
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DemoFundingSource"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Selected fictional source.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Portfolios
+  /v1/demo-funding-sources/{source_id}:
+    delete:
+      operationId: deleteDemoFundingSource
+      parameters:
+        - in: path
+          name: source_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "204":
+          description: Deactivated idempotently.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Portfolios
+  /v1/demo-plans:
+    get:
+      operationId: listDemoPlans
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      $ref: "#/components/schemas/DemoPlan"
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Copy-only Demo plans; no processor identifiers.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Demo Entitlements
   /v1/discover:
     get:
       operationId: listDiscover
@@ -4319,6 +5927,804 @@ paths:
       security: []
       tags:
         - Platform
+  /v1/intentions:
+    get:
+      operationId: listIntentions
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - active
+              - completed
+              - archived
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      $ref: "#/components/schemas/Intention"
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Server-authoritative intentions.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Intentions
+    post:
+      operationId: createIntention
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                portfolio_id:
+                  format: uuid
+                  type: string
+                target:
+                  $ref: "#/components/schemas/PositiveInputMoney"
+                target_date:
+                  format: date
+                  type: string
+                title:
+                  maxLength: 120
+                  minLength: 1
+                  type: string
+              required:
+                - title
+                - target
+                - target_date
+                - portfolio_id
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Intention"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Created Demo intention.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Intentions
+  /v1/intentions/{intention_id}:
+    delete:
+      operationId: archiveIntention
+      parameters:
+        - in: path
+          name: intention_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "204":
+          description: Archived; historical projections retained.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Intentions
+    get:
+      operationId: getIntention
+      parameters:
+        - in: path
+          name: intention_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Intention"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Intention with ledger-derived progress.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Intentions
+    patch:
+      operationId: patchIntention
+      parameters:
+        - in: path
+          name: intention_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                status:
+                  enum:
+                    - active
+                    - completed
+                  type: string
+                target:
+                  $ref: "#/components/schemas/PositiveInputMoney"
+                target_date:
+                  format: date
+                  type: string
+                title:
+                  maxLength: 120
+                  minLength: 1
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Intention"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated intention.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Intentions
+  /v1/intentions/{intention_id}/future-mirror:
+    post:
+      operationId: createFutureMirror
+      parameters:
+        - in: path
+          name: intention_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                annual_return_bps:
+                  additionalProperties: false
+                  properties:
+                    high:
+                      maximum: 5000
+                      minimum: -5000
+                      type: integer
+                    low:
+                      maximum: 5000
+                      minimum: -5000
+                      type: integer
+                    mid:
+                      maximum: 5000
+                      minimum: -5000
+                      type: integer
+                  required:
+                    - low
+                    - mid
+                    - high
+                  type: object
+                monthly_contribution:
+                  $ref: "#/components/schemas/InputMoney"
+                name:
+                  maxLength: 80
+                  minLength: 1
+                  type: string
+              required:
+                - name
+                - monthly_contribution
+                - annual_return_bps
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/FutureMirrorView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Deterministic projection with uncertainty bands.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Future Mirror
+  /v1/intentions/{intention_id}/future-mirror/{run_id}:
+    get:
+      operationId: getFutureMirror
+      parameters:
+        - in: path
+          name: intention_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: run_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/FutureMirrorView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Historical projection scoped to its intention.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Future Mirror
+  /v1/intentions/{intention_id}/future-mirror/latest:
+    get:
+      operationId: getLatestFutureMirror
+      parameters:
+        - in: path
+          name: intention_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/FutureMirrorView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Monotonic current projection.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Future Mirror
   /v1/me:
     get:
       operationId: getMe
@@ -4737,6 +7143,389 @@ paths:
             - write:self
       tags:
         - Account
+  /v1/me/demo-reset:
+    post:
+      operationId: resetDemoState
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                confirmation:
+                  enum:
+                    - RESET_DEMO
+                  type: string
+                seed_version:
+                  exclusiveMinimum: true
+                  minimum: 0
+                  type: integer
+              required:
+                - confirmation
+                - seed_version
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DemoResetResult"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Atomically advanced generation and reseeded Demo state.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Simulation
+  /v1/me/entitlements:
+    get:
+      operationId: getDemoEntitlement
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DemoEntitlement"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Current Demo entitlement.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Demo Entitlements
+  /v1/me/entitlements/downgrade:
+    post:
+      operationId: downgradeDemoEntitlement
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties: {}
+              type: object
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DemoEntitlement"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Downgraded to free Demo access; feature state retained.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Demo Entitlements
+  /v1/me/entitlements/restore:
+    post:
+      operationId: restoreDemoEntitlement
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties: {}
+              type: object
+        required: false
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/DemoEntitlement"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Restored from server Demo history without external store.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Demo Entitlements
   /v1/me/investor-profile:
     get:
       operationId: getInvestorProfile
@@ -5972,6 +8761,1865 @@ paths:
       security: []
       tags:
         - Platform
+  /v1/orders:
+    get:
+      operationId: listOrders
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: portfolio_id
+          required: false
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - accepted
+              - rejected
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      $ref: "#/components/schemas/SimulatedOrder"
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Current-generation tenant orders.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Orders
+  /v1/orders/{order_id}:
+    get:
+      operationId: getOrder
+      parameters:
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SimulatedOrder"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Immutable order and fill.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Orders
+  /v1/portfolios:
+    get:
+      operationId: listPortfolios
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      $ref: "#/components/schemas/PortfolioView"
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Current-generation Demo portfolios.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Portfolios
+    post:
+      operationId: createPortfolio
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                currency:
+                  enum:
+                    - USD
+                  type: string
+                name:
+                  maxLength: 80
+                  minLength: 1
+                  type: string
+                target_allocation:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      asset_id:
+                        format: uuid
+                        type: string
+                      target_bps:
+                        maximum: 10000
+                        minimum: 0
+                        type: integer
+                    required:
+                      - asset_id
+                      - target_bps
+                    type: object
+                  maxItems: 50
+                  type: array
+              required:
+                - name
+                - currency
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PortfolioView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Created Demo portfolio.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Portfolios
+  /v1/portfolios/{portfolio_id}:
+    delete:
+      operationId: archivePortfolio
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "204":
+          description: Archived.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Portfolios
+    get:
+      operationId: getPortfolio
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PortfolioView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Ledger-derived portfolio.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Portfolios
+    patch:
+      operationId: patchPortfolio
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                name:
+                  maxLength: 80
+                  minLength: 1
+                  type: string
+                target_allocation:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      asset_id:
+                        format: uuid
+                        type: string
+                      target_bps:
+                        maximum: 10000
+                        minimum: 0
+                        type: integer
+                    required:
+                      - asset_id
+                      - target_bps
+                    type: object
+                  maxItems: 50
+                  type: array
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/PortfolioView"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated Demo portfolio.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Portfolios
+  /v1/portfolios/{portfolio_id}/activity:
+    get:
+      operationId: listPortfolioActivity
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            format: date
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      $ref: "#/components/schemas/PortfolioActivity"
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Immutable Demo activity.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Portfolios
+  /v1/portfolios/{portfolio_id}/contributions:
+    post:
+      operationId: createDemoContribution
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                amount:
+                  $ref: "#/components/schemas/PositiveInputMoney"
+                effective_at:
+                  format: date-time
+                  type: string
+                source_id:
+                  format: uuid
+                  type: string
+              required:
+                - amount
+                - source_id
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResultResponse"
+          description: Committed fixture-backed Demo contribution.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Simulation
+  /v1/portfolios/{portfolio_id}/holdings:
+    get:
+      operationId: listPortfolioHoldings
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      additionalProperties: false
+                      properties:
+                        as_of_transaction_id:
+                          format: uuid
+                          type: string
+                        asset_id:
+                          format: uuid
+                          type: string
+                        ledger_watermark:
+                          minimum: 0
+                          type: integer
+                        market_value:
+                          $ref: "#/components/schemas/Money"
+                        quantity:
+                          $ref: "#/components/schemas/Quantity"
+                        symbol:
+                          maxLength: 16
+                          minLength: 1
+                          type: string
+                      required:
+                        - asset_id
+                        - symbol
+                        - quantity
+                        - market_value
+                        - as_of_transaction_id
+                        - ledger_watermark
+                      type: object
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Ledger-derived positions.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Portfolios
+  /v1/portfolios/{portfolio_id}/order-previews:
+    post:
+      operationId: createOrderPreview
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                asset_id:
+                  format: uuid
+                  type: string
+                notional:
+                  $ref: "#/components/schemas/PositiveInputMoney"
+                quantity:
+                  $ref: "#/components/schemas/Quantity"
+                side:
+                  enum:
+                    - buy
+                    - sell
+                  type: string
+              required:
+                - asset_id
+                - side
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/OrderPreview"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Frozen, expiring Demo quote with no ledger effect.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Orders
+  /v1/portfolios/{portfolio_id}/orders:
+    post:
+      operationId: commitOrder
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                portfolio_version:
+                  exclusiveMinimum: true
+                  minimum: 0
+                  type: integer
+                preview_id:
+                  format: uuid
+                  type: string
+              required:
+                - preview_id
+                - portfolio_version
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SimulationResult"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Atomic one-fill Demo order.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Orders
+  /v1/portfolios/{portfolio_id}/rebalance-previews:
+    post:
+      operationId: createRebalancePreview
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                target_allocation:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      asset_id:
+                        format: uuid
+                        type: string
+                      target_bps:
+                        maximum: 10000
+                        minimum: 0
+                        type: integer
+                    required:
+                      - asset_id
+                      - target_bps
+                    type: object
+                  maxItems: 50
+                  type: array
+              required:
+                - target_allocation
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RebalancePreview"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Frozen 15-minute all-or-nothing trade set with no ledger effect.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Rebalancing
+  /v1/portfolios/{portfolio_id}/rebalances:
+    post:
+      operationId: commitRebalance
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                portfolio_version:
+                  exclusiveMinimum: true
+                  minimum: 0
+                  type: integer
+                preview_id:
+                  format: uuid
+                  type: string
+              required:
+                - preview_id
+                - portfolio_version
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/SimulationResult"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Atomic Demo rebalance.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Rebalancing
+  /v1/portfolios/{portfolio_id}/recurring-plans:
+    get:
+      operationId: listRecurringPlans
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: status
+          required: false
+          schema:
+            enum:
+              - active
+              - paused
+              - cancelled
+              - completed
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      $ref: "#/components/schemas/RecurringPlan"
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Current-generation recurring plans.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Recurring Plans
+    post:
+      operationId: createRecurringPlan
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7e]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                allocations:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      asset_id:
+                        format: uuid
+                        type: string
+                      weight_bps:
+                        maximum: 10000
+                        minimum: 0
+                        type: integer
+                    required:
+                      - asset_id
+                      - weight_bps
+                    type: object
+                  maxItems: 50
+                  minItems: 1
+                  type: array
+                amount:
+                  $ref: "#/components/schemas/PositiveInputMoney"
+                first_run_at:
+                  format: date-time
+                  type: string
+                frequency:
+                  enum:
+                    - weekly
+                    - monthly
+                  type: string
+                source_id:
+                  format: uuid
+                  type: string
+                type:
+                  enum:
+                    - contribution
+                    - allocation
+                  type: string
+              required:
+                - type
+                - amount
+                - frequency
+                - source_id
+                - allocations
+                - first_run_at
+              type: object
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RecurringPlan"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Created Demo recurring plan.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Recurring Plans
+  /v1/portfolios/{portfolio_id}/snapshots:
+    get:
+      operationId: listPortfolioSnapshots
+      parameters:
+        - in: path
+          name: portfolio_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: limit
+          required: false
+          schema:
+            default: 20
+            maximum: 50
+            minimum: 1
+            type: integer
+        - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 20
+            type: string
+        - in: query
+          name: from
+          required: false
+          schema:
+            format: date
+            type: string
+        - in: query
+          name: to
+          required: false
+          schema:
+            format: date
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    items:
+                      $ref: "#/components/schemas/PortfolioSnapshot"
+                    type: array
+                  meta:
+                    $ref: "#/components/schemas/CollectionMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Balance snapshots.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Portfolios
   /v1/public/coven:
     get:
       operationId: listPublicCoven
@@ -6194,6 +10842,477 @@ paths:
       security: []
       tags:
         - Public Preview
+  /v1/recurring-plans/{plan_id}:
+    delete:
+      operationId: cancelRecurringPlan
+      parameters:
+        - in: path
+          name: plan_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "204":
+          description: Terminal cancellation; runs retained.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Recurring Plans
+    get:
+      operationId: getRecurringPlan
+      parameters:
+        - in: path
+          name: plan_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RecurringPlan"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Plan and recent immutable runs.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - read:self
+      tags:
+        - Recurring Plans
+    patch:
+      operationId: patchRecurringPlan
+      parameters:
+        - in: path
+          name: plan_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                allocations:
+                  items:
+                    additionalProperties: false
+                    properties:
+                      asset_id:
+                        format: uuid
+                        type: string
+                      weight_bps:
+                        maximum: 10000
+                        minimum: 0
+                        type: integer
+                    required:
+                      - asset_id
+                      - weight_bps
+                    type: object
+                  maxItems: 50
+                  minItems: 1
+                  type: array
+                amount:
+                  $ref: "#/components/schemas/PositiveInputMoney"
+                frequency:
+                  enum:
+                    - weekly
+                    - monthly
+                  type: string
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RecurringPlan"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: Updated plan.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Recurring Plans
+  /v1/recurring-plans/{plan_id}/pause:
+    post:
+      operationId: pauseRecurringPlan
+      parameters:
+        - in: path
+          name: plan_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RecurringPlan"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: paused plan.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Recurring Plans
+  /v1/recurring-plans/{plan_id}/resume:
+    post:
+      operationId: resumeRecurringPlan
+      parameters:
+        - in: path
+          name: plan_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    $ref: "#/components/schemas/RecurringPlan"
+                  meta:
+                    $ref: "#/components/schemas/ResponseMeta"
+                required:
+                  - data
+                  - meta
+                type: object
+          description: resumed plan.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Denied.
+        "404":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Not found.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Simulation conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Too large.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unsupported media.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid input.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+            - simulate:self
+      tags:
+        - Recurring Plans
   /v1/rituals/{assignment_id}:
     get:
       operationId: getRitualAssignment

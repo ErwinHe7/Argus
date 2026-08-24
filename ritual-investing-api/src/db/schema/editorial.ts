@@ -134,18 +134,32 @@ export const assets = pgTable(
   ],
 );
 
-export const assetMetricSnapshots = pgTable("asset_metric_snapshots", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  assetId: uuid("asset_id")
-    .notNull()
-    .references(() => assets.id),
-  observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
-  priceMinor: bigint("price_minor", { mode: "bigint" }).notNull(),
-  changeBps: integer("change_bps"),
-  expenseRatioBps: integer("expense_ratio_bps"),
-  sourceLabel: text("source_label").notNull(),
-  isDemo: boolean("is_demo").notNull().default(true),
-});
+export const assetMetricSnapshots = pgTable(
+  "asset_metric_snapshots",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assetId: uuid("asset_id")
+      .notNull()
+      .references(() => assets.id),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull(),
+    priceMinor: bigint("price_minor", { mode: "bigint" }).notNull(),
+    changeBps: integer("change_bps"),
+    expenseRatioBps: integer("expense_ratio_bps"),
+    sourceLabel: text("source_label").notNull(),
+    isDemo: boolean("is_demo").notNull().default(true),
+  },
+  (table) => [
+    unique("asset_metric_snapshots_asset_observed_source_unique").on(
+      table.assetId,
+      table.observedAt,
+      table.sourceLabel,
+    ),
+    unique("asset_metric_snapshots_asset_identity_unique").on(
+      table.assetId,
+      table.id,
+    ),
+  ],
+);
 
 export const evidenceSources = pgTable("evidence_sources", {
   id: uuid("id").defaultRandom().primaryKey(),
