@@ -246,6 +246,9 @@ describe.skipIf(postgresUrl === undefined)(
             "0004_editorial_catalog.sql",
             "0005_member_state.sql",
             "0006_simulated_ledger.sql",
+            "0007_async_privacy.sql",
+            "0008_admin_dashboard.sql",
+            "0009_observability_audit.sql",
           ].includes(name),
         ),
       ).toBe(true);

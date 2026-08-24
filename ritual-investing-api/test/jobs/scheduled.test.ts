@@ -27,11 +27,23 @@ describe("scheduled async dispatch", () => {
   });
 
   it("honors the scheduled kill switch before opening a database binding", async () => {
+    const events: unknown[] = [];
     await expect(
       runScheduled(
         { cron: "0 5 * * *", scheduledTime: Date.now() } as ScheduledController,
-        { KILL_SWITCH_SCHEDULED: "on" } as never,
+        { KILL_SWITCH_SCHEDULED: "on", ENVIRONMENT: "test" } as never,
+        undefined,
+        (event) => {
+          events.push(event);
+        },
       ),
     ).resolves.toBeUndefined();
+    expect(events).toEqual([
+      expect.objectContaining({
+        event_name: "scheduled.delivery",
+        outcome: "deferred",
+        failure_code: "kill_switch_enabled",
+      }),
+    ]);
   });
 });

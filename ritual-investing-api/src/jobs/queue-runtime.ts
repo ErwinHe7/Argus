@@ -5,6 +5,10 @@ import { handlerFor } from "./handlers.ts";
 import { completeJob, failJob, leaseJob } from "./job-runs.ts";
 import { parseQueueWork, type QueueWorkMessage } from "./queue-consumer.ts";
 import { decideRetry } from "./retry-policy.ts";
+import {
+  emitOperationalTelemetry,
+  type TelemetrySink,
+} from "../observability/telemetry.ts";
 
 const knownFailureCodes = new Set([
   "deletion_journal_verification_failed",
@@ -65,6 +69,7 @@ export async function runQueue(
   batch: MessageBatch<unknown>,
   environment: Bindings,
   poolFactory?: DatabasePoolFactory,
+  telemetrySink?: TelemetrySink,
 ) {
   const runtimeDatabaseUrl = environment.RUNTIME_DATABASE_URL;
   const schedulerDatabaseUrl = environment.SCHEDULER_DATABASE_URL;
@@ -73,6 +78,18 @@ export async function runQueue(
     try {
       message = parseQueueWork(raw.body);
     } catch {
+      await emitOperationalTelemetry(
+        environment.ENVIRONMENT,
+        {
+          event_name: "queue.delivery",
+          severity: "warn",
+          outcome: "rejected",
+          dependency: "queue",
+          attempt: raw.attempts,
+          failure_code: "invalid_event_payload",
+        },
+        telemetrySink,
+      );
       raw.ack();
       continue;
     }
@@ -87,6 +104,21 @@ export async function runQueue(
       schedulerDatabaseUrl === undefined ||
       consumerKilled(environment, message)
     ) {
+      await emitOperationalTelemetry(
+        environment.ENVIRONMENT,
+        {
+          event_name: "queue.delivery",
+          severity: "warn",
+          outcome: "deferred",
+          dependency: "queue",
+          consumer: message.consumer,
+          attempt: raw.attempts,
+          failure_code: consumerKilled(environment, message)
+            ? "kill_switch_enabled"
+            : "dependency_unavailable",
+        },
+        telemetrySink,
+      );
       raw.retry({ delaySeconds: 300 });
       continue;
     }
@@ -97,6 +129,18 @@ export async function runQueue(
       poolFactory,
     );
     if (lease === null) {
+      await emitOperationalTelemetry(
+        environment.ENVIRONMENT,
+        {
+          event_name: "queue.delivery",
+          severity: "info",
+          outcome: "lease_contended",
+          dependency: "queue",
+          consumer: message.consumer,
+          attempt: raw.attempts,
+        },
+        telemetrySink,
+      );
       raw.retry({ delaySeconds: 10 });
       continue;
     }
@@ -108,10 +152,35 @@ export async function runQueue(
         poolFactory,
       );
       await completeJob(schedulerDatabaseUrl, lease, poolFactory);
+      await emitOperationalTelemetry(
+        environment.ENVIRONMENT,
+        {
+          event_name: "queue.delivery",
+          severity: "info",
+          outcome: "success",
+          dependency: "queue",
+          consumer: message.consumer,
+          attempt: raw.attempts,
+        },
+        telemetrySink,
+      );
       raw.ack();
     } catch (error) {
       const decision = decideRetry(raw.attempts, failureCode(error));
       await failJob(schedulerDatabaseUrl, lease, decision, poolFactory);
+      await emitOperationalTelemetry(
+        environment.ENVIRONMENT,
+        {
+          event_name: "queue.delivery",
+          severity: decision.action === "retry" ? "warn" : "error",
+          outcome: decision.action === "retry" ? "retry" : "dead_lettered",
+          dependency: "queue",
+          consumer: message.consumer,
+          attempt: raw.attempts,
+          failure_code: decision.failureCode,
+        },
+        telemetrySink,
+      );
       if (decision.action === "retry")
         raw.retry({ delaySeconds: decision.delaySeconds });
       else {

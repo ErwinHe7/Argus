@@ -1,5 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
+import { boundedUserText } from "../../security/input-schemas.ts";
+
 const localeSchema = z
   .string()
   .regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/)
@@ -19,7 +21,7 @@ const timezoneSchema = z
 
 export const versionedProfileSchema = z
   .object({
-    display_name: z.string().min(1).max(80),
+    display_name: boundedUserText({ maximum: 80 }),
     locale: localeSchema,
     version: z.number().int().positive(),
   })
@@ -36,7 +38,7 @@ export const accountViewSchema = z
 
 export const profilePatchSchema = z
   .object({
-    display_name: z.string().min(1).max(80).optional(),
+    display_name: boundedUserText({ maximum: 80 }).optional(),
     locale: localeSchema.optional(),
   })
   .strict()

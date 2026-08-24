@@ -1,10 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { decideRetry } from "../../src/jobs/retry-policy";
 import {
   parseQueueWork,
   type QueueWorkMessage,
 } from "../../src/jobs/queue-consumer";
+import { runQueue } from "../../src/jobs/queue-runtime";
 
 describe("Queue retry policy", () => {
   it("bounds exponential retry and terminalizes poison work without error text", () => {
@@ -28,5 +29,38 @@ describe("Queue retry policy", () => {
     expect(parseQueueWork(valid)).toEqual(valid);
     expect(() => parseQueueWork({ ...valid, push_token: "secret" })).toThrow();
     expect(() => parseQueueWork({ ...valid, provider_body: {} })).toThrow();
+  });
+
+  it("emits a redacted terminal event for malformed delivery without its body", async () => {
+    const events: unknown[] = [];
+    const ack = vi.fn();
+    await runQueue(
+      {
+        messages: [
+          {
+            body: { push_token: "never-log-this", provider_body: "raw" },
+            attempts: 1,
+            ack,
+            retry: vi.fn(),
+          },
+        ],
+      } as never,
+      { ENVIRONMENT: "test" } as never,
+      undefined,
+      (event) => {
+        events.push(event);
+      },
+    );
+    expect(ack).toHaveBeenCalledOnce();
+    expect(events).toEqual([
+      expect.objectContaining({
+        event_name: "queue.delivery",
+        outcome: "rejected",
+        failure_code: "invalid_event_payload",
+      }),
+    ]);
+    expect(JSON.stringify(events)).not.toMatch(
+      /never-log-this|provider_body|push_token/,
+    );
   });
 });

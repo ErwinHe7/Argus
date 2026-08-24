@@ -1,15 +1,12 @@
 import { z } from "@hono/zod-openapi";
 
+import { boundedUserText } from "../../../security/input-schemas.ts";
+
 const safeText = (maximum: number) =>
-  z
-    .string()
-    .trim()
-    .min(1)
-    .max(maximum)
-    .refine(
-      (value) => !/[<>\u0000]/.test(value),
-      "active markup is not allowed",
-    );
+  boundedUserText({ maximum }).refine(
+    (value) => !/[<>]/u.test(value),
+    "active markup is not allowed",
+  );
 
 export const safeReasonSchema = safeText(500);
 export const safeMarkdownSchema = safeText(8_000).refine(

@@ -12,6 +12,9 @@ __pycache__/
 node_modules/
 .next/
 
+# Local Ritual staging/load evidence is stored in the approved evidence system.
+ritual-investing-api/capacity-report*.json
+
 # ---------------------------------------------------------------------------
 # 运行期数据/产出目录。
 #

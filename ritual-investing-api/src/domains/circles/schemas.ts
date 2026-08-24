@@ -1,5 +1,19 @@
 import { z } from "@hono/zod-openapi";
 
+import { boundedUserText } from "../../security/input-schemas.ts";
+
+const circleTitle = boundedUserText({ maximum: 80 });
+const circleDescription = boundedUserText({
+  maximum: 10_000,
+  minimum: 0,
+  trim: false,
+});
+const circleNote = boundedUserText({
+  maximum: 2_000,
+  minimum: 0,
+  trim: false,
+});
+
 export const circleIdParamsSchema = z.object({ id: z.uuid() });
 export const circleAssetParamsSchema = z.object({
   id: z.uuid(),
@@ -17,7 +31,7 @@ export const circleAssetInputSchema = z
     asset_id: z.uuid(),
     ordinal: z.number().int().min(1).max(50),
     weight_bps: z.number().int().min(0).max(10_000).optional(),
-    note: z.string().max(2_000).optional(),
+    note: circleNote.optional(),
   })
   .strict();
 export const circleAssetMutationSchema = circleAssetInputSchema
@@ -33,8 +47,8 @@ export const circleAssetViewSchema = z
   .strict();
 export const circleCreateSchema = z
   .object({
-    title: z.string().min(1).max(80),
-    description: z.string().max(10_000).optional(),
+    title: circleTitle,
+    description: circleDescription.optional(),
     assets: z.array(circleAssetInputSchema).max(50).optional(),
   })
   .strict()
@@ -66,13 +80,13 @@ export const circleCreateSchema = z
   });
 export const circlePatchSchema = z
   .object({
-    title: z.string().min(1).max(80).optional(),
-    description: z.string().max(10_000).optional(),
+    title: circleTitle.optional(),
+    description: circleDescription.optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0);
 export const copyTemplateSchema = z
-  .object({ title: z.string().min(1).max(80).optional() })
+  .object({ title: circleTitle.optional() })
   .strict();
 export const circleViewSchema = z
   .object({

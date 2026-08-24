@@ -17,7 +17,7 @@
         },
         "additionalProperties": {
           "pubName": "ritual_investing_api_client",
-          "pubVersion": "0.1.0",
+          "pubVersion": "0.2.0",
           "pubPublishTo": "none",
           "sourceFolder": "generated",
           "serializationLibrary": "json_serializable",

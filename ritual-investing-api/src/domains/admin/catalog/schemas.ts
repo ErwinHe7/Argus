@@ -5,14 +5,10 @@ import {
   safeReasonSchema,
   slugSchema,
 } from "../editorial-workflow/schemas.ts";
+import { boundedUserText } from "../../../security/input-schemas.ts";
 
 const text = (max: number) =>
-  z
-    .string()
-    .trim()
-    .min(1)
-    .max(max)
-    .refine((value) => !/[<>\u0000]/.test(value));
+  boundedUserText({ maximum: max }).refine((value) => !/[<>]/u.test(value));
 const versioned = {
   version: z.number().int().positive(),
   etag: z.string(),

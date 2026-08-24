@@ -51397,6 +51397,7 @@ paths:
                         type: string
                       note:
                         maxLength: 2000
+                        minLength: 0
                         type: string
                       ordinal:
                         maximum: 50
@@ -51414,6 +51415,7 @@ paths:
                   type: array
                 description:
                   maxLength: 10000
+                  minLength: 0
                   type: string
                 title:
                   maxLength: 80
@@ -51676,6 +51678,7 @@ paths:
               properties:
                 description:
                   maxLength: 10000
+                  minLength: 0
                   type: string
                 title:
                   maxLength: 80
@@ -51886,6 +51889,7 @@ paths:
               properties:
                 note:
                   maxLength: 2000
+                  minLength: 0
                   type: string
                 ordinal:
                   maximum: 50

@@ -64,6 +64,7 @@ export const environmentSchema = z
     SCHEDULER_DATABASE_URL: postgresUrl.optional(),
     PRIVACY_DATABASE_URL: postgresUrl.optional(),
     MEDIA_DATABASE_URL: postgresUrl.optional(),
+    AUDIT_DATABASE_URL: postgresUrl.optional(),
     CURSOR_SIGNING_KEY: z.string().min(32).max(512).optional(),
     PUSH_TOKEN_ENCRYPTION_KEY: z.string().min(43).max(128).optional(),
     EXPECTED_RESTORE_EPOCH: z

@@ -1,4 +1,6 @@
+import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,3 +38,24 @@ run(
   clientRoot,
 );
 run(dart, ["format", "lib", "test"], clientRoot);
+
+const openapi = await readFile(
+  resolve(apiRoot, "openapi/ritual-investing-v1.yaml"),
+);
+const pubspec = await readFile(resolve(clientRoot, "pubspec.yaml"), "utf8");
+const version = /^version:\s*([^\s]+)$/m.exec(pubspec)?.[1];
+if (version === undefined) throw new Error("generated client version is missing");
+await writeFile(
+  resolve(clientRoot, ".ritual-contract.json"),
+  `${JSON.stringify(
+    {
+      schema_version: 1,
+      openapi_sha256: createHash("sha256").update(openapi).digest("hex"),
+      client_version: version,
+      generator_image: "openapitools/openapi-generator-cli:v7.24.0",
+    },
+    null,
+    2,
+  )}\n`,
+  "utf8",
+);

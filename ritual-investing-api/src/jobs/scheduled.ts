@@ -7,6 +7,10 @@ import {
   restoreCutoverReady,
 } from "./deletion-restore.ts";
 import type { QueueWorkMessage } from "./queue-consumer.ts";
+import {
+  emitOperationalTelemetry,
+  type TelemetrySink,
+} from "../observability/telemetry.ts";
 
 const consumersByTopic: ReadonlyArray<
   [RegExp, QueueWorkMessage["consumer"][]]
@@ -23,6 +27,18 @@ const consumersByTopic: ReadonlyArray<
   [/^editorial\.publication\.scheduled$/, ["editorial-publisher"]],
 ];
 
+function scheduledFailureCode(error: unknown): string {
+  return error instanceof Error &&
+    [
+      "audit_checkpoint_mismatch",
+      "invalid_checkpoint_cutoff",
+      "restore_journal_binding_missing",
+      "privacy_database_binding_missing",
+    ].includes(error.message)
+    ? error.message
+    : "internal_failure";
+}
+
 export function consumersForTopic(
   topic: string,
 ): QueueWorkMessage["consumer"][] {
@@ -35,6 +51,7 @@ async function schedulerClient<T>(
     client: Awaited<ReturnType<ReturnType<DatabasePoolFactory>["connect"]>>,
   ) => Promise<T>,
   poolFactory?: DatabasePoolFactory,
+  role: "ritual_scheduler" | "ritual_audit_reconciler" = "ritual_scheduler",
 ) {
   const pool =
     poolFactory?.(databaseUrl) ??
@@ -42,7 +59,7 @@ async function schedulerClient<T>(
   const client = await pool.connect();
   try {
     await client.query("begin");
-    await client.query("set local role ritual_scheduler");
+    await client.query(`set local role ${role}`);
     const result = await callback(client);
     await client.query("commit");
     return result;
@@ -117,42 +134,120 @@ export async function publishDueOutbox(
   return published;
 }
 
+export async function reconcileAdminAudit(
+  databaseUrl: string,
+  cutoff: number,
+  poolFactory?: DatabasePoolFactory,
+) {
+  return schedulerClient(
+    databaseUrl,
+    async (client) =>
+      (
+        await client.query<{ checkpoint: Record<string, unknown> }>(
+          "select ritual_private.record_admin_audit_checkpoint(to_timestamp($1::double precision / 1000))::jsonb checkpoint",
+          [cutoff],
+        )
+      ).rows[0]?.checkpoint,
+    poolFactory,
+    "ritual_audit_reconciler",
+  );
+}
+
 export async function runScheduled(
   controller: ScheduledController,
   environment: Bindings,
+  poolFactory?: DatabasePoolFactory,
+  telemetrySink?: TelemetrySink,
 ) {
-  if (environment.KILL_SWITCH_SCHEDULED === "on") return;
+  if (environment.KILL_SWITCH_SCHEDULED === "on") {
+    await emitOperationalTelemetry(
+      environment.ENVIRONMENT,
+      {
+        event_name: "scheduled.delivery",
+        severity: "warn",
+        outcome: "deferred",
+        dependency: "queue",
+        failure_code: "kill_switch_enabled",
+      },
+      telemetrySink,
+    );
+    return;
+  }
   const databaseUrl = environment.SCHEDULER_DATABASE_URL;
   if (databaseUrl === undefined) {
     if (
       environment.ENVIRONMENT === "development" ||
       environment.ENVIRONMENT === "test"
-    )
+    ) {
+      await emitOperationalTelemetry(
+        environment.ENVIRONMENT,
+        {
+          event_name: "scheduled.delivery",
+          severity: "info",
+          outcome: "skipped",
+          dependency: "neon",
+          failure_code: "dependency_unavailable",
+        },
+        telemetrySink,
+      );
       return;
+    }
     throw new Error("scheduler_database_binding_missing");
   }
-  if (
-    environment.EXPECTED_RESTORE_EPOCH !== undefined &&
-    !(await restoreCutoverReady(
-      environment.DELETION_DENY_JOURNAL,
-      environment.EXPECTED_RESTORE_EPOCH,
-    ))
-  ) {
-    if (environment.DELETION_DENY_JOURNAL === undefined)
-      throw new Error("restore_journal_binding_missing");
-    if (environment.PRIVACY_DATABASE_URL === undefined)
-      throw new Error("privacy_database_binding_missing");
-    await replayDeletionDenyJournal(
-      environment.PRIVACY_DATABASE_URL,
-      environment.DELETION_DENY_JOURNAL,
-      environment.EXPECTED_RESTORE_EPOCH,
+  try {
+    if (
+      environment.EXPECTED_RESTORE_EPOCH !== undefined &&
+      !(await restoreCutoverReady(
+        environment.DELETION_DENY_JOURNAL,
+        environment.EXPECTED_RESTORE_EPOCH,
+      ))
+    ) {
+      if (environment.DELETION_DENY_JOURNAL === undefined)
+        throw new Error("restore_journal_binding_missing");
+      if (environment.PRIVACY_DATABASE_URL === undefined)
+        throw new Error("privacy_database_binding_missing");
+      await replayDeletionDenyJournal(
+        environment.PRIVACY_DATABASE_URL,
+        environment.DELETION_DENY_JOURNAL,
+        environment.EXPECTED_RESTORE_EPOCH,
+      );
+    }
+    await scheduleBriefings(
+      databaseUrl,
+      controller.cron,
+      controller.scheduledTime,
+      poolFactory,
     );
+    if (environment.ASYNC_QUEUE !== undefined)
+      await publishDueOutbox(databaseUrl, environment.ASYNC_QUEUE, poolFactory);
+    if (environment.AUDIT_DATABASE_URL !== undefined)
+      await reconcileAdminAudit(
+        environment.AUDIT_DATABASE_URL,
+        controller.scheduledTime,
+        poolFactory,
+      );
+    await emitOperationalTelemetry(
+      environment.ENVIRONMENT,
+      {
+        event_name: "scheduled.delivery",
+        severity: "info",
+        outcome: "success",
+        dependency: "queue",
+      },
+      telemetrySink,
+    );
+  } catch (error) {
+    await emitOperationalTelemetry(
+      environment.ENVIRONMENT,
+      {
+        event_name: "scheduled.delivery",
+        severity: "error",
+        outcome: "dependency_or_internal_failure",
+        dependency: "neon",
+        failure_code: scheduledFailureCode(error),
+      },
+      telemetrySink,
+    );
+    throw error;
   }
-  await scheduleBriefings(
-    databaseUrl,
-    controller.cron,
-    controller.scheduledTime,
-  );
-  if (environment.ASYNC_QUEUE !== undefined)
-    await publishDueOutbox(databaseUrl, environment.ASYNC_QUEUE);
 }

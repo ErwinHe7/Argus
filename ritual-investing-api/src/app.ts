@@ -74,6 +74,10 @@ import {
   registerAdminModerationRoutes,
   type AdminModerationRouteDependencies,
 } from "./domains/moderation/routes.ts";
+import {
+  telemetryMiddleware,
+  type TelemetrySink,
+} from "./observability/telemetry.ts";
 
 export type AppEnvironment = {
   Bindings: Bindings;
@@ -181,6 +185,7 @@ const contractTestRoute = createRoute({
 
 export type CreateAppOptions = {
   enableContractTestRoute?: boolean;
+  telemetrySink?: TelemetrySink;
   dependencies?: SessionRouteDependencies &
     ContentRouteDependencies &
     MemberRouteDependencies &
@@ -225,6 +230,7 @@ export function createApp(options: CreateAppOptions = {}) {
   }
 
   app.use("*", requestContext);
+  app.use("*", telemetryMiddleware(options.telemetrySink));
   app.use("*", securityHeaders);
   app.use("*", exactOriginCors);
   app.use("/v1/*", requireRestoreCutover);

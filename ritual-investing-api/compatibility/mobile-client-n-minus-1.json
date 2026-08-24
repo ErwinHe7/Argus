@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "released_mobile": "1.0.0+1",
+  "generated_client": "0.1.0",
+  "api_major": 1,
+  "support_policy": "Supported until the next mobile release reaches production GA and the adoption gate confirms no N-1 traffic.",
+  "support_window": {
+    "released_at": "2026-08-24",
+    "minimum_supported_through": "2026-11-22",
+    "minimum_days": 90,
+    "n_adoption_percent": 99,
+    "n_minus_1_zero_traffic_days": 14,
+    "maximum_refresh_token_drain_days": 30
+  },
+  "operations": [
+    {
+      "operation_id": "getDailyRitual",
+      "method": "get",
+      "path": "/v1/rituals/daily",
+      "required_responses": [200, 401, 403, 429, 503],
+      "contract_fingerprint": "9630a01196c5ed932a1b6963d2472e579aeb4dc620a2efd471a2870b20ef4b69"
+    },
+    {
+      "operation_id": "listGrimoires",
+      "method": "get",
+      "path": "/v1/grimoires",
+      "required_responses": [200, 401, 403, 429, 503],
+      "contract_fingerprint": "d82137dd1dac8b585c12b130729435cbed5fdef3289b566e5810615151a78e9c"
+    },
+    {
+      "operation_id": "listCircleTemplates",
+      "method": "get",
+      "path": "/v1/circle-templates",
+      "required_responses": [200, 401, 403, 429, 503],
+      "contract_fingerprint": "cf25b4e82a7d089d5757d14635ccd823ca8ff3f3a0a4e842fb0d7a90dae55d59"
+    },
+    {
+      "operation_id": "listCoven",
+      "method": "get",
+      "path": "/v1/coven",
+      "required_responses": [200, 401, 403, 429, 503],
+      "contract_fingerprint": "9b4e1d24a3144eb6ab29776cd522c111e3a0262aaa7fec837491a768df0f7716"
+    },
+    {
+      "operation_id": "getMe",
+      "method": "get",
+      "path": "/v1/me",
+      "required_responses": [200, 401, 403, 429, 503],
+      "contract_fingerprint": "d1e4343fe84acde42f04b448e7922ae1a65ae4d9f8dac20314da271ccd44d5e4"
+    },
+    {
+      "operation_id": "listPortfolios",
+      "method": "get",
+      "path": "/v1/portfolios",
+      "required_responses": [200, 401, 403, 429, 503],
+      "contract_fingerprint": "78acfe3938c3f499da1a0f3f08090459b99be347a7ffa732b3e82dee1f8c4352"
+    },
+    {
+      "operation_id": "createDemoContribution",
+      "method": "post",
+      "path": "/v1/portfolios/{portfolio_id}/contributions",
+      "required_responses": [200, 401, 403, 409, 422, 429, 503],
+      "contract_fingerprint": "2100ce2b73bda037741d8f5e845756b407bf02f4f77c9e4967cfe1e3b9784549"
+    }
+  ]
+}

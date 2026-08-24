@@ -56,6 +56,16 @@ export const adminAuditEvents = pgTable("admin_audit_events", {
     .notNull()
     .defaultNow(),
 });
+export const adminAuditCheckpoints = pgTable("admin_audit_checkpoints", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  cutoffAt: timestamp("cutoff_at", { withTimezone: true }).notNull().unique(),
+  eventCount: bigint("event_count", { mode: "bigint" }).notNull(),
+  deniedCount: bigint("denied_count", { mode: "bigint" }).notNull(),
+  chainDigest: text("chain_digest").notNull(),
+  recordedAt: timestamp("recorded_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 export const securityEvents = pgTable("security_events", {
   id: uuid("id").defaultRandom().primaryKey(),
   principalHash: text("principal_hash"),
