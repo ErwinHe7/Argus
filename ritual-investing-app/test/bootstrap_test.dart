@@ -10,6 +10,8 @@ import 'package:ritual_investing_app/core/auth/auth_controller.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/cache/cache_entry.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
+import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
+import 'package:ritual_investing_app/features/profile/domain/model.dart';
 
 import 'support/fixture_services.dart';
 
@@ -106,7 +108,7 @@ void main() {
       expect(container.discoverController.state.phase, LoadPhase.idle);
       await container.ensureBranchLoaded(MemberBranch.discover);
       expect(
-        container.discoverController.state.value?.grimoires.first.title,
+        container.discoverController.state.value?.items.first.title,
         'Quiet Power',
       );
     },
@@ -156,6 +158,155 @@ void main() {
       expect(oldScope.isDisposed, isTrue);
       expect(container.featureScope, isNot(same(oldScope)));
       expect(container.activeCacheScope?.resetGeneration, 1);
+    },
+  );
+
+  test(
+    'same-scope bootstrap refresh updates active Discover personalization',
+    () async {
+      final service = _SequenceSessionBootstrapService([
+        completedBootstrap(
+          personalization: const MemberPersonalization(
+            riskFraming: MemberRiskFraming.low,
+            explanationDepth: MemberExplanationDepth.beginner,
+            ritualVoice: MemberRitualVoice.practical,
+          ),
+        ),
+        completedBootstrap(
+          personalization: const MemberPersonalization(
+            riskFraming: MemberRiskFraming.high,
+            explanationDepth: MemberExplanationDepth.advanced,
+            ritualVoice: MemberRitualVoice.mystical,
+          ),
+        ),
+      ]);
+      final container = fixtureContainer(sessionBootstrapService: service);
+      await container.bootstrap();
+      final scope = container.featureScope;
+
+      await container.bootstrap();
+
+      expect(container.featureScope, same(scope));
+      expect(
+        container.discoverController.personalization.riskFraming,
+        MemberRiskFraming.high,
+      );
+      expect(
+        container.discoverController.personalization.explanationDepth,
+        MemberExplanationDepth.advanced,
+      );
+      expect(
+        container.discoverController.personalization.ritualVoice,
+        MemberRitualVoice.mystical,
+      );
+    },
+  );
+
+  test('investor edit refreshes same-scope Discover personalization', () async {
+    final service = _SequenceSessionBootstrapService([
+      completedBootstrap(
+        personalization: const MemberPersonalization(
+          riskFraming: MemberRiskFraming.low,
+          explanationDepth: MemberExplanationDepth.beginner,
+          ritualVoice: MemberRitualVoice.practical,
+        ),
+      ),
+      completedBootstrap(
+        personalization: const MemberPersonalization(
+          riskFraming: MemberRiskFraming.high,
+          explanationDepth: MemberExplanationDepth.advanced,
+          ritualVoice: MemberRitualVoice.practical,
+        ),
+      ),
+    ]);
+    final container = fixtureContainer(sessionBootstrapService: service);
+    await container.bootstrap();
+    await container.ensureBranchLoaded(MemberBranch.you);
+    final scope = container.featureScope;
+
+    final saved = await container.updateMemberInvestor(
+      const ProfileInvestorUpdate(
+        experience: InvestingExperience.experienced,
+        goal: InvestmentGoal.longTermGrowth,
+        horizon: InvestmentHorizon.short,
+        risk: RiskComfort.high,
+        contributionRhythm: ContributionRhythm.monthly,
+      ),
+    );
+
+    expect(saved, isTrue);
+    expect(container.featureScope, same(scope));
+    expect(
+      container.discoverController.personalization.riskFraming,
+      MemberRiskFraming.high,
+    );
+    expect(
+      container.discoverController.personalization.explanationDepth,
+      MemberExplanationDepth.advanced,
+    );
+  });
+
+  test(
+    'ritual voice edit refreshes practical to mystical in same scope',
+    () async {
+      final service = _SequenceSessionBootstrapService([
+        completedBootstrap(
+          personalization: const MemberPersonalization(
+            ritualVoice: MemberRitualVoice.practical,
+          ),
+        ),
+        completedBootstrap(
+          personalization: const MemberPersonalization(
+            ritualVoice: MemberRitualVoice.mystical,
+          ),
+        ),
+      ]);
+      final container = fixtureContainer(sessionBootstrapService: service);
+      await container.bootstrap();
+      await container.ensureBranchLoaded(MemberBranch.you);
+      final scope = container.featureScope;
+
+      final saved = await container.updateMemberPreferences(
+        const ProfilePreferencesUpdate(
+          expectedVersion: 1,
+          ritualLanguage: RitualLanguage.mystical,
+        ),
+      );
+
+      expect(saved, isTrue);
+      expect(container.featureScope, same(scope));
+      expect(
+        container.discoverController.personalization.ritualVoice,
+        MemberRitualVoice.mystical,
+      );
+    },
+  );
+
+  test(
+    'saved investor edit reports bootstrap refresh failure authoritatively',
+    () async {
+      final service = _SequenceSessionBootstrapService([completedBootstrap()]);
+      final container = fixtureContainer(sessionBootstrapService: service);
+      await container.bootstrap();
+      await container.ensureBranchLoaded(MemberBranch.you);
+
+      final saved = await container.updateMemberInvestor(
+        const ProfileInvestorUpdate(
+          goal: InvestmentGoal.calmFund,
+          horizon: InvestmentHorizon.long,
+          risk: RiskComfort.low,
+        ),
+      );
+
+      expect(saved, isFalse);
+      expect(
+        container.profileController.state.phase,
+        LoadPhase.retryableFailure,
+      );
+      expect(
+        container.profileController.message,
+        'Saved on the server, but the app could not refresh. Try again to apply it here.',
+      );
     },
   );
 
@@ -425,6 +576,7 @@ class _ThrowingRestoreAuthController extends AuthController {
 MemberBootstrap completedBootstrap({
   String accountId = 'fixture-account',
   int resetGeneration = 0,
+  MemberPersonalization personalization = const MemberPersonalization(),
 }) => MemberBootstrap(
   accountId: accountId,
   resetGeneration: resetGeneration,
@@ -437,6 +589,7 @@ MemberBootstrap completedBootstrap({
   serverTime: DateTime.utc(2026, 8, 24),
   contractVersion: '1.0.0',
   themePreference: MemberThemePreference.system,
+  personalization: personalization,
 );
 
 class _TrackingCache implements ScopedReadCacheStorage {

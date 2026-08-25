@@ -50,7 +50,7 @@ class MemberTestHarness {
       sessionBootstrapService: GeneratedSessionBootstrapService(client),
       cacheStorage: MemoryReadCache(),
       pendingCommandStore: PendingCommandStore(storage: storage),
-      featureScopeFactory: (_, _) => throw StateError(
+      featureScopeFactory: (_, _, _) => throw StateError(
         'The onboarding gate must not construct member feature fixtures.',
       ),
     );
@@ -215,7 +215,7 @@ class GuidedMemberTestHarness {
       onboardingController: OnboardingController(
         now: () => DateTime.utc(2026, 8, 25, 12),
       ),
-      featureScopeFactory: (scope, cache) => MemberFeatureScope(
+      featureScopeFactory: (scope, cache, bootstrap) => MemberFeatureScope(
         scope: scope,
         dailyRitualController: DailyRitualController(
           repository: DailyRitualRepository(
@@ -228,6 +228,7 @@ class GuidedMemberTestHarness {
             service: GeneratedDiscoverApiService(client),
             cache: cache,
           ),
+          personalization: bootstrap.personalization,
         ),
         covenController: CovenController(
           repository: CachedCovenRepository(

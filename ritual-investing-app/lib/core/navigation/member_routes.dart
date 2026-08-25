@@ -36,6 +36,7 @@ abstract final class MemberRoutes {
   static const youPoliciesPath = '/you/policies';
   static const youAccountPath = '/you/account';
   static const discoverSearchPath = '/discover/search';
+  static const discoverCirclesPath = '/discover/circles';
 
   static const ritual = MemberRouteDefinition(
     name: 'ritual',
@@ -70,6 +71,30 @@ abstract final class MemberRoutes {
     relativeResourcePath: 'assets/:stableId',
     branch: MemberBranch.discover,
   );
+  static const discoverGrimoire = MemberRouteDefinition(
+    name: 'discover-grimoire',
+    path: '/discover/grimoires',
+    relativeResourcePath: 'grimoires/:stableId',
+    branch: MemberBranch.discover,
+  );
+  static const discoverCircleTemplate = MemberRouteDefinition(
+    name: 'discover-circle-template',
+    path: '/discover/circle-templates',
+    relativeResourcePath: 'circle-templates/:stableId',
+    branch: MemberBranch.discover,
+  );
+  static const discoverCreator = MemberRouteDefinition(
+    name: 'discover-creator',
+    path: '/discover/creators',
+    relativeResourcePath: 'creators/:stableId',
+    branch: MemberBranch.discover,
+  );
+  static const discoverCircle = MemberRouteDefinition(
+    name: 'discover-private-circle',
+    path: discoverCirclesPath,
+    relativeResourcePath: 'circles/:stableId',
+    branch: MemberBranch.discover,
+  );
   static const covenEntry = MemberRouteDefinition(
     name: 'coven-entry',
     path: '/coven/entries',
@@ -87,6 +112,10 @@ abstract final class MemberRoutes {
   static const resources = [
     ritualReading,
     discoverAsset,
+    discoverGrimoire,
+    discoverCircleTemplate,
+    discoverCreator,
+    discoverCircle,
     covenEntry,
     portfolio,
   ];

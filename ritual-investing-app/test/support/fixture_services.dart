@@ -6,12 +6,19 @@ import 'package:ritual_investing_app/core/bootstrap/dependency_container.dart';
 import 'package:ritual_investing_app/core/bootstrap/entry_coordinator.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
+import 'package:ritual_investing_app/features/asset_codex/data/repository.dart';
+import 'package:ritual_investing_app/features/asset_codex/domain/model.dart';
 import 'package:ritual_investing_app/features/coven/application/controller.dart';
 import 'package:ritual_investing_app/features/coven/data/repository.dart';
 import 'package:ritual_investing_app/features/coven/domain/model.dart';
+import 'package:ritual_investing_app/features/circles/data/repository.dart';
+import 'package:ritual_investing_app/features/circles/domain/model.dart';
+import 'package:ritual_investing_app/features/creators/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/application/controller.dart';
 import 'package:ritual_investing_app/features/discover/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
+import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
+import 'package:ritual_investing_app/features/grimoires/domain/model.dart';
 import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
 import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
 import 'package:ritual_investing_app/features/portfolio/domain/model.dart';
@@ -55,39 +62,58 @@ DependencyContainer fixtureContainer({
         pendingCommandStore ??
         PendingCommandStore(storage: _MemoryProtectedStorage()),
     entryCoordinator: entryCoordinator,
-    featureScopeFactory: (scope, scopedCache) => MemberFeatureScope(
-      scope: scope,
-      dailyRitualController: DailyRitualController(
-        repository: DailyRitualRepository(
-          service: _FixtureRitualService(tracker),
+    featureScopeFactory: (scope, scopedCache, bootstrap) {
+      final covenRepository = CovenRepository(
+        service: _FixtureCovenService(tracker),
+        cache: scopedCache,
+      );
+      return MemberFeatureScope(
+        scope: scope,
+        dailyRitualController: DailyRitualController(
+          repository: DailyRitualRepository(
+            service: _FixtureRitualService(tracker),
+            cache: scopedCache,
+          ),
+        ),
+        discoverController: DiscoverController(
+          repository: CachedDiscoverRepository(
+            service: _FixtureDiscoverService(tracker),
+            cache: scopedCache,
+          ),
+          personalization: bootstrap.personalization,
+        ),
+        covenController: CovenController(repository: covenRepository),
+        profileController: ProfileController(
+          repository: CachedProfileRepository(
+            service: _FixtureProfileService(tracker, memberState),
+            cache: scopedCache,
+          ),
+        ),
+        portfolioController: PortfolioController(
+          repository: CachedPortfolioRepository(
+            service: _FixturePortfolioService(),
+            cache: scopedCache,
+          ),
+        ),
+        assetCodexRepository: AssetCodexRepository(
+          service: _FixtureAssetCodexService(),
           cache: scopedCache,
         ),
-      ),
-      discoverController: DiscoverController(
-        repository: CachedDiscoverRepository(
-          service: _FixtureDiscoverService(tracker),
+        covenRepository: covenRepository,
+        grimoireRepository: GrimoireRepository(
+          service: _FixtureGrimoireService(),
           cache: scopedCache,
         ),
-      ),
-      covenController: CovenController(
-        repository: CachedCovenRepository(
-          service: _FixtureCovenService(tracker),
+        circleRepository: CircleRepository(
+          service: _FixtureCircleService(),
           cache: scopedCache,
         ),
-      ),
-      profileController: ProfileController(
-        repository: CachedProfileRepository(
-          service: _FixtureProfileService(tracker, memberState),
+        creatorRepository: CreatorRepository(
+          service: _FixtureCreatorService(),
           cache: scopedCache,
         ),
-      ),
-      portfolioController: PortfolioController(
-        repository: CachedPortfolioRepository(
-          service: _FixturePortfolioService(),
-          cache: scopedCache,
-        ),
-      ),
-    ),
+      );
+    },
   );
 }
 
@@ -286,15 +312,21 @@ class _FixtureDiscoverService implements DiscoverService {
   Future<DiscoverModel> fetch() async {
     tracker.hit(MemberBranch.discover);
     return DiscoverModel(
-      grimoires: const [
-        DiscoverCard(title: 'Quiet Power', subtitle: 'Durability over drama'),
-      ],
-      circles: const [
-        DiscoverCard(
-          title: 'Soft Power Portfolio',
-          subtitle: 'A fictional curator’s diversified demo circle',
+      items: [
+        DiscoverItemView(
+          id: '00000000-0000-4000-8000-000000000501',
+          revisionId: '00000000-0000-4000-8000-000000000502',
+          slug: 'quiet-power',
+          kind: DiscoverItemKind.asset,
+          title: 'Quiet Power',
+          subtitle: 'Durability over drama',
+          appearanceReason: 'Deterministic fixture research.',
+          demo: _fixtureResearchDemo,
         ),
       ],
+      creators: const [],
+      nextCursor: null,
+      hasMore: false,
     );
   }
 }
@@ -302,6 +334,7 @@ class _FixtureDiscoverService implements DiscoverService {
 class _FixtureCovenService implements CovenService {
   _FixtureCovenService(this.tracker);
   final FeatureLoadTracker tracker;
+  bool saved = false;
   @override
   Future<CovenModel> fetch() async {
     tracker.hit(MemberBranch.coven);
@@ -309,17 +342,353 @@ class _FixtureCovenService implements CovenService {
       entries: List.generate(
         4,
         (index) => CovenEntry(
+          id: '00000000-0000-4000-8000-00000000051$index',
+          revisionId: '00000000-0000-4000-8000-00000000052$index',
+          slug: 'aurora-healthworks-$index',
           name: 'Aurora Healthworks $index',
           symbol: 'AUR$index',
-          category: 'Woman founder',
+          category: CovenQualificationCategory.founder,
           focus: 'Preventive health technology',
+          teaser: 'Fictional provider-free qualification.',
           effectiveDate: DateTime.utc(2026, 8, 20),
           verifiedAsOf: DateTime.utc(2026, 8, 20),
+          demo: _fixtureCovenDemo,
         ),
       ),
     );
   }
+
+  @override
+  Future<CovenDetail> fetchDetail(String entryId) async => CovenDetail(
+    id: entryId,
+    revisionId: '00000000-0000-4000-8000-000000000520',
+    slug: 'aurora-healthworks',
+    company: 'Aurora Healthworks',
+    symbol: 'AUR',
+    focus: 'Preventive health technology',
+    summary: 'Fictional provider-free company research.',
+    inclusionRationale: 'Dated founder evidence is present.',
+    limitations: 'Demo only; not investment advice.',
+    qualifications: [
+      CovenQualification(
+        category: CovenQualificationCategory.founder,
+        personName: 'Avery North',
+        effectiveDate: DateTime.utc(2026, 8, 20),
+        verifiedAsOf: DateTime.utc(2026, 8, 20),
+        validTo: null,
+        evidence: const [],
+      ),
+    ],
+    evidence: await fetchEvidence(entryId),
+    saved: saved,
+    demo: _fixtureCovenDemo,
+  );
+
+  @override
+  Future<List<CovenEvidenceDetail>> fetchEvidence(String entryId) async => [
+    CovenEvidenceDetail(
+      claimId: '00000000-0000-4000-8000-000000000530',
+      factorLabel: 'Founder qualification',
+      observedAt: DateTime.utc(2026, 8, 20),
+      summary: 'Fixture founder record.',
+      uncertainty: 'Fictional evidence can be revised.',
+      publisher: 'Demo Registry',
+      sourceTitle: 'Fixture founder record',
+      sourceUrl: Uri.parse('https://example.invalid/coven'),
+      publishedAt: DateTime.utc(2026, 8, 20),
+    ),
+  ];
+
+  @override
+  Future<void> save(String entryId) async => saved = true;
+
+  @override
+  Future<void> unsave(String entryId) async => saved = false;
 }
+
+final _fixtureResearchDemo = ResearchDemoDisclosure(
+  isDemo: true,
+  observedAt: DateTime.utc(2026, 8, 20),
+  sourceLabel: 'Deterministic fixture',
+  limitations: const ['Fictional provider-free research.'],
+);
+
+final _fixtureCovenDemo = CovenDemoDisclosure(
+  isDemo: true,
+  observedAt: DateTime.utc(2026, 8, 20),
+  sourceLabel: 'Deterministic fixture',
+  limitations: const ['Fictional provider-free qualification.'],
+);
+
+class _FixtureGrimoireService implements GrimoireService {
+  bool saved = false;
+
+  @override
+  Future<GrimoireDetail> fetchDetail(String grimoireId) async => GrimoireDetail(
+    id: grimoireId,
+    revisionId: '00000000-0000-4000-8000-000000000541',
+    slug: 'quiet-power',
+    title: 'Quiet Power Grimoire',
+    description: 'Fictional read-only provider-free research.',
+    theme: 'durability',
+    curatorLabel: 'Ritual Research Desk',
+    assets: [
+      GrimoireAssetReference(
+        id: '00000000-0000-4000-8000-000000000501',
+        revisionId: '00000000-0000-4000-8000-000000000502',
+        slug: 'quiet-power',
+        symbol: 'QPW',
+        name: 'Quiet Power',
+        appearanceReason: 'Deterministic fixture research.',
+        demo: _fixtureResearchDemo,
+      ),
+    ],
+    saved: saved,
+    demo: _fixtureResearchDemo,
+  );
+
+  @override
+  Future<void> save(String grimoireId) async => saved = true;
+
+  @override
+  Future<void> unsave(String grimoireId) async => saved = false;
+}
+
+class _FixtureCreatorService implements CreatorService {
+  @override
+  Future<SeededCreatorView> fetchById(String creatorId) async =>
+      SeededCreatorView(
+        id: creatorId,
+        slug: 'mira-vale',
+        displayName: 'Mira Vale',
+        bio: 'A fictional deterministic research curator.',
+        isFictional: true,
+        demo: _fixtureResearchDemo,
+      );
+}
+
+class _FixtureAssetCodexService implements AssetCodexService {
+  bool saved = false;
+
+  @override
+  Future<AssetCodex> fetchDetail(String assetId) async => AssetCodex(
+    id: assetId,
+    revisionId: '00000000-0000-4000-8000-000000000502',
+    slug: 'quiet-power',
+    symbol: 'QPW',
+    name: 'Quiet Power',
+    kind: AssetKind.etf,
+    currency: 'USD',
+    appearanceReason: 'Deterministic provider-free fixture.',
+    thesis: 'A fictional durability scenario.',
+    limitations: 'No live price or provider connection.',
+    metricsAsOf: DateTime.utc(2026, 8, 25, 12),
+    evidence: const [],
+    detailedEvidence: const [],
+    risks: const [],
+    saved: saved,
+    demo: _fixtureAssetDemo,
+    source: const AssetSourceContext(kind: AssetSourceKind.direct),
+  );
+
+  @override
+  Future<List<AssetEvidenceDetail>> fetchEvidence(String assetId) async =>
+      const [];
+
+  @override
+  Future<List<AssetMetric>> fetchMetrics(String assetId) async => [
+    AssetMetric(
+      priceMinor: 10000,
+      changeBps: 0,
+      expenseRatioBps: 10,
+      observedAt: DateTime.utc(2026, 8, 25, 12),
+      sourceLabel: 'Deterministic fixture',
+      demo: _fixtureAssetDemo,
+    ),
+  ];
+
+  @override
+  Future<AssetComparison> compare(List<String> assetIds) async =>
+      AssetComparison(
+        items: const [],
+        comparedAt: DateTime.utc(2026, 8, 25, 12),
+        demo: _fixtureAssetDemo,
+      );
+
+  @override
+  Future<void> save(String assetId, AssetSourceContext source) async =>
+      saved = true;
+
+  @override
+  Future<void> unsave(String assetId) async => saved = false;
+}
+
+final _fixtureAssetDemo = AssetDemoDisclosure(
+  isDemo: true,
+  observedAt: DateTime.utc(2026, 8, 25, 12),
+  sourceLabel: 'Deterministic Asset Codex fixture',
+  limitations: const ['Fictional scenario; no live market provider.'],
+);
+
+class _FixtureCircleService implements CircleService {
+  bool templateSaved = false;
+  late PrivateCircle current = _circle();
+
+  @override
+  Future<CircleCollection> fetchList({required bool includeArchived}) async =>
+      CircleCollection(items: [current], nextCursor: null, hasMore: false);
+
+  @override
+  Future<PrivateCircle> fetchDetail(String circleId) async => current;
+
+  @override
+  Future<PrivateCircle> create(CircleCreateCommand command) async {
+    current = _circle(title: command.title, description: command.description);
+    return current;
+  }
+
+  @override
+  Future<PrivateCircle> copy(CircleCopyCommand command) async {
+    current = _circle(
+      title: command.title ?? 'Soft Power Circle',
+      sourceTemplateId: command.templateId,
+    );
+    return current;
+  }
+
+  @override
+  Future<PrivateCircle> patch(
+    String circleId,
+    int expectedVersion,
+    CircleDraft draft,
+  ) async {
+    current = _circle(
+      title: draft.title,
+      description: draft.description,
+      version: expectedVersion + 1,
+      assets: current.assets,
+    );
+    return current;
+  }
+
+  @override
+  Future<PrivateCircle> replaceAssets(
+    String circleId,
+    int expectedVersion,
+    List<CircleAsset> assets,
+  ) async {
+    current = _circle(version: expectedVersion + 1, assets: assets);
+    return current;
+  }
+
+  @override
+  Future<PrivateCircle> putAsset(
+    String circleId,
+    int expectedVersion,
+    CircleAsset asset,
+  ) async {
+    current = _circle(
+      version: expectedVersion + 1,
+      assets: [
+        for (final existing in current.assets)
+          if (existing.assetId == asset.assetId) asset else existing,
+        if (!current.assets.any((value) => value.assetId == asset.assetId))
+          asset,
+      ],
+    );
+    return current;
+  }
+
+  @override
+  Future<PrivateCircle> removeAsset(
+    String circleId,
+    int expectedVersion,
+    String assetId,
+  ) async {
+    current = _circle(
+      version: expectedVersion + 1,
+      assets: current.assets
+          .where((asset) => asset.assetId != assetId)
+          .toList(growable: false),
+    );
+    return current;
+  }
+
+  @override
+  Future<void> archive(String circleId, int expectedVersion) async {
+    current = _circle(
+      version: expectedVersion + 1,
+      assets: current.assets,
+      archivedAt: DateTime.utc(2026, 8, 25),
+    );
+  }
+
+  @override
+  Future<CircleTemplateDetail> fetchTemplate(String templateId) async =>
+      CircleTemplateDetail(
+        id: templateId,
+        revisionId: '00000000-0000-4000-8000-000000000551',
+        slug: 'soft-power-circle',
+        title: 'Soft Power Circle',
+        description: 'Fictional read-only seeded research.',
+        theme: 'leadership',
+        creator: await _FixtureCreatorService().fetchById(
+          '00000000-0000-4000-8000-000000000552',
+        ),
+        assets: [
+          CircleTemplateAsset(
+            id: '00000000-0000-4000-8000-000000000501',
+            revisionId: '00000000-0000-4000-8000-000000000502',
+            slug: 'quiet-power',
+            symbol: 'QPW',
+            name: 'Quiet Power',
+            appearanceReason: 'Deterministic fixture research.',
+            note: 'Read the limitations.',
+            ordinal: 1,
+            weightBps: 10000,
+            demo: _fixtureResearchDemo,
+          ),
+        ],
+        saved: templateSaved,
+        demo: _fixtureResearchDemo,
+      );
+
+  @override
+  Future<void> saveTemplate(String templateId) async => templateSaved = true;
+
+  @override
+  Future<void> unsaveTemplate(String templateId) async => templateSaved = false;
+}
+
+PrivateCircle _circle({
+  String title = 'Private research',
+  String description = 'Editable only by this member.',
+  int version = 2,
+  List<CircleAsset>? assets,
+  String? sourceTemplateId,
+  DateTime? archivedAt,
+}) => PrivateCircle(
+  id: '00000000-0000-4000-8000-000000000560',
+  title: title,
+  description: description,
+  private: true,
+  version: version,
+  assets:
+      assets ??
+      const [
+        CircleAsset(
+          assetId: '00000000-0000-4000-8000-000000000501',
+          ordinal: 1,
+          note: 'Private fixture note.',
+          weightBps: 10000,
+        ),
+      ],
+  sourceTemplateId: sourceTemplateId,
+  sourceRevisionId: sourceTemplateId == null
+      ? null
+      : '00000000-0000-4000-8000-000000000551',
+  archivedAt: archivedAt,
+);
 
 class _FixtureProfileService implements ProfileService {
   _FixtureProfileService(this.tracker, this.state);

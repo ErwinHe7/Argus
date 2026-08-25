@@ -9,6 +9,9 @@ import '../domain/model.dart';
 typedef SaveProfilePreferences = Future<bool> Function(
   ProfilePreferencesUpdate update,
 );
+typedef SaveProfileInvestor = Future<bool> Function(
+  ProfileInvestorUpdate update,
+);
 typedef SaveProfileAstrology = Future<bool> Function(
   ProfileAstrologyUpdate update,
 );
@@ -161,9 +164,14 @@ class _MenuTile extends StatelessWidget {
 }
 
 class InvestingProfileScreen extends StatefulWidget {
-  const InvestingProfileScreen({super.key, required this.controller});
+  const InvestingProfileScreen({
+    super.key,
+    required this.controller,
+    required this.onSave,
+  });
 
   final ProfileController controller;
+  final SaveProfileInvestor onSave;
 
   @override
   State<InvestingProfileScreen> createState() => _InvestingProfileScreenState();
@@ -273,7 +281,7 @@ class _InvestingProfileScreenState extends State<InvestingProfileScreen> {
                           _horizon == null ||
                           _risk == null
                       ? null
-                      : () => widget.controller.updateInvestor(
+                      : () => widget.onSave(
                           ProfileInvestorUpdate(
                             experience: _experience,
                             goal: _goal!,

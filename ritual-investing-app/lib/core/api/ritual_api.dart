@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 
 import '../../features/coven/data/repository.dart';
-import '../../features/coven/domain/model.dart';
+import '../../features/coven/domain/model.dart' as coven_domain;
 import '../../features/discover/data/repository.dart';
 import '../../features/discover/domain/model.dart';
 import '../../features/onboarding/domain/onboarding_draft.dart' as onboarding;
@@ -328,70 +328,285 @@ class GeneratedDiscoverApiService implements DiscoverService {
   @override
   Future<DiscoverModel> fetch() async {
     try {
-      final grimoiresRequest = _api.listGrimoires(limit: 3);
-      final circlesRequest = _api.listCircleTemplates(limit: 2);
+      final discoverRequest = _api.listDiscover(limit: 20);
+      final creatorsRequest = _api.listSeededCreators(limit: 8);
       final responses = await Future.wait<Object>([
-        grimoiresRequest,
-        circlesRequest,
+        discoverRequest,
+        creatorsRequest,
       ]);
-      final grimoires =
-          (responses[0] as Response<GrimoireCollectionResponse>).data!;
-      final circles =
-          (responses[1] as Response<CircleTemplateCollectionResponse>).data!;
+      final discover = (responses[0] as Response<DiscoverResponse>).data!;
+      final creators = (responses[1] as Response<CreatorCollectionResponse>)
+          .data!;
       return DiscoverModel(
-        grimoires: grimoires.data
-            .map(
-              (item) =>
-                  DiscoverCard(title: item.title, subtitle: item.description),
-            )
-            .toList(),
-        circles: circles.data
-            .map(
-              (item) =>
-                  DiscoverCard(title: item.title, subtitle: item.description),
-            )
-            .toList(),
+        items: discover.data.map(_mapDiscoverItem).toList(growable: false),
+        creators: creators.data.map(_mapSeededCreator).toList(growable: false),
+        nextCursor: discover.meta.nextCursor,
+        hasMore: discover.meta.hasMore,
       );
     } on DioException catch (error) {
+      _throwApiFailure(error);
+    } on LoadFailure {
+      rethrow;
+    } on Object {
+      throw const LoadFailure(LoadPhase.terminalFailure);
+    }
+  }
+}
+
+DiscoverItemView _mapDiscoverItem(DiscoverItem item) => switch (item.kind) {
+  DiscoverItemKindEnum.asset => () {
+    final value = item.asset;
+    if (value == null ||
+        value.assetType == AssetSummaryAssetTypeEnum.unknownDefaultOpenApi ||
+        value.currency == AssetSummaryCurrencyEnum.unknownDefaultOpenApi) {
+      throw const LoadFailure(LoadPhase.terminalFailure);
+    }
+    return DiscoverItemView(
+      id: value.id,
+      revisionId: value.revisionId,
+      slug: value.slug,
+      kind: DiscoverItemKind.asset,
+      title: value.name,
+      subtitle: value.appearanceReason,
+      symbol: value.symbol,
+      appearanceReason: value.appearanceReason,
+      demo: _mapResearchDemo(value.demo),
+    );
+  }(),
+  DiscoverItemKindEnum.grimoire => () {
+    final value = item.grimoire;
+    if (value == null) throw const LoadFailure(LoadPhase.terminalFailure);
+    return DiscoverItemView(
+      id: value.id,
+      revisionId: value.revisionId,
+      slug: value.slug,
+      kind: DiscoverItemKind.grimoire,
+      title: value.title,
+      subtitle: value.description,
+      theme: value.theme,
+      demo: _mapResearchDemo(value.demo),
+    );
+  }(),
+  DiscoverItemKindEnum.circleTemplate => () {
+    final value = item.circleTemplate;
+    if (value == null) throw const LoadFailure(LoadPhase.terminalFailure);
+    return DiscoverItemView(
+      id: value.id,
+      revisionId: value.revisionId,
+      slug: value.slug,
+      kind: DiscoverItemKind.circleTemplate,
+      title: value.title,
+      subtitle: value.description,
+      theme: value.theme,
+      creator: _mapSeededCreator(value.creator),
+      demo: _mapResearchDemo(value.demo),
+    );
+  }(),
+  DiscoverItemKindEnum.coven => () {
+    final value = item.coven;
+    if (value == null) throw const LoadFailure(LoadPhase.terminalFailure);
+    return DiscoverItemView(
+      id: value.id,
+      revisionId: value.revisionId,
+      slug: value.slug,
+      kind: DiscoverItemKind.coven,
+      title: value.company,
+      subtitle: '${_covenCategory(value.category)} · ${value.teaser}',
+      symbol: value.symbol,
+      demo: _mapResearchDemo(value.demo),
+    );
+  }(),
+  DiscoverItemKindEnum.unknownDefaultOpenApi =>
+    throw const LoadFailure(LoadPhase.terminalFailure),
+};
+
+SeededCreatorView _mapSeededCreator(SeededCreator value) {
+  if (!value.isFictional) {
+    throw const LoadFailure(LoadPhase.terminalFailure);
+  }
+  return SeededCreatorView(
+    id: value.id,
+    slug: value.slug,
+    displayName: value.displayName,
+    bio: value.bio,
+    isFictional: true,
+    demo: _mapResearchDemo(value.demo),
+  );
+}
+
+ResearchDemoDisclosure _mapResearchDemo(DemoDisclosure value) =>
+    ResearchDemoDisclosure(
+      isDemo: value.isDemo,
+      observedAt: value.observedAt,
+      sourceLabel: value.sourceLabel,
+      limitations: value.limitations,
+    );
+
+String _covenCategory(CovenSummaryCategoryEnum category) => switch (category) {
+  CovenSummaryCategoryEnum.founder => 'Woman founder',
+  CovenSummaryCategoryEnum.owner => 'Women-owned',
+  CovenSummaryCategoryEnum.chiefExecutive => 'Woman chief executive',
+  CovenSummaryCategoryEnum.unknownDefaultOpenApi =>
+    throw const LoadFailure(LoadPhase.terminalFailure),
+};
+
+class GeneratedCovenApiService implements CovenService {
+  GeneratedCovenApiService(RitualInvestingApiClient client)
+    : _api = FoundersCovenApi(client.dio),
+      _saves = SavesApi(client.dio);
+  final FoundersCovenApi _api;
+  final SavesApi _saves;
+  @override
+  Future<coven_domain.CovenModel> fetch() async {
+    try {
+      final values = (await _api.listCoven(limit: 4)).data!.data;
+      return coven_domain.CovenModel(
+        entries: values
+            .map(
+              (item) => coven_domain.CovenEntry(
+                id: item.id,
+                revisionId: item.revisionId,
+                slug: item.slug,
+                name: item.company,
+                symbol: item.symbol,
+                category: _covenQualificationCategory(item.category),
+                focus: item.focus,
+                teaser: item.teaser,
+                effectiveDate: item.effectiveDate,
+                verifiedAsOf: item.verifiedAsOf,
+                demo: _mapCovenDemo(item.demo),
+              ),
+            )
+            .toList(growable: false),
+      );
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<coven_domain.CovenDetail> fetchDetail(String entryId) async {
+    try {
+      final value = (await _api.getCovenEntry(entryId: entryId)).data!.data;
+      return coven_domain.CovenDetail(
+        id: value.id,
+        revisionId: value.revisionId,
+        slug: value.slug,
+        company: value.company,
+        symbol: value.symbol,
+        focus: value.focus,
+        summary: value.summary,
+        inclusionRationale: value.inclusionRationale,
+        limitations: value.limitations,
+        qualifications: value.qualifications
+            .map(
+              (qualification) => coven_domain.CovenQualification(
+                category: _covenQualificationCategory(qualification.category),
+                personName: qualification.personName,
+                effectiveDate: qualification.effectiveDate,
+                verifiedAsOf: qualification.verifiedAsOf,
+                validTo: qualification.validTo,
+                evidence: qualification.evidence
+                    .map(_mapCovenEvidenceSummary)
+                    .toList(growable: false),
+              ),
+            )
+            .toList(growable: false),
+        evidence: const [],
+        saved: value.saved,
+        demo: _mapCovenDemo(value.demo),
+      );
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    } on LoadFailure {
+      rethrow;
+    } on Object {
+      throw const LoadFailure(LoadPhase.terminalFailure);
+    }
+  }
+
+  @override
+  Future<List<coven_domain.CovenEvidenceDetail>> fetchEvidence(
+    String entryId,
+  ) async {
+    try {
+      final values = (await _api.getCovenEvidence(entryId: entryId)).data!.data;
+      return values
+          .map(
+            (value) => coven_domain.CovenEvidenceDetail(
+              claimId: value.claimId,
+              factorLabel: value.factorLabel,
+              observedAt: value.observedAt,
+              summary: value.summary,
+              uncertainty: value.uncertainty,
+              publisher: value.source_.publisher,
+              sourceTitle: value.source_.title,
+              sourceUrl: Uri.parse(value.source_.url),
+              publishedAt: value.source_.publishedAt,
+            ),
+          )
+          .toList(growable: false);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    } on FormatException {
+      throw const LoadFailure(LoadPhase.terminalFailure);
+    }
+  }
+
+  @override
+  Future<void> save(String entryId) async {
+    try {
+      await _saves.saveCoven(id: entryId, saveAssetRequest: SaveAssetRequest());
+    } on DioException catch (error) {
+      if (_isAmbiguousTransport(error)) throw const CovenAmbiguousMutation();
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<void> unsave(String entryId) async {
+    try {
+      await _saves.unsaveCoven(id: entryId);
+    } on DioException catch (error) {
+      if (_isAmbiguousTransport(error)) throw const CovenAmbiguousMutation();
       _throwApiFailure(error);
     }
   }
 }
 
-class GeneratedCovenApiService implements CovenService {
-  GeneratedCovenApiService(RitualInvestingApiClient client)
-    : _api = FoundersCovenApi(client.dio);
-  final FoundersCovenApi _api;
-  @override
-  Future<CovenModel> fetch() async {
-    try {
-      final values = (await _api.listCoven(limit: 4)).data!.data;
-      return CovenModel(
-        entries: values
-            .map(
-              (item) => CovenEntry(
-                name: item.company,
-                symbol: item.symbol,
-                category: switch (item.category) {
-                  CovenSummaryCategoryEnum.founder => 'Woman founder',
-                  CovenSummaryCategoryEnum.owner => 'Women-owned',
-                  CovenSummaryCategoryEnum.chiefExecutive =>
-                    'Woman chief executive',
-                  CovenSummaryCategoryEnum.unknownDefaultOpenApi =>
-                    'Verified qualification',
-                },
-                focus: item.focus,
-                effectiveDate: item.effectiveDate,
-                verifiedAsOf: item.verifiedAsOf,
-              ),
-            )
-            .toList(),
-      );
-    } on DioException catch (error) {
-      _throwApiFailure(error);
-    }
-  }
-}
+coven_domain.CovenQualificationCategory _covenQualificationCategory(
+  Object category,
+) =>
+    switch (category) {
+      CovenSummaryCategoryEnum.founder ||
+      CovenQualificationCategoryEnum.founder =>
+        coven_domain.CovenQualificationCategory.founder,
+      CovenSummaryCategoryEnum.owner || CovenQualificationCategoryEnum.owner =>
+        coven_domain.CovenQualificationCategory.owner,
+      CovenSummaryCategoryEnum.chiefExecutive ||
+      CovenQualificationCategoryEnum.chiefExecutive =>
+        coven_domain.CovenQualificationCategory.chiefExecutive,
+      _ => throw const LoadFailure(LoadPhase.terminalFailure),
+    };
+
+coven_domain.CovenEvidenceSummary _mapCovenEvidenceSummary(
+  EvidenceSummary value,
+) =>
+    coven_domain.CovenEvidenceSummary(
+      claimId: value.claimId,
+      factorLabel: value.factorLabel,
+      observedAt: value.observedAt,
+      summary: value.summary,
+      uncertainty: value.uncertainty,
+    );
+
+coven_domain.CovenDemoDisclosure _mapCovenDemo(DemoDisclosure value) =>
+    coven_domain.CovenDemoDisclosure(
+      isDemo: value.isDemo,
+      observedAt: value.observedAt,
+      sourceLabel: value.sourceLabel,
+      limitations: value.limitations,
+    );
 
 class GeneratedProfileApiService implements ProfileService {
   GeneratedProfileApiService(RitualInvestingApiClient client)

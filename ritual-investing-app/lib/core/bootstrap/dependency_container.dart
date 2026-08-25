@@ -1,6 +1,8 @@
 // ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:ritual_investing_api_client/generated/api.dart';
@@ -11,8 +13,14 @@ import '../../features/asset_codex/data/repository.dart';
 import '../../features/asset_codex/domain/model.dart';
 import '../../features/coven/application/controller.dart';
 import '../../features/coven/data/repository.dart';
+import '../../features/circles/application/controller.dart';
+import '../../features/circles/data/repository.dart';
+import '../../features/creators/application/controller.dart';
+import '../../features/creators/data/repository.dart';
 import '../../features/discover/application/controller.dart';
 import '../../features/discover/data/repository.dart';
+import '../../features/grimoires/application/controller.dart';
+import '../../features/grimoires/data/repository.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/data/onboarding_draft_store.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
@@ -52,6 +60,7 @@ enum MemberEntryGate {
 typedef MemberFeatureScopeFactory = MemberFeatureScope Function(
   CacheScope scope,
   ReadCache cache,
+  MemberBootstrap bootstrap,
 );
 
 class MemberFeatureScope {
@@ -65,6 +74,10 @@ class MemberFeatureScope {
     this.assetCodexRepository,
     this.searchController,
     this.rowanController,
+    this.covenRepository,
+    this.grimoireRepository,
+    this.circleRepository,
+    this.creatorRepository,
   });
 
   final CacheScope scope;
@@ -76,10 +89,19 @@ class MemberFeatureScope {
   final AssetCodexRepository? assetCodexRepository;
   final SearchController? searchController;
   final RowanController? rowanController;
+  final CovenRepository? covenRepository;
+  final GrimoireRepository? grimoireRepository;
+  final CircleRepository? circleRepository;
+  final CreatorRepository? creatorRepository;
   final Map<MemberBranch, Future<void>> _loads = {};
   bool _isDisposed = false;
 
   bool get isDisposed => _isDisposed;
+
+  void updateBootstrap(MemberBootstrap bootstrap) {
+    if (_isDisposed) return;
+    discoverController.updatePersonalization(bootstrap.personalization);
+  }
 
   Future<void> load(MemberBranch branch) {
     if (_isDisposed) return Future.value();
@@ -234,6 +256,59 @@ class DependencyContainer extends ChangeNotifier {
 
   bool get hasAssetCodex => _featureScope?.assetCodexRepository != null;
 
+  bool get hasU5Research =>
+      _featureScope?.covenRepository != null &&
+      _featureScope?.grimoireRepository != null &&
+      _featureScope?.circleRepository != null &&
+      _featureScope?.creatorRepository != null;
+
+  CovenDetailController createCovenDetailController(String entryId) =>
+      CovenDetailController(
+        entryId: entryId,
+        repository:
+            _requireScope().covenRepository ??
+            (throw StateError('Coven detail is unavailable.')),
+      );
+
+  GrimoireController createGrimoireController(String grimoireId) =>
+      GrimoireController(
+        grimoireId: grimoireId,
+        repository:
+            _requireScope().grimoireRepository ??
+            (throw StateError('Grimoire detail is unavailable.')),
+      );
+
+  CircleTemplateController createCircleTemplateController(String templateId) =>
+      CircleTemplateController(
+        templateId: templateId,
+        repository:
+            _requireScope().circleRepository ??
+            (throw StateError('Circle templates are unavailable.')),
+      );
+
+  CreatorController createCreatorController(String creatorId) =>
+      CreatorController(
+        creatorId: creatorId,
+        repository:
+            _requireScope().creatorRepository ??
+            (throw StateError('Seeded creators are unavailable.')),
+      );
+
+  CircleListController createCircleListController() => CircleListController(
+    repository:
+        _requireScope().circleRepository ??
+        (throw StateError('Private Circles are unavailable.')),
+    createKey: _newCommandKey,
+  );
+
+  CircleDetailController createCircleDetailController(String circleId) =>
+      CircleDetailController(
+        circleId: circleId,
+        repository:
+            _requireScope().circleRepository ??
+            (throw StateError('Private Circles are unavailable.')),
+      );
+
   Future<void> bootstrap() {
     final coordinator = entryCoordinator;
     if (coordinator != null) return coordinator.restore();
@@ -320,8 +395,13 @@ class DependencyContainer extends ChangeNotifier {
   Future<bool> updateMemberPreferences(ProfilePreferencesUpdate update) async {
     final saved = await profileController.updatePreferences(update);
     if (!saved) return false;
-    if (update.theme != null && !await _refreshMemberBootstrap()) return false;
-    return true;
+    return _refreshMemberBootstrap();
+  }
+
+  Future<bool> updateMemberInvestor(ProfileInvestorUpdate update) async {
+    final saved = await profileController.updateInvestor(update);
+    if (!saved) return false;
+    return _refreshMemberBootstrap();
   }
 
   Future<bool> updateMemberAstrology(ProfileAstrologyUpdate update) async {
@@ -427,8 +507,10 @@ class DependencyContainer extends ChangeNotifier {
       _featureScope = _featureScopeFactory(
         nextScope!,
         ScopedReadCache(storage: _cacheStorage, scope: nextScope),
+        next,
       );
     }
+    if (next != null) _featureScope?.updateBootstrap(next);
   }
 
   Future<void> _bestEffort(Future<void> cleanup) async {
@@ -484,52 +566,69 @@ class DependencyContainer extends ChangeNotifier {
       cacheStorage: cache,
       pendingCommandStore: PendingCommandStore(storage: protectedStorage),
       entryCoordinator: entryCoordinator,
-      featureScopeFactory: (scope, scopedCache) => MemberFeatureScope(
-        scope: scope,
-        dailyRitualController: DailyRitualController(
-          repository: DailyRitualRepository(
-            service: GeneratedRitualApiService(client),
-            cache: scopedCache,
-          ),
-        ),
-        discoverController: DiscoverController(
-          repository: CachedDiscoverRepository(
-            service: GeneratedDiscoverApiService(client),
-            cache: scopedCache,
-          ),
-        ),
-        covenController: CovenController(
-          repository: CachedCovenRepository(
-            service: GeneratedCovenApiService(client),
-            cache: scopedCache,
-          ),
-        ),
-        profileController: ProfileController(
-          repository: CachedProfileRepository(
-            service: GeneratedProfileApiService(client),
-            cache: scopedCache,
-          ),
-        ),
-        portfolioController: PortfolioController(
-          repository: CachedPortfolioRepository(
-            service: GeneratedPortfolioApiService(client),
-            cache: scopedCache,
-          ),
-        ),
-        assetCodexRepository: AssetCodexRepository(
-          service: GeneratedAssetCodexService(client),
+      featureScopeFactory: (scope, scopedCache, bootstrap) {
+        final covenRepository = CovenRepository(
+          service: GeneratedCovenApiService(client),
           cache: scopedCache,
-        ),
-        searchController: SearchController(
-          repository: SearchRepository(service: GeneratedSearchService(client)),
-        ),
-        rowanController: RowanController(
-          repository: RowanRepository(
-            service: GeneratedRowanService(client),
+        );
+        return MemberFeatureScope(
+          scope: scope,
+          dailyRitualController: DailyRitualController(
+            repository: DailyRitualRepository(
+              service: GeneratedRitualApiService(client),
+              cache: scopedCache,
+            ),
+          ),
+          discoverController: DiscoverController(
+            repository: CachedDiscoverRepository(
+              service: GeneratedDiscoverApiService(client),
+              cache: scopedCache,
+            ),
+            personalization: bootstrap.personalization,
+          ),
+          covenController: CovenController(repository: covenRepository),
+          profileController: ProfileController(
+            repository: CachedProfileRepository(
+              service: GeneratedProfileApiService(client),
+              cache: scopedCache,
+            ),
+          ),
+          portfolioController: PortfolioController(
+            repository: CachedPortfolioRepository(
+              service: GeneratedPortfolioApiService(client),
+              cache: scopedCache,
+            ),
+          ),
+          assetCodexRepository: AssetCodexRepository(
+            service: GeneratedAssetCodexService(client),
             cache: scopedCache,
           ),
-        ),
-      ),
+          searchController: SearchController(
+            repository: SearchRepository(
+              service: GeneratedSearchService(client),
+            ),
+          ),
+          rowanController: RowanController(
+            repository: RowanRepository(
+              service: GeneratedRowanService(client),
+              cache: scopedCache,
+            ),
+          ),
+          covenRepository: covenRepository,
+          grimoireRepository: GrimoireRepository(
+            service: GeneratedGrimoireService(client),
+            cache: scopedCache,
+          ),
+          circleRepository: CircleRepository(
+            service: GeneratedCircleService(client),
+            cache: scopedCache,
+          ),
+          creatorRepository: CreatorRepository(
+            service: GeneratedCreatorService(client),
+            cache: scopedCache,
+          ),
+        );
+      },
     );
   }
 
@@ -542,4 +641,10 @@ class DependencyContainer extends ChangeNotifier {
     authController.dispose();
     super.dispose();
   }
+}
+
+String _newCommandKey() {
+  final random = Random.secure();
+  return base64UrlEncode(List<int>.generate(24, (_) => random.nextInt(256)))
+      .replaceAll('=', '');
 }

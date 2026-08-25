@@ -4,6 +4,8 @@ import '../../../core/cache/cached_read.dart';
 import '../../../core/cache/read_cache.dart';
 import '../domain/model.dart';
 
+export '../../../core/cache/cached_read.dart' show OfflineException;
+
 abstract interface class DiscoverService {
   Future<DiscoverModel> fetch();
 }

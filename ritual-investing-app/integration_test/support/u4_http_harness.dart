@@ -23,6 +23,11 @@ const u4AssetId = '00000000-0000-4000-8000-000000000402';
 const u4PeerId = '00000000-0000-4000-8000-000000000403';
 const u4AssetRevisionId = '00000000-0000-4000-8000-000000000404';
 const u4PeerRevisionId = '00000000-0000-4000-8000-000000000405';
+const u5GrimoireId = '00000000-0000-4000-8000-000000000431';
+const u5TemplateId = '00000000-0000-4000-8000-000000000432';
+const u5CreatorId = '00000000-0000-4000-8000-000000000433';
+const u5CovenId = '00000000-0000-4000-8000-000000000434';
+const u5CircleId = '00000000-0000-4000-8000-000000000435';
 const _claimId = '00000000-0000-4000-8000-000000000406';
 const _requestId = '00000000-0000-4000-8000-000000000407';
 const _token = 'u4-local-member-token';
@@ -37,6 +42,14 @@ class U4HttpHarness {
   var ritualVersion = 1;
   var saved = false;
   var rowanUnavailable = true;
+  var grimoireSaved = false;
+  var templateSaved = false;
+  var covenSaved = false;
+  var circleVersion = 2;
+  var circleTitle = 'Soft Power Circle';
+  var circleDescription = 'Private provider-free research notes.';
+  DateTime? circleArchivedAt;
+  var conflictNextCirclePatch = true;
 
   late final DailyRitualController ritualController = DailyRitualController(
     repository: DailyRitualRepository(
@@ -99,6 +112,7 @@ class U4HttpHarness {
           uri: request.uri,
           authorization: request.headers.value(HttpHeaders.authorizationHeader),
           ifMatch: request.headers.value(HttpHeaders.ifMatchHeader),
+          idempotencyKey: request.headers.value('idempotency-key'),
           body: body,
         ),
       );
@@ -122,6 +136,164 @@ class U4HttpHarness {
 
   Future<void> _route(HttpRequest request) async {
     final path = request.uri.path;
+    if (request.method == 'GET' && path == '/v1/discover') {
+      _json(request, {
+        'data': [
+          {'kind': 'grimoire', 'grimoire': _u5GrimoireSummary()},
+          {'kind': 'circle_template', 'circle_template': _u5TemplateSummary()},
+          {'kind': 'coven', 'coven': _u5CovenSummary()},
+          {'kind': 'asset', 'asset': _summary(u4AssetId).toJson()},
+        ],
+        'meta': _collectionMeta(),
+      });
+      return;
+    }
+    if (request.method == 'GET' && path == '/v1/community/creators') {
+      _json(request, {
+        'data': [_u5Creator()],
+        'meta': _collectionMeta(),
+      });
+      return;
+    }
+    if (request.method == 'GET' && path == '/v1/grimoires/$u5GrimoireId') {
+      _json(request, {
+        'data': {
+          ..._u5GrimoireSummary(),
+          'assets': [_summary(u4AssetId).toJson()],
+          'saved': grimoireSaved,
+        },
+        'meta': _responseMeta().toJson(),
+      });
+      return;
+    }
+    if (request.method == 'PUT' &&
+        path == '/v1/me/saved-grimoires/$u5GrimoireId') {
+      grimoireSaved = true;
+      _json(request, _savedReceipt());
+      return;
+    }
+    if (request.method == 'DELETE' &&
+        path == '/v1/me/saved-grimoires/$u5GrimoireId') {
+      grimoireSaved = false;
+      request.response.statusCode = HttpStatus.noContent;
+      return;
+    }
+    if (request.method == 'GET' &&
+        path == '/v1/circle-templates/$u5TemplateId') {
+      _json(request, {
+        'data': {
+          ..._u5TemplateSummary(),
+          'assets': [
+            {
+              ..._summary(u4AssetId).toJson(),
+              'note': 'Review the fictional evidence.',
+              'ordinal': 1,
+              'weight_bps': 10000,
+            },
+          ],
+          'saved': templateSaved,
+        },
+        'meta': _responseMeta().toJson(),
+      });
+      return;
+    }
+    if (request.method == 'PUT' &&
+        path == '/v1/me/saved-circle-templates/$u5TemplateId') {
+      templateSaved = true;
+      _json(request, _savedReceipt());
+      return;
+    }
+    if (request.method == 'DELETE' &&
+        path == '/v1/me/saved-circle-templates/$u5TemplateId') {
+      templateSaved = false;
+      request.response.statusCode = HttpStatus.noContent;
+      return;
+    }
+    if (request.method == 'POST' &&
+        path == '/v1/circle-templates/$u5TemplateId/copies') {
+      request.response.statusCode = HttpStatus.created;
+      _json(request, {'data': _u5Circle(), 'meta': _responseMeta().toJson()});
+      return;
+    }
+    if (request.method == 'GET' && path == '/v1/circles') {
+      _json(request, {
+        'data': [_u5Circle()],
+        'meta': _collectionMeta(),
+      });
+      return;
+    }
+    if (request.method == 'GET' && path == '/v1/circles/$u5CircleId') {
+      _json(request, {'data': _u5Circle(), 'meta': _responseMeta().toJson()});
+      return;
+    }
+    if (request.method == 'PATCH' && path == '/v1/circles/$u5CircleId') {
+      if (conflictNextCirclePatch) {
+        conflictNextCirclePatch = false;
+        circleVersion = 3;
+        circleTitle = 'Changed on another device';
+        request.response.statusCode = HttpStatus.preconditionFailed;
+        _json(request, const {
+          'error': {
+            'code': 'version_conflict',
+            'message': 'Review the authoritative Circle.',
+          },
+        });
+        return;
+      }
+      final body = jsonDecode(requests.last.body) as Map<String, dynamic>;
+      circleTitle = body['title'] as String;
+      circleDescription = body['description'] as String;
+      circleVersion += 1;
+      _json(request, {'data': _u5Circle(), 'meta': _responseMeta().toJson()});
+      return;
+    }
+    if (request.method == 'DELETE' && path == '/v1/circles/$u5CircleId') {
+      circleVersion += 1;
+      circleArchivedAt = DateTime.utc(2026, 8, 25, 19);
+      request.response.statusCode = HttpStatus.noContent;
+      return;
+    }
+    if (request.method == 'GET' && path == '/v1/coven/$u5CovenId') {
+      _json(request, {
+        'data': {
+          'id': u5CovenId,
+          'revision_id': '00000000-0000-4000-8000-000000000438',
+          'slug': 'aurora-healthworks',
+          'company': 'Aurora Healthworks',
+          'symbol': 'AUR',
+          'focus': 'Preventive care',
+          'summary': 'Fictional provider-free company research.',
+          'inclusion_rationale': 'Dated founder evidence is present.',
+          'limitations': 'Demo only; not investment advice.',
+          'qualifications': [
+            {
+              'category': 'founder',
+              'effective_date': '2026-08-01T00:00:00.000Z',
+              'evidence': [],
+              'person_name': 'Avery North',
+              'valid_to': null,
+              'verified_as_of': '2026-08-25T12:00:00.000Z',
+            },
+          ],
+          'saved': covenSaved,
+          'demo': _demo().toJson(),
+        },
+        'meta': _responseMeta().toJson(),
+      });
+      return;
+    }
+    if (request.method == 'GET' && path == '/v1/coven/$u5CovenId/evidence') {
+      _json(request, {
+        'data': [_evidenceDetail().toJson()],
+        'meta': _responseMeta().toJson(),
+      });
+      return;
+    }
+    if (request.method == 'PUT' && path == '/v1/me/saved-coven/$u5CovenId') {
+      covenSaved = true;
+      _json(request, _savedReceipt());
+      return;
+    }
     if (request.method == 'GET' && path == '/v1/rituals/daily') {
       _json(request, _dailyResponse());
       return;
@@ -281,7 +453,8 @@ class U4HttpHarness {
       return;
     }
     if (request.method == 'GET' && path == '/v1/rowan/counsel') {
-      if (rowanUnavailable) {
+      final requestedSurface = request.uri.queryParameters['surface'];
+      if (rowanUnavailable && requestedSurface != 'coven') {
         request.response.statusCode = HttpStatus.serviceUnavailable;
         _json(request, const {
           'error': {
@@ -294,10 +467,14 @@ class U4HttpHarness {
           request,
           api.RowanCounselResponse(
             data: api.RowanCounsel(
-              body: 'Use the published evidence to compare uncertainty.',
+              body: requestedSurface == 'coven'
+                  ? 'Qualification evidence is dated, not assumed.'
+                  : 'Use the published evidence to compare uncertainty.',
               riskFooter: 'Demo counsel; never an instruction to trade.',
               scriptRevisionId: '00000000-0000-4000-8000-000000000408',
-              surface: api.RowanCounselSurfaceEnum.assetCodex,
+              surface: requestedSurface == 'coven'
+                  ? api.RowanCounselSurfaceEnum.coven
+                  : api.RowanCounselSurfaceEnum.assetCodex,
             ),
             meta: _responseMeta(),
           ).toJson(),
@@ -310,6 +487,81 @@ class U4HttpHarness {
       'error': {'code': 'resource_not_found', 'message': 'Not found.'},
     });
   }
+
+  Map<String, dynamic> _u5GrimoireSummary() => {
+    'id': u5GrimoireId,
+    'revision_id': '00000000-0000-4000-8000-000000000436',
+    'slug': 'patient-compounding',
+    'title': 'Patient Compounding',
+    'description': 'Fictional read-only research.',
+    'theme': 'durability',
+    'curator_label': 'Ritual Research Desk',
+    'demo': _demo().toJson(),
+  };
+
+  Map<String, dynamic> _u5Creator() => {
+    'id': u5CreatorId,
+    'slug': 'mira-vale',
+    'display_name': 'Mira Vale',
+    'bio': 'Fictional Demo research curator.',
+    'is_fictional': true,
+    'demo': _demo().toJson(),
+  };
+
+  Map<String, dynamic> _u5TemplateSummary() => {
+    'id': u5TemplateId,
+    'revision_id': '00000000-0000-4000-8000-000000000437',
+    'slug': 'soft-power-circle',
+    'title': 'Soft Power Circle',
+    'description': 'Fictional seeded research to copy privately.',
+    'theme': 'leadership',
+    'creator': _u5Creator(),
+    'demo': _demo().toJson(),
+  };
+
+  Map<String, dynamic> _u5CovenSummary() => {
+    'id': u5CovenId,
+    'revision_id': '00000000-0000-4000-8000-000000000438',
+    'slug': 'aurora-healthworks',
+    'company': 'Aurora Healthworks',
+    'symbol': 'AUR',
+    'focus': 'Preventive care',
+    'category': 'founder',
+    'effective_date': '2026-08-01T00:00:00.000Z',
+    'verified_as_of': '2026-08-25T12:00:00.000Z',
+    'teaser': 'Dated fictional founder evidence.',
+    'demo': _demo().toJson(),
+  };
+
+  Map<String, dynamic> _u5Circle() => {
+    'id': u5CircleId,
+    'title': circleTitle,
+    'description': circleDescription,
+    'private': true,
+    'version': circleVersion,
+    'assets': [
+      {
+        'asset_id': u4AssetId,
+        'ordinal': 1,
+        'note': 'Private research note.',
+        'weight_bps': 10000,
+      },
+    ],
+    'source_template_id': u5TemplateId,
+    'source_revision_id': '00000000-0000-4000-8000-000000000437',
+    'archived_at': circleArchivedAt?.toIso8601String(),
+  };
+
+  Map<String, dynamic> _collectionMeta() => {
+    'has_more': false,
+    'next_cursor': null,
+    'request_id': _requestId,
+  };
+
+  Map<String, dynamic> _savedReceipt() => {
+    'data': {'saved': true, 'saved_at': '2026-08-25T12:31:00.000Z'},
+    'meta': _responseMeta().toJson(),
+  };
 
   Map<String, dynamic> _dailyResponse() => api.DailyRitualResponse(
     data: _dailyDetail(),
@@ -467,6 +719,7 @@ class U4CapturedRequest {
     required this.uri,
     required this.authorization,
     required this.ifMatch,
+    required this.idempotencyKey,
     required this.body,
   });
 
@@ -474,6 +727,7 @@ class U4CapturedRequest {
   final Uri uri;
   final String? authorization;
   final String? ifMatch;
+  final String? idempotencyKey;
   final String body;
 }
 

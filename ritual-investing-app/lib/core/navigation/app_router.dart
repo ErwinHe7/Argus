@@ -4,10 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/coven/presentation/coven_screen.dart';
+import '../../features/coven/application/controller.dart';
+import '../../features/coven/presentation/coven_detail_screen.dart';
+import '../../features/circles/application/controller.dart';
+import '../../features/circles/domain/model.dart';
+import '../../features/circles/presentation/circle_template_screen.dart';
+import '../../features/circles/presentation/private_circle_detail_screen.dart';
+import '../../features/circles/presentation/private_circles_screen.dart';
+import '../../features/creators/application/controller.dart';
+import '../../features/creators/presentation/creator_detail_screen.dart';
 import '../../features/asset_codex/application/controller.dart';
 import '../../features/asset_codex/domain/model.dart';
 import '../../features/asset_codex/presentation/asset_codex_screen.dart';
 import '../../features/discover/presentation/discover_screen.dart';
+import '../../features/discover/domain/model.dart';
+import '../../features/grimoires/application/controller.dart';
+import '../../features/grimoires/presentation/grimoire_detail_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -30,24 +42,80 @@ GoRouter createAppRouter({
     name: definition.name,
     redirect: (context, state) {
       final stableId = state.pathParameters['stableId'];
+      final requiresUuid =
+          definition == MemberRoutes.discoverAsset ||
+          definition == MemberRoutes.discoverGrimoire ||
+          definition == MemberRoutes.discoverCircleTemplate ||
+          definition == MemberRoutes.discoverCreator ||
+          definition == MemberRoutes.discoverCircle ||
+          definition == MemberRoutes.covenEntry;
+      final available = switch (definition) {
+        MemberRoutes.discoverAsset => container.hasAssetCodex,
+        MemberRoutes.discoverGrimoire ||
+        MemberRoutes.discoverCircleTemplate ||
+        MemberRoutes.discoverCreator ||
+        MemberRoutes.discoverCircle ||
+        MemberRoutes.covenEntry => container.hasU5Research,
+        _ => false,
+      };
       if (stableId == null ||
           !MemberRoutes.isStableId(stableId) ||
-          (definition == MemberRoutes.discoverAsset &&
-              !MemberRoutes.isUuid(stableId)) ||
-          ((definition != MemberRoutes.discoverAsset ||
-                  !container.hasAssetCodex) &&
-              !access(definition, stableId))) {
+          (requiresUuid && !MemberRoutes.isUuid(stableId)) ||
+          (!available && !access(definition, stableId))) {
         return MemberRoutes.rootFor(definition.branch).path;
       }
       return null;
     },
     builder: (context, state) {
+      final stableId = state.pathParameters['stableId']!;
       if (definition == MemberRoutes.discoverAsset && container.hasAssetCodex) {
+        final source = _assetSource(state.uri.queryParameters);
         return _AssetCodexRoute(
+          key: ValueKey(
+            'asset-codex-$stableId-${source.kind.name}-'
+            '${source.resourceId ?? 'none'}',
+          ),
           container: container,
-          assetId: state.pathParameters['stableId']!,
-          source: _assetSource(state.uri.queryParameters),
+          assetId: stableId,
+          source: source,
         );
+      }
+      if (container.hasU5Research) {
+        if (definition == MemberRoutes.covenEntry) {
+          return _CovenDetailRoute(
+            key: ValueKey('coven-detail-$stableId'),
+            container: container,
+            entryId: stableId,
+          );
+        }
+        if (definition == MemberRoutes.discoverGrimoire) {
+          return _GrimoireRoute(
+            key: ValueKey('grimoire-detail-$stableId'),
+            container: container,
+            grimoireId: stableId,
+          );
+        }
+        if (definition == MemberRoutes.discoverCircleTemplate) {
+          return _CircleTemplateRoute(
+            key: ValueKey('circle-template-detail-$stableId'),
+            container: container,
+            templateId: stableId,
+          );
+        }
+        if (definition == MemberRoutes.discoverCreator) {
+          return _CreatorRoute(
+            key: ValueKey('creator-detail-$stableId'),
+            container: container,
+            creatorId: stableId,
+          );
+        }
+        if (definition == MemberRoutes.discoverCircle) {
+          return _PrivateCircleRoute(
+            key: ValueKey('private-circle-detail-$stableId'),
+            container: container,
+            circleId: stableId,
+          );
+        }
       }
       return _MemberResourceScreen(route: definition);
     },
@@ -62,8 +130,10 @@ GoRouter createAppRouter({
       childRoutes.addAll([
         GoRoute(
           path: 'investing',
-          builder: (context, state) =>
-              InvestingProfileScreen(controller: container.profileController),
+          builder: (context, state) => InvestingProfileScreen(
+            controller: container.profileController,
+            onSave: container.updateMemberInvestor,
+          ),
         ),
         GoRoute(
           path: 'ritual-preferences',
@@ -96,6 +166,22 @@ GoRouter createAppRouter({
       ]);
     }
     if (root.branch == MemberBranch.discover) {
+      childRoutes.addAll([
+        resourceRoute(MemberRoutes.discoverGrimoire),
+        resourceRoute(MemberRoutes.discoverCircleTemplate),
+        resourceRoute(MemberRoutes.discoverCreator),
+        resourceRoute(MemberRoutes.discoverCircle),
+      ]);
+      childRoutes.add(
+        GoRoute(
+          path: 'circles',
+          name: 'discover-private-circles',
+          redirect: (context, state) =>
+              container.hasU5Research ? null : MemberRoutes.discover.path,
+          builder: (context, state) =>
+              _PrivateCirclesRoute(container: container),
+        ),
+      );
       final searchController = container.optionalSearchController;
       if (searchController != null) {
         childRoutes.add(
@@ -436,9 +522,18 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
     ),
     MemberBranch.discover => DiscoverScreen(
       controller: widget.container.discoverController,
+      onOpenSearch: widget.container.optionalSearchController == null
+          ? null
+          : () => context.push(MemberRoutes.discoverSearchPath),
+      onOpenItem: (item) => _openDiscoverItem(context, item),
+      onOpenCreator: (creator) =>
+          context.push(MemberRoutes.discoverCreator.location(creator.id)),
+      onOpenPrivateCircles: () =>
+          context.push(MemberRoutes.discoverCirclesPath),
     ),
     MemberBranch.coven => CovenScreen(
       controller: widget.container.covenController,
+      onOpenEntry: (id) => context.push(MemberRoutes.covenEntry.location(id)),
     ),
     MemberBranch.you => ProfileScreen(
       controller: widget.container.profileController,
@@ -453,6 +548,23 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
           context.push(MemberRoutes.portfolio.location(id)),
     ),
   };
+}
+
+void _openDiscoverItem(BuildContext context, DiscoverItemView item) {
+  final location = switch (item.kind) {
+    DiscoverItemKind.asset => MemberRoutes.assetLocation(
+      item.id,
+      sourceKind: 'discover',
+      sourceId: item.id,
+    ),
+    DiscoverItemKind.grimoire => MemberRoutes.discoverGrimoire.location(
+      item.id,
+    ),
+    DiscoverItemKind.circleTemplate =>
+      MemberRoutes.discoverCircleTemplate.location(item.id),
+    DiscoverItemKind.coven => MemberRoutes.covenEntry.location(item.id),
+  };
+  context.push(location);
 }
 
 AssetSourceContext _assetSource(Map<String, String> query) {
@@ -474,6 +586,7 @@ AssetSourceContext _assetSource(Map<String, String> query) {
 
 class _AssetCodexRoute extends StatefulWidget {
   const _AssetCodexRoute({
+    super.key,
     required this.container,
     required this.assetId,
     required this.source,
@@ -514,6 +627,275 @@ class _AssetCodexRouteState extends State<_AssetCodexRoute> {
         widget.container.memberBootstrap?.personalization ??
         const MemberPersonalization(),
     searchController: widget.container.optionalSearchController,
+  );
+}
+
+class _CovenDetailRoute extends StatefulWidget {
+  const _CovenDetailRoute({
+    super.key,
+    required this.container,
+    required this.entryId,
+  });
+
+  final DependencyContainer container;
+  final String entryId;
+
+  @override
+  State<_CovenDetailRoute> createState() => _CovenDetailRouteState();
+}
+
+class _CovenDetailRouteState extends State<_CovenDetailRoute> {
+  late final CovenDetailController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.container.createCovenDetailController(widget.entryId);
+    unawaited(_controller.load());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => CovenDetailScreen(
+    controller: _controller,
+    rowanController: widget.container.optionalRowanController,
+    personalization:
+        widget.container.memberBootstrap?.personalization ??
+        const MemberPersonalization(),
+  );
+}
+
+class _GrimoireRoute extends StatefulWidget {
+  const _GrimoireRoute({
+    super.key,
+    required this.container,
+    required this.grimoireId,
+  });
+
+  final DependencyContainer container;
+  final String grimoireId;
+
+  @override
+  State<_GrimoireRoute> createState() => _GrimoireRouteState();
+}
+
+class _GrimoireRouteState extends State<_GrimoireRoute> {
+  late final GrimoireController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.container.createGrimoireController(widget.grimoireId);
+    unawaited(_controller.load());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => GrimoireDetailScreen(
+    controller: _controller,
+    onOpenAsset: (id) => context.push(
+      MemberRoutes.assetLocation(
+        id,
+        sourceKind: 'discover',
+        sourceId: widget.grimoireId,
+      ),
+    ),
+  );
+}
+
+class _CircleTemplateRoute extends StatefulWidget {
+  const _CircleTemplateRoute({
+    super.key,
+    required this.container,
+    required this.templateId,
+  });
+
+  final DependencyContainer container;
+  final String templateId;
+
+  @override
+  State<_CircleTemplateRoute> createState() => _CircleTemplateRouteState();
+}
+
+class _CircleTemplateRouteState extends State<_CircleTemplateRoute> {
+  late final CircleTemplateController _controller;
+  late final CircleListController _copyController;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.container.createCircleTemplateController(
+      widget.templateId,
+    );
+    _copyController = widget.container.createCircleListController();
+    unawaited(_controller.load());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _copyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _copy() async {
+    await _copyController.copyTemplate(widget.templateId);
+    _openCreated();
+  }
+
+  Future<void> _retryCopy() async {
+    await _copyController.retryPending();
+    _openCreated();
+  }
+
+  void _openCreated() {
+    final created = _copyController.lastCreated;
+    if (!mounted ||
+        created == null ||
+        _copyController.mutationPhase != CircleMutationPhase.committed) {
+      return;
+    }
+    context.push(MemberRoutes.discoverCircle.location(created.id));
+  }
+
+  @override
+  Widget build(BuildContext context) => CircleTemplateScreen(
+    controller: _controller,
+    copyController: _copyController,
+    onRetryCopy: () => unawaited(_retryCopy()),
+    onOpenAsset: (id) => context.push(
+      MemberRoutes.assetLocation(
+        id,
+        sourceKind: 'discover',
+        sourceId: widget.templateId,
+      ),
+    ),
+    onOpenCreator: (creator) =>
+        context.push(MemberRoutes.discoverCreator.location(creator.id)),
+    onCopy: (_) => unawaited(_copy()),
+  );
+}
+
+class _CreatorRoute extends StatefulWidget {
+  const _CreatorRoute({
+    super.key,
+    required this.container,
+    required this.creatorId,
+  });
+
+  final DependencyContainer container;
+  final String creatorId;
+
+  @override
+  State<_CreatorRoute> createState() => _CreatorRouteState();
+}
+
+class _CreatorRouteState extends State<_CreatorRoute> {
+  late final CreatorController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.container.createCreatorController(widget.creatorId);
+    unawaited(_controller.load());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      CreatorDetailScreen(controller: _controller);
+}
+
+class _PrivateCirclesRoute extends StatefulWidget {
+  const _PrivateCirclesRoute({required this.container});
+
+  final DependencyContainer container;
+
+  @override
+  State<_PrivateCirclesRoute> createState() => _PrivateCirclesRouteState();
+}
+
+class _PrivateCirclesRouteState extends State<_PrivateCirclesRoute> {
+  late final CircleListController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.container.createCircleListController();
+    unawaited(_controller.load());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => PrivateCirclesScreen(
+    controller: _controller,
+    onOpenCircle: (id) =>
+        context.push(MemberRoutes.discoverCircle.location(id)),
+  );
+}
+
+class _PrivateCircleRoute extends StatefulWidget {
+  const _PrivateCircleRoute({
+    super.key,
+    required this.container,
+    required this.circleId,
+  });
+
+  final DependencyContainer container;
+  final String circleId;
+
+  @override
+  State<_PrivateCircleRoute> createState() => _PrivateCircleRouteState();
+}
+
+class _PrivateCircleRouteState extends State<_PrivateCircleRoute> {
+  late final CircleDetailController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.container.createCircleDetailController(
+      widget.circleId,
+    );
+    unawaited(_controller.load());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => PrivateCircleDetailScreen(
+    controller: _controller,
+    onOpenAsset: (id) => context.push(
+      MemberRoutes.assetLocation(
+        id,
+        sourceKind: 'circle',
+        sourceId: widget.circleId,
+      ),
+    ),
   );
 }
 

@@ -56,7 +56,12 @@ void main() {
     await controller.load();
 
     await tester.pumpWidget(
-      MaterialApp(home: InvestingProfileScreen(controller: controller)),
+      MaterialApp(
+        home: InvestingProfileScreen(
+          controller: controller,
+          onSave: controller.updateInvestor,
+        ),
+      ),
     );
 
     expect(find.text('Investing profile'), findsOneWidget);
@@ -67,6 +72,52 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Monthly'), findsOneWidget);
+  });
+
+  testWidgets('investor edit saves through the authoritative callback', (
+    tester,
+  ) async {
+    final controller = _controller();
+    await controller.load();
+    ProfileInvestorUpdate? written;
+    final riskField = find.byWidgetPredicate(
+      (widget) => widget is DropdownButtonFormField<RiskComfort>,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: InvestingProfileScreen(
+          controller: controller,
+          onSave: (update) async {
+            written = update;
+            return true;
+          },
+        ),
+      ),
+    );
+    await tester.scrollUntilVisible(
+      riskField,
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -120));
+    await tester.pump();
+    await tester.tap(riskField);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Higher').last);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('investing-save')),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.byKey(const Key('investing-save')));
+    await tester.pump();
+
+    expect(written?.risk, RiskComfort.high);
+    expect(written?.experience, InvestingExperience.newToInvesting);
+    expect(written?.horizon, InvestmentHorizon.long);
+    expect(written?.expectedVersion, 5);
   });
 
   testWidgets('theme selection saves through authoritative callback', (

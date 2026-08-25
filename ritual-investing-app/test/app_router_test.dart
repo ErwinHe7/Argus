@@ -172,14 +172,14 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('detail-discover-asset')), findsOneWidget);
+      expect(find.byKey(const Key('asset-codex-screen')), findsOneWidget);
 
       await tester.tap(find.text('Ritual').last);
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('detail-ritual-reading')), findsOneWidget);
       await tester.tap(find.text('Discover').last);
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('detail-discover-asset')), findsOneWidget);
+      expect(find.byKey(const Key('asset-codex-screen')), findsOneWidget);
     },
   );
 
@@ -243,6 +243,139 @@ void main() {
       expect(router.state.uri.path, '/entry');
     },
   );
+
+  testWidgets('U5 stable UUID routes restore every research/private detail', (
+    tester,
+  ) async {
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
+
+    router.go(
+      MemberRoutes.discoverGrimoire.location(
+        '00000000-0000-4000-8000-000000000540',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Quiet Power Grimoire'), findsOneWidget);
+
+    router.go(
+      MemberRoutes.discoverCircleTemplate.location(
+        '00000000-0000-4000-8000-000000000550',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Soft Power Circle'), findsOneWidget);
+
+    router.go(
+      MemberRoutes.discoverCreator.location(
+        '00000000-0000-4000-8000-000000000552',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Mira Vale'), findsOneWidget);
+
+    router.go(
+      MemberRoutes.covenEntry.location('00000000-0000-4000-8000-000000000510'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Aurora Healthworks'), findsOneWidget);
+
+    router.go(MemberRoutes.discoverCirclesPath);
+    await tester.pumpAndSettle();
+    expect(find.text('Your private Circles'), findsOneWidget);
+
+    router.go(
+      MemberRoutes.discoverCircle.location(
+        '00000000-0000-4000-8000-000000000560',
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Private · editable'), findsOneWidget);
+
+    router.go(MemberRoutes.discoverGrimoire.location('not-a-uuid'));
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.discover.path);
+    expect(find.textContaining('not-a-uuid'), findsNothing);
+  });
+
+  testWidgets('template copy opens the authoritative private Circle', (
+    tester,
+  ) async {
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
+    router.go(
+      MemberRoutes.discoverCircleTemplate.location(
+        '00000000-0000-4000-8000-000000000550',
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('template-copy')));
+    await tester.pumpAndSettle();
+
+    expect(
+      router.state.uri.path,
+      MemberRoutes.discoverCircle.location(
+        '00000000-0000-4000-8000-000000000560',
+      ),
+    );
+    expect(find.text('Private · editable'), findsOneWidget);
+  });
+
+  testWidgets('same U5 route type replaces its controller when UUID changes', (
+    tester,
+  ) async {
+    const firstId = '00000000-0000-4000-8000-000000000552';
+    const secondId = '00000000-0000-4000-8000-000000000553';
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
+
+    router.go(MemberRoutes.discoverCreator.location(firstId));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('creator-detail-$firstId')),
+      findsOneWidget,
+    );
+
+    router.go(MemberRoutes.discoverCreator.location(secondId));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('creator-detail-$firstId')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('creator-detail-$secondId')),
+      findsOneWidget,
+    );
+
+    const firstAssetId = '00000000-0000-4000-8000-000000000501';
+    const secondAssetId = '00000000-0000-4000-8000-000000000502';
+    router.go(MemberRoutes.assetLocation(firstAssetId, sourceKind: 'discover'));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('asset-codex-$firstAssetId-discover-none')),
+      findsOneWidget,
+    );
+
+    router.go(
+      MemberRoutes.assetLocation(secondAssetId, sourceKind: 'discover'),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('asset-codex-$firstAssetId-discover-none')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('asset-codex-$secondAssetId-discover-none')),
+      findsOneWidget,
+    );
+  });
 }
 
 class _SignedOutSessionRepository implements SessionRepository {
