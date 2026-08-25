@@ -293,7 +293,7 @@ BEGIN
     v_birth_date := (p_payload#>>'{astrology,birth_date}')::date;
     v_profile_code := (ARRAY[
       'lunar_patient','solar_builder','rising_explorer'
-    ])[1 + abs(v_birth_date-DATE '1970-01-01') % 3];
+    ])[1 + (((v_birth_date-DATE '1970-01-01') % 3 + 3) % 3)];
     INSERT INTO astrology_profiles(
       tenant_id,birth_date,derived_profile_code,algorithm_version,version
     ) VALUES (v_account.tenant_id,v_birth_date,v_profile_code,'v1',1)

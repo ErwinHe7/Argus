@@ -100,6 +100,7 @@ class DependencyContainer extends ChangeNotifier {
   late final StreamSubscription<void> _recoverySubscription;
   MemberBootstrap? _memberBootstrap;
   MemberFeatureScope? _featureScope;
+  ScopedReadCache? _scopedReadCache;
   MemberFeatureScope? _retiredScope;
   bool _isRestoring = false;
   bool _recoveryPending = false;
@@ -503,7 +504,10 @@ class DependencyContainer extends ChangeNotifier {
         previous?.canEnterMemberShell != next?.canEnterMemberShell;
     if (changed) {
       final oldScope = _featureScope;
+      final oldCache = _scopedReadCache;
       _featureScope = null;
+      _scopedReadCache = null;
+      oldCache?.revoke();
       if (oldScope != null) {
         try {
           await oldScope.deactivateSensitiveState();
@@ -511,14 +515,21 @@ class DependencyContainer extends ChangeNotifier {
         } on Object {
           _retiredScope = oldScope;
           _memberBootstrap = null;
-          if (next != null) rethrow;
+          if (next != null) {
+            if (oldCache != null) await _bestEffort(oldCache.clear());
+            rethrow;
+          }
         }
       }
       if (previousScope != null) {
         await Future.wait([
-          _bestEffort(_cacheStorage.clearScope(previousScope)),
+          oldCache == null
+              ? _bestEffort(_cacheStorage.clearScope(previousScope))
+              : _bestEffort(oldCache.clear()),
           _bestEffort(_pendingCommandStore.clearScope(previousScope)),
         ]);
+      } else if (oldCache != null) {
+        await _bestEffort(oldCache.clear());
       }
       _memberBootstrap = next;
     } else {
@@ -529,11 +540,13 @@ class DependencyContainer extends ChangeNotifier {
         await _cacheStorage.clearLegacyMutations();
         _legacyMutationsCleared = true;
       }
-      _featureScope = _featureScopeFactory(
-        nextScope!,
-        ScopedReadCache(storage: _cacheStorage, scope: nextScope),
-        next,
+      final activeScope = nextScope!;
+      final scopedCache = ScopedReadCache(
+        storage: _cacheStorage,
+        scope: activeScope,
       );
+      _featureScope = _featureScopeFactory(activeScope, scopedCache, next);
+      _scopedReadCache = scopedCache;
       _featureScope?.entitlementController?.bindAuthorityTransition(() async {
         await _refreshMemberBootstrap();
       });
@@ -636,6 +649,12 @@ class DependencyContainer extends ChangeNotifier {
   void dispose() {
     unawaited(_recoverySubscription.cancel());
     entryCoordinator?.removeListener(_handleEntryCoordinator);
+    final scopedCache = _scopedReadCache;
+    _scopedReadCache = null;
+    if (scopedCache != null) {
+      scopedCache.revoke();
+      unawaited(_bestEffort(scopedCache.clear()));
+    }
     _featureScope?.dispose();
     _retiredScope?.dispose();
     onboardingController.dispose();

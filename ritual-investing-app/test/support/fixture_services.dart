@@ -64,6 +64,7 @@ class FeatureLoadTracker {
 
 DependencyContainer fixtureContainer({
   ScopedReadCacheStorage? cache,
+  void Function(ReadCache cache)? onScopedCacheCreated,
   AuthController? authController,
   SessionRepository? sessionRepository,
   SessionBootstrapService? sessionBootstrapService,
@@ -94,6 +95,7 @@ DependencyContainer fixtureContainer({
     pendingCommandStore: commands,
     entryCoordinator: entryCoordinator,
     featureScopeFactory: (scope, scopedCache, bootstrap) {
+      onScopedCacheCreated?.call(scopedCache);
       final covenRepository = CovenRepository(
         service: _FixtureCovenService(tracker),
         cache: scopedCache,

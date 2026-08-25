@@ -187,36 +187,38 @@ describe.skipIf(databaseUrl === undefined)(
       });
     });
 
-    it("derives opted-in astrology on the server from birth date only", async () => {
-      const repository = createPostgresSessionRepository(
-        databaseUrl!,
-        pgPoolFactory,
-      );
-      const subject = `auth0|onboarding-astrology-${randomUUID()}`;
-      const initial = await repository.bootstrap(subject);
-      const birthDate = "1990-02-03";
-      const base = questionnaire(initial.onboarding.version);
-      const result = await repository.finalizeOnboarding!(
-        subject,
-        {
-          ...base,
-          astrology: { enabled: true, birth_date: birthDate },
-          consents: {
-            ...base.consents,
-            astrology: {
-              policy_version: "2026-08",
-              decision: "accepted",
+    it.each(["1969-12-31", "1990-02-03"])(
+      "derives opted-in astrology on the server from birth date only (%s)",
+      async (birthDate) => {
+        const repository = createPostgresSessionRepository(
+          databaseUrl!,
+          pgPoolFactory,
+        );
+        const subject = `auth0|onboarding-astrology-${randomUUID()}`;
+        const initial = await repository.bootstrap(subject);
+        const base = questionnaire(initial.onboarding.version);
+        const result = await repository.finalizeOnboarding!(
+          subject,
+          {
+            ...base,
+            astrology: { enabled: true, birth_date: birthDate },
+            consents: {
+              ...base.consents,
+              astrology: {
+                policy_version: "2026-08",
+                decision: "accepted",
+              },
             },
           },
-        },
-        `onboarding-${randomUUID()}`,
-      );
+          `onboarding-${randomUUID()}`,
+        );
 
-      expect(result.astrology_profile).toMatchObject({
-        birth_date: birthDate,
-        derived_profile_code: deterministicAstrologyProfileCode(birthDate),
-        algorithm_version: "v1",
-      });
-    });
+        expect(result.astrology_profile).toMatchObject({
+          birth_date: birthDate,
+          derived_profile_code: deterministicAstrologyProfileCode(birthDate),
+          algorithm_version: "v1",
+        });
+      },
+    );
   },
 );

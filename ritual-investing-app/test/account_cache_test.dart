@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/core/api/invalidation_bus.dart';
+import 'package:ritual_investing_app/core/cache/cache_entry.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 
 void main() {
@@ -22,6 +25,24 @@ void main() {
     expect((await b0.get<String>('profile'))?.value, 'B');
   });
 
+  test('clearing a scope suppresses an already-started stale read', () async {
+    final storage = _BlockingGetCache();
+    const scope = CacheScope(accountId: 'account-a', resetGeneration: 0);
+    final cache = ScopedReadCache(storage: storage, scope: scope);
+    await storage.put(
+      '${scope.storagePrefix}profile',
+      'retired account value',
+      DateTime.utc(2026, 8, 24),
+    );
+
+    final read = cache.get<String>('profile');
+    await storage.getEntered.future;
+    await cache.clear();
+    storage.releaseGet.complete();
+
+    expect(await read, isNull);
+  });
+
   test(
     'old-generation invalidations never reach the active generation',
     () async {
@@ -35,18 +56,40 @@ void main() {
       final subscription = bus.eventsFor(afterReset).listen(observed.add);
 
       bus.publish(
-        const InvalidationEvent(scope: beforeReset, resource: 'portfolios'),
+        const InvalidationEvent(
+          scope: beforeReset,
+          resource: InvalidationResource.portfolios,
+        ),
       );
       bus.publish(
-        const InvalidationEvent(scope: afterReset, resource: 'portfolios'),
+        const InvalidationEvent(
+          scope: afterReset,
+          resource: InvalidationResource.portfolios,
+        ),
       );
       await Future<void>.delayed(Duration.zero);
 
       expect(observed, [
-        const InvalidationEvent(scope: afterReset, resource: 'portfolios'),
+        const InvalidationEvent(
+          scope: afterReset,
+          resource: InvalidationResource.portfolios,
+        ),
       ]);
       await subscription.cancel();
       await bus.dispose();
     },
   );
+}
+
+class _BlockingGetCache extends MemoryReadCache {
+  final getEntered = Completer<void>();
+  final releaseGet = Completer<void>();
+
+  @override
+  Future<CacheEntry<T>?> get<T>(String key) async {
+    final value = await super.get<T>(key);
+    getEntered.complete();
+    await releaseGet.future;
+    return value;
+  }
 }

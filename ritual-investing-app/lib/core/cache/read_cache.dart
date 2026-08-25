@@ -64,19 +64,50 @@ class ScopedReadCache implements ReadCache {
 
   final ScopedReadCacheStorage storage;
   final CacheScope scope;
+  final Set<Future<void>> _pendingWrites = {};
+  bool _isRevoked = false;
+  Future<void>? _clearance;
 
   String _key(String resource) =>
       '${scope.storagePrefix}${Uri.encodeComponent(resource)}';
 
   @override
-  Future<CacheEntry<T>?> get<T>(String key) => storage.get<T>(_key(key));
+  Future<CacheEntry<T>?> get<T>(String key) async {
+    if (_isRevoked) return null;
+    final value = await storage.get<T>(_key(key));
+    return _isRevoked ? null : value;
+  }
 
   @override
-  Future<void> put<T>(String key, T value, DateTime committedAt) =>
-      storage.put<T>(_key(key), value, committedAt);
+  Future<void> put<T>(String key, T value, DateTime committedAt) async {
+    if (_isRevoked) return;
+    final pending = storage.put<T>(_key(key), value, committedAt);
+    _pendingWrites.add(pending);
+    try {
+      await pending;
+    } finally {
+      _pendingWrites.remove(pending);
+    }
+  }
 
   @override
-  Future<void> clearLegacyMutations() => storage.clearLegacyMutations();
+  Future<void> clearLegacyMutations() async {
+    if (_isRevoked) return;
+    await storage.clearLegacyMutations();
+  }
 
-  Future<void> clear() => storage.clearScope(scope);
+  Future<void> clear() {
+    revoke();
+    return _clearance ??= _finishClear();
+  }
+
+  void revoke() => _isRevoked = true;
+
+  Future<void> _finishClear() async {
+    try {
+      await Future.wait(_pendingWrites.toList(growable: false));
+    } finally {
+      await storage.clearScope(scope);
+    }
+  }
 }

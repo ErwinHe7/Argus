@@ -14,23 +14,44 @@ command -v rg >/dev/null 2>&1 || fail "ripgrep (rg) is required"
 app_manifest="$audit_root/ritual-investing-app/pubspec.yaml"
 api_manifest="$audit_root/ritual-investing-api/package.json"
 queue_contract="$audit_root/ritual-investing-api/src/jobs/queue-consumer.ts"
+api_entrypoint="$audit_root/ritual-investing-api/src/index.ts"
+job_handlers="$audit_root/ritual-investing-api/src/jobs/handlers.ts"
 
-for required in "$app_manifest" "$api_manifest" "$queue_contract"; do
+for required in \
+  "$app_manifest" \
+  "$api_manifest" \
+  "$queue_contract" \
+  "$api_entrypoint" \
+  "$job_handlers"; do
   test -f "$required" || fail "missing required audit input ${required#"$audit_root"/}"
 done
 
 dependency_inputs="$app_manifest $api_manifest"
-for lock_file in \
+for native_manifest_or_lock in \
   "$audit_root/ritual-investing-app/pubspec.lock" \
-  "$audit_root/ritual-investing-api/package-lock.json"; do
-  if test -f "$lock_file"; then
-    dependency_inputs="$dependency_inputs $lock_file"
+  "$audit_root/ritual-investing-api/package-lock.json" \
+  "$audit_root/ritual-investing-app/android/settings.gradle" \
+  "$audit_root/ritual-investing-app/android/settings.gradle.kts" \
+  "$audit_root/ritual-investing-app/android/build.gradle" \
+  "$audit_root/ritual-investing-app/android/build.gradle.kts" \
+  "$audit_root/ritual-investing-app/android/app/build.gradle" \
+  "$audit_root/ritual-investing-app/android/app/build.gradle.kts" \
+  "$audit_root/ritual-investing-app/android/gradle/libs.versions.toml" \
+  "$audit_root/ritual-investing-app/ios/Podfile" \
+  "$audit_root/ritual-investing-app/ios/Podfile.lock" \
+  "$audit_root/ritual-investing-app/ios/Runner.xcodeproj/project.pbxproj" \
+  "$audit_root/ritual-investing-app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" \
+  "$audit_root/ritual-investing-app/ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved"; do
+  if test -f "$native_manifest_or_lock"; then
+    dependency_inputs="$dependency_inputs $native_manifest_or_lock"
   fi
 done
 
 prohibited_dependencies='flutter_stripe|stripe_sdk|stripe|plaid_flutter|plaid|braintree|paypal|square_in_app_payments|alpaca|snaptrade|coinmarketcap|firebase_messaging|onesignal_flutter|onesignal|braze_plugin|braze|purchases_flutter|revenuecat|in_app_purchase'
+# The delimiters cover Dart/npm names plus native coordinates and manifests,
+# such as `com.stripe:stripe-android`, `pod 'Plaid'`, and PBX product names.
 # shellcheck disable=SC2086
-if rg -n -i "(^|[\"[:space:]/_-])($prohibited_dependencies)([\"[:space:]/_:-]|$)" $dependency_inputs; then
+if rg -n -i "(^|[\"'[:space:]/_.-])($prohibited_dependencies)([\"'[:space:]/_.:;(),-]|$)" $dependency_inputs; then
   fail "a bank, broker, payment, market-data, purchase, or push SDK is present"
 fi
 
@@ -72,19 +93,71 @@ printf '%s\n' "$literal_urls" | while IFS= read -r literal_url; do
   esac
 done
 
-if test -d "$audit_root/ritual-investing-api/src"; then
-  fetch_files=$(rg -l '\.fetch\(|(^|[^[:alnum:]_])fetch\(' \
+# Runtime egress is allowlisted by exact callsite shape, service binding, and
+# internal URL. A whole-file exemption would let an unrelated or dynamically
+# addressed provider call inherit approval merely by being placed in one of
+# these files.
+api_fetch_occurrences=$(
+  rg -o -N '\.fetch\(|(^|[^[:alnum:]_])fetch\(' \
     "$audit_root/ritual-investing-api/src" \
-    --glob '*.ts' --glob '!**/generated/**' || true)
-  for fetch_file in $fetch_files; do
-    relative=${fetch_file#"$audit_root"/}
-    case "$relative" in
-      ritual-investing-api/src/index.ts|ritual-investing-api/src/jobs/handlers.ts)
-        ;;
-      *) fail "unreviewed API runtime network entrypoint: $relative" ;;
-    esac
-  done
-fi
+    --glob '*.ts' --glob '!**/generated/**' || true
+)
+api_fetch_count=$(printf '%s\n' "$api_fetch_occurrences" | sed '/^$/d' | wc -l | tr -d ' ')
+test "$api_fetch_count" -eq 5 || \
+  fail "expected 5 reviewed API fetch occurrences, found $api_fetch_count"
+
+worker_handler_count=$(
+  rg --count-matches '^  fetch\(request, environment, executionContext\) \{$' \
+    "$api_entrypoint" || true
+)
+app_dispatch_count=$(
+  rg --count-matches '^[[:space:]]*return app\.fetch\(request, bindings, executionContext\);$' \
+    "$api_entrypoint" || true
+)
+admin_assets_count=$(
+  rg --count-matches '^[[:space:]]*return bindings\.ADMIN_ASSETS\.fetch\(request\)\.then\(\(response\) =>$' \
+    "$api_entrypoint" || true
+)
+dependency_fetch_count=$(
+  rg --count-matches '^[[:space:]]*return await fetcher\.fetch\(input, \{$' \
+    "$job_handlers" || true
+)
+test "${worker_handler_count:-0}" -eq 1 || \
+  fail "Worker fetch handler no longer matches its reviewed callsite"
+test "${app_dispatch_count:-0}" -eq 2 || \
+  fail "Hono app dispatches no longer match their 2 reviewed callsites"
+test "${admin_assets_count:-0}" -eq 1 || \
+  fail "ADMIN_ASSETS fetch no longer matches its reviewed callsite"
+test "${dependency_fetch_count:-0}" -eq 1 || \
+  fail "dependency fetch no longer matches its reviewed callsite"
+
+dependency_fetch_occurrences=$(
+  rg --count-matches 'dependencyFetch\(' "$job_handlers" || true
+)
+test "${dependency_fetch_occurrences:-0}" -eq 4 || \
+  fail "expected the dependencyFetch definition and 3 reviewed calls"
+
+push_fetch_count=$(
+  rg -U --count-matches \
+    'dependencyFetch\(\n[[:space:]]*environment\.PUSH_PROVIDER,\n[[:space:]]*"https://push-provider\.internal/v1/send",' \
+    "$job_handlers" || true
+)
+scanner_fetch_count=$(
+  rg -U --count-matches \
+    'dependencyFetch\(\n[[:space:]]*environment\.MEDIA_SCANNER,\n[[:space:]]*"https://media-scanner\.internal/v1/scan",' \
+    "$job_handlers" || true
+)
+processor_fetch_count=$(
+  rg -U --count-matches \
+    'dependencyFetch\(\n[[:space:]]*environment\.MEDIA_PROCESSOR,\n[[:space:]]*"https://media-processor\.internal/v1/rasterize",' \
+    "$job_handlers" || true
+)
+test "${push_fetch_count:-0}" -eq 1 || \
+  fail "PUSH_PROVIDER fetch binding or URL is not reviewed"
+test "${scanner_fetch_count:-0}" -eq 1 || \
+  fail "MEDIA_SCANNER fetch binding or URL is not reviewed"
+test "${processor_fetch_count:-0}" -eq 1 || \
+  fail "MEDIA_PROCESSOR fetch binding or URL is not reviewed"
 
 allowed_consumers=' briefing-builder notification-writer notification-delivery privacy-export privacy-purge media-scan media-cleanup moderation-triage editorial-publisher recurring-plan-delivery privacy-export-retention '
 consumer_values=$(

@@ -10,6 +10,7 @@ import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/auth/auth_controller.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/cache/cache_entry.dart';
+import 'package:ritual_investing_app/core/cache/cached_read.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_draft_store.dart';
@@ -362,6 +363,46 @@ void main() {
     expect(container.entryGate, MemberEntryGate.signedOut);
     expect(repository.logoutCalls, 1);
   });
+
+  test(
+    'logout prevents an in-flight member read from recreating retired cache',
+    () async {
+      final cache = _TrackingCache();
+      late ReadCache scopedCache;
+      final fetchStarted = Completer<void>();
+      final fetchResult = Completer<String>();
+      final container = fixtureContainer(
+        cache: cache,
+        onScopedCacheCreated: (value) => scopedCache = value,
+        sessionRepository: _SignedInSessionRepository(),
+      );
+      addTearDown(container.dispose);
+      await container.bootstrap();
+      final retiredScope = container.activeCacheScope!;
+
+      final inFlightRead = cachedRead<String>(
+        key: 'delayed-member-read',
+        cache: scopedCache,
+        fetch: () {
+          fetchStarted.complete();
+          return fetchResult.future;
+        },
+        now: () => DateTime.utc(2026, 8, 25, 12),
+      );
+      await fetchStarted.future;
+
+      await container.logout();
+      fetchResult.complete('retired account value');
+      await inFlightRead;
+
+      expect(
+        cache.values.keys.where(
+          (key) => key.startsWith(retiredScope.storagePrefix),
+        ),
+        isEmpty,
+      );
+    },
+  );
 
   test(
     'logout resets account A answers before account B starts onboarding',
