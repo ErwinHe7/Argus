@@ -39,7 +39,10 @@ Migration procedure:
 1. Keep the existing custom-scheme callback/logout URLs registered while adding
    the HTTPS URLs and association files. Do not reuse the staff application.
 2. Build with `AUTH0_USE_HTTPS=true`, the target domain, audience, and native
-   client ID. On real iOS and Android devices, prove sign-up, sign-in,
+   client ID. For iOS, copy `ios/Flutter/Auth0.xcconfig.example` to the ignored
+   `ios/Flutter/Auth0.xcconfig` file and set `AUTH0_DOMAIN` to the same host as
+   the Dart define; a Dart define does not populate the native entitlement.
+   On real iOS and Android devices, prove sign-up, sign-in,
    cancellation, process recovery, recent-auth, logout, and verified-link return.
 3. Confirm the API observes the expected member `azp`, then monitor callback and
    authorization-denial failures through the compatibility window.

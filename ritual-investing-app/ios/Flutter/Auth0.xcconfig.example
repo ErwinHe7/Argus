@@ -1,0 +1,3 @@
+// Copy this file to Auth0.xcconfig and replace the placeholder before an iOS build.
+// The value must match the Dart AUTH0_DOMAIN define for the same build.
+AUTH0_DOMAIN = YOUR_AUTH0_DOMAIN

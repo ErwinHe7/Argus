@@ -85,6 +85,13 @@ void main() {
     final info = File('ios/Runner/Info.plist').readAsStringSync();
     final project = File('ios/Runner.xcodeproj/project.pbxproj')
         .readAsStringSync();
+    final debugConfig = File('ios/Flutter/Debug.xcconfig').readAsStringSync();
+    final releaseConfig = File('ios/Flutter/Release.xcconfig')
+        .readAsStringSync();
+    final exampleConfig = File('ios/Flutter/Auth0.xcconfig.example')
+        .readAsStringSync();
+    final workflow = File('../.github/workflows/ritual-investing.yml')
+        .readAsStringSync();
 
     expect(entitlements, contains('com.apple.developer.associated-domains'));
     expect(entitlements, contains(r'webcredentials:$(AUTH0_DOMAIN)'));
@@ -93,5 +100,14 @@ void main() {
       project,
       contains('CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements'),
     );
+    expect(project, isNot(contains('AUTH0_DOMAIN = ""')));
+    expect(debugConfig, contains('#include? "Auth0.xcconfig"'));
+    expect(releaseConfig, contains('#include? "Auth0.xcconfig"'));
+    expect(exampleConfig, contains('AUTH0_DOMAIN = YOUR_AUTH0_DOMAIN'));
+    expect(
+      workflow,
+      contains('AUTH0_DOMAIN = ritual-investing-ci.us.auth0.com'),
+    );
+    expect(workflow, contains("grep -F 'AUTH0_DOMAIN = ritual-investing-ci.us.auth0.com'"));
   });
 }
