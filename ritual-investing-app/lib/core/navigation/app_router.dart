@@ -19,6 +19,8 @@ import '../../features/asset_codex/domain/model.dart';
 import '../../features/asset_codex/presentation/asset_codex_screen.dart';
 import '../../features/discover/presentation/discover_screen.dart';
 import '../../features/discover/domain/model.dart';
+import '../../features/entitlements/domain/model.dart';
+import '../../features/entitlements/presentation/demo_membership_screen.dart';
 import '../../features/future_mirror/presentation/future_mirror_screen.dart';
 import '../../features/grimoires/application/controller.dart';
 import '../../features/grimoires/presentation/grimoire_detail_screen.dart';
@@ -90,7 +92,7 @@ GoRouter createAppRouter({
         );
       }
       if (definition == MemberRoutes.portfolio) {
-        return PortfolioScreen(
+        final child = PortfolioScreen(
           key: ValueKey('portfolio-$stableId'),
           portfolioId: stableId,
           portfolioController: container.portfolioController,
@@ -122,6 +124,20 @@ GoRouter createAppRouter({
                   MemberRoutes.portfolioIntentionsLocation(stableId),
                 )
               : null,
+        );
+        if (!container.hasU10) return child;
+        return DemoCapabilityGate(
+          key: ValueKey('demo-portfolio-gate-$stableId'),
+          controller: container.entitlementController,
+          capability: DemoCapability.demoPortfolio,
+          returnLocation: state.uri.path,
+          onOpenMembership: () => context.push(
+            MemberRoutes.membershipLocation(
+              capabilityCode: DemoCapability.demoPortfolio.code,
+              returnLocation: state.uri.path,
+            ),
+          ),
+          child: child,
         );
       }
       if (container.hasU5Research) {
@@ -255,24 +271,43 @@ GoRouter createAppRouter({
               _validU8IntentionRoute(container, state.pathParameters)
               ? null
               : MemberRoutes.you.path,
-          builder: (context, state) => FutureMirrorScreen(
-            key: ValueKey(
-              'future-mirror-${state.pathParameters['portfolioId']}-'
-              '${state.pathParameters['intentionId']}',
-            ),
-            portfolioId: state.pathParameters['portfolioId']!,
-            intentionId: state.pathParameters['intentionId']!,
-            controller: container.futureMirrorController,
-            intentionController: container.intentionController,
-            portfolioController: container.portfolioController,
-            onOpenRun: (runId) => context.push(
-              MemberRoutes.futureMirrorRunLocation(
-                state.pathParameters['portfolioId']!,
-                state.pathParameters['intentionId']!,
-                runId,
+          builder: (context, state) {
+            final child = FutureMirrorScreen(
+              key: ValueKey(
+                'future-mirror-${state.pathParameters['portfolioId']}-'
+                '${state.pathParameters['intentionId']}',
               ),
-            ),
-          ),
+              portfolioId: state.pathParameters['portfolioId']!,
+              intentionId: state.pathParameters['intentionId']!,
+              controller: container.futureMirrorController,
+              intentionController: container.intentionController,
+              portfolioController: container.portfolioController,
+              onOpenRun: (runId) => context.push(
+                MemberRoutes.futureMirrorRunLocation(
+                  state.pathParameters['portfolioId']!,
+                  state.pathParameters['intentionId']!,
+                  runId,
+                ),
+              ),
+            );
+            if (!container.hasU10) return child;
+            return DemoCapabilityGate(
+              key: ValueKey(
+                'future-mirror-gate-${state.pathParameters['portfolioId']}-'
+                '${state.pathParameters['intentionId']}',
+              ),
+              controller: container.entitlementController,
+              capability: DemoCapability.futureMirror,
+              returnLocation: state.uri.path,
+              onOpenMembership: () => context.push(
+                MemberRoutes.membershipLocation(
+                  capabilityCode: DemoCapability.futureMirror.code,
+                  returnLocation: state.uri.path,
+                ),
+              ),
+              child: child,
+            );
+          },
         ),
         GoRoute(
           path: 'portfolios/:portfolioId/intentions/:intentionId/future-mirror/:runId',
@@ -281,19 +316,37 @@ GoRouter createAppRouter({
                   MemberRoutes.isUuid(state.pathParameters['runId'] ?? '')
               ? null
               : MemberRoutes.you.path,
-          builder: (context, state) => FutureMirrorScreen(
-            key: ValueKey(
-              'future-mirror-${state.pathParameters['portfolioId']}-'
-              '${state.pathParameters['intentionId']}-'
-              '${state.pathParameters['runId']}',
-            ),
-            portfolioId: state.pathParameters['portfolioId']!,
-            intentionId: state.pathParameters['intentionId']!,
-            initialRunId: state.pathParameters['runId']!,
-            controller: container.futureMirrorController,
-            intentionController: container.intentionController,
-            portfolioController: container.portfolioController,
-          ),
+          builder: (context, state) {
+            final child = FutureMirrorScreen(
+              key: ValueKey(
+                'future-mirror-${state.pathParameters['portfolioId']}-'
+                '${state.pathParameters['intentionId']}-'
+                '${state.pathParameters['runId']}',
+              ),
+              portfolioId: state.pathParameters['portfolioId']!,
+              intentionId: state.pathParameters['intentionId']!,
+              initialRunId: state.pathParameters['runId']!,
+              controller: container.futureMirrorController,
+              intentionController: container.intentionController,
+              portfolioController: container.portfolioController,
+            );
+            if (!container.hasU10) return child;
+            return DemoCapabilityGate(
+              key: ValueKey(
+                'future-mirror-run-gate-${state.pathParameters['runId']}',
+              ),
+              controller: container.entitlementController,
+              capability: DemoCapability.futureMirror,
+              returnLocation: state.uri.path,
+              onOpenMembership: () => context.push(
+                MemberRoutes.membershipLocation(
+                  capabilityCode: DemoCapability.futureMirror.code,
+                  returnLocation: state.uri.path,
+                ),
+              ),
+              child: child,
+            );
+          },
         ),
         GoRoute(
           path: 'portfolios/:portfolioId/orders',
@@ -463,6 +516,79 @@ GoRouter createAppRouter({
           builder: (context, state) => NotificationPreferencesScreen(
             controller: container.notificationController,
           ),
+        ),
+        GoRoute(
+          path: 'membership',
+          redirect: (context, state) =>
+              container.hasU10 ? null : MemberRoutes.you.path,
+          builder: (context, state) {
+            final capability = DemoCapability.fromCode(
+              state.uri.queryParameters['capability'] ?? '',
+            );
+            final returnLocation = state.uri.queryParameters['return_to'];
+            final validReturn =
+                capability != null &&
+                returnLocation != null &&
+                container.entitlementController.acceptsReturnContext(
+                  capability,
+                  returnLocation,
+                );
+            return MembershipPlansScreen(
+              controller: container.entitlementController,
+              requestedCapability: validReturn ? capability : null,
+              returnLocation: validReturn ? returnLocation : null,
+              onOpenCheckout: (checkoutId) => context.push(
+                MemberRoutes.membershipCheckoutLocation(checkoutId),
+              ),
+            );
+          },
+          routes: [
+            GoRoute(
+              path: 'checkout/:checkoutId',
+              redirect: (context, state) =>
+                  container.hasU10 &&
+                      MemberRoutes.isUuid(
+                        state.pathParameters['checkoutId'] ?? '',
+                      )
+                  ? null
+                  : MemberRoutes.youMembershipPath,
+              builder: (context, state) => DemoCheckoutScreen(
+                key: ValueKey(
+                  'demo-checkout-${state.pathParameters['checkoutId']}',
+                ),
+                sessionId: state.pathParameters['checkoutId']!,
+                controller: container.entitlementController,
+                onReceipt: () => context.pushReplacement(
+                  MemberRoutes.membershipReceiptLocation(
+                    state.pathParameters['checkoutId']!,
+                  ),
+                ),
+                onCancel: () => context.go(MemberRoutes.youMembershipPath),
+              ),
+              routes: [
+                GoRoute(
+                  path: 'receipt',
+                  redirect: (context, state) =>
+                      container.hasU10 &&
+                          MemberRoutes.isUuid(
+                            state.pathParameters['checkoutId'] ?? '',
+                          )
+                      ? null
+                      : MemberRoutes.youMembershipPath,
+                  builder: (context, state) => DemoMembershipReceiptScreen(
+                    key: ValueKey(
+                      'demo-receipt-${state.pathParameters['checkoutId']}',
+                    ),
+                    sessionId: state.pathParameters['checkoutId']!,
+                    controller: container.entitlementController,
+                    onContinue: context.go,
+                    onBackToMembership: () =>
+                        context.go(MemberRoutes.youMembershipPath),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ]);
     }
@@ -798,32 +924,7 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
 
   @override
   Widget build(BuildContext context) => switch (widget.branch) {
-    MemberBranch.ritual => DailyRitualScreen(
-      controller: widget.container.dailyRitualController,
-      onOpenCoven: () => context.go(MemberRoutes.coven.path),
-      onToggleTheme: () => context.go(MemberRoutes.youRitualPreferencesPath),
-      onOpenSearch: widget.container.optionalSearchController == null
-          ? null
-          : () => context.push(MemberRoutes.discoverSearchPath),
-      onOpenBriefings: widget.container.hasU9
-          ? () => context.push(MemberRoutes.ritualBriefingsPath)
-          : null,
-      onOpenAsset: (id) {
-        final assignmentId =
-            widget.container.dailyRitualController.state.value?.assignmentId;
-        context.push(
-          MemberRoutes.assetLocation(
-            id,
-            sourceKind: 'ritual',
-            sourceId: assignmentId,
-          ),
-        );
-      },
-      rowanController: widget.container.optionalRowanController,
-      personalization:
-          widget.container.memberBootstrap?.personalization ??
-          const MemberPersonalization(),
-    ),
+    MemberBranch.ritual => _buildRitual(context),
     MemberBranch.discover => DiscoverScreen(
       controller: widget.container.discoverController,
       onOpenSearch: widget.container.optionalSearchController == null
@@ -851,10 +952,56 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
       onOpenNotifications: widget.container.hasU9
           ? () => context.push(MemberRoutes.youNotificationsPath)
           : null,
+      onOpenMembership: widget.container.hasU10
+          ? () => context.push(MemberRoutes.youMembershipPath)
+          : null,
       onOpenPortfolio: (id) =>
           context.push(MemberRoutes.portfolio.location(id)),
     ),
   };
+
+  Widget _buildRitual(BuildContext context) {
+    final child = DailyRitualScreen(
+      controller: widget.container.dailyRitualController,
+      onOpenCoven: () => context.go(MemberRoutes.coven.path),
+      onToggleTheme: () => context.go(MemberRoutes.youRitualPreferencesPath),
+      onOpenSearch: widget.container.optionalSearchController == null
+          ? null
+          : () => context.push(MemberRoutes.discoverSearchPath),
+      onOpenBriefings: widget.container.hasU9
+          ? () => context.push(MemberRoutes.ritualBriefingsPath)
+          : null,
+      onOpenAsset: (id) {
+        final assignmentId =
+            widget.container.dailyRitualController.state.value?.assignmentId;
+        context.push(
+          MemberRoutes.assetLocation(
+            id,
+            sourceKind: 'ritual',
+            sourceId: assignmentId,
+          ),
+        );
+      },
+      rowanController: widget.container.optionalRowanController,
+      personalization:
+          widget.container.memberBootstrap?.personalization ??
+          const MemberPersonalization(),
+    );
+    if (!widget.container.hasU10) return child;
+    return DemoCapabilityGate(
+      key: const ValueKey('daily-ritual-capability-gate'),
+      controller: widget.container.entitlementController,
+      capability: DemoCapability.dailyRitual,
+      returnLocation: MemberRoutes.ritual.path,
+      onOpenMembership: () => context.push(
+        MemberRoutes.membershipLocation(
+          capabilityCode: DemoCapability.dailyRitual.code,
+          returnLocation: MemberRoutes.ritual.path,
+        ),
+      ),
+      child: child,
+    );
+  }
 }
 
 void _openDiscoverItem(BuildContext context, DiscoverItemView item) {

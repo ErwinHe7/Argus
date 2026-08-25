@@ -244,6 +244,74 @@ void main() {
     },
   );
 
+  testWidgets(
+    'U10 gates free surfaces from fresh capability codes and restores context',
+    (tester) async {
+      await tester.pumpWidget(
+        RitualInvestingApp(container: fixtureContainer(includeU10: true)),
+      );
+      await tester.pumpAndSettle();
+      final router = GoRouter.of(
+        tester.element(find.byKey(const Key('app-shell-scaffold'))),
+      );
+
+      expect(
+        find.byKey(const Key('daily-ritual-capability-gate')),
+        findsOneWidget,
+      );
+      expect(find.text('PRIVATE RITUAL CONTENT'), findsNothing);
+
+      const intentionId = '11111111-1111-4111-8111-111111111111';
+      final returnLocation = MemberRoutes.futureMirrorLocation(
+        'fixture-portfolio',
+        intentionId,
+      );
+      router.go(
+        MemberRoutes.membershipLocation(
+          capabilityCode: 'future_mirror',
+          returnLocation: returnLocation,
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Open Future Mirror'), findsOneWidget);
+      await _scrollTo(
+        tester,
+        find.byKey(const Key('membership-choose-premium')),
+      );
+      expect(
+        find.byKey(const Key('membership-choose-premium')),
+        findsOneWidget,
+      );
+
+      router.go(
+        '${MemberRoutes.youMembershipPath}?capability=future_mirror&'
+        'return_to=${Uri.encodeQueryComponent('https://provider.example')}',
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('membership-choose-premium')), findsNothing);
+      expect(find.textContaining('provider.example'), findsNothing);
+
+      router.go('${MemberRoutes.youMembershipPath}/checkout/not-a-uuid');
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, MemberRoutes.youMembershipPath);
+      expect(find.textContaining('not-a-uuid'), findsNothing);
+    },
+  );
+
+  test('membership route builders reject external and malformed context', () {
+    expect(
+      () => MemberRoutes.membershipLocation(
+        capabilityCode: 'future_mirror',
+        returnLocation: 'https://provider.example',
+      ),
+      throwsArgumentError,
+    );
+    expect(
+      () => MemberRoutes.membershipCheckoutLocation('not-a-uuid'),
+      throwsArgumentError,
+    );
+  });
+
   testWidgets('U5 stable UUID routes restore every research/private detail', (
     tester,
   ) async {
@@ -445,6 +513,19 @@ void main() {
     expect(router.state.uri.path, MemberRoutes.ritual.path);
     expect(find.textContaining('not-a-uuid'), findsNothing);
   });
+}
+
+Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
+  final scrollable = find.byWidgetPredicate(
+    (widget) =>
+        widget is Scrollable && widget.axisDirection == AxisDirection.down,
+  );
+  for (var attempt = 0; attempt < 12; attempt++) {
+    if (finder.hitTestable().evaluate().isNotEmpty) return;
+    await tester.drag(scrollable, const Offset(0, -360));
+    await tester.pumpAndSettle();
+  }
+  expect(finder.hitTestable(), findsOneWidget);
 }
 
 class _SignedOutSessionRepository implements SessionRepository {

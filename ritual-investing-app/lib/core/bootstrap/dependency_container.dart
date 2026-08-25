@@ -21,6 +21,8 @@ import '../../features/creators/application/controller.dart';
 import '../../features/creators/data/repository.dart';
 import '../../features/discover/application/controller.dart';
 import '../../features/discover/data/repository.dart';
+import '../../features/entitlements/application/entitlement_controller.dart';
+import '../../features/entitlements/data/repository.dart';
 import '../../features/funding/application/contribution_controller.dart';
 import '../../features/funding/application/funding_source_controller.dart';
 import '../../features/funding/data/repository.dart';
@@ -106,6 +108,7 @@ class MemberFeatureScope {
     this.futureMirrorController,
     this.briefingController,
     this.notificationController,
+    this.entitlementController,
   });
 
   final CacheScope scope;
@@ -131,6 +134,7 @@ class MemberFeatureScope {
   final FutureMirrorController? futureMirrorController;
   final BriefingController? briefingController;
   final NotificationController? notificationController;
+  final EntitlementController? entitlementController;
   final Map<MemberBranch, Future<void>> _loads = {};
   bool _isDisposed = false;
 
@@ -145,6 +149,7 @@ class MemberFeatureScope {
     futureMirrorController?.updatePersonalization(bootstrap.personalization);
     briefingController?.updatePersonalization(bootstrap.personalization);
     notificationController?.updatePersonalization(bootstrap.personalization);
+    entitlementController?.updatePersonalization(bootstrap.personalization);
     intentionController?.updateProfile(profileController.state.value?.investor);
   }
 
@@ -188,6 +193,7 @@ class MemberFeatureScope {
     futureMirrorController?.dispose();
     briefingController?.dispose();
     notificationController?.dispose();
+    entitlementController?.dispose();
     unawaited(invalidationBus.dispose());
     searchController?.dispose();
     rowanController?.dispose();
@@ -328,6 +334,12 @@ class DependencyContainer extends ChangeNotifier {
     return value;
   }
 
+  EntitlementController get entitlementController {
+    final value = _requireScope().entitlementController;
+    if (value == null) throw StateError('Demo membership is unavailable.');
+    return value;
+  }
+
   SearchController get searchController {
     final value = _requireScope().searchController;
     if (value == null) throw StateError('Search is unavailable.');
@@ -373,6 +385,8 @@ class DependencyContainer extends ChangeNotifier {
   bool get hasU9 =>
       _featureScope?.briefingController != null &&
       _featureScope?.notificationController != null;
+
+  bool get hasU10 => _featureScope?.entitlementController != null;
 
   bool get hasU5Research =>
       _featureScope?.covenRepository != null &&
@@ -627,6 +641,9 @@ class DependencyContainer extends ChangeNotifier {
         ScopedReadCache(storage: _cacheStorage, scope: nextScope),
         next,
       );
+      _featureScope?.entitlementController?.bindAuthorityTransition(() async {
+        await _refreshMemberBootstrap();
+      });
     }
     if (next != null) _featureScope?.updateBootstrap(next);
   }
@@ -788,6 +805,17 @@ class DependencyContainer extends ChangeNotifier {
           now: DateTime.now,
           personalization: bootstrap.personalization,
         );
+        final entitlementController = EntitlementController(
+          repository: CachedEntitlementRepository(
+            service: GeneratedEntitlementService(client),
+            cache: scopedCache,
+          ),
+          pendingStore: pendingCommandStore,
+          scope: scope,
+          createKey: _newCommandKey,
+          now: DateTime.now,
+          personalization: bootstrap.personalization,
+        );
         return MemberFeatureScope(
           scope: scope,
           dailyRitualController: DailyRitualController(
@@ -832,6 +860,7 @@ class DependencyContainer extends ChangeNotifier {
           futureMirrorController: futureMirrorController,
           briefingController: briefingController,
           notificationController: notificationController,
+          entitlementController: entitlementController,
           invalidationBus: invalidationBus,
           assetCodexRepository: AssetCodexRepository(
             service: GeneratedAssetCodexService(client),

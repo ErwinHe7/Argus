@@ -30,6 +30,7 @@ class ProfileScreen extends StatelessWidget {
     this.onOpenPolicies,
     this.onOpenAccount,
     this.onOpenNotifications,
+    this.onOpenMembership,
     this.onOpenPortfolio,
   });
 
@@ -41,6 +42,7 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onOpenPolicies;
   final VoidCallback? onOpenAccount;
   final VoidCallback? onOpenNotifications;
+  final VoidCallback? onOpenMembership;
   final ValueChanged<String>? onOpenPortfolio;
 
   @override
@@ -127,6 +129,13 @@ class ProfileScreen extends StatelessWidget {
               title: 'In-app notices',
               subtitle: 'Recap feed and preferences · no push delivery',
               onTap: onOpenNotifications,
+            ),
+            _MenuTile(
+              key: const Key('you-membership'),
+              icon: Icons.auto_awesome,
+              title: 'Demo membership',
+              subtitle: 'Free and premium simulations · no charge',
+              onTap: onOpenMembership,
             ),
             _MenuTile(
               key: const Key('you-account'),

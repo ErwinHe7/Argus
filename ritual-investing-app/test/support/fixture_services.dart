@@ -21,6 +21,9 @@ import 'package:ritual_investing_app/features/creators/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/application/controller.dart';
 import 'package:ritual_investing_app/features/discover/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
+import 'package:ritual_investing_app/features/entitlements/application/entitlement_controller.dart';
+import 'package:ritual_investing_app/features/entitlements/data/repository.dart';
+import 'package:ritual_investing_app/features/entitlements/domain/model.dart';
 import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
 import 'package:ritual_investing_app/features/grimoires/domain/model.dart';
 import 'package:ritual_investing_app/features/notifications/application/notification_controller.dart';
@@ -67,6 +70,7 @@ DependencyContainer fixtureContainer({
   EntryCoordinator? entryCoordinator,
   bool includeU7 = false,
   bool includeU9 = false,
+  bool includeU10 = false,
 }) {
   final storage = cache ?? MemoryReadCache();
   final tracker = loadTracker ?? FeatureLoadTracker();
@@ -166,6 +170,19 @@ DependencyContainer fixtureContainer({
               personalization: bootstrap.personalization,
             )
           : null;
+      final entitlementController = includeU10
+          ? EntitlementController(
+              repository: CachedEntitlementRepository(
+                service: _FixtureEntitlementService(),
+                cache: scopedCache,
+              ),
+              pendingStore: commands,
+              scope: scope,
+              createKey: () => 'fixture-membership-key-0001',
+              now: () => DateTime.utc(2026, 8, 25, 12),
+              personalization: bootstrap.personalization,
+            )
+          : null;
       return MemberFeatureScope(
         scope: scope,
         dailyRitualController: DailyRitualController(
@@ -209,6 +226,7 @@ DependencyContainer fixtureContainer({
         rebalanceController: rebalanceController,
         briefingController: briefingController,
         notificationController: notificationController,
+        entitlementController: entitlementController,
         assetCodexRepository: AssetCodexRepository(
           service: _FixtureAssetCodexService(),
           cache: scopedCache,
@@ -289,6 +307,103 @@ class _MemoryProtectedStorage implements ProtectedStorage {
   @override
   Future<void> write(String key, String value) async => values[key] = value;
 }
+
+class _FixtureEntitlementService implements EntitlementService {
+  DemoEntitlement _entitlement = DemoEntitlement(
+    id: '00000000-0000-4000-8000-000000000701',
+    planCode: DemoPlanCode.free,
+    status: DemoEntitlementStatus.active,
+    startsAt: DateTime.utc(2026, 8, 1),
+    version: 1,
+    disclosure: _membershipDisclosure,
+  );
+  DemoCheckout _checkout = DemoCheckout(
+    id: '00000000-0000-4000-8000-000000000702',
+    planCode: DemoPlanCode.premiumDemo,
+    status: DemoCheckoutStatus.open,
+    expiresAt: DateTime.utc(2026, 8, 25, 13),
+    version: 1,
+    disclosure: _membershipDisclosure,
+  );
+
+  @override
+  Future<List<DemoPlan>> listPlans() async => [
+    DemoPlan(
+      code: DemoPlanCode.free,
+      displayName: 'Ritual Free Demo',
+      priceCopy: 'No charge — simulated access only',
+      capabilityCodes: {'daily_ritual', 'demo_portfolio'},
+      disclosure: _membershipDisclosure,
+    ),
+    DemoPlan(
+      code: DemoPlanCode.premiumDemo,
+      displayName: 'Ritual Premium Demo',
+      priceCopy: 'Illustrative premium access — no charge',
+      capabilityCodes: {'daily_ritual', 'demo_portfolio', 'future_mirror'},
+      disclosure: _membershipDisclosure,
+    ),
+  ];
+
+  @override
+  Future<DemoEntitlement> getEntitlement() async => _entitlement;
+
+  @override
+  Future<DemoCheckout> getCheckout(String sessionId) async => _checkout;
+
+  @override
+  Future<DemoCheckout> createCheckout(String planCode, String key) async =>
+      _checkout;
+
+  @override
+  Future<DemoEntitlement> confirmCheckout(
+    String sessionId,
+    int expectedVersion,
+    String key,
+  ) async {
+    _checkout = DemoCheckout(
+      id: _checkout.id,
+      planCode: DemoPlanCode.premiumDemo,
+      status: DemoCheckoutStatus.completed,
+      expiresAt: _checkout.expiresAt,
+      version: expectedVersion + 1,
+      disclosure: _membershipDisclosure,
+    );
+    _entitlement = DemoEntitlement(
+      id: '00000000-0000-4000-8000-000000000703',
+      planCode: DemoPlanCode.premiumDemo,
+      status: DemoEntitlementStatus.active,
+      startsAt: DateTime.utc(2026, 8, 25, 12),
+      version: 2,
+      disclosure: _membershipDisclosure,
+    );
+    return _entitlement;
+  }
+
+  @override
+  Future<DemoEntitlement> restore(String key) async => _entitlement;
+
+  @override
+  Future<DemoEntitlement> downgrade(int expectedVersion, String key) async {
+    _entitlement = DemoEntitlement(
+      id: '00000000-0000-4000-8000-000000000704',
+      planCode: DemoPlanCode.free,
+      status: DemoEntitlementStatus.active,
+      startsAt: DateTime.utc(2026, 8, 25, 12),
+      version: expectedVersion + 1,
+      disclosure: _membershipDisclosure,
+    );
+    return _entitlement;
+  }
+}
+
+final _membershipDisclosure = DemoDisclosure(
+  isDemo: true,
+  observedAt: DateTime.utc(2026, 8, 25, 12),
+  sourceLabel: 'Ritual deterministic Demo',
+  limitations: [
+    'No money moves and no external financial provider is contacted.',
+  ],
+);
 
 class _FixtureRitualService implements DailyRitualService {
   _FixtureRitualService(this.tracker);

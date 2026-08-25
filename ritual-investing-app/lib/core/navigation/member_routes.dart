@@ -39,8 +39,8 @@ abstract final class MemberRoutes {
   static const discoverCirclesPath = '/discover/circles';
   static const ritualBriefingsPath = '/ritual/briefings';
   static const youNotificationsPath = '/you/notifications';
-  static const youNotificationPreferencesPath =
-      '/you/notification-preferences';
+  static const youNotificationPreferencesPath = '/you/notification-preferences';
+  static const youMembershipPath = '/you/membership';
 
   static const ritual = MemberRouteDefinition(
     name: 'ritual',
@@ -247,4 +247,44 @@ abstract final class MemberRoutes {
     }
     return '$ritualBriefingsPath/${Uri.encodeComponent(briefingId)}';
   }
+
+  static String membershipLocation({
+    String? capabilityCode,
+    String? returnLocation,
+  }) {
+    if ((capabilityCode == null) != (returnLocation == null)) {
+      throw ArgumentError(
+        'Capability and return location must be supplied together.',
+      );
+    }
+    if (capabilityCode == null) return youMembershipPath;
+    if (!isStableId(capabilityCode) ||
+        !returnLocation!.startsWith('/') ||
+        returnLocation.startsWith('//') ||
+        returnLocation.contains('://') ||
+        returnLocation.contains('/admin')) {
+      throw ArgumentError('Invalid membership return context.');
+    }
+    return Uri(
+      path: youMembershipPath,
+      queryParameters: {
+        'capability': capabilityCode,
+        'return_to': returnLocation,
+      },
+    ).toString();
+  }
+
+  static String membershipCheckoutLocation(String checkoutId) {
+    if (!isUuid(checkoutId)) {
+      throw ArgumentError.value(
+        checkoutId,
+        'checkoutId',
+        'Invalid Demo checkout UUID.',
+      );
+    }
+    return '$youMembershipPath/checkout/${Uri.encodeComponent(checkoutId)}';
+  }
+
+  static String membershipReceiptLocation(String checkoutId) =>
+      '${membershipCheckoutLocation(checkoutId)}/receipt';
 }
