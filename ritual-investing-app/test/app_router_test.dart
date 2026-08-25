@@ -166,7 +166,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(loads.count(MemberBranch.discover), 1);
       expect(loads.count(MemberBranch.coven), 0);
-      router.push(MemberRoutes.discoverAsset.location('asset-1'));
+      router.push(
+        MemberRoutes.discoverAsset.location(
+          '00000000-0000-4000-8000-000000000201',
+        ),
+      );
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('detail-discover-asset')), findsOneWidget);
 
@@ -204,40 +208,41 @@ void main() {
     },
   );
 
-  testWidgets('You settings use focused shell-gated routes and lifecycle logout', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      RitualInvestingApp(
-        container: fixtureContainer(),
-        resourceAccess: (_, _) => true,
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('You').last);
-    await tester.pumpAndSettle();
-    final router = GoRouter.of(
-      tester.element(find.byKey(const Key('app-shell-scaffold'))),
-    );
+  testWidgets(
+    'You settings use focused shell-gated routes and lifecycle logout',
+    (tester) async {
+      await tester.pumpWidget(
+        RitualInvestingApp(
+          container: fixtureContainer(),
+          resourceAccess: (_, _) => true,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('You').last);
+      await tester.pumpAndSettle();
+      final router = GoRouter.of(
+        tester.element(find.byKey(const Key('app-shell-scaffold'))),
+      );
 
-    await tester.tap(find.byKey(const Key('you-investing')));
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, MemberRoutes.youInvestingPath);
-    expect(find.text('Investing profile'), findsOneWidget);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('you-investing')));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, MemberRoutes.youInvestingPath);
+      expect(find.text('Investing profile'), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
 
-    router.go(MemberRoutes.youPoliciesPath);
-    await tester.pumpAndSettle();
-    expect(find.text('Policy decisions'), findsOneWidget);
-    expect(find.text('Onboarding complete'), findsOneWidget);
+      router.go(MemberRoutes.youPoliciesPath);
+      await tester.pumpAndSettle();
+      expect(find.text('Policy decisions'), findsOneWidget);
+      expect(find.text('Onboarding complete'), findsOneWidget);
 
-    router.go(MemberRoutes.youAccountPath);
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('settings-logout')));
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/entry');
-  });
+      router.go(MemberRoutes.youAccountPath);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('settings-logout')));
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/entry');
+    },
+  );
 }
 
 class _SignedOutSessionRepository implements SessionRepository {

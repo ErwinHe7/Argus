@@ -46,7 +46,22 @@ void main() {
 
 class _OfflineService implements DailyRitualService {
   @override
-  Future<DailyRitual> fetchDaily() => Future.error(const OfflineException());
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) =>
+      Future.error(const OfflineException());
+
+  @override
+  Future<DailyRitual> fetchAssignment(String assignmentId) => fetchDaily();
+  @override
+  Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) =>
+      Future.error(const OfflineException());
+  @override
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) =>
+      Future.error(const OfflineException());
+  @override
+  Future<DailyRitual> reveal(String assignmentId, int version) => fetchDaily();
+  @override
+  Future<DailyRitual> complete(String assignmentId, int version) =>
+      fetchDaily();
 }
 
 class _LostResponseService implements MutationService<String> {

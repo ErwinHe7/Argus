@@ -200,7 +200,28 @@ DailyRitual _ritualFixture() => DailyRitual(
 
 class _OfflineService implements DailyRitualService {
   @override
-  Future<DailyRitual> fetchDaily() => Future.error(const OfflineException());
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) =>
+      Future.error(const OfflineException());
+
+  @override
+  Future<DailyRitual> complete(String assignmentId, int version) =>
+      throw UnimplementedError();
+
+  @override
+  Future<DailyRitual> fetchAssignment(String assignmentId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<DailyRitual> reveal(String assignmentId, int version) =>
+      throw UnimplementedError();
 }
 
 class _FailingDiscoverAdapter implements HttpClientAdapter {

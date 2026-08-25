@@ -35,6 +35,7 @@ abstract final class MemberRoutes {
   static const youAstrologyPath = '/you/astrology';
   static const youPoliciesPath = '/you/policies';
   static const youAccountPath = '/you/account';
+  static const discoverSearchPath = '/discover/search';
 
   static const ritual = MemberRouteDefinition(
     name: 'ritual',
@@ -95,4 +96,24 @@ abstract final class MemberRoutes {
 
   static bool isStableId(String value) =>
       RegExp(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$').hasMatch(value);
+
+  static bool isUuid(String value) => RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+  ).hasMatch(value);
+
+  static String assetLocation(
+    String assetId, {
+    required String sourceKind,
+    String? sourceId,
+  }) {
+    if (!isUuid(assetId)) {
+      throw ArgumentError.value(assetId, 'assetId', 'Invalid asset UUID.');
+    }
+    final query = <String, String>{'source': sourceKind};
+    if (sourceId != null && isUuid(sourceId)) query['source_id'] = sourceId;
+    return Uri(
+      path: discoverAsset.location(assetId),
+      queryParameters: query,
+    ).toString();
+  }
 }

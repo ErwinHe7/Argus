@@ -4,14 +4,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/coven/presentation/coven_screen.dart';
+import '../../features/asset_codex/application/controller.dart';
+import '../../features/asset_codex/domain/model.dart';
+import '../../features/asset_codex/presentation/asset_codex_screen.dart';
 import '../../features/discover/presentation/discover_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/ritual/presentation/daily_ritual_screen.dart';
+import '../../features/search/presentation/search_screen.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../bootstrap/dependency_container.dart';
 import '../bootstrap/entry_coordinator.dart';
+import '../bootstrap/member_bootstrap.dart';
 import 'member_routes.dart';
 
 GoRouter createAppRouter({
@@ -27,12 +32,25 @@ GoRouter createAppRouter({
       final stableId = state.pathParameters['stableId'];
       if (stableId == null ||
           !MemberRoutes.isStableId(stableId) ||
-          !access(definition, stableId)) {
+          (definition == MemberRoutes.discoverAsset &&
+              !MemberRoutes.isUuid(stableId)) ||
+          ((definition != MemberRoutes.discoverAsset ||
+                  !container.hasAssetCodex) &&
+              !access(definition, stableId))) {
         return MemberRoutes.rootFor(definition.branch).path;
       }
       return null;
     },
-    builder: (context, state) => _MemberResourceScreen(route: definition),
+    builder: (context, state) {
+      if (definition == MemberRoutes.discoverAsset && container.hasAssetCodex) {
+        return _AssetCodexRoute(
+          container: container,
+          assetId: state.pathParameters['stableId']!,
+          source: _assetSource(state.uri.queryParameters),
+        );
+      }
+      return _MemberResourceScreen(route: definition);
+    },
   );
 
   StatefulShellBranch branch(
@@ -44,9 +62,8 @@ GoRouter createAppRouter({
       childRoutes.addAll([
         GoRoute(
           path: 'investing',
-          builder: (context, state) => InvestingProfileScreen(
-            controller: container.profileController,
-          ),
+          builder: (context, state) =>
+              InvestingProfileScreen(controller: container.profileController),
         ),
         GoRoute(
           path: 'ritual-preferences',
@@ -73,27 +90,42 @@ GoRouter createAppRouter({
         ),
         GoRoute(
           path: 'account',
-          builder: (context, state) => AccountSettingsScreen(
-            onLogout: container.logout,
-          ),
+          builder: (context, state) =>
+              AccountSettingsScreen(onLogout: container.logout),
         ),
       ]);
     }
+    if (root.branch == MemberBranch.discover) {
+      final searchController = container.optionalSearchController;
+      if (searchController != null) {
+        childRoutes.add(
+          GoRoute(
+            path: 'search',
+            builder: (context, state) => SearchScreen(
+              controller: searchController,
+              onOpenAsset: (id) => context.push(
+                MemberRoutes.assetLocation(id, sourceKind: 'search'),
+              ),
+            ),
+          ),
+        );
+      }
+    }
     return StatefulShellBranch(
-    restorationScopeId: '${root.name}-branch',
-    routes: [
-      GoRoute(
-        path: root.path,
-        name: root.name,
-        builder: (context, state) => _LazyMemberBranch(
-          key: ValueKey(root.name),
-          branch: root.branch,
-          container: container,
+      restorationScopeId: '${root.name}-branch',
+      routes: [
+        GoRoute(
+          path: root.path,
+          name: root.name,
+          builder: (context, state) => _LazyMemberBranch(
+            key: ValueKey(root.name),
+            branch: root.branch,
+            container: container,
+          ),
+          routes: childRoutes,
         ),
-        routes: childRoutes,
-      ),
-    ],
-  );
+      ],
+    );
   }
 
   return GoRouter(
@@ -383,6 +415,24 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
       controller: widget.container.dailyRitualController,
       onOpenCoven: () => context.go(MemberRoutes.coven.path),
       onToggleTheme: () => context.go(MemberRoutes.youRitualPreferencesPath),
+      onOpenSearch: widget.container.optionalSearchController == null
+          ? null
+          : () => context.push(MemberRoutes.discoverSearchPath),
+      onOpenAsset: (id) {
+        final assignmentId =
+            widget.container.dailyRitualController.state.value?.assignmentId;
+        context.push(
+          MemberRoutes.assetLocation(
+            id,
+            sourceKind: 'ritual',
+            sourceId: assignmentId,
+          ),
+        );
+      },
+      rowanController: widget.container.optionalRowanController,
+      personalization:
+          widget.container.memberBootstrap?.personalization ??
+          const MemberPersonalization(),
     ),
     MemberBranch.discover => DiscoverScreen(
       controller: widget.container.discoverController,
@@ -403,6 +453,68 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
           context.push(MemberRoutes.portfolio.location(id)),
     ),
   };
+}
+
+AssetSourceContext _assetSource(Map<String, String> query) {
+  final kind = switch (query['source']) {
+    'ritual' => AssetSourceKind.ritual,
+    'circle' => AssetSourceKind.circle,
+    'discover' => AssetSourceKind.discover,
+    'search' => AssetSourceKind.search,
+    _ => AssetSourceKind.direct,
+  };
+  final sourceId = query['source_id'];
+  return AssetSourceContext(
+    kind: kind,
+    resourceId: sourceId != null && MemberRoutes.isUuid(sourceId)
+        ? sourceId
+        : null,
+  );
+}
+
+class _AssetCodexRoute extends StatefulWidget {
+  const _AssetCodexRoute({
+    required this.container,
+    required this.assetId,
+    required this.source,
+  });
+
+  final DependencyContainer container;
+  final String assetId;
+  final AssetSourceContext source;
+
+  @override
+  State<_AssetCodexRoute> createState() => _AssetCodexRouteState();
+}
+
+class _AssetCodexRouteState extends State<_AssetCodexRoute> {
+  late final AssetCodexController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = widget.container.createAssetCodexController(
+      assetId: widget.assetId,
+      source: widget.source,
+    );
+    unawaited(_controller.load());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AssetCodexScreen(
+    controller: _controller,
+    rowanController: widget.container.optionalRowanController,
+    personalization:
+        widget.container.memberBootstrap?.personalization ??
+        const MemberPersonalization(),
+    searchController: widget.container.optionalSearchController,
+  );
 }
 
 class _MemberResourceScreen extends StatelessWidget {

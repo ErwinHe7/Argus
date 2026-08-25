@@ -6,6 +6,9 @@ import 'package:flutter/foundation.dart';
 import 'package:ritual_investing_api_client/generated/api.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 
+import '../../features/asset_codex/application/controller.dart';
+import '../../features/asset_codex/data/repository.dart';
+import '../../features/asset_codex/domain/model.dart';
 import '../../features/coven/application/controller.dart';
 import '../../features/coven/data/repository.dart';
 import '../../features/discover/application/controller.dart';
@@ -21,6 +24,10 @@ import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/data/repository.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/ritual/data/daily_ritual_repository.dart';
+import '../../features/rowan/application/controller.dart';
+import '../../features/rowan/data/repository.dart';
+import '../../features/search/application/controller.dart';
+import '../../features/search/data/repository.dart';
 import '../api/ritual_api.dart';
 import '../api/flutter_protected_storage.dart';
 import '../api/pending_command_store.dart';
@@ -55,6 +62,9 @@ class MemberFeatureScope {
     required this.covenController,
     required this.profileController,
     required this.portfolioController,
+    this.assetCodexRepository,
+    this.searchController,
+    this.rowanController,
   });
 
   final CacheScope scope;
@@ -63,6 +73,9 @@ class MemberFeatureScope {
   final CovenController covenController;
   final ProfileController profileController;
   final PortfolioController portfolioController;
+  final AssetCodexRepository? assetCodexRepository;
+  final SearchController? searchController;
+  final RowanController? rowanController;
   final Map<MemberBranch, Future<void>> _loads = {};
   bool _isDisposed = false;
 
@@ -95,6 +108,8 @@ class MemberFeatureScope {
     covenController.dispose();
     profileController.dispose();
     portfolioController.dispose();
+    searchController?.dispose();
+    rowanController?.dispose();
   }
 }
 
@@ -186,6 +201,38 @@ class DependencyContainer extends ChangeNotifier {
   ProfileController get profileController => _requireScope().profileController;
   PortfolioController get portfolioController =>
       _requireScope().portfolioController;
+  SearchController get searchController {
+    final value = _requireScope().searchController;
+    if (value == null) throw StateError('Search is unavailable.');
+    return value;
+  }
+
+  SearchController? get optionalSearchController =>
+      _featureScope?.searchController;
+
+  RowanController get rowanController {
+    final value = _requireScope().rowanController;
+    if (value == null) throw StateError('Rowan counsel is unavailable.');
+    return value;
+  }
+
+  RowanController? get optionalRowanController =>
+      _featureScope?.rowanController;
+
+  AssetCodexController createAssetCodexController({
+    required String assetId,
+    required AssetSourceContext source,
+  }) {
+    final repository = _requireScope().assetCodexRepository;
+    if (repository == null) throw StateError('Asset Codex is unavailable.');
+    return AssetCodexController(
+      repository: repository,
+      assetId: assetId,
+      source: source,
+    );
+  }
+
+  bool get hasAssetCodex => _featureScope?.assetCodexRepository != null;
 
   Future<void> bootstrap() {
     final coordinator = entryCoordinator;
@@ -466,6 +513,19 @@ class DependencyContainer extends ChangeNotifier {
         portfolioController: PortfolioController(
           repository: CachedPortfolioRepository(
             service: GeneratedPortfolioApiService(client),
+            cache: scopedCache,
+          ),
+        ),
+        assetCodexRepository: AssetCodexRepository(
+          service: GeneratedAssetCodexService(client),
+          cache: scopedCache,
+        ),
+        searchController: SearchController(
+          repository: SearchRepository(service: GeneratedSearchService(client)),
+        ),
+        rowanController: RowanController(
+          repository: RowanRepository(
+            service: GeneratedRowanService(client),
             cache: scopedCache,
           ),
         ),

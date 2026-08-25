@@ -121,8 +121,22 @@ class _FailureRepository implements DiscoverRepository {
 
 class _ForbiddenRitualService implements DailyRitualService {
   @override
-  Future<DailyRitual> fetchDaily() =>
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) =>
       Future.error(const LoadFailure(LoadPhase.forbidden));
+
+  @override
+  Future<DailyRitual> fetchAssignment(String assignmentId) => fetchDaily();
+  @override
+  Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) =>
+      Future.error(const LoadFailure(LoadPhase.forbidden));
+  @override
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) =>
+      Future.error(const LoadFailure(LoadPhase.forbidden));
+  @override
+  Future<DailyRitual> reveal(String assignmentId, int version) => fetchDaily();
+  @override
+  Future<DailyRitual> complete(String assignmentId, int version) =>
+      fetchDaily();
 }
 
 class _FailureProfileRepository implements ProfileRepository {

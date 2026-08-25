@@ -4,6 +4,15 @@ enum DailyRitualMode { tarot, astrology, unknown }
 
 enum DailyRitualState { assigned, revealed, completed, unknown }
 
+enum RitualMutationPhase {
+  idle,
+  committing,
+  committed,
+  reconciled,
+  retryableFailure,
+  terminalFailure,
+}
+
 @immutable
 class DailyRitual {
   DailyRitual({
@@ -179,6 +188,82 @@ class RitualEvidence {
   @override
   int get hashCode =>
       Object.hash(claimId, factorLabel, observedAt, summary, uncertainty);
+}
+
+@immutable
+class RitualEvidenceSource {
+  const RitualEvidenceSource({
+    required this.publisher,
+    required this.title,
+    required this.url,
+    required this.publishedAt,
+  });
+
+  final String publisher;
+  final String title;
+  final Uri url;
+  final DateTime? publishedAt;
+}
+
+@immutable
+class RitualEvidenceDetail {
+  const RitualEvidenceDetail({
+    required this.claimId,
+    required this.factorLabel,
+    required this.observedAt,
+    required this.summary,
+    required this.uncertainty,
+    required this.source,
+  });
+
+  final String claimId;
+  final String factorLabel;
+  final DateTime observedAt;
+  final String summary;
+  final String uncertainty;
+  final RitualEvidenceSource source;
+}
+
+@immutable
+class RitualHistoryEntry {
+  const RitualHistoryEntry({
+    required this.assignmentId,
+    required this.date,
+    required this.mode,
+    required this.title,
+    required this.state,
+    required this.demo,
+  });
+
+  factory RitualHistoryEntry.fromRitual(DailyRitual ritual) =>
+      RitualHistoryEntry(
+        assignmentId: ritual.assignmentId,
+        date: ritual.date,
+        mode: ritual.mode,
+        title: ritual.title,
+        state: ritual.state,
+        demo: ritual.demo,
+      );
+
+  final String assignmentId;
+  final DateTime date;
+  final DailyRitualMode mode;
+  final String title;
+  final DailyRitualState state;
+  final RitualDisclosure demo;
+}
+
+@immutable
+class RitualHistoryPage {
+  RitualHistoryPage({
+    required List<RitualHistoryEntry> items,
+    required this.nextCursor,
+    required this.hasMore,
+  }) : items = List.unmodifiable(items);
+
+  final List<RitualHistoryEntry> items;
+  final String? nextCursor;
+  final bool hasMore;
 }
 
 @immutable

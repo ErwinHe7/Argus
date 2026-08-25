@@ -4,6 +4,41 @@ enum MemberThemePreference { system, light, dark }
 
 enum MemberEntitlementStatus { active, unavailable }
 
+enum MemberExplanationDepth { beginner, guided, advanced, unavailable }
+
+enum MemberRitualVoice { practical, balanced, mystical, unavailable }
+
+enum MemberRiskFraming { low, moderate, high, unavailable }
+
+enum MemberRitualMode { tarot, astrology, unavailable }
+
+@immutable
+class MemberPersonalization {
+  const MemberPersonalization({
+    this.explanationDepth = MemberExplanationDepth.unavailable,
+    this.ritualVoice = MemberRitualVoice.unavailable,
+    this.riskFraming = MemberRiskFraming.unavailable,
+    this.ritualMode = MemberRitualMode.unavailable,
+  });
+
+  final MemberExplanationDepth explanationDepth;
+  final MemberRitualVoice ritualVoice;
+  final MemberRiskFraming riskFraming;
+  final MemberRitualMode ritualMode;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MemberPersonalization &&
+      other.explanationDepth == explanationDepth &&
+      other.ritualVoice == ritualVoice &&
+      other.riskFraming == riskFraming &&
+      other.ritualMode == ritualMode;
+
+  @override
+  int get hashCode =>
+      Object.hash(explanationDepth, ritualVoice, riskFraming, ritualMode);
+}
+
 @immutable
 class MemberEntitlement {
   const MemberEntitlement({required this.planCode, required this.status});
@@ -75,6 +110,7 @@ class MemberBootstrap {
     required this.serverTime,
     required this.contractVersion,
     required this.themePreference,
+    this.personalization = const MemberPersonalization(),
   });
 
   final String accountId;
@@ -85,6 +121,7 @@ class MemberBootstrap {
   final DateTime serverTime;
   final String contractVersion;
   final MemberThemePreference themePreference;
+  final MemberPersonalization personalization;
 
   bool get canEnterMemberShell =>
       onboarding.isComplete &&
@@ -100,7 +137,8 @@ class MemberBootstrap {
       other.defaultPortfolioId == defaultPortfolioId &&
       other.serverTime == serverTime &&
       other.contractVersion == contractVersion &&
-      other.themePreference == themePreference;
+      other.themePreference == themePreference &&
+      other.personalization == personalization;
 
   @override
   int get hashCode => Object.hash(
@@ -112,5 +150,6 @@ class MemberBootstrap {
     serverTime,
     contractVersion,
     themePreference,
+    personalization,
   );
 }

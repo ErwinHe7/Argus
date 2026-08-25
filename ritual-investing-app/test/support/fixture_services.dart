@@ -155,7 +155,7 @@ class _FixtureRitualService implements DailyRitualService {
   final FeatureLoadTracker tracker;
 
   @override
-  Future<DailyRitual> fetchDaily() async {
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async {
     tracker.hit(MemberBranch.ritual);
     return DailyRitual(
       assignmentId: '00000000-0000-4000-8000-000000000101',
@@ -228,10 +228,10 @@ class _FixtureRitualService implements DailyRitualService {
         body: 'I’ll show you what changed beneath the reading.',
         riskFooter: 'This deterministic demo explains uncertainty and never tells you to trade.',
       ),
-      version: 1,
-      state: DailyRitualState.assigned,
-      revealedAt: null,
-      completedAt: null,
+      version: 3,
+      state: DailyRitualState.completed,
+      revealedAt: DateTime.utc(2026, 8, 20, 13, 40),
+      completedAt: DateTime.utc(2026, 8, 20, 13, 55),
       demo: RitualDisclosure(
         isDemo: true,
         observedAt: DateTime.utc(2026, 8, 20, 13, 35),
@@ -243,6 +243,40 @@ class _FixtureRitualService implements DailyRitualService {
       ),
     );
   }
+
+  @override
+  Future<DailyRitual> fetchAssignment(String assignmentId) => fetchDaily();
+
+  @override
+  Future<List<RitualEvidenceDetail>> fetchEvidence(
+    String assignmentId,
+  ) async => [
+    RitualEvidenceDetail(
+      claimId: '21000000-0000-4000-8000-000000000001',
+      factorLabel: 'Durable dividend momentum',
+      observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+      summary: 'Lower volatility and durable dividend momentum in the scenario window.',
+      uncertainty:
+          'The scenario is simulated and short-term conditions can reverse.',
+      source: RitualEvidenceSource(
+        publisher: 'Demo Research Desk',
+        title: 'Provider-free scenario note',
+        url: Uri.parse('https://example.invalid/ritual-evidence'),
+        publishedAt: DateTime.utc(2026, 8, 20, 13),
+      ),
+    ),
+  ];
+
+  @override
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) async =>
+      RitualHistoryPage(items: const [], nextCursor: null, hasMore: false);
+
+  @override
+  Future<DailyRitual> reveal(String assignmentId, int version) => fetchDaily();
+
+  @override
+  Future<DailyRitual> complete(String assignmentId, int version) =>
+      fetchDaily();
 }
 
 class _FixtureDiscoverService implements DiscoverService {
