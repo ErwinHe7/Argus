@@ -75,7 +75,7 @@ void main() {
       bus.publish(
         const InvalidationEvent(
           scope: _scope,
-          resource: 'ledger',
+          resource: InvalidationResource.ledger,
           ledgerWatermark: 14,
         ),
       );

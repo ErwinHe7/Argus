@@ -58,7 +58,6 @@ void main() {
 
         expect(controller.state.phase, failure.phase);
         expect(underlyingActionCount, 1);
-        expect(controller.blocksUnderlyingResource, isFalse);
       },
     );
   }

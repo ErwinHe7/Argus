@@ -117,7 +117,7 @@ void main() {
       fixture.bus.publish(
         const InvalidationEvent(
           scope: _scope,
-          resource: 'ledger',
+          resource: InvalidationResource.ledger,
           ledgerWatermark: 18,
         ),
       );

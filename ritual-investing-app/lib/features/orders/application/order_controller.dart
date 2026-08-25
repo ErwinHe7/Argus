@@ -103,7 +103,9 @@ class OrderController extends ChangeNotifier {
       }
       _protected = restored;
       _activePreview = preview;
-      final reconciled = await portfolioController.refreshPortfolio(portfolioId);
+      final reconciled = await portfolioController.refreshPortfolio(
+        portfolioId,
+      );
       _phase = reconciled
           ? OrderCommandPhase.restoredReview
           : OrderCommandPhase.reconciliationRequired;
@@ -115,7 +117,8 @@ class OrderController extends ChangeNotifier {
       _activePreview = null;
       _protected = null;
       _phase = OrderCommandPhase.previewInvalidated;
-      _message = 'The saved preview cannot be verified. Create a fresh preview.';
+      _message =
+          'The saved preview cannot be verified. Create a fresh preview.';
     }
     notifyListeners();
   }
@@ -180,7 +183,9 @@ class OrderController extends ChangeNotifier {
     await _journal.clear(operation);
     _protected = null;
     _activePreview = null;
-    _phase = _orders.isEmpty ? OrderCommandPhase.empty : OrderCommandPhase.listReady;
+    _phase = _orders.isEmpty
+        ? OrderCommandPhase.empty
+        : OrderCommandPhase.listReady;
     _message = 'Saved confirmation discarded after explicit review. A new preview will use a new key.';
     notifyListeners();
   }
@@ -193,7 +198,9 @@ class OrderController extends ChangeNotifier {
     }
     final preview = _activePreview;
     if (preview == null || !preview.expiresAt.isAfter(_now().toUtc())) {
-      await _invalidatePreview('The Demo preview expired. Create a fresh preview.');
+      await _invalidatePreview(
+        'The Demo preview expired. Create a fresh preview.',
+      );
       return;
     }
     _phase = OrderCommandPhase.review;
@@ -222,7 +229,9 @@ class OrderController extends ChangeNotifier {
   Future<void> _confirm() async {
     final preview = _activePreview!;
     if (!preview.expiresAt.isAfter(_now().toUtc())) {
-      await _invalidatePreview('The Demo preview expired. Create a fresh preview.');
+      await _invalidatePreview(
+        'The Demo preview expired. Create a fresh preview.',
+      );
       return;
     }
     final payload = <String, Object?>{
@@ -232,7 +241,9 @@ class OrderController extends ChangeNotifier {
     };
     final existing = _protected;
     if (existing != null && !existing.matchesPayload(payload)) {
-      await _invalidatePreview('The command details changed. Create and review a fresh preview.');
+      await _invalidatePreview(
+        'The command details changed. Create and review a fresh preview.',
+      );
       return;
     }
     _protected = await _journal.protect(
@@ -318,13 +329,19 @@ class OrderController extends ChangeNotifier {
   }
 
   Future<void> _refreshAccepted(String portfolioId) async {
-    final portfolioReady = await portfolioController.refreshPortfolio(portfolioId);
+    final portfolioReady = await portfolioController.refreshPortfolio(
+      portfolioId,
+    );
     final ordersReady = await _refreshOrders();
     final watermark = portfolioReady
         ? portfolioController.detailState.value?.portfolio.ledgerWatermark
         : null;
     _invalidationBus.publish(
-      InvalidationEvent(scope: scope, resource: 'ledger', ledgerWatermark: watermark),
+      InvalidationEvent(
+        scope: scope,
+        resource: InvalidationResource.ledger,
+        ledgerWatermark: watermark,
+      ),
     );
     if (watermark == null || !ordersReady) {
       _phase = OrderCommandPhase.receiptRefreshPending;
@@ -336,7 +353,9 @@ class OrderController extends ChangeNotifier {
   }
 
   Future<bool> _reconcile(String portfolioId) async {
-    final portfolioReady = await portfolioController.refreshPortfolio(portfolioId);
+    final portfolioReady = await portfolioController.refreshPortfolio(
+      portfolioId,
+    );
     final ordersReady = await _refreshOrders();
     return portfolioReady && ordersReady;
   }
@@ -347,7 +366,9 @@ class OrderController extends ChangeNotifier {
     try {
       _orders = List.unmodifiable(await _repository.list(portfolioId));
       if (_protected == null && _receipt == null) {
-        _phase = _orders.isEmpty ? OrderCommandPhase.empty : OrderCommandPhase.listReady;
+        _phase = _orders.isEmpty
+            ? OrderCommandPhase.empty
+            : OrderCommandPhase.listReady;
       }
       notifyListeners();
       return true;

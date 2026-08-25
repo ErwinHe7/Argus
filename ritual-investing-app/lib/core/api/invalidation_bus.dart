@@ -2,6 +2,8 @@ import 'dart:async';
 
 import '../cache/read_cache.dart';
 
+enum InvalidationResource { ledger, notifications, portfolios }
+
 class InvalidationEvent {
   const InvalidationEvent({
     required this.scope,
@@ -10,7 +12,7 @@ class InvalidationEvent {
   });
 
   final CacheScope scope;
-  final String resource;
+  final InvalidationResource resource;
   final int? ledgerWatermark;
 
   @override

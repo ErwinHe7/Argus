@@ -445,7 +445,7 @@ class NotificationController extends ChangeNotifier {
   }
 
   void _handleInvalidation(InvalidationEvent event) {
-    if (event.resource != 'notifications') return;
+    if (event.resource != InvalidationResource.notifications) return;
     _isStale = true;
     if (_items.isNotEmpty) _phase = NotificationPhase.stale;
     _message = 'Refreshing the authoritative in-app feed.';

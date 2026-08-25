@@ -3,33 +3,28 @@ import 'package:ritual_investing_app/core/api/pending_command_store.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 
 void main() {
-  test(
-    'restored command retains proof fields and requires reconciliation',
-    () async {
-      final storage = _MemoryProtectedStorage();
-      final journal = PendingCommandStore(storage: storage);
-      final command = PendingCommand(
-        scope: const CacheScope(accountId: 'account-a', resetGeneration: 3),
-        operation: 'create_demo_contribution',
-        key: 'command-key',
-        precondition: 'portfolio-version:8',
-        canonicalPayloadHash:
-            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        createdAt: DateTime.utc(2026, 8, 24, 12),
-      );
+  test('restored command retains proof fields for reconciliation', () async {
+    final storage = _MemoryProtectedStorage();
+    final journal = PendingCommandStore(storage: storage);
+    final command = PendingCommand(
+      scope: const CacheScope(accountId: 'account-a', resetGeneration: 3),
+      operation: 'create_demo_contribution',
+      key: 'command-key',
+      precondition: 'portfolio-version:8',
+      canonicalPayloadHash:
+          'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      createdAt: DateTime.utc(2026, 8, 24, 12),
+    );
 
-      await journal.save(command);
-      final restored = await journal.restore(command.scope, command.operation);
+    await journal.save(command);
+    final restored = await journal.restore(command.scope, command.operation);
 
-      expect(restored?.command, command);
-      expect(restored?.requiresAuthoritativeReconciliation, isTrue);
-      expect(restored?.canAutoSubmit, isFalse);
-      expect(
-        storage.values.values.single,
-        allOf(contains('canonical_payload_hash'), isNot(contains('payload":'))),
-      );
-    },
-  );
+    expect(restored?.command, command);
+    expect(
+      storage.values.values.single,
+      allOf(contains('canonical_payload_hash'), isNot(contains('payload":'))),
+    );
+  });
 
   test('reset generation cannot restore or clear another scope', () async {
     final storage = _MemoryProtectedStorage();

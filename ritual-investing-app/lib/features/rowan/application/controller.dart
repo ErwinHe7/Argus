@@ -16,7 +16,6 @@ class RowanController extends ChangeNotifier {
 
   ViewState<RowanCounselResult> get state => _state;
   RowanRequest? get request => _request;
-  bool get blocksUnderlyingResource => false;
 
   Future<void> explain(RowanRequest request) async {
     _request = request;

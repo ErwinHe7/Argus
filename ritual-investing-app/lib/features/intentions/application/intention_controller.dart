@@ -575,7 +575,11 @@ class IntentionController extends ChangeNotifier {
   }
 
   void _handleInvalidation(InvalidationEvent event) {
-    if (_disposed || event.resource != 'ledger' || _portfolioId == null) return;
+    if (_disposed ||
+        event.resource != InvalidationResource.ledger ||
+        _portfolioId == null) {
+      return;
+    }
     unawaited(_refresh());
   }
 

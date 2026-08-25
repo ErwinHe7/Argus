@@ -73,7 +73,6 @@ void main() {
       expect(harness.searchController.state.value?.items.single.id, u4PeerId);
 
       await harness.rowanController.explain(RowanRequest.assetCodex(u4AssetId));
-      expect(harness.rowanController.blocksUnderlyingResource, isFalse);
       expect(harness.rowanController.state.phase, LoadPhase.retryableFailure);
       harness.rowanUnavailable = false;
       await harness.rowanController.explain(RowanRequest.assetCodex(u4AssetId));

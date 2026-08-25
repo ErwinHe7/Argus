@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/presentation/demo_disclosure.dart';
 import '../../../core/presentation/minor_money.dart';
+import '../../../core/presentation/server_time.dart';
 import '../../intentions/application/intention_controller.dart';
 import '../../portfolio/application/controller.dart';
 import '../application/future_mirror_controller.dart';
@@ -314,7 +315,7 @@ class _FutureMirrorScreenState extends State<FutureMirrorScreen> {
                     minTileHeight: 56,
                     contentPadding: EdgeInsets.zero,
                     title: Text(result.assumptions.name),
-                    subtitle: Text(_timestamp(result.generatedAt)),
+                    subtitle: Text(ServerTime.timestamp(result.generatedAt)),
                     trailing: const Text('Compare'),
                     onTap: widget.onOpenRun == null
                         ? () => unawaited(controller.compareWith(result.id))
@@ -384,14 +385,14 @@ class _MirrorResult extends StatelessWidget {
               '${result.assumptions.highReturnBps / 100}%',
             ),
             Text(
-              'Generated ${_timestamp(result.generatedAt)} · model ${result.modelVersion} · '
+              'Generated ${ServerTime.timestamp(result.generatedAt)} · model ${result.modelVersion} · '
               'Demo ledger watermark ${result.ledgerWatermark}',
             ),
             const SizedBox(height: 8),
             Text(result.uncertainty),
             Text(
               'Source: ${result.demo.sourceLabel} · observed '
-              '${_timestamp(result.demo.observedAt)}',
+              '${ServerTime.timestamp(result.demo.observedAt)}',
             ),
             for (final limitation in result.demo.limitations)
               Text('Limitation: $limitation'),
@@ -440,10 +441,6 @@ String _dateOnly(DateTime value) =>
     '${value.toUtc().year.toString().padLeft(4, '0')}-'
     '${value.toUtc().month.toString().padLeft(2, '0')}-'
     '${value.toUtc().day.toString().padLeft(2, '0')}';
-
-String _timestamp(DateTime value) =>
-    '${_dateOnly(value)} ${value.toUtc().hour.toString().padLeft(2, '0')}:'
-    '${value.toUtc().minute.toString().padLeft(2, '0')} UTC';
 
 int? _usdMinorAllowZero(String raw) {
   final value = raw.trim().replaceAll(',', '');

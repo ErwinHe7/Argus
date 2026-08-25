@@ -333,7 +333,7 @@ class ContributionController extends ChangeNotifier {
       _invalidationBus.publish(
         InvalidationEvent(
           scope: scope,
-          resource: 'ledger',
+          resource: InvalidationResource.ledger,
           ledgerWatermark: watermark,
         ),
       );

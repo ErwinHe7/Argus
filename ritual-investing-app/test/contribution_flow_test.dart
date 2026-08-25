@@ -71,7 +71,7 @@ void main() {
         isNull,
       );
       expect(fixture.portfolios.refreshes, 1);
-      expect(events.single.resource, 'ledger');
+    expect(events.single.resource, InvalidationResource.ledger);
       expect(events.single.ledgerWatermark, 9);
     },
   );

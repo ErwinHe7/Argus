@@ -93,7 +93,9 @@ class RebalanceController extends ChangeNotifier {
       }
       _protected = restored;
       _activePreview = preview;
-      final reconciled = await portfolioController.refreshPortfolio(portfolioId);
+      final reconciled = await portfolioController.refreshPortfolio(
+        portfolioId,
+      );
       _phase = reconciled
           ? RebalancePhase.restoredReview
           : RebalancePhase.reconciliationRequired;
@@ -158,7 +160,9 @@ class RebalanceController extends ChangeNotifier {
     }
     if (_activePreview == null ||
         !_activePreview!.expiresAt.isAfter(_now().toUtc())) {
-      await _invalidate('The saved rebalance preview expired. Create a fresh preview.');
+      await _invalidate(
+        'The saved rebalance preview expired. Create a fresh preview.',
+      );
       return;
     }
     _phase = RebalancePhase.review;
@@ -183,7 +187,9 @@ class RebalanceController extends ChangeNotifier {
   Future<void> confirm() {
     final current = _operation;
     if (current != null) return current;
-    if (_phase != RebalancePhase.review || _activePreview == null) return Future.value();
+    if (_phase != RebalancePhase.review || _activePreview == null) {
+      return Future.value();
+    }
     late final Future<void> request;
     request = _confirm().whenComplete(() {
       if (identical(_operation, request)) {
@@ -199,7 +205,9 @@ class RebalanceController extends ChangeNotifier {
   Future<void> _confirm() async {
     final preview = _activePreview!;
     if (!preview.expiresAt.isAfter(_now().toUtc())) {
-      await _invalidate('The Demo preview expired. Create a fresh allocation review.');
+      await _invalidate(
+        'The Demo preview expired. Create a fresh allocation review.',
+      );
       return;
     }
     final payload = <String, Object?>{
@@ -209,7 +217,9 @@ class RebalanceController extends ChangeNotifier {
     };
     final existing = _protected;
     if (existing != null && !existing.matchesPayload(payload)) {
-      await _invalidate('The rebalance command changed. Create a fresh preview.');
+      await _invalidate(
+        'The rebalance command changed. Create a fresh preview.',
+      );
       return;
     }
     _protected = await _journal.protect(
@@ -236,7 +246,9 @@ class RebalanceController extends ChangeNotifier {
     } on RebalanceCommitFailure catch (failure) {
       if (failure.reason == RebalanceCommitFailureReason.stalePreview) {
         await portfolioController.refreshPortfolio(preview.portfolioId);
-        await _invalidate('The portfolio or preview changed. Create and review a fresh rebalance.');
+        await _invalidate(
+          'The portfolio or preview changed. Create and review a fresh rebalance.',
+        );
       } else {
         await _clearTerminal();
         _phase = RebalancePhase.terminalFailure;
@@ -249,7 +261,9 @@ class RebalanceController extends ChangeNotifier {
     } on LoadFailure catch (failure) {
       if (failure.phase == LoadPhase.conflict) {
         await portfolioController.refreshPortfolio(preview.portfolioId);
-        await _invalidate('The Demo rebalance preview is stale. Create a fresh review.');
+        await _invalidate(
+          'The Demo rebalance preview is stale. Create a fresh review.',
+        );
       } else {
         _phase = _phaseFor(failure.phase);
         _message = failure.message;
@@ -286,7 +300,11 @@ class RebalanceController extends ChangeNotifier {
         ? portfolioController.detailState.value?.portfolio.ledgerWatermark
         : null;
     _invalidationBus.publish(
-      InvalidationEvent(scope: scope, resource: 'ledger', ledgerWatermark: watermark),
+      InvalidationEvent(
+        scope: scope,
+        resource: InvalidationResource.ledger,
+        ledgerWatermark: watermark,
+      ),
     );
     if (watermark == null) {
       _phase = RebalancePhase.receiptRefreshPending;

@@ -57,8 +57,6 @@ class RestoredPendingCommand {
   const RestoredPendingCommand(this.command);
 
   final PendingCommand command;
-  bool get requiresAuthoritativeReconciliation => true;
-  bool get canAutoSubmit => false;
 }
 
 class PendingCommandStore {

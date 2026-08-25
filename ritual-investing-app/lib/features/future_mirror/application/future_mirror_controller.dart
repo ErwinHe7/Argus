@@ -481,7 +481,7 @@ class FutureMirrorController extends ChangeNotifier {
       value.assumptions.exactlyMatches(draft);
 
   void _handleInvalidation(InvalidationEvent event) {
-    if (_disposed || event.resource != 'ledger') return;
+    if (_disposed || event.resource != InvalidationResource.ledger) return;
     final watermark = event.ledgerWatermark;
     if (watermark == null || watermark <= (_current?.ledgerWatermark ?? 0)) {
       return;
