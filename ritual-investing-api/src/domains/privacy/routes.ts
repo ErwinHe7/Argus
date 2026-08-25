@@ -146,6 +146,37 @@ export type PrivacyRouteDependencies = MemberRouteDependencies & {
   privacyRepository?: PrivacyRepository;
 };
 
+function exportProcessorReady(environment: AppEnvironment["Bindings"]): boolean {
+  return (
+    environment.KILL_SWITCH_SCHEDULED !== "on" &&
+    environment.KILL_SWITCH_QUEUE !== "on" &&
+    environment.KILL_SWITCH_EXPORTS !== "on" &&
+    environment.ASYNC_QUEUE !== undefined &&
+    environment.JOBS_DLQ !== undefined &&
+    environment.RUNTIME_DATABASE_URL !== undefined &&
+    environment.SCHEDULER_DATABASE_URL !== undefined &&
+    environment.PRIVACY_EXPORTS !== undefined
+  );
+}
+
+function deletionProcessorReady(
+  environment: AppEnvironment["Bindings"],
+): boolean {
+  return (
+    environment.KILL_SWITCH_SCHEDULED !== "on" &&
+    environment.KILL_SWITCH_QUEUE !== "on" &&
+    environment.KILL_SWITCH_PURGE !== "on" &&
+    environment.ASYNC_QUEUE !== undefined &&
+    environment.JOBS_DLQ !== undefined &&
+    environment.RUNTIME_DATABASE_URL !== undefined &&
+    environment.SCHEDULER_DATABASE_URL !== undefined &&
+    environment.PRIVACY_DATABASE_URL !== undefined &&
+    environment.PRIVACY_EXPORTS !== undefined &&
+    environment.MEDIA_QUARANTINE !== undefined &&
+    environment.DELETION_DENY_JOURNAL !== undefined
+  );
+}
+
 export function registerPrivacyRoutes(
   app: OpenAPIHono<AppEnvironment>,
   dependencies: PrivacyRouteDependencies = {},
@@ -188,6 +219,7 @@ export function registerPrivacyRoutes(
       404,
     );
   app.openapi(createExport, (async (context: any) => {
+    if (!exportProcessorReady(context.env)) return unavailable(context);
     const { member, repository } = access(context);
     if (member === undefined || repository === undefined)
       return unavailable(context);
@@ -267,6 +299,7 @@ export function registerPrivacyRoutes(
     });
   }) as never);
   app.openapi(deletion, (async (context: any) => {
+    if (!deletionProcessorReady(context.env)) return unavailable(context);
     const { member, repository } = access(context);
     if (member === undefined || repository === undefined)
       return unavailable(context);

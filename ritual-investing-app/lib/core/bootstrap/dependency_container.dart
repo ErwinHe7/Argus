@@ -45,6 +45,10 @@ import '../../features/profile/data/repository.dart';
 import '../../features/profile/domain/model.dart';
 import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/data/repository.dart';
+import '../../features/privacy/application/privacy_controller.dart';
+import '../../features/privacy/data/private_export_files.dart';
+import '../../features/privacy/data/repository.dart';
+import '../../features/privacy/domain/model.dart';
 import '../../features/recurring/application/recurring_plan_controller.dart';
 import '../../features/recurring/data/repository.dart';
 import '../../features/rebalancing/application/rebalance_controller.dart';
@@ -61,6 +65,7 @@ import '../api/invalidation_bus.dart';
 import '../api/pending_command_store.dart';
 import '../auth/auth0_session_repository.dart';
 import '../auth/auth_controller.dart';
+import '../auth/member_auth.dart';
 import '../cache/read_cache.dart';
 import '../config/runtime_config.dart';
 import 'entry_coordinator.dart';
@@ -109,6 +114,7 @@ class MemberFeatureScope {
     this.briefingController,
     this.notificationController,
     this.entitlementController,
+    this.privacyController,
   });
 
   final CacheScope scope;
@@ -135,6 +141,7 @@ class MemberFeatureScope {
   final BriefingController? briefingController;
   final NotificationController? notificationController;
   final EntitlementController? entitlementController;
+  final PrivacyController? privacyController;
   final Map<MemberBranch, Future<void>> _loads = {};
   bool _isDisposed = false;
 
@@ -150,6 +157,7 @@ class MemberFeatureScope {
     briefingController?.updatePersonalization(bootstrap.personalization);
     notificationController?.updatePersonalization(bootstrap.personalization);
     entitlementController?.updatePersonalization(bootstrap.personalization);
+    privacyController?.updatePersonalization(bootstrap.personalization);
     intentionController?.updateProfile(profileController.state.value?.investor);
   }
 
@@ -176,6 +184,10 @@ class MemberFeatureScope {
     });
   }
 
+  Future<void> deactivateSensitiveState() async {
+    await privacyController?.deactivate();
+  }
+
   void dispose() {
     if (_isDisposed) return;
     _isDisposed = true;
@@ -194,6 +206,7 @@ class MemberFeatureScope {
     briefingController?.dispose();
     notificationController?.dispose();
     entitlementController?.dispose();
+    privacyController?.dispose();
     unawaited(invalidationBus.dispose());
     searchController?.dispose();
     rowanController?.dispose();
@@ -237,6 +250,7 @@ class DependencyContainer extends ChangeNotifier {
   late final StreamSubscription<void> _recoverySubscription;
   MemberBootstrap? _memberBootstrap;
   MemberFeatureScope? _featureScope;
+  MemberFeatureScope? _retiredScope;
   bool _isRestoring = false;
   bool _recoveryPending = false;
   bool _legacyMutationsCleared = false;
@@ -340,6 +354,12 @@ class DependencyContainer extends ChangeNotifier {
     return value;
   }
 
+  PrivacyController get privacyController {
+    final value = _requireScope().privacyController;
+    if (value == null) throw StateError('Privacy controls are unavailable.');
+    return value;
+  }
+
   SearchController get searchController {
     final value = _requireScope().searchController;
     if (value == null) throw StateError('Search is unavailable.');
@@ -387,6 +407,8 @@ class DependencyContainer extends ChangeNotifier {
       _featureScope?.notificationController != null;
 
   bool get hasU10 => _featureScope?.entitlementController != null;
+
+  bool get hasU11 => _featureScope?.privacyController != null;
 
   bool get hasU5Research =>
       _featureScope?.covenRepository != null &&
@@ -601,6 +623,16 @@ class DependencyContainer extends ChangeNotifier {
   }
 
   Future<void> _transitionTo(MemberBootstrap? next) async {
+    final retired = _retiredScope;
+    if (retired != null) {
+      try {
+        await retired.deactivateSensitiveState();
+        retired.dispose();
+        _retiredScope = null;
+      } on Object {
+        if (next != null) rethrow;
+      }
+    }
     final previous = _memberBootstrap;
     final previousScope = previous == null
         ? null
@@ -620,14 +652,23 @@ class DependencyContainer extends ChangeNotifier {
     if (changed) {
       final oldScope = _featureScope;
       _featureScope = null;
-      oldScope?.dispose();
-      _memberBootstrap = next;
+      if (oldScope != null) {
+        try {
+          await oldScope.deactivateSensitiveState();
+          oldScope.dispose();
+        } on Object {
+          _retiredScope = oldScope;
+          _memberBootstrap = null;
+          if (next != null) rethrow;
+        }
+      }
       if (previousScope != null) {
         await Future.wait([
           _bestEffort(_cacheStorage.clearScope(previousScope)),
           _bestEffort(_pendingCommandStore.clearScope(previousScope)),
         ]);
       }
+      _memberBootstrap = next;
     } else {
       _memberBootstrap = next;
     }
@@ -644,6 +685,10 @@ class DependencyContainer extends ChangeNotifier {
       _featureScope?.entitlementController?.bindAuthorityTransition(() async {
         await _refreshMemberBootstrap();
       });
+      _featureScope?.privacyController?.bindAccountTransitions(
+        onDeletionAccepted: logout,
+        onResetAccepted: _acceptDemoReset,
+      );
     }
     if (next != null) _featureScope?.updateBootstrap(next);
   }
@@ -654,6 +699,23 @@ class DependencyContainer extends ChangeNotifier {
     } on Object {
       // Scope disposal and the new bootstrap fence are authoritative even when
       // device cleanup must be retried by a later transition.
+    }
+  }
+
+  Future<void> _acceptDemoReset(int expectedGeneration) async {
+    final coordinator = entryCoordinator;
+    if (coordinator != null) {
+      await coordinator.refreshCompletedBootstrap(
+        expectedResetGeneration: expectedGeneration,
+      );
+    } else {
+      final refreshed = await _sessionBootstrapService.bootstrap();
+      if (refreshed.resetGeneration != expectedGeneration ||
+          !refreshed.canEnterMemberShell) {
+        throw StateError('The Demo reset bootstrap did not match its receipt.');
+      }
+      await _transitionTo(refreshed);
+      notifyListeners();
     }
   }
 
@@ -690,6 +752,10 @@ class DependencyContainer extends ChangeNotifier {
       ),
       now: DateTime.now,
     );
+    final privacyExportRequestStore = PrivacyExportRequestStore(
+      storage: protectedStorage,
+    );
+    final privateExportFiles = FlutterPrivateExportFiles();
     final entryCoordinator = EntryCoordinator(
       authController: auth,
       bootstrapService: GeneratedSessionBootstrapService(client),
@@ -816,6 +882,27 @@ class DependencyContainer extends ChangeNotifier {
           now: DateTime.now,
           personalization: bootstrap.personalization,
         );
+        final privacyController = PrivacyController(
+          repository: ScopedPrivacyRepository(
+            service: GeneratedPrivacyService(client),
+            requestStore: privacyExportRequestStore,
+            files: privateExportFiles,
+            scope: scope,
+          ),
+          pendingStore: pendingCommandStore,
+          scope: scope,
+          createKey: _newCommandKey,
+          reauthenticate: () async {
+            try {
+              await auth.reauthenticate(const Duration(minutes: 5));
+            } on MemberAuthCancelled {
+              throw const RecentAuthCancelled();
+            }
+          },
+          onDeletionAccepted: () async {},
+          onResetAccepted: (_) async {},
+          personalization: bootstrap.personalization,
+        );
         return MemberFeatureScope(
           scope: scope,
           dailyRitualController: DailyRitualController(
@@ -861,6 +948,7 @@ class DependencyContainer extends ChangeNotifier {
           briefingController: briefingController,
           notificationController: notificationController,
           entitlementController: entitlementController,
+          privacyController: privacyController,
           invalidationBus: invalidationBus,
           assetCodexRepository: AssetCodexRepository(
             service: GeneratedAssetCodexService(client),
@@ -900,6 +988,7 @@ class DependencyContainer extends ChangeNotifier {
     unawaited(_recoverySubscription.cancel());
     entryCoordinator?.removeListener(_handleEntryCoordinator);
     _featureScope?.dispose();
+    _retiredScope?.dispose();
     onboardingController.dispose();
     authController.dispose();
     super.dispose();

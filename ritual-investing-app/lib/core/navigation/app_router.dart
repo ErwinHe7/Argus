@@ -30,6 +30,7 @@ import '../../features/onboarding/presentation/onboarding_flow.dart';
 import '../../features/notifications/presentation/notification_screen.dart';
 import '../../features/orders/presentation/order_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/privacy/presentation/privacy_screen.dart';
 import '../../features/portfolio/presentation/portfolio_screen.dart';
 import '../../features/rebalancing/presentation/rebalance_screen.dart';
 import '../../features/recurring/presentation/recurring_plan_screen.dart';
@@ -498,6 +499,24 @@ GoRouter createAppRouter({
               AccountSettingsScreen(onLogout: container.logout),
         ),
         GoRoute(
+          path: 'privacy',
+          redirect: (context, state) =>
+              container.hasU11 ? null : MemberRoutes.you.path,
+          builder: (context, state) => PrivacySettingsScreen(
+            controller: container.privacyController,
+            onOpenDemoReset: () => context.go(MemberRoutes.youDemoResetPath),
+          ),
+        ),
+        GoRoute(
+          path: 'demo-reset',
+          redirect: (context, state) =>
+              container.hasU11 ? null : MemberRoutes.you.path,
+          builder: (context, state) => DemoResetScreen(
+            controller: container.privacyController,
+            onOpenPrivacy: () => context.go(MemberRoutes.youPrivacyPath),
+          ),
+        ),
+        GoRoute(
           path: 'notifications',
           redirect: (context, state) =>
               container.hasU9 ? null : MemberRoutes.you.path,
@@ -954,6 +973,12 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
           : null,
       onOpenMembership: widget.container.hasU10
           ? () => context.push(MemberRoutes.youMembershipPath)
+          : null,
+      onOpenPrivacy: widget.container.hasU11
+          ? () => context.push(MemberRoutes.youPrivacyPath)
+          : null,
+      onOpenDemoReset: widget.container.hasU11
+          ? () => context.push(MemberRoutes.youDemoResetPath)
           : null,
       onOpenPortfolio: (id) =>
           context.push(MemberRoutes.portfolio.location(id)),

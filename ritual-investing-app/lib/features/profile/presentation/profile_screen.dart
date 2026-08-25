@@ -31,6 +31,8 @@ class ProfileScreen extends StatelessWidget {
     this.onOpenAccount,
     this.onOpenNotifications,
     this.onOpenMembership,
+    this.onOpenPrivacy,
+    this.onOpenDemoReset,
     this.onOpenPortfolio,
   });
 
@@ -43,6 +45,8 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onOpenAccount;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenMembership;
+  final VoidCallback? onOpenPrivacy;
+  final VoidCallback? onOpenDemoReset;
   final ValueChanged<String>? onOpenPortfolio;
 
   @override
@@ -137,6 +141,22 @@ class ProfileScreen extends StatelessWidget {
               subtitle: 'Free and premium simulations · no charge',
               onTap: onOpenMembership,
             ),
+            if (onOpenPrivacy != null)
+              _MenuTile(
+                key: const Key('you-privacy'),
+                icon: Icons.shield_outlined,
+                title: 'Privacy and data',
+                subtitle: 'Private export and account deletion',
+                onTap: onOpenPrivacy,
+              ),
+            if (onOpenDemoReset != null)
+              _MenuTile(
+                key: const Key('you-demo-reset'),
+                icon: Icons.restart_alt,
+                title: 'Reset Demo',
+                subtitle: 'Restore the seeded fictional experience',
+                onTap: onOpenDemoReset,
+              ),
             _MenuTile(
               key: const Key('you-account'),
               icon: Icons.person_outline,

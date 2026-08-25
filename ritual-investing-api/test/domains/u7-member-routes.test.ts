@@ -97,7 +97,14 @@ describe("U7 member routes", () => {
           },
           body: '{"format":"zip"}',
         },
-        testBindings(),
+        {
+          ...testBindings(),
+          ASYNC_QUEUE: { send: vi.fn(), sendBatch: vi.fn() },
+          JOBS_DLQ: { send: vi.fn(), sendBatch: vi.fn() },
+          PRIVACY_EXPORTS: {},
+          RUNTIME_DATABASE_URL: "postgres://runtime.test/ritual",
+          SCHEDULER_DATABASE_URL: "postgres://scheduler.test/ritual",
+        } as never,
       );
     const now = Math.floor(Date.now() / 1000);
     expect((await makeRequest(now - 5)).status).toBe(403);
@@ -105,6 +112,223 @@ describe("U7 member routes", () => {
     const current = await makeRequest(now, now - 5);
     expect(current.status, await current.clone().text()).toBe(202);
     expect(requestExport).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    {
+      name: "export",
+      path: "/v1/me/privacy/exports",
+      body: '{"format":"zip"}',
+      repositoryMethod: "requestExport" as const,
+      bindings: {
+        ...testBindings(),
+        PRIVACY_EXPORTS: {},
+      },
+    },
+    {
+      name: "deletion",
+      path: "/v1/me/privacy/deletion-requests",
+      body: '{"confirmation":"DELETE"}',
+      repositoryMethod: "requestDeletion" as const,
+      bindings: {
+        ...testBindings(),
+        ASYNC_QUEUE: { send: vi.fn(), sendBatch: vi.fn() },
+        PRIVACY_EXPORTS: {},
+        MEDIA_QUARANTINE: {},
+      },
+    },
+  ])(
+    "rejects $name before repository mutation when its processor is unavailable",
+    async ({ path, body, repositoryMethod, bindings }) => {
+      const requestExport = vi.fn();
+      const requestDeletion = vi.fn();
+      const app = createApp({
+        dependencies: {
+          auth0Keys: [key.publicJwk],
+          accountResolver: async () => resolvedMemberAccount,
+          privacyRepository: {
+            requestExport,
+            getRequest: vi.fn(),
+            createDownloadLink: vi.fn(),
+            requestDeletion,
+            consumeDownload: vi.fn(),
+          },
+        },
+      });
+      const now = Math.floor(Date.now() / 1000);
+      const response = await app.request(
+        path,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${await memberToken(key, {
+              permissions: ["privacy:self"],
+              iat: now,
+              "https://ritual-investing.app/authenticated_at": now,
+            })}`,
+            "content-type": "application/json",
+            "idempotency-key": `privacy-${repositoryMethod}-00000001`,
+          },
+          body,
+        },
+        bindings as never,
+      );
+
+      expect(response.status).toBe(503);
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          code: "service_unavailable",
+          retryable: true,
+        },
+      });
+      expect({ requestExport, requestDeletion }[repositoryMethod]).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    {
+      name: "export",
+      path: "/v1/me/privacy/exports",
+      body: '{"format":"zip"}',
+      bindings: {
+        ...testBindings(),
+        ASYNC_QUEUE: { send: vi.fn(), sendBatch: vi.fn() },
+        RUNTIME_DATABASE_URL: "postgres://runtime.test/ritual",
+        SCHEDULER_DATABASE_URL: "postgres://scheduler.test/ritual",
+        PRIVACY_EXPORTS: {},
+      },
+    },
+    {
+      name: "deletion",
+      path: "/v1/me/privacy/deletion-requests",
+      body: '{"confirmation":"DELETE"}',
+      bindings: {
+        ...testBindings(),
+        ASYNC_QUEUE: { send: vi.fn(), sendBatch: vi.fn() },
+        RUNTIME_DATABASE_URL: "postgres://runtime.test/ritual",
+        SCHEDULER_DATABASE_URL: "postgres://scheduler.test/ritual",
+        PRIVACY_DATABASE_URL: "postgres://privacy.test/ritual",
+        PRIVACY_EXPORTS: {},
+        MEDIA_QUARANTINE: {},
+        DELETION_DENY_JOURNAL: {},
+      },
+    },
+  ])("requires durable dead-lettering before $name mutation", async ({
+    path,
+    body,
+    bindings,
+  }) => {
+    const requestExport = vi.fn().mockResolvedValue({
+      id: "018f3c2a-4b67-7a89-8abc-123456789020",
+      request_type: "export",
+      status: "queued",
+      snapshot_at: "2026-08-24T05:00:00.000Z",
+      completed_at: null,
+      expires_at: "2026-08-31T05:00:00.000Z",
+      failure_code: null,
+      format: "zip",
+      download_link: null,
+    });
+    const requestDeletion = vi.fn().mockResolvedValue({
+      request_id: "018f3c2a-4b67-7a89-8abc-123456789021",
+      tombstone_id: "018f3c2a-4b67-7a89-8abc-123456789022",
+      status: "queued",
+      effective_at: "2026-08-24T05:00:00.000Z",
+      purge_by: "2026-09-23T05:00:00.000Z",
+      purge_generation: 4,
+    });
+    const app = createApp({
+      dependencies: {
+        auth0Keys: [key.publicJwk],
+        accountResolver: async () => resolvedMemberAccount,
+        privacyRepository: {
+          requestExport,
+          getRequest: vi.fn(),
+          createDownloadLink: vi.fn(),
+          requestDeletion,
+          consumeDownload: vi.fn(),
+        },
+      },
+    });
+    const now = Math.floor(Date.now() / 1000);
+    const response = await app.request(
+      path,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${await memberToken(key, {
+            permissions: ["privacy:self"],
+            iat: now,
+            "https://ritual-investing.app/authenticated_at": now,
+          })}`,
+          "content-type": "application/json",
+          "idempotency-key": "privacy-dlq-proof-00000001",
+        },
+        body,
+      },
+      bindings as never,
+    );
+
+    expect(response.status).toBe(503);
+    expect(requestExport).not.toHaveBeenCalled();
+    expect(requestDeletion).not.toHaveBeenCalled();
+  });
+
+  it("accepts deletion only when every durable processor binding is ready", async () => {
+    const receipt = {
+      request_id: "018f3c2a-4b67-7a89-8abc-123456789021",
+      tombstone_id: "018f3c2a-4b67-7a89-8abc-123456789022",
+      status: "queued" as const,
+      effective_at: "2026-08-24T05:00:00.000Z",
+      purge_by: "2026-09-23T05:00:00.000Z",
+      purge_generation: 4,
+    };
+    const requestDeletion = vi.fn().mockResolvedValue(receipt);
+    const app = createApp({
+      dependencies: {
+        auth0Keys: [key.publicJwk],
+        accountResolver: async () => resolvedMemberAccount,
+        privacyRepository: {
+          requestExport: vi.fn(),
+          getRequest: vi.fn(),
+          createDownloadLink: vi.fn(),
+          requestDeletion,
+          consumeDownload: vi.fn(),
+        },
+      },
+    });
+    const now = Math.floor(Date.now() / 1000);
+    const response = await app.request(
+      "/v1/me/privacy/deletion-requests",
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${await memberToken(key, {
+            permissions: ["privacy:self"],
+            iat: now,
+            "https://ritual-investing.app/authenticated_at": now,
+          })}`,
+          "content-type": "application/json",
+          "idempotency-key": "privacy-deletion-ready-0001",
+        },
+        body: '{"confirmation":"DELETE"}',
+      },
+      {
+        ...testBindings(),
+        ASYNC_QUEUE: { send: vi.fn(), sendBatch: vi.fn() },
+        JOBS_DLQ: { send: vi.fn(), sendBatch: vi.fn() },
+        RUNTIME_DATABASE_URL: "postgres://runtime.test/ritual",
+        SCHEDULER_DATABASE_URL: "postgres://scheduler.test/ritual",
+        PRIVACY_DATABASE_URL: "postgres://privacy.test/ritual",
+        PRIVACY_EXPORTS: {},
+        MEDIA_QUARANTINE: {},
+        DELETION_DENY_JOURNAL: {},
+      } as never,
+    );
+
+    expect(response.status, await response.clone().text()).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({ data: receipt });
+    expect(requestDeletion).toHaveBeenCalledOnce();
   });
 
   it("protects push tokens without retaining plaintext in either stored field", async () => {

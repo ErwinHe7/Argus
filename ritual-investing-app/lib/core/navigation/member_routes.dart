@@ -41,6 +41,8 @@ abstract final class MemberRoutes {
   static const youNotificationsPath = '/you/notifications';
   static const youNotificationPreferencesPath = '/you/notification-preferences';
   static const youMembershipPath = '/you/membership';
+  static const youPrivacyPath = '/you/privacy';
+  static const youDemoResetPath = '/you/demo-reset';
 
   static const ritual = MemberRouteDefinition(
     name: 'ritual',

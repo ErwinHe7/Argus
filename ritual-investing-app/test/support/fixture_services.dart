@@ -39,6 +39,8 @@ import 'package:ritual_investing_app/features/funding/domain/model.dart';
 import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
 import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
 import 'package:ritual_investing_app/features/portfolio/domain/model.dart';
+import 'package:ritual_investing_app/features/privacy/application/privacy_controller.dart';
+import 'package:ritual_investing_app/features/privacy/data/repository.dart';
 import 'package:ritual_investing_app/features/rebalancing/application/rebalance_controller.dart';
 import 'package:ritual_investing_app/features/rebalancing/data/repository.dart';
 import 'package:ritual_investing_app/features/rebalancing/domain/model.dart';
@@ -71,6 +73,8 @@ DependencyContainer fixtureContainer({
   bool includeU7 = false,
   bool includeU9 = false,
   bool includeU10 = false,
+  bool includeU11 = false,
+  PrivacyRepository? privacyRepository,
 }) {
   final storage = cache ?? MemoryReadCache();
   final tracker = loadTracker ?? FeatureLoadTracker();
@@ -183,6 +187,22 @@ DependencyContainer fixtureContainer({
               personalization: bootstrap.personalization,
             )
           : null;
+      final privacyController = includeU11
+          ? PrivacyController(
+              repository:
+                  privacyRepository ??
+                  (throw ArgumentError(
+                    'privacyRepository is required when U11 is enabled.',
+                  )),
+              pendingStore: commands,
+              scope: scope,
+              createKey: () => 'fixture-privacy-key-00001',
+              reauthenticate: () async {},
+              onDeletionAccepted: () async {},
+              onResetAccepted: (_) async {},
+              personalization: bootstrap.personalization,
+            )
+          : null;
       return MemberFeatureScope(
         scope: scope,
         dailyRitualController: DailyRitualController(
@@ -227,6 +247,7 @@ DependencyContainer fixtureContainer({
         briefingController: briefingController,
         notificationController: notificationController,
         entitlementController: entitlementController,
+        privacyController: privacyController,
         assetCodexRepository: AssetCodexRepository(
           service: _FixtureAssetCodexService(),
           cache: scopedCache,

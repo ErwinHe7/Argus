@@ -13,6 +13,8 @@ import 'package:ritual_investing_app/core/navigation/member_routes.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_draft_store.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_repository.dart';
 import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
+import 'package:ritual_investing_app/features/privacy/data/repository.dart';
+import 'package:ritual_investing_app/features/privacy/domain/model.dart';
 
 import 'support/fixture_services.dart';
 
@@ -243,6 +245,43 @@ void main() {
       expect(router.state.uri.path, '/entry');
     },
   );
+
+  testWidgets('U11 privacy and Demo reset use stable focused You routes', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      RitualInvestingApp(
+        container: fixtureContainer(
+          includeU11: true,
+          privacyRepository: _RouterPrivacyRepository(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('You').last);
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
+
+    await _scrollTo(tester, find.byKey(const Key('you-privacy')));
+    await tester.tap(find.byKey(const Key('you-privacy')));
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.youPrivacyPath);
+    expect(find.text('Privacy and data'), findsOneWidget);
+
+    router.go(MemberRoutes.you.path);
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.byKey(const Key('you-demo-reset')));
+    await tester.tap(find.byKey(const Key('you-demo-reset')));
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.youDemoResetPath);
+    expect(find.text('Reset Demo'), findsOneWidget);
+
+    router.go(MemberRoutes.youPrivacyPath);
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.youPrivacyPath);
+  });
 
   testWidgets(
     'U10 gates free surfaces from fresh capability codes and restores context',
@@ -588,4 +627,33 @@ class _MemoryProtectedStorage implements ProtectedStorage {
     if (error != null) throw error;
     values[key] = value;
   }
+}
+
+class _RouterPrivacyRepository implements PrivacyRepository {
+  @override
+  Future<void> clearStaleLocalFiles() async {}
+  @override
+  Future<bool> accountInactive() async => false;
+  @override
+  Future<void> cancelAndClearLocal() async {}
+  @override
+  Future<void> downloadAndShare(String requestId) async {}
+  @override
+  Future<void> forgetExportId(String requestId) async {}
+  @override
+  Future<PrivacyExport> getExport(String requestId) =>
+      throw StateError('unused');
+  @override
+  Future<void> rememberExportId(String requestId) async {}
+  @override
+  Future<PrivacyExport> requestExport(String idempotencyKey) =>
+      throw StateError('unused');
+  @override
+  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey) =>
+      throw StateError('unused');
+  @override
+  Future<DemoResetReceipt> resetDemo(int seedVersion, String idempotencyKey) =>
+      throw StateError('unused');
+  @override
+  Future<String?> restoreExportId() async => null;
 }
