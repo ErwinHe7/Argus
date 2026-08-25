@@ -67,6 +67,7 @@ class PrivacyController extends ChangeNotifier {
   PrivacyPhase _phase = PrivacyPhase.idle;
   PrivacyExport? _export;
   PrivacyDeletionReceipt? _deletionReceipt;
+  DemoResetReceipt? _acceptedResetReceipt;
   String? _knownExportRequestId;
   String? _message;
   JournaledFinancialCommand? _protectedCommand;
@@ -370,7 +371,7 @@ class PrivacyController extends ChangeNotifier {
   }
 
   void prepareDemoReset() {
-    if (_deactivated || _busy) return;
+    if (_deactivated || _busy || hasProtectedCommand) return;
     _phase = PrivacyPhase.resetReview;
     _message = 'Reset replaces all fictional portfolio, plan, goal, recap, and membership state with the seeded Demo.';
     notifyListeners();
@@ -393,6 +394,16 @@ class PrivacyController extends ChangeNotifier {
     _phase = PrivacyPhase.loading;
     notifyListeners();
     try {
+      final acceptedReceipt = _acceptedResetReceipt;
+      if (acceptedReceipt != null) {
+        if (current == null || !current.matchesPayload(payload)) {
+          throw StateError(
+            'An accepted Demo reset can reconcile only its protected command.',
+          );
+        }
+        await _installAcceptedReset(acceptedReceipt);
+        return;
+      }
       final protected = await _journal.protect(
         operation: _operationName(_PrivacyOperation.reset),
         payload: payload,
@@ -412,18 +423,23 @@ class PrivacyController extends ChangeNotifier {
       if (receipt.resetGeneration <= scope.resetGeneration) {
         throw const PrivacyFailure(PrivacyFailureKind.terminal);
       }
-      await _clearProtected();
-      if (_deactivated) return;
-      _phase = PrivacyPhase.resetAccepted;
-      _message = 'The seeded Demo is ready.';
-      await _onResetAccepted(receipt.resetGeneration);
+      _acceptedResetReceipt = receipt;
+      await _installAcceptedReset(receipt);
     } on AmbiguousPrivacyMutation {
       if (!_deactivated) {
         _phase = PrivacyPhase.restoredReview;
         _message = 'The reset response was interrupted. Nothing will retry automatically; review the unchanged reset.';
       }
     } on Object catch (error) {
-      if (!_deactivated) _setFailure(error);
+      if (!_deactivated) {
+        if (_acceptedResetReceipt != null) {
+          _phase = PrivacyPhase.restoredReview;
+          _message =
+              'The reset was accepted, but the refreshed Demo is temporarily unavailable. Continue the saved reset to finish without creating another one.';
+        } else {
+          _setFailure(error);
+        }
+      }
     } finally {
       _busy = false;
       if (!_deactivated) notifyListeners();
@@ -443,6 +459,7 @@ class PrivacyController extends ChangeNotifier {
     _export = null;
     _knownExportRequestId = null;
     _deletionReceipt = null;
+    _acceptedResetReceipt = null;
     _message = null;
   }
 
@@ -492,6 +509,16 @@ class PrivacyController extends ChangeNotifier {
     _phase = PrivacyPhase.deletionAccepted;
     _message = 'Deletion was accepted. This device is signing out.';
     await _onDeletionAccepted();
+  }
+
+  Future<void> _installAcceptedReset(DemoResetReceipt receipt) async {
+    _phase = PrivacyPhase.resetAccepted;
+    _message = 'The seeded Demo is ready.';
+    await _onResetAccepted(receipt.resetGeneration);
+    if (_deactivated) return;
+    await _clearProtected();
+    if (_deactivated) return;
+    _acceptedResetReceipt = null;
   }
 
   Future<void> _restoreProtectedCommand() async {

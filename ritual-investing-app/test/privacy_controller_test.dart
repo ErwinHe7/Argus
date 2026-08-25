@@ -248,6 +248,49 @@ void main() {
   );
 
   test(
+    'accepted reset survives bootstrap failure and reconciles without another mutation',
+    () async {
+      final repository = _FakePrivacyRepository()
+        ..resetReceipt = const DemoResetReceipt(
+          resetGeneration: 8,
+          defaultPortfolioId: '018f3c2a-4b67-7a89-8abc-123456789099',
+        );
+      var bootstrapAttempts = 0;
+      final installedGenerations = <int>[];
+      final controller = _controller(
+        repository,
+        scope: const CacheScope(accountId: 'account-a', resetGeneration: 7),
+        onResetAccepted: (generation) async {
+          bootstrapAttempts += 1;
+          if (bootstrapAttempts == 1) {
+            throw StateError('bootstrap refresh failed');
+          }
+          installedGenerations.add(generation);
+        },
+      );
+
+      controller.prepareDemoReset();
+      await controller.confirmDemoReset(seedVersion: 1);
+
+      expect(controller.phase, PrivacyPhase.restoredReview);
+      expect(controller.message, contains('reset was accepted'));
+      expect(controller.hasProtectedReset, isTrue);
+      expect(repository.resetSeedVersions, [1]);
+
+      controller.prepareDemoReset();
+      expect(controller.phase, PrivacyPhase.restoredReview);
+      controller.reviewRestoredAction();
+      await controller.confirmDemoReset(seedVersion: 1);
+
+      expect(controller.phase, PrivacyPhase.resetAccepted);
+      expect(controller.hasProtectedReset, isFalse);
+      expect(repository.resetSeedVersions, [1]);
+      expect(bootstrapAttempts, 2);
+      expect(installedGenerations, [8]);
+    },
+  );
+
+  test(
     'deactivation cancels old-account work and clears local privacy state',
     () async {
       final repository = _FakePrivacyRepository();

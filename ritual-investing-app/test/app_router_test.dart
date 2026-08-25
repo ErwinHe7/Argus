@@ -136,6 +136,91 @@ void main() {
   });
 
   testWidgets(
+    'cancelled sign-up review Edit resumes questionnaire with draft intact',
+    (tester) async {
+      final sessions = _SignedOutSessionRepository(
+        authenticationError: const MemberAuthCancelled(),
+      );
+      final auth = AuthController(repository: sessions);
+      final coordinator = EntryCoordinator(
+        authController: auth,
+        bootstrapService: _UnusedBootstrapService(),
+        draftStore: OnboardingDraftStore(
+          storage: _MemoryProtectedStorage(),
+          installation: const FixedInstallationBinding('install-a'),
+          now: () => DateTime.utc(2026, 8, 24),
+        ),
+        onboardingRepository: _UnusedOnboardingRepository(),
+      );
+      final container = fixtureContainer(
+        authController: auth,
+        entryCoordinator: coordinator,
+      );
+      final draft = _reviewedDraft();
+      await coordinator.createAccount(draft);
+      await tester.pumpWidget(
+        RitualInvestingApp(container: container, bootstrapOnStart: false),
+      );
+      await tester.pumpAndSettle();
+      final router = GoRouter.of(
+        tester.element(find.text('Review your Ritual')),
+      );
+
+      await tester.tap(find.widgetWithText(TextButton, 'Edit').first);
+      await tester.pumpAndSettle();
+
+      expect(coordinator.state.destination, EntryDestination.questionnaire);
+      expect(container.onboardingController.draft, draft);
+      expect(router.state.uri.path, '/onboarding/experience');
+      expect(find.text('How familiar are you with investing?'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'cancelled sign-up review Back resumes prior question with draft intact',
+    (tester) async {
+      final sessions = _SignedOutSessionRepository(
+        authenticationError: const MemberAuthCancelled(),
+      );
+      final auth = AuthController(repository: sessions);
+      final coordinator = EntryCoordinator(
+        authController: auth,
+        bootstrapService: _UnusedBootstrapService(),
+        draftStore: OnboardingDraftStore(
+          storage: _MemoryProtectedStorage(),
+          installation: const FixedInstallationBinding('install-a'),
+          now: () => DateTime.utc(2026, 8, 24),
+        ),
+        onboardingRepository: _UnusedOnboardingRepository(),
+      );
+      final container = fixtureContainer(
+        authController: auth,
+        entryCoordinator: coordinator,
+      );
+      final draft = _reviewedDraft();
+      await coordinator.createAccount(draft);
+      await tester.pumpWidget(
+        RitualInvestingApp(container: container, bootstrapOnStart: false),
+      );
+      await tester.pumpAndSettle();
+      final router = GoRouter.of(
+        tester.element(find.text('Review your Ritual')),
+      );
+
+      await tester.tap(find.byKey(const Key('review-back')));
+      await tester.pumpAndSettle();
+
+      expect(coordinator.state.destination, EntryDestination.questionnaire);
+      expect(container.onboardingController.draft, draft);
+      expect(router.state.uri.path, '/onboarding/astrologyOptIn');
+      expect(
+        find.text('Would you like personalized astrology?'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
     'restored shell has four lazy branches with independent back stacks',
     (tester) async {
       final loads = FeatureLoadTracker();
@@ -568,6 +653,9 @@ Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
 }
 
 class _SignedOutSessionRepository implements SessionRepository {
+  _SignedOutSessionRepository({this.authenticationError});
+
+  final Object? authenticationError;
   final List<MemberAuthIntent> intents = [];
   @override
   MemberClientExpectation get memberClientExpectation =>
@@ -575,10 +663,10 @@ class _SignedOutSessionRepository implements SessionRepository {
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async =>
-      _authenticated(intent);
-  AuthSession _authenticated(MemberAuthIntent intent) {
+  Future<AuthSession> authenticate(MemberAuthIntent intent) async {
     intents.add(intent);
+    final error = authenticationError;
+    if (error != null) throw error;
     return const AuthSession(accessToken: 'token');
   }
 

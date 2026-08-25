@@ -162,6 +162,12 @@ class OnboardingController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void reset() {
+    _draft = const OnboardingDraft();
+    _step = OnboardingStep.welcome;
+    notifyListeners();
+  }
+
   void setExperience(InvestingExperience value) =>
       _update(_draft.copyWith(experience: value));
   void setGoal(InvestmentGoal value) => _update(_draft.copyWith(goal: value));

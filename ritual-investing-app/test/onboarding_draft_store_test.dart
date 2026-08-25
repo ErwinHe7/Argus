@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/core/api/pending_command_store.dart';
@@ -63,6 +64,44 @@ void main() {
     expect((await restored.read()).status, DraftReadStatus.orphaned);
     expect(storage.values, isEmpty);
   });
+
+  test(
+    'cache marker eviction fails closed and purges the protected draft',
+    () async {
+      final appContainer = await Directory.systemTemp.createTemp(
+        'ritual-onboarding-install-',
+      );
+      addTearDown(() async {
+        if (await appContainer.exists()) {
+          await appContainer.delete(recursive: true);
+        }
+      });
+      final storage = _MemoryProtectedStorage();
+      final installed = OnboardingDraftStore(
+        storage: storage,
+        installation: AppContainerInstallationBinding(
+          cacheDirectoryProvider: () async => appContainer,
+        ),
+        now: () => DateTime.utc(2026, 8, 24, 12),
+      );
+
+      await installed.save(_reviewedDraft());
+
+      expect(storage.values.keys, [OnboardingDraftStore.storageKey]);
+      await appContainer.delete(recursive: true);
+      await appContainer.create();
+
+      final reinstalled = OnboardingDraftStore(
+        storage: storage,
+        installation: AppContainerInstallationBinding(
+          cacheDirectoryProvider: () async => appContainer,
+        ),
+        now: () => DateTime.utc(2026, 8, 24, 12),
+      );
+      expect((await reinstalled.read()).status, DraftReadStatus.orphaned);
+      expect(storage.values, isEmpty);
+    },
+  );
 
   test('locked storage preserves the draft for retry', () async {
     final storage = _MemoryProtectedStorage()

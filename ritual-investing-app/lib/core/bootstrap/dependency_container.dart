@@ -5,73 +5,54 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:ritual_investing_api_client/generated/api.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 
 import '../../features/asset_codex/application/controller.dart';
-import '../../features/asset_codex/data/repository.dart';
 import '../../features/asset_codex/domain/model.dart';
 import '../../features/briefings/application/briefing_controller.dart';
-import '../../features/briefings/data/repository.dart';
 import '../../features/coven/application/controller.dart';
-import '../../features/coven/data/repository.dart';
 import '../../features/circles/application/controller.dart';
-import '../../features/circles/data/repository.dart';
 import '../../features/creators/application/controller.dart';
-import '../../features/creators/data/repository.dart';
 import '../../features/discover/application/controller.dart';
-import '../../features/discover/data/repository.dart';
 import '../../features/entitlements/application/entitlement_controller.dart';
-import '../../features/entitlements/data/repository.dart';
 import '../../features/funding/application/contribution_controller.dart';
 import '../../features/funding/application/funding_source_controller.dart';
-import '../../features/funding/data/repository.dart';
 import '../../features/future_mirror/application/future_mirror_controller.dart';
-import '../../features/future_mirror/data/repository.dart';
 import '../../features/grimoires/application/controller.dart';
-import '../../features/grimoires/data/repository.dart';
 import '../../features/intentions/application/intention_controller.dart';
-import '../../features/intentions/data/repository.dart';
 import '../../features/notifications/application/notification_controller.dart';
-import '../../features/notifications/data/repository.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/orders/application/order_controller.dart';
-import '../../features/orders/data/repository.dart';
 import '../../features/onboarding/data/onboarding_draft_store.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
 import '../../features/onboarding/domain/onboarding_draft.dart';
 import '../../features/profile/application/controller.dart';
-import '../../features/profile/data/repository.dart';
 import '../../features/profile/domain/model.dart';
 import '../../features/portfolio/application/controller.dart';
-import '../../features/portfolio/data/repository.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/privacy/data/private_export_files.dart';
 import '../../features/privacy/data/repository.dart';
-import '../../features/privacy/domain/model.dart';
 import '../../features/recurring/application/recurring_plan_controller.dart';
-import '../../features/recurring/data/repository.dart';
 import '../../features/rebalancing/application/rebalance_controller.dart';
-import '../../features/rebalancing/data/repository.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
-import '../../features/ritual/data/daily_ritual_repository.dart';
 import '../../features/rowan/application/controller.dart';
-import '../../features/rowan/data/repository.dart';
 import '../../features/search/application/controller.dart';
-import '../../features/search/data/repository.dart';
 import '../api/ritual_api.dart';
 import '../api/flutter_protected_storage.dart';
-import '../api/invalidation_bus.dart';
 import '../api/pending_command_store.dart';
 import '../auth/auth0_session_repository.dart';
 import '../auth/auth_controller.dart';
-import '../auth/member_auth.dart';
 import '../cache/read_cache.dart';
 import '../config/runtime_config.dart';
 import 'entry_coordinator.dart';
 import 'member_bootstrap.dart';
+import 'member_feature_scope.dart';
+import 'production_member_feature_scope_factory.dart';
 
-enum MemberBranch { ritual, discover, coven, you }
+export 'member_feature_scope.dart'
+    show MemberBranch, MemberFeatureScope, MemberFeatureScopeFactory;
 
 enum MemberEntryGate {
   restoring,
@@ -80,137 +61,6 @@ enum MemberEntryGate {
   onboarding,
   entitlement,
   member,
-}
-
-typedef MemberFeatureScopeFactory = MemberFeatureScope Function(
-  CacheScope scope,
-  ReadCache cache,
-  MemberBootstrap bootstrap,
-);
-
-class MemberFeatureScope {
-  MemberFeatureScope({
-    required this.scope,
-    required this.dailyRitualController,
-    required this.discoverController,
-    required this.covenController,
-    required this.profileController,
-    required this.portfolioController,
-    required this.fundingSourceController,
-    required this.contributionController,
-    required this.invalidationBus,
-    this.assetCodexRepository,
-    this.searchController,
-    this.rowanController,
-    this.covenRepository,
-    this.grimoireRepository,
-    this.circleRepository,
-    this.creatorRepository,
-    this.orderController,
-    this.recurringPlanController,
-    this.rebalanceController,
-    this.intentionController,
-    this.futureMirrorController,
-    this.briefingController,
-    this.notificationController,
-    this.entitlementController,
-    this.privacyController,
-  });
-
-  final CacheScope scope;
-  final DailyRitualController dailyRitualController;
-  final DiscoverController discoverController;
-  final CovenController covenController;
-  final ProfileController profileController;
-  final PortfolioController portfolioController;
-  final FundingSourceController fundingSourceController;
-  final ContributionController contributionController;
-  final InvalidationBus invalidationBus;
-  final AssetCodexRepository? assetCodexRepository;
-  final SearchController? searchController;
-  final RowanController? rowanController;
-  final CovenRepository? covenRepository;
-  final GrimoireRepository? grimoireRepository;
-  final CircleRepository? circleRepository;
-  final CreatorRepository? creatorRepository;
-  final OrderController? orderController;
-  final RecurringPlanController? recurringPlanController;
-  final RebalanceController? rebalanceController;
-  final IntentionController? intentionController;
-  final FutureMirrorController? futureMirrorController;
-  final BriefingController? briefingController;
-  final NotificationController? notificationController;
-  final EntitlementController? entitlementController;
-  final PrivacyController? privacyController;
-  final Map<MemberBranch, Future<void>> _loads = {};
-  bool _isDisposed = false;
-
-  bool get isDisposed => _isDisposed;
-
-  void updateBootstrap(MemberBootstrap bootstrap) {
-    if (_isDisposed) return;
-    discoverController.updatePersonalization(bootstrap.personalization);
-    recurringPlanController?.updateRhythm(
-      bootstrap.personalization.contributionRhythm,
-    );
-    futureMirrorController?.updatePersonalization(bootstrap.personalization);
-    briefingController?.updatePersonalization(bootstrap.personalization);
-    notificationController?.updatePersonalization(bootstrap.personalization);
-    entitlementController?.updatePersonalization(bootstrap.personalization);
-    privacyController?.updatePersonalization(bootstrap.personalization);
-    intentionController?.updateProfile(profileController.state.value?.investor);
-  }
-
-  Future<void> load(MemberBranch branch) {
-    if (_isDisposed) return Future.value();
-    return _loads.putIfAbsent(branch, () async {
-      switch (branch) {
-        case MemberBranch.ritual:
-          await dailyRitualController.load();
-        case MemberBranch.discover:
-          await discoverController.load();
-        case MemberBranch.coven:
-          await covenController.load();
-        case MemberBranch.you:
-          await Future.wait([
-            profileController.load(),
-            portfolioController.load(),
-            fundingSourceController.load(),
-          ]);
-          intentionController?.updateProfile(
-            profileController.state.value?.investor,
-          );
-      }
-    });
-  }
-
-  Future<void> deactivateSensitiveState() async {
-    await privacyController?.deactivate();
-  }
-
-  void dispose() {
-    if (_isDisposed) return;
-    _isDisposed = true;
-    dailyRitualController.dispose();
-    discoverController.dispose();
-    covenController.dispose();
-    profileController.dispose();
-    portfolioController.dispose();
-    fundingSourceController.dispose();
-    contributionController.dispose();
-    orderController?.dispose();
-    recurringPlanController?.dispose();
-    rebalanceController?.dispose();
-    intentionController?.dispose();
-    futureMirrorController?.dispose();
-    briefingController?.dispose();
-    notificationController?.dispose();
-    entitlementController?.dispose();
-    privacyController?.dispose();
-    unawaited(invalidationBus.dispose());
-    searchController?.dispose();
-    rowanController?.dispose();
-  }
 }
 
 class DependencyContainer extends ChangeNotifier {
@@ -393,24 +243,24 @@ class DependencyContainer extends ChangeNotifier {
 
   bool get hasAssetCodex => _featureScope?.assetCodexRepository != null;
 
-  bool get hasU7 =>
+  bool get hasSimulatedInvesting =>
       _featureScope?.orderController != null &&
       _featureScope?.recurringPlanController != null &&
       _featureScope?.rebalanceController != null;
 
-  bool get hasU8 =>
+  bool get hasIntentionsAndFutureMirror =>
       _featureScope?.intentionController != null &&
       _featureScope?.futureMirrorController != null;
 
-  bool get hasU9 =>
+  bool get hasBriefingsAndNotifications =>
       _featureScope?.briefingController != null &&
       _featureScope?.notificationController != null;
 
-  bool get hasU10 => _featureScope?.entitlementController != null;
+  bool get hasDemoMembership => _featureScope?.entitlementController != null;
 
-  bool get hasU11 => _featureScope?.privacyController != null;
+  bool get hasPrivacyControls => _featureScope?.privacyController != null;
 
-  bool get hasU5Research =>
+  bool get hasMemberResearch =>
       _featureScope?.covenRepository != null &&
       _featureScope?.grimoireRepository != null &&
       _featureScope?.circleRepository != null &&
@@ -616,7 +466,9 @@ class DependencyContainer extends ChangeNotifier {
 
   void _handleEntryCoordinator() {
     final draft = entryCoordinator?.state.draft;
-    if (draft != null && draft != onboardingController.draft) {
+    if (draft == null) {
+      onboardingController.reset();
+    } else if (draft != onboardingController.draft) {
       onboardingController.replaceDraft(draft);
     }
     notifyListeners();
@@ -747,8 +599,8 @@ class DependencyContainer extends ChangeNotifier {
     );
     final onboardingDraftStore = OnboardingDraftStore(
       storage: protectedStorage,
-      installation: ProtectedStorageInstallationBinding(
-        storage: protectedStorage,
+      installation: AppContainerInstallationBinding(
+        cacheDirectoryProvider: getTemporaryDirectory,
       ),
       now: DateTime.now,
     );
@@ -768,218 +620,15 @@ class DependencyContainer extends ChangeNotifier {
       cacheStorage: cache,
       pendingCommandStore: pendingCommandStore,
       entryCoordinator: entryCoordinator,
-      featureScopeFactory: (scope, scopedCache, bootstrap) {
-        final covenRepository = CovenRepository(
-          service: GeneratedCovenApiService(client),
-          cache: scopedCache,
-        );
-        final portfolioService = GeneratedPortfolioApiService(client);
-        final portfolioRepository = CachedPortfolioRepository(
-          service: portfolioService,
-          cache: scopedCache,
-        );
-        final portfolioController = PortfolioController(
-          repository: portfolioRepository,
-          bootstrapDefaultPortfolioId: bootstrap.defaultPortfolioId,
-          createKey: _newCommandKey,
-        );
-        final fundingRepository = CachedFundingRepository(
-          service: portfolioService,
-          cache: scopedCache,
-        );
-        final invalidationBus = InvalidationBus();
-        final orderController = OrderController(
-          repository: OrderRepository(
-            service: GeneratedOrderApiService(client),
-          ),
-          portfolioController: portfolioController,
-          pendingStore: pendingCommandStore,
-          invalidationBus: invalidationBus,
-          scope: scope,
-          createKey: _newCommandKey,
-          now: DateTime.now,
-        );
-        final recurringPlanController = RecurringPlanController(
-          repository: RecurringPlanRepository(
-            service: GeneratedRecurringPlanApiService(client),
-          ),
-          pendingStore: pendingCommandStore,
-          scope: scope,
-          createKey: _newCommandKey,
-          now: DateTime.now,
-          rhythm: bootstrap.personalization.contributionRhythm,
-          isFundingSourceActive: (sourceId) async {
-            final result = await fundingRepository.loadSources();
-            return !result.isStale &&
-                result.value.items.any(
-                  (source) => source.id == sourceId && source.isActive,
-                );
-          },
-        );
-        final rebalanceController = RebalanceController(
-          repository: RebalanceRepository(
-            service: GeneratedRebalanceApiService(client),
-          ),
-          portfolioController: portfolioController,
-          pendingStore: pendingCommandStore,
-          invalidationBus: invalidationBus,
-          scope: scope,
-          createKey: _newCommandKey,
-          now: DateTime.now,
-        );
-        final intentionController = IntentionController(
-          repository: CachedIntentionRepository(
-            service: GeneratedIntentionApiService(client),
-            cache: scopedCache,
-          ),
-          pendingStore: pendingCommandStore,
-          invalidationBus: invalidationBus,
-          scope: scope,
-          createKey: _newCommandKey,
-          now: DateTime.now,
-        );
-        final futureMirrorController = FutureMirrorController(
-          repository: CachedFutureMirrorRepository(
-            service: GeneratedFutureMirrorApiService(client),
-            cache: scopedCache,
-          ),
-          pendingStore: pendingCommandStore,
-          invalidationBus: invalidationBus,
-          scope: scope,
-          createKey: _newCommandKey,
-          now: DateTime.now,
-          personalization: bootstrap.personalization,
-        );
-        final briefingController = BriefingController(
-          repository: CachedBriefingRepository(
-            service: GeneratedBriefingService(client),
-            cache: scopedCache,
-          ),
-          invalidationBus: invalidationBus,
-          scope: scope,
-          personalization: bootstrap.personalization,
-        );
-        final notificationController = NotificationController(
-          repository: CachedNotificationRepository(
-            service: GeneratedNotificationService(client),
-            cache: scopedCache,
-          ),
-          pendingStore: pendingCommandStore,
-          invalidationBus: invalidationBus,
-          scope: scope,
-          createKey: _newCommandKey,
-          now: DateTime.now,
-          personalization: bootstrap.personalization,
-        );
-        final entitlementController = EntitlementController(
-          repository: CachedEntitlementRepository(
-            service: GeneratedEntitlementService(client),
-            cache: scopedCache,
-          ),
-          pendingStore: pendingCommandStore,
-          scope: scope,
-          createKey: _newCommandKey,
-          now: DateTime.now,
-          personalization: bootstrap.personalization,
-        );
-        final privacyController = PrivacyController(
-          repository: ScopedPrivacyRepository(
-            service: GeneratedPrivacyService(client),
-            requestStore: privacyExportRequestStore,
-            files: privateExportFiles,
-            scope: scope,
-          ),
-          pendingStore: pendingCommandStore,
-          scope: scope,
-          createKey: _newCommandKey,
-          reauthenticate: () async {
-            try {
-              await auth.reauthenticate(const Duration(minutes: 5));
-            } on MemberAuthCancelled {
-              throw const RecentAuthCancelled();
-            }
-          },
-          onDeletionAccepted: () async {},
-          onResetAccepted: (_) async {},
-          personalization: bootstrap.personalization,
-        );
-        return MemberFeatureScope(
-          scope: scope,
-          dailyRitualController: DailyRitualController(
-            repository: DailyRitualRepository(
-              service: GeneratedRitualApiService(client),
-              cache: scopedCache,
-            ),
-          ),
-          discoverController: DiscoverController(
-            repository: CachedDiscoverRepository(
-              service: GeneratedDiscoverApiService(client),
-              cache: scopedCache,
-            ),
-            personalization: bootstrap.personalization,
-          ),
-          covenController: CovenController(repository: covenRepository),
-          profileController: ProfileController(
-            repository: CachedProfileRepository(
-              service: GeneratedProfileApiService(client),
-              cache: scopedCache,
-            ),
-          ),
-          portfolioController: portfolioController,
-          fundingSourceController: FundingSourceController(
-            repository: fundingRepository,
-            createKey: _newCommandKey,
-          ),
-          contributionController: ContributionController(
-            repository: fundingRepository,
-            portfolioController: portfolioController,
-            pendingStore: pendingCommandStore,
-            invalidationBus: invalidationBus,
-            scope: scope,
-            createKey: _newCommandKey,
-            now: DateTime.now,
-            rhythm: bootstrap.personalization.contributionRhythm,
-          ),
-          orderController: orderController,
-          recurringPlanController: recurringPlanController,
-          rebalanceController: rebalanceController,
-          intentionController: intentionController,
-          futureMirrorController: futureMirrorController,
-          briefingController: briefingController,
-          notificationController: notificationController,
-          entitlementController: entitlementController,
-          privacyController: privacyController,
-          invalidationBus: invalidationBus,
-          assetCodexRepository: AssetCodexRepository(
-            service: GeneratedAssetCodexService(client),
-            cache: scopedCache,
-          ),
-          searchController: SearchController(
-            repository: SearchRepository(
-              service: GeneratedSearchService(client),
-            ),
-          ),
-          rowanController: RowanController(
-            repository: RowanRepository(
-              service: GeneratedRowanService(client),
-              cache: scopedCache,
-            ),
-          ),
-          covenRepository: covenRepository,
-          grimoireRepository: GrimoireRepository(
-            service: GeneratedGrimoireService(client),
-            cache: scopedCache,
-          ),
-          circleRepository: CircleRepository(
-            service: GeneratedCircleService(client),
-            cache: scopedCache,
-          ),
-          creatorRepository: CreatorRepository(
-            service: GeneratedCreatorService(client),
-            cache: scopedCache,
-          ),
-        );
-      },
+      featureScopeFactory: ProductionMemberFeatureScopeFactory(
+        client: client,
+        pendingCommandStore: pendingCommandStore,
+        authController: auth,
+        privacyExportRequestStore: privacyExportRequestStore,
+        privateExportFiles: privateExportFiles,
+        createCommandKey: _newCommandKey,
+        now: DateTime.now,
+      ).call,
     );
   }
 

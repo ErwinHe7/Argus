@@ -103,6 +103,13 @@ class EntryCoordinator extends ChangeNotifier {
     await saveDraft(_draft!);
   }
 
+  void resumeQuestionnaire() {
+    if (_draft == null) {
+      throw StateError('No reviewed onboarding draft is available to edit.');
+    }
+    _set(EntryDestination.questionnaire);
+  }
+
   Future<void> restore() async {
     _set(EntryDestination.restoring);
     await _readDraft();

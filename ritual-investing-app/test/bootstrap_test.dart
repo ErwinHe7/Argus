@@ -5,12 +5,15 @@ import 'package:ritual_investing_app/core/api/view_state.dart';
 import 'package:ritual_investing_app/core/api/ritual_api.dart';
 import 'package:ritual_investing_app/core/api/pending_command_store.dart';
 import 'package:ritual_investing_app/core/bootstrap/dependency_container.dart';
+import 'package:ritual_investing_app/core/bootstrap/entry_coordinator.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/auth/auth_controller.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/cache/cache_entry.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
+import 'package:ritual_investing_app/features/onboarding/data/onboarding_draft_store.dart';
+import 'package:ritual_investing_app/features/onboarding/data/onboarding_repository.dart';
 import 'package:ritual_investing_app/features/profile/domain/model.dart';
 
 import 'support/fixture_services.dart';
@@ -361,6 +364,45 @@ void main() {
   });
 
   test(
+    'logout resets account A answers before account B starts onboarding',
+    () async {
+      final storage = _TrackingProtectedStorage();
+      final draftStore = OnboardingDraftStore(
+        storage: storage,
+        installation: const FixedInstallationBinding('install-a'),
+        now: () => DateTime.utc(2026, 8, 24, 12),
+      );
+      final sessionRepository = _SignedInSessionRepository();
+      final authController = AuthController(repository: sessionRepository);
+      final bootstrapService = _TrackingSessionBootstrapService(
+        _incompleteBootstrap(accountId: 'account-a'),
+      );
+      final coordinator = EntryCoordinator(
+        authController: authController,
+        bootstrapService: bootstrapService,
+        draftStore: draftStore,
+        onboardingRepository: _UnusedOnboardingRepository(),
+      );
+      final container = fixtureContainer(
+        authController: authController,
+        sessionBootstrapService: bootstrapService,
+        entryCoordinator: coordinator,
+      );
+      addTearDown(coordinator.dispose);
+      addTearDown(container.dispose);
+      await draftStore.save(_reviewedOnboardingDraft());
+      await container.bootstrap();
+      expect(container.onboardingController.draft, _reviewedOnboardingDraft());
+
+      await container.logout();
+
+      expect(container.onboardingController.draft, const OnboardingDraft());
+      await container.beginQuestionnaire();
+      expect(coordinator.state.draft, const OnboardingDraft());
+    },
+  );
+
+  test(
     'generation transition fences the old scope when protected cleanup fails',
     () async {
       final service = _SequenceSessionBootstrapService([
@@ -591,6 +633,42 @@ MemberBootstrap completedBootstrap({
   themePreference: MemberThemePreference.system,
   personalization: personalization,
 );
+
+MemberBootstrap _incompleteBootstrap({required String accountId}) =>
+    MemberBootstrap(
+      accountId: accountId,
+      resetGeneration: 0,
+      onboarding: MemberOnboardingGate.incomplete(nextStep: 'profile'),
+      entitlement: const MemberEntitlement(
+        planCode: 'demo-free',
+        status: MemberEntitlementStatus.active,
+      ),
+      defaultPortfolioId: 'fixture-portfolio',
+      serverTime: DateTime.utc(2026, 8, 24),
+      contractVersion: '1.0.0',
+      themePreference: MemberThemePreference.system,
+    );
+
+OnboardingDraft _reviewedOnboardingDraft() => const OnboardingDraft(
+  experience: InvestingExperience.newToInvesting,
+  goal: InvestmentGoal.longTermGrowth,
+  horizon: InvestmentHorizon.long,
+  risk: RiskComfort.moderate,
+  contributionRhythm: ContributionRhythm.monthly,
+  ritualLanguage: RitualLanguage.practical,
+  ritualFamiliarity: RitualFamiliarity.newToRitual,
+  ritualInterests: {RitualInterest.practicalResearch},
+  astrologyEnabled: false,
+  termsAccepted: true,
+  privacyAccepted: true,
+  demoAccepted: true,
+);
+
+class _UnusedOnboardingRepository implements OnboardingRepository {
+  @override
+  Future<MemberBootstrap> finalize(OnboardingFinalizationCommand command) =>
+      Future.error(StateError('Finalization is not used by this test.'));
+}
 
 class _TrackingCache implements ScopedReadCacheStorage {
   final Map<String, CacheEntry<Object>> values = {};
