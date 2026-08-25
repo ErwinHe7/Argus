@@ -59,6 +59,11 @@ void main() {
     await tester.pumpAndSettle();
     expect(router.state.uri.path, '/onboarding/experience');
     expect(find.text('How familiar are you with investing?'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('onboarding-back')));
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, '/welcome');
+    expect(find.byKey(const Key('welcome-get-started')), findsOneWidget);
   });
 
   testWidgets('locked draft save remains editable and exposes retry', (

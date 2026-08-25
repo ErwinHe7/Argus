@@ -110,6 +110,10 @@ class EntryCoordinator extends ChangeNotifier {
     _set(EntryDestination.questionnaire);
   }
 
+  void pauseQuestionnaire() {
+    _set(EntryDestination.welcome);
+  }
+
   Future<void> restore() async {
     _set(EntryDestination.restoring);
     await _readDraft();

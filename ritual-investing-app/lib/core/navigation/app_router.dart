@@ -132,6 +132,7 @@ GoRouter createAppRouter({
             onBack: (previous) {
               container.onboardingController.goTo(previous);
               if (previous == OnboardingStep.welcome) {
+                container.entryCoordinator?.pauseQuestionnaire();
                 context.go('/welcome');
               } else if (context.canPop()) {
                 context.pop();
