@@ -1,0 +1,74 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ritual-investing-api-beta",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "api-beta.just-build-this.app", "custom_domain": true }
+  ],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "ENVIRONMENT": "staging",
+    "BUILD_REVISION": "beta-manual-2026-08-24",
+    "API_ORIGIN": "https://api-beta.just-build-this.app",
+    "CONSUMER_ORIGIN": "https://beta.just-build-this.app",
+    "ADMIN_ORIGIN": "https://admin-beta.just-build-this.app",
+    "ADMIN_HOST": "api-beta.just-build-this.app",
+    "AUTH0_ISSUER": "https://dev-pxee7db52tqc4xoe.us.auth0.com/",
+    "AUTH0_AUDIENCE": "https://api-beta.just-build-this.app",
+    "AUTH0_JWKS_URL": "https://dev-pxee7db52tqc4xoe.us.auth0.com/.well-known/jwks.json",
+    "AUTH0_MEMBER_CLIENT_IDS": "replace-with-beta-auth0-mobile-client-id",
+    "AUTH0_ADMIN_CLIENT_IDS": "replace-with-beta-auth0-admin-client-id",
+    "CF_ACCESS_ISSUER": "https://replace-me-beta.cloudflareaccess.com",
+    "CF_ACCESS_AUDIENCE": "replace-with-beta-cloudflare-access-application-aud",
+    "CF_ACCESS_JWKS_URL": "https://replace-me-beta.cloudflareaccess.com/cdn-cgi/access/certs",
+    "KILL_SWITCH_SCHEDULED": "on",
+    "KILL_SWITCH_QUEUE": "on",
+    "KILL_SWITCH_NOTIFICATIONS": "on",
+    "KILL_SWITCH_EXPORTS": "on",
+    "KILL_SWITCH_PURGE": "on",
+    "KILL_SWITCH_MEDIA": "on"
+  },
+  "queues": {
+    "producers": [
+      { "binding": "ASYNC_QUEUE", "queue": "ritual-beta-jobs" },
+      { "binding": "JOBS_DLQ", "queue": "ritual-beta-jobs-dlq" }
+    ],
+    "consumers": [
+      {
+        "queue": "ritual-beta-jobs",
+        "max_batch_size": 10,
+        "max_batch_timeout": 5,
+        "max_retries": 4,
+        "dead_letter_queue": "ritual-beta-jobs-dlq",
+        "max_concurrency": 2,
+        "retry_delay": 10
+      }
+    ]
+  },
+  "r2_buckets": [
+    { "binding": "MEDIA_QUARANTINE", "bucket_name": "ritual-beta-media-quarantine" },
+    { "binding": "MEDIA_PUBLIC", "bucket_name": "ritual-beta-media-public" },
+    { "binding": "PRIVACY_EXPORTS", "bucket_name": "ritual-beta-privacy-exports" },
+    { "binding": "DELETION_DENY_JOURNAL", "bucket_name": "ritual-beta-deletion-deny" }
+  ],
+  "ratelimits": [
+    { "name": "RL_HEALTH", "namespace_id": "2001", "simple": { "limit": 60, "period": 60 } },
+    { "name": "RL_PUBLIC", "namespace_id": "2002", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RL_SEARCH", "namespace_id": "2003", "simple": { "limit": 15, "period": 60 } },
+    { "name": "RL_MEMBER_READ", "namespace_id": "2004", "simple": { "limit": 120, "period": 60 } },
+    { "name": "RL_MEMBER_WRITE", "namespace_id": "2005", "simple": { "limit": 30, "period": 60 } },
+    { "name": "RL_COMMAND", "namespace_id": "2006", "simple": { "limit": 10, "period": 60 } },
+    { "name": "RL_SENSITIVE", "namespace_id": "2007", "simple": { "limit": 5, "period": 60 } },
+    { "name": "RL_ADMIN_READ", "namespace_id": "2008", "simple": { "limit": 60, "period": 60 } },
+    { "name": "RL_ADMIN_WRITE", "namespace_id": "2009", "simple": { "limit": 20, "period": 60 } },
+    { "name": "RL_ADMIN_HIGH", "namespace_id": "2010", "simple": { "limit": 5, "period": 60 } },
+    { "name": "RL_UPLOAD", "namespace_id": "2011", "simple": { "limit": 5, "period": 60 } }
+  ]
+}

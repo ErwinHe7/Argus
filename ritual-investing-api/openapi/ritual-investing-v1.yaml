@@ -1144,6 +1144,8 @@ components:
         revision_id:
           format: uuid
           type: string
+        saved:
+          type: boolean
         slug:
           pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
           type: string
@@ -1165,6 +1167,7 @@ components:
         - revision_id
         - demo
         - assets
+        - saved
       type: object
     CircleTemplateDetailResponse:
       additionalProperties: false
@@ -2802,55 +2805,26 @@ components:
         - demo
       type: object
     DiscoverItem:
-      oneOf:
-        - additionalProperties: false
-          properties:
-            asset:
-              $ref: "#/components/schemas/AssetSummary"
-            kind:
-              enum:
-                - asset
-              type: string
-          required:
-            - kind
+      additionalProperties: false
+      properties:
+        asset:
+          $ref: "#/components/schemas/AssetSummary"
+        circle_template:
+          $ref: "#/components/schemas/CircleTemplateSummary"
+        coven:
+          $ref: "#/components/schemas/CovenSummary"
+        grimoire:
+          $ref: "#/components/schemas/GrimoireSummary"
+        kind:
+          enum:
             - asset
-          type: object
-        - additionalProperties: false
-          properties:
-            coven:
-              $ref: "#/components/schemas/CovenSummary"
-            kind:
-              enum:
-                - coven
-              type: string
-          required:
-            - kind
             - coven
-          type: object
-        - additionalProperties: false
-          properties:
-            grimoire:
-              $ref: "#/components/schemas/GrimoireSummary"
-            kind:
-              enum:
-                - grimoire
-              type: string
-          required:
-            - kind
             - grimoire
-          type: object
-        - additionalProperties: false
-          properties:
-            circle_template:
-              $ref: "#/components/schemas/CircleTemplateSummary"
-            kind:
-              enum:
-                - circle_template
-              type: string
-          required:
-            - kind
             - circle_template
-          type: object
+          type: string
+      required:
+        - kind
+      type: object
     DiscoverResponse:
       additionalProperties: false
       properties:
@@ -3001,6 +2975,178 @@ components:
         - path
         - code
       type: object
+    FinalizeOnboardingRequest:
+      additionalProperties: false
+      properties:
+        astrology:
+          additionalProperties: false
+          properties:
+            birth_date:
+              format: date
+              type: string
+            enabled:
+              type: boolean
+          required:
+            - enabled
+          type: object
+        consents:
+          additionalProperties: false
+          properties:
+            astrology:
+              additionalProperties: false
+              properties:
+                decision:
+                  enum:
+                    - accepted
+                    - declined
+                  type: string
+                policy_version:
+                  enum:
+                    - 2026-08
+                  type: string
+              required:
+                - policy_version
+                - decision
+              type: object
+            demo_disclosure:
+              additionalProperties: false
+              properties:
+                decision:
+                  enum:
+                    - accepted
+                  type: string
+                policy_version:
+                  enum:
+                    - 2026-08
+                  type: string
+              required:
+                - policy_version
+                - decision
+              type: object
+            privacy:
+              additionalProperties: false
+              properties:
+                decision:
+                  enum:
+                    - accepted
+                  type: string
+                policy_version:
+                  enum:
+                    - 2026-08
+                  type: string
+              required:
+                - policy_version
+                - decision
+              type: object
+            terms:
+              additionalProperties: false
+              properties:
+                decision:
+                  enum:
+                    - accepted
+                  type: string
+                policy_version:
+                  enum:
+                    - 2026-08
+                  type: string
+              required:
+                - policy_version
+                - decision
+              type: object
+          required:
+            - terms
+            - privacy
+            - demo_disclosure
+            - astrology
+          type: object
+        expected_onboarding_version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        investing:
+          additionalProperties: false
+          properties:
+            contribution_rhythm:
+              enum:
+                - weekly
+                - biweekly
+                - monthly
+                - irregular
+                - not_sure
+              type: string
+            experience:
+              enum:
+                - new
+                - some_experience
+                - experienced
+              type: string
+            goal_type:
+              enum:
+                - calm_fund
+                - long_term_growth
+                - income
+                - exploration
+              type: string
+            risk_comfort:
+              enum:
+                - low
+                - moderate
+                - high
+              type: string
+            time_horizon:
+              enum:
+                - short
+                - medium
+                - long
+              type: string
+          required:
+            - experience
+            - goal_type
+            - time_horizon
+            - risk_comfort
+            - contribution_rhythm
+          type: object
+        ritual:
+          additionalProperties: false
+          properties:
+            familiarity:
+              enum:
+                - new
+                - curious
+                - familiar
+                - practiced
+                - prefer_not_to_say
+              type: string
+            interests:
+              items:
+                $ref: "#/components/schemas/RitualInterest"
+              maxItems: 5
+              minItems: 1
+              type: array
+            language_preference:
+              enum:
+                - practical
+                - balanced
+                - mystical
+                - prefer_not_to_say
+              type: string
+          required:
+            - familiarity
+            - language_preference
+            - interests
+          type: object
+        schema_version:
+          maximum: 2
+          minimum: 2
+          type: integer
+      required:
+        - schema_version
+        - expected_onboarding_version
+        - investing
+        - ritual
+        - astrology
+        - consents
+      type: object
     FutureMirrorView:
       additionalProperties: false
       properties:
@@ -3135,6 +3281,8 @@ components:
         revision_id:
           format: uuid
           type: string
+        saved:
+          type: boolean
         slug:
           pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
           type: string
@@ -3156,6 +3304,7 @@ components:
         - revision_id
         - demo
         - assets
+        - saved
       type: object
     GrimoireDetailResponse:
       additionalProperties: false
@@ -3300,12 +3449,30 @@ components:
     InvestorProfile:
       additionalProperties: false
       properties:
+        contribution_rhythm:
+          enum:
+            - weekly
+            - biweekly
+            - monthly
+            - irregular
+            - not_sure
+            - null
+          nullable: true
+          type: string
         goal_type:
           enum:
             - calm_fund
             - long_term_growth
             - income
             - exploration
+          type: string
+        investing_experience:
+          enum:
+            - new
+            - some_experience
+            - experienced
+            - null
+          nullable: true
           type: string
         is_demo:
           enum:
@@ -3331,6 +3498,8 @@ components:
         - goal_type
         - time_horizon
         - risk_comfort
+        - investing_experience
+        - contribution_rhythm
         - version
         - is_demo
       type: object
@@ -3386,6 +3555,31 @@ components:
           maxLength: 35
           pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
           type: string
+        ritual_familiarity:
+          enum:
+            - new
+            - curious
+            - familiar
+            - practiced
+            - prefer_not_to_say
+            - null
+          nullable: true
+          type: string
+        ritual_interests:
+          items:
+            $ref: "#/components/schemas/RitualInterest"
+          maxItems: 5
+          nullable: true
+          type: array
+        ritual_language:
+          enum:
+            - practical
+            - balanced
+            - mystical
+            - prefer_not_to_say
+            - null
+          nullable: true
+          type: string
         ritual_mode:
           enum:
             - tarot
@@ -3408,6 +3602,9 @@ components:
       required:
         - theme_mode
         - ritual_mode
+        - ritual_familiarity
+        - ritual_language
+        - ritual_interests
         - timezone
         - locale
         - version
@@ -3483,6 +3680,12 @@ components:
     OnboardingState:
       additionalProperties: false
       properties:
+        cohort:
+          enum:
+            - legacy_complete_v1
+            - legacy_incomplete_v1
+            - member_v2
+          type: string
         completed_at:
           format: date-time
           nullable: true
@@ -3500,6 +3703,10 @@ components:
             - profile
             - complete
           type: string
+        schema_version:
+          maximum: 2
+          minimum: 1
+          type: integer
         version:
           exclusiveMinimum: true
           minimum: 0
@@ -3508,6 +3715,8 @@ components:
         - current_step
         - completed_steps
         - completed_at
+        - schema_version
+        - cohort
         - version
       type: object
     OpenApiDocument:
@@ -4702,6 +4911,14 @@ components:
         - data
         - meta
       type: object
+    RitualInterest:
+      enum:
+        - practical_research
+        - tarot
+        - astrology
+        - moon_cycles
+        - reflection
+      type: string
     RowanCounsel:
       additionalProperties: false
       properties:
@@ -4768,55 +4985,26 @@ components:
         - meta
       type: object
     SearchResult:
-      oneOf:
-        - additionalProperties: false
-          properties:
-            asset:
-              $ref: "#/components/schemas/AssetSummary"
-            kind:
-              enum:
-                - asset
-              type: string
-          required:
-            - kind
+      additionalProperties: false
+      properties:
+        asset:
+          $ref: "#/components/schemas/AssetSummary"
+        circle_template:
+          $ref: "#/components/schemas/CircleTemplateSummary"
+        coven:
+          $ref: "#/components/schemas/CovenSummary"
+        grimoire:
+          $ref: "#/components/schemas/GrimoireSummary"
+        kind:
+          enum:
             - asset
-          type: object
-        - additionalProperties: false
-          properties:
-            coven:
-              $ref: "#/components/schemas/CovenSummary"
-            kind:
-              enum:
-                - coven
-              type: string
-          required:
-            - kind
             - coven
-          type: object
-        - additionalProperties: false
-          properties:
-            grimoire:
-              $ref: "#/components/schemas/GrimoireSummary"
-            kind:
-              enum:
-                - grimoire
-              type: string
-          required:
-            - kind
             - grimoire
-          type: object
-        - additionalProperties: false
-          properties:
-            circle_template:
-              $ref: "#/components/schemas/CircleTemplateSummary"
-            kind:
-              enum:
-                - circle_template
-              type: string
-          required:
-            - kind
             - circle_template
-          type: object
+          type: string
+      required:
+        - kind
+      type: object
     SeededCreator:
       additionalProperties: false
       properties:
@@ -4864,6 +5052,37 @@ components:
           required:
             - id
             - status
+          type: object
+        astrology_profile:
+          additionalProperties: false
+          nullable: true
+          properties:
+            algorithm_version:
+              enum:
+                - v1
+              type: string
+            birth_date:
+              format: date
+              type: string
+            derived_profile_code:
+              enum:
+                - lunar_patient
+                - solar_builder
+                - rising_explorer
+              type: string
+            enabled_at:
+              format: date-time
+              type: string
+            version:
+              exclusiveMinimum: true
+              minimum: 0
+              type: integer
+          required:
+            - birth_date
+            - derived_profile_code
+            - algorithm_version
+            - enabled_at
+            - version
           type: object
         contract_version:
           enum:
@@ -4913,9 +5132,73 @@ components:
             - plan_code
             - status
           type: object
+        investor_profile:
+          additionalProperties: false
+          nullable: true
+          properties:
+            contribution_rhythm:
+              enum:
+                - weekly
+                - biweekly
+                - monthly
+                - irregular
+                - not_sure
+              type: string
+            experience:
+              enum:
+                - new
+                - some_experience
+                - experienced
+              type: string
+            goal_type:
+              enum:
+                - calm_fund
+                - long_term_growth
+                - income
+                - exploration
+              type: string
+            is_demo:
+              enum:
+                - true
+              type: boolean
+            risk_comfort:
+              enum:
+                - low
+                - moderate
+                - high
+              type: string
+            time_horizon:
+              enum:
+                - short
+                - medium
+                - long
+              type: string
+            version:
+              exclusiveMinimum: true
+              minimum: 0
+              type: integer
+          required:
+            - experience
+            - goal_type
+            - time_horizon
+            - risk_comfort
+            - contribution_rhythm
+            - version
+            - is_demo
+          type: object
         onboarding:
           additionalProperties: false
           properties:
+            cohort:
+              enum:
+                - legacy_complete_v1
+                - legacy_incomplete_v1
+                - member_v2
+              type: string
+            completed_at:
+              format: date-time
+              nullable: true
+              type: string
             completed_steps:
               items:
                 maxLength: 64
@@ -4927,6 +5210,10 @@ components:
               maxLength: 64
               minLength: 1
               type: string
+            schema_version:
+              maximum: 2
+              minimum: 1
+              type: integer
             version:
               exclusiveMinimum: true
               minimum: 0
@@ -4934,6 +5221,9 @@ components:
           required:
             - current_step
             - completed_steps
+            - completed_at
+            - schema_version
+            - cohort
             - version
           type: object
         preferences:
@@ -4942,6 +5232,32 @@ components:
             locale:
               maxLength: 35
               minLength: 1
+              type: string
+            ritual_familiarity:
+              enum:
+                - new
+                - curious
+                - familiar
+                - practiced
+                - prefer_not_to_say
+                - null
+              nullable: true
+              type: string
+            ritual_interests:
+              items:
+                $ref: "#/components/schemas/RitualInterest"
+              maxItems: 5
+              minItems: 1
+              nullable: true
+              type: array
+            ritual_language:
+              enum:
+                - practical
+                - balanced
+                - mystical
+                - prefer_not_to_say
+                - null
+              nullable: true
               type: string
             ritual_mode:
               enum:
@@ -4965,6 +5281,9 @@ components:
           required:
             - theme_mode
             - ritual_mode
+            - ritual_familiarity
+            - ritual_language
+            - ritual_interests
             - timezone
             - locale
             - version
@@ -4984,6 +5303,10 @@ components:
             - display_name
             - locale
           type: object
+        reset_generation:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
         server_time:
           format: date-time
           type: string
@@ -4991,9 +5314,12 @@ components:
         - account
         - profile
         - preferences
+        - investor_profile
+        - astrology_profile
         - onboarding
         - entitlement
         - default_portfolio
+        - reset_generation
         - server_time
         - contract_version
       type: object
@@ -54448,23 +54774,11 @@ paths:
             schema:
               additionalProperties: false
               properties:
-                algorithm_version:
-                  enum:
-                    - v1
-                  type: string
                 birth_date:
                   format: date
                   type: string
-                derived_profile_code:
-                  enum:
-                    - lunar_patient
-                    - solar_builder
-                    - rising_explorer
-                  type: string
               required:
                 - birth_date
-                - derived_profile_code
-                - algorithm_version
               type: object
         required: true
       responses:
@@ -55283,12 +55597,26 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                contribution_rhythm:
+                  enum:
+                    - weekly
+                    - biweekly
+                    - monthly
+                    - irregular
+                    - not_sure
+                  type: string
                 goal_type:
                   enum:
                     - calm_fund
                     - long_term_growth
                     - income
                     - exploration
+                  type: string
+                investing_experience:
+                  enum:
+                    - new
+                    - some_experience
+                    - experienced
                   type: string
                 risk_comfort:
                   enum:
@@ -55900,6 +56228,31 @@ paths:
                 locale:
                   maxLength: 35
                   pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
+                  type: string
+                ritual_familiarity:
+                  enum:
+                    - new
+                    - curious
+                    - familiar
+                    - practiced
+                    - prefer_not_to_say
+                    - null
+                  nullable: true
+                  type: string
+                ritual_interests:
+                  items:
+                    $ref: "#/components/schemas/RitualInterest"
+                  maxItems: 5
+                  nullable: true
+                  type: array
+                ritual_language:
+                  enum:
+                    - practical
+                    - balanced
+                    - mystical
+                    - prefer_not_to_say
+                    - null
+                  nullable: true
                   type: string
                 ritual_mode:
                   enum:
@@ -60830,6 +61183,85 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
           description: Security dependency unavailable.
+      security:
+        - Auth0OAuth:
+            - write:self
+      tags:
+        - Session
+  /v1/session/onboarding/finalize:
+    post:
+      operationId: finalizeOnboarding
+      parameters:
+        - description: A retry-stable, tenant-and-operation-scoped command key.
+          in: header
+          name: idempotency-key
+          required: true
+          schema:
+            description: A retry-stable, tenant-and-operation-scoped command key.
+            example: order-01JY7W4M5GYJ2E47KCEPD88N2K
+            pattern: ^[\x21-\x7E]{16,64}$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizeOnboardingRequest"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionBootstrapResponse"
+          description: Atomically finalize onboarding and return the completed session.
+        "401":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Invalid API access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Inactive account, client, or permission denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Completed account, stale version, or idempotency conflict.
+        "413":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request body exceeded the consumer cap.
+        "415":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Request media type or encoding is unsupported.
+        "422":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Questionnaire, schema, policy, or consent is invalid.
+        "429":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+          description: Session storage unavailable.
       security:
         - Auth0OAuth:
             - write:self

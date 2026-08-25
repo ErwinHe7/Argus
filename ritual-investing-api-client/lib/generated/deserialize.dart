@@ -127,10 +127,6 @@ import 'package:ritual_investing_api_client/generated/model/demo_reset_result.da
 import 'package:ritual_investing_api_client/generated/model/demo_reset_result_default_portfolio.dart';
 import 'package:ritual_investing_api_client/generated/model/demo_reset_result_entitlement.dart';
 import 'package:ritual_investing_api_client/generated/model/discover_item.dart';
-import 'package:ritual_investing_api_client/generated/model/discover_item_one_of.dart';
-import 'package:ritual_investing_api_client/generated/model/discover_item_one_of1.dart';
-import 'package:ritual_investing_api_client/generated/model/discover_item_one_of2.dart';
-import 'package:ritual_investing_api_client/generated/model/discover_item_one_of3.dart';
 import 'package:ritual_investing_api_client/generated/model/discover_response.dart';
 import 'package:ritual_investing_api_client/generated/model/error_response.dart';
 import 'package:ritual_investing_api_client/generated/model/error_response_error.dart';
@@ -138,6 +134,13 @@ import 'package:ritual_investing_api_client/generated/model/evidence_detail.dart
 import 'package:ritual_investing_api_client/generated/model/evidence_detail_source.dart';
 import 'package:ritual_investing_api_client/generated/model/evidence_summary.dart';
 import 'package:ritual_investing_api_client/generated/model/field_error.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_astrology.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_consents.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_consents_astrology.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_consents_demo_disclosure.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_investing.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_ritual.dart';
 import 'package:ritual_investing_api_client/generated/model/future_mirror_view.dart';
 import 'package:ritual_investing_api_client/generated/model/future_mirror_view_points_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/get_admin_asset_codex_revision200_response.dart';
@@ -308,8 +311,10 @@ import 'package:ritual_investing_api_client/generated/model/search_response.dart
 import 'package:ritual_investing_api_client/generated/model/search_result.dart';
 import 'package:ritual_investing_api_client/generated/model/seeded_creator.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap.dart';
+import 'package:ritual_investing_api_client/generated/model/session_bootstrap_astrology_profile.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_default_portfolio.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_entitlement.dart';
+import 'package:ritual_investing_api_client/generated/model/session_bootstrap_investor_profile.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_onboarding.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_preferences.dart';
 import 'package:ritual_investing_api_client/generated/model/session_bootstrap_profile.dart';
@@ -819,18 +824,6 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'DiscoverItem':
       return DiscoverItem.fromJson(value as Map<String, dynamic>) as ReturnType;
-    case 'DiscoverItemOneOf':
-      return DiscoverItemOneOf.fromJson(value as Map<String, dynamic>)
-          as ReturnType;
-    case 'DiscoverItemOneOf1':
-      return DiscoverItemOneOf1.fromJson(value as Map<String, dynamic>)
-          as ReturnType;
-    case 'DiscoverItemOneOf2':
-      return DiscoverItemOneOf2.fromJson(value as Map<String, dynamic>)
-          as ReturnType;
-    case 'DiscoverItemOneOf3':
-      return DiscoverItemOneOf3.fromJson(value as Map<String, dynamic>)
-          as ReturnType;
     case 'DiscoverResponse':
       return DiscoverResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -851,6 +844,39 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'FieldError':
       return FieldError.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'FinalizeOnboardingRequest':
+      return FinalizeOnboardingRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'FinalizeOnboardingRequestAstrology':
+      return FinalizeOnboardingRequestAstrology.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'FinalizeOnboardingRequestConsents':
+      return FinalizeOnboardingRequestConsents.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'FinalizeOnboardingRequestConsentsAstrology':
+      return FinalizeOnboardingRequestConsentsAstrology.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'FinalizeOnboardingRequestConsentsDemoDisclosure':
+      return FinalizeOnboardingRequestConsentsDemoDisclosure.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'FinalizeOnboardingRequestInvesting':
+      return FinalizeOnboardingRequestInvesting.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'FinalizeOnboardingRequestRitual':
+      return FinalizeOnboardingRequestRitual.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'FutureMirrorView':
       return FutureMirrorView.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -1484,6 +1510,7 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'RitualHistoryResponse':
       return RitualHistoryResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'RitualInterest':
     case 'RowanCounsel':
       return RowanCounsel.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'RowanCounselResponse':
@@ -1509,6 +1536,11 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'SessionBootstrap':
       return SessionBootstrap.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'SessionBootstrapAstrologyProfile':
+      return SessionBootstrapAstrologyProfile.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'SessionBootstrapDefaultPortfolio':
       return SessionBootstrapDefaultPortfolio.fromJson(
             value as Map<String, dynamic>,
@@ -1516,6 +1548,11 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'SessionBootstrapEntitlement':
       return SessionBootstrapEntitlement.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'SessionBootstrapInvestorProfile':
+      return SessionBootstrapInvestorProfile.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'SessionBootstrapOnboarding':
       return SessionBootstrapOnboarding.fromJson(value as Map<String, dynamic>)

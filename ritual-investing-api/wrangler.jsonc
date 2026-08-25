@@ -4,37 +4,36 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-08-23",
   "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    { "pattern": "api.just-build-this.app", "custom_domain": true }
+  ],
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
   },
   "vars": {
-    "ENVIRONMENT": "development",
-    "BUILD_REVISION": "local",
-    "API_ORIGIN": "http://localhost:8787",
-    "CONSUMER_ORIGIN": "https://app.ritual-investing.example",
-    "ADMIN_ORIGIN": "https://admin.ritual-investing.example",
-    "ADMIN_HOST": "admin.ritual-investing.example",
-    "ADMIN_UI_HOST": "admin.ritual-investing.example",
-    "AUTH0_ISSUER": "https://example.auth0.com/",
-    "AUTH0_AUDIENCE": "https://api.ritual-investing.example",
-    "AUTH0_JWKS_URL": "https://example.auth0.com/.well-known/jwks.json",
-    "AUTH0_ADMIN_CLIENT_IDS": "ritual-investing-admin-client",
-    "CF_ACCESS_ISSUER": "https://ritual-investing.cloudflareaccess.com",
+    "ENVIRONMENT": "production",
+    "BUILD_REVISION": "manual-2026-08-24",
+    "API_ORIGIN": "https://api.just-build-this.app",
+    "CONSUMER_ORIGIN": "https://just-build-this.app",
+    "ADMIN_ORIGIN": "https://admin.just-build-this.app",
+    "ADMIN_HOST": "api.just-build-this.app",
+    "AUTH0_ISSUER": "https://replace-me.us.auth0.com/",
+    "AUTH0_AUDIENCE": "https://api.just-build-this.app",
+    "AUTH0_JWKS_URL": "https://replace-me.us.auth0.com/.well-known/jwks.json",
+    "AUTH0_MEMBER_CLIENT_IDS": "replace-with-auth0-mobile-client-id",
+    "AUTH0_ADMIN_CLIENT_IDS": "replace-with-auth0-admin-client-id",
+    "CF_ACCESS_ISSUER": "https://replace-me.cloudflareaccess.com",
     "CF_ACCESS_AUDIENCE": "replace-with-cloudflare-access-application-aud",
-    "CF_ACCESS_JWKS_URL": "https://ritual-investing.cloudflareaccess.com/cdn-cgi/access/certs",
-    "KILL_SWITCH_SCHEDULED": "off",
-    "KILL_SWITCH_QUEUE": "off",
-    "KILL_SWITCH_NOTIFICATIONS": "off",
-    "KILL_SWITCH_EXPORTS": "off",
-    "KILL_SWITCH_PURGE": "off",
-    "KILL_SWITCH_MEDIA": "off"
-  },
-  "assets": {
-    "binding": "ADMIN_ASSETS",
-    "directory": "../ritual-investing-admin/build/web",
-    "run_worker_first": true,
-    "not_found_handling": "single-page-application"
+    "CF_ACCESS_JWKS_URL": "https://replace-me.cloudflareaccess.com/cdn-cgi/access/certs",
+    "KILL_SWITCH_SCHEDULED": "on",
+    "KILL_SWITCH_QUEUE": "on",
+    "KILL_SWITCH_NOTIFICATIONS": "on",
+    "KILL_SWITCH_EXPORTS": "on",
+    "KILL_SWITCH_PURGE": "on",
+    "KILL_SWITCH_MEDIA": "on"
   },
   "triggers": {
     "crons": ["* * * * *", "0 5 * * *", "0 6 * * 1", "0 7 1,15 * *"]
@@ -61,11 +60,6 @@
     { "binding": "MEDIA_PUBLIC", "bucket_name": "ritual-media-public" },
     { "binding": "PRIVACY_EXPORTS", "bucket_name": "ritual-privacy-exports" },
     { "binding": "DELETION_DENY_JOURNAL", "bucket_name": "ritual-deletion-deny" }
-  ],
-  "services": [
-    { "binding": "MEDIA_SCANNER", "service": "ritual-media-scanner" },
-    { "binding": "MEDIA_PROCESSOR", "service": "ritual-media-processor" },
-    { "binding": "PUSH_PROVIDER", "service": "ritual-push-provider" }
   ],
   "ratelimits": [
     { "name": "RL_HEALTH", "namespace_id": "1001", "simple": { "limit": 60, "period": 60 } },

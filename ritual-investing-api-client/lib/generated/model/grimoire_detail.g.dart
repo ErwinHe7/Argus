@@ -19,6 +19,8 @@ abstract class _$GrimoireDetailCWProxy {
 
   GrimoireDetail revisionId(String revisionId);
 
+  GrimoireDetail saved(bool saved);
+
   GrimoireDetail slug(String slug);
 
   GrimoireDetail theme(String theme);
@@ -38,6 +40,7 @@ abstract class _$GrimoireDetailCWProxy {
     String description,
     String id,
     String revisionId,
+    bool saved,
     String slug,
     String theme,
     String title,
@@ -71,6 +74,9 @@ class _$GrimoireDetailCWProxyImpl implements _$GrimoireDetailCWProxy {
   GrimoireDetail revisionId(String revisionId) => this(revisionId: revisionId);
 
   @override
+  GrimoireDetail saved(bool saved) => this(saved: saved);
+
+  @override
   GrimoireDetail slug(String slug) => this(slug: slug);
 
   @override
@@ -93,6 +99,7 @@ class _$GrimoireDetailCWProxyImpl implements _$GrimoireDetailCWProxy {
     Object? description = const $CopyWithPlaceholder(),
     Object? id = const $CopyWithPlaceholder(),
     Object? revisionId = const $CopyWithPlaceholder(),
+    Object? saved = const $CopyWithPlaceholder(),
     Object? slug = const $CopyWithPlaceholder(),
     Object? theme = const $CopyWithPlaceholder(),
     Object? title = const $CopyWithPlaceholder(),
@@ -122,6 +129,10 @@ class _$GrimoireDetailCWProxyImpl implements _$GrimoireDetailCWProxy {
           ? _value.revisionId
           // ignore: cast_nullable_to_non_nullable
           : revisionId as String,
+      saved: saved == const $CopyWithPlaceholder()
+          ? _value.saved
+          // ignore: cast_nullable_to_non_nullable
+          : saved as bool,
       slug: slug == const $CopyWithPlaceholder()
           ? _value.slug
           // ignore: cast_nullable_to_non_nullable
@@ -162,6 +173,7 @@ GrimoireDetail _$GrimoireDetailFromJson(Map<String, dynamic> json) =>
             'description',
             'id',
             'revision_id',
+            'saved',
             'slug',
             'theme',
             'title',
@@ -182,6 +194,7 @@ GrimoireDetail _$GrimoireDetailFromJson(Map<String, dynamic> json) =>
           description: $checkedConvert('description', (v) => v as String),
           id: $checkedConvert('id', (v) => v as String),
           revisionId: $checkedConvert('revision_id', (v) => v as String),
+          saved: $checkedConvert('saved', (v) => v as bool),
           slug: $checkedConvert('slug', (v) => v as String),
           theme: $checkedConvert('theme', (v) => v as String),
           title: $checkedConvert('title', (v) => v as String),
@@ -202,6 +215,7 @@ Map<String, dynamic> _$GrimoireDetailToJson(GrimoireDetail instance) =>
       'description': instance.description,
       'id': instance.id,
       'revision_id': instance.revisionId,
+      'saved': instance.saved,
       'slug': instance.slug,
       'theme': instance.theme,
       'title': instance.title,

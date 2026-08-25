@@ -37,6 +37,24 @@ describe("POST /v1/session/bootstrap", () => {
     expect(JSON.stringify(body)).not.toContain("tenant_id");
   });
 
+  it("accepts an edge-shaped empty POST without a media type", async () => {
+    const fixture = app();
+    const response = await fixture.app.request(new Request(
+      "https://api.ritual-investing.test/v1/session/bootstrap",
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${memberToken(auth0Key)}`,
+          "content-length": "0",
+        },
+        body: new Uint8Array(0),
+      },
+    ), undefined, testBindings());
+
+    expect(response.status).toBe(200);
+    expect(fixture.bootstrap).toHaveBeenCalledWith("auth0|member-1");
+  });
+
   it("rejects a request body and unsupported encodings before the repository", async () => {
     const fixture = app();
     const unsupportedType = await fixture.app.request("/v1/session/bootstrap", {

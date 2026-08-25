@@ -14,6 +14,7 @@ Name | Type | Description | Notes
 **description** | **String** |  | 
 **id** | **String** |  | 
 **revisionId** | **String** |  | 
+**saved** | **bool** |  | 
 **slug** | **String** |  | 
 **theme** | **String** |  | 
 **title** | **String** |  | 

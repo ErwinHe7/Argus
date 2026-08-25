@@ -9,6 +9,18 @@ part of 'session_bootstrap_preferences.dart';
 abstract class _$SessionBootstrapPreferencesCWProxy {
   SessionBootstrapPreferences locale(String locale);
 
+  SessionBootstrapPreferences ritualFamiliarity(
+    SessionBootstrapPreferencesRitualFamiliarityEnum? ritualFamiliarity,
+  );
+
+  SessionBootstrapPreferences ritualInterests(
+    List<RitualInterest>? ritualInterests,
+  );
+
+  SessionBootstrapPreferences ritualLanguage(
+    SessionBootstrapPreferencesRitualLanguageEnum? ritualLanguage,
+  );
+
   SessionBootstrapPreferences ritualMode(
     SessionBootstrapPreferencesRitualModeEnum ritualMode,
   );
@@ -29,6 +41,9 @@ abstract class _$SessionBootstrapPreferencesCWProxy {
   /// ````
   SessionBootstrapPreferences call({
     String locale,
+    SessionBootstrapPreferencesRitualFamiliarityEnum? ritualFamiliarity,
+    List<RitualInterest>? ritualInterests,
+    SessionBootstrapPreferencesRitualLanguageEnum? ritualLanguage,
     SessionBootstrapPreferencesRitualModeEnum ritualMode,
     SessionBootstrapPreferencesThemeModeEnum themeMode,
     String timezone,
@@ -45,6 +60,21 @@ class _$SessionBootstrapPreferencesCWProxyImpl
 
   @override
   SessionBootstrapPreferences locale(String locale) => this(locale: locale);
+
+  @override
+  SessionBootstrapPreferences ritualFamiliarity(
+    SessionBootstrapPreferencesRitualFamiliarityEnum? ritualFamiliarity,
+  ) => this(ritualFamiliarity: ritualFamiliarity);
+
+  @override
+  SessionBootstrapPreferences ritualInterests(
+    List<RitualInterest>? ritualInterests,
+  ) => this(ritualInterests: ritualInterests);
+
+  @override
+  SessionBootstrapPreferences ritualLanguage(
+    SessionBootstrapPreferencesRitualLanguageEnum? ritualLanguage,
+  ) => this(ritualLanguage: ritualLanguage);
 
   @override
   SessionBootstrapPreferences ritualMode(
@@ -72,6 +102,9 @@ class _$SessionBootstrapPreferencesCWProxyImpl
   /// ````
   SessionBootstrapPreferences call({
     Object? locale = const $CopyWithPlaceholder(),
+    Object? ritualFamiliarity = const $CopyWithPlaceholder(),
+    Object? ritualInterests = const $CopyWithPlaceholder(),
+    Object? ritualLanguage = const $CopyWithPlaceholder(),
     Object? ritualMode = const $CopyWithPlaceholder(),
     Object? themeMode = const $CopyWithPlaceholder(),
     Object? timezone = const $CopyWithPlaceholder(),
@@ -82,6 +115,19 @@ class _$SessionBootstrapPreferencesCWProxyImpl
           ? _value.locale
           // ignore: cast_nullable_to_non_nullable
           : locale as String,
+      ritualFamiliarity: ritualFamiliarity == const $CopyWithPlaceholder()
+          ? _value.ritualFamiliarity
+          // ignore: cast_nullable_to_non_nullable
+          : ritualFamiliarity
+                as SessionBootstrapPreferencesRitualFamiliarityEnum?,
+      ritualInterests: ritualInterests == const $CopyWithPlaceholder()
+          ? _value.ritualInterests
+          // ignore: cast_nullable_to_non_nullable
+          : ritualInterests as List<RitualInterest>?,
+      ritualLanguage: ritualLanguage == const $CopyWithPlaceholder()
+          ? _value.ritualLanguage
+          // ignore: cast_nullable_to_non_nullable
+          : ritualLanguage as SessionBootstrapPreferencesRitualLanguageEnum?,
       ritualMode: ritualMode == const $CopyWithPlaceholder()
           ? _value.ritualMode
           // ignore: cast_nullable_to_non_nullable
@@ -115,53 +161,130 @@ extension $SessionBootstrapPreferencesCopyWith on SessionBootstrapPreferences {
 
 SessionBootstrapPreferences _$SessionBootstrapPreferencesFromJson(
   Map<String, dynamic> json,
-) => $checkedCreate('SessionBootstrapPreferences', json, ($checkedConvert) {
-  $checkKeys(
-    json,
-    requiredKeys: const [
-      'locale',
-      'ritual_mode',
-      'theme_mode',
-      'timezone',
-      'version',
-    ],
-  );
-  final val = SessionBootstrapPreferences(
-    locale: $checkedConvert('locale', (v) => v as String),
-    ritualMode: $checkedConvert(
-      'ritual_mode',
-      (v) => $enumDecode(
-        _$SessionBootstrapPreferencesRitualModeEnumEnumMap,
-        v,
-        unknownValue:
-            SessionBootstrapPreferencesRitualModeEnum.unknownDefaultOpenApi,
+) => $checkedCreate(
+  'SessionBootstrapPreferences',
+  json,
+  ($checkedConvert) {
+    $checkKeys(
+      json,
+      requiredKeys: const [
+        'locale',
+        'ritual_familiarity',
+        'ritual_interests',
+        'ritual_language',
+        'ritual_mode',
+        'theme_mode',
+        'timezone',
+        'version',
+      ],
+    );
+    final val = SessionBootstrapPreferences(
+      locale: $checkedConvert('locale', (v) => v as String),
+      ritualFamiliarity: $checkedConvert(
+        'ritual_familiarity',
+        (v) => $enumDecodeNullable(
+          _$SessionBootstrapPreferencesRitualFamiliarityEnumEnumMap,
+          v,
+          unknownValue: SessionBootstrapPreferencesRitualFamiliarityEnum
+              .unknownDefaultOpenApi,
+        ),
       ),
-    ),
-    themeMode: $checkedConvert(
-      'theme_mode',
-      (v) => $enumDecode(
-        _$SessionBootstrapPreferencesThemeModeEnumEnumMap,
-        v,
-        unknownValue:
-            SessionBootstrapPreferencesThemeModeEnum.unknownDefaultOpenApi,
+      ritualInterests: $checkedConvert(
+        'ritual_interests',
+        (v) => (v as List<dynamic>?)
+            ?.map((e) => $enumDecode(_$RitualInterestEnumMap, e))
+            .toList(),
       ),
-    ),
-    timezone: $checkedConvert('timezone', (v) => v as String),
-    version: $checkedConvert('version', (v) => (v as num).toInt()),
-  );
-  return val;
-}, fieldKeyMap: const {'ritualMode': 'ritual_mode', 'themeMode': 'theme_mode'});
+      ritualLanguage: $checkedConvert(
+        'ritual_language',
+        (v) => $enumDecodeNullable(
+          _$SessionBootstrapPreferencesRitualLanguageEnumEnumMap,
+          v,
+          unknownValue: SessionBootstrapPreferencesRitualLanguageEnum
+              .unknownDefaultOpenApi,
+        ),
+      ),
+      ritualMode: $checkedConvert(
+        'ritual_mode',
+        (v) => $enumDecode(
+          _$SessionBootstrapPreferencesRitualModeEnumEnumMap,
+          v,
+          unknownValue:
+              SessionBootstrapPreferencesRitualModeEnum.unknownDefaultOpenApi,
+        ),
+      ),
+      themeMode: $checkedConvert(
+        'theme_mode',
+        (v) => $enumDecode(
+          _$SessionBootstrapPreferencesThemeModeEnumEnumMap,
+          v,
+          unknownValue:
+              SessionBootstrapPreferencesThemeModeEnum.unknownDefaultOpenApi,
+        ),
+      ),
+      timezone: $checkedConvert('timezone', (v) => v as String),
+      version: $checkedConvert('version', (v) => (v as num).toInt()),
+    );
+    return val;
+  },
+  fieldKeyMap: const {
+    'ritualFamiliarity': 'ritual_familiarity',
+    'ritualInterests': 'ritual_interests',
+    'ritualLanguage': 'ritual_language',
+    'ritualMode': 'ritual_mode',
+    'themeMode': 'theme_mode',
+  },
+);
 
 Map<String, dynamic> _$SessionBootstrapPreferencesToJson(
   SessionBootstrapPreferences instance,
 ) => <String, dynamic>{
   'locale': instance.locale,
+  'ritual_familiarity':
+      _$SessionBootstrapPreferencesRitualFamiliarityEnumEnumMap[instance
+          .ritualFamiliarity],
+  'ritual_interests': instance.ritualInterests
+      ?.map((e) => _$RitualInterestEnumMap[e]!)
+      .toList(),
+  'ritual_language':
+      _$SessionBootstrapPreferencesRitualLanguageEnumEnumMap[instance
+          .ritualLanguage],
   'ritual_mode':
       _$SessionBootstrapPreferencesRitualModeEnumEnumMap[instance.ritualMode]!,
   'theme_mode':
       _$SessionBootstrapPreferencesThemeModeEnumEnumMap[instance.themeMode]!,
   'timezone': instance.timezone,
   'version': instance.version,
+};
+
+const _$SessionBootstrapPreferencesRitualFamiliarityEnumEnumMap = {
+  SessionBootstrapPreferencesRitualFamiliarityEnum.new_: 'new',
+  SessionBootstrapPreferencesRitualFamiliarityEnum.curious: 'curious',
+  SessionBootstrapPreferencesRitualFamiliarityEnum.familiar: 'familiar',
+  SessionBootstrapPreferencesRitualFamiliarityEnum.practiced: 'practiced',
+  SessionBootstrapPreferencesRitualFamiliarityEnum.preferNotToSay:
+      'prefer_not_to_say',
+  SessionBootstrapPreferencesRitualFamiliarityEnum.unknownDefaultOpenApi:
+      'unknown_default_open_api',
+};
+
+const _$RitualInterestEnumMap = {
+  RitualInterest.practicalResearch: 'practical_research',
+  RitualInterest.tarot: 'tarot',
+  RitualInterest.astrology: 'astrology',
+  RitualInterest.moonCycles: 'moon_cycles',
+  RitualInterest.reflection: 'reflection',
+  RitualInterest.unknownDefaultOpenApi: 'unknown_default_open_api',
+};
+
+const _$SessionBootstrapPreferencesRitualLanguageEnumEnumMap = {
+  SessionBootstrapPreferencesRitualLanguageEnum.practical: 'practical',
+  SessionBootstrapPreferencesRitualLanguageEnum.balanced: 'balanced',
+  SessionBootstrapPreferencesRitualLanguageEnum.mystical: 'mystical',
+  SessionBootstrapPreferencesRitualLanguageEnum.preferNotToSay:
+      'prefer_not_to_say',
+  SessionBootstrapPreferencesRitualLanguageEnum.unknownDefaultOpenApi:
+      'unknown_default_open_api',
 };
 
 const _$SessionBootstrapPreferencesRitualModeEnumEnumMap = {

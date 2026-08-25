@@ -4,6 +4,7 @@ import { createApp } from "../../src/app";
 import { createTestRsaKey } from "../support/jwt";
 import { memberToken, resolvedMemberAccount, testBindings } from "../support/security-fixtures";
 import { createDeterministicContentRepository, fixtureIds } from "../../src/domains/editorial/fixtures";
+import { discoverItemSchema } from "../../src/domains/editorial/schemas";
 
 describe("published discovery catalog", () => {
   const auth0Key = createTestRsaKey("discover-domain-key");
@@ -49,5 +50,54 @@ describe("published discovery catalog", () => {
     expect(responses.map((response) => response.status)).toEqual([200, 200, 200, 200, 200]);
     const publicBody = JSON.stringify(await responses[4]!.json());
     expect(publicBody).not.toMatch(/revision_id|saved|tenant_id|author_staff_id|canonical_url/i);
+  });
+
+  it("validates all mixed variants with only their matching payload", async () => {
+    const repository = createDeterministicContentRepository();
+    const page = await repository.listMemberDiscover(
+      { ...resolvedMemberAccount, subject: "auth0|member-1" },
+      { limit: 50 },
+    );
+    const variants = new Map(page.items.map((item) => [item.kind, item]));
+
+    expect([...variants.keys()]).toEqual(expect.arrayContaining([
+      "asset",
+      "coven",
+      "grimoire",
+      "circle_template",
+    ]));
+    for (const [kind, item] of variants) {
+      expect(discoverItemSchema.safeParse(item).success, kind).toBe(true);
+      const payloadKeys = ["asset", "coven", "grimoire", "circle_template"]
+        .filter((key) => key in item);
+      expect(payloadKeys).toEqual([kind]);
+      const mismatched = { ...item, asset: variants.get("asset")!.asset };
+      if (kind !== "asset") {
+        expect(discoverItemSchema.safeParse(mismatched).success, kind).toBe(false);
+      }
+    }
+  });
+
+  it("returns authoritative saved state on Grimoire and Circle-template details", async () => {
+    const repository = createDeterministicContentRepository();
+    const grimoire = await repository.getGrimoire(
+      { ...resolvedMemberAccount, subject: "auth0|member-1" },
+      fixtureIds.quietPower,
+    );
+    const template = await repository.getCircleTemplate(
+      { ...resolvedMemberAccount, subject: "auth0|member-1" },
+      fixtureIds.softPower,
+    );
+
+    expect(grimoire).toMatchObject({
+      id: fixtureIds.quietPower,
+      revision_id: fixtureIds.quietPowerRevision,
+      saved: false,
+    });
+    expect(template).toMatchObject({
+      id: fixtureIds.softPower,
+      revision_id: fixtureIds.softPowerRevision,
+      saved: false,
+    });
   });
 });

@@ -7,15 +7,15 @@ part of 'search_result.dart';
 // **************************************************************************
 
 abstract class _$SearchResultCWProxy {
-  SearchResult asset(AssetSummary asset);
+  SearchResult asset(AssetSummary? asset);
+
+  SearchResult circleTemplate(CircleTemplateSummary? circleTemplate);
+
+  SearchResult coven(CovenSummary? coven);
+
+  SearchResult grimoire(GrimoireSummary? grimoire);
 
   SearchResult kind(SearchResultKindEnum kind);
-
-  SearchResult coven(CovenSummary coven);
-
-  SearchResult grimoire(GrimoireSummary grimoire);
-
-  SearchResult circleTemplate(CircleTemplateSummary circleTemplate);
 
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `SearchResult(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
@@ -24,11 +24,11 @@ abstract class _$SearchResultCWProxy {
   /// SearchResult(...).copyWith(id: 12, name: "My name")
   /// ````
   SearchResult call({
-    AssetSummary asset,
+    AssetSummary? asset,
+    CircleTemplateSummary? circleTemplate,
+    CovenSummary? coven,
+    GrimoireSummary? grimoire,
     SearchResultKindEnum kind,
-    CovenSummary coven,
-    GrimoireSummary grimoire,
-    CircleTemplateSummary circleTemplate,
   });
 }
 
@@ -39,20 +39,20 @@ class _$SearchResultCWProxyImpl implements _$SearchResultCWProxy {
   final SearchResult _value;
 
   @override
-  SearchResult asset(AssetSummary asset) => this(asset: asset);
+  SearchResult asset(AssetSummary? asset) => this(asset: asset);
+
+  @override
+  SearchResult circleTemplate(CircleTemplateSummary? circleTemplate) =>
+      this(circleTemplate: circleTemplate);
+
+  @override
+  SearchResult coven(CovenSummary? coven) => this(coven: coven);
+
+  @override
+  SearchResult grimoire(GrimoireSummary? grimoire) => this(grimoire: grimoire);
 
   @override
   SearchResult kind(SearchResultKindEnum kind) => this(kind: kind);
-
-  @override
-  SearchResult coven(CovenSummary coven) => this(coven: coven);
-
-  @override
-  SearchResult grimoire(GrimoireSummary grimoire) => this(grimoire: grimoire);
-
-  @override
-  SearchResult circleTemplate(CircleTemplateSummary circleTemplate) =>
-      this(circleTemplate: circleTemplate);
 
   @override
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `SearchResult(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
@@ -63,32 +63,32 @@ class _$SearchResultCWProxyImpl implements _$SearchResultCWProxy {
   /// ````
   SearchResult call({
     Object? asset = const $CopyWithPlaceholder(),
-    Object? kind = const $CopyWithPlaceholder(),
+    Object? circleTemplate = const $CopyWithPlaceholder(),
     Object? coven = const $CopyWithPlaceholder(),
     Object? grimoire = const $CopyWithPlaceholder(),
-    Object? circleTemplate = const $CopyWithPlaceholder(),
+    Object? kind = const $CopyWithPlaceholder(),
   }) {
     return SearchResult(
       asset: asset == const $CopyWithPlaceholder()
           ? _value.asset
           // ignore: cast_nullable_to_non_nullable
-          : asset as AssetSummary,
+          : asset as AssetSummary?,
+      circleTemplate: circleTemplate == const $CopyWithPlaceholder()
+          ? _value.circleTemplate
+          // ignore: cast_nullable_to_non_nullable
+          : circleTemplate as CircleTemplateSummary?,
+      coven: coven == const $CopyWithPlaceholder()
+          ? _value.coven
+          // ignore: cast_nullable_to_non_nullable
+          : coven as CovenSummary?,
+      grimoire: grimoire == const $CopyWithPlaceholder()
+          ? _value.grimoire
+          // ignore: cast_nullable_to_non_nullable
+          : grimoire as GrimoireSummary?,
       kind: kind == const $CopyWithPlaceholder()
           ? _value.kind
           // ignore: cast_nullable_to_non_nullable
           : kind as SearchResultKindEnum,
-      coven: coven == const $CopyWithPlaceholder()
-          ? _value.coven
-          // ignore: cast_nullable_to_non_nullable
-          : coven as CovenSummary,
-      grimoire: grimoire == const $CopyWithPlaceholder()
-          ? _value.grimoire
-          // ignore: cast_nullable_to_non_nullable
-          : grimoire as GrimoireSummary,
-      circleTemplate: circleTemplate == const $CopyWithPlaceholder()
-          ? _value.circleTemplate
-          // ignore: cast_nullable_to_non_nullable
-          : circleTemplate as CircleTemplateSummary,
     );
   }
 }
@@ -103,57 +103,58 @@ extension $SearchResultCopyWith on SearchResult {
 // JsonSerializableGenerator
 // **************************************************************************
 
-SearchResult _$SearchResultFromJson(Map<String, dynamic> json) =>
-    $checkedCreate('SearchResult', json, ($checkedConvert) {
-      $checkKeys(
-        json,
-        requiredKeys: const [
-          'asset',
-          'kind',
-          'coven',
-          'grimoire',
-          'circle_template',
-        ],
-      );
-      final val = SearchResult(
-        asset: $checkedConvert(
-          'asset',
-          (v) => AssetSummary.fromJson(v as Map<String, dynamic>),
-        ),
-        kind: $checkedConvert(
-          'kind',
-          (v) => $enumDecode(
-            _$SearchResultKindEnumEnumMap,
-            v,
-            unknownValue: SearchResultKindEnum.unknownDefaultOpenApi,
-          ),
-        ),
-        coven: $checkedConvert(
-          'coven',
-          (v) => CovenSummary.fromJson(v as Map<String, dynamic>),
-        ),
-        grimoire: $checkedConvert(
-          'grimoire',
-          (v) => GrimoireSummary.fromJson(v as Map<String, dynamic>),
-        ),
-        circleTemplate: $checkedConvert(
-          'circle_template',
-          (v) => CircleTemplateSummary.fromJson(v as Map<String, dynamic>),
-        ),
-      );
-      return val;
-    }, fieldKeyMap: const {'circleTemplate': 'circle_template'});
+SearchResult _$SearchResultFromJson(
+  Map<String, dynamic> json,
+) => $checkedCreate('SearchResult', json, ($checkedConvert) {
+  $checkKeys(json, requiredKeys: const ['kind']);
+  final val = SearchResult(
+    asset: $checkedConvert(
+      'asset',
+      (v) =>
+          v == null ? null : AssetSummary.fromJson(v as Map<String, dynamic>),
+    ),
+    circleTemplate: $checkedConvert(
+      'circle_template',
+      (v) => v == null
+          ? null
+          : CircleTemplateSummary.fromJson(v as Map<String, dynamic>),
+    ),
+    coven: $checkedConvert(
+      'coven',
+      (v) =>
+          v == null ? null : CovenSummary.fromJson(v as Map<String, dynamic>),
+    ),
+    grimoire: $checkedConvert(
+      'grimoire',
+      (v) => v == null
+          ? null
+          : GrimoireSummary.fromJson(v as Map<String, dynamic>),
+    ),
+    kind: $checkedConvert(
+      'kind',
+      (v) => $enumDecode(
+        _$SearchResultKindEnumEnumMap,
+        v,
+        unknownValue: SearchResultKindEnum.unknownDefaultOpenApi,
+      ),
+    ),
+  );
+  return val;
+}, fieldKeyMap: const {'circleTemplate': 'circle_template'});
 
 Map<String, dynamic> _$SearchResultToJson(SearchResult instance) =>
     <String, dynamic>{
-      'asset': instance.asset.toJson(),
+      'asset': ?instance.asset?.toJson(),
+      'circle_template': ?instance.circleTemplate?.toJson(),
+      'coven': ?instance.coven?.toJson(),
+      'grimoire': ?instance.grimoire?.toJson(),
       'kind': _$SearchResultKindEnumEnumMap[instance.kind]!,
-      'coven': instance.coven.toJson(),
-      'grimoire': instance.grimoire.toJson(),
-      'circle_template': instance.circleTemplate.toJson(),
     };
 
 const _$SearchResultKindEnumEnumMap = {
+  SearchResultKindEnum.asset: 'asset',
+  SearchResultKindEnum.coven: 'coven',
+  SearchResultKindEnum.grimoire: 'grimoire',
   SearchResultKindEnum.circleTemplate: 'circle_template',
   SearchResultKindEnum.unknownDefaultOpenApi: 'unknown_default_open_api',
 };

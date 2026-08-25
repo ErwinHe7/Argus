@@ -17,48 +17,18 @@ part 'put_astrology_profile_request.g.dart';
 )
 class PutAstrologyProfileRequest {
   /// Returns a new [PutAstrologyProfileRequest] instance.
-  PutAstrologyProfileRequest({
-    required this.algorithmVersion,
-
-    required this.birthDate,
-
-    required this.derivedProfileCode,
-  });
-
-  @JsonKey(
-    name: r'algorithm_version',
-    required: true,
-    includeIfNull: false,
-    unknownEnumValue:
-        PutAstrologyProfileRequestAlgorithmVersionEnum.unknownDefaultOpenApi,
-  )
-  final PutAstrologyProfileRequestAlgorithmVersionEnum algorithmVersion;
+  PutAstrologyProfileRequest({required this.birthDate});
 
   @JsonKey(name: r'birth_date', required: true, includeIfNull: false)
   final DateTime birthDate;
 
-  @JsonKey(
-    name: r'derived_profile_code',
-    required: true,
-    includeIfNull: false,
-    unknownEnumValue:
-        PutAstrologyProfileRequestDerivedProfileCodeEnum.unknownDefaultOpenApi,
-  )
-  final PutAstrologyProfileRequestDerivedProfileCodeEnum derivedProfileCode;
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is PutAstrologyProfileRequest &&
-          other.algorithmVersion == algorithmVersion &&
-          other.birthDate == birthDate &&
-          other.derivedProfileCode == derivedProfileCode;
+      other is PutAstrologyProfileRequest && other.birthDate == birthDate;
 
   @override
-  int get hashCode =>
-      algorithmVersion.hashCode +
-      birthDate.hashCode +
-      derivedProfileCode.hashCode;
+  int get hashCode => birthDate.hashCode;
 
   factory PutAstrologyProfileRequest.fromJson(Map<String, dynamic> json) =>
       _$PutAstrologyProfileRequestFromJson(json);
@@ -69,36 +39,4 @@ class PutAstrologyProfileRequest {
   String toString() {
     return toJson().toString();
   }
-}
-
-enum PutAstrologyProfileRequestAlgorithmVersionEnum {
-  @JsonValue(r'v1')
-  v1(r'v1'),
-  @JsonValue(r'unknown_default_open_api')
-  unknownDefaultOpenApi(r'unknown_default_open_api');
-
-  const PutAstrologyProfileRequestAlgorithmVersionEnum(this.value);
-
-  final String value;
-
-  @override
-  String toString() => value;
-}
-
-enum PutAstrologyProfileRequestDerivedProfileCodeEnum {
-  @JsonValue(r'lunar_patient')
-  lunarPatient(r'lunar_patient'),
-  @JsonValue(r'solar_builder')
-  solarBuilder(r'solar_builder'),
-  @JsonValue(r'rising_explorer')
-  risingExplorer(r'rising_explorer'),
-  @JsonValue(r'unknown_default_open_api')
-  unknownDefaultOpenApi(r'unknown_default_open_api');
-
-  const PutAstrologyProfileRequestDerivedProfileCodeEnum(this.value);
-
-  final String value;
-
-  @override
-  String toString() => value;
 }

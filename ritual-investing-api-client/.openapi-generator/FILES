@@ -155,10 +155,6 @@ doc/DemoResetResultDefaultPortfolio.md
 doc/DemoResetResultEntitlement.md
 doc/DiscoverApi.md
 doc/DiscoverItem.md
-doc/DiscoverItemOneOf.md
-doc/DiscoverItemOneOf1.md
-doc/DiscoverItemOneOf2.md
-doc/DiscoverItemOneOf3.md
 doc/DiscoverResponse.md
 doc/ErrorResponse.md
 doc/ErrorResponseError.md
@@ -166,6 +162,13 @@ doc/EvidenceDetail.md
 doc/EvidenceDetailSource.md
 doc/EvidenceSummary.md
 doc/FieldError.md
+doc/FinalizeOnboardingRequest.md
+doc/FinalizeOnboardingRequestAstrology.md
+doc/FinalizeOnboardingRequestConsents.md
+doc/FinalizeOnboardingRequestConsentsAstrology.md
+doc/FinalizeOnboardingRequestConsentsDemoDisclosure.md
+doc/FinalizeOnboardingRequestInvesting.md
+doc/FinalizeOnboardingRequestRitual.md
 doc/FoundersCovenApi.md
 doc/FutureMirrorApi.md
 doc/FutureMirrorView.md
@@ -339,6 +342,7 @@ doc/RitualAssetIdea.md
 doc/RitualEvidenceResponse.md
 doc/RitualHistoryItem.md
 doc/RitualHistoryResponse.md
+doc/RitualInterest.md
 doc/RitualsApi.md
 doc/RowanApi.md
 doc/RowanCounsel.md
@@ -353,8 +357,10 @@ doc/SearchResult.md
 doc/SeededCreator.md
 doc/SessionApi.md
 doc/SessionBootstrap.md
+doc/SessionBootstrapAstrologyProfile.md
 doc/SessionBootstrapDefaultPortfolio.md
 doc/SessionBootstrapEntitlement.md
+doc/SessionBootstrapInvestorProfile.md
 doc/SessionBootstrapOnboarding.md
 doc/SessionBootstrapPreferences.md
 doc/SessionBootstrapProfile.md
@@ -550,10 +556,6 @@ lib/generated/model/demo_reset_result.dart
 lib/generated/model/demo_reset_result_default_portfolio.dart
 lib/generated/model/demo_reset_result_entitlement.dart
 lib/generated/model/discover_item.dart
-lib/generated/model/discover_item_one_of.dart
-lib/generated/model/discover_item_one_of1.dart
-lib/generated/model/discover_item_one_of2.dart
-lib/generated/model/discover_item_one_of3.dart
 lib/generated/model/discover_response.dart
 lib/generated/model/error_response.dart
 lib/generated/model/error_response_error.dart
@@ -561,6 +563,13 @@ lib/generated/model/evidence_detail.dart
 lib/generated/model/evidence_detail_source.dart
 lib/generated/model/evidence_summary.dart
 lib/generated/model/field_error.dart
+lib/generated/model/finalize_onboarding_request.dart
+lib/generated/model/finalize_onboarding_request_astrology.dart
+lib/generated/model/finalize_onboarding_request_consents.dart
+lib/generated/model/finalize_onboarding_request_consents_astrology.dart
+lib/generated/model/finalize_onboarding_request_consents_demo_disclosure.dart
+lib/generated/model/finalize_onboarding_request_investing.dart
+lib/generated/model/finalize_onboarding_request_ritual.dart
 lib/generated/model/future_mirror_view.dart
 lib/generated/model/future_mirror_view_points_inner.dart
 lib/generated/model/get_admin_asset_codex_revision200_response.dart
@@ -722,6 +731,7 @@ lib/generated/model/ritual_asset_idea.dart
 lib/generated/model/ritual_evidence_response.dart
 lib/generated/model/ritual_history_item.dart
 lib/generated/model/ritual_history_response.dart
+lib/generated/model/ritual_interest.dart
 lib/generated/model/rowan_counsel.dart
 lib/generated/model/rowan_counsel_response.dart
 lib/generated/model/save_asset200_response.dart
@@ -731,8 +741,10 @@ lib/generated/model/search_response.dart
 lib/generated/model/search_result.dart
 lib/generated/model/seeded_creator.dart
 lib/generated/model/session_bootstrap.dart
+lib/generated/model/session_bootstrap_astrology_profile.dart
 lib/generated/model/session_bootstrap_default_portfolio.dart
 lib/generated/model/session_bootstrap_entitlement.dart
+lib/generated/model/session_bootstrap_investor_profile.dart
 lib/generated/model/session_bootstrap_onboarding.dart
 lib/generated/model/session_bootstrap_preferences.dart
 lib/generated/model/session_bootstrap_profile.dart

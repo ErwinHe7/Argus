@@ -299,6 +299,7 @@ Class | Method | HTTP request | Description
 [*SavesApi*](doc/SavesApi.md) | [**unsaveGrimoire**](doc/SavesApi.md#unsavegrimoire) | **DELETE** /v1/me/saved-grimoires/{id} | 
 [*SearchApi*](doc/SearchApi.md) | [**searchPublishedCatalog**](doc/SearchApi.md#searchpublishedcatalog) | **GET** /v1/search | 
 [*SessionApi*](doc/SessionApi.md) | [**bootstrapSession**](doc/SessionApi.md#bootstrapsession) | **POST** /v1/session/bootstrap | 
+[*SessionApi*](doc/SessionApi.md) | [**finalizeOnboarding**](doc/SessionApi.md#finalizeonboarding) | **POST** /v1/session/onboarding/finalize | 
 [*SimulationApi*](doc/SimulationApi.md) | [**createDemoContribution**](doc/SimulationApi.md#createdemocontribution) | **POST** /v1/portfolios/{portfolio_id}/contributions | 
 [*SimulationApi*](doc/SimulationApi.md) | [**resetDemoState**](doc/SimulationApi.md#resetdemostate) | **POST** /v1/me/demo-reset | 
 
@@ -434,10 +435,6 @@ Class | Method | HTTP request | Description
  - [DemoResetResultDefaultPortfolio](doc/DemoResetResultDefaultPortfolio.md)
  - [DemoResetResultEntitlement](doc/DemoResetResultEntitlement.md)
  - [DiscoverItem](doc/DiscoverItem.md)
- - [DiscoverItemOneOf](doc/DiscoverItemOneOf.md)
- - [DiscoverItemOneOf1](doc/DiscoverItemOneOf1.md)
- - [DiscoverItemOneOf2](doc/DiscoverItemOneOf2.md)
- - [DiscoverItemOneOf3](doc/DiscoverItemOneOf3.md)
  - [DiscoverResponse](doc/DiscoverResponse.md)
  - [ErrorResponse](doc/ErrorResponse.md)
  - [ErrorResponseError](doc/ErrorResponseError.md)
@@ -445,6 +442,13 @@ Class | Method | HTTP request | Description
  - [EvidenceDetailSource](doc/EvidenceDetailSource.md)
  - [EvidenceSummary](doc/EvidenceSummary.md)
  - [FieldError](doc/FieldError.md)
+ - [FinalizeOnboardingRequest](doc/FinalizeOnboardingRequest.md)
+ - [FinalizeOnboardingRequestAstrology](doc/FinalizeOnboardingRequestAstrology.md)
+ - [FinalizeOnboardingRequestConsents](doc/FinalizeOnboardingRequestConsents.md)
+ - [FinalizeOnboardingRequestConsentsAstrology](doc/FinalizeOnboardingRequestConsentsAstrology.md)
+ - [FinalizeOnboardingRequestConsentsDemoDisclosure](doc/FinalizeOnboardingRequestConsentsDemoDisclosure.md)
+ - [FinalizeOnboardingRequestInvesting](doc/FinalizeOnboardingRequestInvesting.md)
+ - [FinalizeOnboardingRequestRitual](doc/FinalizeOnboardingRequestRitual.md)
  - [FutureMirrorView](doc/FutureMirrorView.md)
  - [FutureMirrorViewPointsInner](doc/FutureMirrorViewPointsInner.md)
  - [GetAdminAssetCodexRevision200Response](doc/GetAdminAssetCodexRevision200Response.md)
@@ -606,6 +610,7 @@ Class | Method | HTTP request | Description
  - [RitualEvidenceResponse](doc/RitualEvidenceResponse.md)
  - [RitualHistoryItem](doc/RitualHistoryItem.md)
  - [RitualHistoryResponse](doc/RitualHistoryResponse.md)
+ - [RitualInterest](doc/RitualInterest.md)
  - [RowanCounsel](doc/RowanCounsel.md)
  - [RowanCounselResponse](doc/RowanCounselResponse.md)
  - [SaveAsset200Response](doc/SaveAsset200Response.md)
@@ -615,8 +620,10 @@ Class | Method | HTTP request | Description
  - [SearchResult](doc/SearchResult.md)
  - [SeededCreator](doc/SeededCreator.md)
  - [SessionBootstrap](doc/SessionBootstrap.md)
+ - [SessionBootstrapAstrologyProfile](doc/SessionBootstrapAstrologyProfile.md)
  - [SessionBootstrapDefaultPortfolio](doc/SessionBootstrapDefaultPortfolio.md)
  - [SessionBootstrapEntitlement](doc/SessionBootstrapEntitlement.md)
+ - [SessionBootstrapInvestorProfile](doc/SessionBootstrapInvestorProfile.md)
  - [SessionBootstrapOnboarding](doc/SessionBootstrapOnboarding.md)
  - [SessionBootstrapPreferences](doc/SessionBootstrapPreferences.md)
  - [SessionBootstrapProfile](doc/SessionBootstrapProfile.md)

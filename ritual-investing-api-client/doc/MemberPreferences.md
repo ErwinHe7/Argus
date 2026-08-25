@@ -9,6 +9,9 @@ import 'package:ritual_investing_api_client/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **locale** | **String** |  | 
+**ritualFamiliarity** | **String** |  | 
+**ritualInterests** | [**List&lt;RitualInterest&gt;**](RitualInterest.md) |  | 
+**ritualLanguage** | **String** |  | 
 **ritualMode** | **String** |  | 
 **themeMode** | **String** |  | 
 **timezone** | **String** |  | 

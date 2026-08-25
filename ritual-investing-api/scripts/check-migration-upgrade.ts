@@ -12,6 +12,13 @@ interface UpgradeMigration {
 
 type ApplicableMigration = UpgradeMigration & { checksum: string };
 
+const latestMigrationMarkers: Readonly<Record<string, string>> = {
+  "0011_runtime_scope_and_review_fixes.sql":
+    "select to_regprocedure('ritual_private.assert_runtime_scope()')::text as marker",
+  "0012_member_experience.sql":
+    "select to_regclass('public.onboarding_finalization_commands')::text as marker",
+};
+
 const destructiveSql =
   /\b(drop\s+(?:table|column|type|schema)|alter\s+table\b[^;]*?\bdrop\s+column\b|truncate\b)\b/i;
 const contractMarker = /--\s*ritual:contract-after-client-drain\b/i;
@@ -281,6 +288,10 @@ async function main(): Promise<void> {
 
     const prior = migrations.slice(0, -1);
     const latest = migrations.at(-1)!;
+    const latestMarkerQuery = latestMigrationMarkers[latest.name];
+    if (latestMarkerQuery === undefined) {
+      throw new Error(`upgrade marker is not configured for ${latest.name}`);
+    }
     const client = new pg.Client({ connectionString: upgradeUrl });
     await client.connect();
     try {
@@ -302,7 +313,7 @@ async function main(): Promise<void> {
       await client.query(latest.body);
       await client.query("rollback");
       const rolledBack = await client.query<{ marker: string | null }>(
-        "select to_regprocedure('ritual_private.assert_runtime_scope()')::text as marker",
+        latestMarkerQuery,
       );
       if (rolledBack.rows[0]?.marker !== null) {
         throw new Error("interrupted migration left N schema objects behind");
@@ -336,7 +347,7 @@ async function main(): Promise<void> {
     await upgraded.connect();
     try {
       const marker = await upgraded.query<{ marker: string | null }>(
-        "select to_regprocedure('ritual_private.assert_runtime_scope()')::text as marker",
+        latestMarkerQuery,
       );
       if (marker.rows[0]?.marker === null)
         throw new Error("latest migration marker is missing after upgrade");

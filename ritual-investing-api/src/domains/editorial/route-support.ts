@@ -5,6 +5,7 @@ import type { HonoJsonWebKey } from "hono/utils/jwt/jws";
 import type { AppEnvironment } from "../../app.ts";
 import { resolveAccountContext } from "../../db/client.ts";
 import { auth0Jwk } from "../../middleware/auth0-jwk.ts";
+import { requireMemberClient } from "../../middleware/member-client.ts";
 import type { AccountResolver } from "../../middleware/account-tenant.ts";
 import { requirePermission } from "../../middleware/permissions.ts";
 import {
@@ -54,6 +55,7 @@ export function registerMemberReadSecurity(
 ): void {
   app.use(path, preAuthRateLimit(rateClass));
   app.use(path, auth0Jwk(dependencies.auth0Keys));
+  app.use(path, requireMemberClient);
   app.use(path, requirePermission("read:self"));
   app.use(path, subjectRateLimit(rateClass));
   app.use(path, requestMediaBoundary);
@@ -67,6 +69,7 @@ export function registerMemberWriteSecurity(
 ): void {
   app.use(path, preAuthRateLimit("RL_MEMBER_WRITE"));
   app.use(path, auth0Jwk(dependencies.auth0Keys));
+  app.use(path, requireMemberClient);
   app.use(path, requirePermission("write:self"));
   app.use(path, subjectRateLimit("RL_MEMBER_WRITE"));
   app.use(path, requestMediaBoundary);

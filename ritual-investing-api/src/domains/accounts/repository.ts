@@ -185,6 +185,15 @@ function iso(value: Date | string | null): string | null {
   return value === null ? null : new Date(value).toISOString();
 }
 
+export function deterministicAstrologyProfileCode(
+  birthDate: string,
+): AstrologyProfile["derived_profile_code"] {
+  const day = Math.floor(Date.parse(`${birthDate}T00:00:00Z`) / 86_400_000);
+  return ["lunar_patient", "solar_builder", "rising_explorer"][
+    ((day % 3) + 3) % 3
+  ] as AstrologyProfile["derived_profile_code"];
+}
+
 export function createPostgresMemberRepository(url: string): MemberRepository {
   const circle = async (
     client: PoolClient,
@@ -241,7 +250,7 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
       scoped(url, c, async (db) => {
         const x = (
           await db.query(
-            "select theme_mode,ritual_mode,timezone,locale,version from preferences where tenant_id=$1",
+            "select theme_mode,ritual_mode,ritual_familiarity,ritual_language,ritual_interests,timezone,locale,version from preferences where tenant_id=$1",
             [c.tenantId],
           )
         ).rows[0];
@@ -250,7 +259,7 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
     patchPreferences: (c, p, v) =>
       scoped(url, c, async (db) => {
         const r = await db.query(
-          `update preferences set theme_mode=coalesce($3,theme_mode),ritual_mode=coalesce($4,ritual_mode),timezone=coalesce($5,timezone),locale=coalesce($6,locale),version=version+1 where tenant_id=$1 and version=$2 returning theme_mode,ritual_mode,timezone,locale,version`,
+          `update preferences set theme_mode=coalesce($3,theme_mode),ritual_mode=coalesce($4,ritual_mode),timezone=coalesce($5,timezone),locale=coalesce($6,locale),ritual_familiarity=coalesce($7,ritual_familiarity),ritual_language=coalesce($8,ritual_language),ritual_interests=coalesce($9,ritual_interests),version=version+1 where tenant_id=$1 and version=$2 returning theme_mode,ritual_mode,ritual_familiarity,ritual_language,ritual_interests,timezone,locale,version`,
           [
             c.tenantId,
             v,
@@ -258,6 +267,11 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
             p.ritual_mode ?? null,
             p.timezone ?? null,
             p.locale ?? null,
+            p.ritual_familiarity ?? null,
+            p.ritual_language ?? null,
+            p.ritual_interests === undefined
+              ? null
+              : JSON.stringify(p.ritual_interests),
           ],
         );
         if (!r.rowCount) throw new VersionConflictError();
@@ -267,7 +281,7 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
       scoped(url, c, async (db) => {
         const x = (
           await db.query(
-            "select current_step,completed_steps,completed_at,version from onboarding_states where tenant_id=$1",
+            "select current_step,completed_steps,completed_at,schema_version,cohort,version from onboarding_states where tenant_id=$1",
             [c.tenantId],
           )
         ).rows[0];
@@ -318,6 +332,9 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
       }),
     putAstrologyProfile: (c, p, v) =>
       scoped(url, c, async (db) => {
+        const derivedProfileCode = deterministicAstrologyProfileCode(
+          String(p.birth_date),
+        );
         const r =
           v === undefined
             ? await db.query(
@@ -325,8 +342,8 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
                 [
                   c.tenantId,
                   p.birth_date,
-                  p.derived_profile_code,
-                  p.algorithm_version,
+                  derivedProfileCode,
+                  "v1",
                 ],
               )
             : await db.query(
@@ -335,8 +352,8 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
                   c.tenantId,
                   v,
                   p.birth_date,
-                  p.derived_profile_code,
-                  p.algorithm_version,
+                  derivedProfileCode,
+                  "v1",
                 ],
               );
         if (!r.rowCount) throw new VersionConflictError();
@@ -374,7 +391,7 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
       scoped(url, c, async (db) => {
         const x = (
           await db.query(
-            "select goal_type,time_horizon,risk_comfort,version from investor_profiles where tenant_id=$1",
+            "select goal_type,time_horizon,risk_comfort,investing_experience,contribution_rhythm,version from investor_profiles where tenant_id=$1",
             [c.tenantId],
           )
         ).rows[0];
@@ -387,12 +404,27 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
         const r =
           v === undefined
             ? await db.query(
-                `insert into investor_profiles(tenant_id,goal_type,time_horizon,risk_comfort,version) values($1,$2,$3,$4,1) on conflict(tenant_id) do nothing returning goal_type,time_horizon,risk_comfort,version`,
-                [c.tenantId, p.goal_type, p.time_horizon, p.risk_comfort],
+                `insert into investor_profiles(tenant_id,goal_type,time_horizon,risk_comfort,investing_experience,contribution_rhythm,version) values($1,$2,$3,$4,$5,$6,1) on conflict(tenant_id) do nothing returning goal_type,time_horizon,risk_comfort,investing_experience,contribution_rhythm,version`,
+                [
+                  c.tenantId,
+                  p.goal_type,
+                  p.time_horizon,
+                  p.risk_comfort,
+                  p.investing_experience ?? null,
+                  p.contribution_rhythm ?? null,
+                ],
               )
             : await db.query(
-                `update investor_profiles set goal_type=$3,time_horizon=$4,risk_comfort=$5,version=version+1 where tenant_id=$1 and version=$2 returning goal_type,time_horizon,risk_comfort,version`,
-                [c.tenantId, v, p.goal_type, p.time_horizon, p.risk_comfort],
+                `update investor_profiles set goal_type=$3,time_horizon=$4,risk_comfort=$5,investing_experience=coalesce($6,investing_experience),contribution_rhythm=coalesce($7,contribution_rhythm),version=version+1 where tenant_id=$1 and version=$2 returning goal_type,time_horizon,risk_comfort,investing_experience,contribution_rhythm,version`,
+                [
+                  c.tenantId,
+                  v,
+                  p.goal_type,
+                  p.time_horizon,
+                  p.risk_comfort,
+                  p.investing_experience ?? null,
+                  p.contribution_rhythm ?? null,
+                ],
               );
         if (!r.rowCount) throw new VersionConflictError();
         return {

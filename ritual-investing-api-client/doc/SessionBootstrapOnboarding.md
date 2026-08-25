@@ -8,8 +8,11 @@ import 'package:ritual_investing_api_client/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**cohort** | **String** |  | 
+**completedAt** | [**DateTime**](DateTime.md) |  | 
 **completedSteps** | **List&lt;String&gt;** |  | 
 **currentStep** | **String** |  | 
+**schemaVersion** | **int** |  | 
 **version** | **int** |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

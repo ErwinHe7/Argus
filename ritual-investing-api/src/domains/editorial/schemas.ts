@@ -268,6 +268,7 @@ export const grimoireSummarySchema = z
 export const grimoireDetailSchema = grimoireSummarySchema
   .extend({
     assets: z.array(assetSummarySchema).min(1).max(50),
+    saved: z.boolean(),
   })
   .strict()
   .openapi("GrimoireDetail");
@@ -312,24 +313,32 @@ export const circleTemplateDetailSchema = circleTemplateSummarySchema
       )
       .min(1)
       .max(50),
+    saved: z.boolean(),
   })
   .strict()
   .openapi("CircleTemplateDetail");
 
 export const discoverItemSchema = z
-  .discriminatedUnion("kind", [
-    z.object({ kind: z.literal("asset"), asset: assetSummarySchema }).strict(),
-    z.object({ kind: z.literal("coven"), coven: covenSummarySchema }).strict(),
-    z
-      .object({ kind: z.literal("grimoire"), grimoire: grimoireSummarySchema })
-      .strict(),
-    z
-      .object({
-        kind: z.literal("circle_template"),
-        circle_template: circleTemplateSummarySchema,
-      })
-      .strict(),
-  ])
+  .object({
+    kind: z.enum(["asset", "coven", "grimoire", "circle_template"]),
+    asset: assetSummarySchema.optional(),
+    coven: covenSummarySchema.optional(),
+    grimoire: grimoireSummarySchema.optional(),
+    circle_template: circleTemplateSummarySchema.optional(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    const payloadKeys = ["asset", "coven", "grimoire", "circle_template"]
+      .filter((key) => value[key as keyof typeof value] !== undefined);
+    if (payloadKeys.length !== 1 || payloadKeys[0] !== value.kind) {
+      context.addIssue({
+        code: "custom",
+        path: [value.kind],
+        message: "mixed result must contain only its matching payload",
+        input: value,
+      });
+    }
+  })
   .openapi("DiscoverItem");
 
 export const publicDiscoverItemSchema = z

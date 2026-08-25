@@ -18,12 +18,25 @@ part 'put_investor_profile_request.g.dart';
 class PutInvestorProfileRequest {
   /// Returns a new [PutInvestorProfileRequest] instance.
   PutInvestorProfileRequest({
+    this.contributionRhythm,
+
     required this.goalType,
+
+    this.investingExperience,
 
     required this.riskComfort,
 
     required this.timeHorizon,
   });
+
+  @JsonKey(
+    name: r'contribution_rhythm',
+    required: false,
+    includeIfNull: false,
+    unknownEnumValue:
+        PutInvestorProfileRequestContributionRhythmEnum.unknownDefaultOpenApi,
+  )
+  final PutInvestorProfileRequestContributionRhythmEnum? contributionRhythm;
 
   @JsonKey(
     name: r'goal_type',
@@ -33,6 +46,15 @@ class PutInvestorProfileRequest {
         PutInvestorProfileRequestGoalTypeEnum.unknownDefaultOpenApi,
   )
   final PutInvestorProfileRequestGoalTypeEnum goalType;
+
+  @JsonKey(
+    name: r'investing_experience',
+    required: false,
+    includeIfNull: false,
+    unknownEnumValue:
+        PutInvestorProfileRequestInvestingExperienceEnum.unknownDefaultOpenApi,
+  )
+  final PutInvestorProfileRequestInvestingExperienceEnum? investingExperience;
 
   @JsonKey(
     name: r'risk_comfort',
@@ -56,13 +78,19 @@ class PutInvestorProfileRequest {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is PutInvestorProfileRequest &&
+          other.contributionRhythm == contributionRhythm &&
           other.goalType == goalType &&
+          other.investingExperience == investingExperience &&
           other.riskComfort == riskComfort &&
           other.timeHorizon == timeHorizon;
 
   @override
   int get hashCode =>
-      goalType.hashCode + riskComfort.hashCode + timeHorizon.hashCode;
+      contributionRhythm.hashCode +
+      goalType.hashCode +
+      investingExperience.hashCode +
+      riskComfort.hashCode +
+      timeHorizon.hashCode;
 
   factory PutInvestorProfileRequest.fromJson(Map<String, dynamic> json) =>
       _$PutInvestorProfileRequestFromJson(json);
@@ -73,6 +101,28 @@ class PutInvestorProfileRequest {
   String toString() {
     return toJson().toString();
   }
+}
+
+enum PutInvestorProfileRequestContributionRhythmEnum {
+  @JsonValue(r'weekly')
+  weekly(r'weekly'),
+  @JsonValue(r'biweekly')
+  biweekly(r'biweekly'),
+  @JsonValue(r'monthly')
+  monthly(r'monthly'),
+  @JsonValue(r'irregular')
+  irregular(r'irregular'),
+  @JsonValue(r'not_sure')
+  notSure(r'not_sure'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const PutInvestorProfileRequestContributionRhythmEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
 }
 
 enum PutInvestorProfileRequestGoalTypeEnum {
@@ -88,6 +138,24 @@ enum PutInvestorProfileRequestGoalTypeEnum {
   unknownDefaultOpenApi(r'unknown_default_open_api');
 
   const PutInvestorProfileRequestGoalTypeEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
+}
+
+enum PutInvestorProfileRequestInvestingExperienceEnum {
+  @JsonValue(r'new')
+  new_(r'new'),
+  @JsonValue(r'some_experience')
+  someExperience(r'some_experience'),
+  @JsonValue(r'experienced')
+  experienced(r'experienced'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const PutInvestorProfileRequestInvestingExperienceEnum(this.value);
 
   final String value;
 

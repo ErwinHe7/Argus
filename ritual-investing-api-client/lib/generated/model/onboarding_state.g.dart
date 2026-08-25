@@ -7,11 +7,15 @@ part of 'onboarding_state.dart';
 // **************************************************************************
 
 abstract class _$OnboardingStateCWProxy {
+  OnboardingState cohort(OnboardingStateCohortEnum cohort);
+
   OnboardingState completedAt(DateTime? completedAt);
 
   OnboardingState completedSteps(List<String> completedSteps);
 
   OnboardingState currentStep(OnboardingStateCurrentStepEnum currentStep);
+
+  OnboardingState schemaVersion(int schemaVersion);
 
   OnboardingState version(int version);
 
@@ -22,9 +26,11 @@ abstract class _$OnboardingStateCWProxy {
   /// OnboardingState(...).copyWith(id: 12, name: "My name")
   /// ````
   OnboardingState call({
+    OnboardingStateCohortEnum cohort,
     DateTime? completedAt,
     List<String> completedSteps,
     OnboardingStateCurrentStepEnum currentStep,
+    int schemaVersion,
     int version,
   });
 }
@@ -34,6 +40,10 @@ class _$OnboardingStateCWProxyImpl implements _$OnboardingStateCWProxy {
   const _$OnboardingStateCWProxyImpl(this._value);
 
   final OnboardingState _value;
+
+  @override
+  OnboardingState cohort(OnboardingStateCohortEnum cohort) =>
+      this(cohort: cohort);
 
   @override
   OnboardingState completedAt(DateTime? completedAt) =>
@@ -48,6 +58,10 @@ class _$OnboardingStateCWProxyImpl implements _$OnboardingStateCWProxy {
       this(currentStep: currentStep);
 
   @override
+  OnboardingState schemaVersion(int schemaVersion) =>
+      this(schemaVersion: schemaVersion);
+
+  @override
   OnboardingState version(int version) => this(version: version);
 
   @override
@@ -58,12 +72,18 @@ class _$OnboardingStateCWProxyImpl implements _$OnboardingStateCWProxy {
   /// OnboardingState(...).copyWith(id: 12, name: "My name")
   /// ````
   OnboardingState call({
+    Object? cohort = const $CopyWithPlaceholder(),
     Object? completedAt = const $CopyWithPlaceholder(),
     Object? completedSteps = const $CopyWithPlaceholder(),
     Object? currentStep = const $CopyWithPlaceholder(),
+    Object? schemaVersion = const $CopyWithPlaceholder(),
     Object? version = const $CopyWithPlaceholder(),
   }) {
     return OnboardingState(
+      cohort: cohort == const $CopyWithPlaceholder()
+          ? _value.cohort
+          // ignore: cast_nullable_to_non_nullable
+          : cohort as OnboardingStateCohortEnum,
       completedAt: completedAt == const $CopyWithPlaceholder()
           ? _value.completedAt
           // ignore: cast_nullable_to_non_nullable
@@ -76,6 +96,10 @@ class _$OnboardingStateCWProxyImpl implements _$OnboardingStateCWProxy {
           ? _value.currentStep
           // ignore: cast_nullable_to_non_nullable
           : currentStep as OnboardingStateCurrentStepEnum,
+      schemaVersion: schemaVersion == const $CopyWithPlaceholder()
+          ? _value.schemaVersion
+          // ignore: cast_nullable_to_non_nullable
+          : schemaVersion as int,
       version: version == const $CopyWithPlaceholder()
           ? _value.version
           // ignore: cast_nullable_to_non_nullable
@@ -102,13 +126,23 @@ OnboardingState _$OnboardingStateFromJson(Map<String, dynamic> json) =>
         $checkKeys(
           json,
           requiredKeys: const [
+            'cohort',
             'completed_at',
             'completed_steps',
             'current_step',
+            'schema_version',
             'version',
           ],
         );
         final val = OnboardingState(
+          cohort: $checkedConvert(
+            'cohort',
+            (v) => $enumDecode(
+              _$OnboardingStateCohortEnumEnumMap,
+              v,
+              unknownValue: OnboardingStateCohortEnum.unknownDefaultOpenApi,
+            ),
+          ),
           completedAt: $checkedConvert(
             'completed_at',
             (v) => v == null ? null : DateTime.parse(v as String),
@@ -126,6 +160,10 @@ OnboardingState _$OnboardingStateFromJson(Map<String, dynamic> json) =>
                   OnboardingStateCurrentStepEnum.unknownDefaultOpenApi,
             ),
           ),
+          schemaVersion: $checkedConvert(
+            'schema_version',
+            (v) => (v as num).toInt(),
+          ),
           version: $checkedConvert('version', (v) => (v as num).toInt()),
         );
         return val;
@@ -134,17 +172,27 @@ OnboardingState _$OnboardingStateFromJson(Map<String, dynamic> json) =>
         'completedAt': 'completed_at',
         'completedSteps': 'completed_steps',
         'currentStep': 'current_step',
+        'schemaVersion': 'schema_version',
       },
     );
 
 Map<String, dynamic> _$OnboardingStateToJson(OnboardingState instance) =>
     <String, dynamic>{
+      'cohort': _$OnboardingStateCohortEnumEnumMap[instance.cohort]!,
       'completed_at': instance.completedAt?.toIso8601String(),
       'completed_steps': instance.completedSteps,
       'current_step':
           _$OnboardingStateCurrentStepEnumEnumMap[instance.currentStep]!,
+      'schema_version': instance.schemaVersion,
       'version': instance.version,
     };
+
+const _$OnboardingStateCohortEnumEnumMap = {
+  OnboardingStateCohortEnum.legacyCompleteV1: 'legacy_complete_v1',
+  OnboardingStateCohortEnum.legacyIncompleteV1: 'legacy_incomplete_v1',
+  OnboardingStateCohortEnum.memberV2: 'member_v2',
+  OnboardingStateCohortEnum.unknownDefaultOpenApi: 'unknown_default_open_api',
+};
 
 const _$OnboardingStateCurrentStepEnumEnumMap = {
   OnboardingStateCurrentStepEnum.welcome: 'welcome',

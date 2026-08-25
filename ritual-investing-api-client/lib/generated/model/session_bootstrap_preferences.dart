@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:ritual_investing_api_client/generated/model/ritual_interest.dart';
 import 'package:copy_with_extension/copy_with_extension.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -20,6 +21,12 @@ class SessionBootstrapPreferences {
   SessionBootstrapPreferences({
     required this.locale,
 
+    required this.ritualFamiliarity,
+
+    required this.ritualInterests,
+
+    required this.ritualLanguage,
+
     required this.ritualMode,
 
     required this.themeMode,
@@ -31,6 +38,27 @@ class SessionBootstrapPreferences {
 
   @JsonKey(name: r'locale', required: true, includeIfNull: false)
   final String locale;
+
+  @JsonKey(
+    name: r'ritual_familiarity',
+    required: true,
+    includeIfNull: true,
+    unknownEnumValue:
+        SessionBootstrapPreferencesRitualFamiliarityEnum.unknownDefaultOpenApi,
+  )
+  final SessionBootstrapPreferencesRitualFamiliarityEnum? ritualFamiliarity;
+
+  @JsonKey(name: r'ritual_interests', required: true, includeIfNull: true)
+  final List<RitualInterest>? ritualInterests;
+
+  @JsonKey(
+    name: r'ritual_language',
+    required: true,
+    includeIfNull: true,
+    unknownEnumValue:
+        SessionBootstrapPreferencesRitualLanguageEnum.unknownDefaultOpenApi,
+  )
+  final SessionBootstrapPreferencesRitualLanguageEnum? ritualLanguage;
 
   @JsonKey(
     name: r'ritual_mode',
@@ -62,6 +90,9 @@ class SessionBootstrapPreferences {
       identical(this, other) ||
       other is SessionBootstrapPreferences &&
           other.locale == locale &&
+          other.ritualFamiliarity == ritualFamiliarity &&
+          other.ritualInterests == ritualInterests &&
+          other.ritualLanguage == ritualLanguage &&
           other.ritualMode == ritualMode &&
           other.themeMode == themeMode &&
           other.timezone == timezone &&
@@ -70,6 +101,9 @@ class SessionBootstrapPreferences {
   @override
   int get hashCode =>
       locale.hashCode +
+      (ritualFamiliarity == null ? 0 : ritualFamiliarity.hashCode) +
+      (ritualInterests == null ? 0 : ritualInterests.hashCode) +
+      (ritualLanguage == null ? 0 : ritualLanguage.hashCode) +
       ritualMode.hashCode +
       themeMode.hashCode +
       timezone.hashCode +
@@ -84,6 +118,48 @@ class SessionBootstrapPreferences {
   String toString() {
     return toJson().toString();
   }
+}
+
+enum SessionBootstrapPreferencesRitualFamiliarityEnum {
+  @JsonValue(r'new')
+  new_(r'new'),
+  @JsonValue(r'curious')
+  curious(r'curious'),
+  @JsonValue(r'familiar')
+  familiar(r'familiar'),
+  @JsonValue(r'practiced')
+  practiced(r'practiced'),
+  @JsonValue(r'prefer_not_to_say')
+  preferNotToSay(r'prefer_not_to_say'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const SessionBootstrapPreferencesRitualFamiliarityEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
+}
+
+enum SessionBootstrapPreferencesRitualLanguageEnum {
+  @JsonValue(r'practical')
+  practical(r'practical'),
+  @JsonValue(r'balanced')
+  balanced(r'balanced'),
+  @JsonValue(r'mystical')
+  mystical(r'mystical'),
+  @JsonValue(r'prefer_not_to_say')
+  preferNotToSay(r'prefer_not_to_say'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const SessionBootstrapPreferencesRitualLanguageEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
 }
 
 enum SessionBootstrapPreferencesRitualModeEnum {

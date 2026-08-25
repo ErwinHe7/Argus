@@ -7,8 +7,16 @@ part of 'put_investor_profile_request.dart';
 // **************************************************************************
 
 abstract class _$PutInvestorProfileRequestCWProxy {
+  PutInvestorProfileRequest contributionRhythm(
+    PutInvestorProfileRequestContributionRhythmEnum? contributionRhythm,
+  );
+
   PutInvestorProfileRequest goalType(
     PutInvestorProfileRequestGoalTypeEnum goalType,
+  );
+
+  PutInvestorProfileRequest investingExperience(
+    PutInvestorProfileRequestInvestingExperienceEnum? investingExperience,
   );
 
   PutInvestorProfileRequest riskComfort(
@@ -26,7 +34,9 @@ abstract class _$PutInvestorProfileRequestCWProxy {
   /// PutInvestorProfileRequest(...).copyWith(id: 12, name: "My name")
   /// ````
   PutInvestorProfileRequest call({
+    PutInvestorProfileRequestContributionRhythmEnum? contributionRhythm,
     PutInvestorProfileRequestGoalTypeEnum goalType,
+    PutInvestorProfileRequestInvestingExperienceEnum? investingExperience,
     PutInvestorProfileRequestRiskComfortEnum riskComfort,
     PutInvestorProfileRequestTimeHorizonEnum timeHorizon,
   });
@@ -40,9 +50,19 @@ class _$PutInvestorProfileRequestCWProxyImpl
   final PutInvestorProfileRequest _value;
 
   @override
+  PutInvestorProfileRequest contributionRhythm(
+    PutInvestorProfileRequestContributionRhythmEnum? contributionRhythm,
+  ) => this(contributionRhythm: contributionRhythm);
+
+  @override
   PutInvestorProfileRequest goalType(
     PutInvestorProfileRequestGoalTypeEnum goalType,
   ) => this(goalType: goalType);
+
+  @override
+  PutInvestorProfileRequest investingExperience(
+    PutInvestorProfileRequestInvestingExperienceEnum? investingExperience,
+  ) => this(investingExperience: investingExperience);
 
   @override
   PutInvestorProfileRequest riskComfort(
@@ -62,15 +82,27 @@ class _$PutInvestorProfileRequestCWProxyImpl
   /// PutInvestorProfileRequest(...).copyWith(id: 12, name: "My name")
   /// ````
   PutInvestorProfileRequest call({
+    Object? contributionRhythm = const $CopyWithPlaceholder(),
     Object? goalType = const $CopyWithPlaceholder(),
+    Object? investingExperience = const $CopyWithPlaceholder(),
     Object? riskComfort = const $CopyWithPlaceholder(),
     Object? timeHorizon = const $CopyWithPlaceholder(),
   }) {
     return PutInvestorProfileRequest(
+      contributionRhythm: contributionRhythm == const $CopyWithPlaceholder()
+          ? _value.contributionRhythm
+          // ignore: cast_nullable_to_non_nullable
+          : contributionRhythm
+                as PutInvestorProfileRequestContributionRhythmEnum?,
       goalType: goalType == const $CopyWithPlaceholder()
           ? _value.goalType
           // ignore: cast_nullable_to_non_nullable
           : goalType as PutInvestorProfileRequestGoalTypeEnum,
+      investingExperience: investingExperience == const $CopyWithPlaceholder()
+          ? _value.investingExperience
+          // ignore: cast_nullable_to_non_nullable
+          : investingExperience
+                as PutInvestorProfileRequestInvestingExperienceEnum?,
       riskComfort: riskComfort == const $CopyWithPlaceholder()
           ? _value.riskComfort
           // ignore: cast_nullable_to_non_nullable
@@ -105,6 +137,15 @@ PutInvestorProfileRequest _$PutInvestorProfileRequestFromJson(
       requiredKeys: const ['goal_type', 'risk_comfort', 'time_horizon'],
     );
     final val = PutInvestorProfileRequest(
+      contributionRhythm: $checkedConvert(
+        'contribution_rhythm',
+        (v) => $enumDecodeNullable(
+          _$PutInvestorProfileRequestContributionRhythmEnumEnumMap,
+          v,
+          unknownValue: PutInvestorProfileRequestContributionRhythmEnum
+              .unknownDefaultOpenApi,
+        ),
+      ),
       goalType: $checkedConvert(
         'goal_type',
         (v) => $enumDecode(
@@ -112,6 +153,15 @@ PutInvestorProfileRequest _$PutInvestorProfileRequestFromJson(
           v,
           unknownValue:
               PutInvestorProfileRequestGoalTypeEnum.unknownDefaultOpenApi,
+        ),
+      ),
+      investingExperience: $checkedConvert(
+        'investing_experience',
+        (v) => $enumDecodeNullable(
+          _$PutInvestorProfileRequestInvestingExperienceEnumEnumMap,
+          v,
+          unknownValue: PutInvestorProfileRequestInvestingExperienceEnum
+              .unknownDefaultOpenApi,
         ),
       ),
       riskComfort: $checkedConvert(
@@ -136,7 +186,9 @@ PutInvestorProfileRequest _$PutInvestorProfileRequestFromJson(
     return val;
   },
   fieldKeyMap: const {
+    'contributionRhythm': 'contribution_rhythm',
     'goalType': 'goal_type',
+    'investingExperience': 'investing_experience',
     'riskComfort': 'risk_comfort',
     'timeHorizon': 'time_horizon',
   },
@@ -145,12 +197,28 @@ PutInvestorProfileRequest _$PutInvestorProfileRequestFromJson(
 Map<String, dynamic> _$PutInvestorProfileRequestToJson(
   PutInvestorProfileRequest instance,
 ) => <String, dynamic>{
+  'contribution_rhythm':
+      ?_$PutInvestorProfileRequestContributionRhythmEnumEnumMap[instance
+          .contributionRhythm],
   'goal_type':
       _$PutInvestorProfileRequestGoalTypeEnumEnumMap[instance.goalType]!,
+  'investing_experience':
+      ?_$PutInvestorProfileRequestInvestingExperienceEnumEnumMap[instance
+          .investingExperience],
   'risk_comfort':
       _$PutInvestorProfileRequestRiskComfortEnumEnumMap[instance.riskComfort]!,
   'time_horizon':
       _$PutInvestorProfileRequestTimeHorizonEnumEnumMap[instance.timeHorizon]!,
+};
+
+const _$PutInvestorProfileRequestContributionRhythmEnumEnumMap = {
+  PutInvestorProfileRequestContributionRhythmEnum.weekly: 'weekly',
+  PutInvestorProfileRequestContributionRhythmEnum.biweekly: 'biweekly',
+  PutInvestorProfileRequestContributionRhythmEnum.monthly: 'monthly',
+  PutInvestorProfileRequestContributionRhythmEnum.irregular: 'irregular',
+  PutInvestorProfileRequestContributionRhythmEnum.notSure: 'not_sure',
+  PutInvestorProfileRequestContributionRhythmEnum.unknownDefaultOpenApi:
+      'unknown_default_open_api',
 };
 
 const _$PutInvestorProfileRequestGoalTypeEnumEnumMap = {
@@ -159,6 +227,15 @@ const _$PutInvestorProfileRequestGoalTypeEnumEnumMap = {
   PutInvestorProfileRequestGoalTypeEnum.income: 'income',
   PutInvestorProfileRequestGoalTypeEnum.exploration: 'exploration',
   PutInvestorProfileRequestGoalTypeEnum.unknownDefaultOpenApi:
+      'unknown_default_open_api',
+};
+
+const _$PutInvestorProfileRequestInvestingExperienceEnumEnumMap = {
+  PutInvestorProfileRequestInvestingExperienceEnum.new_: 'new',
+  PutInvestorProfileRequestInvestingExperienceEnum.someExperience:
+      'some_experience',
+  PutInvestorProfileRequestInvestingExperienceEnum.experienced: 'experienced',
+  PutInvestorProfileRequestInvestingExperienceEnum.unknownDefaultOpenApi:
       'unknown_default_open_api',
 };
 

@@ -33,6 +33,8 @@ class CircleTemplateDetail {
 
     required this.revisionId,
 
+    required this.saved,
+
     required this.slug,
 
     required this.theme,
@@ -58,6 +60,9 @@ class CircleTemplateDetail {
   @JsonKey(name: r'revision_id', required: true, includeIfNull: false)
   final String revisionId;
 
+  @JsonKey(name: r'saved', required: true, includeIfNull: false)
+  final bool saved;
+
   @JsonKey(name: r'slug', required: true, includeIfNull: false)
   final String slug;
 
@@ -77,6 +82,7 @@ class CircleTemplateDetail {
           other.description == description &&
           other.id == id &&
           other.revisionId == revisionId &&
+          other.saved == saved &&
           other.slug == slug &&
           other.theme == theme &&
           other.title == title;
@@ -89,6 +95,7 @@ class CircleTemplateDetail {
       description.hashCode +
       id.hashCode +
       revisionId.hashCode +
+      saved.hashCode +
       slug.hashCode +
       theme.hashCode +
       title.hashCode;

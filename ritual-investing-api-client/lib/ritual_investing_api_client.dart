@@ -180,10 +180,6 @@ export 'package:ritual_investing_api_client/generated/model/demo_reset_result.da
 export 'package:ritual_investing_api_client/generated/model/demo_reset_result_default_portfolio.dart';
 export 'package:ritual_investing_api_client/generated/model/demo_reset_result_entitlement.dart';
 export 'package:ritual_investing_api_client/generated/model/discover_item.dart';
-export 'package:ritual_investing_api_client/generated/model/discover_item_one_of.dart';
-export 'package:ritual_investing_api_client/generated/model/discover_item_one_of1.dart';
-export 'package:ritual_investing_api_client/generated/model/discover_item_one_of2.dart';
-export 'package:ritual_investing_api_client/generated/model/discover_item_one_of3.dart';
 export 'package:ritual_investing_api_client/generated/model/discover_response.dart';
 export 'package:ritual_investing_api_client/generated/model/error_response.dart';
 export 'package:ritual_investing_api_client/generated/model/error_response_error.dart';
@@ -191,6 +187,13 @@ export 'package:ritual_investing_api_client/generated/model/evidence_detail.dart
 export 'package:ritual_investing_api_client/generated/model/evidence_detail_source.dart';
 export 'package:ritual_investing_api_client/generated/model/evidence_summary.dart';
 export 'package:ritual_investing_api_client/generated/model/field_error.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_astrology.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_consents.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_consents_astrology.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_consents_demo_disclosure.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_investing.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_ritual.dart';
 export 'package:ritual_investing_api_client/generated/model/future_mirror_view.dart';
 export 'package:ritual_investing_api_client/generated/model/future_mirror_view_points_inner.dart';
 export 'package:ritual_investing_api_client/generated/model/get_admin_asset_codex_revision200_response.dart';
@@ -352,6 +355,7 @@ export 'package:ritual_investing_api_client/generated/model/ritual_asset_idea.da
 export 'package:ritual_investing_api_client/generated/model/ritual_evidence_response.dart';
 export 'package:ritual_investing_api_client/generated/model/ritual_history_item.dart';
 export 'package:ritual_investing_api_client/generated/model/ritual_history_response.dart';
+export 'package:ritual_investing_api_client/generated/model/ritual_interest.dart';
 export 'package:ritual_investing_api_client/generated/model/rowan_counsel.dart';
 export 'package:ritual_investing_api_client/generated/model/rowan_counsel_response.dart';
 export 'package:ritual_investing_api_client/generated/model/save_asset200_response.dart';
@@ -361,8 +365,10 @@ export 'package:ritual_investing_api_client/generated/model/search_response.dart
 export 'package:ritual_investing_api_client/generated/model/search_result.dart';
 export 'package:ritual_investing_api_client/generated/model/seeded_creator.dart';
 export 'package:ritual_investing_api_client/generated/model/session_bootstrap.dart';
+export 'package:ritual_investing_api_client/generated/model/session_bootstrap_astrology_profile.dart';
 export 'package:ritual_investing_api_client/generated/model/session_bootstrap_default_portfolio.dart';
 export 'package:ritual_investing_api_client/generated/model/session_bootstrap_entitlement.dart';
+export 'package:ritual_investing_api_client/generated/model/session_bootstrap_investor_profile.dart';
 export 'package:ritual_investing_api_client/generated/model/session_bootstrap_onboarding.dart';
 export 'package:ritual_investing_api_client/generated/model/session_bootstrap_preferences.dart';
 export 'package:ritual_investing_api_client/generated/model/session_bootstrap_profile.dart';

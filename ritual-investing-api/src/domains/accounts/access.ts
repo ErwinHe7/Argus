@@ -7,6 +7,7 @@ import {
   type AccountResolver,
 } from "../../middleware/account-tenant.ts";
 import { auth0Jwk } from "../../middleware/auth0-jwk.ts";
+import { requireMemberClient } from "../../middleware/member-client.ts";
 import { requirePermission } from "../../middleware/permissions.ts";
 import {
   preAuthRateLimit,
@@ -38,6 +39,7 @@ export function memberSecurity(
   return [
     preAuthRateLimit(rate),
     auth0Jwk(dependencies.auth0Keys),
+    requireMemberClient,
     requirePermission(write ? "write:self" : "read:self"),
     subjectRateLimit(rate),
     requestMediaBoundary,
@@ -56,6 +58,7 @@ export function privacySecurity(
   return [
     preAuthRateLimit("RL_SENSITIVE"),
     auth0Jwk(dependencies.auth0Keys),
+    requireMemberClient,
     requirePermission("privacy:self"),
     subjectRateLimit("RL_SENSITIVE"),
     requestMediaBoundary,
@@ -75,6 +78,7 @@ export function sensitiveMemberSecurity(
   return [
     preAuthRateLimit("RL_SENSITIVE"),
     auth0Jwk(dependencies.auth0Keys),
+    requireMemberClient,
     requirePermission("write:self"),
     subjectRateLimit("RL_SENSITIVE"),
     requestMediaBoundary,

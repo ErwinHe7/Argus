@@ -9,6 +9,10 @@ part of 'session_bootstrap.dart';
 abstract class _$SessionBootstrapCWProxy {
   SessionBootstrap account(MemberAccountViewAccount account);
 
+  SessionBootstrap astrologyProfile(
+    SessionBootstrapAstrologyProfile? astrologyProfile,
+  );
+
   SessionBootstrap contractVersion(
     SessionBootstrapContractVersionEnum contractVersion,
   );
@@ -19,11 +23,17 @@ abstract class _$SessionBootstrapCWProxy {
 
   SessionBootstrap entitlement(SessionBootstrapEntitlement entitlement);
 
+  SessionBootstrap investorProfile(
+    SessionBootstrapInvestorProfile? investorProfile,
+  );
+
   SessionBootstrap onboarding(SessionBootstrapOnboarding onboarding);
 
   SessionBootstrap preferences(SessionBootstrapPreferences preferences);
 
   SessionBootstrap profile(SessionBootstrapProfile profile);
+
+  SessionBootstrap resetGeneration(int resetGeneration);
 
   SessionBootstrap serverTime(DateTime serverTime);
 
@@ -35,12 +45,15 @@ abstract class _$SessionBootstrapCWProxy {
   /// ````
   SessionBootstrap call({
     MemberAccountViewAccount account,
+    SessionBootstrapAstrologyProfile? astrologyProfile,
     SessionBootstrapContractVersionEnum contractVersion,
     SessionBootstrapDefaultPortfolio defaultPortfolio,
     SessionBootstrapEntitlement entitlement,
+    SessionBootstrapInvestorProfile? investorProfile,
     SessionBootstrapOnboarding onboarding,
     SessionBootstrapPreferences preferences,
     SessionBootstrapProfile profile,
+    int resetGeneration,
     DateTime serverTime,
   });
 }
@@ -54,6 +67,11 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
   @override
   SessionBootstrap account(MemberAccountViewAccount account) =>
       this(account: account);
+
+  @override
+  SessionBootstrap astrologyProfile(
+    SessionBootstrapAstrologyProfile? astrologyProfile,
+  ) => this(astrologyProfile: astrologyProfile);
 
   @override
   SessionBootstrap contractVersion(
@@ -70,6 +88,11 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
       this(entitlement: entitlement);
 
   @override
+  SessionBootstrap investorProfile(
+    SessionBootstrapInvestorProfile? investorProfile,
+  ) => this(investorProfile: investorProfile);
+
+  @override
   SessionBootstrap onboarding(SessionBootstrapOnboarding onboarding) =>
       this(onboarding: onboarding);
 
@@ -80,6 +103,10 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
   @override
   SessionBootstrap profile(SessionBootstrapProfile profile) =>
       this(profile: profile);
+
+  @override
+  SessionBootstrap resetGeneration(int resetGeneration) =>
+      this(resetGeneration: resetGeneration);
 
   @override
   SessionBootstrap serverTime(DateTime serverTime) =>
@@ -94,12 +121,15 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
   /// ````
   SessionBootstrap call({
     Object? account = const $CopyWithPlaceholder(),
+    Object? astrologyProfile = const $CopyWithPlaceholder(),
     Object? contractVersion = const $CopyWithPlaceholder(),
     Object? defaultPortfolio = const $CopyWithPlaceholder(),
     Object? entitlement = const $CopyWithPlaceholder(),
+    Object? investorProfile = const $CopyWithPlaceholder(),
     Object? onboarding = const $CopyWithPlaceholder(),
     Object? preferences = const $CopyWithPlaceholder(),
     Object? profile = const $CopyWithPlaceholder(),
+    Object? resetGeneration = const $CopyWithPlaceholder(),
     Object? serverTime = const $CopyWithPlaceholder(),
   }) {
     return SessionBootstrap(
@@ -107,6 +137,10 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
           ? _value.account
           // ignore: cast_nullable_to_non_nullable
           : account as MemberAccountViewAccount,
+      astrologyProfile: astrologyProfile == const $CopyWithPlaceholder()
+          ? _value.astrologyProfile
+          // ignore: cast_nullable_to_non_nullable
+          : astrologyProfile as SessionBootstrapAstrologyProfile?,
       contractVersion: contractVersion == const $CopyWithPlaceholder()
           ? _value.contractVersion
           // ignore: cast_nullable_to_non_nullable
@@ -119,6 +153,10 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
           ? _value.entitlement
           // ignore: cast_nullable_to_non_nullable
           : entitlement as SessionBootstrapEntitlement,
+      investorProfile: investorProfile == const $CopyWithPlaceholder()
+          ? _value.investorProfile
+          // ignore: cast_nullable_to_non_nullable
+          : investorProfile as SessionBootstrapInvestorProfile?,
       onboarding: onboarding == const $CopyWithPlaceholder()
           ? _value.onboarding
           // ignore: cast_nullable_to_non_nullable
@@ -131,6 +169,10 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
           ? _value.profile
           // ignore: cast_nullable_to_non_nullable
           : profile as SessionBootstrapProfile,
+      resetGeneration: resetGeneration == const $CopyWithPlaceholder()
+          ? _value.resetGeneration
+          // ignore: cast_nullable_to_non_nullable
+          : resetGeneration as int,
       serverTime: serverTime == const $CopyWithPlaceholder()
           ? _value.serverTime
           // ignore: cast_nullable_to_non_nullable
@@ -158,12 +200,15 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
           json,
           requiredKeys: const [
             'account',
+            'astrology_profile',
             'contract_version',
             'default_portfolio',
             'entitlement',
+            'investor_profile',
             'onboarding',
             'preferences',
             'profile',
+            'reset_generation',
             'server_time',
           ],
         );
@@ -171,6 +216,14 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
           account: $checkedConvert(
             'account',
             (v) => MemberAccountViewAccount.fromJson(v as Map<String, dynamic>),
+          ),
+          astrologyProfile: $checkedConvert(
+            'astrology_profile',
+            (v) => v == null
+                ? null
+                : SessionBootstrapAstrologyProfile.fromJson(
+                    v as Map<String, dynamic>,
+                  ),
           ),
           contractVersion: $checkedConvert(
             'contract_version',
@@ -192,6 +245,14 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
             (v) =>
                 SessionBootstrapEntitlement.fromJson(v as Map<String, dynamic>),
           ),
+          investorProfile: $checkedConvert(
+            'investor_profile',
+            (v) => v == null
+                ? null
+                : SessionBootstrapInvestorProfile.fromJson(
+                    v as Map<String, dynamic>,
+                  ),
+          ),
           onboarding: $checkedConvert(
             'onboarding',
             (v) =>
@@ -206,6 +267,10 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
             'profile',
             (v) => SessionBootstrapProfile.fromJson(v as Map<String, dynamic>),
           ),
+          resetGeneration: $checkedConvert(
+            'reset_generation',
+            (v) => (v as num).toInt(),
+          ),
           serverTime: $checkedConvert(
             'server_time',
             (v) => DateTime.parse(v as String),
@@ -214,8 +279,11 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
         return val;
       },
       fieldKeyMap: const {
+        'astrologyProfile': 'astrology_profile',
         'contractVersion': 'contract_version',
         'defaultPortfolio': 'default_portfolio',
+        'investorProfile': 'investor_profile',
+        'resetGeneration': 'reset_generation',
         'serverTime': 'server_time',
       },
     );
@@ -224,13 +292,16 @@ Map<String, dynamic> _$SessionBootstrapToJson(
   SessionBootstrap instance,
 ) => <String, dynamic>{
   'account': instance.account.toJson(),
+  'astrology_profile': instance.astrologyProfile?.toJson(),
   'contract_version':
       _$SessionBootstrapContractVersionEnumEnumMap[instance.contractVersion]!,
   'default_portfolio': instance.defaultPortfolio.toJson(),
   'entitlement': instance.entitlement.toJson(),
+  'investor_profile': instance.investorProfile?.toJson(),
   'onboarding': instance.onboarding.toJson(),
   'preferences': instance.preferences.toJson(),
   'profile': instance.profile.toJson(),
+  'reset_generation': instance.resetGeneration,
   'server_time': instance.serverTime.toIso8601String(),
 };
 

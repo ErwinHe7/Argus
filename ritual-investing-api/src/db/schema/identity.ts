@@ -74,6 +74,9 @@ export const preferences = pgTable("preferences", {
     .references(() => tenants.id, { onDelete: "cascade" }),
   themeMode: text("theme_mode").notNull().default("system"),
   ritualMode: text("ritual_mode").notNull().default("tarot"),
+  ritualFamiliarity: text("ritual_familiarity"),
+  ritualLanguage: text("ritual_language"),
+  ritualInterests: jsonb("ritual_interests"),
   timezone: text("timezone").notNull().default("UTC"),
   locale: text("locale").notNull().default("en-US"),
   version: integer("version").notNull().default(1),
@@ -99,6 +102,8 @@ export const investorProfiles = pgTable("investor_profiles", {
   goalType: text("goal_type").notNull(),
   timeHorizon: text("time_horizon").notNull(),
   riskComfort: text("risk_comfort").notNull(),
+  investingExperience: text("investing_experience"),
+  contributionRhythm: text("contribution_rhythm"),
   version: integer("version").notNull().default(1),
 });
 
@@ -109,8 +114,31 @@ export const onboardingStates = pgTable("onboarding_states", {
   currentStep: text("current_step").notNull(),
   completedSteps: jsonb("completed_steps").notNull().default([]),
   completedAt: timestamp("completed_at", { withTimezone: true }),
+  schemaVersion: integer("schema_version").notNull().default(2),
+  cohort: text("cohort").notNull().default("member_v2"),
   version: integer("version").notNull().default(1),
 });
+
+export const onboardingFinalizationCommands = pgTable(
+  "onboarding_finalization_commands",
+  {
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "cascade" }),
+    commandKey: text("command_key").notNull(),
+    requestHash: text("request_hash").notNull(),
+    response: jsonb("response").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("onboarding_finalization_commands_tenant_key_unique").on(
+      table.tenantId,
+      table.commandKey,
+    ),
+  ],
+);
 
 export const consentRecords = pgTable(
   "consent_records",

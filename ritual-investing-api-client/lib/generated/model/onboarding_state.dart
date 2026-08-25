@@ -18,14 +18,26 @@ part 'onboarding_state.g.dart';
 class OnboardingState {
   /// Returns a new [OnboardingState] instance.
   OnboardingState({
+    required this.cohort,
+
     required this.completedAt,
 
     required this.completedSteps,
 
     required this.currentStep,
 
+    required this.schemaVersion,
+
     required this.version,
   });
+
+  @JsonKey(
+    name: r'cohort',
+    required: true,
+    includeIfNull: false,
+    unknownEnumValue: OnboardingStateCohortEnum.unknownDefaultOpenApi,
+  )
+  final OnboardingStateCohortEnum cohort;
 
   @JsonKey(name: r'completed_at', required: true, includeIfNull: true)
   final DateTime? completedAt;
@@ -41,6 +53,11 @@ class OnboardingState {
   )
   final OnboardingStateCurrentStepEnum currentStep;
 
+  // minimum: 1
+  // maximum: 2
+  @JsonKey(name: r'schema_version', required: true, includeIfNull: false)
+  final int schemaVersion;
+
   // minimum: 0
   @JsonKey(name: r'version', required: true, includeIfNull: false)
   final int version;
@@ -49,16 +66,20 @@ class OnboardingState {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is OnboardingState &&
+          other.cohort == cohort &&
           other.completedAt == completedAt &&
           other.completedSteps == completedSteps &&
           other.currentStep == currentStep &&
+          other.schemaVersion == schemaVersion &&
           other.version == version;
 
   @override
   int get hashCode =>
+      cohort.hashCode +
       (completedAt == null ? 0 : completedAt.hashCode) +
       completedSteps.hashCode +
       currentStep.hashCode +
+      schemaVersion.hashCode +
       version.hashCode;
 
   factory OnboardingState.fromJson(Map<String, dynamic> json) =>
@@ -70,6 +91,24 @@ class OnboardingState {
   String toString() {
     return toJson().toString();
   }
+}
+
+enum OnboardingStateCohortEnum {
+  @JsonValue(r'legacy_complete_v1')
+  legacyCompleteV1(r'legacy_complete_v1'),
+  @JsonValue(r'legacy_incomplete_v1')
+  legacyIncompleteV1(r'legacy_incomplete_v1'),
+  @JsonValue(r'member_v2')
+  memberV2(r'member_v2'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const OnboardingStateCohortEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
 }
 
 enum OnboardingStateCurrentStepEnum {

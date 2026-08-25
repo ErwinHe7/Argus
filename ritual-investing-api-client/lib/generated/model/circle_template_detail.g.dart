@@ -19,6 +19,8 @@ abstract class _$CircleTemplateDetailCWProxy {
 
   CircleTemplateDetail revisionId(String revisionId);
 
+  CircleTemplateDetail saved(bool saved);
+
   CircleTemplateDetail slug(String slug);
 
   CircleTemplateDetail theme(String theme);
@@ -38,6 +40,7 @@ abstract class _$CircleTemplateDetailCWProxy {
     String description,
     String id,
     String revisionId,
+    bool saved,
     String slug,
     String theme,
     String title,
@@ -73,6 +76,9 @@ class _$CircleTemplateDetailCWProxyImpl
       this(revisionId: revisionId);
 
   @override
+  CircleTemplateDetail saved(bool saved) => this(saved: saved);
+
+  @override
   CircleTemplateDetail slug(String slug) => this(slug: slug);
 
   @override
@@ -95,6 +101,7 @@ class _$CircleTemplateDetailCWProxyImpl
     Object? description = const $CopyWithPlaceholder(),
     Object? id = const $CopyWithPlaceholder(),
     Object? revisionId = const $CopyWithPlaceholder(),
+    Object? saved = const $CopyWithPlaceholder(),
     Object? slug = const $CopyWithPlaceholder(),
     Object? theme = const $CopyWithPlaceholder(),
     Object? title = const $CopyWithPlaceholder(),
@@ -124,6 +131,10 @@ class _$CircleTemplateDetailCWProxyImpl
           ? _value.revisionId
           // ignore: cast_nullable_to_non_nullable
           : revisionId as String,
+      saved: saved == const $CopyWithPlaceholder()
+          ? _value.saved
+          // ignore: cast_nullable_to_non_nullable
+          : saved as bool,
       slug: slug == const $CopyWithPlaceholder()
           ? _value.slug
           // ignore: cast_nullable_to_non_nullable
@@ -163,6 +174,7 @@ CircleTemplateDetail _$CircleTemplateDetailFromJson(
       'description',
       'id',
       'revision_id',
+      'saved',
       'slug',
       'theme',
       'title',
@@ -190,6 +202,7 @@ CircleTemplateDetail _$CircleTemplateDetailFromJson(
     description: $checkedConvert('description', (v) => v as String),
     id: $checkedConvert('id', (v) => v as String),
     revisionId: $checkedConvert('revision_id', (v) => v as String),
+    saved: $checkedConvert('saved', (v) => v as bool),
     slug: $checkedConvert('slug', (v) => v as String),
     theme: $checkedConvert('theme', (v) => v as String),
     title: $checkedConvert('title', (v) => v as String),
@@ -206,6 +219,7 @@ Map<String, dynamic> _$CircleTemplateDetailToJson(
   'description': instance.description,
   'id': instance.id,
   'revision_id': instance.revisionId,
+  'saved': instance.saved,
   'slug': instance.slug,
   'theme': instance.theme,
   'title': instance.title,

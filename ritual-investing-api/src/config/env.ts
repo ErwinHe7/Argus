@@ -48,6 +48,7 @@ export const environmentSchema = z
     }),
     AUTH0_AUDIENCE: httpsUrl,
     AUTH0_JWKS_URL: httpsUrl,
+    AUTH0_MEMBER_CLIENT_IDS: z.string().min(1),
     AUTH0_ADMIN_CLIENT_IDS: z.string().min(1),
     CF_ACCESS_ISSUER: httpsUrl,
     CF_ACCESS_AUDIENCE: z.string().min(1).max(255),
@@ -120,9 +121,6 @@ export const environmentSchema = z
       "MEDIA_PUBLIC",
       "PRIVACY_EXPORTS",
       "DELETION_DENY_JOURNAL",
-      "MEDIA_SCANNER",
-      "MEDIA_PROCESSOR",
-      "PUSH_PROVIDER",
     ] as const;
     for (const binding of required)
       if (environment[binding] === undefined)
@@ -130,6 +128,21 @@ export const environmentSchema = z
           code: "custom",
           path: [binding],
           message: `${binding} is required in ${environment.ENVIRONMENT}`,
+        });
+    const enabledDependencies = [
+      ...(environment.KILL_SWITCH_MEDIA === "off"
+        ? (["MEDIA_SCANNER", "MEDIA_PROCESSOR"] as const)
+        : []),
+      ...(environment.KILL_SWITCH_NOTIFICATIONS === "off"
+        ? (["PUSH_PROVIDER"] as const)
+        : []),
+    ];
+    for (const binding of enabledDependencies)
+      if (environment[binding] === undefined)
+        context.addIssue({
+          code: "custom",
+          path: [binding],
+          message: `${binding} is required while its production feature is enabled`,
         });
     if (
       environment.ASYNC_QUEUE !== undefined &&

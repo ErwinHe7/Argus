@@ -19,6 +19,16 @@ const timezoneSchema = z
     }
   }, "timezone must be a valid IANA name");
 
+export const ritualInterestSchema = z
+  .enum([
+    "practical_research",
+    "tarot",
+    "astrology",
+    "moon_cycles",
+    "reflection",
+  ])
+  .openapi("RitualInterest");
+
 export const versionedProfileSchema = z
   .object({
     display_name: boundedUserText({ maximum: 80 }),
@@ -48,6 +58,13 @@ export const preferencesSchema = z
   .object({
     theme_mode: z.enum(["system", "light", "dark"]),
     ritual_mode: z.enum(["tarot", "astrology"]),
+    ritual_familiarity: z
+      .enum(["new", "curious", "familiar", "practiced", "prefer_not_to_say"])
+      .nullable(),
+    ritual_language: z
+      .enum(["practical", "balanced", "mystical", "prefer_not_to_say"])
+      .nullable(),
+    ritual_interests: z.array(ritualInterestSchema).max(5).nullable(),
     timezone: timezoneSchema,
     locale: localeSchema,
     version: z.number().int().positive(),
@@ -67,6 +84,8 @@ export const onboardingSchema = z
       .array(z.string().regex(/^(welcome|ritual|profile)$/))
       .max(3),
     completed_at: z.iso.datetime({ offset: true }).nullable(),
+    schema_version: z.number().int().min(1).max(2),
+    cohort: z.enum(["legacy_complete_v1", "legacy_incomplete_v1", "member_v2"]),
     version: z.number().int().positive(),
   })
   .strict()
@@ -95,7 +114,7 @@ export const astrologyProfileSchema = z
   .strict()
   .openapi("AstrologyProfile");
 export const astrologyPutSchema = astrologyProfileSchema
-  .omit({ enabled_at: true, version: true })
+  .pick({ birth_date: true })
   .strict();
 
 export const investorProfileSchema = z
@@ -108,6 +127,12 @@ export const investorProfileSchema = z
     ]),
     time_horizon: z.enum(["short", "medium", "long"]),
     risk_comfort: z.enum(["low", "moderate", "high"]),
+    investing_experience: z
+      .enum(["new", "some_experience", "experienced"])
+      .nullable(),
+    contribution_rhythm: z
+      .enum(["weekly", "biweekly", "monthly", "irregular", "not_sure"])
+      .nullable(),
     version: z.number().int().positive(),
     is_demo: z.literal(true),
   })
@@ -115,7 +140,103 @@ export const investorProfileSchema = z
   .openapi("InvestorProfile");
 export const investorPutSchema = investorProfileSchema
   .omit({ version: true, is_demo: true })
+  .extend({
+    investing_experience: investorProfileSchema.shape.investing_experience
+      .unwrap()
+      .optional(),
+    contribution_rhythm: investorProfileSchema.shape.contribution_rhythm
+      .unwrap()
+      .optional(),
+  })
   .strict();
+
+export const activeOnboardingPolicyVersions = {
+  terms: "2026-08",
+  privacy: "2026-08",
+  demo_disclosure: "2026-08",
+  astrology: "2026-08",
+} as const;
+
+const acceptedPolicy = (version: string) =>
+  z
+    .object({
+      policy_version: z.literal(version),
+      decision: z.literal("accepted"),
+    })
+    .strict();
+
+export const onboardingFinalizeRequestSchema = z
+  .object({
+    schema_version: z.number().int().min(2).max(2),
+    expected_onboarding_version: z.number().int().positive(),
+    investing: z
+      .object({
+        experience: z.enum(["new", "some_experience", "experienced"]),
+        goal_type: investorProfileSchema.shape.goal_type,
+        time_horizon: investorProfileSchema.shape.time_horizon,
+        risk_comfort: investorProfileSchema.shape.risk_comfort,
+        contribution_rhythm: z.enum([
+          "weekly",
+          "biweekly",
+          "monthly",
+          "irregular",
+          "not_sure",
+        ]),
+      })
+      .strict(),
+    ritual: z
+      .object({
+        familiarity: preferencesSchema.shape.ritual_familiarity.unwrap(),
+        language_preference: preferencesSchema.shape.ritual_language.unwrap(),
+        interests: preferencesSchema.shape.ritual_interests
+          .unwrap()
+          .min(1),
+      })
+      .strict(),
+    astrology: z
+      .object({
+        enabled: z.boolean(),
+        birth_date: z.iso.date().optional(),
+      })
+      .strict(),
+    consents: z
+      .object({
+        terms: acceptedPolicy(activeOnboardingPolicyVersions.terms),
+        privacy: acceptedPolicy(activeOnboardingPolicyVersions.privacy),
+        demo_disclosure: acceptedPolicy(
+          activeOnboardingPolicyVersions.demo_disclosure,
+        ),
+        astrology: z
+          .object({
+            policy_version: z.literal(
+              activeOnboardingPolicyVersions.astrology,
+            ),
+            decision: z.enum(["accepted", "declined"]),
+          })
+          .strict(),
+      })
+      .strict(),
+  })
+  .strict()
+  .superRefine((value, context) => {
+    if (value.astrology.enabled !== (value.consents.astrology.decision === "accepted")) {
+      context.addIssue({
+        code: "custom",
+        path: ["consents", "astrology", "decision"],
+        message: "astrology consent must match the personalization choice",
+        input: value.consents.astrology.decision,
+      });
+    }
+    if (value.astrology.enabled !== (value.astrology.birth_date !== undefined)) {
+      context.addIssue({
+        code: "custom",
+        path: ["astrology", "birth_date"],
+        message: "birth_date is required only when astrology is enabled",
+        input: value.astrology.birth_date,
+      });
+    }
+  })
+  .openapi("FinalizeOnboardingRequest");
 
 export const consentRequestSchema = z
   .object({
@@ -138,3 +259,6 @@ export type OnboardingView = z.infer<typeof onboardingSchema>;
 export type AstrologyProfile = z.infer<typeof astrologyProfileSchema>;
 export type InvestorProfile = z.infer<typeof investorProfileSchema>;
 export type ConsentRequest = z.infer<typeof consentRequestSchema>;
+export type OnboardingFinalizeRequest = z.infer<
+  typeof onboardingFinalizeRequestSchema
+>;

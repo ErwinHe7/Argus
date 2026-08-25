@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:ritual_investing_api_client/generated/model/ritual_interest.dart';
 import 'package:copy_with_extension/copy_with_extension.dart';
 import 'package:json_annotation/json_annotation.dart';
 
@@ -20,6 +21,12 @@ class MemberPreferences {
   MemberPreferences({
     required this.locale,
 
+    required this.ritualFamiliarity,
+
+    required this.ritualInterests,
+
+    required this.ritualLanguage,
+
     required this.ritualMode,
 
     required this.themeMode,
@@ -31,6 +38,26 @@ class MemberPreferences {
 
   @JsonKey(name: r'locale', required: true, includeIfNull: false)
   final String locale;
+
+  @JsonKey(
+    name: r'ritual_familiarity',
+    required: true,
+    includeIfNull: true,
+    unknownEnumValue:
+        MemberPreferencesRitualFamiliarityEnum.unknownDefaultOpenApi,
+  )
+  final MemberPreferencesRitualFamiliarityEnum? ritualFamiliarity;
+
+  @JsonKey(name: r'ritual_interests', required: true, includeIfNull: true)
+  final List<RitualInterest>? ritualInterests;
+
+  @JsonKey(
+    name: r'ritual_language',
+    required: true,
+    includeIfNull: true,
+    unknownEnumValue: MemberPreferencesRitualLanguageEnum.unknownDefaultOpenApi,
+  )
+  final MemberPreferencesRitualLanguageEnum? ritualLanguage;
 
   @JsonKey(
     name: r'ritual_mode',
@@ -60,6 +87,9 @@ class MemberPreferences {
       identical(this, other) ||
       other is MemberPreferences &&
           other.locale == locale &&
+          other.ritualFamiliarity == ritualFamiliarity &&
+          other.ritualInterests == ritualInterests &&
+          other.ritualLanguage == ritualLanguage &&
           other.ritualMode == ritualMode &&
           other.themeMode == themeMode &&
           other.timezone == timezone &&
@@ -68,6 +98,9 @@ class MemberPreferences {
   @override
   int get hashCode =>
       locale.hashCode +
+      (ritualFamiliarity == null ? 0 : ritualFamiliarity.hashCode) +
+      (ritualInterests == null ? 0 : ritualInterests.hashCode) +
+      (ritualLanguage == null ? 0 : ritualLanguage.hashCode) +
       ritualMode.hashCode +
       themeMode.hashCode +
       timezone.hashCode +
@@ -82,6 +115,48 @@ class MemberPreferences {
   String toString() {
     return toJson().toString();
   }
+}
+
+enum MemberPreferencesRitualFamiliarityEnum {
+  @JsonValue(r'new')
+  new_(r'new'),
+  @JsonValue(r'curious')
+  curious(r'curious'),
+  @JsonValue(r'familiar')
+  familiar(r'familiar'),
+  @JsonValue(r'practiced')
+  practiced(r'practiced'),
+  @JsonValue(r'prefer_not_to_say')
+  preferNotToSay(r'prefer_not_to_say'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const MemberPreferencesRitualFamiliarityEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
+}
+
+enum MemberPreferencesRitualLanguageEnum {
+  @JsonValue(r'practical')
+  practical(r'practical'),
+  @JsonValue(r'balanced')
+  balanced(r'balanced'),
+  @JsonValue(r'mystical')
+  mystical(r'mystical'),
+  @JsonValue(r'prefer_not_to_say')
+  preferNotToSay(r'prefer_not_to_say'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const MemberPreferencesRitualLanguageEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
 }
 
 enum MemberPreferencesRitualModeEnum {

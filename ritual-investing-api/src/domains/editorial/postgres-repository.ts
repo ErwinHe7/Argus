@@ -609,15 +609,15 @@ export function createPostgresMemberContentRepository(
         )
           ? profile.rows[0]!.ritual_mode
           : "tarot";
-        const riskComfort = ["cautious", "balanced", "adventurous"].includes(
+        const riskComfort = ["low", "moderate", "high"].includes(
           profile.rows[0]?.risk_comfort ?? "",
         )
           ? profile.rows[0]!.risk_comfort
-          : "balanced";
+          : "moderate";
         const preferredKind =
-          riskComfort === "cautious"
+          riskComfort === "low"
             ? "grimoire"
-            : riskComfort === "adventurous"
+            : riskComfort === "high"
               ? "circle_template"
               : ritualMode === "astrology"
                 ? "coven"
@@ -673,8 +673,12 @@ export function createPostgresMemberContentRepository(
     async getGrimoire(context, id) {
       return memberClient(context, async (client) => {
         const result = await client.query<{ payload: unknown }>(
-          "select detail_payload as payload from ritual_catalog.grimoires_v1 where id = $1",
-          [id],
+          `select jsonb_set(detail_payload, '{saved}', to_jsonb(exists(
+             select 1 from saved_grimoires saved
+             where saved.tenant_id = $1 and saved.grimoire_id = grimoire.id
+           ))) as payload
+           from ritual_catalog.grimoires_v1 grimoire where id = $2`,
+          [context.tenantId, id],
         );
         return result.rows[0] === undefined
           ? null
@@ -725,8 +729,12 @@ export function createPostgresMemberContentRepository(
     async getCircleTemplate(context, id) {
       return memberClient(context, async (client) => {
         const result = await client.query<{ payload: unknown }>(
-          "select detail_payload as payload from ritual_catalog.circle_templates_v1 where id = $1",
-          [id],
+          `select jsonb_set(detail_payload, '{saved}', to_jsonb(exists(
+             select 1 from saved_circle_templates saved
+             where saved.tenant_id = $1 and saved.template_id = template.id
+           ))) as payload
+           from ritual_catalog.circle_templates_v1 template where id = $2`,
+          [context.tenantId, id],
         );
         return result.rows[0] === undefined
           ? null

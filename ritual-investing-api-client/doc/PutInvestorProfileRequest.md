@@ -8,7 +8,9 @@ import 'package:ritual_investing_api_client/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**contributionRhythm** | **String** |  | [optional] 
 **goalType** | **String** |  | 
+**investingExperience** | **String** |  | [optional] 
 **riskComfort** | **String** |  | 
 **timeHorizon** | **String** |  | 
 

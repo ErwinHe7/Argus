@@ -202,8 +202,6 @@ describe("member account state", () => {
           },
           body: JSON.stringify({
             birth_date: profile.birth_date,
-            derived_profile_code: profile.derived_profile_code,
-            algorithm_version: profile.algorithm_version,
           }),
         },
         testBindings(),
@@ -336,8 +334,6 @@ describe("member account state", () => {
             headers: both,
             body: JSON.stringify({
               birth_date: astrology.birth_date,
-              derived_profile_code: astrology.derived_profile_code,
-              algorithm_version: astrology.algorithm_version,
             }),
           },
           bindings,
@@ -390,8 +386,6 @@ describe("member account state", () => {
             headers: readOnly,
             body: JSON.stringify({
               birth_date: astrology.birth_date,
-              derived_profile_code: astrology.derived_profile_code,
-              algorithm_version: astrology.algorithm_version,
             }),
           },
           testBindings(),

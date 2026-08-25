@@ -18,6 +18,22 @@ describe("Worker entrypoints", () => {
     expect(await response.json()).toMatchObject({ data: { status: "ok" } });
   });
 
+  it("fails closed without exposing production configuration errors", async () => {
+    const response = await worker.fetch(
+      new Request("https://api.example.test/health"),
+      { ...env, ENVIRONMENT: "production" } as unknown as Bindings,
+      createExecutionContext(),
+    );
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      type: "https://api.just-build-this.app/problems/service-unavailable",
+      title: "Service unavailable",
+      status: 503,
+      code: "runtime_configuration_unavailable",
+    });
+  });
+
   it("exposes scheduled and queue handlers", async () => {
     const scheduledContext = createExecutionContext();
     await worker.scheduled(

@@ -120,4 +120,21 @@ describe("authorization regression inventory", () => {
       ).not.toContain(allowed.status);
     }
   }, 30_000);
+
+  it("denies missing, wrong, and admin authorized parties on every member operation", async () => {
+    const memberEntries = matrix.filter((entry) => entry.actor === "member");
+    for (const entry of memberEntries) {
+      for (const azp of [undefined, "wrong-mobile-client", ADMIN_CLIENT_ID]) {
+        const token = memberToken(auth0Key, {
+          permissions: entry.permissions,
+          ...(azp === undefined ? { azp: undefined } : { azp }),
+        });
+        const response = await request(entry, {
+          authorization: `Bearer ${token}`,
+        });
+        expect(response.status, `${entry.method} ${entry.path} azp=${azp}`)
+          .toBe(403);
+      }
+    }
+  }, 30_000);
 });

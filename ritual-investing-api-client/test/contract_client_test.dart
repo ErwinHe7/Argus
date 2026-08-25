@@ -41,6 +41,44 @@ void main() {
     expect(asset.assetType, AssetSummaryAssetTypeEnum.unknownDefaultOpenApi);
   });
 
+  test('decodes every mixed Discover and Search result independently', () {
+    final payloads = <String, Map<String, dynamic>>{
+      'asset': {'asset': _assetSummary()},
+      'coven': {'coven': _covenSummary()},
+      'grimoire': {'grimoire': _grimoireSummary()},
+      'circle_template': {'circle_template': _circleTemplateSummary()},
+    };
+
+    for (final entry in payloads.entries) {
+      final json = <String, dynamic>{'kind': entry.key, ...entry.value};
+      final discover = DiscoverItem.fromJson(json);
+      final search = SearchResult.fromJson(json);
+      expect(discover.kind.value, entry.key);
+      expect(search.kind.value, entry.key);
+      expect(
+        [
+          discover.asset,
+          discover.coven,
+          discover.grimoire,
+          discover.circleTemplate,
+        ].where((value) => value != null),
+        hasLength(1),
+      );
+      expect(
+        [
+          search.asset,
+          search.coven,
+          search.grimoire,
+          search.circleTemplate,
+        ].where((value) => value != null),
+        hasLength(1),
+      );
+    }
+
+    final future = DiscoverItem.fromJson({'kind': 'future_result'});
+    expect(future.kind, DiscoverItemKindEnum.unknownDefaultOpenApi);
+  });
+
   test(
     'uses explicit Auth0 OAuth token storage and an HTTPS default origin',
     () {
@@ -78,6 +116,68 @@ void main() {
     },
   );
 }
+
+Map<String, dynamic> _demo() => {
+  'is_demo': true,
+  'limitations': ['Illustrative fixture only.'],
+  'observed_at': '2026-08-24T12:00:00Z',
+  'source_label': 'Ritual fixture',
+};
+
+Map<String, dynamic> _assetSummary() => {
+  'appearance_reason': 'Durable research example.',
+  'asset_type': 'etf',
+  'currency': 'USD',
+  'demo': _demo(),
+  'id': '018f3c2a-4b67-7a89-8abc-1234567890ab',
+  'name': 'Quiet Fund',
+  'revision_id': '018f3c2a-4b67-7a89-8abc-1234567890ac',
+  'slug': 'quiet-fund',
+  'symbol': 'QUIET',
+};
+
+Map<String, dynamic> _covenSummary() => {
+  'category': 'founder',
+  'company': 'Quiet Company',
+  'demo': _demo(),
+  'effective_date': '2026-01-01',
+  'focus': 'Durable systems',
+  'id': '018f3c2a-4b67-7a89-8abc-1234567890ad',
+  'revision_id': '018f3c2a-4b67-7a89-8abc-1234567890ae',
+  'slug': 'quiet-company',
+  'symbol': 'QCO',
+  'teaser': 'A dated fictional qualification.',
+  'verified_as_of': '2026-08-20',
+};
+
+Map<String, dynamic> _grimoireSummary() => {
+  'curator_label': 'Ritual Research',
+  'demo': _demo(),
+  'description': 'Durability over drama.',
+  'id': '018f3c2a-4b67-7a89-8abc-1234567890af',
+  'revision_id': '018f3c2a-4b67-7a89-8abc-1234567890b0',
+  'slug': 'quiet-power',
+  'theme': 'durability',
+  'title': 'Quiet Power',
+};
+
+Map<String, dynamic> _circleTemplateSummary() => {
+  'creator': {
+    'bio': 'A fictional curator.',
+    'demo': _demo(),
+    'display_name': 'Selene Vale',
+    'id': '018f3c2a-4b67-7a89-8abc-1234567890b1',
+    'is_fictional': true,
+    'slug': 'selene-vale',
+  },
+  'demo': _demo(),
+  'description': 'A fictional demo circle.',
+  'id': '018f3c2a-4b67-7a89-8abc-1234567890b2',
+  'revision_id': '018f3c2a-4b67-7a89-8abc-1234567890b3',
+  'slug': 'soft-power',
+  'theme': 'soft_power',
+  'title': 'Soft Power',
+};
 
 class _RecordingAdapter implements HttpClientAdapter {
   final requests = <RequestOptions>[];

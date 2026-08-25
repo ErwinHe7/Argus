@@ -18,7 +18,11 @@ part 'investor_profile.g.dart';
 class InvestorProfile {
   /// Returns a new [InvestorProfile] instance.
   InvestorProfile({
+    required this.contributionRhythm,
+
     required this.goalType,
+
+    required this.investingExperience,
 
     required this.isDemo,
 
@@ -30,12 +34,30 @@ class InvestorProfile {
   });
 
   @JsonKey(
+    name: r'contribution_rhythm',
+    required: true,
+    includeIfNull: true,
+    unknownEnumValue:
+        InvestorProfileContributionRhythmEnum.unknownDefaultOpenApi,
+  )
+  final InvestorProfileContributionRhythmEnum? contributionRhythm;
+
+  @JsonKey(
     name: r'goal_type',
     required: true,
     includeIfNull: false,
     unknownEnumValue: InvestorProfileGoalTypeEnum.unknownDefaultOpenApi,
   )
   final InvestorProfileGoalTypeEnum goalType;
+
+  @JsonKey(
+    name: r'investing_experience',
+    required: true,
+    includeIfNull: true,
+    unknownEnumValue:
+        InvestorProfileInvestingExperienceEnum.unknownDefaultOpenApi,
+  )
+  final InvestorProfileInvestingExperienceEnum? investingExperience;
 
   @JsonKey(name: r'is_demo', required: true, includeIfNull: false)
   final bool isDemo;
@@ -64,7 +86,9 @@ class InvestorProfile {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is InvestorProfile &&
+          other.contributionRhythm == contributionRhythm &&
           other.goalType == goalType &&
+          other.investingExperience == investingExperience &&
           other.isDemo == isDemo &&
           other.riskComfort == riskComfort &&
           other.timeHorizon == timeHorizon &&
@@ -72,7 +96,9 @@ class InvestorProfile {
 
   @override
   int get hashCode =>
+      (contributionRhythm == null ? 0 : contributionRhythm.hashCode) +
       goalType.hashCode +
+      (investingExperience == null ? 0 : investingExperience.hashCode) +
       isDemo.hashCode +
       riskComfort.hashCode +
       timeHorizon.hashCode +
@@ -89,6 +115,28 @@ class InvestorProfile {
   }
 }
 
+enum InvestorProfileContributionRhythmEnum {
+  @JsonValue(r'weekly')
+  weekly(r'weekly'),
+  @JsonValue(r'biweekly')
+  biweekly(r'biweekly'),
+  @JsonValue(r'monthly')
+  monthly(r'monthly'),
+  @JsonValue(r'irregular')
+  irregular(r'irregular'),
+  @JsonValue(r'not_sure')
+  notSure(r'not_sure'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const InvestorProfileContributionRhythmEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
+}
+
 enum InvestorProfileGoalTypeEnum {
   @JsonValue(r'calm_fund')
   calmFund(r'calm_fund'),
@@ -102,6 +150,24 @@ enum InvestorProfileGoalTypeEnum {
   unknownDefaultOpenApi(r'unknown_default_open_api');
 
   const InvestorProfileGoalTypeEnum(this.value);
+
+  final String value;
+
+  @override
+  String toString() => value;
+}
+
+enum InvestorProfileInvestingExperienceEnum {
+  @JsonValue(r'new')
+  new_(r'new'),
+  @JsonValue(r'some_experience')
+  someExperience(r'some_experience'),
+  @JsonValue(r'experienced')
+  experienced(r'experienced'),
+  @JsonValue(r'unknown_default_open_api')
+  unknownDefaultOpenApi(r'unknown_default_open_api');
+
+  const InvestorProfileInvestingExperienceEnum(this.value);
 
   final String value;
 

@@ -7,6 +7,7 @@ import {
   type AccountResolver,
 } from "../../middleware/account-tenant.ts";
 import { auth0Jwk } from "../../middleware/auth0-jwk.ts";
+import { requireMemberClient } from "../../middleware/member-client.ts";
 import { requirePermission } from "../../middleware/permissions.ts";
 import {
   preAuthRateLimit,
@@ -45,6 +46,7 @@ export function simulationSecurity(
   return [
     preAuthRateLimit("RL_COMMAND"),
     auth0Jwk(dependencies.auth0Keys),
+    requireMemberClient,
     requirePermission("write:self"),
     requirePermission("simulate:self"),
     requestMediaBoundary,

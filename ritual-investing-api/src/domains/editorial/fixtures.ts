@@ -15,12 +15,14 @@ import type {
   AssetMetric,
   AssetSummary,
   CircleTemplateDetail,
+  CircleTemplateSummary,
   CovenDetail,
   CovenSummary,
   DailyRitualDetail,
   DiscoverItem,
   EvidenceDetail,
   GrimoireDetail,
+  GrimoireSummary,
   PublicCovenTeaser,
   PublicDiscoverItem,
   RowanCounsel,
@@ -201,6 +203,7 @@ const quietPower: GrimoireDetail = {
   curator_label: "Ritual Research",
   revision_id: fixtureIds.quietPowerRevision,
   assets: assets.map(stripAsset),
+  saved: false,
   demo,
 };
 
@@ -218,6 +221,7 @@ const softPower: CircleTemplateDetail = {
     weight_bps: [4000, 2500, 3500][index]!,
     note: "Deterministic template allocation.",
   })),
+  saved: false,
   demo,
 };
 
@@ -445,8 +449,11 @@ export function createDeterministicContentRepository(
       kind: "coven" as const,
       coven: covenSummary(entry),
     })),
-    { kind: "grimoire" as const, grimoire: quietPower },
-    { kind: "circle_template" as const, circle_template: softPower },
+    { kind: "grimoire" as const, grimoire: grimoireSummary(quietPower) },
+    {
+      kind: "circle_template" as const,
+      circle_template: circleTemplateSummary(softPower),
+    },
   ];
   const publicDiscoverItems: PublicDiscoverItem[] = [
     ...assets.map((asset) => ({
@@ -816,16 +823,28 @@ function covenSummary(entry: CovenDetail): CovenSummary {
   };
 }
 
+function grimoireSummary(entry: GrimoireDetail): GrimoireSummary {
+  const { assets: _assets, saved: _saved, ...summary } = entry;
+  return summary;
+}
+
+function circleTemplateSummary(
+  entry: CircleTemplateDetail,
+): CircleTemplateSummary {
+  const { assets: _assets, saved: _saved, ...summary } = entry;
+  return summary;
+}
+
 function discoverPosition(item: DiscoverItem): string {
   switch (item.kind) {
     case "asset":
-      return `asset|${item.asset.symbol}|${item.asset.id}`;
+      return `asset|${item.asset!.symbol}|${item.asset!.id}`;
     case "coven":
-      return `coven|${item.coven.company}|${item.coven.id}`;
+      return `coven|${item.coven!.company}|${item.coven!.id}`;
     case "grimoire":
-      return `grimoire|${item.grimoire.title}|${item.grimoire.id}`;
+      return `grimoire|${item.grimoire!.title}|${item.grimoire!.id}`;
     case "circle_template":
-      return `circle_template|${item.circle_template.title}|${item.circle_template.id}`;
+      return `circle_template|${item.circle_template!.title}|${item.circle_template!.id}`;
   }
 }
 

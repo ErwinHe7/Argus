@@ -75,6 +75,22 @@ describe("Auth0 API access-token verification", () => {
     await expect(response.json()).resolves.toMatchObject({ error: { code: "forbidden" } });
   });
 
+  it("accepts the Auth0 API and userinfo audience pair", async () => {
+    const response = await bootstrap(memberToken(auth0Key, {
+      aud: [AUTH0_AUDIENCE, `${AUTH0_ISSUER}userinfo`],
+    }));
+
+    expect(response.status).toBe(200);
+  });
+
+  it("accepts the Auth0 audience pair regardless of order", async () => {
+    const response = await bootstrap(memberToken(auth0Key, {
+      aud: [`${AUTH0_ISSUER}userinfo`, AUTH0_AUDIENCE],
+    }));
+
+    expect(response.status).toBe(200);
+  });
+
   it("rejects extra audiences and an unbounded permissions claim", async () => {
     expect((await bootstrap(memberToken(auth0Key, {
       aud: [AUTH0_AUDIENCE, "https://extra.example"],
