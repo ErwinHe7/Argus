@@ -2,7 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart'
     as api;
 
-import '../../../core/api/ritual_api.dart';
+import '../../../core/api/api_failure_mapper.dart';
 import '../../../core/api/view_state.dart';
 import '../domain/model.dart';
 
