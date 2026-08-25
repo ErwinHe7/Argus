@@ -44,6 +44,7 @@ export function auth0Jwk(
       );
     const issuer = context.env.AUTH0_ISSUER;
     const audience = context.env.AUTH0_AUDIENCE;
+    const userinfoAudience = `${issuer}userinfo`;
 
     try {
       const payload = await verifyManagedJwt({
@@ -56,7 +57,11 @@ export function auth0Jwk(
       const parsed = z
         .object({
           iss: z.literal(issuer),
-          aud: z.literal(audience),
+          aud: z.union([
+            z.literal(audience),
+            z.tuple([z.literal(audience), z.literal(userinfoAudience)]),
+            z.tuple([z.literal(userinfoAudience), z.literal(audience)]),
+          ]),
           sub: z.string().min(1).max(255),
           permissions: z.array(permissionSchema).max(64),
           azp: z.string().min(1).max(255).optional(),
