@@ -5,6 +5,8 @@ import '../../features/coven/data/repository.dart';
 import '../../features/coven/domain/model.dart' as coven_domain;
 import '../../features/discover/data/repository.dart';
 import '../../features/discover/domain/model.dart';
+import '../../features/funding/data/repository.dart';
+import '../../features/funding/domain/model.dart';
 import '../../features/onboarding/domain/onboarding_draft.dart' as onboarding;
 import '../../features/profile/data/repository.dart';
 import '../../features/profile/domain/model.dart';
@@ -72,6 +74,21 @@ MemberBootstrap mapSessionBootstrap(SessionBootstrap data) => MemberBootstrap(
       MemberThemePreference.system,
   },
   personalization: MemberPersonalization(
+    contributionRhythm: switch (data.investorProfile?.contributionRhythm) {
+      SessionBootstrapInvestorProfileContributionRhythmEnum.weekly =>
+        MemberContributionRhythm.weekly,
+      SessionBootstrapInvestorProfileContributionRhythmEnum.biweekly =>
+        MemberContributionRhythm.biweekly,
+      SessionBootstrapInvestorProfileContributionRhythmEnum.monthly =>
+        MemberContributionRhythm.monthly,
+      SessionBootstrapInvestorProfileContributionRhythmEnum.irregular =>
+        MemberContributionRhythm.irregular,
+      SessionBootstrapInvestorProfileContributionRhythmEnum.notSure =>
+        MemberContributionRhythm.notSure,
+      SessionBootstrapInvestorProfileContributionRhythmEnum
+          .unknownDefaultOpenApi ||
+      null => MemberContributionRhythm.unavailable,
+    },
     explanationDepth: switch (data.investorProfile?.experience) {
       SessionBootstrapInvestorProfileExperienceEnum.new_ =>
         MemberExplanationDepth.beginner,
@@ -335,8 +352,8 @@ class GeneratedDiscoverApiService implements DiscoverService {
         creatorsRequest,
       ]);
       final discover = (responses[0] as Response<DiscoverResponse>).data!;
-      final creators = (responses[1] as Response<CreatorCollectionResponse>)
-          .data!;
+      final creators =
+          (responses[1] as Response<CreatorCollectionResponse>).data!;
       return DiscoverModel(
         items: discover.data.map(_mapDiscoverItem).toList(growable: false),
         creators: creators.data.map(_mapSeededCreator).toList(growable: false),
@@ -416,8 +433,9 @@ DiscoverItemView _mapDiscoverItem(DiscoverItem item) => switch (item.kind) {
       demo: _mapResearchDemo(value.demo),
     );
   }(),
-  DiscoverItemKindEnum.unknownDefaultOpenApi =>
-    throw const LoadFailure(LoadPhase.terminalFailure),
+  DiscoverItemKindEnum.unknownDefaultOpenApi => throw const LoadFailure(
+    LoadPhase.terminalFailure,
+  ),
 };
 
 SeededCreatorView _mapSeededCreator(SeededCreator value) {
@@ -446,8 +464,9 @@ String _covenCategory(CovenSummaryCategoryEnum category) => switch (category) {
   CovenSummaryCategoryEnum.founder => 'Woman founder',
   CovenSummaryCategoryEnum.owner => 'Women-owned',
   CovenSummaryCategoryEnum.chiefExecutive => 'Woman chief executive',
-  CovenSummaryCategoryEnum.unknownDefaultOpenApi =>
-    throw const LoadFailure(LoadPhase.terminalFailure),
+  CovenSummaryCategoryEnum.unknownDefaultOpenApi => throw const LoadFailure(
+    LoadPhase.terminalFailure,
+  ),
 };
 
 class GeneratedCovenApiService implements CovenService {
@@ -576,29 +595,26 @@ class GeneratedCovenApiService implements CovenService {
 
 coven_domain.CovenQualificationCategory _covenQualificationCategory(
   Object category,
-) =>
-    switch (category) {
-      CovenSummaryCategoryEnum.founder ||
-      CovenQualificationCategoryEnum.founder =>
-        coven_domain.CovenQualificationCategory.founder,
-      CovenSummaryCategoryEnum.owner || CovenQualificationCategoryEnum.owner =>
-        coven_domain.CovenQualificationCategory.owner,
-      CovenSummaryCategoryEnum.chiefExecutive ||
-      CovenQualificationCategoryEnum.chiefExecutive =>
-        coven_domain.CovenQualificationCategory.chiefExecutive,
-      _ => throw const LoadFailure(LoadPhase.terminalFailure),
-    };
+) => switch (category) {
+  CovenSummaryCategoryEnum.founder || CovenQualificationCategoryEnum.founder =>
+    coven_domain.CovenQualificationCategory.founder,
+  CovenSummaryCategoryEnum.owner || CovenQualificationCategoryEnum.owner =>
+    coven_domain.CovenQualificationCategory.owner,
+  CovenSummaryCategoryEnum.chiefExecutive ||
+  CovenQualificationCategoryEnum.chiefExecutive =>
+    coven_domain.CovenQualificationCategory.chiefExecutive,
+  _ => throw const LoadFailure(LoadPhase.terminalFailure),
+};
 
 coven_domain.CovenEvidenceSummary _mapCovenEvidenceSummary(
   EvidenceSummary value,
-) =>
-    coven_domain.CovenEvidenceSummary(
-      claimId: value.claimId,
-      factorLabel: value.factorLabel,
-      observedAt: value.observedAt,
-      summary: value.summary,
-      uncertainty: value.uncertainty,
-    );
+) => coven_domain.CovenEvidenceSummary(
+  claimId: value.claimId,
+  factorLabel: value.factorLabel,
+  observedAt: value.observedAt,
+  summary: value.summary,
+  uncertainty: value.uncertainty,
+);
 
 coven_domain.CovenDemoDisclosure _mapCovenDemo(DemoDisclosure value) =>
     coven_domain.CovenDemoDisclosure(
@@ -1043,7 +1059,7 @@ PutInvestorProfileRequestTimeHorizonEnum _requestHorizon(
     PutInvestorProfileRequestTimeHorizonEnum.long,
 };
 
-class GeneratedPortfolioApiService implements PortfolioService {
+class GeneratedPortfolioApiService implements PortfolioService, FundingService {
   GeneratedPortfolioApiService(RitualInvestingApiClient client)
     : _portfolios = PortfoliosApi(client.dio),
       _simulation = SimulationApi(client.dio);
@@ -1052,22 +1068,11 @@ class GeneratedPortfolioApiService implements PortfolioService {
   final SimulationApi _simulation;
 
   @override
-  Future<PortfolioCollection> fetch() async {
+  Future<PortfolioCollection> fetchList() async {
     try {
       final values = (await _portfolios.listPortfolios()).data!.data;
       return PortfolioCollection(
-        items: values
-            .map(
-              (item) => PortfolioSummary(
-                id: item.id,
-                name: item.name,
-                cashMinor: item.cash.minorUnits,
-                valuationMinor: item.latestValuation.minorUnits,
-                version: item.version,
-                ledgerWatermark: item.ledgerWatermark,
-              ),
-            )
-            .toList(growable: false),
+        items: values.map(_portfolio).toList(growable: false),
       );
     } on DioException catch (error) {
       _throwApiFailure(error);
@@ -1075,33 +1080,355 @@ class GeneratedPortfolioApiService implements PortfolioService {
   }
 
   @override
-  Future<ContributionReceipt> contribute({
-    required String portfolioId,
-    required String sourceId,
-    required int minorUnits,
-    required String idempotencyKey,
-  }) async {
+  Future<PortfolioSummary> fetchDetail(String portfolioId) async {
     try {
-      final result = (await _simulation.createDemoContribution(
-        portfolioId: portfolioId,
-        idempotencyKey: idempotencyKey,
-        createDemoContributionRequest: CreateDemoContributionRequest(
-          amount: PositiveInputMoney(
-            currency: PositiveInputMoneyCurrencyEnum.USD,
-            minorUnits: minorUnits,
-          ),
-          sourceId: sourceId,
-        ),
-      )).data!.data;
-      return ContributionReceipt(
-        commandId: result.commandId,
-        portfolioVersion: result.portfolioVersion,
+      return _portfolio(
+        (await _portfolios.getPortfolio(portfolioId: portfolioId)).data!.data,
       );
     } on DioException catch (error) {
       _throwApiFailure(error);
     }
   }
+
+  @override
+  Future<List<PortfolioHolding>> fetchHoldings(String portfolioId) async {
+    try {
+      final values = (await _portfolios.listPortfolioHoldings(
+        portfolioId: portfolioId,
+      )).data!.data;
+      return values.map(_holding).toList(growable: false);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<List<PortfolioActivityEntry>> fetchActivity(String portfolioId) async {
+    try {
+      final values = (await _portfolios.listPortfolioActivity(
+        portfolioId: portfolioId,
+      )).data!.data;
+      return values.map(_activity).toList(growable: false);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<List<PortfolioSnapshotView>> fetchSnapshots(String portfolioId) async {
+    try {
+      final values = (await _portfolios.listPortfolioSnapshots(
+        portfolioId: portfolioId,
+      )).data!.data;
+      return values.map(_snapshot).toList(growable: false);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<PortfolioSummary> create({
+    required String name,
+    required String idempotencyKey,
+  }) async {
+    try {
+      final response = await _portfolios.createPortfolio(
+        idempotencyKey: idempotencyKey,
+        createPortfolioRequest: CreatePortfolioRequest(
+          currency: CreatePortfolioRequestCurrencyEnum.USD,
+          name: name,
+        ),
+      );
+      return _portfolio(response.data!.data);
+    } on DioException catch (error) {
+      if (_isTransportFailure(error)) throw const PortfolioAmbiguousMutation();
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<PortfolioSummary> rename({
+    required String portfolioId,
+    required String name,
+    required int expectedVersion,
+  }) async {
+    try {
+      final response = await _portfolios.patchPortfolio(
+        portfolioId: portfolioId,
+        ifMatch: '"v$expectedVersion"',
+        patchPortfolioRequest: PatchPortfolioRequest(name: name),
+      );
+      return _portfolio(response.data!.data);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<void> archive({
+    required String portfolioId,
+    required int expectedVersion,
+  }) async {
+    try {
+      await _portfolios.archivePortfolio(
+        portfolioId: portfolioId,
+        ifMatch: '"v$expectedVersion"',
+      );
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<List<FundingSource>> fetchSources() async {
+    try {
+      final values = (await _portfolios.listDemoFundingSources()).data!.data;
+      return values.map(_fundingSource).toList(growable: false);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<FundingSource> createSource({
+    required FundingFixture fixture,
+    required String idempotencyKey,
+  }) async {
+    try {
+      final result = (await _portfolios.createDemoFundingSource(
+        idempotencyKey: idempotencyKey,
+        createDemoFundingSourceRequest: CreateDemoFundingSourceRequest(
+          fixtureKey: switch (fixture) {
+            FundingFixture.moonReserve =>
+              CreateDemoFundingSourceRequestFixtureKeyEnum.moonReserve,
+            FundingFixture.constellationSavings =>
+              CreateDemoFundingSourceRequestFixtureKeyEnum.constellationSavings,
+          },
+        ),
+      )).data!.data;
+      return _fundingSource(result);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<void> deleteSource(String sourceId) async {
+    try {
+      await _portfolios.deleteDemoFundingSource(sourceId: sourceId);
+    } on DioException catch (error) {
+      if (_apiErrorCode(error.response?.data) == 'funding_source_in_use') {
+        throw const FundingFailure.fundingSourceInUse();
+      }
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<ContributionReceipt> contribute(ContributionCommand command) async {
+    try {
+      if (command.currency != PortfolioCurrency.usd) {
+        _terminalContract();
+      }
+      final result = (await _simulation.createDemoContribution(
+        portfolioId: command.portfolioId,
+        idempotencyKey: command.idempotencyKey,
+        createDemoContributionRequest: CreateDemoContributionRequest(
+          amount: PositiveInputMoney(
+            currency: PositiveInputMoneyCurrencyEnum.USD,
+            minorUnits: command.minorUnits,
+          ),
+          effectiveAt: command.effectiveAt?.toUtc(),
+          sourceId: command.sourceId,
+        ),
+      )).data!.data;
+      if (result.status != SimulationResultStatusEnum.committed) {
+        _terminalContract();
+      }
+      return ContributionReceipt(
+        commandId: result.commandId,
+        portfolioVersion: result.portfolioVersion,
+        ledgerTransactionIds: List.unmodifiable(result.ledgerTransactionIds),
+        demo: _fundingDemo(result.demo),
+      );
+    } on DioException catch (error) {
+      if (_isTransportFailure(error)) {
+        throw const AmbiguousContributionFailure();
+      }
+      _throwApiFailure(error);
+    }
+  }
+
+  PortfolioSummary _portfolio(PortfolioView value) {
+    _requirePortfolioCurrency(value.currency);
+    _requireMoneyCurrency(value.cash.currency);
+    _requireMoneyCurrency(value.latestValuation.currency);
+    final status = switch (value.status) {
+      PortfolioViewStatusEnum.active => PortfolioStatus.active,
+      PortfolioViewStatusEnum.archived => PortfolioStatus.archived,
+      PortfolioViewStatusEnum.unknownDefaultOpenApi => _terminalContract(),
+    };
+    final targetAllocation = value.targetAllocation
+        .map((target) {
+          if (target.targetBps < 0 || target.targetBps > 10000) {
+            _terminalContract();
+          }
+          return PortfolioTargetAllocation(
+            assetId: target.assetId,
+            targetBps: target.targetBps,
+          );
+        })
+        .toList(growable: false);
+    return PortfolioSummary(
+      id: value.id,
+      name: value.name,
+      cashMinor: value.cash.minorUnits,
+      valuationMinor: value.latestValuation.minorUnits,
+      currency: PortfolioCurrency.usd,
+      status: status,
+      isDefault: value.isDefault,
+      version: value.version,
+      ledgerWatermark: value.ledgerWatermark,
+      asOfTransactionId: value.asOfTransactionId,
+      demo: _portfolioDemo(value.demo),
+      targetAllocation: List.unmodifiable(targetAllocation),
+    );
+  }
+
+  PortfolioHolding _holding(ListPortfolioHoldings200ResponseDataInner value) {
+    _requireMoneyCurrency(value.marketValue.currency);
+    return PortfolioHolding(
+      assetId: value.assetId,
+      symbol: value.symbol,
+      quantityValue: value.quantity.value,
+      quantityScale: value.quantity.scale,
+      marketValueMinor: value.marketValue.minorUnits,
+      currency: PortfolioCurrency.usd,
+      ledgerWatermark: value.ledgerWatermark,
+      asOfTransactionId: value.asOfTransactionId,
+    );
+  }
+
+  PortfolioActivityEntry _activity(PortfolioActivity value) {
+    if (value.cash.currency != SignedMoneyCurrencyEnum.USD) {
+      _terminalContract();
+    }
+    final type = switch (value.type) {
+      PortfolioActivityTypeEnum.contribution =>
+        PortfolioActivityType.contribution,
+      PortfolioActivityTypeEnum.order => PortfolioActivityType.order,
+      PortfolioActivityTypeEnum.rebalance => PortfolioActivityType.rebalance,
+      PortfolioActivityTypeEnum.recurring => PortfolioActivityType.recurring,
+      PortfolioActivityTypeEnum.unknownDefaultOpenApi => _terminalContract(),
+    };
+    return PortfolioActivityEntry(
+      id: value.id,
+      type: type,
+      descriptionCode: value.descriptionCode,
+      effectiveAt: value.effectiveAt.toUtc(),
+      cashMinor: value.cash.minorUnits,
+      currency: PortfolioCurrency.usd,
+      ledgerWatermark: value.ledgerWatermark,
+      demo: _portfolioDemo(value.demo),
+    );
+  }
+
+  PortfolioSnapshotView _snapshot(PortfolioSnapshot value) {
+    _requireMoneyCurrency(value.cash.currency);
+    _requireMoneyCurrency(value.marketValue.currency);
+    return PortfolioSnapshotView(
+      id: value.id,
+      asOfTransactionId: value.asOfTransactionId,
+      ledgerWatermark: value.ledgerWatermark,
+      asOf: value.asOf.toUtc(),
+      cashMinor: value.cash.minorUnits,
+      marketValueMinor: value.marketValue.minorUnits,
+      currency: PortfolioCurrency.usd,
+      demo: _portfolioDemo(value.demo),
+    );
+  }
+
+  FundingSource _fundingSource(DemoFundingSource value) {
+    final fixture = switch (value.fixtureKey) {
+      DemoFundingSourceFixtureKeyEnum.moonReserve => FundingFixture.moonReserve,
+      DemoFundingSourceFixtureKeyEnum.constellationSavings =>
+        FundingFixture.constellationSavings,
+      DemoFundingSourceFixtureKeyEnum.unknownDefaultOpenApi =>
+        _terminalContract(),
+    };
+    final expected = switch (fixture) {
+      FundingFixture.moonReserve => ('Moon Reserve (fictional)', '1108'),
+      FundingFixture.constellationSavings => (
+        'Constellation Savings (fictional)',
+        '2042',
+      ),
+    };
+    if (value.displayLabel != expected.$1 ||
+        value.fictionalLast4 != expected.$2) {
+      _terminalContract();
+    }
+    final status = switch (value.status) {
+      DemoFundingSourceStatusEnum.active => FundingSourceStatus.active,
+      DemoFundingSourceStatusEnum.inactive => FundingSourceStatus.inactive,
+      DemoFundingSourceStatusEnum.unknownDefaultOpenApi => _terminalContract(),
+    };
+    return FundingSource(
+      id: value.id,
+      fixture: fixture,
+      displayLabel: value.displayLabel,
+      fictionalLast4: value.fictionalLast4,
+      status: status,
+      demo: _fundingDemo(value.demo),
+    );
+  }
+
+  PortfolioDemoDisclosure _portfolioDemo(SimulationDemoDisclosure value) {
+    _requireDemo(value);
+    return PortfolioDemoDisclosure(
+      isDemo: true,
+      observedAt: value.observedAt.toUtc(),
+      sourceLabel: value.sourceLabel,
+      limitations: List.unmodifiable(value.limitations),
+    );
+  }
+
+  FundingDemoDisclosure _fundingDemo(SimulationDemoDisclosure value) {
+    _requireDemo(value);
+    return FundingDemoDisclosure(
+      isDemo: true,
+      observedAt: value.observedAt.toUtc(),
+      sourceLabel: value.sourceLabel,
+      limitations: List.unmodifiable(value.limitations),
+    );
+  }
+
+  void _requireDemo(SimulationDemoDisclosure value) {
+    if (!value.isDemo ||
+        value.sourceLabel.trim().isEmpty ||
+        value.limitations.isEmpty) {
+      _terminalContract();
+    }
+  }
+
+  void _requirePortfolioCurrency(PortfolioViewCurrencyEnum currency) {
+    if (currency != PortfolioViewCurrencyEnum.USD) _terminalContract();
+  }
+
+  void _requireMoneyCurrency(MoneyCurrencyEnum currency) {
+    if (currency != MoneyCurrencyEnum.USD) _terminalContract();
+  }
 }
+
+Never _terminalContract() => throw const LoadFailure(
+  LoadPhase.terminalFailure,
+  message: 'The Demo data format is not supported by this app version.',
+);
+
+bool _isTransportFailure(DioException error) =>
+    error.type == DioExceptionType.connectionError ||
+    error.type == DioExceptionType.connectionTimeout ||
+    error.type == DioExceptionType.receiveTimeout ||
+    error.type == DioExceptionType.sendTimeout;
 
 Never _throwApiFailure(DioException error) {
   if (error.type == DioExceptionType.connectionError ||
@@ -1117,19 +1444,21 @@ class ApiFailureMapper {
   const ApiFailureMapper._();
 
   static LoadFailure map(DioException error) {
-    final code = _errorCode(error.response?.data);
+    final code = _apiErrorCode(error.response?.data);
+    final message = _apiErrorMessage(error.response?.data);
     if (code != null) {
       return LoadFailure(switch (code) {
         'forbidden' || 'insufficient_scope' => LoadPhase.forbidden,
         'not_found' || 'resource_not_found' => LoadPhase.empty,
         'conflict' ||
         'version_conflict' ||
-        'idempotency_conflict' => LoadPhase.conflict,
+        'idempotency_conflict' ||
+        'portfolio_archive_blocked' => LoadPhase.conflict,
         'rate_limited' || 'throttled' => LoadPhase.throttled,
         'temporarily_unavailable' ||
         'service_unavailable' => LoadPhase.retryableFailure,
         _ => LoadPhase.terminalFailure,
-      });
+      }, message: message);
     }
     return LoadFailure(switch (error.response?.statusCode) {
       403 => LoadPhase.forbidden,
@@ -1141,12 +1470,20 @@ class ApiFailureMapper {
       _ => LoadPhase.terminalFailure,
     });
   }
+}
 
-  static String? _errorCode(Object? data) {
-    if (data is! Map) return null;
-    final envelope = data['error'];
-    if (envelope is! Map) return null;
-    final code = envelope['code'];
-    return code is String ? code : null;
-  }
+String? _apiErrorCode(Object? data) {
+  if (data is! Map) return null;
+  final envelope = data['error'];
+  if (envelope is! Map) return null;
+  final code = envelope['code'];
+  return code is String ? code : null;
+}
+
+String? _apiErrorMessage(Object? data) {
+  if (data is! Map) return null;
+  final envelope = data['error'];
+  if (envelope is! Map) return null;
+  final message = envelope['message'];
+  return message is String && message.trim().isNotEmpty ? message : null;
 }

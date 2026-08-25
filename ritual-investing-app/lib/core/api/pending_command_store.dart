@@ -121,6 +121,9 @@ class PendingCommandStore {
     await Future.wait(keys.map(storage.delete));
   }
 
+  Future<void> clear(CacheScope scope, String operation) =>
+      storage.delete(_storageKey(scope, operation));
+
   String _scopePrefix(CacheScope scope) =>
       'pending-command:v1:${Uri.encodeComponent(scope.accountId)}:'
       '${scope.resetGeneration}:';

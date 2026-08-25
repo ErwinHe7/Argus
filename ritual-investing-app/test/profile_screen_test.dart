@@ -44,6 +44,7 @@ void main() {
       expect(find.byKey(const Key('you-policies')), findsOneWidget);
       expect(find.byKey(const Key('you-account')), findsOneWidget);
       expect(find.byKey(const Key('you-portfolio')), findsOneWidget);
+      expect(find.text('Default Demo Portfolio'), findsOneWidget);
       await tester.tap(find.byKey(const Key('you-investing')));
       expect(opened, 'investing');
     },
@@ -305,33 +306,79 @@ class _ReadyProfileRepository implements ProfileRepository {
   }
 }
 
-PortfolioController _portfolioController() =>
-    PortfolioController(repository: _ReadyPortfolioRepository());
+PortfolioController _portfolioController() => PortfolioController(
+  repository: _ReadyPortfolioRepository(),
+  bootstrapDefaultPortfolioId: 'portfolio-2',
+  createKey: () => 'create-key',
+);
 
 class _ReadyPortfolioRepository implements PortfolioRepository {
   @override
-  Future<RepositoryRead<PortfolioCollection>> load() async => RepositoryRead(
-    value: const PortfolioCollection(
-      items: [
-        PortfolioSummary(
-          id: 'portfolio-1',
-          name: 'Demo Portfolio',
-          cashMinor: 100000,
-          valuationMinor: 100000,
-          version: 1,
-          ledgerWatermark: 0,
+  Future<RepositoryRead<PortfolioCollection>> loadList() async =>
+      RepositoryRead(
+        value: PortfolioCollection(
+          items: [
+            PortfolioSummary(
+              id: 'portfolio-1',
+              name: 'Demo Portfolio',
+              cashMinor: 100000,
+              valuationMinor: 100000,
+              currency: PortfolioCurrency.usd,
+              status: PortfolioStatus.active,
+              isDefault: true,
+              version: 1,
+              ledgerWatermark: 0,
+              asOfTransactionId: null,
+              demo: PortfolioDemoDisclosure(
+                isDemo: true,
+                observedAt: DateTime.utc(2026, 8, 25),
+                sourceLabel: 'Demo ledger',
+                limitations: const ['No real money.'],
+              ),
+              targetAllocation: const [],
+            ),
+            PortfolioSummary(
+              id: 'portfolio-2',
+              name: 'Default Demo Portfolio',
+              cashMinor: 200000,
+              valuationMinor: 200000,
+              currency: PortfolioCurrency.usd,
+              status: PortfolioStatus.active,
+              isDefault: false,
+              version: 2,
+              ledgerWatermark: 1,
+              asOfTransactionId: null,
+              demo: PortfolioDemoDisclosure(
+                isDemo: true,
+                observedAt: DateTime.utc(2026, 8, 25),
+                sourceLabel: 'Demo ledger',
+                limitations: const ['No real money.'],
+              ),
+              targetAllocation: const [],
+            ),
+          ],
         ),
-      ],
-    ),
-    isStale: false,
-    committedAt: DateTime.utc(2026, 8, 25),
-  );
+        isStale: false,
+        committedAt: DateTime.utc(2026, 8, 25),
+      );
 
   @override
-  Future<ContributionReceipt> contribute({
-    required String portfolioId,
-    required String sourceId,
-    required int minorUnits,
+  Future<RepositoryRead<PortfolioDetail>> loadDetail(String portfolioId) =>
+      throw UnimplementedError();
+  @override
+  Future<PortfolioSummary> create({
+    required String name,
     required String idempotencyKey,
+  }) => throw UnimplementedError();
+  @override
+  Future<PortfolioSummary> rename({
+    required String portfolioId,
+    required String name,
+    required int expectedVersion,
+  }) => throw UnimplementedError();
+  @override
+  Future<void> archive({
+    required String portfolioId,
+    required int expectedVersion,
   }) => throw UnimplementedError();
 }

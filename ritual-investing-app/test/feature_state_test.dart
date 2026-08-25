@@ -93,6 +93,8 @@ void main() {
     final profile = ProfileController(repository: _FailureProfileRepository());
     final portfolio = PortfolioController(
       repository: _FailurePortfolioRepository(),
+      bootstrapDefaultPortfolioId: 'portfolio-a',
+      createKey: () => 'create-key',
     );
     await profile.load();
     await portfolio.load();
@@ -167,14 +169,26 @@ class _FailureProfileRepository implements ProfileRepository {
 
 class _FailurePortfolioRepository implements PortfolioRepository {
   @override
-  Future<RepositoryRead<PortfolioCollection>> load() =>
+  Future<RepositoryRead<PortfolioCollection>> loadList() =>
       Future.error(const LoadFailure(LoadPhase.forbidden));
 
   @override
-  Future<ContributionReceipt> contribute({
-    required String portfolioId,
-    required String sourceId,
-    required int minorUnits,
+  Future<RepositoryRead<PortfolioDetail>> loadDetail(String portfolioId) =>
+      Future.error(const LoadFailure(LoadPhase.forbidden));
+  @override
+  Future<PortfolioSummary> create({
+    required String name,
     required String idempotencyKey,
+  }) => Future.error(const LoadFailure(LoadPhase.forbidden));
+  @override
+  Future<PortfolioSummary> rename({
+    required String portfolioId,
+    required String name,
+    required int expectedVersion,
+  }) => Future.error(const LoadFailure(LoadPhase.forbidden));
+  @override
+  Future<void> archive({
+    required String portfolioId,
+    required int expectedVersion,
   }) => Future.error(const LoadFailure(LoadPhase.forbidden));
 }

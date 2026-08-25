@@ -23,6 +23,7 @@ import '../../features/grimoires/presentation/grimoire_detail_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
 import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/portfolio/presentation/portfolio_screen.dart';
 import '../../features/ritual/presentation/daily_ritual_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/shell/presentation/app_shell.dart';
@@ -56,6 +57,7 @@ GoRouter createAppRouter({
         MemberRoutes.discoverCreator ||
         MemberRoutes.discoverCircle ||
         MemberRoutes.covenEntry => container.hasU5Research,
+        MemberRoutes.portfolio => true,
         _ => false,
       };
       if (stableId == null ||
@@ -78,6 +80,22 @@ GoRouter createAppRouter({
           container: container,
           assetId: stableId,
           source: source,
+        );
+      }
+      if (definition == MemberRoutes.portfolio) {
+        return PortfolioScreen(
+          key: ValueKey('portfolio-$stableId'),
+          portfolioId: stableId,
+          portfolioController: container.portfolioController,
+          fundingSourceController: container.fundingSourceController,
+          contributionController: container.contributionController,
+          onOpenPortfolio: (id) =>
+              context.pushReplacement(MemberRoutes.portfolio.location(id)),
+          onOpenAsset: container.hasAssetCodex
+              ? (id) => context.push(
+                  MemberRoutes.assetLocation(id, sourceKind: 'direct'),
+                )
+              : null,
         );
       }
       if (container.hasU5Research) {

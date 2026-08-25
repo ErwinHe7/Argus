@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:ritual_investing_app/core/api/pending_command_store.dart';
+import 'package:ritual_investing_app/core/api/invalidation_bus.dart';
 import 'package:ritual_investing_app/core/api/ritual_api.dart';
 import 'package:ritual_investing_app/core/auth/auth_controller.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
@@ -15,6 +16,9 @@ import 'package:ritual_investing_app/features/coven/application/controller.dart'
 import 'package:ritual_investing_app/features/coven/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/application/controller.dart';
 import 'package:ritual_investing_app/features/discover/data/repository.dart';
+import 'package:ritual_investing_app/features/funding/application/contribution_controller.dart';
+import 'package:ritual_investing_app/features/funding/application/funding_source_controller.dart';
+import 'package:ritual_investing_app/features/funding/data/repository.dart';
 import 'package:ritual_investing_app/features/onboarding/application/onboarding_controller.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_draft_store.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_repository.dart';
@@ -215,40 +219,66 @@ class GuidedMemberTestHarness {
       onboardingController: OnboardingController(
         now: () => DateTime.utc(2026, 8, 25, 12),
       ),
-      featureScopeFactory: (scope, cache, bootstrap) => MemberFeatureScope(
-        scope: scope,
-        dailyRitualController: DailyRitualController(
-          repository: DailyRitualRepository(
-            service: GeneratedRitualApiService(client),
-            cache: cache,
-          ),
-        ),
-        discoverController: DiscoverController(
-          repository: CachedDiscoverRepository(
-            service: GeneratedDiscoverApiService(client),
-            cache: cache,
-          ),
-          personalization: bootstrap.personalization,
-        ),
-        covenController: CovenController(
-          repository: CachedCovenRepository(
-            service: GeneratedCovenApiService(client),
-            cache: cache,
-          ),
-        ),
-        profileController: ProfileController(
-          repository: CachedProfileRepository(
-            service: GeneratedProfileApiService(client),
-            cache: cache,
-          ),
-        ),
-        portfolioController: PortfolioController(
+      featureScopeFactory: (scope, cache, bootstrap) {
+        final financeService = GeneratedPortfolioApiService(client);
+        final portfolioController = PortfolioController(
           repository: CachedPortfolioRepository(
-            service: GeneratedPortfolioApiService(client),
+            service: financeService,
             cache: cache,
           ),
-        ),
-      ),
+          bootstrapDefaultPortfolioId: bootstrap.defaultPortfolioId,
+          createKey: () => 'guided-portfolio-key',
+        );
+        final fundingRepository = CachedFundingRepository(
+          service: financeService,
+          cache: cache,
+        );
+        final invalidationBus = InvalidationBus();
+        return MemberFeatureScope(
+          scope: scope,
+          dailyRitualController: DailyRitualController(
+            repository: DailyRitualRepository(
+              service: GeneratedRitualApiService(client),
+              cache: cache,
+            ),
+          ),
+          discoverController: DiscoverController(
+            repository: CachedDiscoverRepository(
+              service: GeneratedDiscoverApiService(client),
+              cache: cache,
+            ),
+            personalization: bootstrap.personalization,
+          ),
+          covenController: CovenController(
+            repository: CachedCovenRepository(
+              service: GeneratedCovenApiService(client),
+              cache: cache,
+            ),
+          ),
+          profileController: ProfileController(
+            repository: CachedProfileRepository(
+              service: GeneratedProfileApiService(client),
+              cache: cache,
+            ),
+          ),
+          portfolioController: portfolioController,
+          fundingSourceController: FundingSourceController(
+            repository: fundingRepository,
+            createKey: () => 'guided-source-key',
+          ),
+          contributionController: ContributionController(
+            repository: fundingRepository,
+            portfolioController: portfolioController,
+            pendingStore: PendingCommandStore(storage: storage),
+            invalidationBus: invalidationBus,
+            scope: scope,
+            createKey: () => 'guided-contribution-key',
+            now: () => DateTime.utc(2026, 8, 25),
+            rhythm: bootstrap.personalization.contributionRhythm,
+          ),
+          invalidationBus: invalidationBus,
+        );
+      },
     );
     final harness = GuidedMemberTestHarness._(
       container,

@@ -1,5 +1,6 @@
 import 'package:ritual_investing_app/core/api/ritual_api.dart';
 import 'package:ritual_investing_app/core/api/pending_command_store.dart';
+import 'package:ritual_investing_app/core/api/invalidation_bus.dart';
 import 'package:ritual_investing_app/core/auth/auth_controller.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/bootstrap/dependency_container.dart';
@@ -19,6 +20,10 @@ import 'package:ritual_investing_app/features/discover/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
 import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
 import 'package:ritual_investing_app/features/grimoires/domain/model.dart';
+import 'package:ritual_investing_app/features/funding/application/contribution_controller.dart';
+import 'package:ritual_investing_app/features/funding/application/funding_source_controller.dart';
+import 'package:ritual_investing_app/features/funding/data/repository.dart';
+import 'package:ritual_investing_app/features/funding/domain/model.dart';
 import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
 import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
 import 'package:ritual_investing_app/features/portfolio/domain/model.dart';
@@ -49,6 +54,9 @@ DependencyContainer fixtureContainer({
   final storage = cache ?? MemoryReadCache();
   final tracker = loadTracker ?? FeatureLoadTracker();
   final memberState = _FixtureMemberState();
+  final commands =
+      pendingCommandStore ??
+      PendingCommandStore(storage: _MemoryProtectedStorage());
   return DependencyContainer(
     authController:
         authController ??
@@ -58,15 +66,27 @@ DependencyContainer fixtureContainer({
     sessionBootstrapService:
         sessionBootstrapService ?? _FixtureSessionBootstrapService(memberState),
     cacheStorage: storage,
-    pendingCommandStore:
-        pendingCommandStore ??
-        PendingCommandStore(storage: _MemoryProtectedStorage()),
+    pendingCommandStore: commands,
     entryCoordinator: entryCoordinator,
     featureScopeFactory: (scope, scopedCache, bootstrap) {
       final covenRepository = CovenRepository(
         service: _FixtureCovenService(tracker),
         cache: scopedCache,
       );
+      final financeService = _FixturePortfolioService();
+      final portfolioController = PortfolioController(
+        repository: CachedPortfolioRepository(
+          service: financeService,
+          cache: scopedCache,
+        ),
+        bootstrapDefaultPortfolioId: bootstrap.defaultPortfolioId,
+        createKey: () => 'fixture-portfolio-key',
+      );
+      final fundingRepository = CachedFundingRepository(
+        service: financeService,
+        cache: scopedCache,
+      );
+      final invalidationBus = InvalidationBus();
       return MemberFeatureScope(
         scope: scope,
         dailyRitualController: DailyRitualController(
@@ -89,12 +109,22 @@ DependencyContainer fixtureContainer({
             cache: scopedCache,
           ),
         ),
-        portfolioController: PortfolioController(
-          repository: CachedPortfolioRepository(
-            service: _FixturePortfolioService(),
-            cache: scopedCache,
-          ),
+        portfolioController: portfolioController,
+        fundingSourceController: FundingSourceController(
+          repository: fundingRepository,
+          createKey: () => 'fixture-source-key',
         ),
+        contributionController: ContributionController(
+          repository: fundingRepository,
+          portfolioController: portfolioController,
+          pendingStore: commands,
+          invalidationBus: invalidationBus,
+          scope: scope,
+          createKey: () => 'fixture-contribution-key',
+          now: () => DateTime.utc(2026, 8, 25),
+          rhythm: bootstrap.personalization.contributionRhythm,
+        ),
+        invalidationBus: invalidationBus,
         assetCodexRepository: AssetCodexRepository(
           service: _FixtureAssetCodexService(),
           cache: scopedCache,
@@ -739,29 +769,90 @@ class _FixtureProfileService implements ProfileService {
   );
 }
 
-class _FixturePortfolioService implements PortfolioService {
-  @override
-  Future<PortfolioCollection> fetch() async => const PortfolioCollection(
-    items: [
-      PortfolioSummary(
-        id: '00000000-0000-4000-8000-000000000601',
-        name: 'Demo Portfolio',
-        cashMinor: 100000,
-        valuationMinor: 100000,
-        version: 1,
-        ledgerWatermark: 0,
-      ),
-    ],
+class _FixturePortfolioService implements PortfolioService, FundingService {
+  static final portfolio = PortfolioSummary(
+    id: '00000000-0000-4000-8000-000000000601',
+    name: 'Demo Portfolio',
+    cashMinor: 100000,
+    valuationMinor: 100000,
+    currency: PortfolioCurrency.usd,
+    status: PortfolioStatus.active,
+    isDefault: true,
+    version: 1,
+    ledgerWatermark: 0,
+    asOfTransactionId: null,
+    demo: PortfolioDemoDisclosure(
+      isDemo: true,
+      observedAt: DateTime.utc(2026, 8, 25),
+      sourceLabel: 'Fixture Demo ledger',
+      limitations: const ['No real money moves.'],
+    ),
+    targetAllocation: const [],
+  );
+
+  static final fundingDemo = FundingDemoDisclosure(
+    isDemo: true,
+    observedAt: DateTime.utc(2026, 8, 25),
+    sourceLabel: 'Fixture Demo ledger',
+    limitations: const ['No real money moves.'],
   );
 
   @override
-  Future<ContributionReceipt> contribute({
-    required String portfolioId,
-    required String sourceId,
-    required int minorUnits,
+  Future<PortfolioCollection> fetchList() async =>
+      PortfolioCollection(items: [portfolio]);
+  @override
+  Future<PortfolioSummary> fetchDetail(String portfolioId) async => portfolio;
+  @override
+  Future<List<PortfolioHolding>> fetchHoldings(String portfolioId) async =>
+      const [];
+  @override
+  Future<List<PortfolioActivityEntry>> fetchActivity(
+    String portfolioId,
+  ) async => const [];
+  @override
+  Future<List<PortfolioSnapshotView>> fetchSnapshots(
+    String portfolioId,
+  ) async => const [];
+  @override
+  Future<PortfolioSummary> create({
+    required String name,
     required String idempotencyKey,
-  }) async => const ContributionReceipt(
-    commandId: '00000000-0000-4000-8000-000000000602',
-    portfolioVersion: 2,
-  );
+  }) async => portfolio;
+  @override
+  Future<PortfolioSummary> rename({
+    required String portfolioId,
+    required String name,
+    required int expectedVersion,
+  }) async => portfolio;
+  @override
+  Future<void> archive({
+    required String portfolioId,
+    required int expectedVersion,
+  }) async {}
+  @override
+  Future<List<FundingSource>> fetchSources() async => [
+    FundingSource(
+      id: '00000000-0000-4000-8000-000000000603',
+      fixture: FundingFixture.moonReserve,
+      displayLabel: 'Moon Reserve (fictional)',
+      fictionalLast4: '1108',
+      status: FundingSourceStatus.active,
+      demo: fundingDemo,
+    ),
+  ];
+  @override
+  Future<FundingSource> createSource({
+    required FundingFixture fixture,
+    required String idempotencyKey,
+  }) async => (await fetchSources()).single;
+  @override
+  Future<void> deleteSource(String sourceId) async {}
+  @override
+  Future<ContributionReceipt> contribute(ContributionCommand command) async =>
+      ContributionReceipt(
+        commandId: '00000000-0000-4000-8000-000000000602',
+        portfolioVersion: 2,
+        ledgerTransactionIds: const [],
+        demo: fundingDemo,
+      );
 }

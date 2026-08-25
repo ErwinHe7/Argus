@@ -12,6 +12,15 @@ enum MemberRiskFraming { low, moderate, high, unavailable }
 
 enum MemberRitualMode { tarot, astrology, unavailable }
 
+enum MemberContributionRhythm {
+  weekly,
+  biweekly,
+  monthly,
+  irregular,
+  notSure,
+  unavailable,
+}
+
 @immutable
 class MemberPersonalization {
   const MemberPersonalization({
@@ -19,12 +28,14 @@ class MemberPersonalization {
     this.ritualVoice = MemberRitualVoice.unavailable,
     this.riskFraming = MemberRiskFraming.unavailable,
     this.ritualMode = MemberRitualMode.unavailable,
+    this.contributionRhythm = MemberContributionRhythm.unavailable,
   });
 
   final MemberExplanationDepth explanationDepth;
   final MemberRitualVoice ritualVoice;
   final MemberRiskFraming riskFraming;
   final MemberRitualMode ritualMode;
+  final MemberContributionRhythm contributionRhythm;
 
   @override
   bool operator ==(Object other) =>
@@ -32,11 +43,18 @@ class MemberPersonalization {
       other.explanationDepth == explanationDepth &&
       other.ritualVoice == ritualVoice &&
       other.riskFraming == riskFraming &&
-      other.ritualMode == ritualMode;
+      other.ritualMode == ritualMode &&
+      other.contributionRhythm == contributionRhythm;
 
   @override
   int get hashCode =>
-      Object.hash(explanationDepth, ritualVoice, riskFraming, ritualMode);
+      Object.hash(
+        explanationDepth,
+        ritualVoice,
+        riskFraming,
+        ritualMode,
+        contributionRhythm,
+      );
 }
 
 @immutable

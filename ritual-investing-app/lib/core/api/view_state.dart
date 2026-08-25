@@ -23,7 +23,8 @@ class ViewState<T> {
 }
 
 class LoadFailure implements Exception {
-  const LoadFailure(this.phase);
+  const LoadFailure(this.phase, {this.message});
 
   final LoadPhase phase;
+  final String? message;
 }

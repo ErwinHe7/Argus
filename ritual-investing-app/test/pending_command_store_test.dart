@@ -86,6 +86,40 @@ void main() {
       expect(storage.values, isEmpty);
     },
   );
+
+  test(
+    'clearing one committed operation preserves unrelated pending commands',
+    () async {
+      final storage = _MemoryProtectedStorage();
+      final journal = PendingCommandStore(storage: storage);
+      const scope = CacheScope(accountId: 'account-a', resetGeneration: 3);
+      final contribution = PendingCommand(
+        scope: scope,
+        operation: 'create_demo_contribution',
+        key: 'contribution-key',
+        precondition: 'portfolio:portfolio-a:v8',
+        canonicalPayloadHash:
+            'dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+        createdAt: DateTime.utc(2026, 8, 24, 12),
+      );
+      final order = PendingCommand(
+        scope: scope,
+        operation: 'place_order',
+        key: 'order-key',
+        precondition: 'preview:4',
+        canonicalPayloadHash:
+            'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
+        createdAt: DateTime.utc(2026, 8, 24, 12),
+      );
+      await journal.save(contribution);
+      await journal.save(order);
+
+      await journal.clear(scope, contribution.operation);
+
+      expect(await journal.restore(scope, contribution.operation), isNull);
+      expect((await journal.restore(scope, order.operation))?.command, order);
+    },
+  );
 }
 
 class _MemoryProtectedStorage implements ProtectedStorage {

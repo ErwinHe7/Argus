@@ -19,6 +19,9 @@ import '../../features/creators/application/controller.dart';
 import '../../features/creators/data/repository.dart';
 import '../../features/discover/application/controller.dart';
 import '../../features/discover/data/repository.dart';
+import '../../features/funding/application/contribution_controller.dart';
+import '../../features/funding/application/funding_source_controller.dart';
+import '../../features/funding/data/repository.dart';
 import '../../features/grimoires/application/controller.dart';
 import '../../features/grimoires/data/repository.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
@@ -38,6 +41,7 @@ import '../../features/search/application/controller.dart';
 import '../../features/search/data/repository.dart';
 import '../api/ritual_api.dart';
 import '../api/flutter_protected_storage.dart';
+import '../api/invalidation_bus.dart';
 import '../api/pending_command_store.dart';
 import '../auth/auth0_session_repository.dart';
 import '../auth/auth_controller.dart';
@@ -71,6 +75,9 @@ class MemberFeatureScope {
     required this.covenController,
     required this.profileController,
     required this.portfolioController,
+    required this.fundingSourceController,
+    required this.contributionController,
+    required this.invalidationBus,
     this.assetCodexRepository,
     this.searchController,
     this.rowanController,
@@ -86,6 +93,9 @@ class MemberFeatureScope {
   final CovenController covenController;
   final ProfileController profileController;
   final PortfolioController portfolioController;
+  final FundingSourceController fundingSourceController;
+  final ContributionController contributionController;
+  final InvalidationBus invalidationBus;
   final AssetCodexRepository? assetCodexRepository;
   final SearchController? searchController;
   final RowanController? rowanController;
@@ -117,6 +127,7 @@ class MemberFeatureScope {
           await Future.wait([
             profileController.load(),
             portfolioController.load(),
+            fundingSourceController.load(),
           ]);
       }
     });
@@ -130,6 +141,9 @@ class MemberFeatureScope {
     covenController.dispose();
     profileController.dispose();
     portfolioController.dispose();
+    fundingSourceController.dispose();
+    contributionController.dispose();
+    unawaited(invalidationBus.dispose());
     searchController?.dispose();
     rowanController?.dispose();
   }
@@ -223,6 +237,10 @@ class DependencyContainer extends ChangeNotifier {
   ProfileController get profileController => _requireScope().profileController;
   PortfolioController get portfolioController =>
       _requireScope().portfolioController;
+  FundingSourceController get fundingSourceController =>
+      _requireScope().fundingSourceController;
+  ContributionController get contributionController =>
+      _requireScope().contributionController;
   SearchController get searchController {
     final value = _requireScope().searchController;
     if (value == null) throw StateError('Search is unavailable.');
@@ -535,6 +553,7 @@ class DependencyContainer extends ChangeNotifier {
   factory DependencyContainer.production(RuntimeConfig config) {
     final cache = MemoryReadCache();
     final protectedStorage = FlutterProtectedStorage();
+    final pendingCommandStore = PendingCommandStore(storage: protectedStorage);
     final auth = AuthController(
       repository: Auth0SessionRepository.production(
         domain: config.auth0Domain,
@@ -564,13 +583,28 @@ class DependencyContainer extends ChangeNotifier {
       authController: auth,
       sessionBootstrapService: GeneratedSessionBootstrapService(client),
       cacheStorage: cache,
-      pendingCommandStore: PendingCommandStore(storage: protectedStorage),
+      pendingCommandStore: pendingCommandStore,
       entryCoordinator: entryCoordinator,
       featureScopeFactory: (scope, scopedCache, bootstrap) {
         final covenRepository = CovenRepository(
           service: GeneratedCovenApiService(client),
           cache: scopedCache,
         );
+        final portfolioService = GeneratedPortfolioApiService(client);
+        final portfolioRepository = CachedPortfolioRepository(
+          service: portfolioService,
+          cache: scopedCache,
+        );
+        final portfolioController = PortfolioController(
+          repository: portfolioRepository,
+          bootstrapDefaultPortfolioId: bootstrap.defaultPortfolioId,
+          createKey: _newCommandKey,
+        );
+        final fundingRepository = CachedFundingRepository(
+          service: portfolioService,
+          cache: scopedCache,
+        );
+        final invalidationBus = InvalidationBus();
         return MemberFeatureScope(
           scope: scope,
           dailyRitualController: DailyRitualController(
@@ -593,12 +627,22 @@ class DependencyContainer extends ChangeNotifier {
               cache: scopedCache,
             ),
           ),
-          portfolioController: PortfolioController(
-            repository: CachedPortfolioRepository(
-              service: GeneratedPortfolioApiService(client),
-              cache: scopedCache,
-            ),
+          portfolioController: portfolioController,
+          fundingSourceController: FundingSourceController(
+            repository: fundingRepository,
+            createKey: _newCommandKey,
           ),
+          contributionController: ContributionController(
+            repository: fundingRepository,
+            portfolioController: portfolioController,
+            pendingStore: pendingCommandStore,
+            invalidationBus: invalidationBus,
+            scope: scope,
+            createKey: _newCommandKey,
+            now: DateTime.now,
+            rhythm: bootstrap.personalization.contributionRhythm,
+          ),
+          invalidationBus: invalidationBus,
           assetCodexRepository: AssetCodexRepository(
             service: GeneratedAssetCodexService(client),
             cache: scopedCache,

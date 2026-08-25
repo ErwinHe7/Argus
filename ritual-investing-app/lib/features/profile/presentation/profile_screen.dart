@@ -109,8 +109,7 @@ class ProfileScreen extends StatelessWidget {
               subtitle: 'Onboarding consent status',
               onTap: onOpenPolicies,
             ),
-            if (portfolioController.state.value?.items.firstOrNull
-                case final portfolio?)
+            if (portfolioController.selected case final portfolio?)
               _MenuTile(
                 key: const Key('you-portfolio'),
                 icon: Icons.account_balance_wallet_outlined,
