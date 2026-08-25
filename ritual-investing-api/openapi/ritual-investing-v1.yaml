@@ -54774,8 +54774,18 @@ paths:
             schema:
               additionalProperties: false
               properties:
+                algorithm_version:
+                  enum:
+                    - v1
+                  type: string
                 birth_date:
                   format: date
+                  type: string
+                derived_profile_code:
+                  enum:
+                    - lunar_patient
+                    - solar_builder
+                    - rising_explorer
                   type: string
               required:
                 - birth_date

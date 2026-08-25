@@ -12,6 +12,16 @@
     "n_minus_1_zero_traffic_days": 14,
     "maximum_refresh_token_drain_days": 30
   },
+  "request_fixtures": [
+    {
+      "operation_id": "putAstrologyProfile",
+      "body": {
+        "algorithm_version": "v1",
+        "birth_date": "1990-02-03",
+        "derived_profile_code": "solar_builder"
+      }
+    }
+  ],
   "operations": [
     {
       "operation_id": "getDailyRitual",

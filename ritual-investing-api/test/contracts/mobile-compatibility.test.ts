@@ -10,6 +10,7 @@ import {
   assertOperationFingerprint,
   fingerprintOperationContract,
 } from "../../src/contracts/mobile-compatibility";
+import { astrologyPutSchema } from "../../src/domains/accounts/schemas";
 
 const apiRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const repositoryRoot = resolve(apiRoot, "..");
@@ -27,6 +28,10 @@ type CompatibilityManifest = {
     n_minus_1_zero_traffic_days: number;
     maximum_refresh_token_drain_days: number;
   };
+  request_fixtures: Array<{
+    operation_id: string;
+    body: unknown;
+  }>;
   operations: Array<{
     operation_id: string;
     method: string;
@@ -37,6 +42,21 @@ type CompatibilityManifest = {
 };
 
 describe("released mobile N-1 to N compatibility", () => {
+  it("accepts the released N-1 astrology update request", async () => {
+    const manifest = JSON.parse(
+      await readFile(
+        `${apiRoot}/compatibility/mobile-client-n-minus-1.json`,
+        "utf8",
+      ),
+    ) as CompatibilityManifest;
+    const fixture = manifest.request_fixtures.find(
+      ({ operation_id }) => operation_id === "putAstrologyProfile",
+    );
+
+    expect(fixture).toBeDefined();
+    expect(astrologyPutSchema.safeParse(fixture?.body).success).toBe(true);
+  });
+
   it("keeps every operation used by the released N-1 mobile client", async () => {
     const manifest = JSON.parse(
       await readFile(

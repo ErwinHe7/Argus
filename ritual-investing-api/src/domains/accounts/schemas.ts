@@ -114,7 +114,16 @@ export const astrologyProfileSchema = z
   .strict()
   .openapi("AstrologyProfile");
 export const astrologyPutSchema = astrologyProfileSchema
-  .pick({ birth_date: true })
+  .pick({
+    birth_date: true,
+    derived_profile_code: true,
+    algorithm_version: true,
+  })
+  .extend({
+    derived_profile_code:
+      astrologyProfileSchema.shape.derived_profile_code.optional(),
+    algorithm_version: astrologyProfileSchema.shape.algorithm_version.optional(),
+  })
   .strict();
 
 export const investorProfileSchema = z
