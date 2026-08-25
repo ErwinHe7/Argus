@@ -145,4 +145,50 @@ abstract final class MemberRoutes {
       queryParameters: query,
     ).toString();
   }
+
+  static String portfolioOrdersLocation(
+    String portfolioId, {
+    String? assetId,
+    String? symbol,
+  }) {
+    if (!isStableId(portfolioId)) {
+      throw ArgumentError.value(
+        portfolioId,
+        'portfolioId',
+        'Invalid portfolio ID.',
+      );
+    }
+    final query = <String, String>{};
+    if (assetId != null && isUuid(assetId)) query['asset_id'] = assetId;
+    if (symbol != null && symbol.trim().isNotEmpty) {
+      query['symbol'] = symbol.trim();
+    }
+    return Uri(
+      path: '${portfolio.location(portfolioId)}/orders',
+      queryParameters: query.isEmpty ? null : query,
+    ).toString();
+  }
+
+  static String portfolioOrderLocation(String portfolioId, String orderId) {
+    if (!isStableId(orderId)) {
+      throw ArgumentError.value(orderId, 'orderId', 'Invalid order ID.');
+    }
+    return '${portfolioOrdersLocation(portfolioId)}/${Uri.encodeComponent(orderId)}';
+  }
+
+  static String portfolioRecurringLocation(String portfolioId) =>
+      '${portfolio.location(portfolioId)}/recurring';
+
+  static String portfolioRecurringPlanLocation(
+    String portfolioId,
+    String planId,
+  ) {
+    if (!isStableId(planId)) {
+      throw ArgumentError.value(planId, 'planId', 'Invalid plan ID.');
+    }
+    return '${portfolioRecurringLocation(portfolioId)}/${Uri.encodeComponent(planId)}';
+  }
+
+  static String portfolioRebalanceLocation(String portfolioId) =>
+      '${portfolio.location(portfolioId)}/rebalance';
 }

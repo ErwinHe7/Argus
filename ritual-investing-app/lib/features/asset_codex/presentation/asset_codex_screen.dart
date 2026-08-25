@@ -24,12 +24,14 @@ class AssetCodexScreen extends StatelessWidget {
     required this.rowanController,
     required this.personalization,
     this.searchController,
+    this.onPreviewDemoOrder,
   });
 
   final AssetCodexController controller;
   final RowanController? rowanController;
   final MemberPersonalization personalization;
   final search.SearchController? searchController;
+  final void Function(String assetId, String symbol)? onPreviewDemoOrder;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -163,6 +165,20 @@ class AssetCodexScreen extends StatelessWidget {
         padding: EdgeInsets.only(top: 8),
         child: Text('Save state was confirmed from the server.'),
       ),
+    if (onPreviewDemoOrder != null) ...[
+      const SizedBox(height: 12),
+      FilledButton.icon(
+        key: const Key('asset-preview-order'),
+        style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
+        onPressed: () => onPreviewDemoOrder!(value.id, value.symbol),
+        icon: const Icon(Icons.receipt_long_outlined),
+        label: const Text('Preview Demo order'),
+      ),
+      const Text(
+        'Opens an editable provider-free preview. Nothing is submitted automatically.',
+        textAlign: TextAlign.center,
+      ),
+    ],
     if (controller.comparisonState.phase != LoadPhase.idle) ...[
       const SizedBox(height: 18),
       StateStatus(phase: controller.comparisonState.phase, onRetry: () {}),

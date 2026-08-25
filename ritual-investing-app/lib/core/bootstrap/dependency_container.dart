@@ -25,6 +25,8 @@ import '../../features/funding/data/repository.dart';
 import '../../features/grimoires/application/controller.dart';
 import '../../features/grimoires/data/repository.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
+import '../../features/orders/application/order_controller.dart';
+import '../../features/orders/data/repository.dart';
 import '../../features/onboarding/data/onboarding_draft_store.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
 import '../../features/onboarding/domain/onboarding_draft.dart';
@@ -33,6 +35,10 @@ import '../../features/profile/data/repository.dart';
 import '../../features/profile/domain/model.dart';
 import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/data/repository.dart';
+import '../../features/recurring/application/recurring_plan_controller.dart';
+import '../../features/recurring/data/repository.dart';
+import '../../features/rebalancing/application/rebalance_controller.dart';
+import '../../features/rebalancing/data/repository.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/ritual/data/daily_ritual_repository.dart';
 import '../../features/rowan/application/controller.dart';
@@ -85,6 +91,9 @@ class MemberFeatureScope {
     this.grimoireRepository,
     this.circleRepository,
     this.creatorRepository,
+    this.orderController,
+    this.recurringPlanController,
+    this.rebalanceController,
   });
 
   final CacheScope scope;
@@ -103,6 +112,9 @@ class MemberFeatureScope {
   final GrimoireRepository? grimoireRepository;
   final CircleRepository? circleRepository;
   final CreatorRepository? creatorRepository;
+  final OrderController? orderController;
+  final RecurringPlanController? recurringPlanController;
+  final RebalanceController? rebalanceController;
   final Map<MemberBranch, Future<void>> _loads = {};
   bool _isDisposed = false;
 
@@ -111,6 +123,9 @@ class MemberFeatureScope {
   void updateBootstrap(MemberBootstrap bootstrap) {
     if (_isDisposed) return;
     discoverController.updatePersonalization(bootstrap.personalization);
+    recurringPlanController?.updateRhythm(
+      bootstrap.personalization.contributionRhythm,
+    );
   }
 
   Future<void> load(MemberBranch branch) {
@@ -143,6 +158,9 @@ class MemberFeatureScope {
     portfolioController.dispose();
     fundingSourceController.dispose();
     contributionController.dispose();
+    orderController?.dispose();
+    recurringPlanController?.dispose();
+    rebalanceController?.dispose();
     unawaited(invalidationBus.dispose());
     searchController?.dispose();
     rowanController?.dispose();
@@ -241,6 +259,24 @@ class DependencyContainer extends ChangeNotifier {
       _requireScope().fundingSourceController;
   ContributionController get contributionController =>
       _requireScope().contributionController;
+  OrderController get orderController {
+    final value = _requireScope().orderController;
+    if (value == null) throw StateError('Orders are unavailable.');
+    return value;
+  }
+
+  RecurringPlanController get recurringPlanController {
+    final value = _requireScope().recurringPlanController;
+    if (value == null) throw StateError('Recurring plans are unavailable.');
+    return value;
+  }
+
+  RebalanceController get rebalanceController {
+    final value = _requireScope().rebalanceController;
+    if (value == null) throw StateError('Rebalancing is unavailable.');
+    return value;
+  }
+
   SearchController get searchController {
     final value = _requireScope().searchController;
     if (value == null) throw StateError('Search is unavailable.');
@@ -273,6 +309,11 @@ class DependencyContainer extends ChangeNotifier {
   }
 
   bool get hasAssetCodex => _featureScope?.assetCodexRepository != null;
+
+  bool get hasU7 =>
+      _featureScope?.orderController != null &&
+      _featureScope?.recurringPlanController != null &&
+      _featureScope?.rebalanceController != null;
 
   bool get hasU5Research =>
       _featureScope?.covenRepository != null &&
@@ -605,6 +646,45 @@ class DependencyContainer extends ChangeNotifier {
           cache: scopedCache,
         );
         final invalidationBus = InvalidationBus();
+        final orderController = OrderController(
+          repository: OrderRepository(
+            service: GeneratedOrderApiService(client),
+          ),
+          portfolioController: portfolioController,
+          pendingStore: pendingCommandStore,
+          invalidationBus: invalidationBus,
+          scope: scope,
+          createKey: _newCommandKey,
+          now: DateTime.now,
+        );
+        final recurringPlanController = RecurringPlanController(
+          repository: RecurringPlanRepository(
+            service: GeneratedRecurringPlanApiService(client),
+          ),
+          pendingStore: pendingCommandStore,
+          scope: scope,
+          createKey: _newCommandKey,
+          now: DateTime.now,
+          rhythm: bootstrap.personalization.contributionRhythm,
+          isFundingSourceActive: (sourceId) async {
+            final result = await fundingRepository.loadSources();
+            return !result.isStale &&
+                result.value.items.any(
+                  (source) => source.id == sourceId && source.isActive,
+                );
+          },
+        );
+        final rebalanceController = RebalanceController(
+          repository: RebalanceRepository(
+            service: GeneratedRebalanceApiService(client),
+          ),
+          portfolioController: portfolioController,
+          pendingStore: pendingCommandStore,
+          invalidationBus: invalidationBus,
+          scope: scope,
+          createKey: _newCommandKey,
+          now: DateTime.now,
+        );
         return MemberFeatureScope(
           scope: scope,
           dailyRitualController: DailyRitualController(
@@ -642,6 +722,9 @@ class DependencyContainer extends ChangeNotifier {
             now: DateTime.now,
             rhythm: bootstrap.personalization.contributionRhythm,
           ),
+          orderController: orderController,
+          recurringPlanController: recurringPlanController,
+          rebalanceController: rebalanceController,
           invalidationBus: invalidationBus,
           assetCodexRepository: AssetCodexRepository(
             service: GeneratedAssetCodexService(client),

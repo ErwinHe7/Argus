@@ -22,8 +22,11 @@ import '../../features/grimoires/application/controller.dart';
 import '../../features/grimoires/presentation/grimoire_detail_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
+import '../../features/orders/presentation/order_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/portfolio/presentation/portfolio_screen.dart';
+import '../../features/rebalancing/presentation/rebalance_screen.dart';
+import '../../features/recurring/presentation/recurring_plan_screen.dart';
 import '../../features/ritual/presentation/daily_ritual_screen.dart';
 import '../../features/search/presentation/search_screen.dart';
 import '../../features/shell/presentation/app_shell.dart';
@@ -96,6 +99,20 @@ GoRouter createAppRouter({
                   MemberRoutes.assetLocation(id, sourceKind: 'direct'),
                 )
               : null,
+          onOpenOrders: container.hasU7
+              ? () =>
+                    context.push(MemberRoutes.portfolioOrdersLocation(stableId))
+              : null,
+          onOpenRecurringPlans: container.hasU7
+              ? () => context.push(
+                  MemberRoutes.portfolioRecurringLocation(stableId),
+                )
+              : null,
+          onOpenRebalance: container.hasU7
+              ? () => context.push(
+                  MemberRoutes.portfolioRebalanceLocation(stableId),
+                )
+              : null,
         );
       }
       if (container.hasU5Research) {
@@ -146,6 +163,120 @@ GoRouter createAppRouter({
     final childRoutes = <RouteBase>[resourceRoute(detail)];
     if (root.branch == MemberBranch.you) {
       childRoutes.addAll([
+        GoRoute(
+          path: 'portfolios/:portfolioId/orders',
+          redirect: (context, state) =>
+              _validU7PortfolioRoute(
+                container,
+                state.pathParameters['portfolioId'],
+              )
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) {
+            final portfolioId = state.pathParameters['portfolioId']!;
+            final assetId = state.uri.queryParameters['asset_id'];
+            final symbol = state.uri.queryParameters['symbol'];
+            return OrderScreen(
+              key: ValueKey('orders-$portfolioId-${assetId ?? 'holdings'}'),
+              portfolioId: portfolioId,
+              controller: container.orderController,
+              portfolioController: container.portfolioController,
+              preselectedAssetId:
+                  assetId != null && MemberRoutes.isUuid(assetId)
+                  ? assetId
+                  : null,
+              preselectedSymbol: symbol != null && symbol.trim().isNotEmpty
+                  ? symbol
+                  : null,
+              onOpenOrder: (orderId) => context.push(
+                MemberRoutes.portfolioOrderLocation(portfolioId, orderId),
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: 'portfolios/:portfolioId/orders/:orderId',
+          redirect: (context, state) =>
+              _validU7PortfolioRoute(
+                    container,
+                    state.pathParameters['portfolioId'],
+                  ) &&
+                  MemberRoutes.isStableId(state.pathParameters['orderId'] ?? '')
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) => OrderDetailScreen(
+            key: ValueKey(
+              'order-${state.pathParameters['portfolioId']}-'
+              '${state.pathParameters['orderId']}',
+            ),
+            portfolioId: state.pathParameters['portfolioId']!,
+            orderId: state.pathParameters['orderId']!,
+            controller: container.orderController,
+          ),
+        ),
+        GoRoute(
+          path: 'portfolios/:portfolioId/recurring',
+          redirect: (context, state) =>
+              _validU7PortfolioRoute(
+                container,
+                state.pathParameters['portfolioId'],
+              )
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) {
+            final portfolioId = state.pathParameters['portfolioId']!;
+            return RecurringPlansScreen(
+              key: ValueKey('recurring-$portfolioId'),
+              portfolioId: portfolioId,
+              controller: container.recurringPlanController,
+              portfolioController: container.portfolioController,
+              fundingSourceController: container.fundingSourceController,
+              onOpenPlan: (planId) => context.push(
+                MemberRoutes.portfolioRecurringPlanLocation(
+                  portfolioId,
+                  planId,
+                ),
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: 'portfolios/:portfolioId/recurring/:planId',
+          redirect: (context, state) =>
+              _validU7PortfolioRoute(
+                    container,
+                    state.pathParameters['portfolioId'],
+                  ) &&
+                  MemberRoutes.isStableId(state.pathParameters['planId'] ?? '')
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) => RecurringPlanDetailScreen(
+            key: ValueKey(
+              'recurring-${state.pathParameters['portfolioId']}-'
+              '${state.pathParameters['planId']}',
+            ),
+            portfolioId: state.pathParameters['portfolioId']!,
+            planId: state.pathParameters['planId']!,
+            controller: container.recurringPlanController,
+            portfolioController: container.portfolioController,
+          ),
+        ),
+        GoRoute(
+          path: 'portfolios/:portfolioId/rebalance',
+          redirect: (context, state) =>
+              _validU7PortfolioRoute(
+                container,
+                state.pathParameters['portfolioId'],
+              )
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) => RebalanceScreen(
+            key: ValueKey('rebalance-${state.pathParameters['portfolioId']}'),
+            portfolioId: state.pathParameters['portfolioId']!,
+            controller: container.rebalanceController,
+            portfolioController: container.portfolioController,
+          ),
+        ),
         GoRoute(
           path: 'investing',
           builder: (context, state) => InvestingProfileScreen(
@@ -645,8 +776,30 @@ class _AssetCodexRouteState extends State<_AssetCodexRoute> {
         widget.container.memberBootstrap?.personalization ??
         const MemberPersonalization(),
     searchController: widget.container.optionalSearchController,
+    onPreviewDemoOrder: widget.container.hasU7
+        ? (assetId, symbol) {
+            final portfolioId =
+                widget.container.memberBootstrap?.defaultPortfolioId;
+            if (portfolioId == null) return;
+            context.push(
+              MemberRoutes.portfolioOrdersLocation(
+                portfolioId,
+                assetId: assetId,
+                symbol: symbol,
+              ),
+            );
+          }
+        : null,
   );
 }
+
+bool _validU7PortfolioRoute(
+  DependencyContainer container,
+  String? portfolioId,
+) =>
+    container.hasU7 &&
+    portfolioId != null &&
+    MemberRoutes.isStableId(portfolioId);
 
 class _CovenDetailRoute extends StatefulWidget {
   const _CovenDetailRoute({

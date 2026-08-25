@@ -20,6 +20,9 @@ import 'package:ritual_investing_app/features/discover/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
 import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
 import 'package:ritual_investing_app/features/grimoires/domain/model.dart';
+import 'package:ritual_investing_app/features/orders/application/order_controller.dart';
+import 'package:ritual_investing_app/features/orders/data/repository.dart';
+import 'package:ritual_investing_app/features/orders/domain/model.dart';
 import 'package:ritual_investing_app/features/funding/application/contribution_controller.dart';
 import 'package:ritual_investing_app/features/funding/application/funding_source_controller.dart';
 import 'package:ritual_investing_app/features/funding/data/repository.dart';
@@ -27,6 +30,12 @@ import 'package:ritual_investing_app/features/funding/domain/model.dart';
 import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
 import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
 import 'package:ritual_investing_app/features/portfolio/domain/model.dart';
+import 'package:ritual_investing_app/features/rebalancing/application/rebalance_controller.dart';
+import 'package:ritual_investing_app/features/rebalancing/data/repository.dart';
+import 'package:ritual_investing_app/features/rebalancing/domain/model.dart';
+import 'package:ritual_investing_app/features/recurring/application/recurring_plan_controller.dart';
+import 'package:ritual_investing_app/features/recurring/data/repository.dart';
+import 'package:ritual_investing_app/features/recurring/domain/model.dart';
 import 'package:ritual_investing_app/features/profile/application/controller.dart';
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/domain/model.dart';
@@ -50,6 +59,7 @@ DependencyContainer fixtureContainer({
   FeatureLoadTracker? loadTracker,
   PendingCommandStore? pendingCommandStore,
   EntryCoordinator? entryCoordinator,
+  bool includeU7 = false,
 }) {
   final storage = cache ?? MemoryReadCache();
   final tracker = loadTracker ?? FeatureLoadTracker();
@@ -87,6 +97,43 @@ DependencyContainer fixtureContainer({
         cache: scopedCache,
       );
       final invalidationBus = InvalidationBus();
+      final orderController = includeU7
+          ? OrderController(
+              repository: OrderRepository(service: _FixtureOrderService()),
+              portfolioController: portfolioController,
+              pendingStore: commands,
+              invalidationBus: invalidationBus,
+              scope: scope,
+              createKey: () => 'fixture-order-key-01',
+              now: () => DateTime.utc(2026, 8, 25, 12),
+            )
+          : null;
+      final recurringPlanController = includeU7
+          ? RecurringPlanController(
+              repository: RecurringPlanRepository(
+                service: _FixtureRecurringService(),
+              ),
+              pendingStore: commands,
+              scope: scope,
+              createKey: () => 'fixture-recurring-1',
+              now: () => DateTime.utc(2026, 8, 25, 12),
+              rhythm: bootstrap.personalization.contributionRhythm,
+              isFundingSourceActive: (_) async => true,
+            )
+          : null;
+      final rebalanceController = includeU7
+          ? RebalanceController(
+              repository: RebalanceRepository(
+                service: _FixtureRebalanceService(),
+              ),
+              portfolioController: portfolioController,
+              pendingStore: commands,
+              invalidationBus: invalidationBus,
+              scope: scope,
+              createKey: () => 'fixture-rebalance-1',
+              now: () => DateTime.utc(2026, 8, 25, 12),
+            )
+          : null;
       return MemberFeatureScope(
         scope: scope,
         dailyRitualController: DailyRitualController(
@@ -125,6 +172,9 @@ DependencyContainer fixtureContainer({
           rhythm: bootstrap.personalization.contributionRhythm,
         ),
         invalidationBus: invalidationBus,
+        orderController: orderController,
+        recurringPlanController: recurringPlanController,
+        rebalanceController: rebalanceController,
         assetCodexRepository: AssetCodexRepository(
           service: _FixtureAssetCodexService(),
           cache: scopedCache,
@@ -855,4 +905,49 @@ class _FixturePortfolioService implements PortfolioService, FundingService {
         ledgerTransactionIds: const [],
         demo: fundingDemo,
       );
+}
+
+class _FixtureOrderService implements OrderService {
+  @override
+  Future<List<OrderView>> list(String portfolioId) async => const [];
+  @override
+  Future<OrderView> get(String orderId) => throw UnimplementedError();
+  @override
+  Future<OrderPreview> preview(OrderDraft draft) => throw UnimplementedError();
+  @override
+  Future<OrderReceipt> commit(OrderCommit command) =>
+      throw UnimplementedError();
+}
+
+class _FixtureRecurringService implements RecurringPlanService {
+  @override
+  Future<List<RecurringPlan>> list(String portfolioId) async => const [];
+  @override
+  Future<RecurringPlan> get(String planId) => throw UnimplementedError();
+  @override
+  Future<RecurringPlan> create(RecurringPlanCreate command) =>
+      throw UnimplementedError();
+  @override
+  Future<RecurringPlan> edit(RecurringPlanEdit command) =>
+      throw UnimplementedError();
+  @override
+  Future<RecurringPlan> pause(String planId, int expectedVersion) =>
+      throw UnimplementedError();
+  @override
+  Future<RecurringPlan> resume(String planId, int expectedVersion) =>
+      throw UnimplementedError();
+  @override
+  Future<void> cancel(String planId, int expectedVersion) =>
+      throw UnimplementedError();
+}
+
+class _FixtureRebalanceService implements RebalanceService {
+  @override
+  Future<RebalancePreview> preview(
+    String portfolioId,
+    List<RebalanceAllocation> allocations,
+  ) => throw UnimplementedError();
+  @override
+  Future<RebalanceReceipt> commit(RebalanceCommit command) =>
+      throw UnimplementedError();
 }

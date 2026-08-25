@@ -20,6 +20,9 @@ class PortfolioScreen extends StatefulWidget {
     required this.contributionController,
     this.onOpenPortfolio,
     this.onOpenAsset,
+    this.onOpenOrders,
+    this.onOpenRecurringPlans,
+    this.onOpenRebalance,
   });
 
   final String portfolioId;
@@ -28,6 +31,9 @@ class PortfolioScreen extends StatefulWidget {
   final ContributionController contributionController;
   final ValueChanged<String>? onOpenPortfolio;
   final ValueChanged<String>? onOpenAsset;
+  final VoidCallback? onOpenOrders;
+  final VoidCallback? onOpenRecurringPlans;
+  final VoidCallback? onOpenRebalance;
 
   @override
   State<PortfolioScreen> createState() => _PortfolioScreenState();
@@ -127,6 +133,16 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   ),
                   onArchive: _confirmArchive,
                 ),
+                if (widget.onOpenOrders != null ||
+                    widget.onOpenRecurringPlans != null ||
+                    widget.onOpenRebalance != null) ...[
+                  const SizedBox(height: 24),
+                  _SimulationActions(
+                    onOpenOrders: widget.onOpenOrders,
+                    onOpenRecurringPlans: widget.onOpenRecurringPlans,
+                    onOpenRebalance: widget.onOpenRebalance,
+                  ),
+                ],
                 const SizedBox(height: 24),
                 _PortfolioReads(
                   detail: detail,
@@ -420,6 +436,54 @@ class _ManagePortfolio extends StatelessWidget {
           style: _controlStyle,
           onPressed: () => unawaited(controller.reviewAndRetryArchive()),
           child: const Text('Review and retry archive'),
+        ),
+    ],
+  );
+}
+
+class _SimulationActions extends StatelessWidget {
+  const _SimulationActions({
+    this.onOpenOrders,
+    this.onOpenRecurringPlans,
+    this.onOpenRebalance,
+  });
+
+  final VoidCallback? onOpenOrders;
+  final VoidCallback? onOpenRecurringPlans;
+  final VoidCallback? onOpenRebalance;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text('Practice investing', style: Theme.of(context).textTheme.titleLarge),
+      const Text(
+        'Provider-free Demo commands use fictional prices and ledger entries. No real money moves.',
+      ),
+      const SizedBox(height: 10),
+      if (onOpenOrders != null)
+        FilledButton.icon(
+          key: const Key('open-demo-orders'),
+          style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
+          onPressed: onOpenOrders,
+          icon: const Icon(Icons.receipt_long_outlined),
+          label: const Text('Orders'),
+        ),
+      if (onOpenRecurringPlans != null)
+        OutlinedButton.icon(
+          key: const Key('open-recurring-plans'),
+          style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
+          onPressed: onOpenRecurringPlans,
+          icon: const Icon(Icons.event_repeat_outlined),
+          label: const Text('Recurring plans'),
+        ),
+      if (onOpenRebalance != null)
+        OutlinedButton.icon(
+          key: const Key('open-rebalance'),
+          style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
+          onPressed: onOpenRebalance,
+          icon: const Icon(Icons.balance_outlined),
+          label: const Text('Rebalance'),
         ),
     ],
   );
