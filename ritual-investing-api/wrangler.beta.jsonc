@@ -23,7 +23,7 @@
     "AUTH0_ISSUER": "https://dev-pxee7db52tqc4xoe.us.auth0.com/",
     "AUTH0_AUDIENCE": "https://api-beta.just-build-this.app",
     "AUTH0_JWKS_URL": "https://dev-pxee7db52tqc4xoe.us.auth0.com/.well-known/jwks.json",
-    "AUTH0_MEMBER_CLIENT_IDS": "replace-with-beta-auth0-mobile-client-id",
+    "AUTH0_MEMBER_CLIENT_IDS": "VIFuQLVxk6baW27jS9TzQ22pIV8lAqHz",
     "AUTH0_ADMIN_CLIENT_IDS": "replace-with-beta-auth0-admin-client-id",
     "CF_ACCESS_ISSUER": "https://replace-me-beta.cloudflareaccess.com",
     "CF_ACCESS_AUDIENCE": "replace-with-beta-cloudflare-access-application-aud",

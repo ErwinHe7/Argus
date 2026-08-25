@@ -79,7 +79,9 @@ export const requestMediaBoundary: MiddlewareHandler<AppEnvironment> = async (co
     return errorResponse(context, 415, "unsupported_media_type", "The content encoding is not supported.");
   }
   const contentType = context.req.header("content-type");
-  if (contentType === undefined && context.req.raw.body !== null) {
+  const hasBody = context.req.raw.body !== null
+    && context.req.header("content-length") !== "0";
+  if (contentType === undefined && hasBody) {
     return errorResponse(context, 415, "unsupported_media_type", "JSON requests require application/json.");
   }
   if (contentType !== undefined && contentType.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
