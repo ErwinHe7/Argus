@@ -1,0 +1,310 @@
+import 'package:ritual_investing_app/core/api/ritual_api.dart';
+import 'package:ritual_investing_app/core/api/pending_command_store.dart';
+import 'package:ritual_investing_app/core/auth/auth_controller.dart';
+import 'package:ritual_investing_app/core/auth/member_auth.dart';
+import 'package:ritual_investing_app/core/bootstrap/dependency_container.dart';
+import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
+import 'package:ritual_investing_app/core/cache/read_cache.dart';
+import 'package:ritual_investing_app/features/coven/application/controller.dart';
+import 'package:ritual_investing_app/features/coven/data/repository.dart';
+import 'package:ritual_investing_app/features/coven/domain/model.dart';
+import 'package:ritual_investing_app/features/discover/application/controller.dart';
+import 'package:ritual_investing_app/features/discover/data/repository.dart';
+import 'package:ritual_investing_app/features/discover/domain/model.dart';
+import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
+import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
+import 'package:ritual_investing_app/features/portfolio/domain/model.dart';
+import 'package:ritual_investing_app/features/profile/application/controller.dart';
+import 'package:ritual_investing_app/features/profile/data/repository.dart';
+import 'package:ritual_investing_app/features/profile/domain/model.dart';
+import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
+import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
+import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
+
+class FeatureLoadTracker {
+  final Map<MemberBranch, int> _counts = {};
+
+  int count(MemberBranch branch) => _counts[branch] ?? 0;
+  void hit(MemberBranch branch) =>
+      _counts.update(branch, (value) => value + 1, ifAbsent: () => 1);
+}
+
+DependencyContainer fixtureContainer({
+  ScopedReadCacheStorage? cache,
+  AuthController? authController,
+  SessionRepository? sessionRepository,
+  SessionBootstrapService? sessionBootstrapService,
+  FeatureLoadTracker? loadTracker,
+  PendingCommandStore? pendingCommandStore,
+}) {
+  final storage = cache ?? MemoryReadCache();
+  final tracker = loadTracker ?? FeatureLoadTracker();
+  return DependencyContainer(
+    authController:
+        authController ??
+        AuthController(
+          repository: sessionRepository ?? _FixtureSessionRepository(),
+        ),
+    sessionBootstrapService:
+        sessionBootstrapService ?? _FixtureSessionBootstrapService(),
+    cacheStorage: storage,
+    pendingCommandStore:
+        pendingCommandStore ??
+        PendingCommandStore(storage: _MemoryProtectedStorage()),
+    featureScopeFactory: (scope, scopedCache) => MemberFeatureScope(
+      scope: scope,
+      dailyRitualController: DailyRitualController(
+        repository: DailyRitualRepository(
+          service: _FixtureRitualService(tracker),
+          cache: scopedCache,
+        ),
+      ),
+      discoverController: DiscoverController(
+        repository: CachedDiscoverRepository(
+          service: _FixtureDiscoverService(tracker),
+          cache: scopedCache,
+        ),
+      ),
+      covenController: CovenController(
+        repository: CachedCovenRepository(
+          service: _FixtureCovenService(tracker),
+          cache: scopedCache,
+        ),
+      ),
+      profileController: ProfileController(
+        repository: CachedProfileRepository(
+          service: _FixtureProfileService(tracker),
+          cache: scopedCache,
+        ),
+      ),
+      portfolioController: PortfolioController(
+        repository: CachedPortfolioRepository(
+          service: _FixturePortfolioService(),
+          cache: scopedCache,
+        ),
+      ),
+    ),
+  );
+}
+
+class _FixtureSessionBootstrapService implements SessionBootstrapService {
+  @override
+  Future<MemberBootstrap> bootstrap() async => MemberBootstrap(
+    accountId: 'fixture-account',
+    resetGeneration: 0,
+    onboarding: const MemberOnboardingGate.complete(),
+    entitlement: const MemberEntitlement(
+      planCode: 'demo-free',
+      status: MemberEntitlementStatus.active,
+    ),
+    defaultPortfolioId: 'fixture-portfolio',
+    serverTime: DateTime.utc(2026, 8, 24),
+    contractVersion: '1.0.0',
+    themePreference: MemberThemePreference.system,
+  );
+}
+
+class _FixtureSessionRepository implements SessionRepository {
+  @override
+  MemberClientExpectation get memberClientExpectation =>
+      const MemberClientExpectation(authorizedParty: 'fixture-client');
+
+  @override
+  Stream<AuthSession> get recoveredSessions => const Stream.empty();
+
+  @override
+  Future<AuthSession?> recover() async =>
+      const AuthSession(accessToken: 'fixture');
+  @override
+  Future<AuthSession> authenticate(MemberAuthIntent intent) async =>
+      const AuthSession(accessToken: 'fixture');
+  @override
+  Future<void> logout() async {}
+}
+
+class _MemoryProtectedStorage implements ProtectedStorage {
+  final Map<String, String> values = {};
+
+  @override
+  Future<void> delete(String key) async => values.remove(key);
+
+  @override
+  Future<Map<String, String>> readAll() async => Map.of(values);
+
+  @override
+  Future<void> write(String key, String value) async => values[key] = value;
+}
+
+class _FixtureRitualService implements DailyRitualService {
+  _FixtureRitualService(this.tracker);
+  final FeatureLoadTracker tracker;
+
+  @override
+  Future<DailyRitual> fetchDaily() async {
+    tracker.hit(MemberBranch.ritual);
+    return DailyRitual(
+      assignmentId: '00000000-0000-4000-8000-000000000101',
+      date: DateTime.utc(2026, 8, 20),
+      mode: DailyRitualMode.tarot,
+      revision: const RitualRevision(
+        id: '10000000-0000-4000-8000-000000000001',
+        number: 1,
+      ),
+      title: 'Direction, not urgency.',
+      art: const RitualArt(
+        key: 'the_compass',
+        alt: 'The Compass tarot card: a woman holding a lantern at a celestial crossroads',
+      ),
+      interpretation: 'The strongest path today rewards patience. Favor durable momentum; let noisy names pass without you.',
+      guidance: 'Inspect the evidence, compare risks, and choose whether any research path deserves more attention.',
+      marketLabel: 'Market-informed · reveal the pattern',
+      ideas: const [
+        RitualIdea(
+          assetId: '20000000-0000-4000-8000-000000000001',
+          symbol: 'VIG',
+          name: 'Vanguard Dividend Appreciation ETF',
+          appearanceReason: 'steady wealth',
+          riskSummary: 'Short windows can reverse.',
+          changeLabel: '+0.42%',
+        ),
+        RitualIdea(
+          assetId: '20000000-0000-4000-8000-000000000002',
+          symbol: 'XLV',
+          name: 'Health Care Select Sector SPDR Fund',
+          appearanceReason: 'defensive orbit',
+          riskSummary: 'Sector concentration can underperform.',
+          changeLabel: '+0.31%',
+        ),
+        RitualIdea(
+          assetId: '20000000-0000-4000-8000-000000000003',
+          symbol: 'WOMN',
+          name: "Impact Shares YWCA Women's Empowerment ETF",
+          appearanceReason: 'leadership ETF',
+          riskSummary: 'The observation may not generalize.',
+          changeLabel: '+0.27%',
+        ),
+      ],
+      evidence: [
+        RitualEvidence(
+          claimId: '21000000-0000-4000-8000-000000000001',
+          factorLabel: 'Durable dividend momentum',
+          observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+          summary: 'Lower volatility and durable dividend momentum in the scenario window.',
+          uncertainty: 'Uncertainty remains high: the scenario is simulated, prices are fictional, and short-term conditions can reverse.',
+        ),
+        RitualEvidence(
+          claimId: '21000000-0000-4000-8000-000000000002',
+          factorLabel: 'Defensive relative strength',
+          observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+          summary: 'Defensive relative strength in the scenario window.',
+          uncertainty: 'Short windows can reverse.',
+        ),
+        RitualEvidence(
+          claimId: '21000000-0000-4000-8000-000000000003',
+          factorLabel: 'Positive breadth',
+          observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+          summary: 'Broad leadership exposure with positive breadth.',
+          uncertainty: 'The observation may not generalize.',
+        ),
+      ],
+      rowan: const RitualCounsel(
+        scriptRevisionId: '10000000-0000-4000-8000-000000000002',
+        surface: 'daily_ritual',
+        body: 'I’ll show you what changed beneath the reading.',
+        riskFooter: 'This deterministic demo explains uncertainty and never tells you to trade.',
+      ),
+      version: 1,
+      state: DailyRitualState.assigned,
+      revealedAt: null,
+      completedAt: null,
+      demo: RitualDisclosure(
+        isDemo: true,
+        observedAt: DateTime.utc(2026, 8, 20, 13, 35),
+        sourceLabel: 'Ritual deterministic demonstration',
+        limitations: const [
+          'Deterministic demo data; prices and signals are fictional.',
+          'Educational exploration only; not investment advice.',
+        ],
+      ),
+    );
+  }
+}
+
+class _FixtureDiscoverService implements DiscoverService {
+  _FixtureDiscoverService(this.tracker);
+  final FeatureLoadTracker tracker;
+  @override
+  Future<DiscoverModel> fetch() async {
+    tracker.hit(MemberBranch.discover);
+    return DiscoverModel(
+      grimoires: const [
+        DiscoverCard(title: 'Quiet Power', subtitle: 'Durability over drama'),
+      ],
+      circles: const [
+        DiscoverCard(
+          title: 'Soft Power Portfolio',
+          subtitle: 'A fictional curator’s diversified demo circle',
+        ),
+      ],
+    );
+  }
+}
+
+class _FixtureCovenService implements CovenService {
+  _FixtureCovenService(this.tracker);
+  final FeatureLoadTracker tracker;
+  @override
+  Future<CovenModel> fetch() async {
+    tracker.hit(MemberBranch.coven);
+    return CovenModel(
+      entries: List.generate(
+        4,
+        (index) => CovenEntry(
+          name: 'Aurora Healthworks $index',
+          symbol: 'AUR$index',
+          category: 'Woman founder',
+          focus: 'Preventive health technology',
+          effectiveDate: DateTime.utc(2026, 8, 20),
+          verifiedAsOf: DateTime.utc(2026, 8, 20),
+        ),
+      ),
+    );
+  }
+}
+
+class _FixtureProfileService implements ProfileService {
+  _FixtureProfileService(this.tracker);
+  final FeatureLoadTracker tracker;
+  @override
+  Future<ProfileModel> fetch() async {
+    tracker.hit(MemberBranch.you);
+    return const ProfileModel(displayName: 'Ritual Member');
+  }
+}
+
+class _FixturePortfolioService implements PortfolioService {
+  @override
+  Future<PortfolioCollection> fetch() async => const PortfolioCollection(
+    items: [
+      PortfolioSummary(
+        id: '00000000-0000-4000-8000-000000000601',
+        name: 'Demo Portfolio',
+        cashMinor: 100000,
+        valuationMinor: 100000,
+        version: 1,
+        ledgerWatermark: 0,
+      ),
+    ],
+  );
+
+  @override
+  Future<ContributionReceipt> contribute({
+    required String portfolioId,
+    required String sourceId,
+    required int minorUnits,
+    required String idempotencyKey,
+  }) async => const ContributionReceipt(
+    commandId: '00000000-0000-4000-8000-000000000602',
+    portfolioVersion: 2,
+  );
+}

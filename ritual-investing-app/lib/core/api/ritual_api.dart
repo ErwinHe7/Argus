@@ -11,10 +11,11 @@ import '../../features/portfolio/data/repository.dart';
 import '../../features/portfolio/domain/model.dart';
 import '../../features/ritual/data/daily_ritual_repository.dart';
 import '../../features/ritual/domain/daily_ritual.dart';
+import '../bootstrap/member_bootstrap.dart';
 import 'view_state.dart';
 
 abstract interface class SessionBootstrapService {
-  Future<void> bootstrap();
+  Future<MemberBootstrap> bootstrap();
 }
 
 class GeneratedSessionBootstrapService implements SessionBootstrapService {
@@ -24,13 +25,44 @@ class GeneratedSessionBootstrapService implements SessionBootstrapService {
   final SessionApi _api;
 
   @override
-  Future<void> bootstrap() async {
+  Future<MemberBootstrap> bootstrap() async {
     try {
       final response = await _api.bootstrapSession();
-      if (response.data?.data.contractVersion !=
+      final data = response.data!.data;
+      if (data.contractVersion !=
           SessionBootstrapContractVersionEnum.n1period0Period0) {
         throw StateError('Unsupported API contract version.');
       }
+      return MemberBootstrap(
+        accountId: data.account.id,
+        resetGeneration: data.resetGeneration,
+        onboarding: MemberOnboardingGate.fromServer(
+          cohort: data.onboarding.cohort.value,
+          currentStep: data.onboarding.currentStep,
+          completedAt: data.onboarding.completedAt,
+        ),
+        entitlement: MemberEntitlement(
+          planCode: data.entitlement.planCode,
+          status: switch (data.entitlement.status) {
+            SessionBootstrapEntitlementStatusEnum.active =>
+              MemberEntitlementStatus.active,
+            SessionBootstrapEntitlementStatusEnum.unknownDefaultOpenApi =>
+              MemberEntitlementStatus.unavailable,
+          },
+        ),
+        defaultPortfolioId: data.defaultPortfolio.id,
+        serverTime: data.serverTime.toUtc(),
+        contractVersion: data.contractVersion.value,
+        themePreference: switch (data.preferences.themeMode) {
+          SessionBootstrapPreferencesThemeModeEnum.light =>
+            MemberThemePreference.light,
+          SessionBootstrapPreferencesThemeModeEnum.dark =>
+            MemberThemePreference.dark,
+          SessionBootstrapPreferencesThemeModeEnum.system ||
+          SessionBootstrapPreferencesThemeModeEnum.unknownDefaultOpenApi =>
+            MemberThemePreference.system,
+        },
+      );
     } on DioException catch (error) {
       _throwApiFailure(error);
     }
@@ -264,14 +296,48 @@ class GeneratedPortfolioApiService implements PortfolioService {
 
 Never _throwApiFailure(DioException error) {
   if (error.type == DioExceptionType.connectionError ||
-      error.type == DioExceptionType.connectionTimeout) {
+      error.type == DioExceptionType.connectionTimeout ||
+      error.type == DioExceptionType.receiveTimeout ||
+      error.type == DioExceptionType.sendTimeout) {
     throw const OfflineException();
   }
-  throw LoadFailure(switch (error.response?.statusCode) {
-    403 => LoadPhase.forbidden,
-    404 => LoadPhase.empty,
-    409 => LoadPhase.conflict,
-    429 => LoadPhase.throttled,
-    _ => LoadPhase.retryableFailure,
-  });
+  throw ApiFailureMapper.map(error);
+}
+
+class ApiFailureMapper {
+  const ApiFailureMapper._();
+
+  static LoadFailure map(DioException error) {
+    final code = _errorCode(error.response?.data);
+    if (code != null) {
+      return LoadFailure(switch (code) {
+        'forbidden' || 'insufficient_scope' => LoadPhase.forbidden,
+        'not_found' || 'resource_not_found' => LoadPhase.empty,
+        'conflict' ||
+        'version_conflict' ||
+        'idempotency_conflict' => LoadPhase.conflict,
+        'rate_limited' || 'throttled' => LoadPhase.throttled,
+        'temporarily_unavailable' ||
+        'service_unavailable' => LoadPhase.retryableFailure,
+        _ => LoadPhase.terminalFailure,
+      });
+    }
+    return LoadFailure(switch (error.response?.statusCode) {
+      403 => LoadPhase.forbidden,
+      404 => LoadPhase.empty,
+      409 => LoadPhase.conflict,
+      429 => LoadPhase.throttled,
+      final status when status != null && status >= 500 =>
+        LoadPhase.retryableFailure,
+      _ => LoadPhase.terminalFailure,
+    });
+  }
+
+  static String? _errorCode(Object? data) {
+    if (data is! Map) return null;
+    final envelope = data['error'];
+    if (envelope is! Map) return null;
+    final code = envelope['code'];
+    return code is String ? code : null;
+  }
 }

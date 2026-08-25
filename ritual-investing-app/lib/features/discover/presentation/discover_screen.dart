@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../core/api/state_status.dart';
+import '../../../core/presentation/demo_disclosure.dart';
 import '../application/controller.dart';
 import '../domain/model.dart';
 
@@ -34,7 +35,7 @@ class DiscoverScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.displaySmall,
                 ),
               ),
-              const _DemoBadge(),
+              const DemoBadge(),
             ],
           ),
           const SizedBox(height: 6),
@@ -124,32 +125,6 @@ class DiscoverScreen extends StatelessWidget {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-class _DemoBadge extends StatelessWidget {
-  const _DemoBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.ritualColors.goldSoft,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        child: Text(
-          'DEMO',
-          style: TextStyle(
-            color: context.ritualColors.ink,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 1.2,
-          ),
-        ),
       ),
     );
   }

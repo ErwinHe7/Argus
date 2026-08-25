@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../../../core/api/state_status.dart';
+import '../../../core/presentation/demo_disclosure.dart';
+import '../../../core/presentation/server_time.dart';
 import '../application/daily_ritual_controller.dart';
 import '../domain/daily_ritual.dart';
 
@@ -144,7 +146,7 @@ class DailyRitualScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    'Demo market scenario · educational exploration only',
+                    DemoDisclosureCopy.marketScenario,
                     textAlign: TextAlign.center,
                     style: TextStyle(color: colors.faint, fontSize: 12),
                   ),
@@ -177,7 +179,7 @@ class DailyRitualScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Observed ${_formatTimestamp(ritual.demo.observedAt)} by ${ritual.demo.sourceLabel}. These are research cues, not predictions or instructions to buy.',
+                    'Observed ${ServerTime.timestamp(ritual.demo.observedAt)} by ${ritual.demo.sourceLabel}. These are research cues, not predictions or instructions to buy.',
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   const SizedBox(height: 18),
@@ -251,9 +253,6 @@ class DailyRitualScreen extends StatelessWidget {
     ];
     return '${months[value.month - 1]} ${value.day}';
   }
-
-  String _formatTimestamp(DateTime value) =>
-      '${value.toUtc().toIso8601String().substring(0, 16).replaceFirst('T', ' ')} UTC';
 }
 
 class _Sigil extends StatelessWidget {

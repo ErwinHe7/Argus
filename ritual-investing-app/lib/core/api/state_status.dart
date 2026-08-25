@@ -19,6 +19,7 @@ class StateStatus extends StatelessWidget {
       LoadPhase.throttled => 'Too many requests. Try again shortly',
       LoadPhase.conflict => 'This changed elsewhere. Refresh to continue',
       LoadPhase.retryableFailure => 'Could not refresh. Retry',
+      LoadPhase.terminalFailure => 'This request could not be completed safely',
     };
     if (message == null) return const SizedBox.shrink();
     return Semantics(

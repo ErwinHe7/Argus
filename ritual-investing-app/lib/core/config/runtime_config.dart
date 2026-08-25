@@ -11,6 +11,7 @@ class RuntimeConfig {
     required String auth0Domain,
     required String auth0ClientId,
     required String auth0Audience,
+    this.auth0UseHttpsCallbacks = true,
   }) : apiBaseUrl = _httpsUrl(apiBaseUrl, 'RITUAL_API_BASE_URL'),
        auth0Domain = _required(auth0Domain, 'AUTH0_DOMAIN'),
        auth0ClientId = _required(auth0ClientId, 'AUTH0_CLIENT_ID'),
@@ -20,15 +21,20 @@ class RuntimeConfig {
   final String auth0Domain;
   final String auth0ClientId;
   final String auth0Audience;
+  final bool auth0UseHttpsCallbacks;
 
   factory RuntimeConfig.fromEnvironment() => RuntimeConfig(
     apiBaseUrl: const String.fromEnvironment(
       'RITUAL_API_BASE_URL',
-      defaultValue: 'https://api.ritual-investing.example',
+      defaultValue: 'https://api.just-build-this.app',
     ),
     auth0Domain: const String.fromEnvironment('AUTH0_DOMAIN'),
     auth0ClientId: const String.fromEnvironment('AUTH0_CLIENT_ID'),
     auth0Audience: const String.fromEnvironment('AUTH0_AUDIENCE'),
+    auth0UseHttpsCallbacks: const bool.fromEnvironment(
+      'AUTH0_USE_HTTPS',
+      defaultValue: true,
+    ),
   );
 
   static String _required(String value, String name) {

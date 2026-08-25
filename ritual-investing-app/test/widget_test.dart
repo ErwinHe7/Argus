@@ -3,9 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ritual_investing_app/app/ritual_investing_app.dart';
 
+import 'support/fixture_services.dart';
+
 void main() {
   testWidgets('opens on the approved daily ritual', (tester) async {
-    await tester.pumpWidget(const RitualInvestingApp.fixture());
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
@@ -32,7 +34,7 @@ void main() {
   });
 
   testWidgets('primary navigation reaches the Coven', (tester) async {
-    await tester.pumpWidget(const RitualInvestingApp.fixture());
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
@@ -59,7 +61,7 @@ void main() {
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
-    await tester.pumpWidget(const RitualInvestingApp.fixture());
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.tap(find.text('You').last);
     await tester.pumpAndSettle();
@@ -75,7 +77,7 @@ void main() {
   });
 
   testWidgets('theme control switches the application theme', (tester) async {
-    await tester.pumpWidget(const RitualInvestingApp.fixture());
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();
     final before = tester

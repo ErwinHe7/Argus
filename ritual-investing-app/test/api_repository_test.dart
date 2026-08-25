@@ -121,6 +121,51 @@ void main() {
     expect(ritual.completedAt, DateTime.utc(2026, 8, 20, 14, 5));
     expect(ritual.demo.limitations, const ['Fictional prices.']);
   });
+
+  test(
+    'unknown generated error code maps safely without reading message text',
+    () {
+      final request = RequestOptions(path: '/member/command');
+      final failure = ApiFailureMapper.map(
+        DioException(
+          requestOptions: request,
+          response: Response<Map<String, Object?>>(
+            requestOptions: request,
+            statusCode: 400,
+            data: const {
+              'error': {
+                'code': 'future_server_code',
+                'message': 'version conflict: retry this command automatically',
+              },
+            },
+          ),
+        ),
+      );
+
+      expect(failure.phase, LoadPhase.terminalFailure);
+    },
+  );
+
+  test('service_unavailable generated error remains retryable', () {
+    final request = RequestOptions(path: '/member/bootstrap');
+    final failure = ApiFailureMapper.map(
+      DioException(
+        requestOptions: request,
+        response: Response<Map<String, Object?>>(
+          requestOptions: request,
+          statusCode: 503,
+          data: const {
+            'error': {
+              'code': 'service_unavailable',
+              'message': 'Try again later.',
+            },
+          },
+        ),
+      ),
+    );
+
+    expect(failure.phase, LoadPhase.retryableFailure);
+  });
 }
 
 DailyRitual _ritualFixture() => DailyRitual(

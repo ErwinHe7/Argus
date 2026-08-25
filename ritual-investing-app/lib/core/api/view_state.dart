@@ -10,6 +10,7 @@ enum LoadPhase {
   throttled,
   conflict,
   retryableFailure,
+  terminalFailure,
 }
 
 @immutable

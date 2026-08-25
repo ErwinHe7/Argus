@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:ritual_investing_app/app/ritual_investing_app.dart';
 
+import 'support/fixture_services.dart';
+
 void main() {
   testWidgets('captures the daily ritual in both approved atmospheres', (
     tester,
@@ -17,7 +19,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const RitualInvestingApp.fixture());
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.runAsync(() async {
       final context = tester.element(find.byType(Scaffold).first);
       await Future.wait([
@@ -41,12 +43,18 @@ void main() {
     await tester.tap(find.byKey(const Key('theme-toggle')));
     await tester.pumpAndSettle();
 
-    tester
-        .state<ScrollableState>(find.byType(Scrollable).first)
-        .position
-        .jumpTo(0);
+    final dailyRitualScrollable = find.descendant(
+      of: find.byKey(const PageStorageKey('daily-ritual-scroll')),
+      matching: find.byType(Scrollable),
+    );
+    expect(dailyRitualScrollable, findsOneWidget);
+    tester.state<ScrollableState>(dailyRitualScrollable).position.jumpTo(0);
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
+    expect(
+      tester.state<ScrollableState>(dailyRitualScrollable).position.pixels,
+      0,
+    );
 
     await expectLater(
       find.byKey(const Key('app-shell-scaffold')),
@@ -56,10 +64,7 @@ void main() {
     await tester.tap(find.byKey(const Key('theme-toggle')));
     await tester.pumpAndSettle();
 
-    tester
-        .state<ScrollableState>(find.byType(Scrollable).first)
-        .position
-        .jumpTo(0);
+    tester.state<ScrollableState>(dailyRitualScrollable).position.jumpTo(0);
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 

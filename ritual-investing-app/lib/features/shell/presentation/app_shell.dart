@@ -1,67 +1,26 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../app/theme/app_theme.dart';
-import '../../coven/presentation/coven_screen.dart';
-import '../../coven/application/controller.dart';
-import '../../discover/presentation/discover_screen.dart';
-import '../../discover/application/controller.dart';
-import '../../profile/presentation/profile_screen.dart';
-import '../../profile/application/controller.dart';
-import '../../portfolio/application/controller.dart';
-import '../../ritual/presentation/daily_ritual_screen.dart';
-import '../../ritual/application/daily_ritual_controller.dart';
 
-class AppShell extends StatefulWidget {
-  const AppShell({
-    super.key,
-    required this.onToggleTheme,
-    required this.dailyRitualController,
-    required this.discoverController,
-    required this.covenController,
-    required this.profileController,
-    required this.portfolioController,
-  });
+class AppShell extends StatelessWidget {
+  const AppShell({super.key, required this.navigationShell});
 
-  final ValueChanged<Brightness> onToggleTheme;
-  final DailyRitualController dailyRitualController;
-  final DiscoverController discoverController;
-  final CovenController covenController;
-  final ProfileController profileController;
-  final PortfolioController portfolioController;
-
-  @override
-  State<AppShell> createState() => _AppShellState();
-}
-
-class _AppShellState extends State<AppShell> {
-  int _selectedIndex = 0;
-
-  void _select(int index) => setState(() => _selectedIndex = index);
+  final StatefulNavigationShell navigationShell;
 
   @override
   Widget build(BuildContext context) {
-    final screens = [
-      DailyRitualScreen(
-        controller: widget.dailyRitualController,
-        onOpenCoven: () => _select(2),
-        onToggleTheme: () => widget.onToggleTheme(Theme.of(context).brightness),
-      ),
-      DiscoverScreen(controller: widget.discoverController),
-      CovenScreen(controller: widget.covenController),
-      ProfileScreen(
-        controller: widget.profileController,
-        portfolioController: widget.portfolioController,
-      ),
-    ];
-
     return Scaffold(
       key: const Key('app-shell-scaffold'),
-      body: IndexedStack(index: _selectedIndex, children: screens),
+      body: navigationShell,
       bottomNavigationBar: _AdaptiveNavigation(
-        selectedIndex: _selectedIndex,
-        onSelected: _select,
+        selectedIndex: navigationShell.currentIndex,
+        onSelected: (index) => navigationShell.goBranch(
+          index,
+          initialLocation: index == navigationShell.currentIndex,
+        ),
       ),
     );
   }
