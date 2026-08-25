@@ -21,6 +21,7 @@ class DailyRitualScreen extends StatelessWidget {
     required this.controller,
     this.onOpenAsset,
     this.onOpenSearch,
+    this.onOpenBriefings,
     this.rowanController,
     this.personalization = const MemberPersonalization(),
   });
@@ -30,6 +31,7 @@ class DailyRitualScreen extends StatelessWidget {
   final DailyRitualController controller;
   final ValueChanged<String>? onOpenAsset;
   final VoidCallback? onOpenSearch;
+  final VoidCallback? onOpenBriefings;
   final RowanController? rowanController;
   final MemberPersonalization personalization;
 
@@ -73,6 +75,17 @@ class DailyRitualScreen extends StatelessWidget {
                           height: 48,
                         ),
                         icon: const Icon(Icons.search),
+                      ),
+                    if (onOpenBriefings != null)
+                      IconButton(
+                        key: const Key('ritual-briefings'),
+                        onPressed: onOpenBriefings,
+                        tooltip: 'Open Ritual briefings',
+                        constraints: const BoxConstraints.tightFor(
+                          width: 48,
+                          height: 48,
+                        ),
+                        icon: const Icon(Icons.auto_stories_outlined),
                       ),
                     IconButton(
                       key: const Key('theme-toggle'),

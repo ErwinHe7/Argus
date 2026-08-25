@@ -414,6 +414,37 @@ void main() {
       expect(container.orderController.operation, 'order.commit:portfolio-b');
     },
   );
+
+  testWidgets('U9 briefing A to B route replaces selected authority', (
+    tester,
+  ) async {
+    const briefingA = '00000000-0000-4000-8000-000000000091';
+    const briefingB = '00000000-0000-4000-8000-000000000092';
+    final container = fixtureContainer(includeU9: true);
+    await tester.pumpWidget(RitualInvestingApp(container: container));
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
+
+    router.go(MemberRoutes.briefingLocation(briefingA));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('briefing-$briefingA')), findsOneWidget);
+    expect(find.textContaining('briefing $briefingA'), findsOneWidget);
+
+    router.go(MemberRoutes.briefingLocation(briefingB));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('briefing-$briefingA')), findsNothing);
+    expect(find.textContaining('briefing $briefingA'), findsNothing);
+    expect(find.byKey(const ValueKey('briefing-$briefingB')), findsOneWidget);
+    expect(find.textContaining('briefing $briefingB'), findsOneWidget);
+    expect(container.briefingController.selected?.id, briefingB);
+
+    router.go('/ritual/briefings/not-a-uuid');
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.ritual.path);
+    expect(find.textContaining('not-a-uuid'), findsNothing);
+  });
 }
 
 class _SignedOutSessionRepository implements SessionRepository {

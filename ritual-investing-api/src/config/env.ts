@@ -75,6 +75,8 @@ export const environmentSchema = z
     KILL_SWITCH_SCHEDULED: z.enum(["off", "on"]).default("off"),
     KILL_SWITCH_QUEUE: z.enum(["off", "on"]).default("off"),
     KILL_SWITCH_NOTIFICATIONS: z.enum(["off", "on"]).default("off"),
+    KILL_SWITCH_NOTIFICATION_WRITER: z.enum(["off", "on"]).optional(),
+    KILL_SWITCH_NOTIFICATION_DELIVERY: z.enum(["off", "on"]).optional(),
     KILL_SWITCH_EXPORTS: z.enum(["off", "on"]).default("off"),
     KILL_SWITCH_PURGE: z.enum(["off", "on"]).default("off"),
     KILL_SWITCH_MEDIA: z.enum(["off", "on"]).default("off"),
@@ -114,7 +116,6 @@ export const environmentSchema = z
       "MEDIA_DATABASE_URL",
       "AUDIT_DATABASE_URL",
       "CURSOR_SIGNING_KEY",
-      "PUSH_TOKEN_ENCRYPTION_KEY",
       "ASYNC_QUEUE",
       "JOBS_DLQ",
       "MEDIA_QUARANTINE",
@@ -133,8 +134,8 @@ export const environmentSchema = z
       ...(environment.KILL_SWITCH_MEDIA === "off"
         ? (["MEDIA_SCANNER", "MEDIA_PROCESSOR"] as const)
         : []),
-      ...(environment.KILL_SWITCH_NOTIFICATIONS === "off"
-        ? (["PUSH_PROVIDER"] as const)
+      ...(notificationDeliveryEnabled(environment)
+        ? (["PUSH_PROVIDER", "PUSH_TOKEN_ENCRYPTION_KEY"] as const)
         : []),
     ];
     for (const binding of enabledDependencies)
@@ -166,6 +167,32 @@ export const environmentSchema = z
   });
 
 export type Bindings = z.infer<typeof environmentSchema>;
+
+export function notificationWriterEnabled(
+  environment: Pick<
+    Bindings,
+    "KILL_SWITCH_NOTIFICATIONS" | "KILL_SWITCH_NOTIFICATION_WRITER"
+  >,
+): boolean {
+  return (
+    environment.KILL_SWITCH_NOTIFICATION_WRITER ??
+    environment.KILL_SWITCH_NOTIFICATIONS ??
+    "off"
+  ) === "off";
+}
+
+export function notificationDeliveryEnabled(
+  environment: Pick<
+    Bindings,
+    "KILL_SWITCH_NOTIFICATIONS" | "KILL_SWITCH_NOTIFICATION_DELIVERY"
+  >,
+): boolean {
+  return (
+    environment.KILL_SWITCH_NOTIFICATION_DELIVERY ??
+    environment.KILL_SWITCH_NOTIFICATIONS ??
+    "off"
+  ) === "off";
+}
 
 export function validateBindings(input: unknown): Bindings {
   return environmentSchema.parse(input);

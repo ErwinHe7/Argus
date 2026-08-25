@@ -29,6 +29,7 @@ class ProfileScreen extends StatelessWidget {
     this.onOpenAstrology,
     this.onOpenPolicies,
     this.onOpenAccount,
+    this.onOpenNotifications,
     this.onOpenPortfolio,
   });
 
@@ -39,6 +40,7 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onOpenAstrology;
   final VoidCallback? onOpenPolicies;
   final VoidCallback? onOpenAccount;
+  final VoidCallback? onOpenNotifications;
   final ValueChanged<String>? onOpenPortfolio;
 
   @override
@@ -119,6 +121,13 @@ class ProfileScreen extends StatelessWidget {
                     ? null
                     : () => onOpenPortfolio!(portfolio.id),
               ),
+            _MenuTile(
+              key: const Key('you-notifications'),
+              icon: Icons.notifications_none,
+              title: 'In-app notices',
+              subtitle: 'Recap feed and preferences · no push delivery',
+              onTap: onOpenNotifications,
+            ),
             _MenuTile(
               key: const Key('you-account'),
               icon: Icons.person_outline,

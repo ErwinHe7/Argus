@@ -13,11 +13,19 @@ class DateOnlyRequestInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
     final fields = _dateOnlyFields(options);
-    if (fields.isEmpty) {
+    final queryFields = _dateOnlyQueryFields(options);
+    if (fields.isEmpty && queryFields.isEmpty) {
       handler.next(options);
       return;
     }
     try {
+      if (queryFields.isNotEmpty) {
+        for (final field in queryFields) {
+          final value = options.queryParameters[field];
+          if (value == null) continue;
+          options.queryParameters[field] = _queryDateOnly(value, field);
+        }
+      }
       final body = options.data;
       if (body is String) {
         options.data = jsonEncode(_rewrite(jsonDecode(body), fields));
@@ -36,6 +44,15 @@ class DateOnlyRequestInterceptor extends Interceptor {
       );
     }
   }
+}
+
+Set<String> _dateOnlyQueryFields(RequestOptions options) {
+  if (options.method != 'GET') return const {};
+  if (options.path == '/v1/briefings/daily') return const {'local_date'};
+  if (options.path == '/v1/briefings') {
+    return const {'period_start', 'period_end'};
+  }
+  return const {};
 }
 
 Set<String> _dateOnlyFields(RequestOptions options) {
@@ -80,4 +97,20 @@ String _dateOnly(String raw, String field) {
     throw FormatException('$field must be date-only.');
   }
   return generatedDateTime.group(1)!;
+}
+
+String _queryDateOnly(Object value, String field) {
+  if (value is String) return _dateOnly(value, field);
+  if (value is! DateTime ||
+      !value.isUtc ||
+      value.hour != 0 ||
+      value.minute != 0 ||
+      value.second != 0 ||
+      value.millisecond != 0 ||
+      value.microsecond != 0) {
+    throw FormatException('$field must be a UTC date-only value.');
+  }
+  return '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
 }

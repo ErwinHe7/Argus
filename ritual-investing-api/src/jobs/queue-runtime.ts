@@ -1,4 +1,8 @@
-import type { Bindings } from "../config/env.ts";
+import {
+  notificationDeliveryEnabled,
+  notificationWriterEnabled,
+  type Bindings,
+} from "../config/env.ts";
 import type { DatabasePoolFactory } from "../db/client.ts";
 import { consumeWithReceipt } from "./consumer-receipts.ts";
 import { handlerFor } from "./handlers.ts";
@@ -49,8 +53,13 @@ function consumerKilled(
 ): boolean {
   if (environment.KILL_SWITCH_QUEUE === "on") return true;
   if (
-    message.consumer.startsWith("notification-") &&
-    environment.KILL_SWITCH_NOTIFICATIONS === "on"
+    message.consumer === "notification-writer" &&
+    !notificationWriterEnabled(environment)
+  )
+    return true;
+  if (
+    message.consumer === "notification-delivery" &&
+    !notificationDeliveryEnabled(environment)
   )
     return true;
   if (

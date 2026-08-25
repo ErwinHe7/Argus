@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/coven/presentation/coven_screen.dart';
+import '../../features/briefings/presentation/briefing_screen.dart';
 import '../../features/coven/application/controller.dart';
 import '../../features/coven/presentation/coven_detail_screen.dart';
 import '../../features/circles/application/controller.dart';
@@ -24,6 +25,7 @@ import '../../features/grimoires/presentation/grimoire_detail_screen.dart';
 import '../../features/intentions/presentation/intention_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
+import '../../features/notifications/presentation/notification_screen.dart';
 import '../../features/orders/presentation/order_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/portfolio/presentation/portfolio_screen.dart';
@@ -168,6 +170,35 @@ GoRouter createAppRouter({
     MemberRouteDefinition detail,
   ) {
     final childRoutes = <RouteBase>[resourceRoute(detail)];
+    if (root.branch == MemberBranch.ritual) {
+      childRoutes.addAll([
+        GoRoute(
+          path: 'briefings',
+          redirect: (context, state) =>
+              container.hasU9 ? null : MemberRoutes.ritual.path,
+          builder: (context, state) => BriefingsScreen(
+            controller: container.briefingController,
+            onOpenBriefing: (briefingId) =>
+                context.push(MemberRoutes.briefingLocation(briefingId)),
+          ),
+        ),
+        GoRoute(
+          path: 'briefings/:briefingId',
+          redirect: (context, state) =>
+              container.hasU9 &&
+                  MemberRoutes.isUuid(state.pathParameters['briefingId'] ?? '')
+              ? null
+              : MemberRoutes.ritual.path,
+          builder: (context, state) => BriefingDetailScreen(
+            key: ValueKey('briefing-${state.pathParameters['briefingId']}'),
+            briefingId: state.pathParameters['briefingId']!,
+            controller: container.briefingController,
+            onOpenRitual: () => context.go(MemberRoutes.ritual.path),
+            onOpenBriefings: () => context.go(MemberRoutes.ritualBriefingsPath),
+          ),
+        ),
+      ]);
+    }
     if (root.branch == MemberBranch.you) {
       childRoutes.addAll([
         GoRoute(
@@ -412,6 +443,26 @@ GoRouter createAppRouter({
           path: 'account',
           builder: (context, state) =>
               AccountSettingsScreen(onLogout: container.logout),
+        ),
+        GoRoute(
+          path: 'notifications',
+          redirect: (context, state) =>
+              container.hasU9 ? null : MemberRoutes.you.path,
+          builder: (context, state) => NotificationsScreen(
+            controller: container.notificationController,
+            onOpenDestination: (destination) =>
+                context.push(destination.location),
+            onOpenPreferences: () =>
+                context.push(MemberRoutes.youNotificationPreferencesPath),
+          ),
+        ),
+        GoRoute(
+          path: 'notification-preferences',
+          redirect: (context, state) =>
+              container.hasU9 ? null : MemberRoutes.you.path,
+          builder: (context, state) => NotificationPreferencesScreen(
+            controller: container.notificationController,
+          ),
         ),
       ]);
     }
@@ -754,6 +805,9 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
       onOpenSearch: widget.container.optionalSearchController == null
           ? null
           : () => context.push(MemberRoutes.discoverSearchPath),
+      onOpenBriefings: widget.container.hasU9
+          ? () => context.push(MemberRoutes.ritualBriefingsPath)
+          : null,
       onOpenAsset: (id) {
         final assignmentId =
             widget.container.dailyRitualController.state.value?.assignmentId;
@@ -794,6 +848,9 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
       onOpenAstrology: () => context.push(MemberRoutes.youAstrologyPath),
       onOpenPolicies: () => context.push(MemberRoutes.youPoliciesPath),
       onOpenAccount: () => context.push(MemberRoutes.youAccountPath),
+      onOpenNotifications: widget.container.hasU9
+          ? () => context.push(MemberRoutes.youNotificationsPath)
+          : null,
       onOpenPortfolio: (id) =>
           context.push(MemberRoutes.portfolio.location(id)),
     ),

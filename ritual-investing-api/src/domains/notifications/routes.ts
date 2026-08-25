@@ -1,6 +1,7 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
 
 import type { AppEnvironment } from "../../app.ts";
+import { notificationDeliveryEnabled } from "../../config/env.ts";
 import {
   collectionResponse,
   errorResponseSchema,
@@ -343,6 +344,7 @@ export function registerNotificationRoutes(
     }
   }) as never);
   app.openapi(deviceCreate, (async (context: any) => {
+    if (!notificationDeliveryEnabled(context.env)) return unavailable(context);
     const { member, repository } = access(context);
     const key = context.env.PUSH_TOKEN_ENCRYPTION_KEY;
     if (member === undefined || repository === undefined || key === undefined)
@@ -367,6 +369,7 @@ export function registerNotificationRoutes(
     }
   }) as never);
   app.openapi(deviceDelete, (async (context: any) => {
+    if (!notificationDeliveryEnabled(context.env)) return unavailable(context);
     const { member, repository } = access(context);
     if (member === undefined || repository === undefined)
       return unavailable(context);

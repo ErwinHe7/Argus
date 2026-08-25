@@ -37,6 +37,10 @@ abstract final class MemberRoutes {
   static const youAccountPath = '/you/account';
   static const discoverSearchPath = '/discover/search';
   static const discoverCirclesPath = '/discover/circles';
+  static const ritualBriefingsPath = '/ritual/briefings';
+  static const youNotificationsPath = '/you/notifications';
+  static const youNotificationPreferencesPath =
+      '/you/notification-preferences';
 
   static const ritual = MemberRouteDefinition(
     name: 'ritual',
@@ -231,5 +235,16 @@ abstract final class MemberRoutes {
     }
     return '${futureMirrorLocation(portfolioId, intentionId)}/'
         '${Uri.encodeComponent(runId)}';
+  }
+
+  static String briefingLocation(String briefingId) {
+    if (!isUuid(briefingId)) {
+      throw ArgumentError.value(
+        briefingId,
+        'briefingId',
+        'Invalid briefing UUID.',
+      );
+    }
+    return '$ritualBriefingsPath/${Uri.encodeComponent(briefingId)}';
   }
 }

@@ -9,6 +9,9 @@ import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/asset_codex/data/repository.dart';
 import 'package:ritual_investing_app/features/asset_codex/domain/model.dart';
+import 'package:ritual_investing_app/features/briefings/application/briefing_controller.dart';
+import 'package:ritual_investing_app/features/briefings/data/repository.dart';
+import 'package:ritual_investing_app/features/briefings/domain/model.dart';
 import 'package:ritual_investing_app/features/coven/application/controller.dart';
 import 'package:ritual_investing_app/features/coven/data/repository.dart';
 import 'package:ritual_investing_app/features/coven/domain/model.dart';
@@ -20,6 +23,9 @@ import 'package:ritual_investing_app/features/discover/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
 import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
 import 'package:ritual_investing_app/features/grimoires/domain/model.dart';
+import 'package:ritual_investing_app/features/notifications/application/notification_controller.dart';
+import 'package:ritual_investing_app/features/notifications/data/repository.dart';
+import 'package:ritual_investing_app/features/notifications/domain/model.dart';
 import 'package:ritual_investing_app/features/orders/application/order_controller.dart';
 import 'package:ritual_investing_app/features/orders/data/repository.dart';
 import 'package:ritual_investing_app/features/orders/domain/model.dart';
@@ -60,6 +66,7 @@ DependencyContainer fixtureContainer({
   PendingCommandStore? pendingCommandStore,
   EntryCoordinator? entryCoordinator,
   bool includeU7 = false,
+  bool includeU9 = false,
 }) {
   final storage = cache ?? MemoryReadCache();
   final tracker = loadTracker ?? FeatureLoadTracker();
@@ -134,6 +141,31 @@ DependencyContainer fixtureContainer({
               now: () => DateTime.utc(2026, 8, 25, 12),
             )
           : null;
+      final briefingController = includeU9
+          ? BriefingController(
+              repository: CachedBriefingRepository(
+                service: _FixtureBriefingService(),
+                cache: scopedCache,
+              ),
+              invalidationBus: invalidationBus,
+              scope: scope,
+              personalization: bootstrap.personalization,
+            )
+          : null;
+      final notificationController = includeU9
+          ? NotificationController(
+              repository: CachedNotificationRepository(
+                service: _FixtureNotificationService(),
+                cache: scopedCache,
+              ),
+              pendingStore: commands,
+              invalidationBus: invalidationBus,
+              scope: scope,
+              createKey: () => 'fixture-read-all-key-01',
+              now: () => DateTime.utc(2026, 8, 25, 12),
+              personalization: bootstrap.personalization,
+            )
+          : null;
       return MemberFeatureScope(
         scope: scope,
         dailyRitualController: DailyRitualController(
@@ -175,6 +207,8 @@ DependencyContainer fixtureContainer({
         orderController: orderController,
         recurringPlanController: recurringPlanController,
         rebalanceController: rebalanceController,
+        briefingController: briefingController,
+        notificationController: notificationController,
         assetCodexRepository: AssetCodexRepository(
           service: _FixtureAssetCodexService(),
           cache: scopedCache,
@@ -950,4 +984,102 @@ class _FixtureRebalanceService implements RebalanceService {
   @override
   Future<RebalanceReceipt> commit(RebalanceCommit command) =>
       throw UnimplementedError();
+}
+
+class _FixtureBriefingService implements BriefingService {
+  BriefingSummary _summary(String id) => BriefingSummary(
+    id: id,
+    type: BriefingType.daily,
+    periodStart: DateTime.utc(2026, 8, 25),
+    periodEnd: DateTime.utc(2026, 8, 25),
+    generatedAt: DateTime.utc(2026, 8, 25, 12),
+    generation: 1,
+    sourceSequence: id.endsWith('92') ? 92 : 91,
+    readAt: null,
+  );
+
+  @override
+  Future<BriefingPage> list({
+    BriefingType? type,
+    DateTime? periodStart,
+    DateTime? periodEnd,
+    String? cursor,
+  }) async => BriefingPage(
+    items: [_summary('00000000-0000-4000-8000-000000000091')],
+    hasMore: false,
+  );
+
+  @override
+  Future<BriefingDetail> get(String briefingId) async => BriefingDetail(
+    summary: _summary(briefingId),
+    sections: [
+      BriefingSummarySection(
+        ordinal: 1,
+        sourceSequence: _summary(briefingId).sourceSequence,
+        disclosure: 'Fixture Demo briefing $briefingId',
+      ),
+    ],
+  );
+
+  @override
+  Future<DailyBriefingResult> daily(DateTime localDate) async =>
+      DailyBriefingResult.available(
+        await get('00000000-0000-4000-8000-000000000091'),
+      );
+
+  @override
+  Future<BriefingSummary> setRead(String briefingId, bool read) async =>
+      _summary(briefingId).copyWith(
+        readAt: read ? DateTime.utc(2026, 8, 25, 12, 1) : null,
+        clearReadAt: !read,
+      );
+}
+
+class _FixtureNotificationService implements NotificationService {
+  NotificationItem get _item => NotificationItem(
+    id: '00000000-0000-4000-8000-000000000093',
+    kind: NotificationKind.briefingReady,
+    title: 'Fixture briefing ready',
+    body: 'Open Ritual to review the Demo recap.',
+    destination: NotificationDestination.tryParse('/briefings'),
+    scheduledAt: DateTime.utc(2026, 8, 25, 12),
+    readAt: null,
+  );
+
+  @override
+  Future<NotificationPage> list({
+    NotificationReadFilter filter = NotificationReadFilter.all,
+    String? cursor,
+  }) async => NotificationPage(items: [_item], hasMore: false);
+
+  @override
+  Future<NotificationPreferences> getPreferences() async =>
+      const NotificationPreferences(
+        dailyRitual: true,
+        weeklyRecap: true,
+        moonCycle: true,
+        quietHours: NotificationQuietHours(
+          enabled: false,
+          start: '22:00',
+          end: '07:00',
+          timezone: 'UTC',
+        ),
+        version: 1,
+      );
+
+  @override
+  Future<NotificationPreferences> patchPreferences(
+    NotificationPreferencesDraft draft,
+    int expectedVersion,
+  ) async => draft.toPreferences(version: expectedVersion + 1);
+
+  @override
+  Future<int> readAll(NotificationReadAll command) async => 1;
+
+  @override
+  Future<NotificationItem> setRead(String notificationId, bool read) async =>
+      _item.copyWith(
+        readAt: read ? DateTime.utc(2026, 8, 25, 12, 1) : null,
+        clearReadAt: !read,
+      );
 }

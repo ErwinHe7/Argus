@@ -109,11 +109,58 @@ void main() {
       'generated_at': '2026-08-25T12:00:00.000Z',
     });
   });
+
+  test('briefing date queries emit exact YYYY-MM-DD values', () async {
+    for (final request in [
+      ('/v1/briefings/daily', <String, Object?>{
+        'local_date': DateTime.utc(2026, 8, 25),
+      }),
+      ('/v1/briefings', <String, Object?>{
+        'period_start': DateTime.utc(2026, 8, 1),
+        'period_end': DateTime.utc(2026, 8, 31),
+      }),
+    ]) {
+      final adapter = _CaptureAdapter();
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = adapter;
+      ensureDateOnlyRequestSerialization(dio);
+
+      await dio.get<void>(request.$1, queryParameters: request.$2);
+
+      expect(
+        adapter.query.values,
+        everyElement(matches(RegExp(r'^\d{4}-\d{2}-\d{2}$'))),
+      );
+    }
+  });
+
+  test('briefing date queries reject local and non-midnight values', () async {
+    for (final value in [
+      DateTime(2026, 8, 25),
+      DateTime.utc(2026, 8, 25, 12),
+      '2026-08-25T00:00:00.000-04:00',
+    ]) {
+      final adapter = _CaptureAdapter();
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = adapter;
+      ensureDateOnlyRequestSerialization(dio);
+
+      await expectLater(
+        dio.get<void>(
+          '/v1/briefings/daily',
+          queryParameters: {'local_date': value},
+        ),
+        throwsA(isA<DioException>()),
+      );
+      expect(adapter.calls, 0);
+    }
+  });
 }
 
 class _CaptureAdapter implements HttpClientAdapter {
   String? body;
   int calls = 0;
+  Map<String, dynamic> query = const {};
 
   @override
   Future<ResponseBody> fetch(
@@ -122,7 +169,8 @@ class _CaptureAdapter implements HttpClientAdapter {
     Future<void>? cancelFuture,
   ) async {
     calls++;
-    body = options.data as String;
+    body = options.data as String?;
+    query = Map.of(options.queryParameters);
     return ResponseBody.fromString('', 204);
   }
 

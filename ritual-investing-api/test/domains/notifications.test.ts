@@ -177,6 +177,46 @@ describe("notification contracts", () => {
     );
   });
 
+  it("rejects device registration and revoke while external delivery is off", async () => {
+    const repo = repository();
+    const app = createApp({
+      dependencies: {
+        auth0Keys: [key.publicJwk],
+        accountResolver: async () => resolvedMemberAccount,
+        notificationRepository: repo,
+      },
+    });
+    const bindings = {
+      ...testBindings(),
+      KILL_SWITCH_NOTIFICATION_WRITER: "off",
+      KILL_SWITCH_NOTIFICATION_DELIVERY: "on",
+    } as never;
+    const response = await app.request(
+      "/v1/me/devices",
+      {
+        method: "POST",
+        headers: {
+          ...(await authorization()),
+          "content-type": "application/json",
+          "idempotency-key": "device-command-00000001",
+        },
+        body:
+          '{"platform":"ios","push_token":"provider-token-never-consumed"}',
+      },
+      bindings,
+    );
+    expect(response.status).toBe(503);
+    expect(repo.registerDevice).not.toHaveBeenCalled();
+
+    const revoke = await app.request(
+      "/v1/me/devices/018f3c2a-4b67-7a89-8abc-123456789001",
+      { method: "DELETE", headers: await authorization() },
+      bindings,
+    );
+    expect(revoke.status).toBe(503);
+    expect(repo.revokeDevice).not.toHaveBeenCalled();
+  });
+
   it("signs bounded read-filter cursors and bounds read-all to a command receipt", async () => {
     const repo = repository();
     const app = createApp({

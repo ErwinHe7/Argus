@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import type { Bindings } from "../config/env.ts";
+import {
+  notificationDeliveryEnabled,
+  type Bindings,
+} from "../config/env.ts";
 import { inspectQuarantinedObject } from "../domains/media/service.ts";
 import { unprotectPushToken } from "../domains/notifications/service.ts";
 import {
@@ -106,7 +109,7 @@ function briefingBuilder(): ConsumerEffect {
   };
 }
 
-function notificationWriter(): ConsumerEffect {
+function notificationWriter(environment: Bindings): ConsumerEffect {
   return async (client, event) => {
     if (event.tenant_id === null) return "deleted";
     const preference = await client.query<{ allowed: boolean }>(
@@ -134,17 +137,18 @@ function notificationWriter(): ConsumerEffect {
       ],
     );
     const notificationId = inserted.rows[0]!.id;
-    await enqueueOutbox(client, {
-      topic: "notification.delivery.requested",
-      aggregateKind: "notification",
-      aggregateId: notificationId,
-      aggregateVersion: 1,
-      tenantId: event.tenant_id,
-      resetGeneration: event.reset_generation,
-      deletionGeneration: event.deletion_generation,
-      dedupeKey: notificationId,
-      payload: { notification_id: notificationId },
-    });
+    if (notificationDeliveryEnabled(environment))
+      await enqueueOutbox(client, {
+        topic: "notification.delivery.requested",
+        aggregateKind: "notification",
+        aggregateId: notificationId,
+        aggregateVersion: 1,
+        tenantId: event.tenant_id,
+        resetGeneration: event.reset_generation,
+        deletionGeneration: event.deletion_generation,
+        dedupeKey: notificationId,
+        payload: { notification_id: notificationId },
+      });
     return `notification:${event.id}`;
   };
 }
@@ -929,7 +933,7 @@ export function handlerFor(
     case "briefing-builder":
       return briefingBuilder();
     case "notification-writer":
-      return notificationWriter();
+      return notificationWriter(environment);
     case "moderation-triage":
       return moderationTriage();
     case "privacy-export":

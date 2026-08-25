@@ -11,6 +11,8 @@ import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import '../../features/asset_codex/application/controller.dart';
 import '../../features/asset_codex/data/repository.dart';
 import '../../features/asset_codex/domain/model.dart';
+import '../../features/briefings/application/briefing_controller.dart';
+import '../../features/briefings/data/repository.dart';
 import '../../features/coven/application/controller.dart';
 import '../../features/coven/data/repository.dart';
 import '../../features/circles/application/controller.dart';
@@ -28,6 +30,8 @@ import '../../features/grimoires/application/controller.dart';
 import '../../features/grimoires/data/repository.dart';
 import '../../features/intentions/application/intention_controller.dart';
 import '../../features/intentions/data/repository.dart';
+import '../../features/notifications/application/notification_controller.dart';
+import '../../features/notifications/data/repository.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/orders/application/order_controller.dart';
 import '../../features/orders/data/repository.dart';
@@ -100,6 +104,8 @@ class MemberFeatureScope {
     this.rebalanceController,
     this.intentionController,
     this.futureMirrorController,
+    this.briefingController,
+    this.notificationController,
   });
 
   final CacheScope scope;
@@ -123,6 +129,8 @@ class MemberFeatureScope {
   final RebalanceController? rebalanceController;
   final IntentionController? intentionController;
   final FutureMirrorController? futureMirrorController;
+  final BriefingController? briefingController;
+  final NotificationController? notificationController;
   final Map<MemberBranch, Future<void>> _loads = {};
   bool _isDisposed = false;
 
@@ -135,6 +143,8 @@ class MemberFeatureScope {
       bootstrap.personalization.contributionRhythm,
     );
     futureMirrorController?.updatePersonalization(bootstrap.personalization);
+    briefingController?.updatePersonalization(bootstrap.personalization);
+    notificationController?.updatePersonalization(bootstrap.personalization);
     intentionController?.updateProfile(profileController.state.value?.investor);
   }
 
@@ -176,6 +186,8 @@ class MemberFeatureScope {
     rebalanceController?.dispose();
     intentionController?.dispose();
     futureMirrorController?.dispose();
+    briefingController?.dispose();
+    notificationController?.dispose();
     unawaited(invalidationBus.dispose());
     searchController?.dispose();
     rowanController?.dispose();
@@ -304,6 +316,18 @@ class DependencyContainer extends ChangeNotifier {
     return value;
   }
 
+  BriefingController get briefingController {
+    final value = _requireScope().briefingController;
+    if (value == null) throw StateError('Briefings are unavailable.');
+    return value;
+  }
+
+  NotificationController get notificationController {
+    final value = _requireScope().notificationController;
+    if (value == null) throw StateError('In-app notices are unavailable.');
+    return value;
+  }
+
   SearchController get searchController {
     final value = _requireScope().searchController;
     if (value == null) throw StateError('Search is unavailable.');
@@ -345,6 +369,10 @@ class DependencyContainer extends ChangeNotifier {
   bool get hasU8 =>
       _featureScope?.intentionController != null &&
       _featureScope?.futureMirrorController != null;
+
+  bool get hasU9 =>
+      _featureScope?.briefingController != null &&
+      _featureScope?.notificationController != null;
 
   bool get hasU5Research =>
       _featureScope?.covenRepository != null &&
@@ -739,6 +767,27 @@ class DependencyContainer extends ChangeNotifier {
           now: DateTime.now,
           personalization: bootstrap.personalization,
         );
+        final briefingController = BriefingController(
+          repository: CachedBriefingRepository(
+            service: GeneratedBriefingService(client),
+            cache: scopedCache,
+          ),
+          invalidationBus: invalidationBus,
+          scope: scope,
+          personalization: bootstrap.personalization,
+        );
+        final notificationController = NotificationController(
+          repository: CachedNotificationRepository(
+            service: GeneratedNotificationService(client),
+            cache: scopedCache,
+          ),
+          pendingStore: pendingCommandStore,
+          invalidationBus: invalidationBus,
+          scope: scope,
+          createKey: _newCommandKey,
+          now: DateTime.now,
+          personalization: bootstrap.personalization,
+        );
         return MemberFeatureScope(
           scope: scope,
           dailyRitualController: DailyRitualController(
@@ -781,6 +830,8 @@ class DependencyContainer extends ChangeNotifier {
           rebalanceController: rebalanceController,
           intentionController: intentionController,
           futureMirrorController: futureMirrorController,
+          briefingController: briefingController,
+          notificationController: notificationController,
           invalidationBus: invalidationBus,
           assetCodexRepository: AssetCodexRepository(
             service: GeneratedAssetCodexService(client),

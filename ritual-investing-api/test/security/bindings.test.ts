@@ -66,5 +66,20 @@ describe("security binding validation", () => {
     expect(() =>
       validateBindings({ ...bindings, KILL_SWITCH_NOTIFICATIONS: "off" }),
     ).toThrow(/PUSH_PROVIDER.*required/);
+
+    const inAppOnly = {
+      ...bindings,
+      KILL_SWITCH_NOTIFICATIONS: "off",
+      KILL_SWITCH_NOTIFICATION_WRITER: "off",
+      KILL_SWITCH_NOTIFICATION_DELIVERY: "on",
+    } as Record<string, unknown>;
+    delete inAppOnly.PUSH_TOKEN_ENCRYPTION_KEY;
+    expect(() => validateBindings(inAppOnly)).not.toThrow();
+    expect(() =>
+      validateBindings({
+        ...inAppOnly,
+        KILL_SWITCH_NOTIFICATION_DELIVERY: "off",
+      }),
+    ).toThrow(/PUSH_PROVIDER.*required|PUSH_TOKEN_ENCRYPTION_KEY.*required/);
   });
 });
