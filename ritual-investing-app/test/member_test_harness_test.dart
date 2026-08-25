@@ -20,7 +20,7 @@ void main() {
     });
     addTearDown(harness.close);
 
-    expect(harness.lastAuthorization, 'Bearer local-member-access-token');
+    expect(harness.lastAuthorization, harness.expectedAuthorization);
     expect(harness.container.memberBootstrap?.accountId, harness.accountId);
     expect(harness.container.memberBootstrap?.onboarding.nextStep, 'welcome');
     expect(

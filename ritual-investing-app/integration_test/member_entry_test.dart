@@ -18,7 +18,7 @@ void main() {
     });
     addTearDown(harness.close);
 
-    expect(harness.lastAuthorization, 'Bearer local-member-access-token');
+    expect(harness.lastAuthorization, harness.expectedAuthorization);
     await tester.pumpWidget(
       RitualInvestingApp(container: harness.container, bootstrapOnStart: false),
     );

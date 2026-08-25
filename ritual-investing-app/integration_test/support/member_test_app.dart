@@ -33,12 +33,17 @@ class MemberTestHarness {
   MemberTestHarness._({required this.container, required this._server});
 
   static const _accountId = '00000000-0000-4000-8000-000000000001';
-  static const _accessToken = 'local-member-access-token';
+  static const _testIdentity = String.fromEnvironment(
+    'RITUAL_MEMBER_TEST_ID',
+    defaultValue: 'local-member',
+  );
+  static const _accessToken = '$_testIdentity:bootstrap';
 
   final HttpServer _server;
   final DependencyContainer container;
   String? lastAuthorization;
   String get accountId => _accountId;
+  String get expectedAuthorization => 'Bearer $_accessToken';
 
   static Future<MemberTestHarness> start() async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
@@ -133,7 +138,11 @@ class GuidedMemberTestHarness {
   ) : _complete = initiallyComplete;
 
   static const _accountId = '00000000-0000-4000-8000-000000000011';
-  static const _accessToken = 'guided-member-access-token';
+  static const _testIdentity = String.fromEnvironment(
+    'RITUAL_MEMBER_TEST_ID',
+    defaultValue: 'local-member',
+  );
+  static const _accessToken = '$_testIdentity:onboarding';
 
   final DependencyContainer container;
   final HttpServer _server;

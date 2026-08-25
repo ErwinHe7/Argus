@@ -215,10 +215,12 @@ class _EditorialLead extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  alignment: WrapAlignment.spaceBetween,
                   children: [
                     _KindPill(kind: item.kind),
-                    const Spacer(),
                     const DemoBadge(horizontalPadding: 9),
                   ],
                 ),

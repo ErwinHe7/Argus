@@ -52,7 +52,9 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
       text: (widget.contributionController.defaults.minorUnits / 100)
           .toStringAsFixed(2),
     );
-    unawaited(_hydrate());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(_hydrate());
+    });
   }
 
   Future<void> _hydrate() async {

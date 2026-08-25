@@ -990,6 +990,7 @@ class _FixtureProfileService implements ProfileService {
 }
 
 class _FixturePortfolioService implements PortfolioService, FundingService {
+  static const assetId = '00000000-0000-4000-8000-000000000604';
   static final portfolio = PortfolioSummary(
     id: '00000000-0000-4000-8000-000000000601',
     name: 'Demo Portfolio',
@@ -1024,7 +1025,18 @@ class _FixturePortfolioService implements PortfolioService, FundingService {
   Future<PortfolioSummary> fetchDetail(String portfolioId) async => portfolio;
   @override
   Future<List<PortfolioHolding>> fetchHoldings(String portfolioId) async =>
-      const [];
+      const [
+        PortfolioHolding(
+          assetId: assetId,
+          symbol: 'VIG',
+          quantityValue: '1.250000',
+          quantityScale: 6,
+          marketValueMinor: 2500,
+          currency: PortfolioCurrency.usd,
+          ledgerWatermark: 1,
+          asOfTransactionId: 'fixture-transaction-1',
+        ),
+      ];
   @override
   Future<List<PortfolioActivityEntry>> fetchActivity(
     String portfolioId,
@@ -1116,7 +1128,29 @@ class _FixtureRebalanceService implements RebalanceService {
   Future<RebalancePreview> preview(
     String portfolioId,
     List<RebalanceAllocation> allocations,
-  ) => throw UnimplementedError();
+  ) async => RebalancePreview(
+    id: 'fixture-rebalance-preview',
+    portfolioId: portfolioId,
+    portfolioVersion: 1,
+    targetAllocation: allocations,
+    trades: const [
+      RebalanceTrade(
+        assetId: _FixturePortfolioService.assetId,
+        side: RebalanceSide.buy,
+        quantityValue: '0.125',
+        quantityScale: 3,
+        notionalMinor: 2500,
+      ),
+    ],
+    expiresAt: DateTime.utc(2026, 8, 25, 12, 15),
+    status: RebalancePreviewStatus.active,
+    demo: RebalanceDemoDisclosure(
+      isDemo: true,
+      observedAt: DateTime.utc(2026, 8, 25, 12),
+      sourceLabel: 'Fixture Demo ledger',
+      limitations: const ['No brokerage or real money is connected.'],
+    ),
+  );
   @override
   Future<RebalanceReceipt> commit(RebalanceCommit command) =>
       throw UnimplementedError();

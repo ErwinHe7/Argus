@@ -627,7 +627,7 @@ function privacyExport(environment: Bindings): ConsumerEffect {
     );
     snapshot(
       "preferences",
-      `select theme_mode,ritual_mode,timezone,locale,version from preferences where tenant_id=$1`,
+      `select theme_mode,ritual_mode,ritual_familiarity,ritual_language,ritual_interests,timezone,locale,version from preferences where tenant_id=$1`,
     );
     snapshot(
       "onboarding",
@@ -639,7 +639,7 @@ function privacyExport(environment: Bindings): ConsumerEffect {
     );
     snapshot(
       "investor_profile",
-      `select goal_type,time_horizon,risk_comfort,version from investor_profiles where tenant_id=$1`,
+      `select goal_type,time_horizon,risk_comfort,investing_experience,contribution_rhythm,version from investor_profiles where tenant_id=$1`,
     );
     snapshot(
       "consents",

@@ -2,24 +2,37 @@
 
 Standalone Flutter application for the ritual-first investing product. The app ships one shared Dart UI to iOS and Android and does not import from, run, or modify the AXIO7 research services.
 
-## Current scaffold
+## Current member experience
 
 - Adaptive iOS/Android bottom navigation with Ritual, Discover, Coven, and You destinations.
 - Approved lunar-lilac and aubergine-night themes with a server-authoritative theme setting.
 - Daily Compass ritual using the preserved generated artwork.
 - Inspectable `Market-informed` explanation sheet and explicit Demo limitations.
-- Grimoires, Circles, Founders’ Coven, portfolio, Intentions, Future Mirror, recurring-investing, rebalancing, and premium preview stubs.
+- Asset Codex search and comparison; Grimoires, Circles, and Founders’ Coven discovery and saving.
+- Provider-free Demo portfolio, fictional funding, simulated orders, recurring investing, and rebalancing with explicit confirmation.
+- Intentions, Future Mirror, briefings, in-app notifications, Demo membership, privacy export/deletion status, and seeded-Demo reset flows.
+- Guided investing, ritual-language, spirituality, and optional date-only astrology onboarding before Auth0 sign-up/sign-in, followed by server-complete shell gating.
 - Rowan counsel using the preserved portrait study.
-- Widget tests plus deterministic light/dark visual-regression captures.
+- Active personalization changes presentation and defaults only; it never authorizes a command or moves real money.
+- Widget, accessibility, generated-Dio integration, and deterministic light/dark visual-regression tests.
 
 ## Local checks
 
 ```sh
 flutter analyze
 flutter test
+flutter test integration_test/member_experience_test.dart -d <device-id> \
+  --dart-define=RITUAL_MEMBER_TEST_ID=local-$(date +%s)
+../scripts/test-check-member-provider-boundaries.sh
+../scripts/check-member-provider-boundaries.sh
 ```
 
 The visual baselines live under `test/goldens/`. Regenerate them only after comparing the result with the approved authority at `../docs/visual-references/standalone-ritual-investing/approved-light-dark-reference.html`.
+
+The aggregate integration target starts local loopback services and traverses
+every member slice through the generated Dio client. Its injected identity is
+test-only and ephemeral; it does not contact a bank, broker, payment, market-data,
+push, or hosted Auth0 provider.
 
 ## Native prerequisites
 
@@ -37,3 +50,7 @@ The loopback integration suite exercises an injectable hosted-auth seam; it does
 - Logout clears the Auth0 session and a different-account sign-in cannot inherit the prior account's draft or cache.
 
 The iOS simulator build is a separate local build gate. Android build and device smoke proof require an installed Android SDK; SDK absence is an environment limitation, not a passing Android result.
+
+See the repository [member release gates](../docs/ritual-investing/member-release-gates.md),
+[member data inventory](../docs/ritual-investing/member-data-inventory.md), and
+[Auth0 setup](../docs/ritual-investing/auth0-setup.md) before beta promotion.

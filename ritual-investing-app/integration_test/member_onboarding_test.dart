@@ -61,11 +61,15 @@ void main() {
         tester,
         () => find.byKey(const Key('app-shell-scaffold')).evaluate().isNotEmpty,
       );
+      await _pumpUntil(
+        tester,
+        () => find.text('YOUR DAILY SIGNAL').evaluate().isNotEmpty,
+      );
 
       expect(harness.idempotencyKeys, [firstKey, firstKey]);
       expect(harness.finalizationPayloads, [_optOutPayload, _optOutPayload]);
       expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
-      expect(find.text('Direction, not urgency.'), findsWidgets);
+      expect(find.text('YOUR DAILY SIGNAL'), findsOneWidget);
       expect(
         harness.protectedValues,
         isNot(contains(OnboardingDraftStore.storageKey)),
@@ -117,6 +121,10 @@ void main() {
       tester,
       () => find.byKey(const Key('app-shell-scaffold')).evaluate().isNotEmpty,
     );
+    await _pumpUntil(
+      tester,
+      () => find.text('YOUR DAILY SIGNAL').evaluate().isNotEmpty,
+    );
 
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
     final payload = harness.finalizationPayloads.single;
@@ -144,10 +152,14 @@ void main() {
 
     await tester.tap(find.byKey(const Key('welcome-sign-in')));
     await tester.pumpAndSettle();
+    await _pumpUntil(
+      tester,
+      () => find.text('YOUR DAILY SIGNAL').evaluate().isNotEmpty,
+    );
 
     expect(harness.authIntents, [const MemberAuthIntent.signIn()]);
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
-    expect(find.text('Direction, not urgency.'), findsWidgets);
+    expect(find.text('YOUR DAILY SIGNAL'), findsOneWidget);
     expect(find.text('How familiar are you with investing?'), findsNothing);
     expect(harness.finalizationPayloads, isEmpty);
     expect(

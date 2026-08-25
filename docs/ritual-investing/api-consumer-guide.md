@@ -18,6 +18,31 @@ The mobile release manifest at `ritual-investing-api/compatibility/mobile-client
 
 Member/admin responses are `private, no-store`. Public projections may return `ETag` and support conditional GET. Never persist access tokens, export download tokens, push tokens, raw error bodies, or staff assertions in application logs.
 
+Member onboarding answers are presentation/default inputs, not authorization.
+The API remains authoritative for onboarding completion, tenant scope, version
+checks, idempotency, and confirmed Demo commands. See the
+[member data inventory](member-data-inventory.md) for the sensitive-field,
+consent, retention, export, and deletion contract.
+
+## Provider-free runtime boundary
+
+The member app may call only the configured Ritual API and Auth0. It has no
+banking, brokerage, payment, market-data, purchase, push-delivery, or media
+provider SDK. API runtime network effects are limited to reviewed entry points
+and disabled internal provider seams. Run both provider-boundary scripts for
+every dependency, URL, Worker effect, or runtime configuration change.
+
+In-app notifications are database records delivered through the Ritual API.
+They need no push provider, device push token, or token-encryption binding.
+External delivery stays disabled independently from notification writing. See
+[Member release gates](member-release-gates.md) for the per-capability readiness
+and rollback checklist.
+
 ## Release checks
 
-Run `npm run openapi:check`, `npm run drift:check`, the mobile compatibility test, generated Dart analyze/test, mobile analyze/test, and Android/iOS builds. A contract edit is incomplete unless OpenAPI and generated client change together and N-1 compatibility still passes.
+Run `npm run openapi:check`, `npm run drift:check`, the mobile compatibility
+test, generated Dart analyze/test, mobile analyze/test, generated-Dio member
+integration, Android/iOS builds, and the provider-boundary checks. A contract
+edit is incomplete unless OpenAPI and generated client change together and N-1
+compatibility still passes. Hosted Auth0 and beta processors remain separate
+environment gates; CI does not claim them.
