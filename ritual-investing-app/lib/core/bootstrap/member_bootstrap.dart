@@ -23,35 +23,45 @@ class MemberEntitlement {
 
 @immutable
 class MemberOnboardingGate {
-  const MemberOnboardingGate.complete() : isComplete = true, nextStep = null;
+  const MemberOnboardingGate.complete({this.version = 0})
+    : isComplete = true,
+      nextStep = null;
 
-  const MemberOnboardingGate.incomplete({required this.nextStep})
-    : isComplete = false;
+  const MemberOnboardingGate.incomplete({
+    required this.nextStep,
+    this.version = 0,
+  }) : isComplete = false;
 
   factory MemberOnboardingGate.fromServer({
     required String cohort,
     required String currentStep,
     required DateTime? completedAt,
+    int version = 0,
   }) {
     if (completedAt != null ||
         currentStep == 'complete' ||
         cohort == 'legacy_complete_v1') {
-      return const MemberOnboardingGate.complete();
+      return MemberOnboardingGate.complete(version: version);
     }
-    return MemberOnboardingGate.incomplete(nextStep: currentStep);
+    return MemberOnboardingGate.incomplete(
+      nextStep: currentStep,
+      version: version,
+    );
   }
 
   final bool isComplete;
   final String? nextStep;
+  final int version;
 
   @override
   bool operator ==(Object other) =>
       other is MemberOnboardingGate &&
       other.isComplete == isComplete &&
-      other.nextStep == nextStep;
+      other.nextStep == nextStep &&
+      other.version == version;
 
   @override
-  int get hashCode => Object.hash(isComplete, nextStep);
+  int get hashCode => Object.hash(isComplete, nextStep, version);
 }
 
 @immutable

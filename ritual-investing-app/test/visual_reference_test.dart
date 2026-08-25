@@ -38,10 +38,8 @@ void main() {
 
     // Warm both theme frames before recording a baseline so the first golden
     // cannot race the initial image decode.
-    await tester.tap(find.byKey(const Key('theme-toggle')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('theme-toggle')));
-    await tester.pumpAndSettle();
+    await _setAuthoritativeTheme(tester, 'dark');
+    await _setAuthoritativeTheme(tester, 'light');
 
     final dailyRitualScrollable = find.descendant(
       of: find.byKey(const PageStorageKey('daily-ritual-scroll')),
@@ -61,8 +59,7 @@ void main() {
       matchesGoldenFile('goldens/daily_ritual_light.png'),
     );
 
-    await tester.tap(find.byKey(const Key('theme-toggle')));
-    await tester.pumpAndSettle();
+    await _setAuthoritativeTheme(tester, 'dark');
 
     tester.state<ScrollableState>(dailyRitualScrollable).position.jumpTo(0);
     await tester.pump(const Duration(milliseconds: 500));
@@ -73,6 +70,21 @@ void main() {
       matchesGoldenFile('goldens/daily_ritual_dark.png'),
     );
   });
+}
+
+Future<void> _setAuthoritativeTheme(WidgetTester tester, String theme) async {
+  await tester.tap(find.byKey(const Key('theme-toggle')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(Key('theme-$theme')));
+  await tester.scrollUntilVisible(
+    find.byKey(const Key('preferences-save')),
+    300,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.tap(find.byKey(const Key('preferences-save')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Ritual').last);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _loadFont(String family, String asset) async {

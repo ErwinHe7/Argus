@@ -22,6 +22,11 @@ void main() {
 
     expect(harness.lastAuthorization, 'Bearer local-member-access-token');
     expect(harness.container.memberBootstrap?.accountId, harness.accountId);
+    expect(harness.container.memberBootstrap?.onboarding.nextStep, 'welcome');
+    expect(
+      harness.container.memberBootstrap!.onboarding.version,
+      greaterThan(0),
+    );
 
     await tester.pumpWidget(
       RitualInvestingApp(container: harness.container, bootstrapOnStart: false),

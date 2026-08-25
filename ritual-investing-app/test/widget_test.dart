@@ -66,17 +66,18 @@ void main() {
     await tester.tap(find.text('You').last);
     await tester.pumpAndSettle();
     expect(
-      find.bySemanticsLabel('Your chamber for Ritual Member'),
+      find.bySemanticsLabel('You, Ritual Member'),
       findsOneWidget,
     );
-    expect(find.text(r'$1,000.00'), findsOneWidget);
-    expect(find.text(r'Demo Portfolio · $1,000.00 cash'), findsOneWidget);
+    expect(find.text('Demo Portfolio'), findsOneWidget);
+    expect(find.text('Investing profile'), findsOneWidget);
+    expect(find.text('Ritual and appearance'), findsOneWidget);
     expect(find.text('Future Mirror'), findsNothing);
     expect(find.text('Link a fictional bank'), findsNothing);
     semantics.dispose();
   });
 
-  testWidgets('theme control switches the application theme', (tester) async {
+  testWidgets('theme control saves and applies server authority', (tester) async {
     await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();
@@ -86,11 +87,20 @@ void main() {
 
     await tester.tap(find.byKey(const Key('theme-toggle')));
     await tester.pumpAndSettle();
+    expect(find.text('Ritual and appearance'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('theme-dark')));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('preferences-save')),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.byKey(const Key('preferences-save')));
+    await tester.pumpAndSettle();
 
     final after = tester
         .widget<MaterialApp>(find.byType(MaterialApp))
         .themeMode;
     expect(before, ThemeMode.system);
-    expect(after, isNot(ThemeMode.system));
+    expect(after, ThemeMode.dark);
   });
 }

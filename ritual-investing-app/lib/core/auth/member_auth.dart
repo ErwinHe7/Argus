@@ -4,6 +4,10 @@ import 'package:flutter/foundation.dart';
 
 enum MemberAuthIntentKind { signIn, signUp, recentAuth }
 
+class MemberAuthCancelled implements Exception {
+  const MemberAuthCancelled();
+}
+
 @immutable
 class MemberAuthIntent {
   const MemberAuthIntent.signIn()

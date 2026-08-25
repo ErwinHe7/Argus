@@ -26,10 +26,8 @@ class RitualInvestingApp extends StatefulWidget {
 }
 
 class _RitualInvestingAppState extends State<RitualInvestingApp> {
-  ThemeMode? _manualThemeMode;
   late final GoRouter _router = createAppRouter(
     container: widget.container,
-    onToggleTheme: _toggleTheme,
     resourceAccess: widget.resourceAccess,
   );
 
@@ -41,17 +39,7 @@ class _RitualInvestingAppState extends State<RitualInvestingApp> {
     }
   }
 
-  void _toggleTheme(Brightness currentBrightness) {
-    setState(() {
-      _manualThemeMode = currentBrightness == Brightness.dark
-          ? ThemeMode.light
-          : ThemeMode.dark;
-    });
-  }
-
   ThemeMode get _themeMode {
-    final manual = _manualThemeMode;
-    if (manual != null) return manual;
     return switch (widget.container.memberBootstrap?.themePreference) {
       MemberThemePreference.light => ThemeMode.light,
       MemberThemePreference.dark => ThemeMode.dark,

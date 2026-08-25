@@ -3,6 +3,7 @@ import 'package:ritual_investing_app/core/api/pending_command_store.dart';
 import 'package:ritual_investing_app/core/auth/auth_controller.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/bootstrap/dependency_container.dart';
+import 'package:ritual_investing_app/core/bootstrap/entry_coordinator.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/coven/application/controller.dart';
@@ -36,9 +37,11 @@ DependencyContainer fixtureContainer({
   SessionBootstrapService? sessionBootstrapService,
   FeatureLoadTracker? loadTracker,
   PendingCommandStore? pendingCommandStore,
+  EntryCoordinator? entryCoordinator,
 }) {
   final storage = cache ?? MemoryReadCache();
   final tracker = loadTracker ?? FeatureLoadTracker();
+  final memberState = _FixtureMemberState();
   return DependencyContainer(
     authController:
         authController ??
@@ -46,11 +49,12 @@ DependencyContainer fixtureContainer({
           repository: sessionRepository ?? _FixtureSessionRepository(),
         ),
     sessionBootstrapService:
-        sessionBootstrapService ?? _FixtureSessionBootstrapService(),
+        sessionBootstrapService ?? _FixtureSessionBootstrapService(memberState),
     cacheStorage: storage,
     pendingCommandStore:
         pendingCommandStore ??
         PendingCommandStore(storage: _MemoryProtectedStorage()),
+    entryCoordinator: entryCoordinator,
     featureScopeFactory: (scope, scopedCache) => MemberFeatureScope(
       scope: scope,
       dailyRitualController: DailyRitualController(
@@ -73,7 +77,7 @@ DependencyContainer fixtureContainer({
       ),
       profileController: ProfileController(
         repository: CachedProfileRepository(
-          service: _FixtureProfileService(tracker),
+          service: _FixtureProfileService(tracker, memberState),
           cache: scopedCache,
         ),
       ),
@@ -87,7 +91,14 @@ DependencyContainer fixtureContainer({
   );
 }
 
+class _FixtureMemberState {
+  ProfileTheme theme = ProfileTheme.system;
+}
+
 class _FixtureSessionBootstrapService implements SessionBootstrapService {
+  _FixtureSessionBootstrapService(this.state);
+  final _FixtureMemberState state;
+
   @override
   Future<MemberBootstrap> bootstrap() async => MemberBootstrap(
     accountId: 'fixture-account',
@@ -100,7 +111,11 @@ class _FixtureSessionBootstrapService implements SessionBootstrapService {
     defaultPortfolioId: 'fixture-portfolio',
     serverTime: DateTime.utc(2026, 8, 24),
     contractVersion: '1.0.0',
-    themePreference: MemberThemePreference.system,
+    themePreference: switch (state.theme) {
+      ProfileTheme.system => MemberThemePreference.system,
+      ProfileTheme.light => MemberThemePreference.light,
+      ProfileTheme.dark => MemberThemePreference.dark,
+    },
   );
 }
 
@@ -273,13 +288,52 @@ class _FixtureCovenService implements CovenService {
 }
 
 class _FixtureProfileService implements ProfileService {
-  _FixtureProfileService(this.tracker);
+  _FixtureProfileService(this.tracker, this.state);
   final FeatureLoadTracker tracker;
+  final _FixtureMemberState state;
   @override
   Future<ProfileModel> fetch() async {
     tracker.hit(MemberBranch.you);
-    return const ProfileModel(displayName: 'Ritual Member');
+    return ProfileModel(
+      displayName: 'Ritual Member',
+      profileVersion: 1,
+      preferences: SavedRitualPreferences(
+        locale: 'en-US',
+        timezone: 'America/New_York',
+        ritualMode: ProfileRitualMode.tarot,
+        theme: state.theme,
+        version: 1,
+      ),
+    );
   }
+
+  @override
+  Future<void> patchPreferences(ProfilePreferencesUpdate update) async {
+    state.theme = update.theme ?? state.theme;
+  }
+
+  @override
+  Future<void> putInvestor(ProfileInvestorUpdate update) async {}
+
+  @override
+  Future<ProfileConsentReceipt> putAstrology(
+    ProfileAstrologyUpdate update,
+  ) async => ProfileConsentReceipt(
+    id: 'fixture-consent',
+    decision: ProfileConsentDecision.accepted,
+    policyVersion: '2026-08',
+    recordedAt: DateTime.utc(2026, 8, 25),
+  );
+
+  @override
+  Future<ProfileConsentReceipt> deleteAstrology({
+    required int expectedVersion,
+  }) async => ProfileConsentReceipt(
+    id: 'fixture-consent',
+    decision: ProfileConsentDecision.withdrawn,
+    policyVersion: '2026-08',
+    recordedAt: DateTime.utc(2026, 8, 25),
+  );
 }
 
 class _FixturePortfolioService implements PortfolioService {

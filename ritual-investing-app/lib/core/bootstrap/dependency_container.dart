@@ -10,8 +10,13 @@ import '../../features/coven/application/controller.dart';
 import '../../features/coven/data/repository.dart';
 import '../../features/discover/application/controller.dart';
 import '../../features/discover/data/repository.dart';
+import '../../features/onboarding/application/onboarding_controller.dart';
+import '../../features/onboarding/data/onboarding_draft_store.dart';
+import '../../features/onboarding/data/onboarding_repository.dart';
+import '../../features/onboarding/domain/onboarding_draft.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/data/repository.dart';
+import '../../features/profile/domain/model.dart';
 import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/data/repository.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
@@ -23,6 +28,7 @@ import '../auth/auth0_session_repository.dart';
 import '../auth/auth_controller.dart';
 import '../cache/read_cache.dart';
 import '../config/runtime_config.dart';
+import 'entry_coordinator.dart';
 import 'member_bootstrap.dart';
 
 enum MemberBranch { ritual, discover, coven, you }
@@ -99,11 +105,21 @@ class DependencyContainer extends ChangeNotifier {
     required ScopedReadCacheStorage cacheStorage,
     required PendingCommandStore pendingCommandStore,
     required MemberFeatureScopeFactory featureScopeFactory,
+    this.entryCoordinator,
+    OnboardingController? onboardingController,
   }) : _sessionBootstrapService = sessionBootstrapService,
        _cacheStorage = cacheStorage,
        _pendingCommandStore = pendingCommandStore,
-       _featureScopeFactory = featureScopeFactory {
+       _featureScopeFactory = featureScopeFactory,
+       onboardingController = onboardingController ?? OnboardingController() {
+    entryCoordinator?.bindApplyBootstrap(_transitionTo);
+    entryCoordinator?.addListener(_handleEntryCoordinator);
     _recoverySubscription = authController.recoveredSessions.listen((_) {
+      final coordinator = entryCoordinator;
+      if (coordinator != null) {
+        unawaited(coordinator.resumeRecoveredSession());
+        return;
+      }
       _recoveryPending = true;
       _drainRecoveredSession();
     });
@@ -114,6 +130,8 @@ class DependencyContainer extends ChangeNotifier {
   final ScopedReadCacheStorage _cacheStorage;
   final PendingCommandStore _pendingCommandStore;
   final MemberFeatureScopeFactory _featureScopeFactory;
+  final EntryCoordinator? entryCoordinator;
+  final OnboardingController onboardingController;
   late final StreamSubscription<void> _recoverySubscription;
   MemberBootstrap? _memberBootstrap;
   MemberFeatureScope? _featureScope;
@@ -126,6 +144,21 @@ class DependencyContainer extends ChangeNotifier {
   CacheScope? get activeCacheScope => _featureScope?.scope;
 
   MemberEntryGate get entryGate {
+    final entry = entryCoordinator;
+    if (entry != null) {
+      return switch (entry.state.destination) {
+        EntryDestination.restoring ||
+        EntryDestination.finalizing => MemberEntryGate.restoring,
+        EntryDestination.welcome ||
+        EntryDestination.questionnaire ||
+        EntryDestination.review => MemberEntryGate.signedOut,
+        EntryDestination.failure => MemberEntryGate.failure,
+        EntryDestination.reconcile ||
+        EntryDestination.authenticatedRecovery => MemberEntryGate.onboarding,
+        EntryDestination.entitlementBlocked => MemberEntryGate.entitlement,
+        EntryDestination.shell => MemberEntryGate.member,
+      };
+    }
     if (_isRestoring || authController.state.phase == AuthPhase.loading) {
       return MemberEntryGate.restoring;
     }
@@ -154,15 +187,62 @@ class DependencyContainer extends ChangeNotifier {
   PortfolioController get portfolioController =>
       _requireScope().portfolioController;
 
-  Future<void> bootstrap() => _runRestoration(() async {
-    await authController.restore();
-    await _loadAuthenticatedState();
-  });
+  Future<void> bootstrap() {
+    final coordinator = entryCoordinator;
+    if (coordinator != null) return coordinator.restore();
+    return _runRestoration(() async {
+      await authController.restore();
+      await _loadAuthenticatedState();
+    });
+  }
 
-  Future<void> login() => _runRestoration(() async {
-    await authController.login();
-    await _loadAuthenticatedState();
-  });
+  Future<void> login() {
+    final coordinator = entryCoordinator;
+    if (coordinator != null) return coordinator.signIn();
+    return _runRestoration(() async {
+      await authController.login();
+      await _loadAuthenticatedState();
+    });
+  }
+
+  Future<void> persistOnboardingDraft(OnboardingDraft draft) async {
+    await entryCoordinator?.saveDraft(draft);
+  }
+
+  Future<void> beginQuestionnaire() async {
+    final coordinator = entryCoordinator;
+    if (coordinator == null) {
+      throw StateError('Guided onboarding is unavailable.');
+    }
+    await coordinator.beginQuestionnaire(onboardingController.draft);
+  }
+
+  Future<void> createAccount() async {
+    final coordinator = entryCoordinator;
+    if (coordinator == null) {
+      throw StateError('Guided onboarding is unavailable.');
+    }
+    await coordinator.createAccount(onboardingController.draft);
+  }
+
+  Future<void> attachOnboardingDraft() async {
+    final coordinator = entryCoordinator;
+    if (coordinator == null) {
+      throw StateError('Guided onboarding is unavailable.');
+    }
+    await coordinator.attachDraft();
+  }
+
+  Future<void> retryEntryAction() async {
+    final coordinator = entryCoordinator;
+    if (coordinator == null) return bootstrap();
+    switch (coordinator.state.retryAction) {
+      case EntryRetryAction.discardDraft:
+        await coordinator.discardDraft();
+      case EntryRetryAction.restore || null:
+        await coordinator.restore();
+    }
+  }
 
   Future<void> _runRestoration(Future<void> Function() action) async {
     _isRestoring = true;
@@ -177,6 +257,11 @@ class DependencyContainer extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    final coordinator = entryCoordinator;
+    if (coordinator != null) {
+      await coordinator.logout();
+      return;
+    }
     await _transitionTo(null);
     await authController.logout();
     notifyListeners();
@@ -184,6 +269,43 @@ class DependencyContainer extends ChangeNotifier {
 
   Future<void> ensureBranchLoaded(MemberBranch branch) =>
       _requireScope().load(branch);
+
+  Future<bool> updateMemberPreferences(ProfilePreferencesUpdate update) async {
+    final saved = await profileController.updatePreferences(update);
+    if (!saved) return false;
+    if (update.theme != null && !await _refreshMemberBootstrap()) return false;
+    return true;
+  }
+
+  Future<bool> updateMemberAstrology(ProfileAstrologyUpdate update) async {
+    final saved = await profileController.updateAstrology(update);
+    if (!saved) return false;
+    return _refreshMemberBootstrap();
+  }
+
+  Future<bool> deleteMemberAstrology({required int expectedVersion}) async {
+    final saved = await profileController.deleteAstrology(
+      expectedVersion: expectedVersion,
+    );
+    if (!saved) return false;
+    return _refreshMemberBootstrap();
+  }
+
+  Future<bool> _refreshMemberBootstrap() async {
+    try {
+      final coordinator = entryCoordinator;
+      if (coordinator != null) {
+        await coordinator.refreshCompletedBootstrap();
+      } else {
+        await _transitionTo(await _sessionBootstrapService.bootstrap());
+        notifyListeners();
+      }
+      return true;
+    } on Object {
+      profileController.markBootstrapRefreshFailure();
+      return false;
+    }
+  }
 
   Future<void> _resumeRecoveredSession() async {
     await _runRestoration(_loadAuthenticatedState);
@@ -209,6 +331,14 @@ class DependencyContainer extends ChangeNotifier {
       await _transitionTo(null);
       authController.markBootstrapFailure();
     }
+  }
+
+  void _handleEntryCoordinator() {
+    final draft = entryCoordinator?.state.draft;
+    if (draft != null && draft != onboardingController.draft) {
+      onboardingController.replaceDraft(draft);
+    }
+    notifyListeners();
   }
 
   Future<void> _transitionTo(MemberBootstrap? next) async {
@@ -288,11 +418,25 @@ class DependencyContainer extends ChangeNotifier {
       basePathOverride: config.apiBaseUrl,
       interceptors: [RitualAuthInterceptor(tokenProvider: auth)],
     );
+    final onboardingDraftStore = OnboardingDraftStore(
+      storage: protectedStorage,
+      installation: ProtectedStorageInstallationBinding(
+        storage: protectedStorage,
+      ),
+      now: DateTime.now,
+    );
+    final entryCoordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: GeneratedSessionBootstrapService(client),
+      draftStore: onboardingDraftStore,
+      onboardingRepository: GeneratedOnboardingRepository(client),
+    );
     return DependencyContainer(
       authController: auth,
       sessionBootstrapService: GeneratedSessionBootstrapService(client),
       cacheStorage: cache,
       pendingCommandStore: PendingCommandStore(storage: protectedStorage),
+      entryCoordinator: entryCoordinator,
       featureScopeFactory: (scope, scopedCache) => MemberFeatureScope(
         scope: scope,
         dailyRitualController: DailyRitualController(
@@ -332,7 +476,9 @@ class DependencyContainer extends ChangeNotifier {
   @override
   void dispose() {
     unawaited(_recoverySubscription.cancel());
+    entryCoordinator?.removeListener(_handleEntryCoordinator);
     _featureScope?.dispose();
+    onboardingController.dispose();
     authController.dispose();
     super.dispose();
   }

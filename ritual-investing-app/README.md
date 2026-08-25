@@ -5,7 +5,7 @@ Standalone Flutter application for the ritual-first investing product. The app s
 ## Current scaffold
 
 - Adaptive iOS/Android bottom navigation with Ritual, Discover, Coven, and You destinations.
-- Approved lunar-lilac and aubergine-night themes with a working theme control.
+- Approved lunar-lilac and aubergine-night themes with a server-authoritative theme setting.
 - Daily Compass ritual using the preserved generated artwork.
 - Inspectable `Market-informed` explanation sheet and explicit Demo limitations.
 - Grimoires, Circles, Founders’ Coven, portfolio, Intentions, Future Mirror, recurring-investing, rebalancing, and premium preview stubs.
@@ -26,3 +26,14 @@ The visual baselines live under `test/goldens/`. Regenerate them only after comp
 The project includes generated `ios/` and `android/` hosts. Device builds additionally require full Xcode and CocoaPods for iOS, plus Android Studio/SDK for Android. Run `flutter doctor -v` after installing them.
 
 The bundle identifiers generated for the working scaffold are provisional until the product name and store identity are finalized.
+
+## Release smoke gates
+
+The loopback integration suite exercises an injectable hosted-auth seam; it does not imitate or claim proof of the external Auth0 browser. Before a mobile release, verify on real iOS and Android devices that:
+
+- Auth0 Universal Login opens for both sign-up and returning sign-in.
+- Cancel returns to the editable review with the protected draft intact.
+- The configured callback returns to this app and the authenticated account is reconciled before the member shell opens.
+- Logout clears the Auth0 session and a different-account sign-in cannot inherit the prior account's draft or cache.
+
+The iOS simulator build is a separate local build gate. Android build and device smoke proof require an installed Android SDK; SDK absence is an environment limitation, not a passing Android result.

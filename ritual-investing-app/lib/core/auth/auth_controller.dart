@@ -9,6 +9,8 @@ import 'member_auth.dart';
 
 enum AuthPhase { signedOut, loading, signedIn, failure }
 
+enum MemberAuthResult { authenticated, cancelled, unavailable }
+
 @immutable
 class AuthState {
   const AuthState({required this.phase, this.message, this.canLogout = false});
@@ -36,11 +38,11 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       _repository.memberClientExpectation;
   Stream<void> get recoveredSessions => _recoveries.stream;
   Future<void> restore() => _run(_repository.recover);
-  Future<void> login() => signIn();
-  Future<void> signIn() =>
-      _run(() => _repository.authenticate(const MemberAuthIntent.signIn()));
-  Future<void> signUp() =>
-      _run(() => _repository.authenticate(const MemberAuthIntent.signUp()));
+  Future<MemberAuthResult> login() => signIn();
+  Future<MemberAuthResult> signIn() =>
+      _authenticate(const MemberAuthIntent.signIn());
+  Future<MemberAuthResult> signUp() =>
+      _authenticate(const MemberAuthIntent.signUp());
   Future<void> reauthenticate(Duration maxAge) async {
     await _repository.authenticate(MemberAuthIntent.recentAuth(maxAge: maxAge));
   }
@@ -63,6 +65,26 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
           message: 'Sign-in is temporarily unavailable.',
         ),
       );
+    }
+  }
+
+  Future<MemberAuthResult> _authenticate(MemberAuthIntent intent) async {
+    _set(const AuthState(phase: AuthPhase.loading));
+    try {
+      await _repository.authenticate(intent);
+      _set(const AuthState(phase: AuthPhase.signedIn));
+      return MemberAuthResult.authenticated;
+    } on MemberAuthCancelled {
+      _set(const AuthState(phase: AuthPhase.signedOut));
+      return MemberAuthResult.cancelled;
+    } on Object {
+      _set(
+        const AuthState(
+          phase: AuthPhase.failure,
+          message: 'Sign-in is temporarily unavailable.',
+        ),
+      );
+      return MemberAuthResult.unavailable;
     }
   }
 

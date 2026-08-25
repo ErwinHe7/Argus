@@ -56,21 +56,26 @@ class Auth0SessionRepository implements SessionRepository {
         'max_age': intent.maxAge!.inSeconds.toString(),
       },
     };
-    final value = await _webAuthentication.login(
-      audience: _audience,
-      scopes: const {
-        'openid',
-        'profile',
-        'offline_access',
-        'read:self',
-        'write:self',
-        'simulate:self',
-        'privacy:self',
-      },
-      parameters: parameters,
-      useHTTPS: _useHttpsCallbacks,
-    );
-    return AuthSession(accessToken: value.accessToken);
+    try {
+      final value = await _webAuthentication.login(
+        audience: _audience,
+        scopes: const {
+          'openid',
+          'profile',
+          'offline_access',
+          'read:self',
+          'write:self',
+          'simulate:self',
+          'privacy:self',
+        },
+        parameters: parameters,
+        useHTTPS: _useHttpsCallbacks,
+      );
+      return AuthSession(accessToken: value.accessToken);
+    } on WebAuthenticationException catch (error) {
+      if (error.isUserCancelledException) throw const MemberAuthCancelled();
+      rethrow;
+    }
   }
 
   @override

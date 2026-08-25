@@ -129,6 +129,26 @@ class _FailureProfileRepository implements ProfileRepository {
   @override
   Future<RepositoryRead<ProfileModel>> load() =>
       Future.error(const LoadFailure(LoadPhase.forbidden));
+
+  @override
+  Future<RepositoryRead<ProfileModel>> updatePreferences(
+    ProfilePreferencesUpdate update,
+  ) => Future.error(const LoadFailure(LoadPhase.forbidden));
+
+  @override
+  Future<RepositoryRead<ProfileModel>> updateInvestor(
+    ProfileInvestorUpdate update,
+  ) => Future.error(const LoadFailure(LoadPhase.forbidden));
+
+  @override
+  Future<RepositoryRead<ProfileModel>> updateAstrology(
+    ProfileAstrologyUpdate update,
+  ) => Future.error(const LoadFailure(LoadPhase.forbidden));
+
+  @override
+  Future<RepositoryRead<ProfileModel>> deleteAstrology({
+    required int expectedVersion,
+  }) => Future.error(const LoadFailure(LoadPhase.forbidden));
 }
 
 class _FailurePortfolioRepository implements PortfolioRepository {

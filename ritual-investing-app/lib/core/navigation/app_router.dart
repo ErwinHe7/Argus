@@ -1,17 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/coven/presentation/coven_screen.dart';
 import '../../features/discover/presentation/discover_screen.dart';
+import '../../features/onboarding/application/onboarding_controller.dart';
+import '../../features/onboarding/presentation/onboarding_flow.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/ritual/presentation/daily_ritual_screen.dart';
 import '../../features/shell/presentation/app_shell.dart';
 import '../bootstrap/dependency_container.dart';
+import '../bootstrap/entry_coordinator.dart';
 import 'member_routes.dart';
 
 GoRouter createAppRouter({
   required DependencyContainer container,
-  required ValueChanged<Brightness> onToggleTheme,
   MemberResourceAccess? resourceAccess,
 }) {
   final access = resourceAccess ?? (_, _) => false;
@@ -34,7 +38,48 @@ GoRouter createAppRouter({
   StatefulShellBranch branch(
     MemberRouteDefinition root,
     MemberRouteDefinition detail,
-  ) => StatefulShellBranch(
+  ) {
+    final childRoutes = <RouteBase>[resourceRoute(detail)];
+    if (root.branch == MemberBranch.you) {
+      childRoutes.addAll([
+        GoRoute(
+          path: 'investing',
+          builder: (context, state) => InvestingProfileScreen(
+            controller: container.profileController,
+          ),
+        ),
+        GoRoute(
+          path: 'ritual-preferences',
+          builder: (context, state) => RitualPreferencesScreen(
+            controller: container.profileController,
+            onSave: container.updateMemberPreferences,
+          ),
+        ),
+        GoRoute(
+          path: 'astrology',
+          builder: (context, state) => AstrologySettingsScreen(
+            controller: container.profileController,
+            onEnable: container.updateMemberAstrology,
+            onDelete: container.deleteMemberAstrology,
+          ),
+        ),
+        GoRoute(
+          path: 'policies',
+          builder: (context, state) => PolicyStatusScreen(
+            controller: container.profileController,
+            onboardingComplete:
+                container.memberBootstrap?.onboarding.isComplete ?? false,
+          ),
+        ),
+        GoRoute(
+          path: 'account',
+          builder: (context, state) => AccountSettingsScreen(
+            onLogout: container.logout,
+          ),
+        ),
+      ]);
+    }
+    return StatefulShellBranch(
     restorationScopeId: '${root.name}-branch',
     routes: [
       GoRoute(
@@ -44,18 +89,46 @@ GoRouter createAppRouter({
           key: ValueKey(root.name),
           branch: root.branch,
           container: container,
-          onToggleTheme: onToggleTheme,
         ),
-        routes: [resourceRoute(detail)],
+        routes: childRoutes,
       ),
     ],
   );
+  }
 
   return GoRouter(
-    initialLocation: '/entry',
+    initialLocation: container.entryCoordinator == null ? '/entry' : '/welcome',
     restorationScopeId: 'ritual-investing-router',
     refreshListenable: container,
     redirect: (context, state) {
+      final coordinator = container.entryCoordinator;
+      if (coordinator != null) {
+        final path = state.uri.path;
+        final isOnboarding = path.startsWith('/onboarding/');
+        final stepName = path.startsWith('/onboarding/')
+            ? path.substring('/onboarding/'.length)
+            : null;
+        final isQuestionnaire =
+            _questionStep(stepName) != null || path == '/onboarding/review';
+        final isEntry = path == '/welcome' || path == '/entry' || isOnboarding;
+        return switch (coordinator.state.destination) {
+          EntryDestination.restoring ||
+          EntryDestination.finalizing => path == '/entry' ? null : '/entry',
+          EntryDestination.welcome => path == '/welcome' ? null : '/welcome',
+          EntryDestination.questionnaire =>
+            isQuestionnaire ? null : '/onboarding/experience',
+          EntryDestination.review =>
+            path == '/onboarding/review' ? null : '/onboarding/review',
+          EntryDestination.reconcile =>
+            path == '/onboarding/reconcile' ? null : '/onboarding/reconcile',
+          EntryDestination.authenticatedRecovery =>
+            path == '/onboarding/recovery' ? null : '/onboarding/recovery',
+          EntryDestination.entitlementBlocked ||
+          EntryDestination.failure => path == '/entry' ? null : '/entry',
+          EntryDestination.shell =>
+            isEntry || path == '/' ? MemberRoutes.ritual.path : null,
+        };
+      }
       final atEntry = state.uri.path == '/entry';
       if (container.entryGate != MemberEntryGate.member) {
         return atEntry ? null : '/entry';
@@ -63,6 +136,95 @@ GoRouter createAppRouter({
       return atEntry || state.uri.path == '/' ? MemberRoutes.ritual.path : null;
     },
     routes: [
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => WelcomeScreen(
+          onGetStarted: () =>
+              _runUiAction(context, container.beginQuestionnaire),
+          onSignIn: () => _runUiAction(context, container.login),
+        ),
+      ),
+      GoRoute(
+        path: '/onboarding/review',
+        builder: (context, state) => OnboardingReviewScreen(
+          controller: container.onboardingController,
+          onEdit: (step) => context.push('/onboarding/${step.name}'),
+          onBack: () {
+            final previous =
+                container.onboardingController.draft.astrologyEnabled == true
+                ? OnboardingStep.birthDate
+                : OnboardingStep.astrologyOptIn;
+            container.onboardingController.goTo(previous);
+            context.go('/onboarding/${previous.name}');
+          },
+          onCreateAccount: () => _runUiAction(context, container.createAccount),
+          onDraftChanged: (draft) => _runUiAction(
+            context,
+            () => container.persistOnboardingDraft(draft),
+          ),
+          persistenceMessage: container.entryCoordinator?.state.message,
+          onRetryPersistence: () => _runUiAction(
+            context,
+            () => container.persistOnboardingDraft(
+              container.onboardingController.draft,
+            ),
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/onboarding/reconcile',
+        builder: (context, state) => _OnboardingReconcile(container: container),
+      ),
+      GoRoute(
+        path: '/onboarding/recovery',
+        builder: (context, state) =>
+            _AuthenticatedOnboardingRecovery(container: container),
+      ),
+      GoRoute(
+        path: '/onboarding/:step',
+        redirect: (context, state) =>
+            _questionStep(state.pathParameters['step']) == null
+            ? '/welcome'
+            : null,
+        builder: (context, state) {
+          final step = _questionStep(state.pathParameters['step'])!;
+          return OnboardingFlow(
+            controller: container.onboardingController,
+            step: step,
+            onContinue: (next) {
+              container.onboardingController.goTo(next);
+              _runUiAction(
+                context,
+                () => container.persistOnboardingDraft(
+                  container.onboardingController.draft,
+                ),
+              );
+              context.push('/onboarding/${next.name}');
+            },
+            onBack: (previous) {
+              container.onboardingController.goTo(previous);
+              if (previous == OnboardingStep.welcome) {
+                context.go('/welcome');
+              } else if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/onboarding/${previous.name}');
+              }
+            },
+            onDraftChanged: (draft) => _runUiAction(
+              context,
+              () => container.persistOnboardingDraft(draft),
+            ),
+            persistenceMessage: container.entryCoordinator?.state.message,
+            onRetryPersistence: () => _runUiAction(
+              context,
+              () => container.persistOnboardingDraft(
+                container.onboardingController.draft,
+              ),
+            ),
+          );
+        },
+      ),
       GoRoute(
         path: '/entry',
         builder: (context, state) => _EntryGate(container: container),
@@ -82,17 +244,127 @@ GoRouter createAppRouter({
   );
 }
 
+void _runUiAction(BuildContext context, Future<void> Function() action) {
+  unawaited(() async {
+    try {
+      await action();
+    } on Object {
+      if (!context.mounted) return;
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text('That action could not finish. Please retry.'),
+        ),
+      );
+    }
+  }());
+}
+
+OnboardingStep? _questionStep(String? value) {
+  if (value == null) return null;
+  for (final step in OnboardingStep.values) {
+    if (step.name == value &&
+        step != OnboardingStep.welcome &&
+        step != OnboardingStep.review) {
+      return step;
+    }
+  }
+  return null;
+}
+
+class _OnboardingReconcile extends StatelessWidget {
+  const _OnboardingReconcile({required this.container});
+
+  final DependencyContainer container;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = container.entryCoordinator!.state;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Finish your setup')),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(
+              'Use these reviewed answers?',
+              style: Theme.of(context).textTheme.headlineMedium,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              state.message ?? 'This account is incomplete. Confirm before attaching the private draft saved on this device.',
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              key: const Key('reconcile-attach'),
+              onPressed: () =>
+                  _runUiAction(context, container.attachOnboardingDraft),
+              child: Text(state.canRetry ? 'Retry' : 'Use these answers'),
+            ),
+            TextButton(
+              key: const Key('reconcile-discard'),
+              onPressed: () => _runUiAction(
+                context,
+                container.entryCoordinator!.discardDraft,
+              ),
+              child: const Text('Discard this draft'),
+            ),
+            TextButton(
+              onPressed: () => _runUiAction(context, container.logout),
+              child: const Text('Log out'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthenticatedOnboardingRecovery extends StatelessWidget {
+  const _AuthenticatedOnboardingRecovery({required this.container});
+
+  final DependencyContainer container;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Continue your setup')),
+    body: SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          Text(
+            'Your account setup is incomplete.',
+            style: Theme.of(context).textTheme.headlineMedium,
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Continue from the first missing section. The member app stays locked until the server confirms completion.',
+          ),
+          const SizedBox(height: 24),
+          FilledButton(
+            key: const Key('recovery-continue'),
+            onPressed: () =>
+                _runUiAction(context, container.beginQuestionnaire),
+            child: const Text('Continue setup'),
+          ),
+          TextButton(
+            onPressed: () => _runUiAction(context, container.logout),
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _LazyMemberBranch extends StatefulWidget {
   const _LazyMemberBranch({
     super.key,
     required this.branch,
     required this.container,
-    required this.onToggleTheme,
   });
 
   final MemberBranch branch;
   final DependencyContainer container;
-  final ValueChanged<Brightness> onToggleTheme;
 
   @override
   State<_LazyMemberBranch> createState() => _LazyMemberBranchState();
@@ -110,7 +382,7 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
     MemberBranch.ritual => DailyRitualScreen(
       controller: widget.container.dailyRitualController,
       onOpenCoven: () => context.go(MemberRoutes.coven.path),
-      onToggleTheme: () => widget.onToggleTheme(Theme.of(context).brightness),
+      onToggleTheme: () => context.go(MemberRoutes.youRitualPreferencesPath),
     ),
     MemberBranch.discover => DiscoverScreen(
       controller: widget.container.discoverController,
@@ -121,6 +393,14 @@ class _LazyMemberBranchState extends State<_LazyMemberBranch> {
     MemberBranch.you => ProfileScreen(
       controller: widget.container.profileController,
       portfolioController: widget.container.portfolioController,
+      onOpenInvesting: () => context.push(MemberRoutes.youInvestingPath),
+      onOpenRitualPreferences: () =>
+          context.push(MemberRoutes.youRitualPreferencesPath),
+      onOpenAstrology: () => context.push(MemberRoutes.youAstrologyPath),
+      onOpenPolicies: () => context.push(MemberRoutes.youPoliciesPath),
+      onOpenAccount: () => context.push(MemberRoutes.youAccountPath),
+      onOpenPortfolio: (id) =>
+          context.push(MemberRoutes.portfolio.location(id)),
     ),
   };
 }
@@ -153,6 +433,7 @@ class _EntryGate extends StatelessWidget {
 
   Widget _buildGate(BuildContext context) {
     final state = container.authController.state;
+    final entryState = container.entryCoordinator?.state;
     final (
       message,
       actionLabel,
@@ -175,9 +456,11 @@ class _EntryGate extends StatelessWidget {
         null,
       ),
       MemberEntryGate.failure => (
-        state.message ?? 'Sign-in is temporarily unavailable.',
+        entryState?.message ??
+            state.message ??
+            'Sign-in is temporarily unavailable.',
         'Retry',
-        container.bootstrap,
+        container.retryEntryAction,
         state.canLogout ? 'Log out' : null,
         state.canLogout ? container.logout : null,
       ),
@@ -211,10 +494,13 @@ class _EntryGate extends StatelessWidget {
                   const SizedBox(height: 16),
                 if (message != null) Text(message, textAlign: TextAlign.center),
                 if (action != null)
-                  TextButton(onPressed: action, child: Text(actionLabel!)),
+                  TextButton(
+                    onPressed: () => _runUiAction(context, action),
+                    child: Text(actionLabel!),
+                  ),
                 if (secondaryAction != null)
                   TextButton(
-                    onPressed: secondaryAction,
+                    onPressed: () => _runUiAction(context, secondaryAction),
                     child: Text(secondaryLabel!),
                   ),
               ],

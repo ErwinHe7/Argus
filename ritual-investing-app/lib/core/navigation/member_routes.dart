@@ -30,6 +30,12 @@ class MemberRouteDefinition {
 }
 
 abstract final class MemberRoutes {
+  static const youInvestingPath = '/you/investing';
+  static const youRitualPreferencesPath = '/you/ritual-preferences';
+  static const youAstrologyPath = '/you/astrology';
+  static const youPoliciesPath = '/you/policies';
+  static const youAccountPath = '/you/account';
+
   static const ritual = MemberRouteDefinition(
     name: 'ritual',
     path: '/ritual',
