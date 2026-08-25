@@ -23,6 +23,7 @@ class PortfolioScreen extends StatefulWidget {
     this.onOpenOrders,
     this.onOpenRecurringPlans,
     this.onOpenRebalance,
+    this.onOpenIntentions,
   });
 
   final String portfolioId;
@@ -34,6 +35,7 @@ class PortfolioScreen extends StatefulWidget {
   final VoidCallback? onOpenOrders;
   final VoidCallback? onOpenRecurringPlans;
   final VoidCallback? onOpenRebalance;
+  final VoidCallback? onOpenIntentions;
 
   @override
   State<PortfolioScreen> createState() => _PortfolioScreenState();
@@ -135,12 +137,14 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 ),
                 if (widget.onOpenOrders != null ||
                     widget.onOpenRecurringPlans != null ||
-                    widget.onOpenRebalance != null) ...[
+                    widget.onOpenRebalance != null ||
+                    widget.onOpenIntentions != null) ...[
                   const SizedBox(height: 24),
                   _SimulationActions(
                     onOpenOrders: widget.onOpenOrders,
                     onOpenRecurringPlans: widget.onOpenRecurringPlans,
                     onOpenRebalance: widget.onOpenRebalance,
+                    onOpenIntentions: widget.onOpenIntentions,
                   ),
                 ],
                 const SizedBox(height: 24),
@@ -446,11 +450,13 @@ class _SimulationActions extends StatelessWidget {
     this.onOpenOrders,
     this.onOpenRecurringPlans,
     this.onOpenRebalance,
+    this.onOpenIntentions,
   });
 
   final VoidCallback? onOpenOrders;
   final VoidCallback? onOpenRecurringPlans;
   final VoidCallback? onOpenRebalance;
+  final VoidCallback? onOpenIntentions;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -484,6 +490,14 @@ class _SimulationActions extends StatelessWidget {
           onPressed: onOpenRebalance,
           icon: const Icon(Icons.balance_outlined),
           label: const Text('Rebalance'),
+        ),
+      if (onOpenIntentions != null)
+        OutlinedButton.icon(
+          key: const Key('open-intentions'),
+          style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
+          onPressed: onOpenIntentions,
+          icon: const Icon(Icons.flag_outlined),
+          label: const Text('Intentions & Future Mirror'),
         ),
     ],
   );

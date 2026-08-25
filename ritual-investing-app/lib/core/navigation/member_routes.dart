@@ -191,4 +191,45 @@ abstract final class MemberRoutes {
 
   static String portfolioRebalanceLocation(String portfolioId) =>
       '${portfolio.location(portfolioId)}/rebalance';
+
+  static String portfolioIntentionsLocation(String portfolioId) {
+    if (!isStableId(portfolioId)) {
+      throw ArgumentError.value(
+        portfolioId,
+        'portfolioId',
+        'Invalid portfolio ID.',
+      );
+    }
+    return '${portfolio.location(portfolioId)}/intentions';
+  }
+
+  static String portfolioIntentionLocation(
+    String portfolioId,
+    String intentionId,
+  ) {
+    if (!isUuid(intentionId)) {
+      throw ArgumentError.value(
+        intentionId,
+        'intentionId',
+        'Invalid Intention UUID.',
+      );
+    }
+    return '${portfolioIntentionsLocation(portfolioId)}/'
+        '${Uri.encodeComponent(intentionId)}';
+  }
+
+  static String futureMirrorLocation(String portfolioId, String intentionId) =>
+      '${portfolioIntentionLocation(portfolioId, intentionId)}/future-mirror';
+
+  static String futureMirrorRunLocation(
+    String portfolioId,
+    String intentionId,
+    String runId,
+  ) {
+    if (!isUuid(runId)) {
+      throw ArgumentError.value(runId, 'runId', 'Invalid Future Mirror UUID.');
+    }
+    return '${futureMirrorLocation(portfolioId, intentionId)}/'
+        '${Uri.encodeComponent(runId)}';
+  }
 }

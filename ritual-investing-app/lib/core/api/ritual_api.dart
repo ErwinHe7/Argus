@@ -7,6 +7,10 @@ import '../../features/discover/data/repository.dart';
 import '../../features/discover/domain/model.dart';
 import '../../features/funding/data/repository.dart';
 import '../../features/funding/domain/model.dart';
+import '../../features/future_mirror/data/repository.dart';
+import '../../features/future_mirror/domain/model.dart' as mirror_domain;
+import '../../features/intentions/data/repository.dart';
+import '../../features/intentions/domain/model.dart' as intention_domain;
 import '../../features/onboarding/domain/onboarding_draft.dart' as onboarding;
 import '../../features/orders/data/repository.dart';
 import '../../features/orders/domain/model.dart' as order_domain;
@@ -1486,6 +1490,428 @@ class GeneratedRebalanceApiService implements RebalanceService {
     rebalance_domain.RebalanceCommit command,
   ) => _mapping.commitRebalance(command);
 }
+
+class GeneratedIntentionApiService implements IntentionService {
+  GeneratedIntentionApiService(RitualInvestingApiClient client)
+    : _api = IntentionsApi(client.dio) {
+    ensureDateOnlyRequestSerialization(client.dio);
+  }
+
+  final IntentionsApi _api;
+
+  @override
+  Future<intention_domain.IntentionPage> list({
+    String? cursor,
+    intention_domain.IntentionStatus? status,
+  }) async {
+    try {
+      final response = (await _api.listIntentions(
+        cursor: cursor,
+        status: status?.name,
+      )).data!;
+      final items = response.data.map(_intention).toList(growable: false);
+      if (items.map((item) => item.id).toSet().length != items.length ||
+          (response.meta.hasMore &&
+              (response.meta.nextCursor == null ||
+                  response.meta.nextCursor!.trim().isEmpty)) ||
+          (!response.meta.hasMore && response.meta.nextCursor != null)) {
+        _terminalContract();
+      }
+      return intention_domain.IntentionPage(
+        items: items,
+        hasMore: response.meta.hasMore,
+        nextCursor: response.meta.nextCursor,
+      );
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<intention_domain.Intention> get(String intentionId) async {
+    try {
+      final value = (await _api.getIntention(intentionId: intentionId))
+          .data!
+          .data;
+      if (value.id != intentionId) _terminalContract();
+      return _intention(value);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<intention_domain.Intention> create(
+    intention_domain.IntentionCreate command,
+  ) async {
+    final draft = command.draft;
+    try {
+      final value = (await _api.createIntention(
+        idempotencyKey: command.idempotencyKey,
+        createIntentionRequest: CreateIntentionRequest(
+          portfolioId: draft.portfolioId,
+          title: draft.title.trim(),
+          target: PositiveInputMoney(
+            currency: PositiveInputMoneyCurrencyEnum.USD,
+            minorUnits: draft.targetMinor,
+          ),
+          targetDate: draft.targetDate,
+        ),
+      )).data!.data;
+      if (value.portfolioId != draft.portfolioId ||
+          value.title != draft.title.trim() ||
+          value.target.minorUnits != draft.targetMinor ||
+          !_sameDate(value.targetDate, draft.targetDate)) {
+        _terminalContract();
+      }
+      return _intention(value);
+    } on DioException catch (error) {
+      if (_isTransportFailure(error)) {
+        throw const intention_domain.AmbiguousIntentionCreate();
+      }
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<intention_domain.Intention> patch(
+    intention_domain.IntentionPatch command,
+  ) async {
+    final draft = command.draft;
+    try {
+      final value = (await _api.patchIntention(
+        intentionId: command.intentionId,
+        ifMatch: '"v${command.expectedVersion}"',
+        patchIntentionRequest: PatchIntentionRequest(
+          title: draft.title.trim(),
+          target: PositiveInputMoney(
+            currency: PositiveInputMoneyCurrencyEnum.USD,
+            minorUnits: draft.targetMinor,
+          ),
+          targetDate: draft.targetDate,
+          status: switch (draft.status) {
+            intention_domain.IntentionStatus.active =>
+              PatchIntentionRequestStatusEnum.active,
+            intention_domain.IntentionStatus.completed =>
+              PatchIntentionRequestStatusEnum.completed,
+            intention_domain.IntentionStatus.archived => _terminalContract(),
+          },
+        ),
+      )).data!.data;
+      final result = _intention(value);
+      if (result.id != command.intentionId || !draft.exactlyMatches(result)) {
+        _terminalContract();
+      }
+      return result;
+    } on DioException catch (error) {
+      if (_isTransportFailure(error)) {
+        throw const intention_domain.AmbiguousIntentionMutation();
+      }
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<void> archive(String intentionId, int expectedVersion) async {
+    try {
+      await _api.archiveIntention(
+        intentionId: intentionId,
+        ifMatch: '"v$expectedVersion"',
+      );
+    } on DioException catch (error) {
+      if (_isTransportFailure(error)) {
+        throw const intention_domain.AmbiguousIntentionMutation();
+      }
+      _throwApiFailure(error);
+    }
+  }
+
+  intention_domain.Intention _intention(Intention value) {
+    _requireSimulationDemo(value.demo);
+    _requireGeneratedUuid(value.id);
+    _requireGeneratedUuid(value.portfolioId);
+    if (value.latestProjectionId case final id?) _requireGeneratedUuid(id);
+    if (value.title.trim().isEmpty ||
+        value.title.length > 120 ||
+        value.target.currency != MoneyCurrencyEnum.USD ||
+        value.progress.currency != MoneyCurrencyEnum.USD ||
+        value.target.minorUnits < 1 ||
+        value.target.minorUnits > 1000000000 ||
+        value.progress.minorUnits < 0 ||
+        value.progressBps < 0 ||
+        value.progressBps > 10000 ||
+        value.version < 1 ||
+        _expectedProgressBps(
+              value.progress.minorUnits,
+              value.target.minorUnits,
+            ) !=
+            value.progressBps) {
+      _terminalContract();
+    }
+    final status = switch (value.status) {
+      IntentionStatusEnum.active => intention_domain.IntentionStatus.active,
+      IntentionStatusEnum.completed =>
+        intention_domain.IntentionStatus.completed,
+      IntentionStatusEnum.archived => intention_domain.IntentionStatus.archived,
+      IntentionStatusEnum.unknownDefaultOpenApi => _terminalContract(),
+    };
+    return intention_domain.Intention(
+      id: value.id,
+      portfolioId: value.portfolioId,
+      title: value.title,
+      targetMinor: value.target.minorUnits,
+      targetDate: _generatedDateOnly(value.targetDate),
+      status: status,
+      progressMinor: value.progress.minorUnits,
+      progressBps: value.progressBps,
+      latestProjectionId: value.latestProjectionId,
+      version: value.version,
+      demo: intention_domain.IntentionDemoDisclosure(
+        isDemo: value.demo.isDemo,
+        observedAt: value.demo.observedAt.toUtc(),
+        sourceLabel: value.demo.sourceLabel,
+        limitations: List.unmodifiable(value.demo.limitations),
+      ),
+    );
+  }
+}
+
+class GeneratedFutureMirrorApiService implements FutureMirrorService {
+  GeneratedFutureMirrorApiService(RitualInvestingApiClient client)
+    : _api = FutureMirrorApi(client.dio);
+
+  final FutureMirrorApi _api;
+
+  @override
+  Future<mirror_domain.FutureMirror> generate(
+    mirror_domain.FutureMirrorGenerate command,
+  ) async {
+    try {
+      final value = (await _api.createFutureMirror(
+        intentionId: command.intentionId,
+        idempotencyKey: command.idempotencyKey,
+        createFutureMirrorRequest: _request(command.draft),
+      )).data!.data;
+      final result = _mirror(value, expectedIntentionId: command.intentionId);
+      if (!result.assumptions.exactlyMatches(command.draft)) {
+        _terminalContract();
+      }
+      return result;
+    } on DioException catch (error) {
+      if (_isTransportFailure(error)) {
+        throw const mirror_domain.AmbiguousFutureMirrorGeneration();
+      }
+      final fieldErrors = _futureMirrorFieldErrors(error.response?.data);
+      if (fieldErrors.isNotEmpty) {
+        throw mirror_domain.FutureMirrorValidationFailure(fieldErrors);
+      }
+      if (_apiErrorCode(error.response?.data) ==
+          'projection_requires_demo_activity') {
+        throw const LoadFailure(
+          LoadPhase.conflict,
+          message: 'Add provider-free Demo activity before generating.',
+        );
+      }
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<mirror_domain.FutureMirror?> getLatest(String intentionId) async {
+    try {
+      final value = (await _api.getLatestFutureMirror(intentionId: intentionId))
+          .data!
+          .data;
+      return _mirror(value, expectedIntentionId: intentionId);
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 404 ||
+          _apiErrorCode(error.response?.data) == 'not_found' ||
+          _apiErrorCode(error.response?.data) == 'resource_not_found') {
+        return null;
+      }
+      _throwApiFailure(error);
+    }
+  }
+
+  @override
+  Future<mirror_domain.FutureMirror> get(
+    String intentionId,
+    String runId,
+  ) async {
+    try {
+      final value = (await _api.getFutureMirror(
+        intentionId: intentionId,
+        runId: runId,
+      )).data!.data;
+      if (value.id != runId) _terminalContract();
+      return _mirror(value, expectedIntentionId: intentionId);
+    } on DioException catch (error) {
+      _throwApiFailure(error);
+    }
+  }
+
+  CreateFutureMirrorRequest _request(mirror_domain.FutureMirrorDraft draft) =>
+      CreateFutureMirrorRequest(
+        name: draft.name.trim(),
+        monthlyContribution: InputMoney(
+          currency: InputMoneyCurrencyEnum.USD,
+          minorUnits: draft.monthlyContributionMinor,
+        ),
+        annualReturnBps: CreateFutureMirrorRequestAnnualReturnBps(
+          low: draft.lowReturnBps,
+          mid: draft.midReturnBps,
+          high: draft.highReturnBps,
+        ),
+      );
+
+  mirror_domain.FutureMirror _mirror(
+    FutureMirrorView value, {
+    required String expectedIntentionId,
+  }) {
+    _requireSimulationDemo(value.demo);
+    _requireGeneratedUuid(value.id);
+    _requireGeneratedUuid(value.intentionId);
+    if (value.intentionId != expectedIntentionId ||
+        value.modelVersion != FutureMirrorViewModelVersionEnum.ritualDemoV1 ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(value.inputHash) ||
+        value.ledgerWatermark < 1 ||
+        value.uncertainty.trim().isEmpty ||
+        value.points.isEmpty ||
+        value.points.length > 120) {
+      _terminalContract();
+    }
+    final assumptions = value.assumptions;
+    if (assumptions.name.trim().isEmpty ||
+        assumptions.name.length > 80 ||
+        assumptions.monthlyContribution.currency !=
+            InputMoneyCurrencyEnum.USD ||
+        assumptions.monthlyContribution.minorUnits < 0 ||
+        assumptions.monthlyContribution.minorUnits > 1000000000 ||
+        !_validReturnBands(
+          assumptions.annualReturnBps.low,
+          assumptions.annualReturnBps.mid,
+          assumptions.annualReturnBps.high,
+        )) {
+      _terminalContract();
+    }
+    final points = <mirror_domain.FutureMirrorPoint>[];
+    DateTime? previousDate;
+    for (final point in value.points) {
+      final date = _generatedDateOnly(point.date);
+      if (previousDate != null && !date.isAfter(previousDate)) {
+        _terminalContract();
+      }
+      previousDate = date;
+      if (point.low.currency != MoneyCurrencyEnum.USD ||
+          point.mid.currency != MoneyCurrencyEnum.USD ||
+          point.high.currency != MoneyCurrencyEnum.USD ||
+          point.low.minorUnits < 0 ||
+          point.low.minorUnits > point.mid.minorUnits ||
+          point.mid.minorUnits > point.high.minorUnits) {
+        _terminalContract();
+      }
+      points.add(
+        mirror_domain.FutureMirrorPoint(
+          date: date,
+          lowMinor: point.low.minorUnits,
+          midMinor: point.mid.minorUnits,
+          highMinor: point.high.minorUnits,
+        ),
+      );
+    }
+    return mirror_domain.FutureMirror(
+      id: value.id,
+      intentionId: value.intentionId,
+      assumptions: mirror_domain.FutureMirrorDraft(
+        name: assumptions.name,
+        monthlyContributionMinor: assumptions.monthlyContribution.minorUnits,
+        lowReturnBps: assumptions.annualReturnBps.low,
+        midReturnBps: assumptions.annualReturnBps.mid,
+        highReturnBps: assumptions.annualReturnBps.high,
+      ),
+      points: List.unmodifiable(points),
+      generatedAt: value.generatedAt.toUtc(),
+      modelVersion: value.modelVersion.value,
+      inputHash: value.inputHash,
+      ledgerWatermark: value.ledgerWatermark,
+      uncertainty: value.uncertainty,
+      demo: mirror_domain.FutureMirrorDemoDisclosure(
+        isDemo: value.demo.isDemo,
+        observedAt: value.demo.observedAt.toUtc(),
+        sourceLabel: value.demo.sourceLabel,
+        limitations: List.unmodifiable(value.demo.limitations),
+      ),
+    );
+  }
+}
+
+Map<mirror_domain.FutureMirrorField, String> _futureMirrorFieldErrors(
+  Object? data,
+) {
+  if (data is! Map || data['error'] is! Map) return const {};
+  final values = (data['error']! as Map)['field_errors'];
+  if (values is! List) return const {};
+  final result = <mirror_domain.FutureMirrorField, String>{};
+  const paths = <String, mirror_domain.FutureMirrorField>{
+    'name': mirror_domain.FutureMirrorField.name,
+    'monthly_contribution': mirror_domain.FutureMirrorField.monthlyContribution,
+    'monthly_contribution.minor_units':
+        mirror_domain.FutureMirrorField.monthlyContribution,
+    'annual_return_bps.low': mirror_domain.FutureMirrorField.lowReturn,
+    'annual_return_bps.mid': mirror_domain.FutureMirrorField.midReturn,
+    'annual_return_bps.high': mirror_domain.FutureMirrorField.highReturn,
+  };
+  for (final raw in values) {
+    if (raw is! Map || raw['path'] is! String || raw['code'] is! String) {
+      continue;
+    }
+    final field = paths[raw['path']];
+    final code = raw['code']! as String;
+    if (field != null && code.trim().isNotEmpty) result[field] = code;
+  }
+  return result;
+}
+
+void _requireSimulationDemo(SimulationDemoDisclosure value) {
+  if (!value.isDemo ||
+      value.sourceLabel.trim().isEmpty ||
+      value.limitations.isEmpty ||
+      value.limitations.any((item) => item.trim().isEmpty)) {
+    _terminalContract();
+  }
+}
+
+void _requireGeneratedUuid(String value) {
+  if (!RegExp(
+    r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$',
+  ).hasMatch(value)) {
+    _terminalContract();
+  }
+}
+
+DateTime _generatedDateOnly(DateTime value) {
+  if (value.hour != 0 ||
+      value.minute != 0 ||
+      value.second != 0 ||
+      value.millisecond != 0 ||
+      value.microsecond != 0) {
+    _terminalContract();
+  }
+  return DateTime.utc(value.year, value.month, value.day);
+}
+
+bool _sameDate(DateTime left, DateTime right) =>
+    left.year == right.year &&
+    left.month == right.month &&
+    left.day == right.day;
+
+int _expectedProgressBps(int progressMinor, int targetMinor) =>
+    progressMinor >= targetMinor
+    ? 10000
+    : (progressMinor * 10000) ~/ targetMinor;
+
+bool _validReturnBands(int low, int mid, int high) =>
+    low >= -5000 && high <= 5000 && low <= mid && mid <= high;
 
 class _GeneratedSimulatedInvestingMappings {
   _GeneratedSimulatedInvestingMappings(RitualInvestingApiClient client)

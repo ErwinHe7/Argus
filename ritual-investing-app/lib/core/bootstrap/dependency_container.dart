@@ -22,8 +22,12 @@ import '../../features/discover/data/repository.dart';
 import '../../features/funding/application/contribution_controller.dart';
 import '../../features/funding/application/funding_source_controller.dart';
 import '../../features/funding/data/repository.dart';
+import '../../features/future_mirror/application/future_mirror_controller.dart';
+import '../../features/future_mirror/data/repository.dart';
 import '../../features/grimoires/application/controller.dart';
 import '../../features/grimoires/data/repository.dart';
+import '../../features/intentions/application/intention_controller.dart';
+import '../../features/intentions/data/repository.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/orders/application/order_controller.dart';
 import '../../features/orders/data/repository.dart';
@@ -94,6 +98,8 @@ class MemberFeatureScope {
     this.orderController,
     this.recurringPlanController,
     this.rebalanceController,
+    this.intentionController,
+    this.futureMirrorController,
   });
 
   final CacheScope scope;
@@ -115,6 +121,8 @@ class MemberFeatureScope {
   final OrderController? orderController;
   final RecurringPlanController? recurringPlanController;
   final RebalanceController? rebalanceController;
+  final IntentionController? intentionController;
+  final FutureMirrorController? futureMirrorController;
   final Map<MemberBranch, Future<void>> _loads = {};
   bool _isDisposed = false;
 
@@ -126,6 +134,8 @@ class MemberFeatureScope {
     recurringPlanController?.updateRhythm(
       bootstrap.personalization.contributionRhythm,
     );
+    futureMirrorController?.updatePersonalization(bootstrap.personalization);
+    intentionController?.updateProfile(profileController.state.value?.investor);
   }
 
   Future<void> load(MemberBranch branch) {
@@ -144,6 +154,9 @@ class MemberFeatureScope {
             portfolioController.load(),
             fundingSourceController.load(),
           ]);
+          intentionController?.updateProfile(
+            profileController.state.value?.investor,
+          );
       }
     });
   }
@@ -161,6 +174,8 @@ class MemberFeatureScope {
     orderController?.dispose();
     recurringPlanController?.dispose();
     rebalanceController?.dispose();
+    intentionController?.dispose();
+    futureMirrorController?.dispose();
     unawaited(invalidationBus.dispose());
     searchController?.dispose();
     rowanController?.dispose();
@@ -277,6 +292,18 @@ class DependencyContainer extends ChangeNotifier {
     return value;
   }
 
+  IntentionController get intentionController {
+    final value = _requireScope().intentionController;
+    if (value == null) throw StateError('Intentions are unavailable.');
+    return value;
+  }
+
+  FutureMirrorController get futureMirrorController {
+    final value = _requireScope().futureMirrorController;
+    if (value == null) throw StateError('Future Mirror is unavailable.');
+    return value;
+  }
+
   SearchController get searchController {
     final value = _requireScope().searchController;
     if (value == null) throw StateError('Search is unavailable.');
@@ -314,6 +341,10 @@ class DependencyContainer extends ChangeNotifier {
       _featureScope?.orderController != null &&
       _featureScope?.recurringPlanController != null &&
       _featureScope?.rebalanceController != null;
+
+  bool get hasU8 =>
+      _featureScope?.intentionController != null &&
+      _featureScope?.futureMirrorController != null;
 
   bool get hasU5Research =>
       _featureScope?.covenRepository != null &&
@@ -685,6 +716,29 @@ class DependencyContainer extends ChangeNotifier {
           createKey: _newCommandKey,
           now: DateTime.now,
         );
+        final intentionController = IntentionController(
+          repository: CachedIntentionRepository(
+            service: GeneratedIntentionApiService(client),
+            cache: scopedCache,
+          ),
+          pendingStore: pendingCommandStore,
+          invalidationBus: invalidationBus,
+          scope: scope,
+          createKey: _newCommandKey,
+          now: DateTime.now,
+        );
+        final futureMirrorController = FutureMirrorController(
+          repository: CachedFutureMirrorRepository(
+            service: GeneratedFutureMirrorApiService(client),
+            cache: scopedCache,
+          ),
+          pendingStore: pendingCommandStore,
+          invalidationBus: invalidationBus,
+          scope: scope,
+          createKey: _newCommandKey,
+          now: DateTime.now,
+          personalization: bootstrap.personalization,
+        );
         return MemberFeatureScope(
           scope: scope,
           dailyRitualController: DailyRitualController(
@@ -725,6 +779,8 @@ class DependencyContainer extends ChangeNotifier {
           orderController: orderController,
           recurringPlanController: recurringPlanController,
           rebalanceController: rebalanceController,
+          intentionController: intentionController,
+          futureMirrorController: futureMirrorController,
           invalidationBus: invalidationBus,
           assetCodexRepository: AssetCodexRepository(
             service: GeneratedAssetCodexService(client),

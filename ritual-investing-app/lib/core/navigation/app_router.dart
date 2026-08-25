@@ -18,8 +18,10 @@ import '../../features/asset_codex/domain/model.dart';
 import '../../features/asset_codex/presentation/asset_codex_screen.dart';
 import '../../features/discover/presentation/discover_screen.dart';
 import '../../features/discover/domain/model.dart';
+import '../../features/future_mirror/presentation/future_mirror_screen.dart';
 import '../../features/grimoires/application/controller.dart';
 import '../../features/grimoires/presentation/grimoire_detail_screen.dart';
+import '../../features/intentions/presentation/intention_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
 import '../../features/orders/presentation/order_screen.dart';
@@ -113,6 +115,11 @@ GoRouter createAppRouter({
                   MemberRoutes.portfolioRebalanceLocation(stableId),
                 )
               : null,
+          onOpenIntentions: container.hasU8
+              ? () => context.push(
+                  MemberRoutes.portfolioIntentionsLocation(stableId),
+                )
+              : null,
         );
       }
       if (container.hasU5Research) {
@@ -163,6 +170,100 @@ GoRouter createAppRouter({
     final childRoutes = <RouteBase>[resourceRoute(detail)];
     if (root.branch == MemberBranch.you) {
       childRoutes.addAll([
+        GoRoute(
+          path: 'portfolios/:portfolioId/intentions',
+          redirect: (context, state) =>
+              _validU8PortfolioRoute(
+                container,
+                state.pathParameters['portfolioId'],
+              )
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) {
+            final portfolioId = state.pathParameters['portfolioId']!;
+            return IntentionsScreen(
+              key: ValueKey('intentions-$portfolioId'),
+              portfolioId: portfolioId,
+              controller: container.intentionController,
+              onOpenIntention: (intentionId) => context.push(
+                MemberRoutes.portfolioIntentionLocation(
+                  portfolioId,
+                  intentionId,
+                ),
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: 'portfolios/:portfolioId/intentions/:intentionId',
+          redirect: (context, state) =>
+              _validU8PortfolioRoute(
+                    container,
+                    state.pathParameters['portfolioId'],
+                  ) &&
+                  MemberRoutes.isUuid(state.pathParameters['intentionId'] ?? '')
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) {
+            final portfolioId = state.pathParameters['portfolioId']!;
+            final intentionId = state.pathParameters['intentionId']!;
+            return IntentionDetailScreen(
+              key: ValueKey('intention-$portfolioId-$intentionId'),
+              portfolioId: portfolioId,
+              intentionId: intentionId,
+              controller: container.intentionController,
+              onOpenFutureMirror: () => context.push(
+                MemberRoutes.futureMirrorLocation(portfolioId, intentionId),
+              ),
+            );
+          },
+        ),
+        GoRoute(
+          path: 'portfolios/:portfolioId/intentions/:intentionId/future-mirror',
+          redirect: (context, state) =>
+              _validU8IntentionRoute(container, state.pathParameters)
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) => FutureMirrorScreen(
+            key: ValueKey(
+              'future-mirror-${state.pathParameters['portfolioId']}-'
+              '${state.pathParameters['intentionId']}',
+            ),
+            portfolioId: state.pathParameters['portfolioId']!,
+            intentionId: state.pathParameters['intentionId']!,
+            controller: container.futureMirrorController,
+            intentionController: container.intentionController,
+            portfolioController: container.portfolioController,
+            onOpenRun: (runId) => context.push(
+              MemberRoutes.futureMirrorRunLocation(
+                state.pathParameters['portfolioId']!,
+                state.pathParameters['intentionId']!,
+                runId,
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: 'portfolios/:portfolioId/intentions/:intentionId/future-mirror/:runId',
+          redirect: (context, state) =>
+              _validU8IntentionRoute(container, state.pathParameters) &&
+                  MemberRoutes.isUuid(state.pathParameters['runId'] ?? '')
+              ? null
+              : MemberRoutes.you.path,
+          builder: (context, state) => FutureMirrorScreen(
+            key: ValueKey(
+              'future-mirror-${state.pathParameters['portfolioId']}-'
+              '${state.pathParameters['intentionId']}-'
+              '${state.pathParameters['runId']}',
+            ),
+            portfolioId: state.pathParameters['portfolioId']!,
+            intentionId: state.pathParameters['intentionId']!,
+            initialRunId: state.pathParameters['runId']!,
+            controller: container.futureMirrorController,
+            intentionController: container.intentionController,
+            portfolioController: container.portfolioController,
+          ),
+        ),
         GoRoute(
           path: 'portfolios/:portfolioId/orders',
           redirect: (context, state) =>
@@ -800,6 +901,21 @@ bool _validU7PortfolioRoute(
     container.hasU7 &&
     portfolioId != null &&
     MemberRoutes.isStableId(portfolioId);
+
+bool _validU8PortfolioRoute(
+  DependencyContainer container,
+  String? portfolioId,
+) =>
+    container.hasU8 &&
+    portfolioId != null &&
+    MemberRoutes.isStableId(portfolioId);
+
+bool _validU8IntentionRoute(
+  DependencyContainer container,
+  Map<String, String> parameters,
+) =>
+    _validU8PortfolioRoute(container, parameters['portfolioId']) &&
+    MemberRoutes.isUuid(parameters['intentionId'] ?? '');
 
 class _CovenDetailRoute extends StatefulWidget {
   const _CovenDetailRoute({

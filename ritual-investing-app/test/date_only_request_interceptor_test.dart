@@ -44,6 +44,71 @@ void main() {
       expect(adapter.calls, 0, reason: value);
     }
   });
+
+  test('Intention POST and PATCH emit exact target_date only', () async {
+    for (final request in [
+      ('POST', '/v1/intentions'),
+      ('PATCH', '/v1/intentions/00000000-0000-4000-8000-000000000020'),
+    ]) {
+      final adapter = _CaptureAdapter();
+      final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+        ..httpClientAdapter = adapter;
+      ensureDateOnlyRequestSerialization(dio);
+
+      await dio.request<void>(
+        request.$2,
+        options: Options(method: request.$1),
+        data: jsonEncode({'target_date': '2028-08-24T00:00:00.000Z'}),
+      );
+
+      expect(jsonDecode(adapter.body!)['target_date'], '2028-08-24');
+    }
+  });
+
+  test(
+    'Intention target_date rejects local, non-midnight, and offsets',
+    () async {
+      for (final value in [
+        '2028-08-24T00:00:00.000',
+        '2028-08-24T12:00:00.000Z',
+        '2028-08-24T00:00:00.000-04:00',
+      ]) {
+        final adapter = _CaptureAdapter();
+        final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+          ..httpClientAdapter = adapter;
+        ensureDateOnlyRequestSerialization(dio);
+
+        await expectLater(
+          dio.post<void>(
+            '/v1/intentions',
+            data: jsonEncode({'target_date': value}),
+          ),
+          throwsA(isA<DioException>()),
+        );
+        expect(adapter.calls, 0);
+      }
+    },
+  );
+
+  test('does not rewrite Future Mirror or server timestamp fields', () async {
+    final adapter = _CaptureAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
+      ..httpClientAdapter = adapter;
+    ensureDateOnlyRequestSerialization(dio);
+
+    await dio.post<void>(
+      '/v1/intentions/00000000-0000-4000-8000-000000000020/future-mirror',
+      data: jsonEncode({
+        'target_date': '2028-08-24T00:00:00.000Z',
+        'generated_at': '2026-08-25T12:00:00.000Z',
+      }),
+    );
+
+    expect(jsonDecode(adapter.body!), {
+      'target_date': '2028-08-24T00:00:00.000Z',
+      'generated_at': '2026-08-25T12:00:00.000Z',
+    });
+  });
 }
 
 class _CaptureAdapter implements HttpClientAdapter {
