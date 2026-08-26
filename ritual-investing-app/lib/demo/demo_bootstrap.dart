@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:go_router/go_router.dart';
@@ -99,27 +97,38 @@ class DemoRitualInvestingApp extends StatefulWidget {
 class _DemoRitualInvestingAppState extends State<DemoRitualInvestingApp> {
   late final GoRouter _router = createMemberOnlyRouter(runtime: widget.runtime);
   late final SemanticsHandle _semanticsHandle;
+  late final Listenable _readySignal;
   bool _announced = false;
+  bool _readyCheckScheduled = false;
 
   @override
   void initState() {
     super.initState();
     _semanticsHandle = SemanticsBinding.instance.ensureSemantics();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_announceAfterPaint());
-    });
+    _readySignal = widget.runtime.dailyRitualController;
+    _readySignal.addListener(_scheduleReadyCheck);
+    _scheduleReadyCheck();
   }
 
-  Future<void> _announceAfterPaint() async {
+  void _scheduleReadyCheck() {
+    if (_announced || _readyCheckScheduled || !mounted) return;
+    _readyCheckScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _readyCheckScheduled = false;
+      _announceAfterPaint();
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  void _announceAfterPaint() {
     if (_announced || !mounted) return;
     if (widget.runtime.entryGate != MemberEntryGate.member ||
         widget.runtime.featureScope == null ||
         widget.runtime.dailyRitualController.state.value == null) {
       return;
     }
-    await WidgetsBinding.instance.endOfFrame;
-    if (_announced || !mounted) return;
     _announced = true;
+    _readySignal.removeListener(_scheduleReadyCheck);
     _sendCompatible(DemoFrameEventType.ready);
   }
 
@@ -161,6 +170,7 @@ class _DemoRitualInvestingAppState extends State<DemoRitualInvestingApp> {
 
   @override
   void dispose() {
+    _readySignal.removeListener(_scheduleReadyCheck);
     _semanticsHandle.dispose();
     _router.dispose();
     super.dispose();

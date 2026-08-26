@@ -553,35 +553,37 @@ class _CardStage extends StatelessWidget {
               Semantics(
                 image: true,
                 label: art.alt,
-                child: Container(
-                  width: 170,
-                  height: 255,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: colors.gold.withValues(alpha: 0.78),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.22),
-                        blurRadius: 8,
-                        offset: const Offset(0, 6),
+                child: ExcludeSemantics(
+                  child: Container(
+                    width: 170,
+                    height: 255,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(
+                        color: colors.gold.withValues(alpha: 0.78),
                       ),
-                    ],
-                  ),
-                  child: art.key == 'the_compass' && useBundledArtwork
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(13),
-                          child: Image.asset(
-                            'assets/images/the-compass.png',
-                            package: 'ritual_investing_app',
-                            fit: BoxFit.cover,
-                          ),
-                        )
-                      : Icon(
-                          Icons.image_not_supported_outlined,
-                          color: colors.gold,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.22),
+                          blurRadius: 8,
+                          offset: const Offset(0, 6),
                         ),
+                      ],
+                    ),
+                    child: art.key == 'the_compass' && useBundledArtwork
+                        ? ClipRRect(
+                            borderRadius: BorderRadius.circular(13),
+                            child: Image.asset(
+                              'assets/images/the-compass.png',
+                              package: 'ritual_investing_app',
+                              fit: BoxFit.cover,
+                            ),
+                          )
+                        : Icon(
+                            Icons.image_not_supported_outlined,
+                            color: colors.gold,
+                          ),
+                  ),
                 ),
               ),
             ],

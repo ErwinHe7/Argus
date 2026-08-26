@@ -358,13 +358,32 @@ function installDemo() {
   });
   /** @param {MessageEvent} event */
   const onMessage = (event) => lifecycle.receiveMessage(event);
-  window.addEventListener("message", onMessage);
-  retry.addEventListener("click", () => lifecycle.retry());
-  reset.addEventListener("click", () => lifecycle.reset());
-  window.addEventListener("pagehide", () => {
+  const onRetry = () => lifecycle.retry();
+  const onReset = () => lifecycle.reset();
+  /** @param {PageTransitionEvent} event */
+  const onPageShow = (event) => {
+    const navigation = /** @type {PerformanceNavigationTiming | undefined} */ (
+      performance.getEntriesByType("navigation")[0]
+    );
+    if (event.persisted || navigation?.type === "back_forward") {
+      window.setTimeout(() => lifecycle.reset(), 0);
+    }
+  };
+  /** @param {PageTransitionEvent} event */
+  const onPageHide = (event) => {
+    if (event.persisted) return;
     lifecycle.destroy();
     window.removeEventListener("message", onMessage);
-  }, { once: true });
+    window.removeEventListener("pageshow", onPageShow);
+    window.removeEventListener("pagehide", onPageHide);
+    retry.removeEventListener("click", onRetry);
+    reset.removeEventListener("click", onReset);
+  };
+  window.addEventListener("message", onMessage);
+  retry.addEventListener("click", onRetry);
+  reset.addEventListener("click", onReset);
+  window.addEventListener("pageshow", onPageShow);
+  window.addEventListener("pagehide", onPageHide);
 }
 
 function installWaitlist() {

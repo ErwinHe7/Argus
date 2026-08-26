@@ -27,6 +27,15 @@ const _forbiddenPaths = <String>[
   '/generated_',
 ];
 
+const _forbiddenSourceTokens = <String>[
+  'window.localStorage',
+  'window.sessionStorage',
+  'window.indexedDB',
+  'globalThis.localStorage',
+  'globalThis.sessionStorage',
+  'globalThis.indexedDB',
+];
+
 void main(List<String> arguments) {
   final appRoot = Directory.current.path.endsWith('ritual-investing-app')
       ? Directory.current
@@ -62,6 +71,11 @@ void main(List<String> arguments) {
     if (source.contains('https://api.just-build-this.app') ||
         source.contains('https://api-beta.just-build-this.app')) {
       _fail('demo graph contains a member API host in $relative');
+    }
+    for (final token in _forbiddenSourceTokens) {
+      if (source.contains(token)) {
+        _fail('demo graph uses persistent browser state ($token) in $relative');
+      }
     }
 
     for (final match in importPattern.allMatches(source)) {

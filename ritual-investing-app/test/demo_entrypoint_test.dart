@@ -6,6 +6,32 @@ import 'package:ritual_investing_app/demo/demo_services.dart';
 
 void main() {
   testWidgets(
+    'demo ready signal does not depend on an unrelated second frame',
+    (tester) async {
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final services = await DemoServices.bootstrap();
+      addTearDown(services.dispose);
+      final channel = RecordingDemoFrameChannel();
+      await tester.pumpWidget(
+        DemoRitualInvestingApp(
+          runtime: services.runtime,
+          frameIdentity: const DemoFrameIdentity(
+            environment: DemoEnvironment.production,
+            attemptId: 'initial-painted-frame',
+          ),
+          frameChannel: channel,
+        ),
+      );
+
+      expect(channel.events.map((event) => event.protocolVersion), [2, 1]);
+    },
+  );
+
+  testWidgets(
     'demo enters the painted member shell and emits compatible ready events',
     (tester) async {
       tester.view.physicalSize = const Size(430, 932);

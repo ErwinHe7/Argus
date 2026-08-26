@@ -14,6 +14,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:browser": "playwright test",
     "db:generate": "drizzle-kit generate --name waitlist",
     "db:drizzle:check": "drizzle-kit check",
     "db:migrate": "node --experimental-strip-types scripts/check-migrations.ts",
@@ -37,7 +38,9 @@
     "hono": "4.13.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@cloudflare/workers-types": "5.20260826.1",
+    "@playwright/test": "1.62.1",
     "@types/node": "26.2.0",
     "@types/pg": "8.23.1",
     "drizzle-kit": "0.31.10",
