@@ -7,7 +7,9 @@ auth-free embedded Demo, and provisional waitlist. It supplements the broader
 [Cloudflare](cloudflare-runbook.md), [Neon](neon-runbook.md),
 [beta](beta-environment.md), and [production handoff](deployment-handoff.md)
 documents. Never copy member-API credentials or production member data into
-this release.
+this release. Per the 2026-08-26 owner decision, the four referenced documents
+retain their pre-existing edits untouched; this file remains the site/Demo
+release authority.
 
 ## Current stop conditions
 
@@ -19,9 +21,11 @@ recorded in the signed release baseline:
   (`br-plain-wave-a6ggfbqa`) and beta `cool-resonance-84878378`
   (`br-red-flower-aun5zcsw`). Both are empty and record migration checksum
   `789b078c8baebfd608aaed004ae1d2f8dcd5bfb4b03433cb8e00d76737cc4a76`.
-- Cloudflare Email Routing currently has no verified destination and is
-  unconfigured. `privacy@just-build-this.app` must deliver to a verified,
-  monitored mailbox before waitlist traffic is enabled.
+- Cloudflare Email Routing is enabled with verified destination resource
+  `8997391707054df9855931bdf64e5530` and exact active forwarding rule
+  `7c494637fa3549eeadff31f0f1178169`. Before waitlist traffic is enabled, send
+  a synthetic message through `privacy@just-build-this.app` and record only a
+  delivery fingerprint and timestamp.
 - Cloudflare Analytics Engine is disabled at the account level. The beta
   landing version upload stopped with API code `10089`; enable Analytics Engine
   before either telemetry-bound landing version can be uploaded.
@@ -70,6 +74,7 @@ change either API.
 | Turnstile site key | `0x4AAAAAAEccvtBiad9oECpT` | `0x4AAAAAAEccvUF7AG0OJIRh` |
 | Denial journal KV | `6ca06cd7239b46859bc47e34f2e0e8a4` | `992455a9fbfd47688582657d781e44b6` |
 | Privacy contact | `privacy@just-build-this.app` | same monitored operator, separate beta data |
+| Release owners | Xiaolong for release, privacy, database, Cloudflare, and go/no-go | same owner |
 | Submission state at activation | `off` | `off` |
 
 Copy `ritual-investing-site/ops/release-baseline.example.json` to a private

@@ -5,11 +5,11 @@
   "production": {
     "environment": "production",
     "owners": {
-      "release": "",
-      "privacy": "",
-      "database": "",
-      "cloudflare": "",
-      "goNoGo": ""
+      "release": "Xiaolong",
+      "privacy": "Xiaolong",
+      "database": "Xiaolong",
+      "cloudflare": "Xiaolong",
+      "goNoGo": "Xiaolong"
     },
     "landing": {
       "host": "just-build-this.app",
@@ -80,11 +80,11 @@
   "beta": {
     "environment": "beta",
     "owners": {
-      "release": "",
-      "privacy": "",
-      "database": "",
-      "cloudflare": "",
-      "goNoGo": ""
+      "release": "Xiaolong",
+      "privacy": "Xiaolong",
+      "database": "Xiaolong",
+      "cloudflare": "Xiaolong",
+      "goNoGo": "Xiaolong"
     },
     "landing": {
       "host": "beta.just-build-this.app",
