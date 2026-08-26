@@ -111,7 +111,21 @@ export function createWorker(dependencies: WorkerDependencies = {}): SiteWorker 
 
   return {
     async fetch(request, environment, executionContext): Promise<Response> {
-      const pathname = new URL(request.url).pathname;
+      const url = new URL(request.url);
+      if (
+        environment.ENVIRONMENT === "production" &&
+        url.hostname === "www.just-build-this.app"
+      ) {
+        return new Response(null, {
+          status: 308,
+          headers: {
+            location: `https://just-build-this.app${url.pathname}${url.search}`,
+            "cache-control": "public, max-age=3600",
+            "x-content-type-options": "nosniff",
+          },
+        });
+      }
+      const pathname = url.pathname;
       if (pathname.startsWith("/api/")) {
         return api.fetch(request, environment, executionContext);
       }

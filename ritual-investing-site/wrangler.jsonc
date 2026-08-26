@@ -7,12 +7,13 @@
   "workers_dev": false,
   "preview_urls": false,
   "routes": [
-    { "pattern": "just-build-this.app", "custom_domain": true }
+    { "pattern": "just-build-this.app", "custom_domain": true },
+    { "pattern": "www.just-build-this.app", "custom_domain": true }
   ],
   "assets": {
     "directory": "./dist/landing",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
+    "run_worker_first": true,
     "not_found_handling": "none"
   },
   "observability": {
@@ -41,7 +42,7 @@
     { "name": "WAITLIST_ROUTE_RATE_LIMIT", "namespace_id": "3102", "simple": { "limit": 60, "period": 60 } }
   ],
   "kv_namespaces": [
-    { "binding": "RETENTION_CHECKPOINT", "id": "00000000000000000000000000000001" }
+    { "binding": "RETENTION_CHECKPOINT", "id": "fc10e9eaa5024cc6b3d79c59ecb6afad" }
   ],
   "analytics_engine_datasets": [
     { "binding": "WAITLIST_TELEMETRY", "dataset": "ritual_waitlist_prod_events_v1" }

@@ -47,6 +47,10 @@ describe("Cloudflare environment isolation", () => {
       expect(value.preview_urls).toBe(false);
       expect(value.observability).toMatchObject({ logs: { invocation_logs: false } });
     }
+    expect(config("wrangler.jsonc").routes).toEqual([
+      { pattern: "just-build-this.app", custom_domain: true },
+      { pattern: "www.just-build-this.app", custom_domain: true },
+    ]);
   });
 
   it("enables Node compatibility only on executable landing Workers", () => {
@@ -62,12 +66,19 @@ describe("Cloudflare environment isolation", () => {
     for (const [file, directory] of [["wrangler.jsonc", "./dist/landing"], ["wrangler.beta.jsonc", "./dist/landing-beta"]] as const) {
       const value = config(file);
       expect(value.main).toBe("src/index.ts");
-      expect(value.assets).toEqual({
-        directory,
-        binding: "ASSETS",
-        run_worker_first: ["/api/*"],
-        not_found_handling: "none",
-      });
+      expect(value.assets).toEqual(file === "wrangler.jsonc"
+        ? {
+            directory,
+            binding: "ASSETS",
+            run_worker_first: true,
+            not_found_handling: "none",
+          }
+        : {
+            directory,
+            binding: "ASSETS",
+            run_worker_first: ["/api/*"],
+            not_found_handling: "none",
+          });
     }
   });
 
@@ -93,6 +104,14 @@ describe("Cloudflare environment isolation", () => {
       const telemetry = (value.analytics_engine_datasets as Array<{ binding: string; dataset: string }>)[0];
       expect(value.name).toBe(resources.landing.service);
       expect((value.routes as Array<{ pattern: string }>)[0]?.pattern).toBe(resources.landing.host);
+      if (environment === "production") {
+        expect("redirectHost" in resources.landing).toBe(true);
+        expect((value.routes as Array<{ pattern: string }>)[1]?.pattern).toBe(
+          "redirectHost" in resources.landing
+            ? resources.landing.redirectHost
+            : undefined,
+        );
+      }
       expect(vars.WAITLIST_SUBMISSIONS).toBe("off");
       expect(vars.WAITLIST_SOURCE_KEY_RESOURCE).toBe(resources.rateLimits.source.keyResource);
       expect(resources.rateLimits.source.workerSecretBinding).toBe("WAITLIST_SOURCE_HMAC_KEY");

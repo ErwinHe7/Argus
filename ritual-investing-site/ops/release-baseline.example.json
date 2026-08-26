@@ -1,0 +1,181 @@
+{
+  "version": "waitlist-release-baseline-v1",
+  "recordedAt": "",
+  "sourceCommit": "",
+  "production": {
+    "environment": "production",
+    "owners": {
+      "release": "",
+      "privacy": "",
+      "database": "",
+      "cloudflare": "",
+      "goNoGo": ""
+    },
+    "landing": {
+      "host": "just-build-this.app",
+      "service": "ritual-investing-site",
+      "activeVersion": "",
+      "rollbackVersion": "",
+      "dnsFingerprint": "",
+      "tlsFingerprint": "",
+      "responseFingerprint": "",
+      "cookieInventoryFingerprint": "",
+      "expectedStatus": 200
+    },
+    "demo": {
+      "host": "demo.just-build-this.app",
+      "service": "ritual-investing-demo",
+      "activeVersion": "",
+      "rollbackVersion": "",
+      "dnsFingerprint": "",
+      "tlsFingerprint": "",
+      "responseFingerprint": "",
+      "cookieInventoryFingerprint": "",
+      "expectedStatus": 200
+    },
+    "neon": {
+      "project": "ritual-waitlist-prod-neon-v1",
+      "migrationHead": "0000_waitlist.sql",
+      "migrationChecksum": "",
+      "grantFingerprint": "",
+      "ownerCredentialResource": "ritual-waitlist-prod-owner-url-v1",
+      "runtimeCredentialResource": "ritual-waitlist-prod-runtime-url-v1",
+      "maintenanceCredentialResource": "ritual-waitlist-prod-maintenance-url-v1",
+      "roles": {
+        "functionOwner": "waitlist_function_owner",
+        "runtime": "waitlist_runtime",
+        "maintenance": "waitlist_maintenance"
+      },
+      "tableBaseline": 0
+    },
+    "secretResources": {
+      "turnstile": "ritual-waitlist-prod-turnstile-secret-v1",
+      "neonRuntime": "ritual-waitlist-prod-runtime-url-v1",
+      "sourceHmac": "ritual-waitlist-prod-source-hmac-v1",
+      "denialHmac": "ritual-waitlist-prod-denial-hmac-v1"
+    },
+    "rateLimits": {
+      "source": "ritual-waitlist-prod-source-v1",
+      "route": "ritual-waitlist-prod-route-v1"
+    },
+    "waf": {
+      "rule": "ritual-waitlist-prod-budget-v1",
+      "ceiling": "ritual-waitlist-prod-budget-1m"
+    },
+    "turnstile": {
+      "widget": "ritual-waitlist-prod-widget-v1",
+      "hostname": "just-build-this.app",
+      "action": "waitlist"
+    },
+    "denialJournal": "ritual-waitlist-prod-denial-journal-v1",
+    "retention": {
+      "checkpoint": "ritual-waitlist-prod-retention-checkpoint-v1",
+      "purgeCapability": "ritual-waitlist-prod-purge-expired-v1",
+      "cron": "17 4 * * *"
+    },
+    "protocol": { "current": 2, "previous": 1 },
+    "privacyContact": "privacy@just-build-this.app",
+    "privacyDeliveryFingerprint": ""
+  },
+  "beta": {
+    "environment": "beta",
+    "owners": {
+      "release": "",
+      "privacy": "",
+      "database": "",
+      "cloudflare": "",
+      "goNoGo": ""
+    },
+    "landing": {
+      "host": "beta.just-build-this.app",
+      "service": "ritual-investing-site-beta",
+      "activeVersion": "",
+      "rollbackVersion": "",
+      "dnsFingerprint": "",
+      "tlsFingerprint": "",
+      "responseFingerprint": "",
+      "cookieInventoryFingerprint": "",
+      "expectedStatus": 200
+    },
+    "demo": {
+      "host": "demo-beta.just-build-this.app",
+      "service": "ritual-investing-demo-beta",
+      "activeVersion": "",
+      "rollbackVersion": "",
+      "dnsFingerprint": "",
+      "tlsFingerprint": "",
+      "responseFingerprint": "",
+      "cookieInventoryFingerprint": "",
+      "expectedStatus": 200
+    },
+    "neon": {
+      "project": "ritual-waitlist-beta-neon-v1",
+      "migrationHead": "0000_waitlist.sql",
+      "migrationChecksum": "",
+      "grantFingerprint": "",
+      "ownerCredentialResource": "ritual-waitlist-beta-owner-url-v1",
+      "runtimeCredentialResource": "ritual-waitlist-beta-runtime-url-v1",
+      "maintenanceCredentialResource": "ritual-waitlist-beta-maintenance-url-v1",
+      "roles": {
+        "functionOwner": "waitlist_function_owner",
+        "runtime": "waitlist_runtime",
+        "maintenance": "waitlist_maintenance"
+      },
+      "tableBaseline": 0
+    },
+    "secretResources": {
+      "turnstile": "ritual-waitlist-beta-turnstile-secret-v1",
+      "neonRuntime": "ritual-waitlist-beta-runtime-url-v1",
+      "sourceHmac": "ritual-waitlist-beta-source-hmac-v1",
+      "denialHmac": "ritual-waitlist-beta-denial-hmac-v1"
+    },
+    "rateLimits": {
+      "source": "ritual-waitlist-beta-source-v1",
+      "route": "ritual-waitlist-beta-route-v1"
+    },
+    "waf": {
+      "rule": "ritual-waitlist-beta-budget-v1",
+      "ceiling": "ritual-waitlist-beta-budget-1m"
+    },
+    "turnstile": {
+      "widget": "ritual-waitlist-beta-widget-v1",
+      "hostname": "beta.just-build-this.app",
+      "action": "waitlist"
+    },
+    "denialJournal": "ritual-waitlist-beta-denial-journal-v1",
+    "retention": {
+      "checkpoint": "ritual-waitlist-beta-retention-checkpoint-v1",
+      "purgeCapability": "ritual-waitlist-beta-purge-expired-v1",
+      "cron": "17 4 * * *"
+    },
+    "protocol": { "current": 2, "previous": 1 },
+    "privacyContact": "privacy@just-build-this.app",
+    "privacyDeliveryFingerprint": ""
+  },
+  "canonicalRedirect": {
+    "host": "www.just-build-this.app",
+    "expectedStatus": 308,
+    "responseFingerprint": "",
+    "dnsFingerprint": "",
+    "tlsFingerprint": "",
+    "cookieInventoryFingerprint": ""
+  },
+  "preservedApis": [
+    {
+      "host": "api.just-build-this.app",
+      "expectedStatus": 503,
+      "responseFingerprint": "",
+      "dnsFingerprint": "",
+      "tlsFingerprint": "",
+      "cookieInventoryFingerprint": ""
+    },
+    {
+      "host": "api-beta.just-build-this.app",
+      "expectedStatus": 200,
+      "responseFingerprint": "",
+      "dnsFingerprint": "",
+      "tlsFingerprint": "",
+      "cookieInventoryFingerprint": ""
+    }
+  ]
+}

@@ -42,6 +42,25 @@ export function injectTurnstileSiteKey(html: string, siteKey: string): string {
   return html.replace(TURNSTILE_SITE_KEY_ATTRIBUTE, `data-turnstile-site-key="${siteKey}"`);
 }
 
+export function resolveTurnstileSiteKey(
+  environment: DeploymentEnvironment,
+  variables: Record<string, string | undefined>,
+  required: boolean,
+): string | undefined {
+  const variable = environment === "production"
+    ? "TURNSTILE_SITE_KEY_PRODUCTION"
+    : "TURNSTILE_SITE_KEY_BETA";
+  const siteKey = variables[variable]?.trim();
+  if (siteKey === undefined || siteKey === "") {
+    if (required) throw new Error(`${environment} Turnstile site key is required for release assembly.`);
+    return undefined;
+  }
+  if (!/^[A-Za-z0-9_-]{20,128}$/.test(siteKey)) {
+    throw new Error(`${environment} Turnstile site key has an invalid public-key shape.`);
+  }
+  return siteKey;
+}
+
 function entryCacheRules(paths: readonly string[]): string {
   return paths.map((path) => `${path}\n  Cache-Control: no-cache, no-store, must-revalidate`).join("\n\n");
 }
@@ -352,10 +371,12 @@ async function prepareLandingStage(
 ): Promise<void> {
   await cp(resolve(packageRoot, "public"), stage, { recursive: true });
   await addLandingIdentityAssets(packageRoot, stage);
-  const publicSiteKey = process.env[
-    environment === "production" ? "TURNSTILE_SITE_KEY_PRODUCTION" : "TURNSTILE_SITE_KEY_BETA"
-  ]?.trim();
-  if (publicSiteKey !== undefined && publicSiteKey !== "") {
+  const publicSiteKey = resolveTurnstileSiteKey(
+    environment,
+    process.env,
+    process.env.REQUIRE_TURNSTILE_SITE_KEYS === "true",
+  );
+  if (publicSiteKey !== undefined) {
     const indexPath = join(stage, "index.html");
     await writeFile(indexPath, injectTurnstileSiteKey(await readFile(indexPath, "utf8"), publicSiteKey));
   }

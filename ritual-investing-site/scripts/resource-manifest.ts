@@ -2,7 +2,7 @@ import { pathToFileURL } from "node:url";
 
 type EnvironmentResources = {
   environment: "production" | "beta";
-  landing: { service: string; host: string };
+  landing: { service: string; host: string; redirectHost?: string };
   demo: { service: string; host: string };
   rateLimits: {
     source: {
@@ -50,7 +50,11 @@ type EnvironmentResources = {
 export const RESOURCE_MANIFEST = {
   production: {
     environment: "production",
-    landing: { service: "ritual-investing-site", host: "just-build-this.app" },
+    landing: {
+      service: "ritual-investing-site",
+      host: "just-build-this.app",
+      redirectHost: "www.just-build-this.app",
+    },
     demo: { service: "ritual-investing-demo", host: "demo.just-build-this.app" },
     rateLimits: {
       source: {
@@ -88,7 +92,7 @@ export const RESOURCE_MANIFEST = {
       cron: "17 4 * * *",
       checkpointBinding: "RETENTION_CHECKPOINT",
       checkpointNamespace: "ritual-waitlist-prod-retention-checkpoint-v1",
-      checkpointNamespaceId: "00000000000000000000000000000001",
+      checkpointNamespaceId: "fc10e9eaa5024cc6b3d79c59ecb6afad",
       purgeCapability: "ritual-waitlist-prod-purge-expired-v1",
     },
     protocol: {
@@ -139,7 +143,7 @@ export const RESOURCE_MANIFEST = {
       cron: "17 4 * * *",
       checkpointBinding: "RETENTION_CHECKPOINT",
       checkpointNamespace: "ritual-waitlist-beta-retention-checkpoint-v1",
-      checkpointNamespaceId: "00000000000000000000000000000002",
+      checkpointNamespaceId: "840400a6dd244116888da7c7467dce02",
       purgeCapability: "ritual-waitlist-beta-purge-expired-v1",
     },
     protocol: {
@@ -156,6 +160,7 @@ function physicalIdentifiers(resources: EnvironmentResources): string[] {
   return [
     resources.landing.service,
     resources.landing.host,
+    ...(resources.landing.redirectHost === undefined ? [] : [resources.landing.redirectHost]),
     resources.demo.service,
     resources.demo.host,
     resources.rateLimits.source.resource,
@@ -212,6 +217,12 @@ export function validateResourceManifest(
     if (resources.provisioningState !== "required-before-upload") {
       errors.push(`${resources.environment} must be provisioned and verified before upload.`);
     }
+  }
+  if (production.landing.redirectHost !== "www.just-build-this.app") {
+    errors.push("Production must reserve www.just-build-this.app for the canonical apex redirect.");
+  }
+  if ("redirectHost" in beta.landing) {
+    errors.push("Beta must not share the production www redirect host.");
   }
 
   return errors;

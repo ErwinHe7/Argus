@@ -17,6 +17,22 @@ function environment(assetResponse = new Response("asset", { status: 200 })): Ru
 }
 
 describe("landing Worker routing", () => {
+  it("redirects the production www host to the exact apex path and query", async () => {
+    const env = environment();
+    const response = await createWorker().fetch(
+      new Request("https://www.just-build-this.app/privacy/waitlist/?source=canonical"),
+      env,
+      {} as ExecutionContext,
+    );
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(
+      "https://just-build-this.app/privacy/waitlist/?source=canonical",
+    );
+    expect(response.headers.get("cache-control")).toBe("public, max-age=3600");
+    expect(env.ASSETS.fetch).not.toHaveBeenCalled();
+  });
+
   it("delegates a landing request to Static Assets without constructing retention or data capabilities", async () => {
     const purgeFactory = vi.fn();
     const worker = createWorker({ purgeFactory });
