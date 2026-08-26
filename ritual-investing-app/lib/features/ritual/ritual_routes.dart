@@ -13,6 +13,7 @@ StatefulShellBranch buildRitualBranch({
   required AppRuntime container,
   required MemberResourceAccess resourceAccess,
   bool restorationEnabled = true,
+  String? assetPackage,
 }) => StatefulShellBranch(
   restorationScopeId: restorationEnabled
       ? '${MemberRoutes.ritual.name}-branch'
@@ -21,7 +22,8 @@ StatefulShellBranch buildRitualBranch({
     GoRoute(
       path: MemberRoutes.ritual.path,
       name: MemberRoutes.ritual.name,
-      builder: (context, state) => _RitualBranchRoot(container: container),
+      builder: (context, state) =>
+          _RitualBranchRoot(container: container, assetPackage: assetPackage),
       routes: [
         GoRoute(
           path: MemberRoutes.ritualReading.relativeResourcePath!,
@@ -68,9 +70,10 @@ StatefulShellBranch buildRitualBranch({
 );
 
 class _RitualBranchRoot extends StatefulWidget {
-  const _RitualBranchRoot({required this.container});
+  const _RitualBranchRoot({required this.container, this.assetPackage});
 
   final AppRuntime container;
+  final String? assetPackage;
 
   @override
   State<_RitualBranchRoot> createState() => _RitualBranchRootState();
@@ -112,6 +115,7 @@ class _RitualBranchRootState extends State<_RitualBranchRoot> {
       personalization:
           widget.container.memberBootstrap?.personalization ??
           const MemberPersonalization(),
+      assetPackage: widget.assetPackage,
     );
     if (!widget.container.hasDemoMembership) return child;
     return DemoCapabilityGate(

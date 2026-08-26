@@ -13,6 +13,7 @@ StatefulShellRoute buildMemberShellRoute({
   MemberResourceAccess? resourceAccess,
   Future<void> Function()? onLogout,
   bool restorationEnabled = true,
+  String? assetPackage,
 }) {
   final access = resourceAccess ?? (_, _) => false;
   return StatefulShellRoute.indexedStack(
@@ -22,6 +23,7 @@ StatefulShellRoute buildMemberShellRoute({
         container: runtime,
         resourceAccess: access,
         restorationEnabled: restorationEnabled,
+        assetPackage: assetPackage,
       ),
       buildDiscoverBranch(
         container: runtime,
@@ -47,6 +49,7 @@ StatefulShellRoute buildMemberShellRoute({
 GoRouter createMemberOnlyRouter({
   required AppRuntime runtime,
   MemberResourceAccess? resourceAccess,
+  String? assetPackage,
 }) => GoRouter(
   initialLocation: MemberRoutes.ritual.path,
   redirect: (context, state) => runtime.entryGate == MemberEntryGate.member
@@ -57,6 +60,7 @@ GoRouter createMemberOnlyRouter({
       runtime: runtime,
       resourceAccess: resourceAccess,
       restorationEnabled: false,
+      assetPackage: assetPackage,
     ),
   ],
 );

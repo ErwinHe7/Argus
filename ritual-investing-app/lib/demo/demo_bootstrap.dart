@@ -95,7 +95,10 @@ class DemoRitualInvestingApp extends StatefulWidget {
 }
 
 class _DemoRitualInvestingAppState extends State<DemoRitualInvestingApp> {
-  late final GoRouter _router = createMemberOnlyRouter(runtime: widget.runtime);
+  late final GoRouter _router = createMemberOnlyRouter(
+    runtime: widget.runtime,
+    assetPackage: 'ritual_investing_app',
+  );
   late final SemanticsHandle _semanticsHandle;
   late final Listenable _readySignal;
   bool _announced = false;

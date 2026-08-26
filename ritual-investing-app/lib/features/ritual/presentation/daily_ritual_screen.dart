@@ -26,6 +26,7 @@ class DailyRitualScreen extends StatelessWidget {
     this.rowanController,
     this.personalization = const MemberPersonalization(),
     this.useBundledArtwork = true,
+    this.assetPackage,
   });
 
   final VoidCallback onOpenCoven;
@@ -37,6 +38,7 @@ class DailyRitualScreen extends StatelessWidget {
   final RowanController? rowanController;
   final MemberPersonalization personalization;
   final bool useBundledArtwork;
+  final String? assetPackage;
 
   @override
   Widget build(BuildContext context) {
@@ -136,6 +138,7 @@ class DailyRitualScreen extends StatelessWidget {
                     date: controller.state.value!.date,
                     mode: controller.state.value!.mode,
                     useBundledArtwork: useBundledArtwork,
+                    assetPackage: assetPackage,
                   ),
                   const SizedBox(height: 18),
                   if (controller.state.value!.state ==
@@ -232,6 +235,7 @@ class DailyRitualScreen extends StatelessWidget {
                         colors: colors,
                         counsel: controller.state.value!.rowan,
                         useBundledArtwork: useBundledArtwork,
+                        assetPackage: assetPackage,
                       ),
                     if (controller.state.value!.state ==
                         DailyRitualState.revealed) ...[
@@ -518,6 +522,7 @@ class _CardStage extends StatelessWidget {
     required this.date,
     required this.mode,
     required this.useBundledArtwork,
+    required this.assetPackage,
   });
 
   final RitualColors colors;
@@ -525,6 +530,7 @@ class _CardStage extends StatelessWidget {
   final DateTime date;
   final DailyRitualMode mode;
   final bool useBundledArtwork;
+  final String? assetPackage;
 
   @override
   Widget build(BuildContext context) {
@@ -586,7 +592,7 @@ class _CardStage extends StatelessWidget {
                             child: Image.asset(
                               artwork.assetPath,
                               key: const Key('daily-ritual-card-art'),
-                              package: 'ritual_investing_app',
+                              package: assetPackage,
                               fit: BoxFit.cover,
                             ),
                           )
@@ -835,11 +841,13 @@ class _RowanCounsel extends StatelessWidget {
     required this.colors,
     required this.counsel,
     required this.useBundledArtwork,
+    required this.assetPackage,
   });
 
   final RitualColors colors;
   final RitualCounsel counsel;
   final bool useBundledArtwork;
+  final String? assetPackage;
 
   @override
   Widget build(BuildContext context) {
@@ -856,7 +864,7 @@ class _RowanCounsel extends StatelessWidget {
               ? ClipOval(
                   child: Image.asset(
                     'assets/images/persona-triptych.png',
-                    package: 'ritual_investing_app',
+                    package: assetPackage,
                     fit: BoxFit.cover,
                     alignment: Alignment.center,
                   ),

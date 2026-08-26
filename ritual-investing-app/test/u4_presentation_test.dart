@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/app/theme/app_theme.dart';
 import 'package:ritual_investing_app/core/api/view_state.dart';
@@ -52,6 +53,13 @@ void main() {
       provider.assetName,
       'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
     );
+    expect(provider.package, isNull);
+    expect(
+      provider.keyName,
+      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+    );
+    final artworkBytes = await rootBundle.load(provider.keyName);
+    expect(artworkBytes.lengthInBytes, greaterThan(100000));
     final renderedSize = tester.getSize(
       find.byKey(const Key('daily-ritual-card-art')),
     );

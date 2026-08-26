@@ -28,14 +28,12 @@ void main() {
         precacheImage(
           const AssetImage(
             'assets/images/tarot/modern-rider-waite/major/04-the-emperor.webp',
-            package: 'ritual_investing_app',
           ),
           context,
         ),
         precacheImage(
           const AssetImage(
             'assets/images/persona-triptych.png',
-            package: 'ritual_investing_app',
           ),
           context,
         ),
