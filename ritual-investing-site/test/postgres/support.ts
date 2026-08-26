@@ -10,6 +10,7 @@ export const describePostgres = ownerDatabaseUrl === undefined ? describe.skip :
 
 export async function ensureMigrated(): Promise<void> {
   if (ownerDatabaseUrl === undefined) throw new Error("WAITLIST_TEST_DATABASE_URL is required");
+  await provisionTestLogins();
   await applyReviewedMigrations(ownerDatabaseUrl);
 }
 
@@ -31,6 +32,22 @@ export async function provisionTestLogins(): Promise<void> {
   provisioning ??= (async () => {
     const client = await ownerClient();
     try {
+      await client.query(`
+        do $roles$
+        begin
+          if not exists (select 1 from pg_catalog.pg_roles where rolname = 'waitlist_runtime') then
+            create role waitlist_runtime
+              nosuperuser nocreatedb nocreaterole noinherit login noreplication nobypassrls
+              password 'waitlist-runtime-test-password';
+          end if;
+          if not exists (select 1 from pg_catalog.pg_roles where rolname = 'waitlist_maintenance') then
+            create role waitlist_maintenance
+              nosuperuser nocreatedb nocreaterole noinherit login noreplication nobypassrls
+              password 'waitlist-maintenance-test-password';
+          end if;
+        end
+        $roles$
+      `);
       await client.query("alter role waitlist_runtime login password 'waitlist-runtime-test-password'");
       await client.query("alter role waitlist_maintenance login password 'waitlist-maintenance-test-password'");
     } finally {

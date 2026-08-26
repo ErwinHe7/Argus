@@ -17,6 +17,7 @@ type EnvironmentResources = {
   wafBudget: { rule: string; ceiling: string };
   denialJournal: {
     resource: string;
+    namespaceId: string;
     maintenanceOnly: true;
     availableToLandingRuntime: false;
   };
@@ -69,12 +70,13 @@ export const RESOURCE_MANIFEST = {
     wafBudget: { rule: "ritual-waitlist-prod-budget-v1", ceiling: "ritual-waitlist-prod-budget-1m" },
     denialJournal: {
       resource: "ritual-waitlist-prod-denial-journal-v1",
+      namespaceId: "6ca06cd7239b46859bc47e34f2e0e8a4",
       maintenanceOnly: true,
       availableToLandingRuntime: false,
     },
     submissionKillSwitch: { binding: "WAITLIST_SUBMISSIONS", initialValue: "off" },
     turnstile: {
-      widget: "ritual-waitlist-prod-widget-v1",
+      widget: "0x4AAAAAAEccvtBiad9oECpT",
       hostname: "just-build-this.app",
       action: "waitlist",
       siteKeyResource: "ritual-waitlist-prod-site-key-v1",
@@ -82,7 +84,7 @@ export const RESOURCE_MANIFEST = {
       workerSecretBinding: "TURNSTILE_SECRET",
     },
     neon: {
-      project: "ritual-waitlist-prod-neon-v1",
+      project: "broad-unit-31027461",
       ownerCredential: "ritual-waitlist-prod-owner-url-v1",
       runtimeCredential: "ritual-waitlist-prod-runtime-url-v1",
       workerSecretBinding: "WAITLIST_NEON_URL",
@@ -120,12 +122,13 @@ export const RESOURCE_MANIFEST = {
     wafBudget: { rule: "ritual-waitlist-beta-budget-v1", ceiling: "ritual-waitlist-beta-budget-1m" },
     denialJournal: {
       resource: "ritual-waitlist-beta-denial-journal-v1",
+      namespaceId: "992455a9fbfd47688582657d781e44b6",
       maintenanceOnly: true,
       availableToLandingRuntime: false,
     },
     submissionKillSwitch: { binding: "WAITLIST_SUBMISSIONS", initialValue: "off" },
     turnstile: {
-      widget: "ritual-waitlist-beta-widget-v1",
+      widget: "0x4AAAAAAEccvUF7AG0OJIRh",
       hostname: "beta.just-build-this.app",
       action: "waitlist",
       siteKeyResource: "ritual-waitlist-beta-site-key-v1",
@@ -133,7 +136,7 @@ export const RESOURCE_MANIFEST = {
       workerSecretBinding: "TURNSTILE_SECRET",
     },
     neon: {
-      project: "ritual-waitlist-beta-neon-v1",
+      project: "cool-resonance-84878378",
       ownerCredential: "ritual-waitlist-beta-owner-url-v1",
       runtimeCredential: "ritual-waitlist-beta-runtime-url-v1",
       workerSecretBinding: "WAITLIST_NEON_URL",
@@ -171,6 +174,7 @@ function physicalIdentifiers(resources: EnvironmentResources): string[] {
     resources.wafBudget.rule,
     resources.wafBudget.ceiling,
     resources.denialJournal.resource,
+    resources.denialJournal.namespaceId,
     resources.turnstile.widget,
     resources.turnstile.siteKeyResource,
     resources.turnstile.secretResource,

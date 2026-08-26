@@ -14,19 +14,25 @@ this release.
 Do not upload or attach a site Worker until every item below is resolved and
 recorded in the signed release baseline:
 
-- The Neon control-plane connection must be authorized. The 2026-08-26
-  connector check returned `401`, so neither dedicated waitlist project has
-  been proved or created through the approved control plane.
+- The Neon control-plane connection is authorized. The dedicated projects were
+  created and migrated on 2026-08-26: production `broad-unit-31027461`
+  (`br-plain-wave-a6ggfbqa`) and beta `cool-resonance-84878378`
+  (`br-red-flower-aun5zcsw`). Both are empty and record migration checksum
+  `789b078c8baebfd608aaed004ae1d2f8dcd5bfb4b03433cb8e00d76737cc4a76`.
 - Cloudflare Email Routing currently has no verified destination and is
   unconfigured. `privacy@just-build-this.app` must deliver to a verified,
   monitored mailbox before waitlist traffic is enabled.
-- Production and beta need separate Turnstile widgets, Neon projects,
-  credentials, rate-limit namespaces, WAF rules, retention checkpoints,
-  telemetry datasets, and keyed denial journals.
+- Production and beta still need installed Worker secrets, confirmed rate-limit
+  bindings, WAF rules, and telemetry datasets before submissions can be
+  enabled. Their host-scoped Turnstile widgets are already provisioned.
 - The production and beta retention KV namespaces were provisioned on
   2026-08-26 as `fc10e9eaa5024cc6b3d79c59ecb6afad` and
   `840400a6dd244116888da7c7467dce02`. Re-list and match their titles before any
   upload; never swap their bindings.
+- The maintenance-only denial journals were provisioned as production
+  `6ca06cd7239b46859bc47e34f2e0e8a4` and beta
+  `992455a9fbfd47688582657d781e44b6`. They must never be bound to a landing
+  Worker.
 - `WAITLIST_SUBMISSIONS` stays `off` through beta proof, production host
   activation, and the production table-baseline check.
 
@@ -50,6 +56,10 @@ change either API.
 | Demo Worker | `ritual-investing-demo` / `demo.just-build-this.app` | `ritual-investing-demo-beta` / `demo-beta.just-build-this.app` |
 | Canonical redirect | `www.just-build-this.app` → apex, `308` | none |
 | Demo protocol | current `2`, previous `1` | current `2`, previous `1` |
+| Neon project | `broad-unit-31027461` / `br-plain-wave-a6ggfbqa` | `cool-resonance-84878378` / `br-red-flower-aun5zcsw` |
+| Migration | `0000_waitlist.sql` / `789b078c…37cc4a76` | identical reviewed checksum |
+| Turnstile site key | `0x4AAAAAAEccvtBiad9oECpT` | `0x4AAAAAAEccvUF7AG0OJIRh` |
+| Denial journal KV | `6ca06cd7239b46859bc47e34f2e0e8a4` | `992455a9fbfd47688582657d781e44b6` |
 | Privacy contact | `privacy@just-build-this.app` | same monitored operator, separate beta data |
 | Submission state at activation | `off` | `off` |
 
@@ -121,18 +131,27 @@ For each dedicated Neon waitlist project:
 
 1. Create a distinct project, branch, database, migration owner, and advisory
    lock namespace. Do not use the member-data Neon project.
-2. Apply `drizzle/0000_waitlist.sql` with the direct owner URL using
-   `npm run db:migrate`. Apply it a second time and require a no-op.
-3. Run `npm run test:postgres` against PostgreSQL 17.
-4. Convert only `waitlist_runtime` and `waitlist_maintenance` to environment-
-   local login capabilities with private passwords. Keep
-   `waitlist_function_owner` `NOLOGIN`.
+2. Provision only `waitlist_runtime` and `waitlist_maintenance` as
+   environment-local login capabilities with their final attributes and
+   private passwords, following `scripts/provision-waitlist-role.sql.example`.
+   Neon managed owners cannot `ALTER ROLE`; do not create placeholder roles.
+3. Apply `drizzle/0000_waitlist.sql` with the direct owner URL using
+   `npm run db:migrate`. Apply it a second time and require a no-op. The
+   migration creates `waitlist_function_owner` as `NOLOGIN`.
+4. Run `npm run test:postgres` against PostgreSQL 17.
 5. Prove runtime has only `EXECUTE` on `submit_provisional` and
    `purge_expired`; maintenance has only the reviewed purge/removal/replay
    functions. Direct table access, object creation, inheritance, and public
    privileges must fail.
 6. Record migration head `0000_waitlist.sql`, its SHA-256 checksum, effective
    grants, and a zero-or-known aggregate table baseline.
+
+On Neon PostgreSQL 18, the managed role creator retains a provider-created
+`ADMIN` link to `waitlist_function_owner` granted by `cloud_admin`. The accepted
+effective contract requires `INHERIT=false` and `SET=false`; the function owner
+remains `NOLOGIN`, owns the bounded functions/table, and has no schema `CREATE`.
+Record this provider-managed link in the grant fingerprint rather than treating
+it as runtime membership.
 
 For each Cloudflare environment:
 

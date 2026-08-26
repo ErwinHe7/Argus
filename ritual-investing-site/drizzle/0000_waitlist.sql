@@ -1,23 +1,38 @@
 BEGIN;
 
--- These roles are capabilities inside a dedicated waitlist database. Runtime
--- and maintenance are changed to LOGIN only by the environment-local
--- provisioning script after their secrets exist.
+-- Neon supports final role attributes at CREATE ROLE time but its managed
+-- owner deliberately cannot ALTER ROLE. Provision the two credential-bearing
+-- LOGIN roles first; this migration creates only the passwordless owner and
+-- fails closed if any pre-provisioned capability has drifted.
 DO $roles$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'waitlist_function_owner') THEN
-    CREATE ROLE waitlist_function_owner;
+    CREATE ROLE waitlist_function_owner
+      NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN NOREPLICATION NOBYPASSRLS;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'waitlist_runtime') THEN
-    CREATE ROLE waitlist_runtime;
+    RAISE EXCEPTION 'waitlist_runtime must be provisioned before migration';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_catalog.pg_roles WHERE rolname = 'waitlist_maintenance') THEN
-    CREATE ROLE waitlist_maintenance;
+    RAISE EXCEPTION 'waitlist_maintenance must be provisioned before migration';
   END IF;
 
-  ALTER ROLE waitlist_function_owner NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN NOREPLICATION NOBYPASSRLS;
-  ALTER ROLE waitlist_runtime NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN NOREPLICATION NOBYPASSRLS;
-  ALTER ROLE waitlist_maintenance NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN NOREPLICATION NOBYPASSRLS;
+  IF EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_roles
+    WHERE rolname = 'waitlist_function_owner'
+      AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit OR rolcanlogin OR rolreplication OR rolbypassrls)
+  ) THEN
+    RAISE EXCEPTION 'waitlist_function_owner attributes drifted';
+  END IF;
+  IF EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_roles
+    WHERE rolname IN ('waitlist_runtime', 'waitlist_maintenance')
+      AND (rolsuper OR rolcreatedb OR rolcreaterole OR rolinherit OR NOT rolcanlogin OR rolreplication OR rolbypassrls)
+  ) THEN
+    RAISE EXCEPTION 'waitlist login role attributes drifted';
+  END IF;
 END
 $roles$;
 
@@ -205,19 +220,25 @@ GRANT EXECUTE ON FUNCTION waitlist_private.purge_expired() TO waitlist_runtime, 
 GRANT EXECUTE ON FUNCTION waitlist_private.remove_verified(text) TO waitlist_maintenance;
 GRANT EXECUTE ON FUNCTION waitlist_private.replay_denial(text, timestamptz) TO waitlist_maintenance;
 
+-- PostgreSQL requires a new object owner to have CREATE on the containing
+-- schema. Grant it only for the ownership handoff, then remove it immediately.
+GRANT CREATE ON SCHEMA waitlist_private TO waitlist_function_owner;
 ALTER TABLE waitlist_private.provisional_submissions OWNER TO waitlist_function_owner;
 ALTER FUNCTION waitlist_private.reject_submission_update() OWNER TO waitlist_function_owner;
 ALTER FUNCTION waitlist_private.submit_provisional(text, text) OWNER TO waitlist_function_owner;
 ALTER FUNCTION waitlist_private.purge_expired() OWNER TO waitlist_function_owner;
 ALTER FUNCTION waitlist_private.remove_verified(text) OWNER TO waitlist_function_owner;
 ALTER FUNCTION waitlist_private.replay_denial(text, timestamptz) OWNER TO waitlist_function_owner;
+REVOKE CREATE ON SCHEMA waitlist_private FROM waitlist_function_owner;
 
-ALTER DEFAULT PRIVILEGES FOR ROLE waitlist_function_owner IN SCHEMA waitlist_private
+SET LOCAL ROLE waitlist_function_owner;
+ALTER DEFAULT PRIVILEGES IN SCHEMA waitlist_private
   REVOKE ALL ON TABLES FROM PUBLIC;
-ALTER DEFAULT PRIVILEGES FOR ROLE waitlist_function_owner IN SCHEMA waitlist_private
+ALTER DEFAULT PRIVILEGES IN SCHEMA waitlist_private
   REVOKE ALL ON SEQUENCES FROM PUBLIC;
-ALTER DEFAULT PRIVILEGES FOR ROLE waitlist_function_owner IN SCHEMA waitlist_private
+ALTER DEFAULT PRIVILEGES IN SCHEMA waitlist_private
   REVOKE ALL ON FUNCTIONS FROM PUBLIC;
+RESET ROLE;
 
 DO $database_grants$
 BEGIN

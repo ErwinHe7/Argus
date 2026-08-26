@@ -34,9 +34,9 @@
       "expectedStatus": 200
     },
     "neon": {
-      "project": "ritual-waitlist-prod-neon-v1",
+      "project": "broad-unit-31027461",
       "migrationHead": "0000_waitlist.sql",
-      "migrationChecksum": "",
+      "migrationChecksum": "789b078c8baebfd608aaed004ae1d2f8dcd5bfb4b03433cb8e00d76737cc4a76",
       "grantFingerprint": "",
       "ownerCredentialResource": "ritual-waitlist-prod-owner-url-v1",
       "runtimeCredentialResource": "ritual-waitlist-prod-runtime-url-v1",
@@ -63,11 +63,11 @@
       "ceiling": "ritual-waitlist-prod-budget-1m"
     },
     "turnstile": {
-      "widget": "ritual-waitlist-prod-widget-v1",
+      "widget": "0x4AAAAAAEccvtBiad9oECpT",
       "hostname": "just-build-this.app",
       "action": "waitlist"
     },
-    "denialJournal": "ritual-waitlist-prod-denial-journal-v1",
+    "denialJournal": "6ca06cd7239b46859bc47e34f2e0e8a4",
     "retention": {
       "checkpoint": "ritual-waitlist-prod-retention-checkpoint-v1",
       "purgeCapability": "ritual-waitlist-prod-purge-expired-v1",
@@ -109,9 +109,9 @@
       "expectedStatus": 200
     },
     "neon": {
-      "project": "ritual-waitlist-beta-neon-v1",
+      "project": "cool-resonance-84878378",
       "migrationHead": "0000_waitlist.sql",
-      "migrationChecksum": "",
+      "migrationChecksum": "789b078c8baebfd608aaed004ae1d2f8dcd5bfb4b03433cb8e00d76737cc4a76",
       "grantFingerprint": "",
       "ownerCredentialResource": "ritual-waitlist-beta-owner-url-v1",
       "runtimeCredentialResource": "ritual-waitlist-beta-runtime-url-v1",
@@ -138,11 +138,11 @@
       "ceiling": "ritual-waitlist-beta-budget-1m"
     },
     "turnstile": {
-      "widget": "ritual-waitlist-beta-widget-v1",
+      "widget": "0x4AAAAAAEccvUF7AG0OJIRh",
       "hostname": "beta.just-build-this.app",
       "action": "waitlist"
     },
-    "denialJournal": "ritual-waitlist-beta-denial-journal-v1",
+    "denialJournal": "992455a9fbfd47688582657d781e44b6",
     "retention": {
       "checkpoint": "ritual-waitlist-beta-retention-checkpoint-v1",
       "purgeCapability": "ritual-waitlist-beta-purge-expired-v1",

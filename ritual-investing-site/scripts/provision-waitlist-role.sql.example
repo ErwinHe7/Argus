@@ -16,19 +16,17 @@
 
 BEGIN;
 
-ALTER ROLE waitlist_runtime
+-- Neon managed owners cannot ALTER ROLE. Create these environment-local
+-- credential capabilities once, with their final attributes and passwords.
+CREATE ROLE waitlist_runtime
   NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN NOREPLICATION NOBYPASSRLS
   PASSWORD :'runtime_password';
-ALTER ROLE waitlist_maintenance
+CREATE ROLE waitlist_maintenance
   NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN NOREPLICATION NOBYPASSRLS
   PASSWORD :'maintenance_password';
-ALTER ROLE waitlist_function_owner
-  NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN NOREPLICATION NOBYPASSRLS;
-
-REVOKE waitlist_function_owner FROM waitlist_runtime, waitlist_maintenance;
 REVOKE waitlist_runtime FROM waitlist_maintenance;
 REVOKE waitlist_maintenance FROM waitlist_runtime;
 
--- Privileges are granted directly to each LOGIN role by the reviewed
--- migration. NOINHERIT therefore never requires SET ROLE in Neon HTTP.
+-- Apply the reviewed migration next. It creates the NOLOGIN function owner,
+-- validates these attributes, and grants only the reviewed capabilities.
 COMMIT;
