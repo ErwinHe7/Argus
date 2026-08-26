@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildWaitlistRequest,
   createDemoLifecycle,
+  createTurnstileLifecycle,
   waitlistStateForResponse,
 } from "../public/landing.js";
 
@@ -123,6 +124,53 @@ describe("embedded demo lifecycle", () => {
 });
 
 describe("waitlist response presentation", () => {
+  it("renders the pairwise widget explicitly and clears single-use tokens on expiry or reset", async () => {
+    let options: Record<string, unknown> | undefined;
+    const api = {
+      render: vi.fn((_target: unknown, configured: Record<string, unknown>) => {
+        options = configured;
+        return "widget-1";
+      }),
+      reset: vi.fn(),
+    };
+    const states: string[] = [];
+    const lifecycle = createTurnstileLifecycle({
+      target: {},
+      siteKey: "synthetic-site-key",
+      load: async () => api,
+      update: (state: string) => states.push(state),
+    });
+
+    await expect(lifecycle.ready).resolves.toBe(true);
+    expect(api.render).toHaveBeenCalledOnce();
+    expect(options).toMatchObject({ sitekey: "synthetic-site-key", action: "waitlist" });
+    expect(options).not.toHaveProperty("remoteip");
+    (options?.callback as (token: string) => void)("first-single-use-token");
+    expect(lifecycle.token()).toBe("first-single-use-token");
+    (options?.["expired-callback"] as () => void)();
+    expect(lifecycle.token()).toBe("");
+    expect(states.at(-1)).toBe("verification-required");
+
+    (options?.callback as (token: string) => void)("second-single-use-token");
+    lifecycle.reset();
+    expect(lifecycle.token()).toBe("");
+    expect(api.reset).toHaveBeenCalledWith("widget-1");
+  });
+
+  it("fails the widget closed until an environment-specific public site key is injected", async () => {
+    const load = vi.fn();
+    const states: string[] = [];
+    const lifecycle = createTurnstileLifecycle({
+      target: {},
+      siteKey: "",
+      load,
+      update: (state: string) => states.push(state),
+    });
+    await expect(lifecycle.ready).resolves.toBe(false);
+    expect(load).not.toHaveBeenCalled();
+    expect(states).toEqual(["unavailable"]);
+  });
+
   it("binds the request notice to the rendered checked consent value", () => {
     expect(buildWaitlistRequest({
       email: "  Visitor@Example.com ",

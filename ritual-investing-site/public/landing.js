@@ -160,6 +160,116 @@ const WAITLIST_COPY = Object.freeze({
   retryable: "We couldn’t receive the request just now. Your email is still here; please try again.",
 });
 
+const TURNSTILE_SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+/**
+ * @typedef {{
+ *   render: (target: unknown, options: Record<string, unknown>) => string,
+ *   reset: (widgetId: string) => void,
+ * }} TurnstileApi
+ */
+
+/**
+ * Keep the one-time widget token out of DOM queries and clear it after expiry,
+ * provider error, or every endpoint attempt.
+ * @param {{
+ *   target: unknown,
+ *   siteKey: string,
+ *   load: () => Promise<TurnstileApi>,
+ *   update: (state: 'ready' | 'verified' | 'verification-required' | 'unavailable') => void,
+ * }} ports
+ */
+export function createTurnstileLifecycle(ports) {
+  let api = /** @type {TurnstileApi | null} */ (null);
+  let widgetId = /** @type {string | null} */ (null);
+  let currentToken = "";
+
+  const ready = (async () => {
+    if (ports.siteKey.trim() === "") {
+      ports.update("unavailable");
+      return false;
+    }
+    try {
+      api = await ports.load();
+      widgetId = api.render(ports.target, {
+        sitekey: ports.siteKey,
+        action: "waitlist",
+        callback(/** @type {string} */ token) {
+          currentToken = typeof token === "string" && token.length <= 2_048 ? token : "";
+          ports.update(currentToken === "" ? "verification-required" : "verified");
+        },
+        "expired-callback"() {
+          currentToken = "";
+          ports.update("verification-required");
+        },
+        "error-callback"() {
+          currentToken = "";
+          ports.update("unavailable");
+        },
+      });
+      ports.update("ready");
+      return true;
+    } catch {
+      api = null;
+      widgetId = null;
+      currentToken = "";
+      ports.update("unavailable");
+      return false;
+    }
+  })();
+
+  return Object.freeze({
+    ready,
+    token() { return currentToken; },
+    reset() {
+      currentToken = "";
+      if (api !== null && widgetId !== null) {
+        try {
+          api.reset(widgetId);
+          ports.update("verification-required");
+        } catch {
+          ports.update("unavailable");
+        }
+      }
+    },
+  });
+}
+
+/** @returns {TurnstileApi | null} */
+function installedTurnstile() {
+  const candidate = Reflect.get(globalThis, "turnstile");
+  if (candidate === null || typeof candidate !== "object") return null;
+  const value = /** @type {Record<string, unknown>} */ (candidate);
+  return typeof value.render === "function" && typeof value.reset === "function"
+    ? /** @type {TurnstileApi} */ (candidate)
+    : null;
+}
+
+/** @returns {Promise<TurnstileApi>} */
+function loadTurnstileApi() {
+  const installed = installedTurnstile();
+  if (installed !== null) return Promise.resolve(installed);
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector("script[data-turnstile-loader]");
+    const script = existing instanceof HTMLScriptElement ? existing : document.createElement("script");
+    const loaded = () => {
+      const api = installedTurnstile();
+      if (api === null) reject(new Error("Turnstile did not initialize."));
+      else resolve(api);
+    };
+    script.addEventListener("load", loaded, { once: true });
+    script.addEventListener("error", () => reject(new Error("Turnstile is unavailable.")), { once: true });
+    if (!(existing instanceof HTMLScriptElement)) {
+      script.src = TURNSTILE_SCRIPT_URL;
+      script.async = true;
+      script.defer = true;
+      script.referrerPolicy = "no-referrer";
+      script.dataset.turnstileLoader = "explicit";
+      document.head.appendChild(script);
+    }
+  });
+}
+
 /**
  * Bind the API request to the notice version actually rendered and checked.
  * @param {{
@@ -263,9 +373,30 @@ function installWaitlist() {
   const consent = document.querySelector("[data-waitlist-consent]");
   const feedback = document.querySelector("[data-waitlist-feedback]");
   const submit = document.querySelector("[data-waitlist-submit]");
+  const mount = document.querySelector("[data-turnstile-mount]");
   if (!(form instanceof HTMLFormElement) || !(email instanceof HTMLInputElement) ||
       !(consent instanceof HTMLInputElement) || !(feedback instanceof HTMLElement) ||
-      !(submit instanceof HTMLButtonElement)) return;
+      !(submit instanceof HTMLButtonElement) || !(mount instanceof HTMLElement)) return;
+
+  const turnstileLifecycle = createTurnstileLifecycle({
+    target: mount,
+    siteKey: mount.dataset.turnstileSiteKey ?? "",
+    load: loadTurnstileApi,
+    update(state) {
+      mount.dataset.state = state;
+      const help = mount.querySelector("p");
+      if (!(help instanceof HTMLElement)) return;
+      if (state === "unavailable") {
+        help.textContent = "Human verification is unavailable. Please try again later.";
+      } else if (state === "verified") {
+        help.textContent = "Human verification completed for this request.";
+      } else if (state === "verification-required") {
+        help.textContent = "Complete human verification again before retrying.";
+      } else {
+        help.textContent = "Complete human verification before submitting.";
+      }
+    },
+  });
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -276,8 +407,7 @@ function installWaitlist() {
       email.setAttribute("aria-invalid", String(!email.validity.valid));
       return;
     }
-    const turnstile = form.querySelector('[name="cf-turnstile-response"]');
-    if (!(turnstile instanceof HTMLInputElement) || turnstile.value === "") {
+    if (!(await turnstileLifecycle.ready) || turnstileLifecycle.token() === "") {
       feedback.textContent = "Complete the human verification before trying again.";
       return;
     }
@@ -293,7 +423,7 @@ function installWaitlist() {
         consentChecked: consent.checked,
         consentNoticeVersion: consent.value,
         renderedNoticeVersion: notice.value,
-        turnstileToken: turnstile.value,
+        turnstileToken: turnstileLifecycle.token(),
       });
     } catch {
       feedback.textContent = WAITLIST_COPY["reload-required"];
@@ -321,6 +451,7 @@ function installWaitlist() {
       feedback.textContent = state.message;
       feedback.dataset.state = state.kind;
     } finally {
+      turnstileLifecycle.reset();
       submit.disabled = false;
       submit.removeAttribute("aria-busy");
     }

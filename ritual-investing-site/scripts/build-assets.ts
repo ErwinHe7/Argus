@@ -30,6 +30,17 @@ const HOSTS = {
 } as const;
 
 const NOINDEX = "X-Robots-Tag: noindex, nofollow, noarchive";
+const TURNSTILE_SITE_KEY_ATTRIBUTE = 'data-turnstile-site-key=""';
+
+export function injectTurnstileSiteKey(html: string, siteKey: string): string {
+  if (!/^[A-Za-z0-9_-]{20,128}$/.test(siteKey)) {
+    throw new Error("The Turnstile site key has an invalid public-key shape.");
+  }
+  if (html.split(TURNSTILE_SITE_KEY_ATTRIBUTE).length !== 2) {
+    throw new Error("The landing must contain exactly one empty Turnstile site-key seam.");
+  }
+  return html.replace(TURNSTILE_SITE_KEY_ATTRIBUTE, `data-turnstile-site-key="${siteKey}"`);
+}
 
 function entryCacheRules(paths: readonly string[]): string {
   return paths.map((path) => `${path}\n  Cache-Control: no-cache, no-store, must-revalidate`).join("\n\n");
@@ -341,6 +352,13 @@ async function prepareLandingStage(
 ): Promise<void> {
   await cp(resolve(packageRoot, "public"), stage, { recursive: true });
   await addLandingIdentityAssets(packageRoot, stage);
+  const publicSiteKey = process.env[
+    environment === "production" ? "TURNSTILE_SITE_KEY_PRODUCTION" : "TURNSTILE_SITE_KEY_BETA"
+  ]?.trim();
+  if (publicSiteKey !== undefined && publicSiteKey !== "") {
+    const indexPath = join(stage, "index.html");
+    await writeFile(indexPath, injectTurnstileSiteKey(await readFile(indexPath, "utf8"), publicSiteKey));
+  }
   await writeFile(join(stage, "_headers"), renderLandingHeaders(environment));
   if (environment === "beta") {
     for (const relativePath of ["index.html", "privacy/waitlist/index.html"]) {

@@ -27,6 +27,7 @@
     "DEMO_PROTOCOL_CURRENT": "2",
     "DEMO_PROTOCOL_PREVIOUS": "1",
     "WAITLIST_SUBMISSIONS": "off",
+    "WAITLIST_SOURCE_KEY_RESOURCE": "ritual-waitlist-beta-source-hmac-v1",
     "TURNSTILE_EXPECTED_HOSTNAME": "beta.just-build-this.app",
     "TURNSTILE_EXPECTED_ACTION": "waitlist",
     "TURNSTILE_SITE_KEY_RESOURCE": "ritual-waitlist-beta-site-key-v1",

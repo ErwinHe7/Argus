@@ -1,7 +1,6 @@
 import { Hono } from "hono";
 
 import {
-  submissionsAreFailClosed,
   type AnalyticsBinding,
   type RetentionCheckpointBinding,
   type RuntimeSiteEnv,
@@ -13,6 +12,7 @@ import {
   type RetentionCheckpoint,
   type RetentionTelemetryPoint,
 } from "./retention/scheduled.ts";
+import { handleWaitlistRequest, type WaitlistRouteDependencies } from "./waitlist/route.ts";
 
 export type { RuntimeSiteEnv, SiteEnv } from "./config.ts";
 
@@ -20,6 +20,7 @@ type WorkerDependencies = {
   purgeFactory?: (environment: RuntimeSiteEnv) => PurgeCapability;
   checkpointFactory?: (environment: RuntimeSiteEnv) => RetentionCheckpoint;
   sleep?: (milliseconds: number) => Promise<void>;
+  waitlist?: WaitlistRouteDependencies;
 };
 
 export type SiteWorker = {
@@ -33,18 +34,12 @@ export type SiteWorker = {
 
 const LAST_SUCCESS_KEY = "retention:last-success-scheduled-at:v1";
 
-function createApiApp(): Hono<{ Bindings: SiteEnv }> {
+function createApiApp(waitlistDependencies: WaitlistRouteDependencies): Hono<{ Bindings: SiteEnv }> {
   const app = new Hono<{ Bindings: SiteEnv }>();
 
-  app.all("/api/waitlist", (context) => {
-    // U6 replaces this scaffold with the ordered validation protocol. It remains
-    // unavailable even if a config is accidentally toggled before that wiring.
-    submissionsAreFailClosed(context.env);
-    return context.json({ code: "waitlist_unavailable" }, 503, {
-      "cache-control": "no-store",
-      "x-content-type-options": "nosniff",
-    });
-  });
+  app.all("/api/waitlist", (context) =>
+    handleWaitlistRequest(context.req.raw, context.env, waitlistDependencies),
+  );
   app.all("/api/*", (context) =>
     context.json({ code: "api_route_not_found" }, 404, {
       "cache-control": "no-store",
@@ -108,7 +103,7 @@ function delay(milliseconds: number): Promise<void> {
 }
 
 export function createWorker(dependencies: WorkerDependencies = {}): SiteWorker {
-  const api = createApiApp();
+  const api = createApiApp(dependencies.waitlist ?? {});
   const purgeFactory = dependencies.purgeFactory ?? (() => unavailablePurgeCapability());
   const checkpointFactory = dependencies.checkpointFactory ??
     ((environment) => checkpoint(environment.RETENTION_CHECKPOINT));

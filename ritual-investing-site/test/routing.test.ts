@@ -52,7 +52,7 @@ describe("landing Worker routing", () => {
     );
 
     expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ code: "waitlist_unavailable" });
+    expect(await response.json()).toEqual({ code: "waitlist_unavailable", retryable: true });
     expect(env.ASSETS.fetch).not.toHaveBeenCalled();
   });
 

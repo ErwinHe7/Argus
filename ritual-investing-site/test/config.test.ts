@@ -94,10 +94,13 @@ describe("Cloudflare environment isolation", () => {
       expect(value.name).toBe(resources.landing.service);
       expect((value.routes as Array<{ pattern: string }>)[0]?.pattern).toBe(resources.landing.host);
       expect(vars.WAITLIST_SUBMISSIONS).toBe("off");
+      expect(vars.WAITLIST_SOURCE_KEY_RESOURCE).toBe(resources.rateLimits.source.keyResource);
+      expect(resources.rateLimits.source.workerSecretBinding).toBe("WAITLIST_SOURCE_HMAC_KEY");
       expect(vars.TURNSTILE_EXPECTED_HOSTNAME).toBe(resources.turnstile.hostname);
       expect(vars.TURNSTILE_EXPECTED_ACTION).toBe(resources.turnstile.action);
       expect(vars.TURNSTILE_SITE_KEY_RESOURCE).toBe(resources.turnstile.siteKeyResource);
       expect(vars.TURNSTILE_SECRET_RESOURCE).toBe(resources.turnstile.secretResource);
+      expect(resources.turnstile.workerSecretBinding).toBe("TURNSTILE_SECRET");
       expect(vars.WAITLIST_CREDENTIAL_RESOURCE).toBe(resources.neon.runtimeCredential);
       expect(vars.WAITLIST_WAF_BUDGET_RESOURCE).toBe(resources.wafBudget.rule);
       expect(vars.WAITLIST_WAF_CEILING_RESOURCE).toBe(resources.wafBudget.ceiling);

@@ -5,7 +5,13 @@ type EnvironmentResources = {
   landing: { service: string; host: string };
   demo: { service: string; host: string };
   rateLimits: {
-    source: { binding: "WAITLIST_SOURCE_RATE_LIMIT"; resource: string; namespaceId: string };
+    source: {
+      binding: "WAITLIST_SOURCE_RATE_LIMIT";
+      resource: string;
+      namespaceId: string;
+      keyResource: string;
+      workerSecretBinding: "WAITLIST_SOURCE_HMAC_KEY";
+    };
     route: { binding: "WAITLIST_ROUTE_RATE_LIMIT"; resource: string; namespaceId: string };
   };
   wafBudget: { rule: string; ceiling: string };
@@ -21,6 +27,7 @@ type EnvironmentResources = {
     action: "waitlist";
     siteKeyResource: string;
     secretResource: string;
+    workerSecretBinding: "TURNSTILE_SECRET";
   };
   neon: {
     project: string;
@@ -46,7 +53,13 @@ export const RESOURCE_MANIFEST = {
     landing: { service: "ritual-investing-site", host: "just-build-this.app" },
     demo: { service: "ritual-investing-demo", host: "demo.just-build-this.app" },
     rateLimits: {
-      source: { binding: "WAITLIST_SOURCE_RATE_LIMIT", resource: "ritual-waitlist-prod-source-v1", namespaceId: "3101" },
+      source: {
+        binding: "WAITLIST_SOURCE_RATE_LIMIT",
+        resource: "ritual-waitlist-prod-source-v1",
+        namespaceId: "3101",
+        keyResource: "ritual-waitlist-prod-source-hmac-v1",
+        workerSecretBinding: "WAITLIST_SOURCE_HMAC_KEY",
+      },
       route: { binding: "WAITLIST_ROUTE_RATE_LIMIT", resource: "ritual-waitlist-prod-route-v1", namespaceId: "3102" },
     },
     wafBudget: { rule: "ritual-waitlist-prod-budget-v1", ceiling: "ritual-waitlist-prod-budget-1m" },
@@ -62,6 +75,7 @@ export const RESOURCE_MANIFEST = {
       action: "waitlist",
       siteKeyResource: "ritual-waitlist-prod-site-key-v1",
       secretResource: "ritual-waitlist-prod-turnstile-secret-v1",
+      workerSecretBinding: "TURNSTILE_SECRET",
     },
     neon: {
       project: "ritual-waitlist-prod-neon-v1",
@@ -90,7 +104,13 @@ export const RESOURCE_MANIFEST = {
     landing: { service: "ritual-investing-site-beta", host: "beta.just-build-this.app" },
     demo: { service: "ritual-investing-demo-beta", host: "demo-beta.just-build-this.app" },
     rateLimits: {
-      source: { binding: "WAITLIST_SOURCE_RATE_LIMIT", resource: "ritual-waitlist-beta-source-v1", namespaceId: "4101" },
+      source: {
+        binding: "WAITLIST_SOURCE_RATE_LIMIT",
+        resource: "ritual-waitlist-beta-source-v1",
+        namespaceId: "4101",
+        keyResource: "ritual-waitlist-beta-source-hmac-v1",
+        workerSecretBinding: "WAITLIST_SOURCE_HMAC_KEY",
+      },
       route: { binding: "WAITLIST_ROUTE_RATE_LIMIT", resource: "ritual-waitlist-beta-route-v1", namespaceId: "4102" },
     },
     wafBudget: { rule: "ritual-waitlist-beta-budget-v1", ceiling: "ritual-waitlist-beta-budget-1m" },
@@ -106,6 +126,7 @@ export const RESOURCE_MANIFEST = {
       action: "waitlist",
       siteKeyResource: "ritual-waitlist-beta-site-key-v1",
       secretResource: "ritual-waitlist-beta-turnstile-secret-v1",
+      workerSecretBinding: "TURNSTILE_SECRET",
     },
     neon: {
       project: "ritual-waitlist-beta-neon-v1",
@@ -139,6 +160,7 @@ function physicalIdentifiers(resources: EnvironmentResources): string[] {
     resources.demo.host,
     resources.rateLimits.source.resource,
     resources.rateLimits.source.namespaceId,
+    resources.rateLimits.source.keyResource,
     resources.rateLimits.route.resource,
     resources.rateLimits.route.namespaceId,
     resources.wafBudget.rule,

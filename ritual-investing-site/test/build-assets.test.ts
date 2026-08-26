@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
-import { assembleAssets, MAX_ASSET_BYTES } from "../scripts/build-assets.ts";
+import { assembleAssets, injectTurnstileSiteKey, MAX_ASSET_BYTES } from "../scripts/build-assets.ts";
 
 async function fixture(): Promise<{ source: string; destination: string }> {
   const root = await mkdtemp(join(tmpdir(), "ritual-site-assets-"));
@@ -17,6 +17,15 @@ async function fixture(): Promise<{ source: string; destination: string }> {
 }
 
 describe("deterministic demo asset assembly", () => {
+  it("injects a provisioned public Turnstile site key through the one build seam", () => {
+    const html = '<div data-turnstile-site-key=""></div>';
+    expect(injectTurnstileSiteKey(html, "0x4AAAAAAAsyntheticPublicKey")).toContain(
+      'data-turnstile-site-key="0x4AAAAAAAsyntheticPublicKey"',
+    );
+    expect(() => injectTurnstileSiteKey(html, "short")).toThrow(/site key/i);
+    expect(() => injectTurnstileSiteKey("<div></div>", "0x4AAAAAAAsyntheticPublicKey")).toThrow(/exactly one/i);
+  });
+
   it("copies validated assets, drops Flutter's zero-byte service-worker placeholder, and emits a hash manifest", async () => {
     const paths = await fixture();
     const manifest = await assembleAssets(paths);
