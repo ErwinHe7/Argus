@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.wrangler/
+temp/
+.waitlist-operations/
+playwright-report/
+test-results/
+*.tgz

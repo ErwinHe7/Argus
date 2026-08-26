@@ -1,0 +1,530 @@
+name: Ritual Investing
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ritual-investing.yml"
+      - "ritual-investing-*/**"
+      - "docs/ritual-investing/**"
+      - "scripts/check-no-ignored-sources.sh"
+      - "scripts/check-member-provider-boundaries.sh"
+      - "scripts/test-check-member-provider-boundaries.sh"
+      - "scripts/check-demo-provider-boundaries.sh"
+      - "scripts/test-check-demo-provider-boundaries.sh"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ritual-investing.yml"
+      - "ritual-investing-*/**"
+      - "docs/ritual-investing/**"
+      - "scripts/check-no-ignored-sources.sh"
+      - "scripts/check-member-provider-boundaries.sh"
+      - "scripts/test-check-member-provider-boundaries.sh"
+      - "scripts/check-demo-provider-boundaries.sh"
+      - "scripts/test-check-demo-provider-boundaries.sh"
+  workflow_dispatch:
+    inputs:
+      run_staging:
+        description: Run production-equivalent staging proof
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ritual-investing-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22.22.0
+  FLUTTER_VERSION: 3.47.1
+
+jobs:
+  source-guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/check-no-ignored-sources.sh
+
+  member-provider-boundary:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Exercise provider-boundary fail-closed cases
+        run: ./scripts/test-check-member-provider-boundaries.sh
+      - name: Audit member dependencies, hosts, egress, and worker effects
+        run: ./scripts/check-member-provider-boundaries.sh
+
+  demo-web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-app
+        run: flutter analyze
+      - working-directory: ritual-investing-app
+        run: flutter test
+      - working-directory: ritual-investing-demo
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-demo
+        run: flutter analyze
+      - name: Fixture-backed Chrome curated journey and reset
+        working-directory: ritual-investing-demo
+        run: |
+          chromedriver --port=4444 &
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/demo_browser_workflows_test.dart -d chrome
+      - name: Build provider-neutral demo release
+        working-directory: ritual-investing-demo
+        run: >-
+          flutter build web --release
+          --no-web-resources-cdn
+          --no-source-maps
+          --no-wasm-dry-run
+          --pwa-strategy=none
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ritual-demo-web-${{ github.sha }}
+          path: ritual-investing-demo/build/web
+          if-no-files-found: error
+          retention-days: 7
+
+  demo-provider-boundary:
+    needs: demo-web
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: ritual-demo-web-${{ github.sha }}
+          path: ritual-investing-demo/build/web
+      - name: Exercise demo provider-boundary fail-closed cases
+        run: ./scripts/test-check-demo-provider-boundaries.sh
+      - name: Audit transitive demo sources and release artifact
+        run: ./scripts/check-demo-provider-boundaries.sh
+
+  site:
+    needs: demo-web
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: ritual-demo-web-${{ github.sha }}
+          path: ritual-investing-demo/build/web
+      - working-directory: ritual-investing-site
+        run: npm ci
+      - working-directory: ritual-investing-site
+        run: npm run typecheck
+      - working-directory: ritual-investing-site
+        run: npm run types:check
+      - working-directory: ritual-investing-site
+        run: npm run resources:check
+      - working-directory: ritual-investing-site
+        run: npm test
+      - name: Review high-severity direct and transitive advisories
+        working-directory: ritual-investing-site
+        run: npm audit --audit-level=high
+      - working-directory: ritual-investing-site
+        run: npm run assets:build
+      - working-directory: ritual-investing-site
+        run: npm run deploy:dry-run:all
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ritual-site-dist-${{ github.sha }}
+          path: ritual-investing-site/dist
+          if-no-files-found: error
+          retention-days: 7
+
+  site-postgres-17:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_DB: waitlist_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: waitlist_ci_ephemeral
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d waitlist_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_OWNER_URL: postgresql://postgres:waitlist_ci_ephemeral@127.0.0.1:5432/waitlist_ci
+      TEST_DATABASE_URL: postgresql://postgres:waitlist_ci_ephemeral@127.0.0.1:5432/waitlist_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - working-directory: ritual-investing-site
+        run: npm ci
+      - working-directory: ritual-investing-site
+        run: npm run db:migrations:check
+      - working-directory: ritual-investing-site
+        run: npm run db:migrate
+      - name: Repeat waitlist migration is a no-op
+        working-directory: ritual-investing-site
+        run: npm run db:migrate
+      - working-directory: ritual-investing-site
+        run: npm run test:postgres
+
+  site-browser:
+    needs: [site, demo-provider-boundary]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: ritual-site-dist-${{ github.sha }}
+          path: ritual-investing-site/dist
+      - working-directory: ritual-investing-site
+        run: npm ci
+      - name: Install the exact Playwright browser set
+        working-directory: ritual-investing-site
+        run: npx playwright install --with-deps chromium firefox webkit
+      - working-directory: ritual-investing-site
+        run: npm run test:browser
+
+  api-security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-api/package-lock.json
+      - working-directory: ritual-investing-api
+        run: npm ci
+      - working-directory: ritual-investing-api
+        run: npm run typecheck
+      - working-directory: ritual-investing-api
+        run: npm test
+      - working-directory: ritual-investing-api
+        run: npm run test:security
+      - working-directory: ritual-investing-api
+        run: npm run openapi:check
+      - working-directory: ritual-investing-api
+        run: npm run capacity:check
+
+  postgres-17:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_DB: ritual_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ritual_ci_ephemeral
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ritual_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_OWNER_URL: postgresql://postgres:ritual_ci_ephemeral@127.0.0.1:5432/ritual_ci
+      TEST_DATABASE_URL: postgresql://postgres:ritual_ci_ephemeral@127.0.0.1:5432/ritual_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-api/package-lock.json
+      - working-directory: ritual-investing-api
+        run: npm ci
+      - working-directory: ritual-investing-api
+        run: npm run db:migrate:check
+      - working-directory: ritual-investing-api
+        run: npm run db:migrate
+      - name: Repeat migration is a no-op
+        working-directory: ritual-investing-api
+        run: npm run db:migrate
+      - working-directory: ritual-investing-api
+        run: npm run db:upgrade:check
+      - working-directory: ritual-investing-api
+        run: npm run test:postgres
+
+  worker:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-api/package-lock.json
+      - working-directory: ritual-investing-api
+        run: npm ci
+      - working-directory: ritual-investing-api
+        run: npm run test:workers
+
+  contract-client:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-api/package-lock.json
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-api
+        run: npm ci
+      - working-directory: ritual-investing-api
+        run: npm run drift:check
+      - working-directory: ritual-investing-api-client
+        run: dart pub get
+      - working-directory: ritual-investing-api-client
+        run: dart analyze
+      - working-directory: ritual-investing-api-client
+        run: dart test
+
+  mobile-android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-app
+        run: flutter analyze
+      - working-directory: ritual-investing-app
+        run: flutter test
+      - working-directory: ritual-investing-app
+        run: >-
+          flutter build apk --debug
+          --dart-define=RITUAL_API_BASE_URL=https://api.ritual-investing.invalid
+          --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com
+          --dart-define=AUTH0_CLIENT_ID=ritual-mobile-ci
+          --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
+          --android-project-arg=auth0Domain=ritual-investing-ci.us.auth0.com
+
+  mobile-ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - name: Configure native iOS Auth0 callback domain
+        working-directory: ritual-investing-app
+        run: printf 'AUTH0_DOMAIN = ritual-investing-ci.us.auth0.com\n' > ios/Flutter/Auth0.xcconfig
+      - working-directory: ritual-investing-app
+        run: >-
+          flutter build ios --debug --no-codesign
+          --dart-define=RITUAL_API_BASE_URL=https://api.ritual-investing.invalid
+          --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com
+          --dart-define=AUTH0_CLIENT_ID=ritual-mobile-ci
+          --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
+      - name: Verify native iOS Auth0 callback setting
+        working-directory: ritual-investing-app
+        run: >-
+          xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner
+          -configuration Debug -showBuildSettings
+          | grep -F 'AUTH0_DOMAIN = ritual-investing-ci.us.auth0.com'
+
+  member-integration-android:
+    needs: member-provider-boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - name: Generated-Dio member flow with ephemeral Android identity
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: >-
+            cd ritual-investing-app &&
+            flutter test integration_test/member_experience_test.dart
+            -d emulator-5554
+            --dart-define=RITUAL_MEMBER_TEST_ID=ci-${{ github.run_id }}-${{ github.run_attempt }}
+
+  member-integration-ios:
+    needs: member-provider-boundary
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - name: Boot an available iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          device_id="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print $2; exit }')"
+          test -n "$device_id"
+          xcrun simctl boot "$device_id" || true
+          xcrun simctl bootstatus "$device_id" -b
+          echo "device_id=$device_id" >> "$GITHUB_OUTPUT"
+      - name: Generated-Dio member flow with ephemeral iOS identity
+        working-directory: ritual-investing-app
+        run: >-
+          flutter test integration_test/member_experience_test.dart
+          -d ${{ steps.simulator.outputs.device_id }}
+          --dart-define=RITUAL_MEMBER_TEST_ID=ci-${{ github.run_id }}-${{ github.run_attempt }}
+
+  admin-web-browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-api/package-lock.json
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-admin
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-admin
+        run: flutter analyze
+      - working-directory: ritual-investing-admin
+        run: flutter test
+      - working-directory: ritual-investing-admin
+        run: >-
+          flutter build web --release
+          --dart-define=ADMIN_API_BASE_URL=https://admin-api.ritual-investing.invalid
+          --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com
+          --dart-define=AUTH0_ADMIN_CLIENT_ID=ritual-admin-ci
+          --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
+      - name: Fixture-backed Chrome dashboard interaction (UI only)
+        working-directory: ritual-investing-admin
+        run: |
+          chromedriver --port=4444 &
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/admin_browser_workflows_test.dart -d chrome \
+            --dart-define=ADMIN_API_BASE_URL=https://admin-api.ritual-investing.invalid \
+            --dart-define=AUTH0_DOMAIN=ritual-investing-ci.us.auth0.com \
+            --dart-define=AUTH0_ADMIN_CLIENT_ID=ritual-admin-ci \
+            --dart-define=AUTH0_AUDIENCE=https://api.ritual-investing.invalid
+      - working-directory: ritual-investing-api
+        run: npm ci
+      - working-directory: ritual-investing-api
+        run: npm run deploy:dry-run
+
+  staging:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_staging
+    needs:
+      [
+        api-security,
+        postgres-17,
+        worker,
+        contract-client,
+        mobile-android,
+        mobile-ios,
+        member-integration-android,
+        member-integration-ios,
+        member-provider-boundary,
+        admin-web-browser,
+        demo-provider-boundary,
+        demo-web,
+        site,
+        site-postgres-17,
+        site-browser,
+      ]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: ritual-staging
+    env:
+      STAGING_BASE_URL: ${{ secrets.RITUAL_STAGING_BASE_URL }}
+      STAGING_ADMIN_UI_URL: ${{ secrets.RITUAL_STAGING_ADMIN_UI_URL }}
+      STAGING_MEMBER_TOKEN: ${{ secrets.RITUAL_STAGING_MEMBER_TOKEN }}
+      STAGING_ADMIN_TOKEN: ${{ secrets.RITUAL_STAGING_ADMIN_TOKEN }}
+      STAGING_CF_ACCESS_ASSERTION: ${{ secrets.RITUAL_STAGING_CF_ACCESS_ASSERTION }}
+      SITE_STAGING_LANDING_URL: ${{ secrets.RITUAL_SITE_STAGING_LANDING_URL }}
+      SITE_STAGING_DEMO_URL: ${{ secrets.RITUAL_SITE_STAGING_DEMO_URL }}
+      SITE_STAGING_EVIDENCE: ${{ secrets.RITUAL_SITE_STAGING_EVIDENCE }}
+      REQUIRE_STAGING_E2E: "true"
+      CAPACITY_BASE_URL: ${{ secrets.RITUAL_STAGING_BASE_URL }}
+      CAPACITY_DISTRIBUTED_RUNNER_URL: ${{ vars.RITUAL_CAPACITY_DISTRIBUTED_RUNNER_URL }}
+      CAPACITY_DISTRIBUTED_RUNNER_TOKEN: ${{ secrets.RITUAL_CAPACITY_DISTRIBUTED_RUNNER_TOKEN }}
+      CAPACITY_PROBE_URL: ${{ vars.RITUAL_CAPACITY_PROBE_URL }}
+      CAPACITY_PROBE_TOKEN: ${{ secrets.RITUAL_CAPACITY_PROBE_TOKEN }}
+      CAPACITY_OUTPUT: capacity-report.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-api/package-lock.json
+      - working-directory: ritual-investing-api
+        run: npm ci
+      - working-directory: ritual-investing-api
+        run: npm test -- --run test/integration/end-to-end.test.ts
+      - working-directory: ritual-investing-api
+        run: npm run capacity:staging
+      - name: Require deployed site staging and rollback evidence
+        run: node --experimental-strip-types ritual-investing-site/scripts/check-staging-evidence.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ritual-staging-capacity-${{ github.sha }}
+          path: ritual-investing-api/capacity-report.json
+          if-no-files-found: error
+          retention-days: 30

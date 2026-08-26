@@ -1,0 +1,16 @@
+# Production-only packages are deliberately replaced for this build target.
+# The provider-neutral demo graph never imports their APIs; these non-plugin
+# packages keep Flutter from registering native/web production providers.
+dependency_overrides:
+  auth0_flutter:
+    path: tool/provider_stubs/auth0_flutter
+  dio:
+    path: tool/provider_stubs/dio
+  flutter_secure_storage:
+    path: tool/provider_stubs/flutter_secure_storage
+  path_provider:
+    path: tool/provider_stubs/path_provider
+  ritual_investing_api_client:
+    path: tool/provider_stubs/ritual_investing_api_client
+  share_plus:
+    path: tool/provider_stubs/share_plus

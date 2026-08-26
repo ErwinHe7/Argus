@@ -1,33 +1,29 @@
-# 审查者从这里开始
+# Reviewer: Start Here
 
-这不是一个只含 Markdown 的说明包。模型实现、测试和当前未晋升的冻结
-artifact 都已经位于本仓库默认 `main` 分支。请从 `main` 建立自己的修改分支，
-完成后提交 PR 或直接推送经双方确认的修改。
+This is not a documentation-only Markdown package. The model implementations, tests, and current unpromoted frozen artifacts are all available on this repository's default `main` branch. Create your own working branch from `main`, then submit a PR when finished or push the mutually agreed changes directly.
 
-## 最短阅读顺序
+## Shortest Reading Path
 
-1. `MODEL_SOURCE_MAP.zh-CN.md`：每个模型对应的准确源码文件、用途和状态。
-2. `axio7-model-review/review-package/03-review-brief-and-checklist.md`：
-   P0/P1/P2 审查和修复任务。
-3. `axio7-model-review/review-package/04-evidence-index.md`：关键实现位置。
-4. `axio7-model-review/source/`：Rust、Python、C++ 可编辑源码和测试。
-5. `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`：
-   9 个未晋升候选 artifact 及 legacy 对照；解压后查看。
+1. `MODEL_SOURCE_MAP.zh-CN.md`: exact source file, purpose, and status for every model.
+2. `axio7-model-review/review-package/03-review-brief-and-checklist.md`:
+   P0/P1/P2 review and remediation tasks.
+3. `axio7-model-review/review-package/04-evidence-index.md`: key implementation locations.
+4. `axio7-model-review/source/`: editable Rust, Python, and C++ source code and tests.
+5. `axio7-model-review/model-artifacts/axio7-candidate-artifacts-2026-07-26.zip`:
+   9 unpromoted candidate artifacts plus the legacy benchmark; extract the archive to inspect them.
 
-## 哪些内容可以直接改
+## What Can Be Edited Directly
 
-- 生产推理、实时验证、HMM、Baum–Welch、kernel、SDE/OU：
+- Production inference, realtime validation, HMM, Baum–Welch, kernel, and SDE/OU:
   `axio7-model-review/source/quant_engine_rs/`
-- 离线训练、walk-forward、传统模型、TCN/MoE、校准：
+- Offline training, walk-forward evaluation, conventional models, TCN/MoE, and calibration:
   `axio7-model-review/source/intraday_quant/`
-- Native research/HMM/Logistic/OMS 对照：
+- Native research/HMM/Logistic/OMS benchmarks:
   `axio7-model-review/source/quant_core_cpp/`
 
-冻结 artifact 是生成结果，不应手工修改参数或 SHA。算法修复后应重新训练、
-验证、导出新 artifact，并在独立校准和 promotion 通过前保持
-`CANDIDATE_NOT_PROMOTED`。
+Frozen artifacts are generated outputs; do not edit their parameters or SHA values manually. After fixing an algorithm, retrain, validate, and export a new artifact, and keep it at `CANDIDATE_NOT_PROMOTED` until it passes independent calibration and promotion.
 
-## 本地开始
+## Local Setup
 
 ```powershell
 git clone https://github.com/ErwinHe7/Argus.git
@@ -37,7 +33,7 @@ git pull
 git switch -c review/model-audit
 ```
 
-Rust：
+Rust:
 
 ```powershell
 Push-Location axio7-model-review/source/quant_engine_rs
@@ -47,7 +43,7 @@ cargo test
 Pop-Location
 ```
 
-Python：
+Python:
 
 ```powershell
 Push-Location axio7-model-review/source/intraday_quant
@@ -55,7 +51,7 @@ python -m pytest --basetemp .pytest-tmp -p no:cacheprovider
 Pop-Location
 ```
 
-C++（需要 CMake）：
+C++ (requires CMake):
 
 ```powershell
 cmake -S axio7-model-review/source/quant_core_cpp -B axio7-model-review/source/quant_core_cpp/build
@@ -63,9 +59,6 @@ cmake --build axio7-model-review/source/quant_core_cpp/build
 ctest --test-dir axio7-model-review/source/quant_core_cpp/build --output-on-failure
 ```
 
-## 数据边界
+## Data Boundary
 
-仓库没有上传历史/实时市场观测、数据库、Parquet、JSONL、API key 或 `.env`。
-artifact 压缩包包含模型参数、训练 lineage hash 和 analog 训练索引，不包含
-历史行情行。需要做数据级复现时，应通过有权限的 point-in-time 数据源接入同一
-份 normalized record、Rust feature engine 和 frozen inference path。
+The repository does not include historical or realtime market observations, databases, Parquet, JSONL, API keys, or `.env` files. The artifact archive contains model parameters, a training-lineage hash, and the analog training index; it does not contain historical market-data rows. Data-level reproduction requires an entitled point-in-time data source feeding the same normalized record, Rust feature engine, and frozen inference path.

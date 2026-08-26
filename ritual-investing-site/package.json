@@ -1,0 +1,56 @@
+{
+  "name": "@ritual-investing/site",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:browser": "playwright test",
+    "db:generate": "drizzle-kit generate --name waitlist",
+    "db:drizzle:check": "drizzle-kit check",
+    "db:migrate": "node --experimental-strip-types scripts/check-migrations.ts",
+    "db:migrations:check": "node --experimental-strip-types scripts/check-migrations.ts --check",
+    "waitlist:remove": "node --experimental-strip-types scripts/record-removal.ts",
+    "waitlist:restore-replay": "node --experimental-strip-types scripts/replay-removals.ts",
+    "release:baseline": "node --experimental-strip-types scripts/baseline-release.ts",
+    "release:smoke": "node --experimental-strip-types scripts/smoke-hosts.ts",
+    "retention:check": "node --experimental-strip-types scripts/check-retention.ts",
+    "test:postgres": "vitest run test/postgres --no-file-parallelism",
+    "types:generate": "WRANGLER_LOG_PATH=.wrangler/logs wrangler types src/generated/worker-configuration.d.ts --config wrangler.jsonc --include-runtime=false",
+    "types:check": "WRANGLER_LOG_PATH=.wrangler/logs wrangler types src/generated/worker-configuration.d.ts --config wrangler.jsonc --include-runtime=false --check",
+    "assets:build": "node --experimental-strip-types scripts/build-assets.ts",
+    "assets:build:release": "REQUIRE_TURNSTILE_SITE_KEYS=true node --experimental-strip-types scripts/build-assets.ts",
+    "resources:check": "node --experimental-strip-types scripts/resource-manifest.ts",
+    "deploy:landing:dry-run": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --config wrangler.jsonc --dry-run",
+    "deploy:landing-beta:dry-run": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --config wrangler.beta.jsonc --dry-run",
+    "deploy:demo:dry-run": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --config wrangler.demo.jsonc --dry-run",
+    "deploy:demo-beta:dry-run": "WRANGLER_LOG_PATH=.wrangler/logs wrangler deploy --config wrangler.demo-beta.jsonc --dry-run",
+    "deploy:dry-run:all": "npm run deploy:landing:dry-run && npm run deploy:landing-beta:dry-run && npm run deploy:demo:dry-run && npm run deploy:demo-beta:dry-run"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "1.1.0",
+    "drizzle-orm": "0.45.2",
+    "hono": "4.13.3"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
+    "@cloudflare/workers-types": "5.20260826.1",
+    "@playwright/test": "1.62.1",
+    "@types/node": "26.2.0",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.10",
+    "pg": "8.23.0",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11",
+    "wrangler": "4.125.0"
+  }
+}

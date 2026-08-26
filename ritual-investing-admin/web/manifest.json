@@ -1,0 +1,10 @@
+{
+  "name": "Ritual Staff",
+  "short_name": "Ritual Staff",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f7f4f0",
+  "theme_color": "#493657",
+  "description": "Staff-only Ritual Investing operations dashboard.",
+  "orientation": "any"
+}
