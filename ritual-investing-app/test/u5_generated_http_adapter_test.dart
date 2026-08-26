@@ -11,10 +11,11 @@ import 'package:ritual_investing_app/core/api/ritual_api.dart';
 import 'package:ritual_investing_app/core/api/view_state.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/circles/application/controller.dart';
+import 'package:ritual_investing_app/features/circles/data/generated_circle_api_service.dart';
 import 'package:ritual_investing_app/features/circles/data/repository.dart';
 import 'package:ritual_investing_app/features/circles/domain/model.dart';
-import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
-import 'package:ritual_investing_app/features/rowan/data/repository.dart';
+import 'package:ritual_investing_app/features/grimoires/data/generated_grimoire_api_service.dart';
+import 'package:ritual_investing_app/features/rowan/data/generated_rowan_api_service.dart';
 import 'package:ritual_investing_app/features/rowan/domain/model.dart';
 
 void main() {

@@ -5,7 +5,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
-import 'package:ritual_investing_app/features/privacy/data/repository.dart';
+import 'package:ritual_investing_app/features/privacy/data/generated_privacy_api_service.dart';
 import 'package:ritual_investing_app/features/privacy/domain/model.dart';
 
 void main() {

@@ -5,7 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_app/core/api/view_state.dart';
-import 'package:ritual_investing_app/features/entitlements/data/repository.dart';
+import 'package:ritual_investing_app/features/entitlements/data/generated_entitlement_api_service.dart';
 import 'package:ritual_investing_app/features/entitlements/domain/model.dart';
 
 void main() {

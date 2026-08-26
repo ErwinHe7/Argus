@@ -12,6 +12,7 @@ import 'package:ritual_investing_app/core/api/pending_command_store.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/entitlements/application/entitlement_controller.dart';
+import 'package:ritual_investing_app/features/entitlements/data/generated_entitlement_api_service.dart';
 import 'package:ritual_investing_app/features/entitlements/data/repository.dart';
 import 'package:ritual_investing_app/features/entitlements/domain/model.dart';
 import 'package:ritual_investing_app/features/entitlements/presentation/demo_membership_screen.dart';

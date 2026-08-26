@@ -11,6 +11,7 @@ import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/asset_codex/application/controller.dart';
 import 'package:ritual_investing_app/features/asset_codex/presentation/asset_codex_screen.dart';
 import 'package:ritual_investing_app/features/circles/application/controller.dart';
+import 'package:ritual_investing_app/features/circles/data/generated_circle_api_service.dart';
 import 'package:ritual_investing_app/features/circles/data/repository.dart';
 import 'package:ritual_investing_app/features/circles/presentation/circle_template_screen.dart';
 import 'package:ritual_investing_app/features/circles/presentation/private_circle_detail_screen.dart';
@@ -22,6 +23,7 @@ import 'package:ritual_investing_app/features/discover/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
 import 'package:ritual_investing_app/features/discover/presentation/discover_screen.dart';
 import 'package:ritual_investing_app/features/grimoires/application/controller.dart';
+import 'package:ritual_investing_app/features/grimoires/data/generated_grimoire_api_service.dart';
 import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
 import 'package:ritual_investing_app/features/grimoires/presentation/grimoire_detail_screen.dart';
 

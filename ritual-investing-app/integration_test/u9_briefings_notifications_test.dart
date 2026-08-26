@@ -13,9 +13,11 @@ import 'package:ritual_investing_app/core/api/pending_command_store.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/briefings/application/briefing_controller.dart';
+import 'package:ritual_investing_app/features/briefings/data/generated_briefing_api_service.dart';
 import 'package:ritual_investing_app/features/briefings/data/repository.dart';
 import 'package:ritual_investing_app/features/briefings/presentation/briefing_screen.dart';
 import 'package:ritual_investing_app/features/notifications/application/notification_controller.dart';
+import 'package:ritual_investing_app/features/notifications/data/generated_notification_api_service.dart';
 import 'package:ritual_investing_app/features/notifications/data/repository.dart';
 import 'package:ritual_investing_app/features/notifications/presentation/notification_screen.dart';
 

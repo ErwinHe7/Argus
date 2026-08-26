@@ -12,6 +12,7 @@ import 'package:ritual_investing_app/core/api/view_state.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
 import 'package:ritual_investing_app/features/grimoires/application/controller.dart';
+import 'package:ritual_investing_app/features/grimoires/data/generated_grimoire_api_service.dart';
 import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
 import 'package:ritual_investing_app/features/grimoires/domain/model.dart';
 import 'package:ritual_investing_app/features/grimoires/presentation/grimoire_detail_screen.dart';

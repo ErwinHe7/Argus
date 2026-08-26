@@ -10,6 +10,7 @@ import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_app/core/api/pending_command_store.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/privacy/application/privacy_controller.dart';
+import 'package:ritual_investing_app/features/privacy/data/generated_privacy_api_service.dart';
 import 'package:ritual_investing_app/features/privacy/data/private_export_files.dart';
 import 'package:ritual_investing_app/features/privacy/data/repository.dart';
 import 'package:ritual_investing_app/features/privacy/presentation/privacy_screen.dart';

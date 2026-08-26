@@ -1,13 +1,8 @@
 // ignore_for_file: prefer_initializing_formals
 
 import 'dart:async';
-import 'dart:convert';
-import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:ritual_investing_api_client/generated/api.dart';
-import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 
 import '../../features/asset_codex/application/controller.dart';
 import '../../features/asset_codex/domain/model.dart';
@@ -25,45 +20,31 @@ import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/orders/application/order_controller.dart';
-import '../../features/onboarding/data/onboarding_draft_store.dart';
-import '../../features/onboarding/data/onboarding_repository.dart';
 import '../../features/onboarding/domain/onboarding_draft.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/domain/model.dart';
 import '../../features/portfolio/application/controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
-import '../../features/privacy/data/private_export_files.dart';
-import '../../features/privacy/data/repository.dart';
 import '../../features/recurring/application/recurring_plan_controller.dart';
 import '../../features/rebalancing/application/rebalance_controller.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
 import '../api/ritual_api.dart';
-import '../api/flutter_protected_storage.dart';
 import '../api/pending_command_store.dart';
-import '../auth/auth0_session_repository.dart';
 import '../auth/auth_controller.dart';
 import '../cache/read_cache.dart';
-import '../config/runtime_config.dart';
+import 'app_runtime.dart';
 import 'entry_coordinator.dart';
 import 'member_bootstrap.dart';
 import 'member_feature_scope.dart';
-import 'production_member_feature_scope_factory.dart';
+import 'member_shell_runtime.dart';
 
 export 'member_feature_scope.dart'
     show MemberBranch, MemberFeatureScope, MemberFeatureScopeFactory;
+export 'app_runtime.dart' show AppRuntime, MemberEntryGate;
 
-enum MemberEntryGate {
-  restoring,
-  signedOut,
-  failure,
-  onboarding,
-  entitlement,
-  member,
-}
-
-class DependencyContainer extends ChangeNotifier {
+class DependencyContainer extends ChangeNotifier implements AppRuntime {
   DependencyContainer({
     required this.authController,
     required SessionBootstrapService sessionBootstrapService,
@@ -73,10 +54,13 @@ class DependencyContainer extends ChangeNotifier {
     this.entryCoordinator,
     OnboardingController? onboardingController,
   }) : _sessionBootstrapService = sessionBootstrapService,
-       _cacheStorage = cacheStorage,
-       _pendingCommandStore = pendingCommandStore,
-       _featureScopeFactory = featureScopeFactory,
+       _memberShellRuntime = MemberShellRuntime.managed(
+         cacheStorage: cacheStorage,
+         pendingCommandStore: pendingCommandStore,
+         featureScopeFactory: featureScopeFactory,
+       ),
        onboardingController = onboardingController ?? OnboardingController() {
+    _memberShellRuntime.addListener(_handleMemberShellRuntime);
     entryCoordinator?.bindApplyBootstrap(_transitionTo);
     entryCoordinator?.addListener(_handleEntryCoordinator);
     _recoverySubscription = authController.recoveredSessions.listen((_) {
@@ -92,24 +76,25 @@ class DependencyContainer extends ChangeNotifier {
 
   final AuthController authController;
   final SessionBootstrapService _sessionBootstrapService;
-  final ScopedReadCacheStorage _cacheStorage;
-  final PendingCommandStore _pendingCommandStore;
-  final MemberFeatureScopeFactory _featureScopeFactory;
+  final MemberShellRuntime _memberShellRuntime;
   final EntryCoordinator? entryCoordinator;
   final OnboardingController onboardingController;
   late final StreamSubscription<void> _recoverySubscription;
-  MemberBootstrap? _memberBootstrap;
-  MemberFeatureScope? _featureScope;
-  ScopedReadCache? _scopedReadCache;
-  MemberFeatureScope? _retiredScope;
   bool _isRestoring = false;
   bool _recoveryPending = false;
-  bool _legacyMutationsCleared = false;
 
-  MemberBootstrap? get memberBootstrap => _memberBootstrap;
-  MemberFeatureScope? get featureScope => _featureScope;
-  CacheScope? get activeCacheScope => _featureScope?.scope;
+  MemberShellRuntime get memberShellRuntime => _memberShellRuntime;
 
+  @override
+  MemberBootstrap? get memberBootstrap => _memberShellRuntime.memberBootstrap;
+
+  @override
+  MemberFeatureScope? get featureScope => _memberShellRuntime.featureScope;
+
+  @override
+  CacheScope? get activeCacheScope => _memberShellRuntime.activeCacheScope;
+
+  @override
   MemberEntryGate get entryGate {
     final entry = entryCoordinator;
     if (entry != null) {
@@ -133,7 +118,7 @@ class DependencyContainer extends ChangeNotifier {
       AuthPhase.signedOut => MemberEntryGate.signedOut,
       AuthPhase.failure => MemberEntryGate.failure,
       AuthPhase.loading => MemberEntryGate.restoring,
-      AuthPhase.signedIn => switch (_memberBootstrap) {
+      AuthPhase.signedIn => switch (memberBootstrap) {
         null => MemberEntryGate.restoring,
         final value when !value.onboarding.isComplete =>
           MemberEntryGate.onboarding,
@@ -218,7 +203,7 @@ class DependencyContainer extends ChangeNotifier {
   }
 
   SearchController? get optionalSearchController =>
-      _featureScope?.searchController;
+      featureScope?.searchController;
 
   RowanController get rowanController {
     final value = _requireScope().rowanController;
@@ -226,8 +211,7 @@ class DependencyContainer extends ChangeNotifier {
     return value;
   }
 
-  RowanController? get optionalRowanController =>
-      _featureScope?.rowanController;
+  RowanController? get optionalRowanController => featureScope?.rowanController;
 
   AssetCodexController createAssetCodexController({
     required String assetId,
@@ -242,30 +226,30 @@ class DependencyContainer extends ChangeNotifier {
     );
   }
 
-  bool get hasAssetCodex => _featureScope?.assetCodexRepository != null;
+  bool get hasAssetCodex => featureScope?.assetCodexRepository != null;
 
   bool get hasSimulatedInvesting =>
-      _featureScope?.orderController != null &&
-      _featureScope?.recurringPlanController != null &&
-      _featureScope?.rebalanceController != null;
+      featureScope?.orderController != null &&
+      featureScope?.recurringPlanController != null &&
+      featureScope?.rebalanceController != null;
 
   bool get hasIntentionsAndFutureMirror =>
-      _featureScope?.intentionController != null &&
-      _featureScope?.futureMirrorController != null;
+      featureScope?.intentionController != null &&
+      featureScope?.futureMirrorController != null;
 
   bool get hasBriefingsAndNotifications =>
-      _featureScope?.briefingController != null &&
-      _featureScope?.notificationController != null;
+      featureScope?.briefingController != null &&
+      featureScope?.notificationController != null;
 
-  bool get hasDemoMembership => _featureScope?.entitlementController != null;
+  bool get hasDemoMembership => featureScope?.entitlementController != null;
 
-  bool get hasPrivacyControls => _featureScope?.privacyController != null;
+  bool get hasPrivacyControls => featureScope?.privacyController != null;
 
   bool get hasMemberResearch =>
-      _featureScope?.covenRepository != null &&
-      _featureScope?.grimoireRepository != null &&
-      _featureScope?.circleRepository != null &&
-      _featureScope?.creatorRepository != null;
+      featureScope?.covenRepository != null &&
+      featureScope?.grimoireRepository != null &&
+      featureScope?.circleRepository != null &&
+      featureScope?.creatorRepository != null;
 
   CovenDetailController createCovenDetailController(String entryId) =>
       CovenDetailController(
@@ -303,7 +287,7 @@ class DependencyContainer extends ChangeNotifier {
     repository:
         _requireScope().circleRepository ??
         (throw StateError('Private Circles are unavailable.')),
-    createKey: _newCommandKey,
+    createKey: createRuntimeCommandKey,
   );
 
   CircleDetailController createCircleDetailController(String circleId) =>
@@ -394,27 +378,32 @@ class DependencyContainer extends ChangeNotifier {
     notifyListeners();
   }
 
+  @override
   Future<void> ensureBranchLoaded(MemberBranch branch) =>
       _requireScope().load(branch);
 
+  @override
   Future<bool> updateMemberPreferences(ProfilePreferencesUpdate update) async {
     final saved = await profileController.updatePreferences(update);
     if (!saved) return false;
     return _refreshMemberBootstrap();
   }
 
+  @override
   Future<bool> updateMemberInvestor(ProfileInvestorUpdate update) async {
     final saved = await profileController.updateInvestor(update);
     if (!saved) return false;
     return _refreshMemberBootstrap();
   }
 
+  @override
   Future<bool> updateMemberAstrology(ProfileAstrologyUpdate update) async {
     final saved = await profileController.updateAstrology(update);
     if (!saved) return false;
     return _refreshMemberBootstrap();
   }
 
+  @override
   Future<bool> deleteMemberAstrology({required int expectedVersion}) async {
     final saved = await profileController.deleteAstrology(
       expectedVersion: expectedVersion,
@@ -447,7 +436,7 @@ class DependencyContainer extends ChangeNotifier {
     if (_isRestoring || !_recoveryPending) return;
     _recoveryPending = false;
     if (authController.state.phase == AuthPhase.signedIn &&
-        _memberBootstrap == null) {
+        memberBootstrap == null) {
       unawaited(_resumeRecoveredSession());
     }
   }
@@ -465,6 +454,8 @@ class DependencyContainer extends ChangeNotifier {
     }
   }
 
+  void _handleMemberShellRuntime() => notifyListeners();
+
   void _handleEntryCoordinator() {
     final draft = entryCoordinator?.state.draft;
     if (draft == null) {
@@ -476,95 +467,15 @@ class DependencyContainer extends ChangeNotifier {
   }
 
   Future<void> _transitionTo(MemberBootstrap? next) async {
-    final retired = _retiredScope;
-    if (retired != null) {
-      try {
-        await retired.deactivateSensitiveState();
-        retired.dispose();
-        _retiredScope = null;
-      } on Object {
-        if (next != null) rethrow;
-      }
-    }
-    final previous = _memberBootstrap;
-    final previousScope = previous == null
-        ? null
-        : CacheScope(
-            accountId: previous.accountId,
-            resetGeneration: previous.resetGeneration,
-          );
-    final nextScope = next == null
-        ? null
-        : CacheScope(
-            accountId: next.accountId,
-            resetGeneration: next.resetGeneration,
-          );
-    final changed =
-        previousScope != nextScope ||
-        previous?.canEnterMemberShell != next?.canEnterMemberShell;
-    if (changed) {
-      final oldScope = _featureScope;
-      final oldCache = _scopedReadCache;
-      _featureScope = null;
-      _scopedReadCache = null;
-      oldCache?.revoke();
-      if (oldScope != null) {
-        try {
-          await oldScope.deactivateSensitiveState();
-          oldScope.dispose();
-        } on Object {
-          _retiredScope = oldScope;
-          _memberBootstrap = null;
-          if (next != null) {
-            if (oldCache != null) await _bestEffort(oldCache.clear());
-            rethrow;
-          }
-        }
-      }
-      if (previousScope != null) {
-        await Future.wait([
-          oldCache == null
-              ? _bestEffort(_cacheStorage.clearScope(previousScope))
-              : _bestEffort(oldCache.clear()),
-          _bestEffort(_pendingCommandStore.clearScope(previousScope)),
-        ]);
-      } else if (oldCache != null) {
-        await _bestEffort(oldCache.clear());
-      }
-      _memberBootstrap = next;
-    } else {
-      _memberBootstrap = next;
-    }
-    if (next != null && next.canEnterMemberShell && _featureScope == null) {
-      if (!_legacyMutationsCleared) {
-        await _cacheStorage.clearLegacyMutations();
-        _legacyMutationsCleared = true;
-      }
-      final activeScope = nextScope!;
-      final scopedCache = ScopedReadCache(
-        storage: _cacheStorage,
-        scope: activeScope,
-      );
-      _featureScope = _featureScopeFactory(activeScope, scopedCache, next);
-      _scopedReadCache = scopedCache;
-      _featureScope?.entitlementController?.bindAuthorityTransition(() async {
-        await _refreshMemberBootstrap();
-      });
-      _featureScope?.privacyController?.bindAccountTransitions(
-        onDeletionAccepted: logout,
-        onResetAccepted: _acceptDemoReset,
-      );
-    }
-    if (next != null) _featureScope?.updateBootstrap(next);
-  }
-
-  Future<void> _bestEffort(Future<void> cleanup) async {
-    try {
-      await cleanup;
-    } on Object {
-      // Scope disposal and the new bootstrap fence are authoritative even when
-      // device cleanup must be retried by a later transition.
-    }
+    await _memberShellRuntime.transitionTo(next);
+    final scope = featureScope;
+    scope?.entitlementController?.bindAuthorityTransition(() async {
+      await _refreshMemberBootstrap();
+    });
+    scope?.privacyController?.bindAccountTransitions(
+      onDeletionAccepted: logout,
+      onResetAccepted: _acceptDemoReset,
+    );
   }
 
   Future<void> _acceptDemoReset(int expectedGeneration) async {
@@ -585,7 +496,7 @@ class DependencyContainer extends ChangeNotifier {
   }
 
   MemberFeatureScope _requireScope() {
-    final value = _featureScope;
+    final value = featureScope;
     if (value == null) {
       throw StateError(
         'Member feature scope is unavailable before shell entry.',
@@ -594,77 +505,14 @@ class DependencyContainer extends ChangeNotifier {
     return value;
   }
 
-  factory DependencyContainer.production(RuntimeConfig config) {
-    final cache = MemoryReadCache();
-    final protectedStorage = FlutterProtectedStorage();
-    final pendingCommandStore = PendingCommandStore(storage: protectedStorage);
-    final auth = AuthController(
-      repository: Auth0SessionRepository.production(
-        domain: config.auth0Domain,
-        memberClientId: config.auth0ClientId,
-        audience: config.auth0Audience,
-        useHttpsCallbacks: config.auth0UseHttpsCallbacks,
-      ),
-    );
-    final client = RitualInvestingApiClient(
-      basePathOverride: config.apiBaseUrl,
-      interceptors: [RitualAuthInterceptor(tokenProvider: auth)],
-    );
-    final onboardingDraftStore = OnboardingDraftStore(
-      storage: protectedStorage,
-      installation: AppContainerInstallationBinding(
-        cacheDirectoryProvider: getTemporaryDirectory,
-      ),
-      now: DateTime.now,
-    );
-    final privacyExportRequestStore = PrivacyExportRequestStore(
-      storage: protectedStorage,
-    );
-    final privateExportFiles = FlutterPrivateExportFiles();
-    final entryCoordinator = EntryCoordinator(
-      authController: auth,
-      bootstrapService: GeneratedSessionBootstrapService(client),
-      draftStore: onboardingDraftStore,
-      onboardingRepository: GeneratedOnboardingRepository(client),
-    );
-    return DependencyContainer(
-      authController: auth,
-      sessionBootstrapService: GeneratedSessionBootstrapService(client),
-      cacheStorage: cache,
-      pendingCommandStore: pendingCommandStore,
-      entryCoordinator: entryCoordinator,
-      featureScopeFactory: ProductionMemberFeatureScopeFactory(
-        client: client,
-        pendingCommandStore: pendingCommandStore,
-        authController: auth,
-        privacyExportRequestStore: privacyExportRequestStore,
-        privateExportFiles: privateExportFiles,
-        createCommandKey: _newCommandKey,
-        now: DateTime.now,
-      ).call,
-    );
-  }
-
   @override
   void dispose() {
     unawaited(_recoverySubscription.cancel());
     entryCoordinator?.removeListener(_handleEntryCoordinator);
-    final scopedCache = _scopedReadCache;
-    _scopedReadCache = null;
-    if (scopedCache != null) {
-      scopedCache.revoke();
-      unawaited(_bestEffort(scopedCache.clear()));
-    }
-    _featureScope?.dispose();
-    _retiredScope?.dispose();
+    _memberShellRuntime.removeListener(_handleMemberShellRuntime);
+    _memberShellRuntime.dispose();
     onboardingController.dispose();
     authController.dispose();
     super.dispose();
   }
-}
-
-String _newCommandKey() {
-  final random = Random.secure();
-  return base64UrlEncode(List<int>.generate(24, (_) => random.nextInt(256)))
-      .replaceAll('=', '');
 }

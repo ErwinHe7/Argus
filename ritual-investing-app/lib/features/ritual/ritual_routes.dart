@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/bootstrap/dependency_container.dart';
+import '../../core/bootstrap/app_runtime.dart';
 import '../../core/bootstrap/member_bootstrap.dart';
 import '../../core/navigation/member_routes.dart';
 import '../briefings/presentation/briefing_screen.dart';
@@ -10,7 +10,7 @@ import '../entitlements/presentation/demo_membership_screen.dart';
 import 'presentation/daily_ritual_screen.dart';
 
 StatefulShellBranch buildRitualBranch({
-  required DependencyContainer container,
+  required AppRuntime container,
   required MemberResourceAccess resourceAccess,
 }) => StatefulShellBranch(
   restorationScopeId: '${MemberRoutes.ritual.name}-branch',
@@ -67,7 +67,7 @@ StatefulShellBranch buildRitualBranch({
 class _RitualBranchRoot extends StatefulWidget {
   const _RitualBranchRoot({required this.container});
 
-  final DependencyContainer container;
+  final AppRuntime container;
 
   @override
   State<_RitualBranchRoot> createState() => _RitualBranchRootState();

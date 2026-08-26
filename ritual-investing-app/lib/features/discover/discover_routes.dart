@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/bootstrap/dependency_container.dart';
+import '../../core/bootstrap/app_runtime.dart';
 import '../../core/bootstrap/member_bootstrap.dart';
 import '../../core/navigation/member_routes.dart';
 import '../asset_codex/application/controller.dart';
@@ -23,7 +23,7 @@ import 'domain/model.dart';
 import 'presentation/discover_screen.dart';
 
 StatefulShellBranch buildDiscoverBranch({
-  required DependencyContainer container,
+  required AppRuntime container,
   required MemberResourceAccess resourceAccess,
 }) {
   GoRoute resourceRoute(MemberRouteDefinition definition) => GoRoute(
@@ -128,7 +128,7 @@ StatefulShellBranch buildDiscoverBranch({
 class _DiscoverBranchRoot extends StatefulWidget {
   const _DiscoverBranchRoot({required this.container});
 
-  final DependencyContainer container;
+  final AppRuntime container;
 
   @override
   State<_DiscoverBranchRoot> createState() => _DiscoverBranchRootState();
@@ -196,7 +196,7 @@ class _AssetCodexRoute extends StatefulWidget {
     required this.source,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String assetId;
   final AssetSourceContext source;
 
@@ -255,7 +255,7 @@ class _GrimoireRoute extends StatefulWidget {
     required this.grimoireId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String grimoireId;
 
   @override
@@ -298,7 +298,7 @@ class _CircleTemplateRoute extends StatefulWidget {
     required this.templateId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String templateId;
 
   @override
@@ -371,7 +371,7 @@ class _CreatorRoute extends StatefulWidget {
     required this.creatorId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String creatorId;
 
   @override
@@ -402,7 +402,7 @@ class _CreatorRouteState extends State<_CreatorRoute> {
 class _PrivateCirclesRoute extends StatefulWidget {
   const _PrivateCirclesRoute({required this.container});
 
-  final DependencyContainer container;
+  final AppRuntime container;
 
   @override
   State<_PrivateCirclesRoute> createState() => _PrivateCirclesRouteState();
@@ -439,7 +439,7 @@ class _PrivateCircleRoute extends StatefulWidget {
     required this.circleId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String circleId;
 
   @override

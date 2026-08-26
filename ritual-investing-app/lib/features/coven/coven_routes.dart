@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/bootstrap/dependency_container.dart';
+import '../../core/bootstrap/app_runtime.dart';
 import '../../core/bootstrap/member_bootstrap.dart';
 import '../../core/navigation/member_routes.dart';
 import 'application/controller.dart';
@@ -11,7 +11,7 @@ import 'presentation/coven_detail_screen.dart';
 import 'presentation/coven_screen.dart';
 
 StatefulShellBranch buildCovenBranch({
-  required DependencyContainer container,
+  required AppRuntime container,
   required MemberResourceAccess resourceAccess,
 }) => StatefulShellBranch(
   restorationScopeId: '${MemberRoutes.coven.name}-branch',
@@ -53,7 +53,7 @@ StatefulShellBranch buildCovenBranch({
 class _CovenBranchRoot extends StatefulWidget {
   const _CovenBranchRoot({required this.container});
 
-  final DependencyContainer container;
+  final AppRuntime container;
 
   @override
   State<_CovenBranchRoot> createState() => _CovenBranchRootState();
@@ -80,7 +80,7 @@ class _CovenDetailRoute extends StatefulWidget {
     required this.entryId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String entryId;
 
   @override

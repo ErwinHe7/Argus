@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app/ritual_investing_app.dart';
-import 'core/bootstrap/dependency_container.dart';
+import 'core/bootstrap/production_dependency_container.dart';
 import 'core/config/runtime_config.dart';
 
 void main() {
@@ -9,7 +9,7 @@ void main() {
   try {
     runApp(
       RitualInvestingApp(
-        container: DependencyContainer.production(
+        container: createProductionDependencyContainer(
           RuntimeConfig.fromEnvironment(),
         ),
       ),
