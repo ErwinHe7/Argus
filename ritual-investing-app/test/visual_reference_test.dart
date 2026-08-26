@@ -27,7 +27,7 @@ void main() {
       await Future.wait([
         precacheImage(
           const AssetImage(
-            'assets/images/the-compass.png',
+            'assets/images/tarot/modern-rider-waite/major/04-the-emperor.webp',
             package: 'ritual_investing_app',
           ),
           context,
@@ -91,7 +91,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final art = find.bySemanticsLabel(
-        'The Compass tarot card: a woman holding a lantern at a celestial crossroads',
+        'The Emperor tarot card: a ruler sits on a ram-carved throne before mountains',
       );
       final interpretation = find.text('Direction, not urgency.');
       expect(art, findsOneWidget);
