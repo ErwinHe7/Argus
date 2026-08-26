@@ -59,11 +59,11 @@ describe("Cloudflare environment isolation", () => {
   });
 
   it("routes only API paths through landing code and has no SPA fallback", () => {
-    for (const file of ["wrangler.jsonc", "wrangler.beta.jsonc"]) {
+    for (const [file, directory] of [["wrangler.jsonc", "./dist/landing"], ["wrangler.beta.jsonc", "./dist/landing-beta"]] as const) {
       const value = config(file);
       expect(value.main).toBe("src/index.ts");
       expect(value.assets).toEqual({
-        directory: "./dist/landing",
+        directory,
         binding: "ASSETS",
         run_worker_first: ["/api/*"],
         not_found_handling: "none",
@@ -72,10 +72,10 @@ describe("Cloudflare environment isolation", () => {
   });
 
   it("keeps demo Workers asset-only and unable to access landing/data/telemetry resources", () => {
-    for (const file of ["wrangler.demo.jsonc", "wrangler.demo-beta.jsonc"]) {
+    for (const [file, directory] of [["wrangler.demo.jsonc", "./dist/demo"], ["wrangler.demo-beta.jsonc", "./dist/demo-beta"]] as const) {
       const value = config(file);
       expect(value.main).toBeUndefined();
-      expect(value.assets).toEqual({ directory: "./dist/demo", not_found_handling: "none" });
+      expect(value.assets).toEqual({ directory, not_found_handling: "none" });
       for (const forbidden of ["vars", "ratelimits", "kv_namespaces", "analytics_engine_datasets", "r2_buckets", "d1_databases", "services"]) {
         expect(value).not.toHaveProperty(forbidden);
       }

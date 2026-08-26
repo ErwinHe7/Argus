@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import {
+  copyFile,
+  cp,
   lstat,
   mkdir,
   mkdtemp,
@@ -13,6 +15,91 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
+
+type DeploymentEnvironment = "production" | "beta";
+
+const HOSTS = {
+  production: {
+    landing: "https://just-build-this.app",
+    demo: "https://demo.just-build-this.app",
+  },
+  beta: {
+    landing: "https://beta.just-build-this.app",
+    demo: "https://demo-beta.just-build-this.app",
+  },
+} as const;
+
+const NOINDEX = "X-Robots-Tag: noindex, nofollow, noarchive";
+
+function entryCacheRules(paths: readonly string[]): string {
+  return paths.map((path) => `${path}\n  Cache-Control: no-cache, no-store, must-revalidate`).join("\n\n");
+}
+
+export function renderLandingHeaders(environment: DeploymentEnvironment): string {
+  const peer = HOSTS[environment];
+  const csp = [
+    "default-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    `frame-src ${peer.demo} https://challenges.cloudflare.com`,
+    "script-src 'self' https://challenges.cloudflare.com",
+    "style-src 'self'",
+    "font-src 'self'",
+    "img-src 'self'",
+    "connect-src 'self' https://challenges.cloudflare.com",
+    "object-src 'none'",
+    "media-src 'none'",
+    "manifest-src 'none'",
+    "worker-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+  const indexPolicy = environment === "beta" ? `\n  ${NOINDEX}` : "";
+  return `/*
+  Content-Security-Policy: ${csp}
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin${indexPolicy}
+
+${entryCacheRules(["/", "/index.html", "/privacy/waitlist", "/privacy/waitlist/", "/privacy/waitlist/index.html", "/landing.js", "/styles.css", "/robots.txt", "/sitemap.xml"])}
+
+/assets/immutable/*
+  Cache-Control: public, max-age=31536000, immutable
+`;
+}
+
+export function renderDemoHeaders(environment: DeploymentEnvironment): string {
+  const peer = HOSTS[environment];
+  const csp = [
+    "default-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    `frame-ancestors ${peer.landing}`,
+    "script-src 'self' 'wasm-unsafe-eval'",
+    "style-src 'self'",
+    "font-src 'self' data:",
+    "img-src 'self' data: blob:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "media-src 'none'",
+    "manifest-src 'self'",
+    "worker-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+  return `/*
+  Content-Security-Policy: ${csp}
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  Cross-Origin-Resource-Policy: same-origin
+  ${NOINDEX}
+
+${entryCacheRules(["/", "/index.html", "/flutter.js", "/flutter_bootstrap.js", "/main.dart.js", "/manifest.json", "/version.json", "/asset-manifest.json"])}
+`;
+}
 
 const HASH_MANIFEST = "asset-manifest.json";
 const EXCLUDED_BUILD_MARKERS = new Set([".last_build_id"]);
@@ -213,23 +300,102 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
   return manifest;
 }
 
-async function buildDeploymentAssets(): Promise<void> {
+const LANDING_ASSETS = [
+  {
+    source: "../ritual-investing-app/assets/fonts/Inter-Variable.ttf",
+    output: "inter.29160a80ff49.ttf",
+    hashPrefix: "29160a80ff49",
+  },
+  {
+    source: "../ritual-investing-app/assets/fonts/LibreBaskerville-Variable.ttf",
+    output: "libre-baskerville.05a954219613.ttf",
+    hashPrefix: "05a954219613",
+  },
+  {
+    source: "../ritual-investing-app/assets/images/the-compass.png",
+    output: "the-compass.2da5b20ad40a.png",
+    hashPrefix: "2da5b20ad40a",
+  },
+] as const;
+
+async function addLandingIdentityAssets(packageRoot: string, stage: string): Promise<void> {
+  const destination = join(stage, "assets/immutable");
+  await mkdir(destination, { recursive: true });
+  for (const asset of LANDING_ASSETS) {
+    const source = resolve(packageRoot, asset.source);
+    const contents = await readFile(source);
+    const digest = createHash("sha256").update(contents).digest("hex");
+    if (!digest.startsWith(asset.hashPrefix)) {
+      throw new Error(`Fingerprint drift for landing identity asset: ${asset.source}`);
+    }
+    await copyFile(source, join(destination, asset.output));
+  }
+}
+
+async function prepareLandingStage(
+  packageRoot: string,
+  stage: string,
+  environment: DeploymentEnvironment,
+): Promise<void> {
+  await cp(resolve(packageRoot, "public"), stage, { recursive: true });
+  await addLandingIdentityAssets(packageRoot, stage);
+  await writeFile(join(stage, "_headers"), renderLandingHeaders(environment));
+  if (environment === "beta") {
+    for (const relativePath of ["index.html", "privacy/waitlist/index.html"]) {
+      const path = join(stage, relativePath);
+      const production = await readFile(path, "utf8");
+      const beta = production
+        .replaceAll('content="index,follow"', 'content="noindex,nofollow"')
+        .replaceAll('data-demo-environment="production"', 'data-demo-environment="beta"')
+        .replaceAll("https://demo.just-build-this.app", "https://demo-beta.just-build-this.app");
+      await writeFile(path, beta);
+    }
+    await writeFile(join(stage, "robots.txt"), "User-agent: *\nDisallow: /\n");
+  }
+}
+
+async function prepareDemoStage(
+  demoSource: string,
+  stage: string,
+  environment: DeploymentEnvironment,
+): Promise<void> {
+  await cp(demoSource, stage, { recursive: true });
+  await writeFile(join(stage, "_headers"), renderDemoHeaders(environment));
+  await writeFile(join(stage, "robots.txt"), "User-agent: *\nDisallow: /\n");
+}
+
+export async function buildDeploymentAssets(): Promise<void> {
   const packageRoot = resolve(import.meta.dirname, "..");
   const demoSource = resolve(packageRoot, "../ritual-investing-demo/build/web");
-  const demoManifest = await assembleAssets({ source: demoSource, destination: resolve(packageRoot, "dist/demo") });
-
-  const scaffold = await mkdtemp(join(tmpdir(), "ritual-landing-scaffold-"));
+  const stagingRoot = await mkdtemp(join(tmpdir(), "ritual-site-assets-"));
   try {
-    await writeFile(
-      join(scaffold, "index.html"),
-      '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="robots" content="noindex"></head><body><main><h1>Ritual Investing</h1><p>Landing page scaffold; public content is assembled in U4.</p></main></body></html>\n',
-    );
-    const landingManifest = await assembleAssets({ source: scaffold, destination: resolve(packageRoot, "dist/landing") });
-    process.stdout.write(
-      `Assembled ${demoManifest.fileCount} demo files (${demoManifest.totalBytes} bytes) and ${landingManifest.fileCount} landing scaffold file.\n`,
-    );
+    const manifests: Array<{ surface: string; manifest: AssetManifest }> = [];
+    for (const environment of ["production", "beta"] as const) {
+      const landingStage = join(stagingRoot, `landing-${environment}`);
+      await prepareLandingStage(packageRoot, landingStage, environment);
+      manifests.push({
+        surface: environment === "production" ? "landing" : "landing-beta",
+        manifest: await assembleAssets({
+          source: landingStage,
+          destination: resolve(packageRoot, environment === "production" ? "dist/landing" : "dist/landing-beta"),
+        }),
+      });
+
+      const demoStage = join(stagingRoot, `demo-${environment}`);
+      await prepareDemoStage(demoSource, demoStage, environment);
+      manifests.push({
+        surface: environment === "production" ? "demo" : "demo-beta",
+        manifest: await assembleAssets({
+          source: demoStage,
+          destination: resolve(packageRoot, environment === "production" ? "dist/demo" : "dist/demo-beta"),
+        }),
+      });
+    }
+    process.stdout.write(manifests.map(({ surface, manifest }) =>
+      `${surface}: ${manifest.fileCount} files (${manifest.totalBytes} bytes)`,
+    ).join("\n") + "\n");
   } finally {
-    await rm(scaffold, { recursive: true, force: true });
+    await rm(stagingRoot, { recursive: true, force: true });
   }
 }
 
