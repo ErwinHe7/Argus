@@ -1,0 +1,6 @@
+name: ritual_investing_api_client
+description: Generated-client sentinel for the provider-free Ritual demo build.
+version: 1.0.0
+publish_to: none
+environment:
+  sdk: ^3.13.1

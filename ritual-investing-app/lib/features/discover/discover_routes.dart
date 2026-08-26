@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/bootstrap/dependency_container.dart';
+import '../../core/bootstrap/app_runtime.dart';
 import '../../core/bootstrap/member_bootstrap.dart';
 import '../../core/navigation/member_routes.dart';
 import '../asset_codex/application/controller.dart';
@@ -23,8 +23,9 @@ import 'domain/model.dart';
 import 'presentation/discover_screen.dart';
 
 StatefulShellBranch buildDiscoverBranch({
-  required DependencyContainer container,
+  required AppRuntime container,
   required MemberResourceAccess resourceAccess,
+  bool restorationEnabled = true,
 }) {
   GoRoute resourceRoute(MemberRouteDefinition definition) => GoRoute(
     path: definition.relativeResourcePath!,
@@ -33,7 +34,13 @@ StatefulShellBranch buildDiscoverBranch({
       final stableId = state.pathParameters['stableId'];
       final available = definition == MemberRoutes.discoverAsset
           ? container.hasAssetCodex
-          : container.hasMemberResearch;
+          : switch (definition) {
+              MemberRoutes.discoverGrimoire => container.hasGrimoires,
+              MemberRoutes.discoverCreator => container.hasCreators,
+              MemberRoutes.discoverCircleTemplate ||
+              MemberRoutes.discoverCircle => container.hasCircles,
+              _ => false,
+            };
       return stableId != null &&
               MemberRoutes.isUuid(stableId) &&
               (available || resourceAccess(definition, stableId))
@@ -54,7 +61,9 @@ StatefulShellBranch buildDiscoverBranch({
           source: source,
         );
       }
-      if (container.hasMemberResearch) {
+      if (container.hasGrimoires ||
+          container.hasCreators ||
+          container.hasCircles) {
         return switch (definition) {
           MemberRoutes.discoverGrimoire => _GrimoireRoute(
             key: ValueKey('grimoire-detail-$stableId'),
@@ -93,7 +102,7 @@ StatefulShellBranch buildDiscoverBranch({
       path: 'circles',
       name: 'discover-private-circles',
       redirect: (context, state) =>
-          container.hasMemberResearch ? null : MemberRoutes.discover.path,
+          container.hasCircles ? null : MemberRoutes.discover.path,
       builder: (context, state) => _PrivateCirclesRoute(container: container),
     ),
   ];
@@ -113,7 +122,9 @@ StatefulShellBranch buildDiscoverBranch({
   }
 
   return StatefulShellBranch(
-    restorationScopeId: '${MemberRoutes.discover.name}-branch',
+    restorationScopeId: restorationEnabled
+        ? '${MemberRoutes.discover.name}-branch'
+        : null,
     routes: [
       GoRoute(
         path: MemberRoutes.discover.path,
@@ -128,7 +139,7 @@ StatefulShellBranch buildDiscoverBranch({
 class _DiscoverBranchRoot extends StatefulWidget {
   const _DiscoverBranchRoot({required this.container});
 
-  final DependencyContainer container;
+  final AppRuntime container;
 
   @override
   State<_DiscoverBranchRoot> createState() => _DiscoverBranchRootState();
@@ -150,7 +161,9 @@ class _DiscoverBranchRootState extends State<_DiscoverBranchRoot> {
     onOpenItem: (item) => _openDiscoverItem(context, item),
     onOpenCreator: (creator) =>
         context.push(MemberRoutes.discoverCreator.location(creator.id)),
-    onOpenPrivateCircles: () => context.push(MemberRoutes.discoverCirclesPath),
+    onOpenPrivateCircles: widget.container.hasCircles
+        ? () => context.push(MemberRoutes.discoverCirclesPath)
+        : null,
   );
 }
 
@@ -196,7 +209,7 @@ class _AssetCodexRoute extends StatefulWidget {
     required this.source,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String assetId;
   final AssetSourceContext source;
 
@@ -255,7 +268,7 @@ class _GrimoireRoute extends StatefulWidget {
     required this.grimoireId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String grimoireId;
 
   @override
@@ -298,7 +311,7 @@ class _CircleTemplateRoute extends StatefulWidget {
     required this.templateId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String templateId;
 
   @override
@@ -371,7 +384,7 @@ class _CreatorRoute extends StatefulWidget {
     required this.creatorId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String creatorId;
 
   @override
@@ -402,7 +415,7 @@ class _CreatorRouteState extends State<_CreatorRoute> {
 class _PrivateCirclesRoute extends StatefulWidget {
   const _PrivateCirclesRoute({required this.container});
 
-  final DependencyContainer container;
+  final AppRuntime container;
 
   @override
   State<_PrivateCirclesRoute> createState() => _PrivateCirclesRouteState();
@@ -439,7 +452,7 @@ class _PrivateCircleRoute extends StatefulWidget {
     required this.circleId,
   });
 
-  final DependencyContainer container;
+  final AppRuntime container;
   final String circleId;
 
   @override

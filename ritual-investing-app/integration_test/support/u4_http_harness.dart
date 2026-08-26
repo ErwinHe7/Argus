@@ -8,14 +8,17 @@ import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:ritual_investing_app/core/api/ritual_api.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/asset_codex/application/controller.dart';
+import 'package:ritual_investing_app/features/asset_codex/data/generated_asset_codex_api_service.dart';
 import 'package:ritual_investing_app/features/asset_codex/data/repository.dart';
 import 'package:ritual_investing_app/features/asset_codex/domain/model.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/rowan/application/controller.dart';
+import 'package:ritual_investing_app/features/rowan/data/generated_rowan_api_service.dart';
 import 'package:ritual_investing_app/features/rowan/data/repository.dart';
 import 'package:ritual_investing_app/features/search/application/controller.dart'
     as member_search;
+import 'package:ritual_investing_app/features/search/data/generated_search_api_service.dart';
 import 'package:ritual_investing_app/features/search/data/repository.dart';
 
 const u4AssignmentId = '00000000-0000-4000-8000-000000000401';

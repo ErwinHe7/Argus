@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/bootstrap/dependency_container.dart';
+import '../../core/bootstrap/app_runtime.dart';
 import '../../core/navigation/member_routes.dart';
 import '../entitlements/domain/model.dart';
 import '../entitlements/presentation/demo_membership_screen.dart';
@@ -15,25 +15,37 @@ import '../rebalancing/presentation/rebalance_screen.dart';
 import '../recurring/presentation/recurring_plan_screen.dart';
 import 'presentation/profile_screen.dart';
 
-StatefulShellBranch buildYouBranch({required DependencyContainer container}) =>
-    StatefulShellBranch(
-      restorationScopeId: '${MemberRoutes.you.name}-branch',
+StatefulShellBranch buildYouBranch({
+  required AppRuntime container,
+  Future<void> Function()? onLogout,
+  bool restorationEnabled = true,
+}) => StatefulShellBranch(
+  restorationScopeId: restorationEnabled
+      ? '${MemberRoutes.you.name}-branch'
+      : null,
+  routes: [
+    GoRoute(
+      path: MemberRoutes.you.path,
+      name: MemberRoutes.you.name,
+      builder: (context, state) => _YouBranchRoot(
+        container: container,
+        showAccount:
+            container.presentationPolicy.showsAccount && onLogout != null,
+      ),
       routes: [
-        GoRoute(
-          path: MemberRoutes.you.path,
-          name: MemberRoutes.you.name,
-          builder: (context, state) => _YouBranchRoot(container: container),
-          routes: [
-            _portfolioRoute(container),
-            ..._intentionRoutes(container),
-            ..._simulatedInvestingRoutes(container),
-            ..._settingsRoutes(container),
-          ],
+        _portfolioRoute(container),
+        ..._intentionRoutes(container),
+        ..._simulatedInvestingRoutes(container),
+        ..._settingsRoutes(
+          container,
+          container.presentationPolicy.showsAccount ? onLogout : null,
         ),
       ],
-    );
+    ),
+  ],
+);
 
-GoRoute _portfolioRoute(DependencyContainer container) => GoRoute(
+GoRoute _portfolioRoute(AppRuntime container) => GoRoute(
   path: MemberRoutes.portfolio.relativeResourcePath!,
   name: MemberRoutes.portfolio.name,
   redirect: (context, state) {
@@ -50,6 +62,7 @@ GoRoute _portfolioRoute(DependencyContainer container) => GoRoute(
       portfolioController: container.portfolioController,
       fundingSourceController: container.fundingSourceController,
       contributionController: container.contributionController,
+      readOnly: container.presentationPolicy.isDemo,
       onOpenPortfolio: (id) =>
           context.pushReplacement(MemberRoutes.portfolio.location(id)),
       onOpenAsset: container.hasAssetCodex
@@ -90,7 +103,7 @@ GoRoute _portfolioRoute(DependencyContainer container) => GoRoute(
   },
 );
 
-List<RouteBase> _intentionRoutes(DependencyContainer container) => [
+List<RouteBase> _intentionRoutes(AppRuntime container) => [
   GoRoute(
     path: 'portfolios/:portfolioId/intentions',
     redirect: (context, state) =>
@@ -222,7 +235,7 @@ List<RouteBase> _intentionRoutes(DependencyContainer container) => [
   ),
 ];
 
-List<RouteBase> _simulatedInvestingRoutes(DependencyContainer container) => [
+List<RouteBase> _simulatedInvestingRoutes(AppRuntime container) => [
   GoRoute(
     path: 'portfolios/:portfolioId/orders',
     redirect: (context, state) =>
@@ -335,42 +348,47 @@ List<RouteBase> _simulatedInvestingRoutes(DependencyContainer container) => [
   ),
 ];
 
-List<RouteBase> _settingsRoutes(DependencyContainer container) => [
-  GoRoute(
-    path: 'investing',
-    builder: (context, state) => InvestingProfileScreen(
-      controller: container.profileController,
-      onSave: container.updateMemberInvestor,
+List<RouteBase> _settingsRoutes(
+  AppRuntime container,
+  Future<void> Function()? onLogout,
+) => [
+  if (container.presentationPolicy.allowsProfileEditing) ...[
+    GoRoute(
+      path: 'investing',
+      builder: (context, state) => InvestingProfileScreen(
+        controller: container.profileController,
+        onSave: container.updateMemberInvestor,
+      ),
     ),
-  ),
-  GoRoute(
-    path: 'ritual-preferences',
-    builder: (context, state) => RitualPreferencesScreen(
-      controller: container.profileController,
-      onSave: container.updateMemberPreferences,
+    GoRoute(
+      path: 'ritual-preferences',
+      builder: (context, state) => RitualPreferencesScreen(
+        controller: container.profileController,
+        onSave: container.updateMemberPreferences,
+      ),
     ),
-  ),
-  GoRoute(
-    path: 'astrology',
-    builder: (context, state) => AstrologySettingsScreen(
-      controller: container.profileController,
-      onEnable: container.updateMemberAstrology,
-      onDelete: container.deleteMemberAstrology,
+    GoRoute(
+      path: 'astrology',
+      builder: (context, state) => AstrologySettingsScreen(
+        controller: container.profileController,
+        onEnable: container.updateMemberAstrology,
+        onDelete: container.deleteMemberAstrology,
+      ),
     ),
-  ),
-  GoRoute(
-    path: 'policies',
-    builder: (context, state) => PolicyStatusScreen(
-      controller: container.profileController,
-      onboardingComplete:
-          container.memberBootstrap?.onboarding.isComplete ?? false,
+    GoRoute(
+      path: 'policies',
+      builder: (context, state) => PolicyStatusScreen(
+        controller: container.profileController,
+        onboardingComplete:
+            container.memberBootstrap?.onboarding.isComplete ?? false,
+      ),
     ),
-  ),
-  GoRoute(
-    path: 'account',
-    builder: (context, state) =>
-        AccountSettingsScreen(onLogout: container.logout),
-  ),
+  ],
+  if (onLogout != null)
+    GoRoute(
+      path: 'account',
+      builder: (context, state) => AccountSettingsScreen(onLogout: onLogout),
+    ),
   GoRoute(
     path: 'privacy',
     redirect: (context, state) =>
@@ -479,9 +497,10 @@ List<RouteBase> _settingsRoutes(DependencyContainer container) => [
 ];
 
 class _YouBranchRoot extends StatefulWidget {
-  const _YouBranchRoot({required this.container});
+  const _YouBranchRoot({required this.container, required this.showAccount});
 
-  final DependencyContainer container;
+  final AppRuntime container;
+  final bool showAccount;
 
   @override
   State<_YouBranchRoot> createState() => _YouBranchRootState();
@@ -498,12 +517,22 @@ class _YouBranchRootState extends State<_YouBranchRoot> {
   Widget build(BuildContext context) => ProfileScreen(
     controller: widget.container.profileController,
     portfolioController: widget.container.portfolioController,
-    onOpenInvesting: () => context.push(MemberRoutes.youInvestingPath),
-    onOpenRitualPreferences: () =>
-        context.push(MemberRoutes.youRitualPreferencesPath),
-    onOpenAstrology: () => context.push(MemberRoutes.youAstrologyPath),
-    onOpenPolicies: () => context.push(MemberRoutes.youPoliciesPath),
-    onOpenAccount: () => context.push(MemberRoutes.youAccountPath),
+    onOpenInvesting: widget.container.presentationPolicy.allowsProfileEditing
+        ? () => context.push(MemberRoutes.youInvestingPath)
+        : null,
+    onOpenRitualPreferences:
+        widget.container.presentationPolicy.allowsProfileEditing
+        ? () => context.push(MemberRoutes.youRitualPreferencesPath)
+        : null,
+    onOpenAstrology: widget.container.presentationPolicy.allowsProfileEditing
+        ? () => context.push(MemberRoutes.youAstrologyPath)
+        : null,
+    onOpenPolicies: widget.container.presentationPolicy.allowsProfileEditing
+        ? () => context.push(MemberRoutes.youPoliciesPath)
+        : null,
+    onOpenAccount: widget.showAccount
+        ? () => context.push(MemberRoutes.youAccountPath)
+        : null,
     onOpenNotifications: widget.container.hasBriefingsAndNotifications
         ? () => context.push(MemberRoutes.youNotificationsPath)
         : null,
@@ -521,7 +550,7 @@ class _YouBranchRootState extends State<_YouBranchRoot> {
 }
 
 bool _validSimulatedInvestingPortfolioRoute(
-  DependencyContainer container,
+  AppRuntime container,
   String? portfolioId,
 ) =>
     container.hasSimulatedInvesting &&
@@ -529,7 +558,7 @@ bool _validSimulatedInvestingPortfolioRoute(
     MemberRoutes.isStableId(portfolioId);
 
 bool _validIntentionsPortfolioRoute(
-  DependencyContainer container,
+  AppRuntime container,
   String? portfolioId,
 ) =>
     container.hasIntentionsAndFutureMirror &&
@@ -537,7 +566,7 @@ bool _validIntentionsPortfolioRoute(
     MemberRoutes.isStableId(portfolioId);
 
 bool _validIntentionRoute(
-  DependencyContainer container,
+  AppRuntime container,
   Map<String, String> parameters,
 ) =>
     _validIntentionsPortfolioRoute(container, parameters['portfolioId']) &&

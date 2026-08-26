@@ -3,15 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/coven/coven_routes.dart';
-import '../../features/discover/discover_routes.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
-import '../../features/profile/you_routes.dart';
-import '../../features/ritual/ritual_routes.dart';
-import '../../features/shell/presentation/app_shell.dart';
 import '../bootstrap/dependency_container.dart';
 import '../bootstrap/entry_coordinator.dart';
+import 'member_app_router.dart';
 import 'member_routes.dart';
 
 GoRouter createAppRouter({
@@ -158,16 +154,10 @@ GoRouter createAppRouter({
         path: '/entry',
         builder: (context, state) => _EntryGate(container: container),
       ),
-      StatefulShellRoute.indexedStack(
-        restorationScopeId: 'member-shell',
-        branches: [
-          buildRitualBranch(container: container, resourceAccess: access),
-          buildDiscoverBranch(container: container, resourceAccess: access),
-          buildCovenBranch(container: container, resourceAccess: access),
-          buildYouBranch(container: container),
-        ],
-        builder: (context, state, navigationShell) =>
-            AppShell(navigationShell: navigationShell),
+      buildMemberShellRoute(
+        runtime: container,
+        resourceAccess: access,
+        onLogout: container.logout,
       ),
     ],
   );

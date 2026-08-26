@@ -85,38 +85,42 @@ class ProfileScreen extends StatelessWidget {
           ),
           if (controller.state.value case final profile?) ...[
             const SizedBox(height: 12),
-            _MenuTile(
-              key: const Key('you-investing'),
-              icon: Icons.trending_up,
-              title: 'Investing profile',
-              subtitle: profile.investor == null
-                  ? 'Add your Demo research defaults'
-                  : profile.investor!.explanationDepth,
-              onTap: onOpenInvesting,
-            ),
-            _MenuTile(
-              key: const Key('you-ritual-preferences'),
-              icon: Icons.tune,
-              title: 'Ritual and appearance',
-              subtitle: profile.preferences.activeVoice,
-              onTap: onOpenRitualPreferences,
-            ),
-            _MenuTile(
-              key: const Key('you-astrology'),
-              icon: Icons.auto_awesome_outlined,
-              title: 'Astrology',
-              subtitle: profile.astrology == null
-                  ? 'Optional and currently off'
-                  : 'Server-derived profile enabled',
-              onTap: onOpenAstrology,
-            ),
-            _MenuTile(
-              key: const Key('you-policies'),
-              icon: Icons.verified_user_outlined,
-              title: 'Policy decisions',
-              subtitle: 'Onboarding consent status',
-              onTap: onOpenPolicies,
-            ),
+            if (onOpenInvesting != null)
+              _MenuTile(
+                key: const Key('you-investing'),
+                icon: Icons.trending_up,
+                title: 'Investing profile',
+                subtitle: profile.investor == null
+                    ? 'Add your Demo research defaults'
+                    : profile.investor!.explanationDepth,
+                onTap: onOpenInvesting,
+              ),
+            if (onOpenRitualPreferences != null)
+              _MenuTile(
+                key: const Key('you-ritual-preferences'),
+                icon: Icons.tune,
+                title: 'Ritual and appearance',
+                subtitle: profile.preferences.activeVoice,
+                onTap: onOpenRitualPreferences,
+              ),
+            if (onOpenAstrology != null)
+              _MenuTile(
+                key: const Key('you-astrology'),
+                icon: Icons.auto_awesome_outlined,
+                title: 'Astrology',
+                subtitle: profile.astrology == null
+                    ? 'Optional and currently off'
+                    : 'Server-derived profile enabled',
+                onTap: onOpenAstrology,
+              ),
+            if (onOpenPolicies != null)
+              _MenuTile(
+                key: const Key('you-policies'),
+                icon: Icons.verified_user_outlined,
+                title: 'Policy decisions',
+                subtitle: 'Onboarding consent status',
+                onTap: onOpenPolicies,
+              ),
             if (portfolioController.selected case final portfolio?)
               _MenuTile(
                 key: const Key('you-portfolio'),
@@ -127,20 +131,22 @@ class ProfileScreen extends StatelessWidget {
                     ? null
                     : () => onOpenPortfolio!(portfolio.id),
               ),
-            _MenuTile(
-              key: const Key('you-notifications'),
-              icon: Icons.notifications_none,
-              title: 'In-app notices',
-              subtitle: 'Recap feed and preferences · no push delivery',
-              onTap: onOpenNotifications,
-            ),
-            _MenuTile(
-              key: const Key('you-membership'),
-              icon: Icons.auto_awesome,
-              title: 'Demo membership',
-              subtitle: 'Free and premium simulations · no charge',
-              onTap: onOpenMembership,
-            ),
+            if (onOpenNotifications != null)
+              _MenuTile(
+                key: const Key('you-notifications'),
+                icon: Icons.notifications_none,
+                title: 'In-app notices',
+                subtitle: 'Recap feed and preferences · no push delivery',
+                onTap: onOpenNotifications,
+              ),
+            if (onOpenMembership != null)
+              _MenuTile(
+                key: const Key('you-membership'),
+                icon: Icons.auto_awesome,
+                title: 'Demo membership',
+                subtitle: 'Free and premium simulations · no charge',
+                onTap: onOpenMembership,
+              ),
             if (onOpenPrivacy != null)
               _MenuTile(
                 key: const Key('you-privacy'),
@@ -157,13 +163,14 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'Restore the seeded fictional experience',
                 onTap: onOpenDemoReset,
               ),
-            _MenuTile(
-              key: const Key('you-account'),
-              icon: Icons.person_outline,
-              title: 'Account',
-              subtitle: 'Session and logout',
-              onTap: onOpenAccount,
-            ),
+            if (onOpenAccount != null)
+              _MenuTile(
+                key: const Key('you-account'),
+                icon: Icons.person_outline,
+                title: 'Account',
+                subtitle: 'Session and logout',
+                onTap: onOpenAccount,
+              ),
           ],
         ],
       ),

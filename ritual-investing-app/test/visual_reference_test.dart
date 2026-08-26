@@ -26,11 +26,17 @@ void main() {
       final context = tester.element(find.byType(Scaffold).first);
       await Future.wait([
         precacheImage(
-          const AssetImage('assets/images/the-compass.png'),
+          const AssetImage(
+            'assets/images/the-compass.png',
+            package: 'ritual_investing_app',
+          ),
           context,
         ),
         precacheImage(
-          const AssetImage('assets/images/persona-triptych.png'),
+          const AssetImage(
+            'assets/images/persona-triptych.png',
+            package: 'ritual_investing_app',
+          ),
           context,
         ),
       ]);

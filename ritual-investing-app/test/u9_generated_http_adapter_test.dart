@@ -5,9 +5,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_app/core/api/view_state.dart';
-import 'package:ritual_investing_app/features/briefings/data/repository.dart';
+import 'package:ritual_investing_app/features/briefings/data/generated_briefing_api_service.dart';
 import 'package:ritual_investing_app/features/briefings/domain/model.dart';
-import 'package:ritual_investing_app/features/notifications/data/repository.dart';
+import 'package:ritual_investing_app/features/notifications/data/generated_notification_api_service.dart';
 import 'package:ritual_investing_app/features/notifications/domain/model.dart';
 
 void main() {

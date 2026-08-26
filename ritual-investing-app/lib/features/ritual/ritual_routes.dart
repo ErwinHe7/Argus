@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/bootstrap/dependency_container.dart';
+import '../../core/bootstrap/app_runtime.dart';
 import '../../core/bootstrap/member_bootstrap.dart';
 import '../../core/navigation/member_routes.dart';
 import '../briefings/presentation/briefing_screen.dart';
@@ -10,10 +10,13 @@ import '../entitlements/presentation/demo_membership_screen.dart';
 import 'presentation/daily_ritual_screen.dart';
 
 StatefulShellBranch buildRitualBranch({
-  required DependencyContainer container,
+  required AppRuntime container,
   required MemberResourceAccess resourceAccess,
+  bool restorationEnabled = true,
 }) => StatefulShellBranch(
-  restorationScopeId: '${MemberRoutes.ritual.name}-branch',
+  restorationScopeId: restorationEnabled
+      ? '${MemberRoutes.ritual.name}-branch'
+      : null,
   routes: [
     GoRoute(
       path: MemberRoutes.ritual.path,
@@ -67,7 +70,7 @@ StatefulShellBranch buildRitualBranch({
 class _RitualBranchRoot extends StatefulWidget {
   const _RitualBranchRoot({required this.container});
 
-  final DependencyContainer container;
+  final AppRuntime container;
 
   @override
   State<_RitualBranchRoot> createState() => _RitualBranchRootState();
@@ -85,7 +88,9 @@ class _RitualBranchRootState extends State<_RitualBranchRoot> {
     final child = DailyRitualScreen(
       controller: widget.container.dailyRitualController,
       onOpenCoven: () => context.go(MemberRoutes.coven.path),
-      onToggleTheme: () => context.go(MemberRoutes.youRitualPreferencesPath),
+      onToggleTheme: widget.container.presentationPolicy.allowsProfileEditing
+          ? () => context.go(MemberRoutes.youRitualPreferencesPath)
+          : null,
       onOpenSearch: widget.container.optionalSearchController == null
           ? null
           : () => context.push(MemberRoutes.discoverSearchPath),

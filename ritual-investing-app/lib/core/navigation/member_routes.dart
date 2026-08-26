@@ -1,4 +1,4 @@
-import '../bootstrap/dependency_container.dart';
+import '../bootstrap/app_runtime.dart';
 
 typedef MemberResourceAccess = bool Function(
   MemberRouteDefinition route,
