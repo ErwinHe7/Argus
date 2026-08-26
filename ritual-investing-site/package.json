@@ -6,9 +6,21 @@
   "engines": {
     "node": "22.x"
   },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    }
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "db:generate": "drizzle-kit generate --name waitlist",
+    "db:drizzle:check": "drizzle-kit check",
+    "db:migrate": "node --experimental-strip-types scripts/check-migrations.ts",
+    "db:migrations:check": "node --experimental-strip-types scripts/check-migrations.ts --check",
+    "waitlist:remove": "node --experimental-strip-types scripts/record-removal.ts",
+    "waitlist:restore-replay": "node --experimental-strip-types scripts/replay-removals.ts",
+    "test:postgres": "vitest run test/postgres --no-file-parallelism",
     "types:generate": "WRANGLER_LOG_PATH=.wrangler/logs wrangler types src/generated/worker-configuration.d.ts --config wrangler.jsonc --include-runtime=false",
     "types:check": "WRANGLER_LOG_PATH=.wrangler/logs wrangler types src/generated/worker-configuration.d.ts --config wrangler.jsonc --include-runtime=false --check",
     "assets:build": "node --experimental-strip-types scripts/build-assets.ts",
@@ -27,6 +39,9 @@
   "devDependencies": {
     "@cloudflare/workers-types": "5.20260826.1",
     "@types/node": "26.2.0",
+    "@types/pg": "8.23.1",
+    "drizzle-kit": "0.31.10",
+    "pg": "8.23.0",
     "typescript": "7.0.2",
     "vitest": "4.1.11",
     "wrangler": "4.125.0"

@@ -1,0 +1,62 @@
+{
+  "id": "cc7cd85e-1c1d-4829-ae7b-bebb0fb8ead3",
+  "prevId": "00000000-0000-0000-0000-000000000000",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "waitlist_private.provisional_submissions": {
+      "name": "provisional_submissions",
+      "schema": "waitlist_private",
+      "columns": {
+        "normalized_email": {
+          "name": "normalized_email",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "notice_version": {
+          "name": "notice_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "clock_timestamp()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "provisional_submissions_normalized_email_check": {
+          "name": "provisional_submissions_normalized_email_check",
+          "value": "\"waitlist_private\".\"provisional_submissions\".\"normalized_email\" = lower(btrim(\"waitlist_private\".\"provisional_submissions\".\"normalized_email\")) and char_length(\"waitlist_private\".\"provisional_submissions\".\"normalized_email\") between 3 and 254 and \"waitlist_private\".\"provisional_submissions\".\"normalized_email\" ~ '^[^[:space:]@]+@[^[:space:]@]+$'"
+        },
+        "provisional_submissions_notice_version_check": {
+          "name": "provisional_submissions_notice_version_check",
+          "value": "char_length(\"waitlist_private\".\"provisional_submissions\".\"notice_version\") between 1 and 128 and \"waitlist_private\".\"provisional_submissions\".\"notice_version\" ~ '^[a-z0-9][a-z0-9-]*$'"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {
+    "waitlist_private": "waitlist_private"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

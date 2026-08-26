@@ -1,0 +1,34 @@
+\set ON_ERROR_STOP on
+
+-- Invoke separately in each dedicated production/beta waitlist project. Feed
+-- the two psql variables through an approved secret-safe operator mechanism;
+-- do not enable psql echoing or place credentials in shell history.
+\if :{?runtime_password}
+\else
+  \echo 'runtime_password is required'
+  \quit 3
+\endif
+\if :{?maintenance_password}
+\else
+  \echo 'maintenance_password is required'
+  \quit 3
+\endif
+
+BEGIN;
+
+ALTER ROLE waitlist_runtime
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN NOREPLICATION NOBYPASSRLS
+  PASSWORD :'runtime_password';
+ALTER ROLE waitlist_maintenance
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT LOGIN NOREPLICATION NOBYPASSRLS
+  PASSWORD :'maintenance_password';
+ALTER ROLE waitlist_function_owner
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOLOGIN NOREPLICATION NOBYPASSRLS;
+
+REVOKE waitlist_function_owner FROM waitlist_runtime, waitlist_maintenance;
+REVOKE waitlist_runtime FROM waitlist_maintenance;
+REVOKE waitlist_maintenance FROM waitlist_runtime;
+
+-- Privileges are granted directly to each LOGIN role by the reviewed
+-- migration. NOINHERIT therefore never requires SET ROLE in Neon HTTP.
+COMMIT;
