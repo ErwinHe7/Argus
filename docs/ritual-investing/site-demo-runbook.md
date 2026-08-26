@@ -31,9 +31,12 @@ resolved and recorded in the signed release baseline:
   their first disabled-request event: `ritual_waitlist_beta_events_v1` and
   `ritual_waitlist_prod_events_v1` each returned an aggregate count of one.
 - Production and beta have installed Worker secrets, confirmed source and route
-  rate-limit bindings, and host-scoped Turnstile widgets. The zone-level WAF
-  budget rules are still absent; keep submissions off until the exact rules are
-  reviewed and installed.
+  rate-limit bindings, and host-scoped Turnstile widgets. The approved pair of
+  exact-host WAF rules (60 requests per minute with a one-minute block) remains
+  absent: Cloudflare's Free plan permits only one IP-based rule with a 10-second
+  period and mitigation timeout. Keep submissions off until the intended rules
+  are installed after a plan upgrade or the owner explicitly approves a
+  materially different Free-plan approximation.
 - The production and beta retention KV namespaces were provisioned on
   2026-08-26 as `fc10e9eaa5024cc6b3d79c59ecb6afad` and
   `840400a6dd244116888da7c7467dce02`. Re-list and match their titles before any
@@ -53,11 +56,13 @@ resolved and recorded in the signed release baseline:
   Workers retain disabled `workers.dev` and preview subdomains.
 - `beta.just-build-this.app`, `demo-beta.just-build-this.app`,
   `just-build-this.app`, and `demo.just-build-this.app` are attached to their
-  exact services. `www.just-build-this.app` remains unattached pending explicit
-  approval for the public redirect route.
-- Beta has the reviewed `17 4 * * *` purge trigger. The equivalent production
-  trigger remains absent pending explicit approval because it can delete
-  expired waitlist data.
+  exact services. `www.just-build-this.app` is attached to the production
+  landing Worker and returns `308` to the same apex path and query.
+- Beta has the reviewed `17 4 * * *` purge trigger. The owner approved the
+  equivalent production trigger, but Cloudflare rejected its installation
+  because all five Workers Free cron slots are already occupied: four by
+  `ritual-investing-api` and one by `ritual-investing-site-beta`. Do not remove
+  or repurpose an existing trigger without a separate, exact owner decision.
 
 The Cloudflare zone was active at the 2026-08-26 activation. The existing API
 Custom Domains remained attached throughout. Their required preserved health
