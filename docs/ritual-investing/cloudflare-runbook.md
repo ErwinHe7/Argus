@@ -2,7 +2,7 @@
 
 ## Production bindings
 
-The Worker requires explicit environment-specific bindings for rate limiters, Queue and DLQ, R2 quarantine/public/export buckets, admin static assets, restricted database URLs (including `AUDIT_DATABASE_URL`), deletion-deny journal, Auth0 and Access issuers/audiences, and cursor signing. `wrangler deploy --dry-run` and Worker tests must pass before promotion. Production secrets belong in managed bindings, never `wrangler.toml`, logs, or build artifacts.
+The Worker requires explicit environment-specific bindings for rate limiters, Queue and DLQ, R2 quarantine/public/export buckets, optional admin static assets, restricted database URLs (including `AUDIT_DATABASE_URL`), deletion-deny journal, Auth0 and Access issuers/audiences, and cursor signing. `wrangler deploy --dry-run` and Worker tests must pass before promotion. Production secrets belong in managed bindings, never `wrangler.toml`, logs, or build artifacts. The current deployed-resource inventory and secret placement steps are in [the production deployment handoff](deployment-handoff.md); the isolated staging inventory and current public-ingress status are in [the beta environment handoff](beta-environment.md).
 
 Public projections alone may use shared caching. Cache keys use the API origin, normalized allowlisted query parameters, and published revision. Member and staff responses are `private, no-store`. Authorization, cookies, tenant identifiers, and request bodies never enter public cache keys or telemetry.
 
@@ -12,7 +12,7 @@ Start a new consumer at low concurrency, observe receipts/backlog, then raise to
 
 The staging load job uses a managed pool of at least 100 non-production actors, never one shared bearer token. Commands group four concurrent requests per actor/portfolio and rotate groups to remain inside the declared command-rate budget. Public traffic must be launched through the approved distributed load runner so the production IP rate limiter is exercised across visitors rather than bypassed. The allowlisted capacity probe independently reports seeded tenant count, minimum ledger depth, Queue backlog, consumer concurrency, drain time, and p95 lag.
 
-Kill switches are route-scoped and default off: scheduled work, Queue, notifications, exports, purge, and media. Turning one on pauses new effects but does not loosen authentication or database policy. Record operator, reason, timestamp, affected consumers, and rollback condition in immutable staff audit. Resume at low concurrency and confirm monotonic watermarks.
+Kill switches are route-scoped. The application schema defaults them to `off`, but a new production environment must explicitly deploy them as `on`: scheduled work, Queue, notifications, exports, purge, and media are paused until dependencies and smoke tests pass. Turning one on pauses new effects but does not loosen authentication or database policy. Record operator, reason, timestamp, affected consumers, and rollback condition in immutable staff audit. Resume at low concurrency and confirm monotonic watermarks.
 
 ## Alert response
 

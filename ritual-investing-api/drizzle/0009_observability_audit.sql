@@ -1,5 +1,13 @@
 BEGIN;
 
+DO $$ BEGIN
+  EXECUTE format(
+    'GRANT ritual_function_owner TO %I WITH INHERIT TRUE, SET TRUE',
+    current_user
+  );
+END $$;
+GRANT CREATE ON SCHEMA ritual_private TO ritual_function_owner;
+
 INSERT INTO ritual_private.schema_contract_versions(version, compatibility)
 VALUES ('ritual-observability-v1-n', 'n')
 ON CONFLICT (version) DO NOTHING;
@@ -10,7 +18,7 @@ BEGIN
     CREATE ROLE ritual_audit_reconciler NOLOGIN NOINHERIT;
   END IF;
 END $$;
-GRANT ritual_audit_reconciler TO CURRENT_USER;
+GRANT ritual_audit_reconciler TO CURRENT_USER WITH INHERIT FALSE, SET TRUE;
 
 CREATE TABLE admin_audit_checkpoints (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -95,5 +103,11 @@ GRANT USAGE ON SCHEMA ritual_private TO ritual_audit_reconciler;
 GRANT SELECT ON TABLE admin_audit_checkpoints TO ritual_audit_reconciler;
 GRANT EXECUTE ON FUNCTION ritual_private.record_admin_audit_checkpoint(timestamptz)
 TO ritual_audit_reconciler;
+
+REVOKE ritual_audit_reconciler FROM CURRENT_USER;
+REVOKE CREATE ON SCHEMA ritual_private FROM ritual_function_owner;
+DO $$ BEGIN
+  EXECUTE format('REVOKE ritual_function_owner FROM %I', current_user);
+END $$;
 
 COMMIT;

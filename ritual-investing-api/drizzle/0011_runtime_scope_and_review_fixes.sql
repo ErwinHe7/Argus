@@ -1,5 +1,13 @@
 BEGIN;
 
+DO $$ BEGIN
+  EXECUTE format(
+    'GRANT ritual_function_owner TO %I WITH INHERIT TRUE, SET TRUE',
+    current_user
+  );
+END $$;
+GRANT CREATE ON SCHEMA ritual_private TO ritual_function_owner;
+
 -- Revalidate the resolved member identity inside the same transaction that
 -- will touch tenant data. This closes the resolver/use race during deletion
 -- or revocation without weakening the tenant RLS boundary.
@@ -134,5 +142,10 @@ BEGIN
   RETURN NEW;
 END
 $$;
+
+REVOKE CREATE ON SCHEMA ritual_private FROM ritual_function_owner;
+DO $$ BEGIN
+  EXECUTE format('REVOKE ritual_function_owner FROM %I', current_user);
+END $$;
 
 COMMIT;

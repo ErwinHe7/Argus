@@ -1,6 +1,14 @@
 BEGIN;
 
 DO $$ BEGIN
+  EXECUTE format(
+    'GRANT ritual_function_owner TO %I WITH INHERIT TRUE, SET TRUE',
+    current_user
+  );
+END $$;
+GRANT CREATE ON SCHEMA ritual_private TO ritual_function_owner;
+
+DO $$ BEGIN
   CREATE ROLE ritual_bootstrap NOINHERIT NOLOGIN NOBYPASSRLS;
 EXCEPTION WHEN duplicate_object THEN
   ALTER ROLE ritual_bootstrap NOINHERIT NOLOGIN NOBYPASSRLS;
@@ -215,5 +223,10 @@ GRANT SELECT, INSERT ON TABLE profiles, preferences, onboarding_states, notifica
 GRANT SELECT ON TABLE demo_seed_versions, demo_plans, deletion_tombstones TO ritual_function_owner;
 GRANT USAGE ON SCHEMA ritual_private TO ritual_bootstrap;
 GRANT EXECUTE ON FUNCTION ritual_private.bootstrap_member_account(text) TO ritual_bootstrap;
+
+REVOKE CREATE ON SCHEMA ritual_private FROM ritual_function_owner;
+DO $$ BEGIN
+  EXECUTE format('REVOKE ritual_function_owner FROM %I', current_user);
+END $$;
 
 COMMIT;

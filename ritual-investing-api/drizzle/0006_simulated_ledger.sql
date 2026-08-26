@@ -1,5 +1,13 @@
 BEGIN;
 
+DO $$ BEGIN
+  EXECUTE format(
+    'GRANT ritual_function_owner TO %I WITH INHERIT TRUE, SET TRUE',
+    current_user
+  );
+END $$;
+GRANT CREATE ON SCHEMA ritual_private TO ritual_function_owner;
+
 UPDATE demo_plans
 SET display_name='Ritual Free Demo', price_copy='No charge — simulated access only'
 WHERE code='demo';
@@ -996,5 +1004,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE rebalance_preview_allocations TO r
 GRANT USAGE, SELECT ON SEQUENCE ledger_transactions_ledger_sequence_seq TO ritual_runtime;
 GRANT SELECT ON TABLE ledger_transactions,portfolio_balance_snapshots,
   projection_runs,intentions TO ritual_function_owner;
+
+REVOKE CREATE ON SCHEMA ritual_private FROM ritual_function_owner;
+DO $$ BEGIN
+  EXECUTE format('REVOKE ritual_function_owner FROM %I', current_user);
+END $$;
 
 COMMIT;
