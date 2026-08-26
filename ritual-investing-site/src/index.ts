@@ -12,12 +12,23 @@ import {
   type RetentionCheckpoint,
   type RetentionTelemetryPoint,
 } from "./retention/scheduled.ts";
-import { handleWaitlistRequest, type WaitlistRouteDependencies } from "./waitlist/route.ts";
+import {
+  handleWaitlistRequest,
+  isRuntimeDatabaseCapability,
+  type WaitlistRouteDependencies,
+} from "./waitlist/route.ts";
+import {
+  createWaitlistRepository,
+  type WaitlistRepository,
+} from "./waitlist/repository.ts";
 
 export type { RuntimeSiteEnv, SiteEnv } from "./config.ts";
 
 type WorkerDependencies = {
   purgeFactory?: (environment: RuntimeSiteEnv) => PurgeCapability;
+  retentionRepositoryFactory?: (
+    databaseUrl: string,
+  ) => Pick<WaitlistRepository, "purgeExpired">;
   checkpointFactory?: (environment: RuntimeSiteEnv) => RetentionCheckpoint;
   sleep?: (milliseconds: number) => Promise<void>;
   waitlist?: WaitlistRouteDependencies;
@@ -50,10 +61,19 @@ function createApiApp(waitlistDependencies: WaitlistRouteDependencies): Hono<{ B
   return app;
 }
 
-function unavailablePurgeCapability(): PurgeCapability {
+function runtimePurgeCapability(
+  environment: RuntimeSiteEnv,
+  repositoryFactory: (
+    databaseUrl: string,
+  ) => Pick<WaitlistRepository, "purgeExpired">,
+): PurgeCapability {
   return {
     async purgeExpired(): Promise<void> {
-      throw new Error("Waitlist retention capability is not configured.");
+      const databaseUrl = environment.WAITLIST_NEON_URL;
+      if (databaseUrl === undefined || !isRuntimeDatabaseCapability(databaseUrl)) {
+        throw new Error("Waitlist retention capability is not configured.");
+      }
+      await repositoryFactory(databaseUrl).purgeExpired();
     },
   };
 }
@@ -104,7 +124,10 @@ function delay(milliseconds: number): Promise<void> {
 
 export function createWorker(dependencies: WorkerDependencies = {}): SiteWorker {
   const api = createApiApp(dependencies.waitlist ?? {});
-  const purgeFactory = dependencies.purgeFactory ?? (() => unavailablePurgeCapability());
+  const retentionRepositoryFactory =
+    dependencies.retentionRepositoryFactory ?? createWaitlistRepository;
+  const purgeFactory = dependencies.purgeFactory ??
+    ((environment) => runtimePurgeCapability(environment, retentionRepositoryFactory));
   const checkpointFactory = dependencies.checkpointFactory ??
     ((environment) => checkpoint(environment.RETENTION_CHECKPOINT));
   const sleep = dependencies.sleep ?? delay;
