@@ -148,7 +148,7 @@ jobs:
       - working-directory: ritual-investing-api
         run: npm run drift:check
       - working-directory: ritual-investing-api-client
-        run: dart pub get --enforce-lockfile
+        run: dart pub get
       - working-directory: ritual-investing-api-client
         run: dart analyze
       - working-directory: ritual-investing-api-client

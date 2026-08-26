@@ -3,6 +3,34 @@ import { validateBindings, type Bindings } from "./config/env.ts";
 import { runQueue } from "./jobs/queue-runtime.ts";
 import { runScheduled } from "./jobs/scheduled.ts";
 
+function resolveBindings(environment: unknown): Bindings | undefined {
+  try {
+    return validateBindings(environment);
+  } catch {
+    console.error("Ritual Worker runtime configuration validation failed.");
+    return undefined;
+  }
+}
+
+function configurationUnavailable(): Response {
+  return Response.json(
+    {
+      type: "https://api.just-build-this.app/problems/service-unavailable",
+      title: "Service unavailable",
+      status: 503,
+      code: "runtime_configuration_unavailable",
+    },
+    {
+      status: 503,
+      headers: {
+        "cache-control": "no-store",
+        "content-type": "application/problem+json",
+        "x-content-type-options": "nosniff",
+      },
+    },
+  );
+}
+
 function secureAdminAsset(response: Response, pathname: string): Response {
   const headers = new Headers(response.headers);
   headers.set("x-content-type-options", "nosniff");
@@ -31,7 +59,8 @@ const app = createApp();
 
 const worker = {
   fetch(request, environment, executionContext) {
-    const bindings = validateBindings(environment);
+    const bindings = resolveBindings(environment);
+    if (bindings === undefined) return configurationUnavailable();
     const url = new URL(request.url);
     if (
       bindings.ADMIN_UI_HOST !== undefined &&
@@ -48,11 +77,13 @@ const worker = {
     return app.fetch(request, bindings, executionContext);
   },
   async scheduled(controller, environment, executionContext) {
-    const bindings = validateBindings(environment);
+    const bindings = resolveBindings(environment);
+    if (bindings === undefined) return;
     executionContext.waitUntil(runScheduled(controller, bindings));
   },
   async queue(batch, environment, executionContext) {
-    const bindings = validateBindings(environment);
+    const bindings = resolveBindings(environment);
+    if (bindings === undefined) return;
     executionContext.waitUntil(runQueue(batch, bindings));
   },
 } satisfies ExportedHandler<Bindings>;
