@@ -112,7 +112,6 @@ class _RitualBranchRootState extends State<_RitualBranchRoot> {
       personalization:
           widget.container.memberBootstrap?.personalization ??
           const MemberPersonalization(),
-      useBundledArtwork: !widget.container.presentationPolicy.isDemo,
     );
     if (!widget.container.hasDemoMembership) return child;
     return DemoCapabilityGate(

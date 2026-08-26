@@ -574,6 +574,7 @@ class _CardStage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(13),
                           child: Image.asset(
                             'assets/images/the-compass.png',
+                            package: 'ritual_investing_app',
                             fit: BoxFit.cover,
                           ),
                         )
@@ -842,6 +843,7 @@ class _RowanCounsel extends StatelessWidget {
               ? ClipOval(
                   child: Image.asset(
                     'assets/images/persona-triptych.png',
+                    package: 'ritual_investing_app',
                     fit: BoxFit.cover,
                     alignment: Alignment.center,
                   ),

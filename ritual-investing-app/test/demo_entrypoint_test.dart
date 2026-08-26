@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/demo/demo_bootstrap.dart';
 import 'package:ritual_investing_app/demo/demo_services.dart';
@@ -81,6 +82,58 @@ void main() {
       expect(find.byKey(const Key('you-membership')), findsNothing);
     },
   );
+
+  testWidgets('demo artwork uses dependency-safe package asset keys', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(430, 932);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final services = await DemoServices.bootstrap();
+    addTearDown(services.dispose);
+    await tester.pumpWidget(
+      DemoRitualInvestingApp(
+        runtime: services.runtime,
+        frameIdentity: const DemoFrameIdentity(
+          environment: DemoEnvironment.production,
+          attemptId: 'asset-key-proof',
+        ),
+        frameChannel: RecordingDemoFrameChannel(),
+      ),
+    );
+    await tester.pump();
+
+    AssetImage assetFor(String name) => tester
+        .widgetList<Image>(find.byType(Image))
+        .map((image) => image.image)
+        .whereType<AssetImage>()
+        .firstWhere((image) => image.assetName == name);
+
+    final compass = assetFor('assets/images/the-compass.png');
+    expect(compass.package, 'ritual_investing_app');
+    expect(
+      compass.keyName,
+      'packages/ritual_investing_app/assets/images/the-compass.png',
+    );
+    final compassBytes = await rootBundle.load(compass.keyName);
+    expect(compassBytes.lengthInBytes, greaterThan(100000));
+
+    await tester.drag(
+      find.byKey(const PageStorageKey('daily-ritual-scroll')),
+      const Offset(0, -700),
+    );
+    await tester.pumpAndSettle();
+    final persona = assetFor('assets/images/persona-triptych.png');
+    expect(persona.package, 'ritual_investing_app');
+    expect(
+      persona.keyName,
+      'packages/ritual_investing_app/assets/images/persona-triptych.png',
+    );
+    final personaBytes = await rootBundle.load(persona.keyName);
+    expect(personaBytes.lengthInBytes, greaterThan(100000));
+  });
 
   testWidgets('startup failure emits only sanitized compatible error events', (
     tester,
