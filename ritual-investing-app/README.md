@@ -40,6 +40,16 @@ The project includes generated `ios/` and `android/` hosts. Device builds additi
 
 The bundle identifiers generated for the working scaffold are provisional until the product name and store identity are finalized.
 
+## Beta iOS Simulator build
+
+From the repository root, use this single command to regenerate the Flutter iOS settings and build the beta app for the unsigned Simulator callback lane:
+
+```sh
+cd ritual-investing-app && flutter pub get && flutter build ios --simulator --debug --dart-define=RITUAL_API_BASE_URL=https://api-beta.just-build-this.app --dart-define=AUTH0_DOMAIN=dev-pxee7db52tqc4xoe.us.auth0.com --dart-define=AUTH0_CLIENT_ID=VIFuQLVxk6baW27jS9TzQ22pIV8lAqHz --dart-define=AUTH0_AUDIENCE=https://api-beta.just-build-this.app --dart-define=AUTH0_USE_HTTPS=false
+```
+
+`AUTH0_USE_HTTPS=false` is only for the unsigned iOS Simulator lane. Keep HTTPS callbacks enabled for signed real-device and release builds.
+
 ## Release smoke gates
 
 The loopback integration suite exercises an injectable hosted-auth seam; it does not imitate or claim proof of the external Auth0 browser. Before a mobile release, verify on real iOS and Android devices that:

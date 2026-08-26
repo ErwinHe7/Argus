@@ -93,7 +93,7 @@ function configuredResource(value: string | undefined): value is string {
   return value !== undefined && value.trim().length > 0;
 }
 
-function isRuntimeDatabaseCapability(value: string): boolean {
+export function isRuntimeDatabaseCapability(value: string): boolean {
   try {
     const parsed = new URL(value);
     if (parsed.protocol !== "postgresql:" && parsed.protocol !== "postgres:") return false;

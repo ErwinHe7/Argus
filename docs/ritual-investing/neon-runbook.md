@@ -2,7 +2,9 @@
 
 ## Roles and connections
 
-Use separate pooled connections for runtime, scheduler, media worker, moderation worker, privacy purge, and audit reconciliation. Runtime must not inherit or invoke purge, moderation, scheduler, or audit-checkpoint privileges. The `ritual_audit_reconciler` role can record and read immutable aggregate checkpoints but cannot inspect raw staff audit rows. Owner credentials are migration-only. Tests must activate the same restricted roles and forced RLS used in production.
+Use separate pooled connections for identity resolution, account bootstrap, staff, public projections, runtime, scheduler, media worker, privacy purge, and audit reconciliation. Runtime must not inherit or invoke purge, staff, scheduler, or audit-checkpoint privileges. The `ritual_audit_reconciler` role can record and read immutable aggregate checkpoints but cannot inspect raw staff audit rows. Owner credentials are migration-only. Create production login roles with SQL, not through Neon control-plane role creation, so they do not receive `neon_superuser` membership. The exact role mapping is in [the production deployment handoff](deployment-handoff.md). Tests must activate the same restricted roles and forced RLS used in production.
+
+Beta uses the long-lived Neon child branch documented in [the beta environment handoff](beta-environment.md), with separate SQL-created login roles, passwords, pooled URLs, and Worker secrets. Never copy a production connection URL into beta. If production later contains personal data, refresh beta only through the reviewed anonymization workflow rather than resetting it directly from production.
 
 Never log a connection URL. Telemetry records only the `neon` dependency name, availability, latency, outcome, and request ID.
 

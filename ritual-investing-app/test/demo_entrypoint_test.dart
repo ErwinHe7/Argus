@@ -137,14 +137,16 @@ void main() {
         .whereType<AssetImage>()
         .firstWhere((image) => image.assetName == name);
 
-    final compass = assetFor('assets/images/the-compass.png');
-    expect(compass.package, 'ritual_investing_app');
-    expect(
-      compass.keyName,
-      'packages/ritual_investing_app/assets/images/the-compass.png',
+    final dailyCard = assetFor(
+      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
     );
-    final compassBytes = await rootBundle.load(compass.keyName);
-    expect(compassBytes.lengthInBytes, greaterThan(100000));
+    expect(dailyCard.package, 'ritual_investing_app');
+    expect(
+      dailyCard.keyName,
+      'packages/ritual_investing_app/assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+    );
+    final dailyCardBytes = await rootBundle.load(dailyCard.keyName);
+    expect(dailyCardBytes.lengthInBytes, greaterThan(100000));
 
     await tester.drag(
       find.byKey(const PageStorageKey('daily-ritual-scroll')),

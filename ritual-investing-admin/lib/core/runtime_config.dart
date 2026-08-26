@@ -19,7 +19,7 @@ class AdminRuntimeConfig {
       throw const FormatException('Auth0 staff configuration is required.');
     }
     return AdminRuntimeConfig(
-      apiBaseUrl: api.isEmpty ? Uri.base.origin : api,
+      apiBaseUrl: api.isEmpty ? 'https://api.just-build-this.app' : api,
       auth0Domain: domain,
       auth0ClientId: client,
       auth0Audience: audience,

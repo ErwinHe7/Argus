@@ -1,5 +1,13 @@
 BEGIN;
 
+DO $$ BEGIN
+  EXECUTE format(
+    'GRANT ritual_function_owner TO %I WITH INHERIT TRUE, SET TRUE',
+    current_user
+  );
+END $$;
+GRANT CREATE ON SCHEMA ritual_private TO ritual_function_owner;
+
 CREATE TABLE outbox_dispatch_failures (
   outbox_id uuid PRIMARY KEY REFERENCES outbox_events(id),
   topic text NOT NULL,
@@ -403,5 +411,10 @@ GRANT SELECT ON TABLE tenants,tenant_demo_states TO ritual_function_owner;
 GRANT SELECT,UPDATE ON TABLE recurring_plans,privacy_export_artifacts TO ritual_function_owner;
 GRANT INSERT ON TABLE outbox_events TO ritual_function_owner;
 GRANT USAGE,SELECT ON SEQUENCE ledger_transactions_ledger_sequence_seq TO ritual_runtime;
+
+REVOKE CREATE ON SCHEMA ritual_private FROM ritual_function_owner;
+DO $$ BEGIN
+  EXECUTE format('REVOKE ritual_function_owner FROM %I', current_user);
+END $$;
 
 COMMIT;

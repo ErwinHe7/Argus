@@ -1,5 +1,13 @@
 BEGIN;
 
+DO $$ BEGIN
+  EXECUTE format(
+    'GRANT ritual_function_owner TO %I WITH INHERIT TRUE, SET TRUE',
+    current_user
+  );
+END $$;
+GRANT CREATE ON SCHEMA ritual_private TO ritual_function_owner;
+
 DO $$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='ritual_media_worker') THEN
@@ -1188,5 +1196,10 @@ GRANT SELECT, INSERT, UPDATE ON TABLE purge_receipts TO ritual_function_owner;
 GRANT SELECT ON TABLE deletion_journal_confirmations, deletion_object_receipts TO ritual_function_owner;
 GRANT SELECT, INSERT, DELETE ON TABLE ritual_private.purge_guards TO ritual_function_owner;
 GRANT EXECUTE ON FUNCTION ritual_private.purge_tombstoned_tenant(uuid, integer) TO ritual_privacy_purge;
+
+REVOKE CREATE ON SCHEMA ritual_private FROM ritual_function_owner;
+DO $$ BEGIN
+  EXECUTE format('REVOKE ritual_function_owner FROM %I', current_user);
+END $$;
 
 COMMIT;

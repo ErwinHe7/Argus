@@ -309,7 +309,9 @@ describe("operator-facing runbook", () => {
     const errors = validateReleaseBaseline(template).join("\n");
     expect(errors).toMatch(/timestamp/i);
     expect(errors).toMatch(/source commit/i);
-    expect(errors).toMatch(/owner/i);
+    expect(Object.values(template.production.owners)).toEqual(Array(5).fill("Xiaolong"));
+    expect(Object.values(template.beta.owners)).toEqual(Array(5).fill("Xiaolong"));
+    expect(errors).not.toMatch(/owner/i);
     expect(errors).toMatch(/fingerprint/i);
     expect(() => sealReleaseBaseline(template, "k".repeat(32))).toThrow();
   });

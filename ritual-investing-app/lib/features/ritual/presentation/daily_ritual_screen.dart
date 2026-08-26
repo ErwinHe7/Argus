@@ -9,6 +9,7 @@ import '../../../core/presentation/demo_disclosure.dart';
 import '../../../core/presentation/server_time.dart';
 import '../application/daily_ritual_controller.dart';
 import '../domain/daily_ritual.dart';
+import 'ritual_tarot_art.dart';
 import '../../rowan/application/controller.dart';
 import '../../rowan/domain/model.dart';
 import '../../rowan/presentation/rowan_counsel_panel.dart';
@@ -132,6 +133,8 @@ class DailyRitualScreen extends StatelessWidget {
                   _CardStage(
                     colors: colors,
                     art: controller.state.value!.art,
+                    date: controller.state.value!.date,
+                    mode: controller.state.value!.mode,
                     useBundledArtwork: useBundledArtwork,
                   ),
                   const SizedBox(height: 18),
@@ -512,16 +515,23 @@ class _CardStage extends StatelessWidget {
   const _CardStage({
     required this.colors,
     required this.art,
+    required this.date,
+    required this.mode,
     required this.useBundledArtwork,
   });
 
   final RitualColors colors;
   final RitualArt art;
+  final DateTime date;
+  final DailyRitualMode mode;
   final bool useBundledArtwork;
 
   @override
   Widget build(BuildContext context) {
     final viewportWidth = MediaQuery.sizeOf(context).width;
+    final artwork = useBundledArtwork
+        ? resolveRitualTarotArtwork(art: art, date: date, mode: mode)
+        : null;
     return SizedBox(
       height: 296,
       child: OverflowBox(
@@ -552,11 +562,11 @@ class _CardStage extends StatelessWidget {
               ),
               Semantics(
                 image: true,
-                label: art.alt,
+                label: artwork?.alt ?? art.alt,
                 child: ExcludeSemantics(
                   child: Container(
-                    width: 170,
-                    height: 255,
+                    width: 155,
+                    height: 270,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(14),
                       border: Border.all(
@@ -570,11 +580,12 @@ class _CardStage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: art.key == 'the_compass' && useBundledArtwork
+                    child: artwork != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(13),
                             child: Image.asset(
-                              'assets/images/the-compass.png',
+                              artwork.assetPath,
+                              key: const Key('daily-ritual-card-art'),
                               package: 'ritual_investing_app',
                               fit: BoxFit.cover,
                             ),

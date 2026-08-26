@@ -1,5 +1,13 @@
 BEGIN;
 
+DO $$ BEGIN
+  EXECUTE format(
+    'GRANT ritual_function_owner TO %I WITH INHERIT TRUE, SET TRUE',
+    current_user
+  );
+END $$;
+GRANT CREATE ON SCHEMA ritual_private TO ritual_function_owner;
+
 INSERT INTO ritual_private.schema_contract_versions(version, compatibility)
 VALUES ('ritual-admin-v1-n', 'n')
 ON CONFLICT (version) DO NOTHING;
@@ -732,5 +740,10 @@ GRANT EXECUTE ON FUNCTION ritual_private.record_admin_denial(uuid,text,text,uuid
   ritual_private.admin_moderation_page(jsonb,text,integer),ritual_private.admin_moderation_case(uuid),ritual_private.admin_moderation_command(uuid,text,uuid,jsonb,integer,uuid,text,text)
 TO ritual_staff;
 GRANT EXECUTE ON FUNCTION ritual_private.apply_scheduled_publication(uuid) TO ritual_scheduler;
+
+REVOKE CREATE ON SCHEMA ritual_private FROM ritual_function_owner;
+DO $$ BEGIN
+  EXECUTE format('REVOKE ritual_function_owner FROM %I', current_user);
+END $$;
 
 COMMIT;

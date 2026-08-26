@@ -18,6 +18,47 @@ import 'package:ritual_investing_app/features/search/domain/model.dart';
 import 'package:ritual_investing_app/features/search/presentation/search_screen.dart';
 
 void main() {
+  testWidgets('daily ritual renders the date-selected Major Arcana artwork', (
+    tester,
+  ) async {
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: _RitualService(),
+        cache: MemoryReadCache(),
+      ),
+    );
+    await controller.load();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: DailyRitualScreen(controller: controller, onOpenCoven: () {}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.bySemanticsLabel(
+        'The Hermit tarot card: an elder holds a star lantern on a snowy mountain',
+      ),
+      findsOneWidget,
+    );
+    final image = tester.widget<Image>(
+      find.byKey(const Key('daily-ritual-card-art')),
+    );
+    final provider = image.image as AssetImage;
+    expect(
+      provider.assetName,
+      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+    );
+    final renderedSize = tester.getSize(
+      find.byKey(const Key('daily-ritual-card-art')),
+    );
+    expect(renderedSize.height, greaterThan(260));
+    expect(renderedSize.aspectRatio, closeTo(950 / 1655, 0.01));
+  });
+
   testWidgets(
     'evidence opens while loading, retries live, and uses evidence Rowan context',
     (tester) async {
@@ -101,9 +142,8 @@ void main() {
         MaterialApp(
           theme: AppTheme.light,
           builder: (context, child) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(textScaler: const TextScaler.linear(2)),
+            data: MediaQuery.of(context)
+                .copyWith(textScaler: const TextScaler.linear(2)),
             child: child!,
           ),
           home: Scaffold(

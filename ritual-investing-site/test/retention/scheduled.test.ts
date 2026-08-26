@@ -110,4 +110,44 @@ describe("scheduled retention", () => {
     );
     expect(submission.status).toBe(503);
   });
+
+  it("uses the restricted runtime Neon capability for the default scheduled purge", async () => {
+    const purgeExpired = vi.fn(async () => ({ deletedCount: 0 }));
+    const repositoryFactory = vi.fn(() => ({ purgeExpired }));
+    const checkpoint = new Map<string, string>();
+    const environment: RuntimeSiteEnv = {
+      ASSETS: {
+        fetch: vi.fn(async () => new Response("asset")),
+        connect() {
+          throw new Error("Static Assets never opens sockets in retention tests.");
+        },
+      } satisfies SiteEnv["ASSETS"],
+      ENVIRONMENT: "beta",
+      WAITLIST_SUBMISSIONS: "off",
+      WAITLIST_NEON_URL: "postgresql://waitlist_runtime:private-test-value@db.example.invalid/waitlist?sslmode=require",
+      WAITLIST_TELEMETRY: { writeDataPoint: vi.fn() },
+    };
+    let task: Promise<unknown> | undefined;
+    const worker = createWorker({
+      retentionRepositoryFactory: repositoryFactory,
+      checkpointFactory: () => ({
+        readLastSuccess: async () => null,
+        recordSuccess: async (scheduledAt) => {
+          checkpoint.set("retention:last-success-scheduled-at:v1", String(scheduledAt));
+        },
+      }),
+      sleep: async () => undefined,
+    });
+
+    worker.scheduled(
+      { scheduledTime: 300 },
+      environment,
+      { waitUntil(promise: Promise<unknown>) { task = promise; } } as ExecutionContext,
+    );
+    await task;
+
+    expect(repositoryFactory).toHaveBeenCalledWith(environment.WAITLIST_NEON_URL);
+    expect(purgeExpired).toHaveBeenCalledOnce();
+    expect(checkpoint.get("retention:last-success-scheduled-at:v1")).toBe("300");
+  });
 });

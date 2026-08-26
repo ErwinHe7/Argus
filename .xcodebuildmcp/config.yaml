@@ -1,0 +1,12 @@
+schemaVersion: 1
+sessionDefaultsProfiles:
+  ritual-investing-app:
+    workspacePath: ritual-investing-app/ios/Runner.xcworkspace
+    scheme: Runner
+    configuration: Debug
+    simulatorName: iPhone 17
+    useLatestOS: true
+    preferXcodebuild: true
+    bundleId: com.ritualinvesting.ritualInvestingApp
+    simulatorPlatform: iOS Simulator
+activeSessionDefaultsProfile: ritual-investing-app

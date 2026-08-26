@@ -71,6 +71,8 @@ flutter:
   assets:
     - assets/images/the-compass.png
     - assets/images/persona-triptych.png
+    - assets/images/tarot/modern-rider-waite/major/
+    - assets/images/tarot/modern-vector/major/
 
   fonts:
     - family: Inter

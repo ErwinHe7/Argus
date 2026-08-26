@@ -36,6 +36,16 @@ EXCEPTION WHEN duplicate_object THEN
   ALTER ROLE ritual_function_owner NOINHERIT NOLOGIN BYPASSRLS;
 END $$;
 
+-- Managed Postgres owners such as Neon receive CREATEROLE without implicit
+-- SET membership in roles they create. Grant only temporary SET membership
+-- for ownership transfer; it is revoked before this transaction commits.
+DO $$ BEGIN
+  EXECUTE format(
+    'GRANT ritual_function_owner TO %I WITH INHERIT FALSE, SET TRUE',
+    current_user
+  );
+END $$;
+
 CREATE SCHEMA IF NOT EXISTS ritual_public;
 REVOKE ALL ON SCHEMA ritual_private FROM PUBLIC;
 REVOKE ALL ON SCHEMA ritual_public FROM PUBLIC;
@@ -639,6 +649,10 @@ GRANT SELECT, INSERT, UPDATE ON TABLE purge_receipts TO ritual_function_owner;
 GRANT SELECT, INSERT, DELETE ON TABLE ritual_private.purge_guards TO ritual_function_owner;
 GRANT USAGE ON SCHEMA ritual_private TO ritual_privacy_purge;
 GRANT EXECUTE ON FUNCTION ritual_private.purge_tombstoned_tenant(uuid, integer) TO ritual_privacy_purge;
+
+DO $$ BEGIN
+  EXECUTE format('REVOKE ritual_function_owner FROM %I', current_user);
+END $$;
 
 REVOKE CREATE ON SCHEMA ritual_private FROM ritual_function_owner;
 
