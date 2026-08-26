@@ -16,8 +16,14 @@ describe("host-specific static response policy", () => {
     expect(demo).toContain(`frame-ancestors ${landingOrigin}`);
     expect(demo).not.toContain("X-Frame-Options");
     expect(demo).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(landing).toContain("base-uri 'none'");
+    expect(demo).toContain("base-uri 'self'");
+    expect(demo).toContain("style-src 'self'; style-src-elem 'self' 'unsafe-inline'; style-src-attr 'none'");
+    expect(demo).not.toContain("style-src 'self' 'unsafe-inline'");
+    expect(demo.match(/unsafe-inline/g)).toHaveLength(1);
+    expect(landing).not.toContain("unsafe-inline");
     for (const policy of `${landing}\n${demo}`.matchAll(/Content-Security-Policy: ([^\n]+)/g)) {
-      expect(policy[1]).not.toMatch(/(^|\s)\*(?=\s|;|$)|unsafe-inline|(?<!wasm-)unsafe-eval/);
+      expect(policy[1]).not.toMatch(/(^|\s)\*(?=\s|;|$)|(?<!wasm-)unsafe-eval/);
     }
   });
 

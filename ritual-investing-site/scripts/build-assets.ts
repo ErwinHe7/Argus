@@ -75,11 +75,13 @@ export function renderDemoHeaders(environment: DeploymentEnvironment): string {
   const peer = HOSTS[environment];
   const csp = [
     "default-src 'none'",
-    "base-uri 'none'",
+    "base-uri 'self'",
     "form-action 'none'",
     `frame-ancestors ${peer.landing}`,
     "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self'",
+    "style-src-elem 'self' 'unsafe-inline'",
+    "style-src-attr 'none'",
     "font-src 'self' data:",
     "img-src 'self' data: blob:",
     "connect-src 'self'",
