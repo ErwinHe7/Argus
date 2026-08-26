@@ -57,34 +57,6 @@ function secureAdminAsset(response: Response, pathname: string): Response {
 
 const app = createApp();
 
-function resolveBindings(environment: unknown): Bindings | undefined {
-  try {
-    return validateBindings(environment);
-  } catch {
-    console.error("Ritual Worker runtime configuration validation failed.");
-    return undefined;
-  }
-}
-
-function configurationUnavailable(): Response {
-  return Response.json(
-    {
-      type: "https://api.just-build-this.app/problems/service-unavailable",
-      title: "Service unavailable",
-      status: 503,
-      code: "runtime_configuration_unavailable",
-    },
-    {
-      status: 503,
-      headers: {
-        "cache-control": "no-store",
-        "content-type": "application/problem+json",
-        "x-content-type-options": "nosniff",
-      },
-    },
-  );
-}
-
 const worker = {
   fetch(request, environment, executionContext) {
     const bindings = resolveBindings(environment);
