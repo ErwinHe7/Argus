@@ -22,6 +22,9 @@ recorded in the signed release baseline:
 - Cloudflare Email Routing currently has no verified destination and is
   unconfigured. `privacy@just-build-this.app` must deliver to a verified,
   monitored mailbox before waitlist traffic is enabled.
+- Cloudflare Analytics Engine is disabled at the account level. The beta
+  landing version upload stopped with API code `10089`; enable Analytics Engine
+  before either telemetry-bound landing version can be uploaded.
 - Production and beta still need installed Worker secrets, confirmed rate-limit
   bindings, WAF rules, and telemetry datasets before submissions can be
   enabled. Their host-scoped Turnstile widgets are already provisioned.
@@ -35,6 +38,12 @@ recorded in the signed release baseline:
   Worker.
 - `WAITLIST_SUBMISSIONS` stays `off` through beta proof, production host
   activation, and the production table-baseline check.
+- Reviewed Demo versions are uploaded but inactive: beta
+  `d54c83dd-9f2b-4ce2-a452-d09f930a729f` and production
+  `202728dc-a48e-4bec-87c1-0770041a2957`. All four site Workers have
+  `workers.dev` and preview subdomains disabled, and no site Custom Domain is
+  attached. The landing services still contain only their unreachable
+  fail-closed bootstrap versions until Analytics Engine is enabled.
 
 The Cloudflare zone was active at the read-only 2026-08-26 inspection. The only
 live Worker Custom Domains were `api.just-build-this.app` and
