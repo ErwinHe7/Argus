@@ -11,10 +11,11 @@ this release. Per the 2026-08-26 owner decision, the four referenced documents
 retain their pre-existing edits untouched; this file remains the site/Demo
 release authority.
 
-## Current stop conditions
+## Current release state and stop conditions
 
-Do not upload or attach a site Worker until every item below is resolved and
-recorded in the signed release baseline:
+The landing and Demo hosts were activated on 2026-08-26 with submissions off.
+Do not enable waitlist writes until every remaining stop condition below is
+resolved and recorded in the signed release baseline:
 
 - The Neon control-plane connection is authorized. The dedicated projects were
   created and migrated on 2026-08-26: production `broad-unit-31027461`
@@ -26,12 +27,13 @@ recorded in the signed release baseline:
   `7c494637fa3549eeadff31f0f1178169`. Before waitlist traffic is enabled, send
   a synthetic message through `privacy@just-build-this.app` and record only a
   delivery fingerprint and timestamp.
-- Cloudflare Analytics Engine is disabled at the account level. The beta
-  landing version upload stopped with API code `10089`; enable Analytics Engine
-  before either telemetry-bound landing version can be uploaded.
-- Production and beta still need installed Worker secrets, confirmed rate-limit
-  bindings, WAF rules, and telemetry datasets before submissions can be
-  enabled. Their host-scoped Turnstile widgets are already provisioned.
+- Cloudflare Analytics Engine is enabled. Both telemetry bindings accepted
+  their first disabled-request event: `ritual_waitlist_beta_events_v1` and
+  `ritual_waitlist_prod_events_v1` each returned an aggregate count of one.
+- Production and beta have installed Worker secrets, confirmed source and route
+  rate-limit bindings, and host-scoped Turnstile widgets. The zone-level WAF
+  budget rules are still absent; keep submissions off until the exact rules are
+  reviewed and installed.
 - The production and beta retention KV namespaces were provisioned on
   2026-08-26 as `fc10e9eaa5024cc6b3d79c59ecb6afad` and
   `840400a6dd244116888da7c7467dce02`. Re-list and match their titles before any
@@ -40,18 +42,26 @@ recorded in the signed release baseline:
   `6ca06cd7239b46859bc47e34f2e0e8a4` and beta
   `992455a9fbfd47688582657d781e44b6`. They must never be bound to a landing
   Worker.
-- `WAITLIST_SUBMISSIONS` stays `off` through beta proof, production host
-  activation, and the production table-baseline check.
-- Reviewed Demo versions are uploaded but inactive: beta
-  `d54c83dd-9f2b-4ce2-a452-d09f930a729f` and production
-  `202728dc-a48e-4bec-87c1-0770041a2957`. All four site Workers have
-  `workers.dev` and preview subdomains disabled, and no site Custom Domain is
-  attached. The landing services still contain only their unreachable
-  fail-closed bootstrap versions until Analytics Engine is enabled.
+- `WAITLIST_SUBMISSIONS` remains `off`. Disabled synthetic requests returned
+  `503 waitlist_unavailable`, and both dedicated Neon tables remained at zero
+  rows after the beta and production probes.
+- The active versions are beta Demo
+  `d54c83dd-9f2b-4ce2-a452-d09f930a729f`, beta landing
+  `de5ad78b-f814-4aa6-816e-78bcbffac251`, production Demo
+  `202728dc-a48e-4bec-87c1-0770041a2957`, and production landing
+  `b412e88a-55e4-433d-911a-76544171450d`, each at 100 percent. All four
+  Workers retain disabled `workers.dev` and preview subdomains.
+- `beta.just-build-this.app`, `demo-beta.just-build-this.app`,
+  `just-build-this.app`, and `demo.just-build-this.app` are attached to their
+  exact services. `www.just-build-this.app` remains unattached pending explicit
+  approval for the public redirect route.
+- Beta has the reviewed `17 4 * * *` purge trigger. The equivalent production
+  trigger remains absent pending explicit approval because it can delete
+  expired waitlist data.
 
-The Cloudflare zone was active at the read-only 2026-08-26 inspection. The only
-live Worker Custom Domains were `api.just-build-this.app` and
-`api-beta.just-build-this.app`. Their required preserved health contracts were:
+The Cloudflare zone was active at the 2026-08-26 activation. The existing API
+Custom Domains remained attached throughout. Their required preserved health
+contracts were:
 
 | Host | Required response before and after every site mutation |
 | --- | --- |
@@ -67,6 +77,8 @@ change either API.
 | --- | --- | --- |
 | Landing Worker | `ritual-investing-site` / `just-build-this.app` | `ritual-investing-site-beta` / `beta.just-build-this.app` |
 | Demo Worker | `ritual-investing-demo` / `demo.just-build-this.app` | `ritual-investing-demo-beta` / `demo-beta.just-build-this.app` |
+| Active landing version | `b412e88a-55e4-433d-911a-76544171450d` | `de5ad78b-f814-4aa6-816e-78bcbffac251` |
+| Active Demo version | `202728dc-a48e-4bec-87c1-0770041a2957` | `d54c83dd-9f2b-4ce2-a452-d09f930a729f` |
 | Canonical redirect | `www.just-build-this.app` → apex, `308` | none |
 | Demo protocol | current `2`, previous `1` | current `2`, previous `1` |
 | Neon project | `broad-unit-31027461` / `br-plain-wave-a6ggfbqa` | `cool-resonance-84878378` / `br-red-flower-aun5zcsw` |
