@@ -24,13 +24,16 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
     required ScopedReadCacheStorage cacheStorage,
     required PendingCommandStore pendingCommandStore,
     required MemberFeatureScopeFactory featureScopeFactory,
-  }) : _cacheStorage = cacheStorage,
+  }) : _presentationPolicy = MemberPresentationPolicy.production,
+       _cacheStorage = cacheStorage,
        _pendingCommandStore = pendingCommandStore,
        _featureScopeFactory = featureScopeFactory;
 
   factory MemberShellRuntime.completed({
     required MemberBootstrap bootstrap,
     required MemberFeatureScope featureScope,
+    MemberPresentationPolicy presentationPolicy =
+        MemberPresentationPolicy.production,
     MemberBootstrapRefresher? refreshBootstrap,
     Future<void> Function()? onDeletionAccepted,
     Future<void> Function(int expectedGeneration)? onResetAccepted,
@@ -56,6 +59,7 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
     final runtime = MemberShellRuntime._completed(
       bootstrap: bootstrap,
       featureScope: featureScope,
+      presentationPolicy: presentationPolicy,
       refreshBootstrap: refreshBootstrap,
       onDeletionAccepted: onDeletionAccepted,
       onResetAccepted: onResetAccepted,
@@ -68,6 +72,7 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
   MemberShellRuntime._completed({
     required MemberBootstrap bootstrap,
     required MemberFeatureScope featureScope,
+    required MemberPresentationPolicy presentationPolicy,
     required MemberBootstrapRefresher? refreshBootstrap,
     required Future<void> Function()? onDeletionAccepted,
     required Future<void> Function(int expectedGeneration)? onResetAccepted,
@@ -76,6 +81,7 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
        _featureScopeFactory = null,
        _memberBootstrap = bootstrap,
        _featureScope = featureScope,
+       _presentationPolicy = presentationPolicy,
        _refreshBootstrap = refreshBootstrap,
        _onDeletionAccepted = onDeletionAccepted,
        _onResetAccepted = onResetAccepted;
@@ -88,6 +94,7 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
   Future<void> Function(int expectedGeneration)? _onResetAccepted;
   MemberBootstrap? _memberBootstrap;
   MemberFeatureScope? _featureScope;
+  final MemberPresentationPolicy _presentationPolicy;
   ScopedReadCache? _scopedReadCache;
   MemberFeatureScope? _retiredScope;
   bool _legacyMutationsCleared = false;
@@ -104,6 +111,9 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
 
   @override
   MemberFeatureScope? get featureScope => _featureScope;
+
+  @override
+  MemberPresentationPolicy get presentationPolicy => _presentationPolicy;
 
   @override
   CacheScope? get activeCacheScope => _featureScope?.scope;

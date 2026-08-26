@@ -1,0 +1,6 @@
+name: dio
+description: Provider-free Ritual demo build sentinel.
+version: 5.9.2
+publish_to: none
+environment:
+  sdk: ^3.13.1

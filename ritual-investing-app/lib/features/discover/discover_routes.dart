@@ -25,6 +25,7 @@ import 'presentation/discover_screen.dart';
 StatefulShellBranch buildDiscoverBranch({
   required AppRuntime container,
   required MemberResourceAccess resourceAccess,
+  bool restorationEnabled = true,
 }) {
   GoRoute resourceRoute(MemberRouteDefinition definition) => GoRoute(
     path: definition.relativeResourcePath!,
@@ -33,7 +34,13 @@ StatefulShellBranch buildDiscoverBranch({
       final stableId = state.pathParameters['stableId'];
       final available = definition == MemberRoutes.discoverAsset
           ? container.hasAssetCodex
-          : container.hasMemberResearch;
+          : switch (definition) {
+              MemberRoutes.discoverGrimoire => container.hasGrimoires,
+              MemberRoutes.discoverCreator => container.hasCreators,
+              MemberRoutes.discoverCircleTemplate ||
+              MemberRoutes.discoverCircle => container.hasCircles,
+              _ => false,
+            };
       return stableId != null &&
               MemberRoutes.isUuid(stableId) &&
               (available || resourceAccess(definition, stableId))
@@ -54,7 +61,9 @@ StatefulShellBranch buildDiscoverBranch({
           source: source,
         );
       }
-      if (container.hasMemberResearch) {
+      if (container.hasGrimoires ||
+          container.hasCreators ||
+          container.hasCircles) {
         return switch (definition) {
           MemberRoutes.discoverGrimoire => _GrimoireRoute(
             key: ValueKey('grimoire-detail-$stableId'),
@@ -93,7 +102,7 @@ StatefulShellBranch buildDiscoverBranch({
       path: 'circles',
       name: 'discover-private-circles',
       redirect: (context, state) =>
-          container.hasMemberResearch ? null : MemberRoutes.discover.path,
+          container.hasCircles ? null : MemberRoutes.discover.path,
       builder: (context, state) => _PrivateCirclesRoute(container: container),
     ),
   ];
@@ -113,7 +122,9 @@ StatefulShellBranch buildDiscoverBranch({
   }
 
   return StatefulShellBranch(
-    restorationScopeId: '${MemberRoutes.discover.name}-branch',
+    restorationScopeId: restorationEnabled
+        ? '${MemberRoutes.discover.name}-branch'
+        : null,
     routes: [
       GoRoute(
         path: MemberRoutes.discover.path,
@@ -150,7 +161,9 @@ class _DiscoverBranchRootState extends State<_DiscoverBranchRoot> {
     onOpenItem: (item) => _openDiscoverItem(context, item),
     onOpenCreator: (creator) =>
         context.push(MemberRoutes.discoverCreator.location(creator.id)),
-    onOpenPrivateCircles: () => context.push(MemberRoutes.discoverCirclesPath),
+    onOpenPrivateCircles: widget.container.hasCircles
+        ? () => context.push(MemberRoutes.discoverCirclesPath)
+        : null,
   );
 }
 

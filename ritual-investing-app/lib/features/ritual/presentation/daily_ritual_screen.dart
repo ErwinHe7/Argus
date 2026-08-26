@@ -17,23 +17,25 @@ class DailyRitualScreen extends StatelessWidget {
   const DailyRitualScreen({
     super.key,
     required this.onOpenCoven,
-    required this.onToggleTheme,
+    this.onToggleTheme,
     required this.controller,
     this.onOpenAsset,
     this.onOpenSearch,
     this.onOpenBriefings,
     this.rowanController,
     this.personalization = const MemberPersonalization(),
+    this.useBundledArtwork = true,
   });
 
   final VoidCallback onOpenCoven;
-  final VoidCallback onToggleTheme;
+  final VoidCallback? onToggleTheme;
   final DailyRitualController controller;
   final ValueChanged<String>? onOpenAsset;
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenBriefings;
   final RowanController? rowanController;
   final MemberPersonalization personalization;
+  final bool useBundledArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -87,20 +89,21 @@ class DailyRitualScreen extends StatelessWidget {
                         ),
                         icon: const Icon(Icons.auto_stories_outlined),
                       ),
-                    IconButton(
-                      key: const Key('theme-toggle'),
-                      onPressed: onToggleTheme,
-                      tooltip: 'Switch theme',
-                      constraints: const BoxConstraints.tightFor(
-                        width: 48,
-                        height: 48,
+                    if (onToggleTheme != null)
+                      IconButton(
+                        key: const Key('theme-toggle'),
+                        onPressed: onToggleTheme,
+                        tooltip: 'Switch theme',
+                        constraints: const BoxConstraints.tightFor(
+                          width: 48,
+                          height: 48,
+                        ),
+                        icon: Icon(
+                          Theme.of(context).brightness == Brightness.dark
+                              ? Icons.light_mode_outlined
+                              : Icons.dark_mode_outlined,
+                        ),
                       ),
-                      icon: Icon(
-                        Theme.of(context).brightness == Brightness.dark
-                            ? Icons.light_mode_outlined
-                            : Icons.dark_mode_outlined,
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -126,7 +129,11 @@ class DailyRitualScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _CardStage(colors: colors, art: controller.state.value!.art),
+                  _CardStage(
+                    colors: colors,
+                    art: controller.state.value!.art,
+                    useBundledArtwork: useBundledArtwork,
+                  ),
                   const SizedBox(height: 18),
                   if (controller.state.value!.state ==
                       DailyRitualState.assigned) ...[
@@ -221,6 +228,7 @@ class DailyRitualScreen extends StatelessWidget {
                       _RowanCounsel(
                         colors: colors,
                         counsel: controller.state.value!.rowan,
+                        useBundledArtwork: useBundledArtwork,
                       ),
                     if (controller.state.value!.state ==
                         DailyRitualState.revealed) ...[
@@ -501,10 +509,15 @@ class _Sigil extends StatelessWidget {
 }
 
 class _CardStage extends StatelessWidget {
-  const _CardStage({required this.colors, required this.art});
+  const _CardStage({
+    required this.colors,
+    required this.art,
+    required this.useBundledArtwork,
+  });
 
   final RitualColors colors;
   final RitualArt art;
+  final bool useBundledArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -556,7 +569,7 @@ class _CardStage extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: art.key == 'the_compass'
+                  child: art.key == 'the_compass' && useBundledArtwork
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(13),
                           child: Image.asset(
@@ -804,10 +817,15 @@ class _CovenStrip extends StatelessWidget {
 }
 
 class _RowanCounsel extends StatelessWidget {
-  const _RowanCounsel({required this.colors, required this.counsel});
+  const _RowanCounsel({
+    required this.colors,
+    required this.counsel,
+    required this.useBundledArtwork,
+  });
 
   final RitualColors colors;
   final RitualCounsel counsel;
+  final bool useBundledArtwork;
 
   @override
   Widget build(BuildContext context) {
@@ -820,13 +838,15 @@ class _RowanCounsel extends StatelessWidget {
             shape: BoxShape.circle,
             border: Border.all(color: colors.gold),
           ),
-          child: ClipOval(
-            child: Image.asset(
-              'assets/images/persona-triptych.png',
-              fit: BoxFit.cover,
-              alignment: Alignment.center,
-            ),
-          ),
+          child: useBundledArtwork
+              ? ClipOval(
+                  child: Image.asset(
+                    'assets/images/persona-triptych.png',
+                    fit: BoxFit.cover,
+                    alignment: Alignment.center,
+                  ),
+                )
+              : Icon(Icons.auto_awesome, color: colors.gold),
         ),
         const SizedBox(width: 12),
         Expanded(

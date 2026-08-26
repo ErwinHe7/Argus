@@ -86,6 +86,10 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
   MemberShellRuntime get memberShellRuntime => _memberShellRuntime;
 
   @override
+  MemberPresentationPolicy get presentationPolicy =>
+      MemberPresentationPolicy.production;
+
+  @override
   MemberBootstrap? get memberBootstrap => _memberShellRuntime.memberBootstrap;
 
   @override

@@ -1,0 +1,6 @@
+name: path_provider
+description: Non-plugin sentinel for the provider-free Ritual demo build.
+version: 2.1.6
+publish_to: none
+environment:
+  sdk: ^3.13.1

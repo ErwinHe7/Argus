@@ -1,0 +1,9 @@
+{
+  "name": "Ritual Investing Demo",
+  "short_name": "Ritual Demo",
+  "start_url": ".",
+  "display": "browser",
+  "background_color": "#FDEEFD",
+  "theme_color": "#641D6F",
+  "description": "A provider-free, simulated Ritual Investing product demo."
+}

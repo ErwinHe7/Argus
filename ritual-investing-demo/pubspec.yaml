@@ -1,0 +1,25 @@
+name: ritual_investing_demo
+description: Provider-free standalone web demo for Ritual Investing.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.13.1
+
+dependencies:
+  crypto: ^3.0.7
+  flutter:
+    sdk: flutter
+  go_router: ^17.5.0
+  ritual_investing_app:
+    path: ../ritual-investing-app
+  web: ^1.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

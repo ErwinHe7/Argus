@@ -87,6 +87,10 @@ printf '%s\n' "$literal_urls" | while IFS= read -r literal_url; do
   case "$literal_host" in
     YOUR_AUTH0_DOMAIN|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|media-processor.internal|media-scanner.internal|push-provider.internal)
       ;;
+    # Frame messages are reviewed as an exact production/beta pair. Do not
+    # broaden this to a wildcard subdomain allowlist.
+    just-build-this.app|beta.just-build-this.app)
+      ;;
     *.auth0.com)
       ;;
     *) fail "unreviewed literal production host: $literal_host" ;;

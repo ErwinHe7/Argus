@@ -13,8 +13,11 @@ import 'presentation/coven_screen.dart';
 StatefulShellBranch buildCovenBranch({
   required AppRuntime container,
   required MemberResourceAccess resourceAccess,
+  bool restorationEnabled = true,
 }) => StatefulShellBranch(
-  restorationScopeId: '${MemberRoutes.coven.name}-branch',
+  restorationScopeId: restorationEnabled
+      ? '${MemberRoutes.coven.name}-branch'
+      : null,
   routes: [
     GoRoute(
       path: MemberRoutes.coven.path,
@@ -28,14 +31,14 @@ StatefulShellBranch buildCovenBranch({
             final stableId = state.pathParameters['stableId'];
             return stableId != null &&
                     MemberRoutes.isUuid(stableId) &&
-                    (container.hasMemberResearch ||
+                    (container.hasCovenResearch ||
                         resourceAccess(MemberRoutes.covenEntry, stableId))
                 ? null
                 : MemberRoutes.coven.path;
           },
           builder: (context, state) {
             final stableId = state.pathParameters['stableId']!;
-            if (!container.hasMemberResearch) {
+            if (!container.hasCovenResearch) {
               return const _CovenResourceFallback();
             }
             return _CovenDetailRoute(

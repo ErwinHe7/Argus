@@ -12,8 +12,11 @@ import 'presentation/daily_ritual_screen.dart';
 StatefulShellBranch buildRitualBranch({
   required AppRuntime container,
   required MemberResourceAccess resourceAccess,
+  bool restorationEnabled = true,
 }) => StatefulShellBranch(
-  restorationScopeId: '${MemberRoutes.ritual.name}-branch',
+  restorationScopeId: restorationEnabled
+      ? '${MemberRoutes.ritual.name}-branch'
+      : null,
   routes: [
     GoRoute(
       path: MemberRoutes.ritual.path,
@@ -85,7 +88,9 @@ class _RitualBranchRootState extends State<_RitualBranchRoot> {
     final child = DailyRitualScreen(
       controller: widget.container.dailyRitualController,
       onOpenCoven: () => context.go(MemberRoutes.coven.path),
-      onToggleTheme: () => context.go(MemberRoutes.youRitualPreferencesPath),
+      onToggleTheme: widget.container.presentationPolicy.allowsProfileEditing
+          ? () => context.go(MemberRoutes.youRitualPreferencesPath)
+          : null,
       onOpenSearch: widget.container.optionalSearchController == null
           ? null
           : () => context.push(MemberRoutes.discoverSearchPath),
@@ -107,6 +112,7 @@ class _RitualBranchRootState extends State<_RitualBranchRoot> {
       personalization:
           widget.container.memberBootstrap?.personalization ??
           const MemberPersonalization(),
+      useBundledArtwork: !widget.container.presentationPolicy.isDemo,
     );
     if (!widget.container.hasDemoMembership) return child;
     return DemoCapabilityGate(

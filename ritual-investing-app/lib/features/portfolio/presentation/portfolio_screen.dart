@@ -24,6 +24,7 @@ class PortfolioScreen extends StatefulWidget {
     this.onOpenRecurringPlans,
     this.onOpenRebalance,
     this.onOpenIntentions,
+    this.readOnly = false,
   });
 
   final String portfolioId;
@@ -36,6 +37,7 @@ class PortfolioScreen extends StatefulWidget {
   final VoidCallback? onOpenRecurringPlans;
   final VoidCallback? onOpenRebalance;
   final VoidCallback? onOpenIntentions;
+  final bool readOnly;
 
   @override
   State<PortfolioScreen> createState() => _PortfolioScreenState();
@@ -58,11 +60,11 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
   }
 
   Future<void> _hydrate() async {
-    await Future.wait([
-      widget.portfolioController.open(widget.portfolioId),
-      widget.fundingSourceController.load(),
-    ]);
-    await widget.contributionController.openPortfolio(widget.portfolioId);
+    await widget.portfolioController.open(widget.portfolioId);
+    if (!widget.readOnly) {
+      await widget.fundingSourceController.load();
+      await widget.contributionController.openPortfolio(widget.portfolioId);
+    }
   }
 
   @override
@@ -106,6 +108,7 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
               const SizedBox(height: 16),
               _PortfolioChooser(
                 controller: widget.portfolioController,
+                readOnly: widget.readOnly,
                 onSelect: (id) {
                   final navigate = widget.onOpenPortfolio;
                   if (navigate != null) {
@@ -129,14 +132,15 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                 const SizedBox(height: 12),
                 _PortfolioHeader(detail.portfolio),
                 const SizedBox(height: 16),
-                _ManagePortfolio(
-                  controller: widget.portfolioController,
-                  onRename: () => _showNameDialog(
-                    create: false,
-                    initial: detail.portfolio.name,
+                if (!widget.readOnly)
+                  _ManagePortfolio(
+                    controller: widget.portfolioController,
+                    onRename: () => _showNameDialog(
+                      create: false,
+                      initial: detail.portfolio.name,
+                    ),
+                    onArchive: _confirmArchive,
                   ),
-                  onArchive: _confirmArchive,
-                ),
                 if (widget.onOpenOrders != null ||
                     widget.onOpenRecurringPlans != null ||
                     widget.onOpenRebalance != null ||
@@ -154,21 +158,23 @@ class _PortfolioScreenState extends State<PortfolioScreen> {
                   detail: detail,
                   onOpenAsset: widget.onOpenAsset,
                 ),
-                const SizedBox(height: 28),
-                _FundingSources(
-                  controller: widget.fundingSourceController,
-                  sources: sources,
-                  selectedId: selectedSource,
-                  onSelected: (value) => setState(() => _sourceId = value),
-                  onDelete: _confirmFundingDelete,
-                ),
-                const SizedBox(height: 28),
-                _ContributionPanel(
-                  controller: widget.contributionController,
-                  portfolioId: detail.portfolio.id,
-                  sourceId: selectedSource,
-                  amountController: _amountController,
-                ),
+                if (!widget.readOnly) ...[
+                  const SizedBox(height: 28),
+                  _FundingSources(
+                    controller: widget.fundingSourceController,
+                    sources: sources,
+                    selectedId: selectedSource,
+                    onSelected: (value) => setState(() => _sourceId = value),
+                    onDelete: _confirmFundingDelete,
+                  ),
+                  const SizedBox(height: 28),
+                  _ContributionPanel(
+                    controller: widget.contributionController,
+                    portfolioId: detail.portfolio.id,
+                    sourceId: selectedSource,
+                    amountController: _amountController,
+                  ),
+                ],
               ],
             ],
           ),
@@ -291,11 +297,13 @@ class _PortfolioChooser extends StatelessWidget {
     required this.controller,
     required this.onSelect,
     required this.onCreate,
+    required this.readOnly,
   });
 
   final PortfolioController controller;
   final ValueChanged<String> onSelect;
   final VoidCallback onCreate;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -311,13 +319,14 @@ class _PortfolioChooser extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
-            TextButton.icon(
-              key: const Key('portfolio-create'),
-              style: _controlStyle,
-              onPressed: onCreate,
-              icon: const Icon(Icons.add),
-              label: const Text('Create'),
-            ),
+            if (!readOnly)
+              TextButton.icon(
+                key: const Key('portfolio-create'),
+                style: _controlStyle,
+                onPressed: onCreate,
+                icon: const Icon(Icons.add),
+                label: const Text('Create'),
+              ),
           ],
         ),
         for (final item in items)

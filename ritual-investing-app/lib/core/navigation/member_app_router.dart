@@ -12,17 +12,51 @@ StatefulShellRoute buildMemberShellRoute({
   required AppRuntime runtime,
   MemberResourceAccess? resourceAccess,
   Future<void> Function()? onLogout,
+  bool restorationEnabled = true,
 }) {
   final access = resourceAccess ?? (_, _) => false;
   return StatefulShellRoute.indexedStack(
-    restorationScopeId: 'member-shell',
+    restorationScopeId: restorationEnabled ? 'member-shell' : null,
     branches: [
-      buildRitualBranch(container: runtime, resourceAccess: access),
-      buildDiscoverBranch(container: runtime, resourceAccess: access),
-      buildCovenBranch(container: runtime, resourceAccess: access),
-      buildYouBranch(container: runtime, onLogout: onLogout),
+      buildRitualBranch(
+        container: runtime,
+        resourceAccess: access,
+        restorationEnabled: restorationEnabled,
+      ),
+      buildDiscoverBranch(
+        container: runtime,
+        resourceAccess: access,
+        restorationEnabled: restorationEnabled,
+      ),
+      buildCovenBranch(
+        container: runtime,
+        resourceAccess: access,
+        restorationEnabled: restorationEnabled,
+      ),
+      buildYouBranch(
+        container: runtime,
+        onLogout: onLogout,
+        restorationEnabled: restorationEnabled,
+      ),
     ],
     builder: (context, state, navigationShell) =>
         AppShell(navigationShell: navigationShell),
   );
 }
+
+GoRouter createMemberOnlyRouter({
+  required AppRuntime runtime,
+  MemberResourceAccess? resourceAccess,
+}) => GoRouter(
+  initialLocation: MemberRoutes.ritual.path,
+  redirect: (context, state) => runtime.entryGate == MemberEntryGate.member
+      ? (state.uri.path == '/' ? MemberRoutes.ritual.path : null)
+      : MemberRoutes.ritual.path,
+  routes: [
+    buildMemberShellRoute(
+      runtime: runtime,
+      resourceAccess: resourceAccess,
+      restorationEnabled: false,
+    ),
+  ],
+);

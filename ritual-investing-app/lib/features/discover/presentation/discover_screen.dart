@@ -138,47 +138,49 @@ class DiscoverScreen extends StatelessWidget {
                       : () => onOpenCreator!(creator),
                 ),
             ],
-            const SizedBox(height: 26),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: context.ritualColors.screenSoft,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: context.ritualColors.line),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.lock_outline),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Your private Circles',
-                          style: Theme.of(context).textTheme.titleLarge,
+            if (onOpenPrivateCircles != null) ...[
+              const SizedBox(height: 26),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: context.ritualColors.screenSoft,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: context.ritualColors.line),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.lock_outline),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Your private Circles',
+                            style: Theme.of(context).textTheme.titleLarge,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Organize Demo research privately. Only you can edit these collections.',
-                  ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: FilledButton.icon(
-                      key: const Key('discover-open-private-circles'),
-                      onPressed: onOpenPrivateCircles,
-                      icon: const Icon(Icons.folder_copy_outlined),
-                      label: const Text('Open private Circles'),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Organize Demo research privately. Only you can edit these collections.',
+                    ),
+                    const SizedBox(height: 14),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton.icon(
+                        key: const Key('discover-open-private-circles'),
+                        onPressed: onOpenPrivateCircles,
+                        icon: const Icon(Icons.folder_copy_outlined),
+                        label: const Text('Open private Circles'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ],
         ],
       ),

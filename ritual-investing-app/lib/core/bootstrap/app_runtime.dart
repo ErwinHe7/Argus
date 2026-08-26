@@ -42,12 +42,28 @@ enum MemberEntryGate {
   member,
 }
 
+/// Controls which production-owned member surfaces are presented by a host.
+///
+/// This policy removes unsupported controls from the widget tree; it is not an
+/// authorization mechanism. The standalone web demo uses [demo], while the
+/// authenticated mobile entry uses [production].
+enum MemberPresentationPolicy {
+  production,
+  demo;
+
+  bool get isDemo => this == demo;
+  bool get allowsProfileEditing => this == production;
+  bool get showsAccount => this == production;
+  bool get showsFunding => this == production;
+}
+
 /// The provider-neutral contract consumed by member navigation and screens.
 ///
 /// Auth, session restoration, hosted login, and generated API clients belong
 /// to the production entry layer and are deliberately absent from this port.
 abstract interface class AppRuntime implements Listenable {
   MemberEntryGate get entryGate;
+  MemberPresentationPolicy get presentationPolicy;
   MemberBootstrap? get memberBootstrap;
   MemberFeatureScope? get featureScope;
   CacheScope? get activeCacheScope;
@@ -148,6 +164,10 @@ extension AppRuntimeFeatureAccess on AppRuntime {
       featureScope?.grimoireRepository != null &&
       featureScope?.circleRepository != null &&
       featureScope?.creatorRepository != null;
+  bool get hasCovenResearch => featureScope?.covenRepository != null;
+  bool get hasGrimoires => featureScope?.grimoireRepository != null;
+  bool get hasCircles => featureScope?.circleRepository != null;
+  bool get hasCreators => featureScope?.creatorRepository != null;
 
   CovenDetailController createCovenDetailController(String entryId) =>
       CovenDetailController(

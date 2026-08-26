@@ -18,19 +18,28 @@ import 'presentation/profile_screen.dart';
 StatefulShellBranch buildYouBranch({
   required AppRuntime container,
   Future<void> Function()? onLogout,
+  bool restorationEnabled = true,
 }) => StatefulShellBranch(
-  restorationScopeId: '${MemberRoutes.you.name}-branch',
+  restorationScopeId: restorationEnabled
+      ? '${MemberRoutes.you.name}-branch'
+      : null,
   routes: [
     GoRoute(
       path: MemberRoutes.you.path,
       name: MemberRoutes.you.name,
-      builder: (context, state) =>
-          _YouBranchRoot(container: container, showAccount: onLogout != null),
+      builder: (context, state) => _YouBranchRoot(
+        container: container,
+        showAccount:
+            container.presentationPolicy.showsAccount && onLogout != null,
+      ),
       routes: [
         _portfolioRoute(container),
         ..._intentionRoutes(container),
         ..._simulatedInvestingRoutes(container),
-        ..._settingsRoutes(container, onLogout),
+        ..._settingsRoutes(
+          container,
+          container.presentationPolicy.showsAccount ? onLogout : null,
+        ),
       ],
     ),
   ],
@@ -53,6 +62,7 @@ GoRoute _portfolioRoute(AppRuntime container) => GoRoute(
       portfolioController: container.portfolioController,
       fundingSourceController: container.fundingSourceController,
       contributionController: container.contributionController,
+      readOnly: container.presentationPolicy.isDemo,
       onOpenPortfolio: (id) =>
           context.pushReplacement(MemberRoutes.portfolio.location(id)),
       onOpenAsset: container.hasAssetCodex
@@ -342,36 +352,38 @@ List<RouteBase> _settingsRoutes(
   AppRuntime container,
   Future<void> Function()? onLogout,
 ) => [
-  GoRoute(
-    path: 'investing',
-    builder: (context, state) => InvestingProfileScreen(
-      controller: container.profileController,
-      onSave: container.updateMemberInvestor,
+  if (container.presentationPolicy.allowsProfileEditing) ...[
+    GoRoute(
+      path: 'investing',
+      builder: (context, state) => InvestingProfileScreen(
+        controller: container.profileController,
+        onSave: container.updateMemberInvestor,
+      ),
     ),
-  ),
-  GoRoute(
-    path: 'ritual-preferences',
-    builder: (context, state) => RitualPreferencesScreen(
-      controller: container.profileController,
-      onSave: container.updateMemberPreferences,
+    GoRoute(
+      path: 'ritual-preferences',
+      builder: (context, state) => RitualPreferencesScreen(
+        controller: container.profileController,
+        onSave: container.updateMemberPreferences,
+      ),
     ),
-  ),
-  GoRoute(
-    path: 'astrology',
-    builder: (context, state) => AstrologySettingsScreen(
-      controller: container.profileController,
-      onEnable: container.updateMemberAstrology,
-      onDelete: container.deleteMemberAstrology,
+    GoRoute(
+      path: 'astrology',
+      builder: (context, state) => AstrologySettingsScreen(
+        controller: container.profileController,
+        onEnable: container.updateMemberAstrology,
+        onDelete: container.deleteMemberAstrology,
+      ),
     ),
-  ),
-  GoRoute(
-    path: 'policies',
-    builder: (context, state) => PolicyStatusScreen(
-      controller: container.profileController,
-      onboardingComplete:
-          container.memberBootstrap?.onboarding.isComplete ?? false,
+    GoRoute(
+      path: 'policies',
+      builder: (context, state) => PolicyStatusScreen(
+        controller: container.profileController,
+        onboardingComplete:
+            container.memberBootstrap?.onboarding.isComplete ?? false,
+      ),
     ),
-  ),
+  ],
   if (onLogout != null)
     GoRoute(
       path: 'account',
@@ -505,11 +517,19 @@ class _YouBranchRootState extends State<_YouBranchRoot> {
   Widget build(BuildContext context) => ProfileScreen(
     controller: widget.container.profileController,
     portfolioController: widget.container.portfolioController,
-    onOpenInvesting: () => context.push(MemberRoutes.youInvestingPath),
-    onOpenRitualPreferences: () =>
-        context.push(MemberRoutes.youRitualPreferencesPath),
-    onOpenAstrology: () => context.push(MemberRoutes.youAstrologyPath),
-    onOpenPolicies: () => context.push(MemberRoutes.youPoliciesPath),
+    onOpenInvesting: widget.container.presentationPolicy.allowsProfileEditing
+        ? () => context.push(MemberRoutes.youInvestingPath)
+        : null,
+    onOpenRitualPreferences:
+        widget.container.presentationPolicy.allowsProfileEditing
+        ? () => context.push(MemberRoutes.youRitualPreferencesPath)
+        : null,
+    onOpenAstrology: widget.container.presentationPolicy.allowsProfileEditing
+        ? () => context.push(MemberRoutes.youAstrologyPath)
+        : null,
+    onOpenPolicies: widget.container.presentationPolicy.allowsProfileEditing
+        ? () => context.push(MemberRoutes.youPoliciesPath)
+        : null,
     onOpenAccount: widget.showAccount
         ? () => context.push(MemberRoutes.youAccountPath)
         : null,
