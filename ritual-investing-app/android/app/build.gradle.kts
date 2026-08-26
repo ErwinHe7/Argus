@@ -4,6 +4,12 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val ritualAuth0Domain = providers.gradleProperty("auth0Domain").orNull
+    ?: providers.environmentVariable("AUTH0_DOMAIN").orNull
+    ?: "localhost"
+val ritualAuth0Scheme = providers.gradleProperty("auth0Scheme").orNull
+    ?: "https"
+
 android {
     namespace = "com.ritualinvesting.ritual_investing_app"
     compileSdk = flutter.compileSdkVersion
@@ -27,6 +33,11 @@ android {
         // flag during build.
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // HTTPS App Links are the production default. Passing
+        // -Pauth0Scheme=com.ritualinvesting.ritual_investing_app retains
+        // Auth0's custom-scheme rollback.
+        manifestPlaceholders["auth0Domain"] = ritualAuth0Domain
+        manifestPlaceholders["auth0Scheme"] = ritualAuth0Scheme
     }
 
     buildTypes {

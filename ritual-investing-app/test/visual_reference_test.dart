@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:ritual_investing_app/app/ritual_investing_app.dart';
+import 'package:ritual_investing_app/core/navigation/member_routes.dart';
+
+import 'support/fixture_services.dart';
 
 void main() {
   testWidgets('captures the daily ritual in both approved atmospheres', (
@@ -17,7 +21,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const RitualInvestingApp());
+    await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.runAsync(() async {
       final context = tester.element(find.byType(Scaffold).first);
       await Future.wait([
@@ -36,30 +40,30 @@ void main() {
 
     // Warm both theme frames before recording a baseline so the first golden
     // cannot race the initial image decode.
-    await tester.tap(find.byKey(const Key('theme-toggle')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('theme-toggle')));
-    await tester.pumpAndSettle();
+    await _setAuthoritativeTheme(tester, 'dark');
+    await _setAuthoritativeTheme(tester, 'light');
 
-    tester
-        .state<ScrollableState>(find.byType(Scrollable).first)
-        .position
-        .jumpTo(0);
+    final dailyRitualScrollable = find.descendant(
+      of: find.byKey(const PageStorageKey('daily-ritual-scroll')),
+      matching: find.byType(Scrollable),
+    );
+    expect(dailyRitualScrollable, findsOneWidget);
+    tester.state<ScrollableState>(dailyRitualScrollable).position.jumpTo(0);
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
+    expect(
+      tester.state<ScrollableState>(dailyRitualScrollable).position.pixels,
+      0,
+    );
 
     await expectLater(
       find.byKey(const Key('app-shell-scaffold')),
       matchesGoldenFile('goldens/daily_ritual_light.png'),
     );
 
-    await tester.tap(find.byKey(const Key('theme-toggle')));
-    await tester.pumpAndSettle();
+    await _setAuthoritativeTheme(tester, 'dark');
 
-    tester
-        .state<ScrollableState>(find.byType(Scrollable).first)
-        .position
-        .jumpTo(0);
+    tester.state<ScrollableState>(dailyRitualScrollable).position.jumpTo(0);
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
 
@@ -68,6 +72,86 @@ void main() {
       matchesGoldenFile('goldens/daily_ritual_dark.png'),
     );
   });
+
+  testWidgets(
+    'ritual hierarchy leads into adjacent provider-free Demo surfaces',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(
+        RitualInvestingApp(container: fixtureContainer(includeU7: true)),
+      );
+      await tester.pumpAndSettle();
+
+      final art = find.bySemanticsLabel(
+        'The Compass tarot card: a woman holding a lantern at a celestial crossroads',
+      );
+      final interpretation = find.text('Direction, not urgency.');
+      expect(art, findsOneWidget);
+      expect(interpretation, findsOneWidget);
+      expect(
+        tester.getTopLeft(art).dy,
+        lessThan(tester.getTopLeft(interpretation).dy),
+      );
+      expect(find.text('YOUR DAILY SIGNAL'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.textContaining('Demo market scenario'),
+        280,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('Demo market scenario'), findsOneWidget);
+      expect(find.text('Market-informed · reveal the pattern'), findsOneWidget);
+
+      var router = GoRouter.of(
+        tester.element(find.byKey(const Key('app-shell-scaffold'))),
+      );
+      router.go(MemberRoutes.portfolio.location('fixture-portfolio'));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Provider-free Demo · No real money moves'),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel('Demo experience; no real money moves'),
+        findsWidgets,
+      );
+      expect(find.textContaining('No real money moves'), findsWidgets);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      await tester.pumpWidget(
+        RitualInvestingApp(container: fixtureContainer(includeU10: true)),
+      );
+      await tester.pumpAndSettle();
+      router = GoRouter.of(
+        tester.element(find.byKey(const Key('app-shell-scaffold'))),
+      );
+      router.go(MemberRoutes.youMembershipPath);
+      await tester.pumpAndSettle();
+      expect(find.text('Demo membership'), findsOneWidget);
+      expect(find.textContaining('no card or bank'), findsOneWidget);
+      expect(find.textContaining('no payment provider'), findsOneWidget);
+      semantics.dispose();
+    },
+  );
+}
+
+Future<void> _setAuthoritativeTheme(WidgetTester tester, String theme) async {
+  await tester.tap(find.byKey(const Key('theme-toggle')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.byKey(Key('theme-$theme')));
+  await tester.scrollUntilVisible(
+    find.byKey(const Key('preferences-save')),
+    300,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.tap(find.byKey(const Key('preferences-save')));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Ritual').last);
+  await tester.pumpAndSettle();
 }
 
 Future<void> _loadFont(String family, String asset) async {

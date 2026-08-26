@@ -1,0 +1,15 @@
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    avoid_dynamic_calls: true
+    prefer_final_locals: true
