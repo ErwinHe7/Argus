@@ -37,6 +37,11 @@ resolved and recorded in the signed release baseline:
   period and mitigation timeout. Keep submissions off until the intended rules
   are installed after a plan upgrade or the owner explicitly approves a
   materially different Free-plan approximation.
+- Both landing Workers now connect their scheduled handler to the restricted
+  `waitlist_runtime` Neon purge capability. The control-plane owner connection
+  cannot execute that function, while the runtime and maintenance roles can.
+  Record the first post-deployment `retention_purge_completed` event and KV
+  success checkpoint after the next `17 4 * * *` run before enabling writes.
 - The production and beta retention KV namespaces were provisioned on
   2026-08-26 as `fc10e9eaa5024cc6b3d79c59ecb6afad` and
   `840400a6dd244116888da7c7467dce02`. Re-list and match their titles before any
@@ -50,19 +55,18 @@ resolved and recorded in the signed release baseline:
   rows after the beta and production probes.
 - The active versions are beta Demo
   `d54c83dd-9f2b-4ce2-a452-d09f930a729f`, beta landing
-  `de5ad78b-f814-4aa6-816e-78bcbffac251`, production Demo
+  `3fb96ace-789f-4092-be65-52eed175892a`, production Demo
   `202728dc-a48e-4bec-87c1-0770041a2957`, and production landing
-  `b412e88a-55e4-433d-911a-76544171450d`, each at 100 percent. All four
+  `0c7ea422-d2b6-4243-92f9-f2cc8d013b79`, each at 100 percent. All four
   Workers retain disabled `workers.dev` and preview subdomains.
 - `beta.just-build-this.app`, `demo-beta.just-build-this.app`,
   `just-build-this.app`, and `demo.just-build-this.app` are attached to their
   exact services. `www.just-build-this.app` is attached to the production
   landing Worker and returns `308` to the same apex path and query.
-- Beta has the reviewed `17 4 * * *` purge trigger. The owner approved the
-  equivalent production trigger, but Cloudflare rejected its installation
-  because all five Workers Free cron slots are already occupied: four by
-  `ritual-investing-api` and one by `ritual-investing-site-beta`. Do not remove
-  or repurpose an existing trigger without a separate, exact owner decision.
+- Production and beta both have the reviewed `17 4 * * *` purge trigger. To
+  remain within the five-trigger Workers Free limit, the owner explicitly
+  retired the API's `0 6 * * 1` weekly-briefing trigger; its three other
+  schedules remain installed.
 
 The Cloudflare zone was active at the 2026-08-26 activation. The existing API
 Custom Domains remained attached throughout. Their required preserved health
@@ -82,7 +86,7 @@ change either API.
 | --- | --- | --- |
 | Landing Worker | `ritual-investing-site` / `just-build-this.app` | `ritual-investing-site-beta` / `beta.just-build-this.app` |
 | Demo Worker | `ritual-investing-demo` / `demo.just-build-this.app` | `ritual-investing-demo-beta` / `demo-beta.just-build-this.app` |
-| Active landing version | `b412e88a-55e4-433d-911a-76544171450d` | `de5ad78b-f814-4aa6-816e-78bcbffac251` |
+| Active landing version | `0c7ea422-d2b6-4243-92f9-f2cc8d013b79` | `3fb96ace-789f-4092-be65-52eed175892a` |
 | Active Demo version | `202728dc-a48e-4bec-87c1-0770041a2957` | `d54c83dd-9f2b-4ce2-a452-d09f930a729f` |
 | Canonical redirect | `www.just-build-this.app` → apex, `308` | none |
 | Demo protocol | current `2`, previous `1` | current `2`, previous `1` |
