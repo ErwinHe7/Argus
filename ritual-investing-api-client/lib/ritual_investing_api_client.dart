@@ -72,6 +72,7 @@ export 'package:ritual_investing_api_client/generated/model/create_circle_reques
 export 'package:ritual_investing_api_client/generated/model/create_hypothetical_future_mirror.dart';
 export 'package:ritual_investing_api_client/generated/model/create_hypothetical_future_mirror_annual_return_bps.dart';
 export 'package:ritual_investing_api_client/generated/model/create_member_intention.dart';
+export 'package:ritual_investing_api_client/generated/model/create_privacy_download_url200_response.dart';
 export 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
 export 'package:ritual_investing_api_client/generated/model/decide_moderation_request.dart';
 export 'package:ritual_investing_api_client/generated/model/disconnect_webull_connection_request.dart';
@@ -97,6 +98,8 @@ export 'package:ritual_investing_api_client/generated/model/record_consent_reque
 export 'package:ritual_investing_api_client/generated/model/redeem_webull_completion_request.dart';
 export 'package:ritual_investing_api_client/generated/model/report_content_request.dart';
 export 'package:ritual_investing_api_client/generated/model/request_privacy_action_request.dart';
+export 'package:ritual_investing_api_client/generated/model/request_privacy_action_request_one_of.dart';
+export 'package:ritual_investing_api_client/generated/model/request_privacy_action_request_one_of1.dart';
 export 'package:ritual_investing_api_client/generated/model/scenario_money.dart';
 export 'package:ritual_investing_api_client/generated/model/select_webull_account_request.dart';
 export 'package:ritual_investing_api_client/generated/model/transition_ritual_request.dart';

@@ -1,10 +1,6 @@
 import { env, exports } from "cloudflare:workers";
 import {
   createExecutionContext,
-  createMessageBatch,
-  createScheduledController,
-  getQueueResult,
-  waitOnExecutionContext,
 } from "cloudflare:test";
 import { describe, expect, it } from "vitest";
 
@@ -34,26 +30,7 @@ describe("Worker entrypoints", () => {
     });
   });
 
-  it("exposes scheduled and queue handlers", async () => {
-    const scheduledContext = createExecutionContext();
-    await worker.scheduled(
-      createScheduledController({ cron: "0 5 * * *", scheduledTime: new Date(0) }),
-      env as unknown as Bindings,
-      scheduledContext,
-    );
-    await waitOnExecutionContext(scheduledContext);
-
-    const queueContext = createExecutionContext();
-    const batch = createMessageBatch("ritual-jobs", [
-      {
-        id: "message-1",
-        timestamp: new Date(0),
-        attempts: 1,
-        body: { kind: "noop" },
-      },
-    ]);
-    await worker.queue(batch, env as unknown as Bindings, queueContext);
-    const result = await getQueueResult(batch, queueContext);
-    expect(result.retryMessages).toEqual([]);
+  it("does not expose Cloudflare scheduled or Queue compute", () => {
+    expect(Object.keys(worker).sort()).toEqual(["fetch"]);
   });
 });

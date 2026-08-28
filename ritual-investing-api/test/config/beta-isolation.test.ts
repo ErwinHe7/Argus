@@ -7,11 +7,11 @@ type WranglerConfig = {
   name: string;
   routes: Array<{ pattern: string; custom_domain: boolean }>;
   vars: Record<string, string>;
-  queues: {
+  queues?: {
     producers: Array<{ queue: string }>;
     consumers: Array<{ queue: string; dead_letter_queue: string }>;
   };
-  r2_buckets: Array<{ bucket_name: string }>;
+  r2_buckets?: Array<{ bucket_name: string }>;
   ratelimits: Array<{ namespace_id: string }>;
 };
 
@@ -33,14 +33,7 @@ describe("beta deployment isolation", () => {
     expect(beta.routes).toEqual([
       { pattern: "api-beta.just-build-this.app", custom_domain: true },
     ]);
-    for (const name of [
-      "KILL_SWITCH_SCHEDULED",
-      "KILL_SWITCH_QUEUE",
-      "KILL_SWITCH_NOTIFICATIONS",
-      "KILL_SWITCH_EXPORTS",
-      "KILL_SWITCH_PURGE",
-      "KILL_SWITCH_MEDIA",
-    ]) {
+    for (const name of ["KILL_SWITCH_NOTIFICATIONS", "KILL_SWITCH_EXPORTS"]) {
       expect(beta.vars[name], name).toBe("on");
     }
   });
@@ -59,19 +52,24 @@ describe("beta deployment isolation", () => {
     );
   });
 
-  it("shares no Queue, R2, or rate-limit namespace with production", () => {
+  it("has no retired Queue or R2 binding and isolates rate-limit namespaces", () => {
     const production = config("wrangler.jsonc");
     const beta = config("wrangler.beta.jsonc");
     const resources = (value: WranglerConfig) => new Set([
-      ...value.queues.producers.map((entry) => entry.queue),
-      ...value.queues.consumers.flatMap((entry) => [
+      ...(value.queues?.producers ?? []).map((entry) => entry.queue),
+      ...(value.queues?.consumers ?? []).flatMap((entry) => [
         entry.queue,
         entry.dead_letter_queue,
       ]),
-      ...value.r2_buckets.map((entry) => entry.bucket_name),
+      ...(value.r2_buckets ?? []).map((entry) => entry.bucket_name),
       ...value.ratelimits.map((entry) => entry.namespace_id),
     ]);
     const productionResources = resources(production);
+
+    expect(production.queues).toBeUndefined();
+    expect(production.r2_buckets).toBeUndefined();
+    expect(beta.queues).toBeUndefined();
+    expect(beta.r2_buckets).toBeUndefined();
 
     expect(
       [...resources(beta)].filter((resource) =>

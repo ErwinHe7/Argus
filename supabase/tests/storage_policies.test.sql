@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(14);
+select plan(16);
 
 select is((select public from storage.buckets where id = 'member-media'), false, 'member media bucket is private');
 select is((select public from storage.buckets where id = 'privacy-exports'), false, 'privacy export bucket is private');
@@ -18,8 +18,8 @@ select is(
 );
 select is(
   (select count(*)::bigint from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'argus_privacy_exports_%'),
-  1::bigint,
-  'privacy exports are download-only for members'
+  0::bigint,
+  'privacy exports have no direct member read policy and require signed access'
 );
 select is(
   (select count(*)::bigint from pg_policies where schemaname = 'storage' and tablename = 'objects' and policyname like 'argus_media_quarantine_%'),
@@ -39,6 +39,10 @@ values (
   'aaaaaaaa-8000-4000-8000-000000000001', 'member-media',
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/avatar.webp',
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+), (
+  'aaaaaaaa-8000-4000-8000-000000000002', 'privacy-exports',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/export.zip',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 );
 
 set local role authenticated;
@@ -53,6 +57,11 @@ select is(
   (select count(*)::bigint from storage.objects where bucket_id = 'member-media'),
   0::bigint,
   'user B cannot read user A media object by identifier'
+);
+select is(
+  (select count(*)::bigint from storage.objects where bucket_id = 'privacy-exports'),
+  0::bigint,
+  'non-owner cannot read a privacy export object directly'
 );
 
 select throws_ok(
@@ -78,6 +87,11 @@ select is(
   (select count(*)::bigint from storage.objects where bucket_id = 'member-media'),
   1::bigint,
   'user A can read the owned media object'
+);
+select is(
+  (select count(*)::bigint from storage.objects where bucket_id = 'privacy-exports'),
+  0::bigint,
+  'owner also uses a short-lived server-minted URL instead of direct table access'
 );
 reset role;
 

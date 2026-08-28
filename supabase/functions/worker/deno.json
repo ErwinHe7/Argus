@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "postgres": "npm:postgres@3.4.7",
+    "jsr:@std/assert@1.0.15": "jsr:@std/assert@1.0.15"
+  },
+  "lock": "./deno.lock",
+  "tasks": {
+    "check": "deno check index.ts worker_test.ts ../_shared/database.ts ../_shared/jobs/auth.ts ../_shared/jobs/auth-admin.ts ../_shared/jobs/purge.ts ../_shared/jobs/runtime.ts ../_shared/jobs/storage.ts",
+    "test": "deno test --allow-env worker_test.ts"
+  }
+}

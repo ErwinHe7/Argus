@@ -5,6 +5,8 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import YAML from "yaml";
 
+import { retainedJobHandlers } from "../../src/jobs/scheduled.ts";
+
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const readRepo = (path: string) => readFileSync(join(repoRoot, path), "utf8");
 
@@ -85,10 +87,7 @@ function currentApiDomains(): string[] {
 }
 
 function currentQueueConsumers(): string[] {
-  const source = readRepo("ritual-investing-api/src/jobs/queue-consumer.ts");
-  const body = source.match(/queueConsumerSchema\s*=\s*z\.enum\(\[([\s\S]*?)\]\)/)?.[1];
-  expect(body, "queue consumer enum").toBeDefined();
-  return [...body!.matchAll(/"([a-z-]+)"/g)].map((match) => match[1]!);
+  return [...new Set(Object.values(retainedJobHandlers))];
 }
 
 function currentRoutes(): string[] {
@@ -131,12 +130,13 @@ describe("product authority contract", () => {
       currentApiDomains(),
       "API domain",
     );
-    expectExactlyOnce(
-      entries.filter(({ surface }) => surface.startsWith("background-handler:"))
-        .map(({ surface }) => surface.slice("background-handler:".length)),
-      currentQueueConsumers(),
-      "background handler",
-    );
+    for (const handler of currentQueueConsumers()) {
+      expect(
+        entries.filter(({ surface }) => surface === `background-handler:${handler}`),
+        `${handler} must have one authority entry`,
+      ).toHaveLength(1);
+    }
+    expect(currentQueueConsumers()).not.toContain("recurring-plan-delivery");
   });
 
   it("classifies every generated API route through one non-overlapping rule", () => {

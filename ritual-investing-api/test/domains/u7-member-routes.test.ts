@@ -274,7 +274,7 @@ describe("U7 member routes", () => {
     expect(requestDeletion).not.toHaveBeenCalled();
   });
 
-  it("accepts deletion only when every durable processor binding is ready", async () => {
+  it("keeps the deprecated Cloudflare deletion path disabled even with legacy bindings", async () => {
     const receipt = {
       request_id: "018f3c2a-4b67-7a89-8abc-123456789021",
       tombstone_id: "018f3c2a-4b67-7a89-8abc-123456789022",
@@ -326,9 +326,11 @@ describe("U7 member routes", () => {
       } as never,
     );
 
-    expect(response.status, await response.clone().text()).toBe(202);
-    await expect(response.json()).resolves.toMatchObject({ data: receipt });
-    expect(requestDeletion).toHaveBeenCalledOnce();
+    expect(response.status, await response.clone().text()).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "service_unavailable", retryable: true },
+    });
+    expect(requestDeletion).not.toHaveBeenCalled();
   });
 
   it("protects push tokens without retaining plaintext in either stored field", async () => {

@@ -160,21 +160,12 @@ function exportProcessorReady(environment: AppEnvironment["Bindings"]): boolean 
 }
 
 function deletionProcessorReady(
-  environment: AppEnvironment["Bindings"],
+  _environment: AppEnvironment["Bindings"],
 ): boolean {
-  return (
-    environment.KILL_SWITCH_SCHEDULED !== "on" &&
-    environment.KILL_SWITCH_QUEUE !== "on" &&
-    environment.KILL_SWITCH_PURGE !== "on" &&
-    environment.ASYNC_QUEUE !== undefined &&
-    environment.JOBS_DLQ !== undefined &&
-    environment.RUNTIME_DATABASE_URL !== undefined &&
-    environment.SCHEDULER_DATABASE_URL !== undefined &&
-    environment.PRIVACY_DATABASE_URL !== undefined &&
-    environment.PRIVACY_EXPORTS !== undefined &&
-    environment.MEDIA_QUARANTINE !== undefined &&
-    environment.DELETION_DENY_JOURNAL !== undefined
-  );
+  // The Cloudflare/R2 deletion path is retired. Deletion is accepted only by
+  // the retained Supabase route, which consumes an AAL2 action-bound receipt
+  // and calls argus_private.begin_member_deletion atomically.
+  return false;
 }
 
 export function registerPrivacyRoutes(

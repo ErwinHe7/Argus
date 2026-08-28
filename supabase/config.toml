@@ -177,6 +177,11 @@ password_requirements = ""
 # and keeps all callback/query responses generic and non-cacheable.
 verify_jwt = false
 
+[functions.worker]
+# Cron authenticates this internal endpoint with a one-use HMAC proof. Member
+# JWTs are deliberately not accepted by the worker.
+verify_jwt = false
+
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
 email_sent = 2

@@ -7,8 +7,13 @@ import {
 } from "./request-transaction.ts";
 import type { VerifiedRequestClaims } from "./request-context.ts";
 import { supabaseSessionSnapshotSchema } from "../domains/session/supabase-schemas.ts";
+import { sha256TextHex } from "../security/sha256.ts";
 
 export type JsonObject = Record<string, unknown>;
+
+export type PrivacySignedStorage = Readonly<{
+  createSignedUrl(bucket: string, path: string, expiresInSeconds: number): Promise<string>;
+}>;
 
 export class RepositoryNotFoundError extends Error {
   constructor() {
@@ -21,6 +26,13 @@ export class RepositoryRevisionConflictError extends Error {
   constructor() {
     super("revision_conflict");
     this.name = "RepositoryRevisionConflictError";
+  }
+}
+
+export class RepositoryStepUpRequiredError extends Error {
+  constructor() {
+    super("step_up_required");
+    this.name = "RepositoryStepUpRequiredError";
   }
 }
 
@@ -113,6 +125,7 @@ export const RETAINED_SUPABASE_RELATIONS = Object.freeze({
 export type SupabaseRepositoryBinding = Readonly<{
   pool: DatabasePool;
   claims: VerifiedRequestClaims;
+  signedStorage?: PrivacySignedStorage;
 }>;
 
 function config(binding: SupabaseRepositoryBinding): RequestTransactionConfig {
@@ -572,12 +585,14 @@ export function createSupabaseMediaRepository(
           object_path: string;
           mime_type: string;
           max_bytes: number;
+          user_id: string;
+          deletion_epoch: number;
         }>(
           `update argus_private.media_upload_intents
               set status = 'uploaded'
             where id = $1 and user_id = argus_private.request_user_id() and status = 'pending'
               and expires_at > clock_timestamp() and max_bytes >= $2
-          returning bucket_id, object_path, mime_type, max_bytes`,
+          returning bucket_id, object_path, mime_type, max_bytes, user_id, deletion_epoch`,
           [intentId, byteSize],
         );
         const intent = first(updated.rows);
@@ -593,6 +608,13 @@ export function createSupabaseMediaRepository(
             byteSize,
             checksum,
           ],
+        );
+        await database.query(
+          `insert into argus_private.outbox_events(
+             user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
+           ) values ($1,$2,'argus_jobs','media.scan.requested',$3,$4)
+           on conflict (topic,dedupe_key) do nothing`,
+          [intent.user_id, intent.deletion_epoch, intentId, `media-scan:${intentId}`],
         );
         return first(asset.rows);
       }),
@@ -636,7 +658,18 @@ export function createSupabaseModerationRepository(
             input.details ?? null,
           ],
         );
-        return first(result.rows);
+        const report = first(result.rows) as JsonObject & { id: string };
+        await database.query(
+          `insert into argus_private.outbox_events(
+             user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
+           )
+           select report.user_id,report.deletion_epoch,'argus_jobs',
+                  'content-report.created',report.id,$2
+             from argus_app.content_reports report where report.id=$1
+           on conflict (topic,dedupe_key) do nothing`,
+          [report.id, `content-report:${report.id}`],
+        );
+        return report;
       }),
     decide: (
       caseId: string,
@@ -688,8 +721,59 @@ export function createSupabasePrivacyRepository(
     request: (
       requestType: "export" | "deletion",
       dedupeKey: string,
+      stepUpReceipt?: string,
     ) =>
       ownerTransaction(binding, async (database) => {
+        if (requestType === "deletion") {
+          if (stepUpReceipt === undefined) throw new RepositoryStepUpRequiredError();
+          try {
+            const result = await database.query<{ id: string }>(
+              "select argus_private.begin_member_deletion($1,$2,$3) as id",
+              [
+                await sha256TextHex(stepUpReceipt),
+                binding.claims.sessionId,
+                dedupeKey,
+              ],
+            );
+            return first(result.rows);
+          } catch (error) {
+            if (
+              error instanceof Error &&
+              (error.message === "step_up_required" || error.message.includes("step_up_required"))
+            ) {
+              throw new RepositoryStepUpRequiredError();
+            }
+            throw error;
+          }
+        }
+        const scopedDedupeKey = `privacy-export:${await sha256TextHex(
+          `${binding.claims.userId}\u0000${dedupeKey}`,
+        )}`;
+        await database.query(
+          "select pg_advisory_xact_lock(hashtextextended($1,0))",
+          [scopedDedupeKey],
+        );
+        const member = await database.query<{ user_id: string }>(
+          `select user_id from argus_app.members
+            where user_id=argus_private.request_user_id() and status='active'
+            for update`,
+        );
+        if (member.rows[0] === undefined) throw new RepositoryNotFoundError();
+        const existing = await database.query<{
+          event_type: string;
+          aggregate_id: string;
+        }>(
+          `select event_type,aggregate_id from argus_private.outbox_events
+            where user_id=argus_private.request_user_id()
+              and topic='argus_jobs' and dedupe_key=$1`,
+          [scopedDedupeKey],
+        );
+        if (existing.rows[0] !== undefined) {
+          if (existing.rows[0].event_type !== "privacy.export.requested") {
+            throw new RepositoryRevisionConflictError();
+          }
+          return { id: existing.rows[0].aggregate_id };
+        }
         const created = await database.query<{ id: string }>(
           `insert into argus_app.privacy_requests(
              user_id, deletion_epoch, request_type, status
@@ -709,7 +793,7 @@ export function createSupabasePrivacyRepository(
            select argus_private.request_user_id(), member.deletion_epoch, 'argus_jobs', $2, $1, $3
              from argus_app.members member
             where member.user_id = argus_private.request_user_id() and member.status = 'active'`,
-          [request.id, `privacy.${requestType}.requested`, dedupeKey],
+          [request.id, "privacy.export.requested", scopedDedupeKey],
         );
         return request;
       }),
@@ -723,6 +807,58 @@ export function createSupabasePrivacyRepository(
         );
         return result.rows[0] ?? null;
       }),
+    createDownloadUrl: async (requestId: string) => {
+      if (binding.signedStorage === undefined) throw new Error("storage_unavailable");
+      const artifact = await ownerTransaction(binding, async (database) => {
+        const result = await database.query<{
+          bucket_id: string;
+          object_path: string;
+        }>(
+          `select artifact.bucket_id,artifact.object_path
+             from argus_private.privacy_export_artifacts artifact
+             join argus_app.privacy_requests request on request.id=artifact.request_id
+             join argus_app.members member on member.user_id=artifact.user_id
+            where artifact.request_id=$1
+              and artifact.user_id=argus_private.request_user_id()
+              and artifact.deletion_epoch=member.deletion_epoch
+              and request.status='completed'
+              and artifact.revoked_at is null
+              and artifact.expires_at>clock_timestamp()
+              and member.status='active'`,
+          [requestId],
+        );
+        if (result.rows[0] === undefined) throw new RepositoryNotFoundError();
+        return result.rows[0];
+      });
+      const issuedAt = Date.now();
+      const url = await binding.signedStorage.createSignedUrl(
+        artifact.bucket_id,
+        artifact.object_path,
+        300,
+      );
+      await ownerTransaction(binding, async (database) => {
+        const current = await database.query<{ current: boolean }>(
+          `select exists(
+             select 1 from argus_private.privacy_export_artifacts artifact
+             join argus_app.privacy_requests request on request.id=artifact.request_id
+             join argus_app.members member on member.user_id=artifact.user_id
+            where artifact.request_id=$1
+              and artifact.user_id=argus_private.request_user_id()
+              and artifact.deletion_epoch=member.deletion_epoch
+              and artifact.revoked_at is null
+              and artifact.expires_at>clock_timestamp()
+              and request.status='completed'
+              and member.status='active'
+           ) as current`,
+          [requestId],
+        );
+        if (current.rows[0]?.current !== true) throw new RepositoryNotFoundError();
+      });
+      return {
+        url,
+        expires_at: new Date(issuedAt + 300_000).toISOString(),
+      };
+    },
   });
 }
 

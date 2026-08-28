@@ -49,6 +49,7 @@ doc/CreateCircleRequest.md
 doc/CreateHypotheticalFutureMirror.md
 doc/CreateHypotheticalFutureMirrorAnnualReturnBps.md
 doc/CreateMemberIntention.md
+doc/CreatePrivacyDownloadUrl200Response.md
 doc/CreateUploadIntentRequest.md
 doc/DecideModerationRequest.md
 doc/DisconnectWebullConnectionRequest.md
@@ -85,6 +86,8 @@ doc/RecordConsentRequest.md
 doc/RedeemWebullCompletionRequest.md
 doc/ReportContentRequest.md
 doc/RequestPrivacyActionRequest.md
+doc/RequestPrivacyActionRequestOneOf.md
+doc/RequestPrivacyActionRequestOneOf1.md
 doc/RitualsApi.md
 doc/RowanApi.md
 doc/SavedApi.md
@@ -165,6 +168,7 @@ lib/generated/model/create_circle_request.dart
 lib/generated/model/create_hypothetical_future_mirror.dart
 lib/generated/model/create_hypothetical_future_mirror_annual_return_bps.dart
 lib/generated/model/create_member_intention.dart
+lib/generated/model/create_privacy_download_url200_response.dart
 lib/generated/model/create_upload_intent_request.dart
 lib/generated/model/decide_moderation_request.dart
 lib/generated/model/disconnect_webull_connection_request.dart
@@ -190,6 +194,8 @@ lib/generated/model/record_consent_request.dart
 lib/generated/model/redeem_webull_completion_request.dart
 lib/generated/model/report_content_request.dart
 lib/generated/model/request_privacy_action_request.dart
+lib/generated/model/request_privacy_action_request_one_of.dart
+lib/generated/model/request_privacy_action_request_one_of1.dart
 lib/generated/model/scenario_money.dart
 lib/generated/model/select_webull_account_request.dart
 lib/generated/model/transition_ritual_request.dart

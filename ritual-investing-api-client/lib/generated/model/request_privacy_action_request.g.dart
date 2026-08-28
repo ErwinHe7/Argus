@@ -11,6 +11,8 @@ abstract class _$RequestPrivacyActionRequestCWProxy {
     RequestPrivacyActionRequestRequestTypeEnum requestType,
   );
 
+  RequestPrivacyActionRequest stepUpReceipt(String stepUpReceipt);
+
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `RequestPrivacyActionRequest(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -19,6 +21,7 @@ abstract class _$RequestPrivacyActionRequestCWProxy {
   /// ````
   RequestPrivacyActionRequest call({
     RequestPrivacyActionRequestRequestTypeEnum requestType,
+    String stepUpReceipt,
   });
 }
 
@@ -35,6 +38,10 @@ class _$RequestPrivacyActionRequestCWProxyImpl
   ) => this(requestType: requestType);
 
   @override
+  RequestPrivacyActionRequest stepUpReceipt(String stepUpReceipt) =>
+      this(stepUpReceipt: stepUpReceipt);
+
+  @override
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `RequestPrivacyActionRequest(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -43,12 +50,17 @@ class _$RequestPrivacyActionRequestCWProxyImpl
   /// ````
   RequestPrivacyActionRequest call({
     Object? requestType = const $CopyWithPlaceholder(),
+    Object? stepUpReceipt = const $CopyWithPlaceholder(),
   }) {
     return RequestPrivacyActionRequest(
       requestType: requestType == const $CopyWithPlaceholder()
           ? _value.requestType
           // ignore: cast_nullable_to_non_nullable
           : requestType as RequestPrivacyActionRequestRequestTypeEnum,
+      stepUpReceipt: stepUpReceipt == const $CopyWithPlaceholder()
+          ? _value.stepUpReceipt
+          // ignore: cast_nullable_to_non_nullable
+          : stepUpReceipt as String,
     );
   }
 }
@@ -67,7 +79,7 @@ extension $RequestPrivacyActionRequestCopyWith on RequestPrivacyActionRequest {
 RequestPrivacyActionRequest _$RequestPrivacyActionRequestFromJson(
   Map<String, dynamic> json,
 ) => $checkedCreate('RequestPrivacyActionRequest', json, ($checkedConvert) {
-  $checkKeys(json, requiredKeys: const ['requestType']);
+  $checkKeys(json, requiredKeys: const ['requestType', 'step_up_receipt']);
   final val = RequestPrivacyActionRequest(
     requestType: $checkedConvert(
       'requestType',
@@ -78,9 +90,10 @@ RequestPrivacyActionRequest _$RequestPrivacyActionRequestFromJson(
             RequestPrivacyActionRequestRequestTypeEnum.unknownDefaultOpenApi,
       ),
     ),
+    stepUpReceipt: $checkedConvert('step_up_receipt', (v) => v as String),
   );
   return val;
-});
+}, fieldKeyMap: const {'stepUpReceipt': 'step_up_receipt'});
 
 Map<String, dynamic> _$RequestPrivacyActionRequestToJson(
   RequestPrivacyActionRequest instance,
@@ -88,10 +101,10 @@ Map<String, dynamic> _$RequestPrivacyActionRequestToJson(
   'requestType':
       _$RequestPrivacyActionRequestRequestTypeEnumEnumMap[instance
           .requestType]!,
+  'step_up_receipt': instance.stepUpReceipt,
 };
 
 const _$RequestPrivacyActionRequestRequestTypeEnumEnumMap = {
-  RequestPrivacyActionRequestRequestTypeEnum.export_: 'export',
   RequestPrivacyActionRequestRequestTypeEnum.deletion: 'deletion',
   RequestPrivacyActionRequestRequestTypeEnum.unknownDefaultOpenApi:
       'unknown_default_open_api',

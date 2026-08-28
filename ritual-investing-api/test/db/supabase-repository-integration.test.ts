@@ -215,11 +215,14 @@ describe("Supabase transaction-pooler repository boundary", () => {
 
   it("writes the retained privacy request and outbox atomically in U2 schemas", async () => {
     const requestId = "018f3c2a-4b67-7a89-8abc-123456789041";
-    const recorded = recordingPool((text) =>
-      text.includes("insert into argus_app.privacy_requests")
+    const recorded = recordingPool((text) => {
+      if (text.includes("select user_id from argus_app.members")) {
+        return { rows: [{ user_id: userA }], rowCount: 1 };
+      }
+      return text.includes("insert into argus_app.privacy_requests")
         ? { rows: [{ id: requestId }], rowCount: 1 }
-        : { rows: [], rowCount: 0 },
-    );
+        : { rows: [], rowCount: 0 };
+    });
     const repository = createSupabasePrivacyRepository({
       pool: recorded.pool,
       claims: claims(),
@@ -232,6 +235,126 @@ describe("Supabase transaction-pooler repository boundary", () => {
     expect(statements.some((text) => text.includes("argus_app.privacy_requests"))).toBe(true);
     expect(statements.some((text) => text.includes("argus_private.outbox_events"))).toBe(true);
     expect(statements.at(-1)).toBe("commit");
+  });
+
+  it("replays an export idempotency key without creating a second request", async () => {
+    const requestId = "018f3c2a-4b67-7a89-8abc-123456789041";
+    const recorded = recordingPool((text) => {
+      if (text.includes("select user_id from argus_app.members")) {
+        return { rows: [{ user_id: userA }], rowCount: 1 };
+      }
+      if (text.includes("select event_type,aggregate_id")) {
+        return {
+          rows: [{ event_type: "privacy.export.requested", aggregate_id: requestId }],
+          rowCount: 1,
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    const repository = createSupabasePrivacyRepository({
+      pool: recorded.pool,
+      claims: claims(),
+    });
+    await expect(repository.request("export", "privacy-export-replay")).resolves
+      .toEqual({ id: requestId });
+    expect(recorded.queries.some(({ text }) =>
+      text.includes("insert into argus_app.privacy_requests")
+    )).toBe(false);
+  });
+
+  it("scopes export idempotency by owner before the globally unique outbox key", async () => {
+    const keys = new Set<string>();
+    let created = 0;
+    const recorded = recordingPool((text, values) => {
+      if (text.includes("select user_id from argus_app.members")) {
+        return { rows: [{ user_id: userA }], rowCount: 1 };
+      }
+      if (text.includes("select event_type,aggregate_id")) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (text.includes("insert into argus_app.privacy_requests")) {
+        created += 1;
+        return {
+          rows: [{ id: created === 1
+            ? "018f3c2a-4b67-7a89-8abc-123456789041"
+            : "018f3c2a-4b67-7a89-8abc-123456789042" }],
+          rowCount: 1,
+        };
+      }
+      if (text.includes("insert into argus_private.outbox_events")) {
+        keys.add(String(values[2]));
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    await createSupabasePrivacyRepository({ pool: recorded.pool, claims: claims(userA) })
+      .request("export", "same-client-key-across-users");
+    await createSupabasePrivacyRepository({ pool: recorded.pool, claims: claims(userB, sessionB) })
+      .request("export", "same-client-key-across-users");
+    expect([...keys]).toHaveLength(2);
+    expect([...keys].every((key) => /^privacy-export:[a-f0-9]{64}$/.test(key))).toBe(true);
+    expect([...keys].join(" ")).not.toContain("same-client-key-across-users");
+  });
+
+  it("mints a five-minute privacy URL without returning object coordinates", async () => {
+    let now = 1_000;
+    const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
+    const signed = vi.fn(async () => {
+      now = 61_000; // Signing latency cannot extend the advertised lifetime.
+      return "https://project.supabase.co/storage/v1/object/sign/token";
+    });
+    const recorded = recordingPool((text) => {
+      if (text.includes("select artifact.bucket_id")) {
+        return {
+          rows: [{ bucket_id: "privacy-exports", object_path: `${userA}/export.zip` }],
+          rowCount: 1,
+        };
+      }
+      if (text.includes("select exists(")) return { rows: [{ current: true }], rowCount: 1 };
+      return { rows: [], rowCount: 0 };
+    });
+    const repository = createSupabasePrivacyRepository({
+      pool: recorded.pool,
+      claims: claims(),
+      signedStorage: { createSignedUrl: signed },
+    });
+    const result = await repository.createDownloadUrl(
+      "018f3c2a-4b67-7a89-8abc-123456789041",
+    );
+    expect(signed).toHaveBeenCalledWith("privacy-exports", `${userA}/export.zip`, 300);
+    expect(result).toEqual({
+      url: "https://project.supabase.co/storage/v1/object/sign/token",
+      expires_at: new Date(301_000).toISOString(),
+    });
+    expect(JSON.stringify(result)).not.toContain("export.zip");
+    const postSignCheck = recorded.queries.find(({ text }) => text.includes("select exists("));
+    expect(postSignCheck?.text).toContain("join argus_app.privacy_requests request");
+    expect(postSignCheck?.text).toContain("request.status='completed'");
+    nowSpy.mockRestore();
+  });
+
+  it("routes deletion through the action-bound Supabase definer function", async () => {
+    const requestId = "018f3c2a-4b67-7a89-8abc-123456789041";
+    const receipt = "R".repeat(43);
+    const recorded = recordingPool((text) =>
+      text.includes("begin_member_deletion")
+        ? { rows: [{ id: requestId }], rowCount: 1 }
+        : { rows: [], rowCount: 0 }
+    );
+    const repository = createSupabasePrivacyRepository({
+      pool: recorded.pool,
+      claims: claims(),
+    });
+    await expect(repository.request(
+      "deletion",
+      "privacy-delete-idempotency",
+      receipt,
+    )).resolves.toEqual({ id: requestId });
+    const invocation = recorded.queries.find(({ text }) =>
+      text.includes("begin_member_deletion")
+    );
+    expect(invocation?.values[0]).toMatch(/^[a-f0-9]{64}$/);
+    expect(invocation?.values).not.toContain(receipt);
+    expect(invocation?.values[1]).toBe(sessionA);
   });
 
   it("runs public preview without inventing a user claim", async () => {
@@ -282,6 +405,12 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const genericId = "018f3c2a-4b67-7a89-8abc-123456789099";
     let scenarioRequestHash = "";
     const recorded = recordingPool((text, values = []) => {
+      if (text.includes("select event_type,aggregate_id")) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (text.includes("select user_id from argus_app.members")) {
+        return { rows: [{ user_id: userA }], rowCount: 1 };
+      }
       if (text.includes("has_staff_permission")) {
         return { rows: [{ allowed: true }], rowCount: 1 };
       }

@@ -28,38 +28,11 @@
     "CF_ACCESS_ISSUER": "https://replace-me-beta.cloudflareaccess.com",
     "CF_ACCESS_AUDIENCE": "replace-with-beta-cloudflare-access-application-aud",
     "CF_ACCESS_JWKS_URL": "https://replace-me-beta.cloudflareaccess.com/cdn-cgi/access/certs",
-    "KILL_SWITCH_SCHEDULED": "on",
-    "KILL_SWITCH_QUEUE": "on",
     "KILL_SWITCH_NOTIFICATIONS": "on",
     "KILL_SWITCH_NOTIFICATION_WRITER": "off",
     "KILL_SWITCH_NOTIFICATION_DELIVERY": "on",
-    "KILL_SWITCH_EXPORTS": "on",
-    "KILL_SWITCH_PURGE": "on",
-    "KILL_SWITCH_MEDIA": "on"
+    "KILL_SWITCH_EXPORTS": "on"
   },
-  "queues": {
-    "producers": [
-      { "binding": "ASYNC_QUEUE", "queue": "ritual-beta-jobs" },
-      { "binding": "JOBS_DLQ", "queue": "ritual-beta-jobs-dlq" }
-    ],
-    "consumers": [
-      {
-        "queue": "ritual-beta-jobs",
-        "max_batch_size": 10,
-        "max_batch_timeout": 5,
-        "max_retries": 4,
-        "dead_letter_queue": "ritual-beta-jobs-dlq",
-        "max_concurrency": 2,
-        "retry_delay": 10
-      }
-    ]
-  },
-  "r2_buckets": [
-    { "binding": "MEDIA_QUARANTINE", "bucket_name": "ritual-beta-media-quarantine" },
-    { "binding": "MEDIA_PUBLIC", "bucket_name": "ritual-beta-media-public" },
-    { "binding": "PRIVACY_EXPORTS", "bucket_name": "ritual-beta-privacy-exports" },
-    { "binding": "DELETION_DENY_JOURNAL", "bucket_name": "ritual-beta-deletion-deny" }
-  ],
   "ratelimits": [
     { "name": "RL_HEALTH", "namespace_id": "2001", "simple": { "limit": 60, "period": 60 } },
     { "name": "RL_PUBLIC", "namespace_id": "2002", "simple": { "limit": 30, "period": 60 } },

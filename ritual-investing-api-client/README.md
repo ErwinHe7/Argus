@@ -130,6 +130,7 @@ Class | Method | HTTP request | Description
 [*NotificationsApi*](doc/NotificationsApi.md) | [**updateNotificationPreferences**](doc/NotificationsApi.md#updatenotificationpreferences) | **PATCH** /v1/notification-preferences | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getLiveHealth**](doc/PlatformApi.md#getlivehealth) | **GET** /v1/health/live | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getOpenApiDocument**](doc/PlatformApi.md#getopenapidocument) | **GET** /v1/openapi.json | 
+[*PrivacyApi*](doc/PrivacyApi.md) | [**createPrivacyDownloadUrl**](doc/PrivacyApi.md#createprivacydownloadurl) | **POST** /v1/privacy/requests/{request_id}/download-url | 
 [*PrivacyApi*](doc/PrivacyApi.md) | [**listPrivacyRequests**](doc/PrivacyApi.md#listprivacyrequests) | **GET** /v1/privacy/requests | 
 [*PrivacyApi*](doc/PrivacyApi.md) | [**requestPrivacyAction**](doc/PrivacyApi.md#requestprivacyaction) | **POST** /v1/privacy/requests | 
 [*PublicApi*](doc/PublicApi.md) | [**getPublicEditorial**](doc/PublicApi.md#getpubliceditorial) | **GET** /v1/public/editorial/items/{slug} | 
@@ -180,6 +181,7 @@ Class | Method | HTTP request | Description
  - [CreateHypotheticalFutureMirror](doc/CreateHypotheticalFutureMirror.md)
  - [CreateHypotheticalFutureMirrorAnnualReturnBps](doc/CreateHypotheticalFutureMirrorAnnualReturnBps.md)
  - [CreateMemberIntention](doc/CreateMemberIntention.md)
+ - [CreatePrivacyDownloadUrl200Response](doc/CreatePrivacyDownloadUrl200Response.md)
  - [CreateUploadIntentRequest](doc/CreateUploadIntentRequest.md)
  - [DecideModerationRequest](doc/DecideModerationRequest.md)
  - [DisconnectWebullConnectionRequest](doc/DisconnectWebullConnectionRequest.md)
@@ -205,6 +207,8 @@ Class | Method | HTTP request | Description
  - [RedeemWebullCompletionRequest](doc/RedeemWebullCompletionRequest.md)
  - [ReportContentRequest](doc/ReportContentRequest.md)
  - [RequestPrivacyActionRequest](doc/RequestPrivacyActionRequest.md)
+ - [RequestPrivacyActionRequestOneOf](doc/RequestPrivacyActionRequestOneOf.md)
+ - [RequestPrivacyActionRequestOneOf1](doc/RequestPrivacyActionRequestOneOf1.md)
  - [ScenarioMoney](doc/ScenarioMoney.md)
  - [SelectWebullAccountRequest](doc/SelectWebullAccountRequest.md)
  - [TransitionRitualRequest](doc/TransitionRitualRequest.md)

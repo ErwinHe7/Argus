@@ -28,6 +28,7 @@ import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
 import { rewriteSupabaseFunctionRequest } from "../_shared/http.ts";
 import { createPostgresRateLimitPort } from "../_shared/rate-limit.ts";
+import { createPrivateSupabaseStorage } from "../_shared/jobs/storage.ts";
 import { createBrokerageConnectionRepository } from "../../../ritual-investing-api/src/domains/brokerage-connections/repository.ts";
 import { createBlockedWebullProvider } from "../_shared/webull/client.ts";
 import { parsePartnerConfirmedContractFromEnvironment } from "../_shared/webull/contract.ts";
@@ -63,6 +64,10 @@ const supabaseUrl = requiredEnvironment("SUPABASE_URL");
 const databasePool = createSupabaseDatabasePool(
   requiredEnvironment("SUPABASE_DB_URL"),
 );
+const privateStorage = createPrivateSupabaseStorage({
+  supabaseUrl,
+  secretKey: requiredEnvironment("SUPABASE_SECRET_KEY"),
+});
 const configuredWebullContract = parsePartnerConfirmedContractFromEnvironment(
   (name) => Deno.env.get(name),
 );
@@ -82,7 +87,7 @@ const blockedWebullContract =
 const createRepositories: Parameters<
   typeof createRetainedApp
 >[0]["createRepositories"] = (claims): RetainedRepositorySet => {
-  const binding = { pool: databasePool, claims };
+  const binding = { pool: databasePool, claims, signedStorage: privateStorage };
   return Object.freeze({
     session: createSupabaseSessionRepository(binding),
     accounts: createSupabaseAccountRepository(binding),

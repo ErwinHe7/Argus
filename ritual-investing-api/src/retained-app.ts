@@ -10,6 +10,7 @@ import type { VerifiedRequestClaims } from "./db/request-context.ts";
 import {
   RepositoryNotFoundError,
   RepositoryRevisionConflictError,
+  RepositoryStepUpRequiredError,
 } from "./db/supabase-repositories.ts";
 import { StaffAuthorizationError } from "./db/request-transaction.ts";
 import type { RateLimitPort } from "./ports/infrastructure.ts";
@@ -993,6 +994,16 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
           409,
           "revision_conflict",
           "The resource changed. Refresh before retrying.",
+        ),
+      );
+    }
+    if (error instanceof RepositoryStepUpRequiredError) {
+      return errorResponse(
+        context,
+        new HttpBoundaryError(
+          403,
+          "step_up_required",
+          "A current action-bound authorization is required.",
         ),
       );
     }
@@ -2353,8 +2364,13 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         await repositories(context, options).privacy.list(),
       ),
   );
-  const privacyBody = z.object({ requestType: z.enum(["export", "deletion"]) })
-    .strict();
+  const privacyBody = z.discriminatedUnion("requestType", [
+    z.object({ requestType: z.literal("export") }).strict(),
+    z.object({
+      requestType: z.literal("deletion"),
+      step_up_receipt: z.string().min(32).max(512).regex(/^[A-Za-z0-9_-]+$/),
+    }).strict(),
+  ]);
   const requestPrivacy = route(
     "post",
     "/v1/privacy/requests",
@@ -2372,6 +2388,30 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       await repositories(context, options).privacy.request(
         input.requestType,
         idempotencyKey.parse(context.req.header("idempotency-key")),
+        input.requestType === "deletion" ? input.step_up_receipt : undefined,
+      ),
+    );
+  });
+  const createPrivacyDownload = route(
+    "post",
+    "/v1/privacy/requests/{request_id}/download-url",
+    "createPrivacyDownloadUrl",
+    "Privacy",
+    {
+      pathParams: z.object({ request_id: uuid }),
+      description: "Mint an owner-scoped privacy export URL that expires in five minutes.",
+      response: z.object({
+        url: z.string().url(),
+        expires_at: z.string().datetime(),
+      }).strict(),
+    },
+  );
+  register(createPrivacyDownload, async (context) => {
+    await rejectBody(context);
+    return dataResponse(
+      context,
+      await repositories(context, options).privacy.createDownloadUrl(
+        uuid.parse(context.req.param("request_id")),
       ),
     );
   });

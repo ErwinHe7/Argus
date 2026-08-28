@@ -1,7 +1,5 @@
 import { createApp } from "./app.ts";
 import { validateBindings, type Bindings } from "./config/env.ts";
-import { runQueue } from "./jobs/queue-runtime.ts";
-import { runScheduled } from "./jobs/scheduled.ts";
 
 function resolveBindings(environment: unknown): Bindings | undefined {
   try {
@@ -75,16 +73,6 @@ const worker = {
       );
     }
     return app.fetch(request, bindings, executionContext);
-  },
-  async scheduled(controller, environment, executionContext) {
-    const bindings = resolveBindings(environment);
-    if (bindings === undefined) return;
-    executionContext.waitUntil(runScheduled(controller, bindings));
-  },
-  async queue(batch, environment, executionContext) {
-    const bindings = resolveBindings(environment);
-    if (bindings === undefined) return;
-    executionContext.waitUntil(runQueue(batch, bindings));
   },
 } satisfies ExportedHandler<Bindings>;
 

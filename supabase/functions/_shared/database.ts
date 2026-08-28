@@ -32,19 +32,22 @@ function databaseClient(connection: ReservedSql): DatabaseClient {
 
 /**
  * SUPABASE_DB_URL must be Supabase's transaction-pooler URL for the dedicated
- * non-BYPASSRLS, NOINHERIT `argus_edge` login. Its password is provisioned and
- * rotated out-of-band after migrations; it is never embedded in the repo.
- * `argus_edge` has only membership in the NOLOGIN `argus_runtime` capability
- * role, which each request transaction assumes with SET LOCAL ROLE. Never pass
- * a postgres owner credential or service-role API key here.
+ * non-BYPASSRLS, NOINHERIT login selected by the caller. Its password is
+ * provisioned and rotated out-of-band after migrations; it is never embedded
+ * in the repo. Each login has membership only in its matching NOLOGIN
+ * capability role, which every transaction assumes with SET LOCAL ROLE. Never
+ * pass a postgres owner credential or secret API key here.
  */
-export function createSupabaseDatabasePool(databaseUrl: string): DatabasePool {
+function createDatabasePool(
+  databaseUrl: string,
+  allowedRole: RegExp,
+): DatabasePool {
   const parsed = new URL(databaseUrl);
   if (!["postgres:", "postgresql:"].includes(parsed.protocol)) {
     throw new Error("invalid_supabase_database_url");
   }
   const username = decodeURIComponent(parsed.username);
-  if (!/^argus_edge(?:\.[a-z0-9_-]+)?$/i.test(username)) {
+  if (!allowedRole.test(username)) {
     throw new Error("invalid_supabase_database_role");
   }
   const sql = postgres(databaseUrl, {
@@ -64,4 +67,16 @@ export function createSupabaseDatabasePool(databaseUrl: string): DatabasePool {
       await sql.end({ timeout: 5 });
     },
   });
+}
+
+export function createSupabaseDatabasePool(databaseUrl: string): DatabasePool {
+  return createDatabasePool(databaseUrl, /^argus_edge(?:\.[a-z0-9_-]+)?$/i);
+}
+
+/** Dedicated non-inheriting login for the authenticated worker Edge function. */
+export function createSupabaseWorkerDatabasePool(databaseUrl: string): DatabasePool {
+  return createDatabasePool(
+    databaseUrl,
+    /^argus_worker_edge$/,
+  );
 }

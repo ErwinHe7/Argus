@@ -1,0 +1,220 @@
+begin;
+
+create extension if not exists pgtap with schema extensions;
+set local search_path = extensions, pg_catalog, public;
+
+select plan(17);
+
+insert into auth.users(
+  instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
+  raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+) values
+  ('00000000-0000-0000-0000-000000000000','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+   'authenticated','authenticated','privacy-a@example.test','',now(),
+   '{"provider":"email","providers":["email"]}','{}',now(),now()),
+  ('00000000-0000-0000-0000-000000000000','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+   'authenticated','authenticated','privacy-b@example.test','',now(),
+   '{"provider":"email","providers":["email"]}','{}',now(),now());
+insert into argus_app.members(user_id) values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+insert into argus_app.profiles(user_id,deletion_epoch,display_name)
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,'Purge me');
+insert into argus_private.media_upload_intents(
+  id,user_id,deletion_epoch,bucket_id,object_path,mime_type,max_bytes,status,expires_at
+) values (
+  'aaaaaaaa-9000-4000-8000-000000000001',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,'member-media',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/avatar.webp','image/webp',1024,'uploaded',now()+interval '1 day'
+);
+insert into argus_app.media_assets(
+  id,storage_bucket,storage_path,mime_type,byte_size,checksum
+) values (
+  'aaaaaaaa-9100-4000-8000-000000000001','member-media',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/avatar.webp','image/webp',10,
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+);
+
+set local role argus_runtime;
+select argus_private.set_request_context(
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'aaaaaaaa-0000-4000-8000-000000000001','aal2'
+);
+select throws_ok(
+  $$select argus_private.begin_member_deletion(
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    'aaaaaaaa-0000-4000-8000-000000000001','privacy-delete-key-0001'
+  )$$,
+  '42501','step_up_required',
+  'deletion without an action-bound receipt fails closed'
+);
+reset role;
+select is(
+  (select count(*)::bigint from argus_app.privacy_requests
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  0::bigint,
+  'failed deletion leaves no partial request'
+);
+
+insert into argus_private.step_up_receipts(
+  user_id,session_id,deletion_epoch,action,receipt_hash,aal,expires_at
+) values (
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'aaaaaaaa-0000-4000-8000-000000000001',0,'argus_delete',
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','aal2',now()+interval '5 minutes'
+), (
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  'bbbbbbbb-0000-4000-8000-000000000001',0,'argus_delete',
+  'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb','aal2',now()+interval '5 minutes'
+);
+
+set local role argus_runtime;
+select argus_private.set_request_context(
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'aaaaaaaa-0000-4000-8000-000000000001','aal2'
+);
+select lives_ok(
+  $$select argus_private.begin_member_deletion(
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    'aaaaaaaa-0000-4000-8000-000000000001','privacy-delete-key-0001'
+  )$$,
+  'valid AAL2 deletion request commits tombstone, epoch, and outbox atomically'
+);
+select is(
+  (select count(*)::bigint from argus_private.deletion_tombstones
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  1::bigint,
+  'deletion creates one tombstone'
+);
+select is(
+  (select count(*)::bigint from argus_private.outbox_events event
+    join argus_private.deletion_tombstones tombstone on tombstone.id=event.aggregate_id
+    where tombstone.user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+      and event.user_id is null and event.deletion_epoch is null),
+  1::bigint,
+  'purge event is provider-neutral and survives member Auth cascade'
+);
+select ok(
+  (select consumed_at is not null from argus_private.step_up_receipts
+    where receipt_hash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+  'successful deletion consumes the receipt'
+);
+select is(
+  argus_private.begin_member_deletion(
+    'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    'aaaaaaaa-0000-4000-8000-000000000001','privacy-delete-key-0001'
+  ),
+  (select id from argus_app.privacy_requests
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and request_type='deletion'),
+  'same-owner idempotency replay returns the original request without a fresh receipt'
+);
+reset role;
+select is(
+  (select count(*)::bigint from argus_private.deletion_tombstones
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  1::bigint,
+  'idempotency replay creates no duplicate tombstone'
+);
+
+set local role argus_runtime;
+select argus_private.set_request_context(
+  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+  'bbbbbbbb-0000-4000-8000-000000000001','aal2'
+);
+select throws_ok(
+  $$select argus_private.begin_member_deletion(
+    'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    'bbbbbbbb-0000-4000-8000-000000000001','privacy-delete-key-0001'
+  )$$,
+  '42501','step_up_required',
+  'another user cannot replay or learn an existing deletion key'
+);
+reset role;
+select is(
+  (select consumed_at from argus_private.step_up_receipts
+    where receipt_hash='bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb'),
+  null::timestamptz,
+  'failed action-bound verification leaves its receipt unconsumed'
+);
+
+set local role argus_worker;
+select lives_ok(
+  format(
+    'select * from argus_private.prepare_member_purge(%L)',
+    (select id from argus_private.deletion_tombstones
+      where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  ),
+  'purge preparation neutralizes old retained work'
+);
+reset role;
+select ok(
+  exists(select 1 from auth.users where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  and exists(select 1 from argus_private.deletion_tombstones
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and purge_phase='neutralized'),
+  'Auth identity remains present after neutralization'
+);
+
+set local role argus_worker;
+select argus_private.mark_member_storage_purged(
+  (select id from argus_private.deletion_tombstones
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  jsonb_build_array(jsonb_build_object(
+    'bucket_id','member-media',
+    'path_hash',encode(digest(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/avatar.webp','sha256'
+    ),'hex')
+  ))
+);
+select argus_private.purge_member_argus_data(
+  (select id from argus_private.deletion_tombstones
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+);
+reset role;
+select ok(
+  exists(select 1 from auth.users where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  and exists(select 1 from argus_private.deletion_tombstones
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' and purge_phase='data_purged'),
+  'Argus data is purged while Auth identity still exists'
+);
+select is(
+  (select count(*)::bigint from argus_app.profiles
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  + (select count(*)::bigint from argus_app.media_assets
+    where storage_path like 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/%'),
+  0::bigint,
+  'purge removes owner and global-path Argus product rows'
+);
+set local role argus_worker;
+select throws_ok(
+  format(
+    'select argus_private.complete_member_purge(%L)',
+    (select id from argus_private.deletion_tombstones
+      where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  ),
+  'P0001','auth_identity_still_present',
+  'terminal purge cannot be marked before Auth deletion'
+);
+reset role;
+
+delete from auth.users where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+set local role argus_worker;
+select lives_ok(
+  format(
+    'select argus_private.complete_member_purge(%L)',
+    (select id from argus_private.deletion_tombstones
+      where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  ),
+  'purge completes only after Auth identity is absent'
+);
+reset role;
+select ok(
+  not exists(select 1 from auth.users where id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  and exists(select 1 from argus_private.deletion_tombstones tombstone
+    join argus_private.purge_receipts receipt on receipt.tombstone_id=tombstone.id
+    where tombstone.user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+      and tombstone.purge_phase='complete' and tombstone.status='purged'),
+  'terminal tombstone and receipt appear only after Auth-last completion'
+);
+
+select * from finish();
+rollback;

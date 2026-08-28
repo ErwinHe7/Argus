@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
+import 'package:ritual_investing_api_client/generated/model/create_privacy_download_url200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request.dart';
@@ -17,6 +18,88 @@ class PrivacyApi {
   final Dio _dio;
 
   const PrivacyApi(this._dio);
+
+  /// createPrivacyDownloadUrl
+  ///
+  ///
+  /// Parameters:
+  /// * [requestId]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [CreatePrivacyDownloadUrl200Response] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<CreatePrivacyDownloadUrl200Response>>
+  createPrivacyDownloadUrl({
+    required String requestId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/privacy/requests/{request_id}/download-url'.replaceAll(
+      '{'
+      r'request_id'
+      '}',
+      requestId.toString(),
+    );
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{...?headers},
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    CreatePrivacyDownloadUrl200Response? _responseData;
+
+    try {
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<
+              CreatePrivacyDownloadUrl200Response,
+              CreatePrivacyDownloadUrl200Response
+            >(rawData, 'CreatePrivacyDownloadUrl200Response', growable: true);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<CreatePrivacyDownloadUrl200Response>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
 
   /// listPrivacyRequests
   ///

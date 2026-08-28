@@ -188,8 +188,10 @@ export async function inspectQuarantinedObject(
   const detected = detectedRaster(bytes);
   const size =
     detected === undefined ? undefined : dimensions(bytes, detected.mime);
+  const digestInput = new Uint8Array(bytes.byteLength);
+  digestInput.set(bytes);
   const checksum = hex(
-    new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+    new Uint8Array(await crypto.subtle.digest("SHA-256", digestInput.buffer)),
   );
   const textSample = new TextDecoder("utf-8", {
     fatal: false,

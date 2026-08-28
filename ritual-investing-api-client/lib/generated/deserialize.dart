@@ -32,6 +32,7 @@ import 'package:ritual_investing_api_client/generated/model/create_circle_reques
 import 'package:ritual_investing_api_client/generated/model/create_hypothetical_future_mirror.dart';
 import 'package:ritual_investing_api_client/generated/model/create_hypothetical_future_mirror_annual_return_bps.dart';
 import 'package:ritual_investing_api_client/generated/model/create_member_intention.dart';
+import 'package:ritual_investing_api_client/generated/model/create_privacy_download_url200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/decide_moderation_request.dart';
 import 'package:ritual_investing_api_client/generated/model/disconnect_webull_connection_request.dart';
@@ -57,6 +58,8 @@ import 'package:ritual_investing_api_client/generated/model/record_consent_reque
 import 'package:ritual_investing_api_client/generated/model/redeem_webull_completion_request.dart';
 import 'package:ritual_investing_api_client/generated/model/report_content_request.dart';
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request.dart';
+import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request_one_of.dart';
+import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request_one_of1.dart';
 import 'package:ritual_investing_api_client/generated/model/scenario_money.dart';
 import 'package:ritual_investing_api_client/generated/model/select_webull_account_request.dart';
 import 'package:ritual_investing_api_client/generated/model/transition_ritual_request.dart';
@@ -211,6 +214,11 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'CreateMemberIntention':
       return CreateMemberIntention.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'CreatePrivacyDownloadUrl200Response':
+      return CreatePrivacyDownloadUrl200Response.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'CreateUploadIntentRequest':
       return CreateUploadIntentRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -297,6 +305,16 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'RequestPrivacyActionRequest':
       return RequestPrivacyActionRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'RequestPrivacyActionRequestOneOf':
+      return RequestPrivacyActionRequestOneOf.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'RequestPrivacyActionRequestOneOf1':
+      return RequestPrivacyActionRequestOneOf1.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'ScenarioMoney':
       return ScenarioMoney.fromJson(value as Map<String, dynamic>)
