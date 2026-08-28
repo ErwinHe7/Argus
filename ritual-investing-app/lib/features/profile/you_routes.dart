@@ -7,6 +7,7 @@ import '../entitlements/domain/model.dart';
 import '../entitlements/presentation/demo_membership_screen.dart';
 import '../future_mirror/presentation/future_mirror_screen.dart';
 import '../intentions/presentation/intention_screen.dart';
+import '../intentions/presentation/member_scenario_screen.dart';
 import '../notifications/presentation/notification_screen.dart';
 import '../orders/presentation/order_screen.dart';
 import '../orders/presentation/brokerage_order_screen.dart';
@@ -36,7 +37,10 @@ StatefulShellBranch buildYouBranch({
       ),
       routes: [
         _portfolioRoute(container),
-        ..._intentionRoutes(container),
+        if (container.presentationPolicy.isDemo)
+          ..._intentionRoutes(container)
+        else
+          ..._memberScenarioRoutes(container),
         if (container.presentationPolicy.isDemo)
           ..._simulatedInvestingRoutes(container)
         else
@@ -250,6 +254,69 @@ List<RouteBase> _intentionRoutes(AppRuntime container) => [
         child: child,
       );
     },
+  ),
+];
+
+List<RouteBase> _memberScenarioRoutes(AppRuntime container) => [
+  GoRoute(
+    path: 'intentions',
+    redirect: (context, state) =>
+        container.hasMemberScenarios ? null : MemberRoutes.you.path,
+    builder: (context, state) => MemberScenariosScreen(
+      key: const ValueKey('member-intentions'),
+      controller: container.memberScenarioController,
+      onOpenIntention: (id) =>
+          context.push(MemberRoutes.memberIntentionLocation(id)),
+    ),
+  ),
+  GoRoute(
+    path: 'intentions/:intentionId',
+    redirect: (context, state) =>
+        container.hasMemberScenarios &&
+            MemberRoutes.isUuid(state.pathParameters['intentionId'] ?? '')
+        ? null
+        : MemberRoutes.you.path,
+    builder: (context, state) => MemberScenariosScreen(
+      key: ValueKey('member-intention-${state.pathParameters['intentionId']}'),
+      intentionId: state.pathParameters['intentionId']!,
+      controller: container.memberScenarioController,
+      onOpenRun: (id) => context.push(
+        MemberRoutes.memberFutureMirrorRunLocation(
+          state.pathParameters['intentionId']!,
+          id,
+        ),
+      ),
+    ),
+  ),
+  GoRoute(
+    path: 'intentions/:intentionId/future-mirror',
+    redirect: (context, state) =>
+        container.hasMemberScenarios &&
+            MemberRoutes.isUuid(state.pathParameters['intentionId'] ?? '')
+        ? null
+        : MemberRoutes.you.path,
+    builder: (context, state) => MemberScenariosScreen(
+      key: ValueKey(
+        'member-future-mirror-${state.pathParameters['intentionId']}',
+      ),
+      intentionId: state.pathParameters['intentionId']!,
+      controller: container.memberScenarioController,
+    ),
+  ),
+  GoRoute(
+    path: 'intentions/:intentionId/future-mirror/:runId',
+    redirect: (context, state) =>
+        container.hasMemberScenarios &&
+            MemberRoutes.isUuid(state.pathParameters['intentionId'] ?? '') &&
+            MemberRoutes.isUuid(state.pathParameters['runId'] ?? '')
+        ? null
+        : MemberRoutes.you.path,
+    builder: (context, state) => MemberScenariosScreen(
+      key: ValueKey('member-future-mirror-${state.pathParameters['runId']}'),
+      intentionId: state.pathParameters['intentionId']!,
+      runId: state.pathParameters['runId']!,
+      controller: container.memberScenarioController,
+    ),
   ),
 ];
 
@@ -633,6 +700,9 @@ class _YouBranchRootState extends State<_YouBranchRoot> {
         widget.container.hasPrivacyControls &&
             widget.container.presentationPolicy.isDemo
         ? () => context.push(MemberRoutes.youDemoResetPath)
+        : null,
+    onOpenIntentions: widget.container.hasMemberScenarios
+        ? () => context.push(MemberRoutes.youIntentionsPath)
         : null,
     onOpenPortfolio: (id) => context.push(MemberRoutes.portfolio.location(id)),
   );

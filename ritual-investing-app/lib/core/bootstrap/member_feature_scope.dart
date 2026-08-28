@@ -13,6 +13,7 @@ import '../../features/funding/application/contribution_controller.dart';
 import '../../features/funding/application/funding_source_controller.dart';
 import '../../features/future_mirror/application/future_mirror_controller.dart';
 import '../../features/grimoires/data/repository.dart';
+import '../../features/intentions/application/member_scenario_controller.dart';
 import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/orders/application/order_controller.dart';
@@ -64,6 +65,7 @@ class MemberFeatureScope {
     this.rebalanceController,
     this.intentionController,
     this.futureMirrorController,
+    this.memberScenarioController,
     this.briefingController,
     this.notificationController,
     this.entitlementController,
@@ -94,6 +96,7 @@ class MemberFeatureScope {
   final RebalanceController? rebalanceController;
   final IntentionController? intentionController;
   final FutureMirrorController? futureMirrorController;
+  final MemberScenarioController? memberScenarioController;
   final BriefingController? briefingController;
   final NotificationController? notificationController;
   final EntitlementController? entitlementController;
@@ -173,6 +176,7 @@ class MemberFeatureScope {
     rebalanceController?.dispose();
     intentionController?.dispose();
     futureMirrorController?.dispose();
+    memberScenarioController?.dispose();
     briefingController?.dispose();
     notificationController?.dispose();
     entitlementController?.dispose();

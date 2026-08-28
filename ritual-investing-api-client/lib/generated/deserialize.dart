@@ -29,6 +29,9 @@ import 'package:ritual_investing_api_client/generated/model/confirm_cancel_broke
 import 'package:ritual_investing_api_client/generated/model/confirm_modify_brokerage_order.dart';
 import 'package:ritual_investing_api_client/generated/model/confirm_place_brokerage_order.dart';
 import 'package:ritual_investing_api_client/generated/model/create_circle_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_hypothetical_future_mirror.dart';
+import 'package:ritual_investing_api_client/generated/model/create_hypothetical_future_mirror_annual_return_bps.dart';
+import 'package:ritual_investing_api_client/generated/model/create_member_intention.dart';
 import 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/decide_moderation_request.dart';
 import 'package:ritual_investing_api_client/generated/model/disconnect_webull_connection_request.dart';
@@ -37,14 +40,24 @@ import 'package:ritual_investing_api_client/generated/model/get_account200_respo
 import 'package:ritual_investing_api_client/generated/model/get_account200_response_meta.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response_error.dart';
+import 'package:ritual_investing_api_client/generated/model/hypothetical_future_mirror.dart';
+import 'package:ritual_investing_api_client/generated/model/hypothetical_future_mirror_annual_return_bps.dart';
+import 'package:ritual_investing_api_client/generated/model/hypothetical_future_mirror_point.dart';
+import 'package:ritual_investing_api_client/generated/model/hypothetical_future_mirror_response.dart';
 import 'package:ritual_investing_api_client/generated/model/issue_member_step_up_request.dart';
+import 'package:ritual_investing_api_client/generated/model/member_intention.dart';
+import 'package:ritual_investing_api_client/generated/model/member_intention_page.dart';
+import 'package:ritual_investing_api_client/generated/model/member_intention_page_response.dart';
+import 'package:ritual_investing_api_client/generated/model/member_intention_response.dart';
 import 'package:ritual_investing_api_client/generated/model/modify_brokerage_order_intent.dart';
+import 'package:ritual_investing_api_client/generated/model/patch_member_intention.dart';
 import 'package:ritual_investing_api_client/generated/model/place_brokerage_order_intent.dart';
 import 'package:ritual_investing_api_client/generated/model/reconnect_webull_connection_request.dart';
 import 'package:ritual_investing_api_client/generated/model/record_consent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/redeem_webull_completion_request.dart';
 import 'package:ritual_investing_api_client/generated/model/report_content_request.dart';
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request.dart';
+import 'package:ritual_investing_api_client/generated/model/scenario_money.dart';
 import 'package:ritual_investing_api_client/generated/model/select_webull_account_request.dart';
 import 'package:ritual_investing_api_client/generated/model/transition_ritual_request.dart';
 import 'package:ritual_investing_api_client/generated/model/update_circle_request.dart';
@@ -185,6 +198,19 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'CreateCircleRequest':
       return CreateCircleRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'CreateHypotheticalFutureMirror':
+      return CreateHypotheticalFutureMirror.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateHypotheticalFutureMirrorAnnualReturnBps':
+      return CreateHypotheticalFutureMirrorAnnualReturnBps.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'CreateMemberIntention':
+      return CreateMemberIntention.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'CreateUploadIntentRequest':
       return CreateUploadIntentRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -211,11 +237,44 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'GetAccount401ResponseError':
       return GetAccount401ResponseError.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'HypotheticalFutureMirror':
+      return HypotheticalFutureMirror.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'HypotheticalFutureMirrorAnnualReturnBps':
+      return HypotheticalFutureMirrorAnnualReturnBps.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'HypotheticalFutureMirrorPoint':
+      return HypotheticalFutureMirrorPoint.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'HypotheticalFutureMirrorResponse':
+      return HypotheticalFutureMirrorResponse.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'IssueMemberStepUpRequest':
       return IssueMemberStepUpRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'MemberIntention':
+      return MemberIntention.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberIntentionPage':
+      return MemberIntentionPage.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberIntentionPageResponse':
+      return MemberIntentionPageResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberIntentionResponse':
+      return MemberIntentionResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'ModifyBrokerageOrderIntent':
       return ModifyBrokerageOrderIntent.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PatchMemberIntention':
+      return PatchMemberIntention.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'PlaceBrokerageOrderIntent':
       return PlaceBrokerageOrderIntent.fromJson(value as Map<String, dynamic>)
@@ -238,6 +297,9 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'RequestPrivacyActionRequest':
       return RequestPrivacyActionRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ScenarioMoney':
+      return ScenarioMoney.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'SelectWebullAccountRequest':
       return SelectWebullAccountRequest.fromJson(value as Map<String, dynamic>)

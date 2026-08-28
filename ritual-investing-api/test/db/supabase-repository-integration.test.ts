@@ -40,6 +40,7 @@ import {
   createSupabaseSearchRepository,
   createSupabaseSessionRepository,
 } from "../../src/db/supabase-repositories.ts";
+import { createSupabaseScenarioRepository } from "../../src/domains/intentions/repository.ts";
 
 const apiRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const userA = "018f3c2a-4b67-7a89-8abc-123456789001";
@@ -57,7 +58,10 @@ function claims(
 }
 
 function recordingPool(
-  respond: (text: string) => DatabaseQueryResult<any> = () => ({
+  respond: (
+    text: string,
+    values: readonly unknown[],
+  ) => DatabaseQueryResult<any> = () => ({
     rows: [],
     rowCount: 0,
   }),
@@ -70,7 +74,7 @@ function recordingPool(
       values: readonly unknown[] = [],
     ): Promise<DatabaseQueryResult<Row>> => {
       queries.push({ text, values });
-      return respond(text) as DatabaseQueryResult<Row>;
+      return respond(text, values) as DatabaseQueryResult<Row>;
     },
   );
   const client: DatabaseClient = {
@@ -276,7 +280,8 @@ describe("Supabase transaction-pooler repository boundary", () => {
 
   it("executes every relation declared for each retained domain", async () => {
     const genericId = "018f3c2a-4b67-7a89-8abc-123456789099";
-    const recorded = recordingPool((text) => {
+    let scenarioRequestHash = "";
+    const recorded = recordingPool((text, values = []) => {
       if (text.includes("has_staff_permission")) {
         return { rows: [{ allowed: true }], rowCount: 1 };
       }
@@ -318,6 +323,74 @@ describe("Supabase transaction-pooler repository boundary", () => {
           rowCount: 1,
         };
       }
+      if (text.includes("insert into argus_private.member_idempotency_records")) {
+        scenarioRequestHash = String(values[3]);
+        return { rows: [], rowCount: 1 };
+      }
+      if (text.includes("from argus_private.member_idempotency_records")) {
+        return {
+          rows: [{
+            deletion_epoch: "0",
+            request_hash: scenarioRequestHash,
+            resource_id: genericId,
+          }],
+          rowCount: 1,
+        };
+      }
+      if (text.includes("select deletion_epoch::text") && text.includes("argus_app.members")) {
+        return { rows: [{ deletion_epoch: "0" }], rowCount: 1 };
+      }
+      if (text.includes("jsonb_build_object") && text.includes("argus_app.intentions")) {
+        return {
+          rows: [{
+            id: genericId,
+            title: "Member intention",
+            target: { minor_units: "250000", currency: "USD" },
+            target_date: "2028-08-28",
+            status: "active",
+            version: 1,
+            created_at: "2026-08-28T00:00:00.000Z",
+          }],
+          rowCount: 1,
+        };
+      }
+      if (text.includes("from argus_app.future_mirror_runs run")) {
+        return {
+          rows: [{
+            id: genericId,
+            intention_id: genericId,
+            input_hash: "a".repeat(64),
+            model_version: "argus-hypothetical-v1",
+            assumption_version: "member-reviewed-v1",
+            assumptions: {
+              input: {
+                name: "Steady path",
+                baseline: { minor_units: "100000", currency: "USD" },
+                monthly_contribution: { minor_units: "1000", currency: "USD" },
+                annual_return_bps: { low: -1000, mid: 400, high: 1800 },
+                as_of_date: "2026-08-28",
+              },
+              intention_snapshot: { target_date: "2028-08-28", currency: "USD" },
+            },
+            generated_at: "2026-08-28T00:00:00.000Z",
+            uncertainty_disclosure:
+              "This is a hypothetical scenario based only on member-entered assumptions and is not advice or a forecast.",
+          }],
+          rowCount: 1,
+        };
+      }
+      if (text.includes("from argus_app.future_mirror_points")) {
+        return {
+          rows: [{
+            ordinal: 1,
+            projected_date: "2026-09-28",
+            low_amount_minor: "100000",
+            mid_amount_minor: "101000",
+            high_amount_minor: "102000",
+          }],
+          rowCount: 1,
+        };
+      }
       return {
         rows: [{ id: genericId, outbox_id: genericId }],
         rowCount: 1,
@@ -347,6 +420,7 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const search = createSupabaseSearchRepository(binding);
     const admin = createSupabaseAdminRepository(binding);
     const adminOperations = createSupabaseAdminOperationsRepository(binding);
+    const scenarios = createSupabaseScenarioRepository(binding);
     const preview = createSupabasePublicPreviewRepository(recorded.pool);
 
     const executedByDomain: Record<string, string> = {
@@ -402,6 +476,17 @@ describe("Supabase transaction-pooler repository boundary", () => {
       privacy: await capture(async () => {
         await privacy.request("export", "u14-coverage-export");
         await privacy.getDeletionTombstone();
+      }),
+      scenarios: await capture(async () => {
+        await scenarios.createIntention(
+          {
+            title: "Member intention",
+            target: { minor_units: "250000", currency: "USD" },
+            target_date: "2028-08-28",
+          },
+          "u9b-intention-idempotency-key",
+        );
+        await scenarios.getFutureMirror(genericId, genericId);
       }),
       publicPreview: await capture(() => preview.listPublished("ritual", 10)),
       rituals: await capture(async () => {

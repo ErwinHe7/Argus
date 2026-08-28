@@ -90,7 +90,7 @@ void main() {
     },
   );
 
-  test('does not rewrite Future Mirror or server timestamp fields', () async {
+  test('rewrites only Future Mirror as_of_date', () async {
     final adapter = _CaptureAdapter();
     final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))
       ..httpClientAdapter = adapter;
@@ -99,12 +99,14 @@ void main() {
     await dio.post<void>(
       '/v1/intentions/00000000-0000-4000-8000-000000000020/future-mirror',
       data: jsonEncode({
+        'as_of_date': '2026-08-25T00:00:00.000Z',
         'target_date': '2028-08-24T00:00:00.000Z',
         'generated_at': '2026-08-25T12:00:00.000Z',
       }),
     );
 
     expect(jsonDecode(adapter.body!), {
+      'as_of_date': '2026-08-25',
       'target_date': '2028-08-24T00:00:00.000Z',
       'generated_at': '2026-08-25T12:00:00.000Z',
     });
@@ -112,13 +114,17 @@ void main() {
 
   test('briefing date queries emit exact YYYY-MM-DD values', () async {
     for (final request in [
-      ('/v1/briefings/daily', <String, Object?>{
-        'local_date': DateTime.utc(2026, 8, 25),
-      }),
-      ('/v1/briefings', <String, Object?>{
-        'period_start': DateTime.utc(2026, 8, 1),
-        'period_end': DateTime.utc(2026, 8, 31),
-      }),
+      (
+        '/v1/briefings/daily',
+        <String, Object?>{'local_date': DateTime.utc(2026, 8, 25)},
+      ),
+      (
+        '/v1/briefings',
+        <String, Object?>{
+          'period_start': DateTime.utc(2026, 8, 1),
+          'period_end': DateTime.utc(2026, 8, 31),
+        },
+      ),
     ]) {
       final adapter = _CaptureAdapter();
       final dio = Dio(BaseOptions(baseUrl: 'https://example.test'))

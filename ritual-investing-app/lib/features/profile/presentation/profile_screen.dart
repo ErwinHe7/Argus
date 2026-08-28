@@ -39,6 +39,7 @@ class ProfileScreen extends StatelessWidget {
     this.onOpenMembership,
     this.onOpenPrivacy,
     this.onOpenDemoReset,
+    this.onOpenIntentions,
     this.onOpenPortfolio,
   });
 
@@ -56,6 +57,7 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onOpenMembership;
   final VoidCallback? onOpenPrivacy;
   final VoidCallback? onOpenDemoReset;
+  final VoidCallback? onOpenIntentions;
   final ValueChanged<String>? onOpenPortfolio;
 
   @override
@@ -174,6 +176,14 @@ class ProfileScreen extends StatelessWidget {
                   _ => 'Ritual and discovery work without a connection',
                 },
                 onTap: _brokerageAction(brokerage, onOpenPortfolio),
+              ),
+            if (onOpenIntentions != null)
+              _MenuTile(
+                key: const Key('you-intentions'),
+                icon: Icons.flag_outlined,
+                title: 'Intentions & Future Mirror',
+                subtitle: 'Member-entered goals and hypothetical scenarios',
+                onTap: onOpenIntentions,
               ),
             if (onOpenNotifications != null)
               _MenuTile(

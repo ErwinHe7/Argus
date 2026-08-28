@@ -16,6 +16,7 @@ import '../../features/funding/application/contribution_controller.dart';
 import '../../features/funding/application/funding_source_controller.dart';
 import '../../features/future_mirror/application/future_mirror_controller.dart';
 import '../../features/grimoires/application/controller.dart';
+import '../../features/intentions/application/member_scenario_controller.dart';
 import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/orders/application/order_controller.dart';
@@ -128,6 +129,10 @@ extension AppRuntimeFeatureAccess on AppRuntime {
     _requireScope().futureMirrorController,
     'Future Mirror is unavailable.',
   );
+  MemberScenarioController get memberScenarioController => _required(
+    _requireScope().memberScenarioController,
+    'Member scenarios are unavailable.',
+  );
   BriefingController get briefingController => _required(
     _requireScope().briefingController,
     'Briefings are unavailable.',
@@ -180,8 +185,12 @@ extension AppRuntimeFeatureAccess on AppRuntime {
       featureScope?.brokerageConnectionController != null &&
       featureScope?.brokeragePortfolioController != null;
   bool get hasIntentionsAndFutureMirror =>
+      presentationPolicy.isDemo &&
       featureScope?.intentionController != null &&
       featureScope?.futureMirrorController != null;
+  bool get hasMemberScenarios =>
+      presentationPolicy == MemberPresentationPolicy.production &&
+      featureScope?.memberScenarioController != null;
   bool get hasBriefingsAndNotifications =>
       featureScope?.briefingController != null &&
       featureScope?.notificationController != null;

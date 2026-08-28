@@ -69,6 +69,14 @@ Set<String> _dateOnlyFields(RequestOptions options) {
       segments[0] == 'v1' &&
       segments[1] == 'intentions' &&
       segments[2].isNotEmpty;
+  final futureMirrorCreate =
+      options.method == 'POST' &&
+      segments.length == 4 &&
+      segments[0] == 'v1' &&
+      segments[1] == 'intentions' &&
+      segments[2].isNotEmpty &&
+      segments[3] == 'future-mirror';
+  if (futureMirrorCreate) return const {'as_of_date'};
   return intentionCreate || intentionPatch ? const {'target_date'} : const {};
 }
 

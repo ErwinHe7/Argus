@@ -15,20 +15,16 @@ import '../../features/creators/data/generated_creator_api_service.dart';
 import '../../features/creators/data/repository.dart';
 import '../../features/discover/application/controller.dart';
 import '../../features/discover/data/repository.dart';
-import '../../features/future_mirror/application/future_mirror_controller.dart';
-import '../../features/future_mirror/data/repository.dart';
 import '../../features/grimoires/data/generated_grimoire_api_service.dart';
 import '../../features/grimoires/data/repository.dart';
-import '../../features/intentions/application/intention_controller.dart';
-import '../../features/intentions/data/repository.dart';
+import '../../features/intentions/application/member_scenario_controller.dart';
+import '../../features/intentions/data/member_scenario_repository.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/notifications/data/generated_notification_api_service.dart';
 import '../../features/notifications/data/repository.dart';
 import '../../features/orders/application/brokerage_order_controller.dart';
 import '../../features/orders/data/brokerage_repository.dart';
 import '../../features/portfolio/application/brokerage_controller.dart';
-import '../../features/portfolio/application/controller.dart';
-import '../../features/portfolio/data/repository.dart';
 import '../../features/portfolio/data/brokerage_repository.dart';
 import '../../features/portfolio/data/generated_brokerage_portfolio_api_service.dart';
 import '../../features/privacy/application/privacy_controller.dart';
@@ -84,39 +80,12 @@ class ProductionMemberFeatureScopeFactory {
       service: GeneratedCovenApiService(client),
       cache: scopedCache,
     );
-    final portfolioService = GeneratedPortfolioApiService(client);
-    final portfolioRepository = CachedPortfolioRepository(
-      service: portfolioService,
-      cache: scopedCache,
-    );
-    final portfolioController = PortfolioController(
-      repository: portfolioRepository,
-      bootstrapDefaultPortfolioId: bootstrap.defaultPortfolioId,
-      createKey: createCommandKey,
-    );
     final invalidationBus = InvalidationBus();
-    final intentionController = IntentionController(
-      repository: CachedIntentionRepository(
-        service: GeneratedIntentionApiService(client),
-        cache: scopedCache,
+    final memberScenarioController = MemberScenarioController(
+      repository: MemberScenarioRepository(
+        service: GeneratedMemberScenarioApiService(client),
       ),
-      pendingStore: pendingCommandStore,
-      invalidationBus: invalidationBus,
-      scope: scope,
       createKey: createCommandKey,
-      now: now,
-    );
-    final futureMirrorController = FutureMirrorController(
-      repository: CachedFutureMirrorRepository(
-        service: GeneratedFutureMirrorApiService(client),
-        cache: scopedCache,
-      ),
-      pendingStore: pendingCommandStore,
-      invalidationBus: invalidationBus,
-      scope: scope,
-      createKey: createCommandKey,
-      now: now,
-      personalization: bootstrap.personalization,
     );
     final brokeragePortfolioController = BrokeragePortfolioController(
       repository: BrokeragePortfolioRepository(
@@ -206,10 +175,8 @@ class ProductionMemberFeatureScopeFactory {
           cache: scopedCache,
         ),
       ),
-      portfolioController: portfolioController,
       brokerageOrderController: brokerageOrderController,
-      intentionController: intentionController,
-      futureMirrorController: futureMirrorController,
+      memberScenarioController: memberScenarioController,
       brokerageConnectionController: brokerageConnectionController,
       brokeragePortfolioController: brokeragePortfolioController,
       briefingController: briefingController,

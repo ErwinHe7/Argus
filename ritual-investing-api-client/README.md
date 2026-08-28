@@ -112,6 +112,14 @@ Class | Method | HTTP request | Description
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listGrimoires**](doc/DiscoverApi.md#listgrimoires) | **GET** /v1/discover/grimoires | 
 [*EditorialApi*](doc/EditorialApi.md) | [**getEditorial**](doc/EditorialApi.md#geteditorial) | **GET** /v1/editorial/items/{slug} | 
 [*EditorialApi*](doc/EditorialApi.md) | [**listEditorial**](doc/EditorialApi.md#listeditorial) | **GET** /v1/editorial/{kind} | 
+[*FutureMirrorApi*](doc/FutureMirrorApi.md) | [**createFutureMirror**](doc/FutureMirrorApi.md#createfuturemirror) | **POST** /v1/intentions/{intention_id}/future-mirror | 
+[*FutureMirrorApi*](doc/FutureMirrorApi.md) | [**getFutureMirror**](doc/FutureMirrorApi.md#getfuturemirror) | **GET** /v1/intentions/{intention_id}/future-mirror/{run_id} | 
+[*FutureMirrorApi*](doc/FutureMirrorApi.md) | [**getLatestFutureMirror**](doc/FutureMirrorApi.md#getlatestfuturemirror) | **GET** /v1/intentions/{intention_id}/future-mirror/latest | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**archiveIntention**](doc/IntentionsApi.md#archiveintention) | **DELETE** /v1/intentions/{intention_id} | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**createIntention**](doc/IntentionsApi.md#createintention) | **POST** /v1/intentions | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**getIntention**](doc/IntentionsApi.md#getintention) | **GET** /v1/intentions/{intention_id} | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**listIntentions**](doc/IntentionsApi.md#listintentions) | **GET** /v1/intentions | 
+[*IntentionsApi*](doc/IntentionsApi.md) | [**patchIntention**](doc/IntentionsApi.md#patchintention) | **PATCH** /v1/intentions/{intention_id} | 
 [*MediaApi*](doc/MediaApi.md) | [**createUploadIntent**](doc/MediaApi.md#createuploadintent) | **POST** /v1/media/upload-intents | 
 [*MediaApi*](doc/MediaApi.md) | [**getUploadIntent**](doc/MediaApi.md#getuploadintent) | **GET** /v1/media/upload-intents/{intent_id} | 
 [*MemberSecurityApi*](doc/MemberSecurityApi.md) | [**issueMemberStepUp**](doc/MemberSecurityApi.md#issuememberstepup) | **POST** /v1/member/step-up | 
@@ -169,6 +177,9 @@ Class | Method | HTTP request | Description
  - [ConfirmModifyBrokerageOrder](doc/ConfirmModifyBrokerageOrder.md)
  - [ConfirmPlaceBrokerageOrder](doc/ConfirmPlaceBrokerageOrder.md)
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
+ - [CreateHypotheticalFutureMirror](doc/CreateHypotheticalFutureMirror.md)
+ - [CreateHypotheticalFutureMirrorAnnualReturnBps](doc/CreateHypotheticalFutureMirrorAnnualReturnBps.md)
+ - [CreateMemberIntention](doc/CreateMemberIntention.md)
  - [CreateUploadIntentRequest](doc/CreateUploadIntentRequest.md)
  - [DecideModerationRequest](doc/DecideModerationRequest.md)
  - [DisconnectWebullConnectionRequest](doc/DisconnectWebullConnectionRequest.md)
@@ -177,14 +188,24 @@ Class | Method | HTTP request | Description
  - [GetAccount200ResponseMeta](doc/GetAccount200ResponseMeta.md)
  - [GetAccount401Response](doc/GetAccount401Response.md)
  - [GetAccount401ResponseError](doc/GetAccount401ResponseError.md)
+ - [HypotheticalFutureMirror](doc/HypotheticalFutureMirror.md)
+ - [HypotheticalFutureMirrorAnnualReturnBps](doc/HypotheticalFutureMirrorAnnualReturnBps.md)
+ - [HypotheticalFutureMirrorPoint](doc/HypotheticalFutureMirrorPoint.md)
+ - [HypotheticalFutureMirrorResponse](doc/HypotheticalFutureMirrorResponse.md)
  - [IssueMemberStepUpRequest](doc/IssueMemberStepUpRequest.md)
+ - [MemberIntention](doc/MemberIntention.md)
+ - [MemberIntentionPage](doc/MemberIntentionPage.md)
+ - [MemberIntentionPageResponse](doc/MemberIntentionPageResponse.md)
+ - [MemberIntentionResponse](doc/MemberIntentionResponse.md)
  - [ModifyBrokerageOrderIntent](doc/ModifyBrokerageOrderIntent.md)
+ - [PatchMemberIntention](doc/PatchMemberIntention.md)
  - [PlaceBrokerageOrderIntent](doc/PlaceBrokerageOrderIntent.md)
  - [ReconnectWebullConnectionRequest](doc/ReconnectWebullConnectionRequest.md)
  - [RecordConsentRequest](doc/RecordConsentRequest.md)
  - [RedeemWebullCompletionRequest](doc/RedeemWebullCompletionRequest.md)
  - [ReportContentRequest](doc/ReportContentRequest.md)
  - [RequestPrivacyActionRequest](doc/RequestPrivacyActionRequest.md)
+ - [ScenarioMoney](doc/ScenarioMoney.md)
  - [SelectWebullAccountRequest](doc/SelectWebullAccountRequest.md)
  - [TransitionRitualRequest](doc/TransitionRitualRequest.md)
  - [UpdateCircleRequest](doc/UpdateCircleRequest.md)

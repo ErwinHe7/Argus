@@ -43,6 +43,7 @@ abstract final class MemberRoutes {
   static const youMembershipPath = '/you/membership';
   static const youPrivacyPath = '/you/privacy';
   static const youDemoResetPath = '/you/demo-reset';
+  static const youIntentionsPath = '/you/intentions';
 
   static const ritual = MemberRouteDefinition(
     name: 'ritual',
@@ -236,6 +237,31 @@ abstract final class MemberRoutes {
       throw ArgumentError.value(runId, 'runId', 'Invalid Future Mirror UUID.');
     }
     return '${futureMirrorLocation(portfolioId, intentionId)}/'
+        '${Uri.encodeComponent(runId)}';
+  }
+
+  static String memberIntentionLocation(String intentionId) {
+    if (!isUuid(intentionId)) {
+      throw ArgumentError.value(
+        intentionId,
+        'intentionId',
+        'Invalid Intention UUID.',
+      );
+    }
+    return '$youIntentionsPath/${Uri.encodeComponent(intentionId)}';
+  }
+
+  static String memberFutureMirrorLocation(String intentionId) =>
+      '${memberIntentionLocation(intentionId)}/future-mirror';
+
+  static String memberFutureMirrorRunLocation(
+    String intentionId,
+    String runId,
+  ) {
+    if (!isUuid(runId)) {
+      throw ArgumentError.value(runId, 'runId', 'Invalid Future Mirror UUID.');
+    }
+    return '${memberFutureMirrorLocation(intentionId)}/'
         '${Uri.encodeComponent(runId)}';
   }
 

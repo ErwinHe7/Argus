@@ -77,6 +77,12 @@ export const RETAINED_SUPABASE_RELATIONS = Object.freeze({
     "argus_private.outbox_events",
     "argus_private.deletion_tombstones",
   ],
+  scenarios: [
+    "argus_app.intentions",
+    "argus_app.future_mirror_runs",
+    "argus_app.future_mirror_points",
+    "argus_private.member_idempotency_records",
+  ],
   publicPreview: [
     "argus_app.editorial_items",
     "argus_app.editorial_revisions",

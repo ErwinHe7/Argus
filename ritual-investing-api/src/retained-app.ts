@@ -24,6 +24,18 @@ import {
 import type { BrokerageProjectionService } from "./domains/brokerage-projections/service.ts";
 import { BrokerageOrderError } from "./domains/brokerage-orders/types.ts";
 import type { BrokerageOrderService } from "./domains/brokerage-orders/service.ts";
+import {
+  ScenarioConflictError,
+  type ScenarioRepository,
+} from "./domains/intentions/repository.ts";
+import {
+  futureMirrorInputSchema,
+  futureMirrorSchema,
+  intentionCreateSchema,
+  intentionPageSchema,
+  intentionPatchSchema,
+  intentionSchema,
+} from "./domains/intentions/schemas.ts";
 
 type RepositoryModule = typeof import("./db/supabase-repositories.ts");
 
@@ -51,6 +63,7 @@ export type RetainedRepositorySet = Readonly<{
   adminOperations: ReturnType<
     RepositoryModule["createSupabaseAdminOperationsRepository"]
   >;
+  scenarios: ScenarioRepository;
 }>;
 
 export type PublicPreviewRepository = ReturnType<
@@ -414,6 +427,32 @@ const errorSchema = z
   })
   .strict();
 const idempotencyKey = z.string().min(16).max(64).regex(/^[\x21-\x7E]+$/);
+const scenarioIdempotencyHeaders = z.object({
+  "idempotency-key": idempotencyKey,
+});
+const scenarioVersionHeaders = z.object({
+  "if-match": z.string().regex(/^"v[1-9]\d*"$/),
+});
+const scenarioIntentionPath = z.object({ intention_id: uuid }).strict();
+const scenarioRunPath = z.object({ intention_id: uuid, run_id: uuid }).strict();
+const scenarioLimit = z.coerce.number().int().min(1).max(50).default(25);
+
+function scenarioEnvelope(name: string, data: z.ZodType) {
+  return z.object({ data, meta: responseMetaSchema }).strict().openapi(name);
+}
+
+const intentionResponseSchema = scenarioEnvelope(
+  "MemberIntentionResponse",
+  intentionSchema,
+);
+const intentionPageResponseSchema = scenarioEnvelope(
+  "MemberIntentionPageResponse",
+  intentionPageSchema,
+);
+const futureMirrorResponseSchema = scenarioEnvelope(
+  "HypotheticalFutureMirrorResponse",
+  futureMirrorSchema,
+);
 
 class HttpBoundaryError extends Error {
   readonly status: 400 | 401 | 403 | 404 | 409 | 413 | 415 | 422 | 429 | 503;
@@ -954,6 +993,21 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
           409,
           "revision_conflict",
           "The resource changed. Refresh before retrying.",
+        ),
+      );
+    }
+    if (error instanceof ScenarioConflictError) {
+      const invalid = error.code === "invalid_scenario_input" ||
+        error.code === "invalid_scenario_horizon" ||
+        error.code === "scenario_value_too_large";
+      return errorResponse(
+        context,
+        new HttpBoundaryError(
+          invalid ? 422 : 409,
+          error.code,
+          invalid
+            ? "The reviewed hypothetical scenario assumptions are invalid."
+            : "The idempotency key conflicts with an earlier reviewed request.",
         ),
       );
     }
@@ -1603,6 +1657,183 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         await repositories(context, options).accounts.get(),
       ),
   );
+
+  const listIntentions = route(
+    "get",
+    "/v1/intentions",
+    "listIntentions",
+    "Intentions",
+    {
+      query: z.object({
+        status: z.enum(["active", "archived"]).optional(),
+        limit: scenarioLimit.optional(),
+      }).strict(),
+      description: "Member-owned intentions entered directly in Argus.",
+      response: intentionPageResponseSchema,
+    },
+  );
+  register(listIntentions, async (context) => {
+    const input = z.object({
+      status: z.enum(["active", "archived"]).optional(),
+      limit: scenarioLimit,
+    }).parse(query(context));
+    return dataResponse(
+      context,
+      await repositories(context, options).scenarios.listIntentions(
+        input.status,
+        input.limit,
+      ),
+    );
+  });
+
+  const createIntention = route(
+    "post",
+    "/v1/intentions",
+    "createIntention",
+    "Intentions",
+    {
+      headers: scenarioIdempotencyHeaders,
+      body: intentionCreateSchema,
+      description: "Create one member-owned intention from exact reviewed input.",
+      response: intentionResponseSchema,
+    },
+  );
+  register(createIntention, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).scenarios.createIntention(
+        await parseBody(context, intentionCreateSchema),
+        idempotencyKey.parse(context.req.header("idempotency-key")),
+      ),
+    ));
+
+  const getIntention = route(
+    "get",
+    "/v1/intentions/{intention_id}",
+    "getIntention",
+    "Intentions",
+    {
+      pathParams: scenarioIntentionPath,
+      description: "Read one member-owned intention.",
+      response: intentionResponseSchema,
+    },
+  );
+  register(getIntention, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).scenarios.getIntention(
+        uuid.parse(context.req.param("intention_id")),
+      ),
+    ));
+
+  const patchIntention = route(
+    "patch",
+    "/v1/intentions/{intention_id}",
+    "patchIntention",
+    "Intentions",
+    {
+      pathParams: scenarioIntentionPath,
+      headers: scenarioVersionHeaders,
+      body: intentionPatchSchema,
+      description: "Update exact member-entered fields with optimistic versioning.",
+      response: intentionResponseSchema,
+    },
+  );
+  register(patchIntention, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).scenarios.patchIntention(
+        uuid.parse(context.req.param("intention_id")),
+        await parseBody(context, intentionPatchSchema),
+        expectedVersion(context),
+      ),
+    ));
+
+  const archiveIntention = route(
+    "delete",
+    "/v1/intentions/{intention_id}",
+    "archiveIntention",
+    "Intentions",
+    {
+      pathParams: scenarioIntentionPath,
+      headers: scenarioVersionHeaders,
+      description: "Archive an intention with optimistic versioning.",
+      response: intentionResponseSchema,
+    },
+  );
+  register(archiveIntention, async (context) => {
+    await rejectBody(context);
+    return dataResponse(
+      context,
+      await repositories(context, options).scenarios.archiveIntention(
+        uuid.parse(context.req.param("intention_id")),
+        expectedVersion(context),
+      ),
+    );
+  });
+
+  const createFutureMirror = route(
+    "post",
+    "/v1/intentions/{intention_id}/future-mirror",
+    "createFutureMirror",
+    "Future Mirror",
+    {
+      pathParams: scenarioIntentionPath,
+      headers: scenarioIdempotencyHeaders,
+      body: futureMirrorInputSchema,
+      description:
+        "Create a deterministic hypothetical scenario from member-entered assumptions only.",
+      response: futureMirrorResponseSchema,
+    },
+  );
+  register(createFutureMirror, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).scenarios.createFutureMirror(
+        uuid.parse(context.req.param("intention_id")),
+        await parseBody(context, futureMirrorInputSchema),
+        idempotencyKey.parse(context.req.header("idempotency-key")),
+      ),
+    ));
+
+  const getLatestFutureMirror = route(
+    "get",
+    "/v1/intentions/{intention_id}/future-mirror/latest",
+    "getLatestFutureMirror",
+    "Future Mirror",
+    {
+      pathParams: scenarioIntentionPath,
+      description: "Read the latest completed hypothetical scenario.",
+      response: futureMirrorResponseSchema,
+    },
+  );
+  register(getLatestFutureMirror, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).scenarios.getLatestFutureMirror(
+        uuid.parse(context.req.param("intention_id")),
+      ),
+    ));
+
+  const getFutureMirror = route(
+    "get",
+    "/v1/intentions/{intention_id}/future-mirror/{run_id}",
+    "getFutureMirror",
+    "Future Mirror",
+    {
+      pathParams: scenarioRunPath,
+      description: "Read one immutable historical hypothetical scenario.",
+      response: futureMirrorResponseSchema,
+    },
+  );
+  register(getFutureMirror, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).scenarios.getFutureMirror(
+        uuid.parse(context.req.param("intention_id")),
+        uuid.parse(context.req.param("run_id")),
+      ),
+    ));
 
   const preferencesPatch = z
     .object({

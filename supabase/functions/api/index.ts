@@ -22,6 +22,7 @@ import {
   createRetainedApp,
   type RetainedRepositorySet,
 } from "../../../ritual-investing-api/src/retained-app.ts";
+import { createSupabaseScenarioRepository } from "../../../ritual-investing-api/src/domains/intentions/repository.ts";
 
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
@@ -100,6 +101,7 @@ const createRepositories: Parameters<
     search: createSupabaseSearchRepository(binding),
     admin: createSupabaseAdminRepository(binding),
     adminOperations: createSupabaseAdminOperationsRepository(binding),
+    scenarios: createSupabaseScenarioRepository(binding),
   });
 };
 

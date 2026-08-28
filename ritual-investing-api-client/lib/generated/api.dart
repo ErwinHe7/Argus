@@ -22,6 +22,8 @@ import 'package:ritual_investing_api_client/generated/api/circles_api.dart';
 import 'package:ritual_investing_api_client/generated/api/coven_api.dart';
 import 'package:ritual_investing_api_client/generated/api/discover_api.dart';
 import 'package:ritual_investing_api_client/generated/api/editorial_api.dart';
+import 'package:ritual_investing_api_client/generated/api/future_mirror_api.dart';
+import 'package:ritual_investing_api_client/generated/api/intentions_api.dart';
 import 'package:ritual_investing_api_client/generated/api/media_api.dart';
 import 'package:ritual_investing_api_client/generated/api/member_security_api.dart';
 import 'package:ritual_investing_api_client/generated/api/moderation_api.dart';
@@ -247,6 +249,18 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   EditorialApi getEditorialApi() {
     return EditorialApi(dio);
+  }
+
+  /// Get FutureMirrorApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  FutureMirrorApi getFutureMirrorApi() {
+    return FutureMirrorApi(dio);
+  }
+
+  /// Get IntentionsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  IntentionsApi getIntentionsApi() {
+    return IntentionsApi(dio);
   }
 
   /// Get MediaApi instance, base route and serializer can be overridden by a given but be careful,
