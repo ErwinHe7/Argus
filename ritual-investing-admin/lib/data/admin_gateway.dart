@@ -125,114 +125,52 @@ class OpenApiAdminGateway implements AdminGateway {
   final RitualInvestingApiClient _client;
   final AdminCommandKeyFactory commandKeys;
 
+  static const _secure = <String, Object?>{
+    'secure': [
+      {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
+    ],
+  };
+
   @override
   Future<AdminStaffSession> loadSession() async {
-    final data = (await _client.getAdminSessionApi().getAdminMe()).data?.data;
-    if (data == null) throw const FormatException('Missing admin session');
+    final response = await _client.dio.get<Object?>(
+      '/v1/admin/session',
+      options: Options(extra: _secure),
+    );
+    final data = _data(response.data);
+    final permissions = data['permissions'];
+    final revocationEpoch = data['revocation_epoch'];
+    if (data['user_id'] is! String ||
+        data['display_label'] is! String ||
+        permissions is! List ||
+        revocationEpoch is! num ||
+        revocationEpoch.toInt() != revocationEpoch) {
+      throw const FormatException('Invalid Supabase staff session');
+    }
     return AdminStaffSession(
-      staffId: data.staffId,
-      displayLabel: data.displayLabel,
-      permissions: data.permissions.toSet(),
-      revocationEpoch: data.revocationEpoch,
+      staffId: data['user_id']! as String,
+      displayLabel: data['display_label']! as String,
+      permissions: permissions.whereType<String>().toSet(),
+      revocationEpoch: revocationEpoch.toInt(),
     );
   }
 
   @override
   Future<List<AdminRecord>> list(AdminDestination destination) async {
-    final now = DateTime.now().toUtc();
-    final response = await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().listAdminRitualScenario(limit: 20),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().listAdminAssetCodex(limit: 20),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().listAdminCovenEntry(limit: 20),
-      '/v1/admin/grimoires' => _client.getAdminGrimoireApi().listAdminGrimoire(
-        limit: 20,
-      ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().listAdminCircleTemplate(limit: 20),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().listAdminRowanScript(limit: 20),
-      '/v1/admin/briefing-templates' =>
-        _client.getAdminBriefingTemplateApi().listAdminBriefingTemplate(
-          limit: 20,
-        ),
-      '/v1/admin/assets' => _client.getAdminAssetsApi().listAdminAssets(
-        limit: 20,
-      ),
-      '/v1/admin/evidence-sources' =>
-        _client.getAdminEvidenceApi().listAdminEvidenceSources(limit: 20),
-      '/v1/admin/evidence-claims' =>
-        _client.getAdminEvidenceApi().listAdminEvidenceClaims(limit: 20),
-      '/v1/admin/ritual-schedules' =>
-        _client.getAdminSchedulingApi().listAdminRitualSchedules(
-          from: DateTime.utc(now.year, 1, 1),
-          to: DateTime.utc(now.year + 1, 1, 1),
-          limit: 20,
-        ),
-      '/v1/admin/seeded-creators' =>
-        _client.getAdminSeededCommunityApi().listAdminSeededCreators(limit: 20),
-      '/v1/admin/moderation/reports' =>
-        _client.getAdminModerationApi().listAdminModerationReports(limit: 20),
-      '/v1/admin/media' => _client.getAdminMediaApi().listAdminMedia(limit: 20),
-      '/v1/admin/privacy/requests' =>
-        _client.getAdminPrivacyApi().listAdminPrivacyRequests(limit: 20),
-      '/v1/admin/jobs' => _client.getAdminOperationsApi().listAdminJobs(
-        limit: 20,
-      ),
-      '/v1/admin/audit-events' =>
-        _client.getAdminAuditApi().listAdminAuditEvents(limit: 20),
-      _ => throw StateError(
-        'No generated collection method for ${destination.apiPath}',
-      ),
-    };
-    final values = _dtoJson(response.data)['data'];
+    final query = <String, Object?>{'limit': 20};
+    if (destination.editorialKind != null) {
+      query['kind'] = destination.editorialKind;
+    }
+    final response = await _client.dio.get<Object?>(
+      destination.apiPath,
+      queryParameters: query,
+      options: Options(extra: _secure),
+    );
+    final values = _dataValue(response.data);
     if (values is! List) {
       throw const FormatException('Invalid admin collection envelope');
     }
     return values.map(_decodeRecord).toList(growable: false);
-  }
-
-  Map<String, Object?> _dtoJson(Object? value) {
-    if (value == null) throw const FormatException('Missing API response');
-    final json = (value as dynamic).toJson();
-    if (json is! Map) throw const FormatException('Invalid API response');
-    return Map<String, Object?>.from(json);
-  }
-
-  AdminRecord _decodeRecord(Object? value) {
-    if (value is! Map) throw const FormatException('Invalid admin record');
-    final item = Map<String, Object?>.from(value);
-    final id = item['id'];
-    if (id is! String) {
-      throw const FormatException('Admin record identity is missing');
-    }
-    final revision = item['revision'] is Map
-        ? Map<String, Object?>.from(item['revision']! as Map)
-        : const <String, Object?>{};
-    final versionValue = revision['version'] ?? item['version'];
-    final etagValue = revision['etag'] ?? item['etag'];
-    return AdminRecord(
-      id: id,
-      title:
-          (item['title'] ??
-                  item['name'] ??
-                  item['slug'] ??
-                  item['action'] ??
-                  id)
-              .toString(),
-      status:
-          (revision['state'] ??
-                  item['status'] ??
-                  item['state'] ??
-                  item['outcome'] ??
-                  'unknown')
-              .toString(),
-      version: versionValue is int ? versionValue : 1,
-      revisionId: revision['id']?.toString(),
-      etag: etagValue is String ? etagValue : '"v1"',
-    );
   }
 
   @override
@@ -241,54 +179,13 @@ class OpenApiAdminGateway implements AdminGateway {
     String slug,
     Map<String, Object?> payload,
   ) async {
-    final key = _commandKey('draft', slug);
-    final body = <String, dynamic>{'slug': slug, ...payload};
-    await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().createAdminRitualScenario(
-          idempotencyKey: key,
-          createRitualScenarioRequest: CreateRitualScenarioRequest.fromJson(
-            body,
-          ),
-        ),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().createAdminAssetCodex(
-          idempotencyKey: key,
-          createAssetCodexRequest: CreateAssetCodexRequest.fromJson(body),
-        ),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().createAdminCovenEntry(
-          idempotencyKey: key,
-          createCovenEntryRequest: CreateCovenEntryRequest.fromJson(body),
-        ),
-      '/v1/admin/grimoires' =>
-        _client.getAdminGrimoireApi().createAdminGrimoire(
-          idempotencyKey: key,
-          createGrimoireRequest: CreateGrimoireRequest.fromJson(body),
-        ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().createAdminCircleTemplate(
-          idempotencyKey: key,
-          createCircleTemplateRequest: CreateCircleTemplateRequest.fromJson(
-            body,
-          ),
-        ),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().createAdminRowanScript(
-          idempotencyKey: key,
-          createRowanScriptRequest: CreateRowanScriptRequest.fromJson(body),
-        ),
-      '/v1/admin/briefing-templates' =>
-        _client.getAdminBriefingTemplateApi().createAdminBriefingTemplate(
-          idempotencyKey: key,
-          createBriefingTemplateRequest: CreateBriefingTemplateRequest.fromJson(
-            body,
-          ),
-        ),
-      _ => throw StateError(
-        'No generated editorial method for ${destination.apiPath}',
-      ),
-    };
+    final kind = destination.editorialKind;
+    if (kind == null) throw UnsupportedError('Not an editorial workspace');
+    await _client.dio.post<Object?>(
+      '/v1/admin/editorial',
+      data: {'kind': kind, 'slug': slug, 'payload': payload},
+      options: Options(extra: _secure),
+    );
   }
 
   @override
@@ -296,71 +193,8 @@ class OpenApiAdminGateway implements AdminGateway {
     AdminDestination destination,
     AdminRecord record,
     Map<String, Object?> payload,
-  ) async {
-    final revision = _revision(record);
-    final key = _commandKey('revision', record.id);
-    final body = <String, dynamic>{
-      'source_revision_id': revision,
-      'payload': payload,
-    };
-    await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().createAdminRitualScenarioRevision(
-          itemId: record.id,
-          idempotencyKey: key,
-          createRitualScenarioRevisionRequest:
-              CreateRitualScenarioRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().createAdminAssetCodexRevision(
-          itemId: record.id,
-          idempotencyKey: key,
-          createAssetCodexRevisionRequest:
-              CreateAssetCodexRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().createAdminCovenEntryRevision(
-          itemId: record.id,
-          idempotencyKey: key,
-          createCovenEntryRevisionRequest:
-              CreateCovenEntryRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/grimoires' =>
-        _client.getAdminGrimoireApi().createAdminGrimoireRevision(
-          itemId: record.id,
-          idempotencyKey: key,
-          createGrimoireRevisionRequest: CreateGrimoireRevisionRequest.fromJson(
-            body,
-          ),
-        ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().createAdminCircleTemplateRevision(
-          itemId: record.id,
-          idempotencyKey: key,
-          createCircleTemplateRevisionRequest:
-              CreateCircleTemplateRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().createAdminRowanScriptRevision(
-          itemId: record.id,
-          idempotencyKey: key,
-          createRowanScriptRevisionRequest:
-              CreateRowanScriptRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/briefing-templates' =>
-        _client
-            .getAdminBriefingTemplateApi()
-            .createAdminBriefingTemplateRevision(
-              itemId: record.id,
-              idempotencyKey: key,
-              createBriefingTemplateRevisionRequest:
-                  CreateBriefingTemplateRevisionRequest.fromJson(body),
-            ),
-      _ => throw StateError(
-        'No generated editorial method for ${destination.apiPath}',
-      ),
-    };
-  }
+  ) =>
+      _post('/v1/admin/editorial/${record.id}/revisions', {'payload': payload});
 
   @override
   Future<void> patchRevision(
@@ -369,580 +203,200 @@ class OpenApiAdminGateway implements AdminGateway {
     Map<String, Object?> payload,
   ) async {
     final revision = _revision(record);
-    final body = <String, dynamic>{'payload': payload};
-    await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().patchAdminRitualScenarioRevision(
-          itemId: record.id,
-          revisionId: revision,
-          ifMatch: record.etag,
-          patchRitualScenarioRevisionRequest:
-              PatchRitualScenarioRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().patchAdminAssetCodexRevision(
-          itemId: record.id,
-          revisionId: revision,
-          ifMatch: record.etag,
-          patchAssetCodexRevisionRequest:
-              PatchAssetCodexRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().patchAdminCovenEntryRevision(
-          itemId: record.id,
-          revisionId: revision,
-          ifMatch: record.etag,
-          patchCovenEntryRevisionRequest:
-              PatchCovenEntryRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/grimoires' =>
-        _client.getAdminGrimoireApi().patchAdminGrimoireRevision(
-          itemId: record.id,
-          revisionId: revision,
-          ifMatch: record.etag,
-          patchGrimoireRevisionRequest: PatchGrimoireRevisionRequest.fromJson(
-            body,
-          ),
-        ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().patchAdminCircleTemplateRevision(
-          itemId: record.id,
-          revisionId: revision,
-          ifMatch: record.etag,
-          patchCircleTemplateRevisionRequest:
-              PatchCircleTemplateRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().patchAdminRowanScriptRevision(
-          itemId: record.id,
-          revisionId: revision,
-          ifMatch: record.etag,
-          patchRowanScriptRevisionRequest:
-              PatchRowanScriptRevisionRequest.fromJson(body),
-        ),
-      '/v1/admin/briefing-templates' =>
-        _client
-            .getAdminBriefingTemplateApi()
-            .patchAdminBriefingTemplateRevision(
-              itemId: record.id,
-              revisionId: revision,
-              ifMatch: record.etag,
-              patchBriefingTemplateRevisionRequest:
-                  PatchBriefingTemplateRevisionRequest.fromJson(body),
-            ),
-      _ => throw StateError(
-        'No generated editorial method for ${destination.apiPath}',
-      ),
-    };
+    await _client.dio.patch<Object?>(
+      '/v1/admin/editorial/${record.id}/revisions/$revision',
+      data: {'payload': payload},
+      options: Options(headers: {'if-match': record.etag}, extra: _secure),
+    );
   }
 
   @override
   Future<void> preview(AdminDestination destination, AdminRecord record) async {
-    final revision = _revision(record);
-    await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().previewAdminRitualScenarioRevision(
-          itemId: record.id,
-          revisionId: revision,
-        ),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().previewAdminAssetCodexRevision(
-          itemId: record.id,
-          revisionId: revision,
-        ),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().previewAdminCovenEntryRevision(
-          itemId: record.id,
-          revisionId: revision,
-        ),
-      '/v1/admin/grimoires' =>
-        _client.getAdminGrimoireApi().previewAdminGrimoireRevision(
-          itemId: record.id,
-          revisionId: revision,
-        ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().previewAdminCircleTemplateRevision(
-          itemId: record.id,
-          revisionId: revision,
-        ),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().previewAdminRowanScriptRevision(
-          itemId: record.id,
-          revisionId: revision,
-        ),
-      '/v1/admin/briefing-templates' =>
-        _client
-            .getAdminBriefingTemplateApi()
-            .previewAdminBriefingTemplateRevision(
-              itemId: record.id,
-              revisionId: revision,
-            ),
-      _ => throw StateError(
-        'No generated editorial method for ${destination.apiPath}',
-      ),
-    };
+    await _client.dio.get<Object?>(
+      '/v1/admin/editorial/${record.id}',
+      options: Options(extra: _secure),
+    );
   }
 
   @override
   Future<void> requestReview(
     AdminDestination destination,
     AdminRecord record,
-  ) async {
-    final revision = _revision(record);
-    final key = _commandKey('review', revision);
-    final request = RequestAdminAssetCodexReviewRequest.fromJson(const {
-      'note': 'Submitted from the reviewed staff dashboard.',
-    });
-    await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().requestAdminRitualScenarioReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          requestAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().requestAdminAssetCodexReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          requestAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().requestAdminCovenEntryReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          requestAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/grimoires' =>
-        _client.getAdminGrimoireApi().requestAdminGrimoireReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          requestAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().requestAdminCircleTemplateReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          requestAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().requestAdminRowanScriptReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          requestAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/briefing-templates' =>
-        _client
-            .getAdminBriefingTemplateApi()
-            .requestAdminBriefingTemplateReview(
-              itemId: record.id,
-              revisionId: revision,
-              idempotencyKey: key,
-              requestAdminAssetCodexReviewRequest: request,
-            ),
-      _ => throw StateError(
-        'No generated editorial method for ${destination.apiPath}',
-      ),
-    };
-  }
-
+  ) => _editorialCommand(destination, record, 'request_review');
   @override
   Future<void> decideReview(
     AdminDestination destination,
     AdminRecord record,
     AdminReviewDecision decision,
-  ) async {
-    final revision = _revision(record);
-    final key = _commandKey('decision-${decision.wireValue}', revision);
-    final request = DecideAdminAssetCodexReviewRequest(
-      decision: switch (decision) {
-        AdminReviewDecision.approved =>
-          DecideAdminAssetCodexReviewRequestDecisionEnum.approved,
-        AdminReviewDecision.changesRequested =>
-          DecideAdminAssetCodexReviewRequestDecisionEnum.changesRequested,
-      },
-      reason: 'Recorded from the reviewed staff dashboard.',
-    );
-    await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().decideAdminRitualScenarioReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          decideAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().decideAdminAssetCodexReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          decideAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().decideAdminCovenEntryReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          decideAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/grimoires' =>
-        _client.getAdminGrimoireApi().decideAdminGrimoireReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          decideAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().decideAdminCircleTemplateReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          decideAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().decideAdminRowanScriptReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          decideAdminAssetCodexReviewRequest: request,
-        ),
-      '/v1/admin/briefing-templates' =>
-        _client.getAdminBriefingTemplateApi().decideAdminBriefingTemplateReview(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          decideAdminAssetCodexReviewRequest: request,
-        ),
-      _ => throw StateError(
-        'No generated editorial method for ${destination.apiPath}',
-      ),
-    };
-  }
-
+  ) => _editorialCommand(destination, record, decision.wireValue);
   @override
-  Future<void> publish(AdminDestination destination, AdminRecord record) async {
-    final revision = _revision(record);
-    final key = _commandKey('publish', revision);
-    final request = PublishAdminAssetCodexRevisionRequest.fromJson({
-      'effective_at': DateTime.now().toUtc().toIso8601String(),
-      'reason': 'Published from the reviewed staff dashboard.',
-    });
-    await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().publishAdminRitualScenarioRevision(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          publishAdminAssetCodexRevisionRequest: request,
-        ),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().publishAdminAssetCodexRevision(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          publishAdminAssetCodexRevisionRequest: request,
-        ),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().publishAdminCovenEntryRevision(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          publishAdminAssetCodexRevisionRequest: request,
-        ),
-      '/v1/admin/grimoires' =>
-        _client.getAdminGrimoireApi().publishAdminGrimoireRevision(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          publishAdminAssetCodexRevisionRequest: request,
-        ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().publishAdminCircleTemplateRevision(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          publishAdminAssetCodexRevisionRequest: request,
-        ),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().publishAdminRowanScriptRevision(
-          itemId: record.id,
-          revisionId: revision,
-          idempotencyKey: key,
-          publishAdminAssetCodexRevisionRequest: request,
-        ),
-      '/v1/admin/briefing-templates' =>
-        _client
-            .getAdminBriefingTemplateApi()
-            .publishAdminBriefingTemplateRevision(
-              itemId: record.id,
-              revisionId: revision,
-              idempotencyKey: key,
-              publishAdminAssetCodexRevisionRequest: request,
-            ),
-      _ => throw StateError(
-        'No generated editorial method for ${destination.apiPath}',
-      ),
-    };
-  }
-
+  Future<void> publish(AdminDestination destination, AdminRecord record) =>
+      _editorialCommand(destination, record, 'publish');
   @override
-  Future<void> withdraw(
+  Future<void> withdraw(AdminDestination destination, AdminRecord record) =>
+      _editorialCommand(destination, record, 'withdraw');
+
+  Future<void> _editorialCommand(
     AdminDestination destination,
     AdminRecord record,
-  ) async {
-    final key = _commandKey('withdraw', record.id);
-    final request = WithdrawAdminAssetCodexRequest.fromJson(const {
-      'reason': 'Withdrawn from the reviewed staff dashboard.',
-    });
-    await switch (destination.apiPath) {
-      '/v1/admin/ritual-scenarios' =>
-        _client.getAdminRitualScenarioApi().withdrawAdminRitualScenario(
-          itemId: record.id,
-          idempotencyKey: key,
-          withdrawAdminAssetCodexRequest: request,
-        ),
-      '/v1/admin/asset-codex' =>
-        _client.getAdminAssetCodexApi().withdrawAdminAssetCodex(
-          itemId: record.id,
-          idempotencyKey: key,
-          withdrawAdminAssetCodexRequest: request,
-        ),
-      '/v1/admin/coven-entries' =>
-        _client.getAdminCovenEntryApi().withdrawAdminCovenEntry(
-          itemId: record.id,
-          idempotencyKey: key,
-          withdrawAdminAssetCodexRequest: request,
-        ),
-      '/v1/admin/grimoires' =>
-        _client.getAdminGrimoireApi().withdrawAdminGrimoire(
-          itemId: record.id,
-          idempotencyKey: key,
-          withdrawAdminAssetCodexRequest: request,
-        ),
-      '/v1/admin/circle-templates' =>
-        _client.getAdminCircleTemplateApi().withdrawAdminCircleTemplate(
-          itemId: record.id,
-          idempotencyKey: key,
-          withdrawAdminAssetCodexRequest: request,
-        ),
-      '/v1/admin/rowan-scripts' =>
-        _client.getAdminRowanScriptApi().withdrawAdminRowanScript(
-          itemId: record.id,
-          idempotencyKey: key,
-          withdrawAdminAssetCodexRequest: request,
-        ),
-      '/v1/admin/briefing-templates' =>
-        _client.getAdminBriefingTemplateApi().withdrawAdminBriefingTemplate(
-          itemId: record.id,
-          idempotencyKey: key,
-          withdrawAdminAssetCodexRequest: request,
-        ),
-      _ => throw StateError(
-        'No generated editorial method for ${destination.apiPath}',
-      ),
-    };
+    String action,
+  ) => _post('/v1/admin/editorial/${record.id}/commands', {
+    'action': action,
+    'revision_id': action == 'withdraw' ? null : _revision(record),
+    'reason': 'Reviewed staff editorial transition.',
+    'high_trust': destination.highTrust,
+  });
+
+  Future<void> _post(String path, Map<String, Object?> data) async {
+    await _client.dio.post<Object?>(
+      path,
+      data: data,
+      options: Options(extra: _secure),
+    );
   }
+
+  @override
+  Future<void> retryPrivacy(AdminRecord record) => _retryOperation(
+    record,
+    action: 'admin_privacy_retry',
+    path: '/v1/admin/operations/privacy/${record.id}/retry',
+  );
+  @override
+  Future<void> retryJob(AdminRecord record) => _retryOperation(
+    record,
+    action: 'admin_job_retry',
+    path: '/v1/admin/operations/jobs/${record.id}/retry',
+  );
+
+  Future<void> _retryOperation(
+    AdminRecord record, {
+    required String action,
+    required String path,
+  }) async {
+    final stepUp = await _client.dio.post<Object?>(
+      '/v1/admin/step-up',
+      data: {'action': action, 'target_id': record.id},
+      options: Options(extra: _secure),
+    );
+    final receipt = _data(stepUp.data)['receipt'];
+    if (receipt is! String) {
+      throw const FormatException('Missing action-bound staff receipt');
+    }
+    await _client.dio.post<Object?>(
+      path,
+      data: {'step_up_receipt': receipt},
+      options: Options(
+        headers: {'idempotency-key': commandKeys.next(action, record.id)},
+        extra: _secure,
+      ),
+    );
+  }
+
+  Map<String, Object?> _data(Object? envelope) {
+    final value = _dataValue(envelope);
+    if (value is! Map) throw const FormatException('Invalid admin envelope');
+    return Map<String, Object?>.from(value);
+  }
+
+  Object? _dataValue(Object? envelope) {
+    if (envelope is Map) return envelope['data'];
+    final json = (envelope as dynamic)?.toJson();
+    return json is Map ? json['data'] : null;
+  }
+
+  AdminRecord _decodeRecord(Object? value) {
+    if (value is! Map) throw const FormatException('Invalid admin record');
+    final item = Map<String, Object?>.from(value);
+    final id = item['id'] ?? item['correlation_id'];
+    if (id is! String) {
+      throw const FormatException('Admin record identity is missing');
+    }
+    final numericVersion = item['version'] ?? item['revision_number'] ?? 1;
+    final version =
+        numericVersion is num &&
+            numericVersion.isFinite &&
+            numericVersion.toInt() == numericVersion
+        ? numericVersion.toInt()
+        : 1;
+    return AdminRecord(
+      id: id,
+      title:
+          (item['slug'] ??
+                  item['job_type'] ??
+                  item['request_type'] ??
+                  item['kind'] ??
+                  item['action'] ??
+                  'Redacted operation')
+              .toString(),
+      status:
+          (item['revision_state'] ??
+                  item['status'] ??
+                  item['outcome'] ??
+                  'unknown')
+              .toString(),
+      version: version,
+      revisionId: item['revision_id'] as String?,
+      etag: item['etag'] is String ? item['etag']! as String : '"v$version"',
+    );
+  }
+
+  String _revision(AdminRecord record) =>
+      record.revisionId ?? (throw StateError('No revision is available'));
+  Never _unsupported() => throw UnsupportedError(
+    'This retained Supabase admin exposes editorial and redacted operations only.',
+  );
 
   @override
   Future<void> createCatalog(
     AdminDestination destination,
     Map<String, Object?> payload,
-  ) async {
-    final key = _commandKey('catalog-create', destination.apiPath);
-    final body = Map<String, dynamic>.from(payload);
-    await switch (destination.apiPath) {
-      '/v1/admin/assets' => _client.getAdminAssetsApi().createAdminAsset(
-        idempotencyKey: key,
-        createAdminAssetRequest: CreateAdminAssetRequest.fromJson(body),
-      ),
-      '/v1/admin/evidence-sources' =>
-        _client.getAdminEvidenceApi().createAdminEvidenceSource(
-          idempotencyKey: key,
-          createAdminEvidenceSourceRequest:
-              CreateAdminEvidenceSourceRequest.fromJson(body),
-        ),
-      '/v1/admin/evidence-claims' =>
-        _client.getAdminEvidenceApi().createAdminEvidenceClaim(
-          idempotencyKey: key,
-          createAdminEvidenceClaimRequest:
-              CreateAdminEvidenceClaimRequest.fromJson(body),
-        ),
-      '/v1/admin/seeded-creators' =>
-        _client.getAdminSeededCommunityApi().createAdminSeededCreator(
-          idempotencyKey: key,
-          createAdminSeededCreatorRequest:
-              CreateAdminSeededCreatorRequest.fromJson(body),
-        ),
-      _ => throw StateError(
-        'No generated catalog create method for ${destination.apiPath}',
-      ),
-    };
-  }
-
+  ) async => _unsupported();
   @override
   Future<void> patchCatalog(
     AdminDestination destination,
     AdminRecord record,
     Map<String, Object?> payload,
-  ) async {
-    final body = Map<String, dynamic>.from(payload);
-    await switch (destination.apiPath) {
-      '/v1/admin/assets' => _client.getAdminAssetsApi().patchAdminAsset(
-        assetId: record.id,
-        ifMatch: record.etag,
-        patchAdminAssetRequest: PatchAdminAssetRequest.fromJson(body),
-      ),
-      '/v1/admin/evidence-sources' =>
-        _client.getAdminEvidenceApi().patchAdminEvidenceSource(
-          sourceId: record.id,
-          ifMatch: record.etag,
-          patchAdminEvidenceSourceRequest:
-              PatchAdminEvidenceSourceRequest.fromJson(body),
-        ),
-      '/v1/admin/seeded-creators' =>
-        _client.getAdminSeededCommunityApi().patchAdminSeededCreator(
-          creatorId: record.id,
-          ifMatch: record.etag,
-          patchAdminSeededCreatorRequest:
-              PatchAdminSeededCreatorRequest.fromJson(body),
-        ),
-      _ => throw StateError(
-        'No generated catalog patch method for ${destination.apiPath}',
-      ),
-    };
-  }
-
+  ) async => _unsupported();
   @override
   Future<void> appendAssetMetric(
     AdminRecord record,
     Map<String, Object?> payload,
-  ) async => _client.getAdminCatalogApi().createAdminAssetMetricSnapshot(
-    assetId: record.id,
-    idempotencyKey: _commandKey('asset-metric', record.id),
-    createAdminAssetMetricSnapshotRequest:
-        CreateAdminAssetMetricSnapshotRequest.fromJson(
-          Map<String, dynamic>.from(payload),
-        ),
-  );
+  ) async => _unsupported();
   @override
   Future<void> createSchedule(Map<String, Object?> payload) async =>
-      _client.getAdminSchedulingApi().createAdminRitualSchedule(
-        idempotencyKey: _commandKey('schedule-create', jsonEncode(payload)),
-        createAdminRitualScheduleRequest:
-            CreateAdminRitualScheduleRequest.fromJson(
-              Map<String, dynamic>.from(payload),
-            ),
-      );
+      _unsupported();
   @override
   Future<void> patchSchedule(
     AdminRecord record,
     Map<String, Object?> payload,
-  ) async => _client.getAdminSchedulingApi().patchAdminRitualSchedule(
-    scheduleId: record.id,
-    ifMatch: record.etag,
-    patchAdminRitualScheduleRequest: PatchAdminRitualScheduleRequest.fromJson(
-      Map<String, dynamic>.from(payload),
-    ),
-  );
+  ) async => _unsupported();
   @override
-  Future<void> withdrawSchedule(AdminRecord record) async =>
-      _client.getAdminSchedulingApi().withdrawAdminRitualSchedule(
-        scheduleId: record.id,
-        ifMatch: record.etag,
-        withdrawAdminAssetCodexRequest: WithdrawAdminAssetCodexRequest.fromJson(
-          const {'reason': 'Withdrawn from the staff dashboard.'},
-        ),
-      );
+  Future<void> withdrawSchedule(AdminRecord record) async => _unsupported();
   @override
   Future<void> verifyCovenQualification(
     String qualificationId,
     Map<String, Object?> payload,
-  ) async => _client.getAdminCatalogApi().verifyAdminCovenQualification(
-    qualificationId: qualificationId,
-    idempotencyKey: _commandKey('coven-verify', qualificationId),
-    verifyAdminCovenQualificationRequest:
-        VerifyAdminCovenQualificationRequest.fromJson(
-          Map<String, dynamic>.from(payload),
-        ),
-  );
+  ) async => _unsupported();
   @override
   Future<void> createMediaUpload(Map<String, Object?> payload) async =>
-      _client.getAdminMediaApi().requestMediaUpload(
-        idempotencyKey: _commandKey('media-upload', jsonEncode(payload)),
-        requestMediaUploadRequest: RequestMediaUploadRequest.fromJson(
-          Map<String, dynamic>.from(payload),
-        ),
-      );
+      _unsupported();
   @override
   Future<void> completeMedia(
     AdminRecord record,
     Map<String, Object?> payload,
-  ) async => _client.getAdminMediaApi().completeMediaUpload(
-    mediaId: record.id,
-    idempotencyKey: _commandKey('media-complete', record.id),
-    completeMediaUploadRequest: CompleteMediaUploadRequest.fromJson(
-      Map<String, dynamic>.from(payload),
-    ),
-  );
+  ) async => _unsupported();
   @override
-  Future<void> retireMedia(AdminRecord record) async =>
-      _client.getAdminMediaApi().deleteAdminMedia(
-        mediaId: record.id,
-        ifMatch: record.etag,
-        retryAdminJobRequest: RetryAdminJobRequest.fromJson(const {
-          'reason': 'Retired from the staff dashboard.',
-        }),
-      );
+  Future<void> retireMedia(AdminRecord record) async => _unsupported();
   @override
   Future<void> openModerationCase(
     AdminRecord report,
     Map<String, Object?> payload,
-  ) async => _client.getAdminModerationApi().createAdminModerationCase(
-    reportId: report.id,
-    idempotencyKey: _commandKey('moderation-open', report.id),
-    createAdminModerationCaseRequest: CreateAdminModerationCaseRequest.fromJson(
-      Map<String, dynamic>.from(payload),
-    ),
-  );
+  ) async => _unsupported();
   @override
   Future<void> decideModerationCase(
     AdminRecord record,
     Map<String, Object?> payload,
-  ) async => _client.getAdminModerationApi().patchAdminModerationCase(
-    caseId: record.id,
-    ifMatch: record.etag,
-    patchAdminModerationCaseRequest: PatchAdminModerationCaseRequest.fromJson(
-      Map<String, dynamic>.from(payload),
-    ),
-  );
-  @override
-  Future<void> retryPrivacy(AdminRecord record) async =>
-      _client.getAdminPrivacyApi().retryAdminPrivacyRequest(
-        requestId: record.id,
-        idempotencyKey: _commandKey('privacy-retry', record.id),
-        retryAdminJobRequest: RetryAdminJobRequest.fromJson(const {
-          'reason': 'Reviewed retry from the staff dashboard.',
-        }),
-      );
-  @override
-  Future<void> retryJob(AdminRecord record) async =>
-      _client.getAdminOperationsApi().retryAdminJob(
-        jobId: record.id,
-        idempotencyKey: _commandKey('job-retry', record.id),
-        retryAdminJobRequest: RetryAdminJobRequest.fromJson(const {
-          'reason': 'Reviewed retry from the staff dashboard.',
-        }),
-      );
-
-  String _revision(AdminRecord record) =>
-      record.revisionId ?? (throw StateError('No revision is available'));
-  String _commandKey(String action, String identity) =>
-      commandKeys.next(action, identity);
+  ) async => _unsupported();
 }
 
 class FixtureAdminGateway implements AdminGateway {

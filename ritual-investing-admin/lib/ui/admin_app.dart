@@ -119,9 +119,21 @@ class _AdminAppState extends State<AdminApp> {
   );
 }
 
-class _LoginScreen extends StatelessWidget {
+class _LoginScreen extends StatefulWidget {
   const _LoginScreen({required this.session});
   final AdminSessionController session;
+  @override
+  State<_LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<_LoginScreen> {
+  final _totp = TextEditingController();
+  @override
+  void dispose() {
+    _totp.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     body: Center(
@@ -140,16 +152,39 @@ class _LoginScreen extends StatelessWidget {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Cloudflare Access and an active Auth0 staff identity are both required.',
+                Text(
+                  widget.session.phase == AdminSessionPhase.requiresAal2
+                      ? 'Complete your enrolled Supabase second factor before opening staff data.'
+                      : 'An active Supabase staff identity with AAL2 is required. Access is rechecked on every request.',
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
-                FilledButton.icon(
-                  onPressed: session.login,
-                  icon: const Icon(Icons.login),
-                  label: const Text('Continue with staff identity'),
-                ),
+                if (widget.session.phase == AdminSessionPhase.requiresAal2) ...[
+                  TextField(
+                    key: const Key('admin-mfa-code'),
+                    controller: _totp,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    obscureText: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Authenticator code',
+                      helperText: 'Use the one enrolled staff TOTP factor.',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    key: const Key('admin-mfa-verify'),
+                    onPressed: () =>
+                        widget.session.verifySecondFactor(_totp.text),
+                    icon: const Icon(Icons.verified_user_outlined),
+                    label: const Text('Verify second factor'),
+                  ),
+                ] else
+                  FilledButton.icon(
+                    onPressed: widget.session.login,
+                    icon: const Icon(Icons.login),
+                    label: const Text('Continue with staff identity'),
+                  ),
               ],
             ),
           ),

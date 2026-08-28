@@ -68,15 +68,22 @@ Class | Method | HTTP request | Description
 [*AccountApi*](doc/AccountApi.md) | [**getAccount**](doc/AccountApi.md#getaccount) | **GET** /v1/account | 
 [*AccountApi*](doc/AccountApi.md) | [**recordConsent**](doc/AccountApi.md#recordconsent) | **POST** /v1/consents | 
 [*AccountApi*](doc/AccountApi.md) | [**updatePreferences**](doc/AccountApi.md#updatepreferences) | **PATCH** /v1/preferences | 
+[*AdminApi*](doc/AdminApi.md) | [**commandAdminEditorial**](doc/AdminApi.md#commandadmineditorial) | **POST** /v1/admin/editorial/{item_id}/commands | 
+[*AdminApi*](doc/AdminApi.md) | [**createAdminEditorial**](doc/AdminApi.md#createadmineditorial) | **POST** /v1/admin/editorial | 
+[*AdminApi*](doc/AdminApi.md) | [**createAdminEditorialRevision**](doc/AdminApi.md#createadmineditorialrevision) | **POST** /v1/admin/editorial/{item_id}/revisions | 
+[*AdminApi*](doc/AdminApi.md) | [**getAdminEditorial**](doc/AdminApi.md#getadmineditorial) | **GET** /v1/admin/editorial/{item_id} | 
 [*AdminApi*](doc/AdminApi.md) | [**getAdminSession**](doc/AdminApi.md#getadminsession) | **GET** /v1/admin/session | 
+[*AdminApi*](doc/AdminApi.md) | [**issueAdminStepUp**](doc/AdminApi.md#issueadminstepup) | **POST** /v1/admin/step-up | 
 [*AdminApi*](doc/AdminApi.md) | [**listAdminAudit**](doc/AdminApi.md#listadminaudit) | **GET** /v1/admin/audit | 
 [*AdminApi*](doc/AdminApi.md) | [**listAdminEditorial**](doc/AdminApi.md#listadmineditorial) | **GET** /v1/admin/editorial | 
-[*AdminBrokerageApi*](doc/AdminBrokerageApi.md) | [**getStaffWebullOrderReconciliation**](doc/AdminBrokerageApi.md#getstaffwebullorderreconciliation) | **GET** /v1/admin/brokerage/order-commands/{command_id} | 
+[*AdminApi*](doc/AdminApi.md) | [**patchAdminEditorialRevision**](doc/AdminApi.md#patchadmineditorialrevision) | **PATCH** /v1/admin/editorial/{item_id}/revisions/{revision_id} | 
 [*AdminMediaApi*](doc/AdminMediaApi.md) | [**finalizeUpload**](doc/AdminMediaApi.md#finalizeupload) | **POST** /v1/admin/media/upload-intents/{intent_id}/finalize | 
 [*AdminModerationApi*](doc/AdminModerationApi.md) | [**decideModeration**](doc/AdminModerationApi.md#decidemoderation) | **POST** /v1/admin/moderation/{case_id}/decision | 
+[*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminBrokerageDiagnostics**](doc/AdminOperationsApi.md#listadminbrokeragediagnostics) | **GET** /v1/admin/operations/brokerage | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminJobs**](doc/AdminOperationsApi.md#listadminjobs) | **GET** /v1/admin/operations/jobs | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminPrivacy**](doc/AdminOperationsApi.md#listadminprivacy) | **GET** /v1/admin/operations/privacy | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**retryAdminJob**](doc/AdminOperationsApi.md#retryadminjob) | **POST** /v1/admin/operations/jobs/{job_id}/retry | 
+[*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**retryAdminPrivacy**](doc/AdminOperationsApi.md#retryadminprivacy) | **POST** /v1/admin/operations/privacy/{request_id}/retry | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /v1/assets/{asset_id} | 
 [*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /v1/assets | 
 [*BriefingsApi*](doc/BriefingsApi.md) | [**getBriefing**](doc/BriefingsApi.md#getbriefing) | **GET** /v1/briefings/{briefing_id} | 
@@ -165,8 +172,6 @@ Class | Method | HTTP request | Description
  - [BrokerageOrderList](doc/BrokerageOrderList.md)
  - [BrokerageOrderPreview](doc/BrokerageOrderPreview.md)
  - [BrokerageOrderPreviewResponse](doc/BrokerageOrderPreviewResponse.md)
- - [BrokerageOrderReconciliation](doc/BrokerageOrderReconciliation.md)
- - [BrokerageOrderReconciliationResponse](doc/BrokerageOrderReconciliationResponse.md)
  - [BrokerageOrdersResponse](doc/BrokerageOrdersResponse.md)
  - [BrokeragePosition](doc/BrokeragePosition.md)
  - [BrokeragePositionsProjection](doc/BrokeragePositionsProjection.md)
@@ -174,9 +179,12 @@ Class | Method | HTTP request | Description
  - [BrokerageRestriction](doc/BrokerageRestriction.md)
  - [BrokerageRestrictionsProjection](doc/BrokerageRestrictionsProjection.md)
  - [BrokerageRestrictionsResponse](doc/BrokerageRestrictionsResponse.md)
+ - [CommandAdminEditorialRequest](doc/CommandAdminEditorialRequest.md)
  - [ConfirmCancelBrokerageOrder](doc/ConfirmCancelBrokerageOrder.md)
  - [ConfirmModifyBrokerageOrder](doc/ConfirmModifyBrokerageOrder.md)
  - [ConfirmPlaceBrokerageOrder](doc/ConfirmPlaceBrokerageOrder.md)
+ - [CreateAdminEditorialRequest](doc/CreateAdminEditorialRequest.md)
+ - [CreateAdminEditorialRevisionRequest](doc/CreateAdminEditorialRevisionRequest.md)
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
  - [CreateHypotheticalFutureMirror](doc/CreateHypotheticalFutureMirror.md)
  - [CreateHypotheticalFutureMirrorAnnualReturnBps](doc/CreateHypotheticalFutureMirrorAnnualReturnBps.md)
@@ -194,6 +202,7 @@ Class | Method | HTTP request | Description
  - [HypotheticalFutureMirrorAnnualReturnBps](doc/HypotheticalFutureMirrorAnnualReturnBps.md)
  - [HypotheticalFutureMirrorPoint](doc/HypotheticalFutureMirrorPoint.md)
  - [HypotheticalFutureMirrorResponse](doc/HypotheticalFutureMirrorResponse.md)
+ - [IssueAdminStepUpRequest](doc/IssueAdminStepUpRequest.md)
  - [IssueMemberStepUpRequest](doc/IssueMemberStepUpRequest.md)
  - [MemberIntention](doc/MemberIntention.md)
  - [MemberIntentionPage](doc/MemberIntentionPage.md)
@@ -209,6 +218,7 @@ Class | Method | HTTP request | Description
  - [RequestPrivacyActionRequest](doc/RequestPrivacyActionRequest.md)
  - [RequestPrivacyActionRequestOneOf](doc/RequestPrivacyActionRequestOneOf.md)
  - [RequestPrivacyActionRequestOneOf1](doc/RequestPrivacyActionRequestOneOf1.md)
+ - [RetryAdminJobRequest](doc/RetryAdminJobRequest.md)
  - [ScenarioMoney](doc/ScenarioMoney.md)
  - [SelectWebullAccountRequest](doc/SelectWebullAccountRequest.md)
  - [TransitionRitualRequest](doc/TransitionRitualRequest.md)

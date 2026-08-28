@@ -1,0 +1,598 @@
+begin;
+
+create extension if not exists pgtap with schema extensions;
+set local search_path=extensions,pg_catalog,public;
+
+select plan(53);
+
+select has_table(
+  'argus_private','staff_step_up_receipts',
+  'staff action receipts remain outside exposed schemas'
+);
+select has_column(
+  'argus_app','editorial_revisions','edit_version',
+  'editorial drafts carry an optimistic conflict version'
+);
+select has_function(
+  'argus_private','consume_staff_step_up',array['text','uuid','text','uuid'],
+  'step-up consumption is one atomic database operation'
+);
+select has_function(
+  'argus_private','request_admin_privacy_retry',array['uuid','text','text','uuid'],
+  'privacy retry has an action-bound database capability'
+);
+select ok(
+  not has_function_privilege(
+    'public','argus_private.has_live_staff_session(uuid,uuid)','execute'
+  ),
+  'the auth.sessions liveness helper is not public'
+);
+select ok(
+  not has_function_privilege(
+    'public','argus_private.admin_diagnostic_correlation(text,uuid)','execute'
+  ),
+  'diagnostic hashing is available only through its narrow private helper'
+);
+
+insert into auth.users(
+  instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
+  raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '11111111-1111-4111-8111-111111111111',
+  'authenticated','authenticated','u11-staff@example.test','',now(),
+  '{"provider":"email","providers":["email"]}','{}',now(),now()
+);
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+  ('11111111-0000-4000-8000-000000000001','11111111-1111-4111-8111-111111111111',now(),now()),
+  ('11111111-0000-4000-8000-000000000002','11111111-1111-4111-8111-111111111111',now(),now());
+insert into argus_private.staff_principals(
+  user_id,status,permissions,display_label
+) values (
+  '11111111-1111-4111-8111-111111111111','active',
+  array['editorial:read','editorial:write','editorial:review','editorial:publish',
+        'operations:read','operations:write','privacy:read','privacy:write',
+        'brokerage:read','audit:read'],
+  'U11 staff'
+);
+
+insert into argus_private.staff_step_up_receipts(
+  user_id,session_id,action,target_id,receipt_hash,expires_at
+) values
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
+   'admin_job_retry','11111111-1000-4000-8000-000000000001',repeat('a',64),now()+interval '5 minutes'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
+   'admin_job_retry','11111111-1000-4000-8000-000000000002',repeat('b',64),now()+interval '5 minutes'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
+   'admin_privacy_retry','11111111-1000-4000-8000-000000000003',repeat('c',64),now()+interval '5 minutes'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
+   'admin_job_retry','11111111-1000-4000-8000-000000000004',repeat('d',64),now()-interval '1 second'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
+   'admin_job_retry','11111111-1000-4000-8000-000000000005',repeat('e',64),now()+interval '5 minutes'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
+   'admin_job_retry','11111111-1000-4000-8000-000000000006',repeat('f',64),now()+interval '5 minutes'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
+   'admin_job_retry','11111111-1000-4000-8000-000000000007',repeat('1',64),now()+interval '5 minutes'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
+   'admin_job_retry','11111111-1000-4000-8000-000000000008',repeat('2',64),now()+interval '5 minutes');
+
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-0000-4000-8000-000000000001','aal2'
+);
+select ok(
+  argus_private.has_staff_permission('operations:write'),
+  'current active staff permission is read from the database'
+);
+select ok(
+  argus_private.consume_staff_step_up(
+    repeat('a',64),'11111111-0000-4000-8000-000000000001',
+    'admin_job_retry','11111111-1000-4000-8000-000000000001'
+  ),
+  'a live AAL2 session can consume its exact action and target receipt'
+);
+select ok(
+  (select consumed_at is not null from argus_private.staff_step_up_receipts
+    where receipt_hash=repeat('a',64)),
+  'successful consumption records immutable one-use state'
+);
+select isnt(
+  argus_private.consume_staff_step_up(
+    repeat('a',64),'11111111-0000-4000-8000-000000000001',
+    'admin_job_retry','11111111-1000-4000-8000-000000000001'
+  ),true,
+  'receipt replay fails'
+);
+select isnt(
+  argus_private.consume_staff_step_up(
+    repeat('b',64),'11111111-0000-4000-8000-000000000002',
+    'admin_job_retry','11111111-1000-4000-8000-000000000002'
+  ),true,
+  'receipt use from another live session fails'
+);
+select isnt(
+  argus_private.consume_staff_step_up(
+    repeat('c',64),'11111111-0000-4000-8000-000000000001',
+    'admin_job_retry','11111111-1000-4000-8000-000000000003'
+  ),true,
+  'receipt use for the wrong action fails'
+);
+select isnt(
+  argus_private.consume_staff_step_up(
+    repeat('d',64),'11111111-0000-4000-8000-000000000001',
+    'admin_job_retry','11111111-1000-4000-8000-000000000004'
+  ),true,
+  'expired receipts fail'
+);
+select argus_private.set_request_context(
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-0000-4000-8000-000000000001','aal1'
+);
+select isnt(
+  argus_private.consume_staff_step_up(
+    repeat('e',64),'11111111-0000-4000-8000-000000000001',
+    'admin_job_retry','11111111-1000-4000-8000-000000000005'
+  ),true,
+  'AAL1 cannot consume a privileged receipt'
+);
+reset role;
+
+delete from auth.sessions where id='11111111-0000-4000-8000-000000000001';
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-0000-4000-8000-000000000001','aal2'
+);
+select isnt(
+  argus_private.consume_staff_step_up(
+    repeat('f',64),'11111111-0000-4000-8000-000000000001',
+    'admin_job_retry','11111111-1000-4000-8000-000000000006'
+  ),true,
+  'global logout or deleted Auth session fences a still-valid JWT'
+);
+reset role;
+
+update argus_private.staff_principals
+   set permissions=array['editorial:read']
+ where user_id='11111111-1111-4111-8111-111111111111';
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-0000-4000-8000-000000000002','aal2'
+);
+select isnt(
+  argus_private.consume_staff_step_up(
+    repeat('1',64),'11111111-0000-4000-8000-000000000002',
+    'admin_job_retry','11111111-1000-4000-8000-000000000007'
+  ),true,
+  'permission downgrade takes effect on the next privileged request'
+);
+reset role;
+
+update argus_private.staff_principals
+   set status='revoked',revoked_at=now(),revocation_epoch=revocation_epoch+1,
+       permissions=array['operations:write']
+ where user_id='11111111-1111-4111-8111-111111111111';
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-0000-4000-8000-000000000002','aal2'
+);
+select isnt(
+  argus_private.consume_staff_step_up(
+    repeat('2',64),'11111111-0000-4000-8000-000000000002',
+    'admin_job_retry','11111111-1000-4000-8000-000000000008'
+  ),true,
+  'revoked staff cannot consume a receipt'
+);
+reset role;
+
+update argus_private.staff_principals
+   set status='active',revoked_at=null,permissions=array['editorial:write']
+ where user_id='11111111-1111-4111-8111-111111111111';
+insert into argus_app.editorial_items(id,kind,slug,status) values (
+  '11111111-2000-4000-8000-000000000001','ritual','u11-editorial','draft'
+);
+insert into argus_app.editorial_revisions(
+  id,item_id,revision_number,state,author_staff_id,content_hash,payload
+) values (
+  '11111111-3000-4000-8000-000000000001',
+  '11111111-2000-4000-8000-000000000001',1,'draft',
+  '11111111-1111-4111-8111-111111111111',repeat('3',64),'{"title":"draft"}'
+);
+select lives_ok(
+  $$update argus_app.editorial_revisions
+       set payload='{"title":"edited"}',content_hash=repeat('4',64),edit_version=2
+     where id='11111111-3000-4000-8000-000000000001'$$,
+  'draft payload changes increment the conflict version'
+);
+select is(
+  (select edit_version from argus_app.editorial_revisions
+    where id='11111111-3000-4000-8000-000000000001'),
+  2,
+  'the incremented edit version is retained'
+);
+select lives_ok(
+  $$update argus_app.editorial_revisions set state='submitted'
+     where id='11111111-3000-4000-8000-000000000001'$$,
+  'draft submission is an allowed immutable transition'
+);
+select throws_ok(
+  $$update argus_app.editorial_revisions
+       set payload='{"title":"tampered"}',content_hash=repeat('5',64),edit_version=3
+     where id='11111111-3000-4000-8000-000000000001'$$,
+  '23514','invalid_editorial_transition',
+  'submitted editorial payloads cannot be rewritten'
+);
+
+insert into auth.users(
+  instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
+  raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+) values
+  ('00000000-0000-0000-0000-000000000000',
+   '22222222-2222-4222-8222-222222222222','authenticated','authenticated',
+   'u11-reviewer@example.test','',now(),
+   '{"provider":"email","providers":["email"]}','{}',now(),now()),
+  ('00000000-0000-0000-0000-000000000000',
+   '33333333-3333-4333-8333-333333333333','authenticated','authenticated',
+   'u11-publisher@example.test','',now(),
+   '{"provider":"email","providers":["email"]}','{}',now(),now());
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+  ('22222222-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222',now(),now()),
+  ('33333333-0000-4000-8000-000000000001','33333333-3333-4333-8333-333333333333',now(),now());
+insert into argus_private.staff_principals(
+  user_id,status,permissions,display_label
+) values
+  ('22222222-2222-4222-8222-222222222222','active',array['editorial:review'],'Reviewer only'),
+  ('33333333-3333-4333-8333-333333333333','active',array['editorial:publish'],'Publisher only');
+insert into argus_app.editorial_review_requests(
+  id,revision_id,requested_by,high_trust,status
+) values (
+  '11111111-3100-4000-8000-000000000001',
+  '11111111-3000-4000-8000-000000000001',
+  '11111111-1111-4111-8111-111111111111',true,'open'
+);
+
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '22222222-2222-4222-8222-222222222222',
+  '22222222-0000-4000-8000-000000000001','aal2'
+);
+select lives_ok(
+  $$insert into argus_app.editorial_review_decisions(
+      request_id,reviewer_id,decision,reason
+    ) values (
+      '11111111-3100-4000-8000-000000000001',
+      '22222222-2222-4222-8222-222222222222','approved','Independent evidence review.'
+    )$$,
+  'standalone editorial:review can record an independent high-trust decision'
+);
+select lives_ok(
+  $$update argus_app.editorial_review_requests set status='closed'
+     where id='11111111-3100-4000-8000-000000000001'$$,
+  'standalone editorial:review can close only the reviewed request'
+);
+select lives_ok(
+  $$update argus_app.editorial_revisions set state='approved'
+     where id='11111111-3000-4000-8000-000000000001'$$,
+  'standalone editorial:review can advance submitted content to approved'
+);
+select lives_ok(
+  $$update argus_app.editorial_items set status='published',
+       current_published_revision_id='11111111-3000-4000-8000-000000000001'
+     where id='11111111-2000-4000-8000-000000000001'$$,
+  'an unrelated publisher-only item update is safely filtered for a reviewer'
+);
+select is(
+  (select status from argus_app.editorial_items
+    where id='11111111-2000-4000-8000-000000000001'),
+  'draft',
+  'standalone reviewer permission cannot publish an editorial item'
+);
+reset role;
+
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '33333333-3333-4333-8333-333333333333',
+  '33333333-0000-4000-8000-000000000001','aal2'
+);
+select lives_ok(
+  $$update argus_app.editorial_revisions set state='published'
+     where id='11111111-3000-4000-8000-000000000001'$$,
+  'standalone editorial:publish can publish an approved revision'
+);
+select lives_ok(
+  $$update argus_app.editorial_items set status='published',
+       current_published_revision_id='11111111-3000-4000-8000-000000000001'
+     where id='11111111-2000-4000-8000-000000000001'$$,
+  'standalone editorial:publish can advance the owning item'
+);
+select lives_ok(
+  $$insert into argus_app.publication_events(
+      item_id,revision_id,action,effective_at,actor_id,reason
+    ) values (
+      '11111111-2000-4000-8000-000000000001',
+      '11111111-3000-4000-8000-000000000001','publish',now(),
+      '33333333-3333-4333-8333-333333333333','Approved publication.'
+    )$$,
+  'standalone editorial:publish appends immutable publication evidence'
+);
+select is(
+  (select actor_id from argus_app.publication_events
+    where item_id='11111111-2000-4000-8000-000000000001'),
+  '33333333-3333-4333-8333-333333333333'::uuid,
+  'publication evidence is bound to the current publisher'
+);
+reset role;
+
+insert into argus_app.editorial_items(id,kind,slug,status) values
+  ('22222222-2000-4000-8000-000000000001','grimoire','u11-high-trust-self','draft'),
+  ('22222222-2000-4000-8000-000000000002','grimoire','u11-normal-self','draft');
+insert into argus_app.editorial_revisions(
+  id,item_id,revision_number,state,author_staff_id,content_hash,payload
+) values
+  ('22222222-3000-4000-8000-000000000001','22222222-2000-4000-8000-000000000001',1,'submitted',
+   '22222222-2222-4222-8222-222222222222',repeat('a',64),'{"title":"high"}'),
+  ('22222222-3000-4000-8000-000000000002','22222222-2000-4000-8000-000000000002',1,'submitted',
+   '22222222-2222-4222-8222-222222222222',repeat('b',64),'{"title":"normal"}');
+insert into argus_app.editorial_review_requests(
+  id,revision_id,requested_by,high_trust,status
+) values
+  ('22222222-3100-4000-8000-000000000001','22222222-3000-4000-8000-000000000001',
+   '22222222-2222-4222-8222-222222222222',true,'open'),
+  ('22222222-3100-4000-8000-000000000002','22222222-3000-4000-8000-000000000002',
+   '22222222-2222-4222-8222-222222222222',false,'open');
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '22222222-2222-4222-8222-222222222222',
+  '22222222-0000-4000-8000-000000000001','aal2'
+);
+select throws_ok(
+  $$insert into argus_app.editorial_review_decisions(
+      request_id,reviewer_id,decision,reason
+    ) values (
+      '22222222-3100-4000-8000-000000000001',
+      '22222222-2222-4222-8222-222222222222','approved','Self approval denied.'
+    )$$,
+  '42501','self_approval',
+  'high-trust review preserves the distinct-actor requirement'
+);
+select lives_ok(
+  $$insert into argus_app.editorial_review_decisions(
+      request_id,reviewer_id,decision,reason
+    ) values (
+      '22222222-3100-4000-8000-000000000002',
+      '22222222-2222-4222-8222-222222222222','approved','Ordinary editorial review.'
+    )$$,
+  'non-high-trust editorial preserves prior self-review semantics'
+);
+reset role;
+
+insert into argus_app.catalog_assets(id,slug,symbol,name,asset_type,currency,status)
+values
+  ('11111111-5000-4000-8000-000000000001','u11-asset-one','ONE','One','equity','USD','active'),
+  ('11111111-5000-4000-8000-000000000002','u11-asset-two','TWO','Two','equity','USD','active'),
+  ('11111111-5000-4000-8000-000000000003','u11-asset-three','THR','Three','equity','USD','active');
+insert into argus_app.evidence_sources(
+  id,canonical_url,title,publisher,retrieved_at,source_kind,status
+) values (
+  '11111111-5100-4000-8000-000000000001','https://example.test/u11-evidence',
+  'U11 evidence','Argus',now(),'test','active'
+);
+insert into argus_app.evidence_claims(
+  id,source_id,claim_type,summary,observed_at,uncertainty,status
+) values (
+  '11111111-5200-4000-8000-000000000001',
+  '11111111-5100-4000-8000-000000000001','observation','Synthetic U11 evidence',
+  now(),'Synthetic fixture','active'
+);
+insert into argus_app.editorial_items(id,kind,slug,status) values
+  ('11111111-5300-4000-8000-000000000001','ritual','u11-ritual-materialized','draft'),
+  ('11111111-5300-4000-8000-000000000002','rowan','u11-rowan-materialized','draft'),
+  ('11111111-5300-4000-8000-000000000003','grimoire','u11-grimoire-linked','draft');
+insert into argus_app.editorial_revisions(
+  id,item_id,revision_number,state,author_staff_id,content_hash,payload
+) values
+  ('11111111-5400-4000-8000-000000000001','11111111-5300-4000-8000-000000000001',1,'draft',
+   '11111111-1111-4111-8111-111111111111',repeat('c',64),'{}'),
+  ('11111111-5400-4000-8000-000000000002','11111111-5300-4000-8000-000000000002',1,'draft',
+   '11111111-1111-4111-8111-111111111111',repeat('d',64),'{}'),
+  ('11111111-5400-4000-8000-000000000003','11111111-5300-4000-8000-000000000003',1,'draft',
+   '11111111-1111-4111-8111-111111111111',repeat('e',64),'{}');
+update argus_private.staff_principals
+   set permissions=array['editorial:write']
+ where user_id='11111111-1111-4111-8111-111111111111';
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-0000-4000-8000-000000000002','aal2'
+);
+select lives_ok(
+  $$select argus_private.create_editorial_kind_link(
+      'ritual','11111111-5300-4000-8000-000000000001',
+      '{"scenario_key":"u11","mode":"tarot","cadence":"daily"}')$$,
+  'ritual creation writes its member-domain linkage row'
+);
+select lives_ok(
+  $$select argus_private.materialize_editorial_revision(
+      'ritual','11111111-5400-4000-8000-000000000001',
+      '{"title":"Ritual","interpretation":"Synthetic","guidance":"Review", "market_label":"Demo", "observation_at":"2026-08-28T00:00:00Z", "uncertainty":"Synthetic", "idea_asset_ids":["11111111-5000-4000-8000-000000000001","11111111-5000-4000-8000-000000000002","11111111-5000-4000-8000-000000000003"], "evidence_claim_ids":["11111111-5200-4000-8000-000000000001"]}')$$,
+  'ritual review materializes a validated domain projection'
+);
+select lives_ok(
+  $$select argus_private.create_editorial_kind_link(
+      'rowan','11111111-5300-4000-8000-000000000002',
+      '{"script_key":"u11-rowan","surface":"daily_ritual"}')$$,
+  'Rowan creation writes its member-domain linkage row'
+);
+select lives_ok(
+  $$select argus_private.materialize_editorial_revision(
+      'rowan','11111111-5400-4000-8000-000000000002',
+      '{"body_template":"Reflect on {{ritual}}.","allowed_tokens":["ritual"],"risk_footer":"Educational only."}')$$,
+  'Rowan review materializes a constrained script projection'
+);
+select lives_ok(
+  $$select argus_private.create_editorial_kind_link(
+      'grimoire','11111111-5300-4000-8000-000000000003',
+      '{"theme_code":"u11","asset_ids":["11111111-5000-4000-8000-000000000001"]}')$$,
+  'a generic grimoire creation writes its discovery linkage row'
+);
+select is(
+  (select scenario_key from argus_app.ritual_scenarios
+    where editorial_item_id='11111111-5300-4000-8000-000000000001'),
+  'u11','materialized ritual is queryable by the retained ritual domain'
+);
+select is(
+  (select body_template from argus_app.rowan_script_revisions
+    where revision_id='11111111-5400-4000-8000-000000000002'),
+  'Reflect on {{ritual}}.','materialized Rowan is queryable by the retained Rowan domain'
+);
+select is(
+  (select theme_code from argus_app.grimoires
+    where editorial_item_id='11111111-5300-4000-8000-000000000003'),
+  'u11','generic linked content is queryable by the retained discovery domain'
+);
+reset role;
+
+reset role;
+update argus_private.staff_principals
+   set status='active',revoked_at=null,
+       permissions=array['operations:write','privacy:write']
+ where user_id='11111111-1111-4111-8111-111111111111';
+
+insert into argus_private.outbox_events(
+  id,user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key,
+  published_at
+) values (
+  '11111111-4000-4000-8000-000000000001',
+  '11111111-1111-4111-8111-111111111111',0,
+  'argus_jobs','briefing.daily.requested',
+  '11111111-4100-4000-8000-000000000001','u11-original-event-0001',now()
+);
+insert into argus_private.job_runs(
+  id,user_id,deletion_epoch,job_type,source_event_id,status,attempts,
+  queue_message_id,handler_name,max_attempts,diagnostic_hash
+) values (
+  '11111111-4200-4000-8000-000000000001',
+  '11111111-1111-4111-8111-111111111111',0,'briefing-builder',
+  '11111111-4000-4000-8000-000000000001','dead_lettered',5,1001,
+  'briefing-builder',5,repeat('9',64)
+);
+insert into argus_app.privacy_requests(
+  id,user_id,deletion_epoch,request_type,status,failure_code
+) values
+  ('11111111-4300-4000-8000-000000000001',
+   '11111111-1111-4111-8111-111111111111',0,'export','failed','storage_unavailable'),
+  ('11111111-4300-4000-8000-000000000002',
+   '11111111-1111-4111-8111-111111111111',1,'deletion','failed','worker_killed');
+insert into argus_private.deletion_tombstones(
+  id,user_id,deletion_epoch,status
+) values (
+  '11111111-4400-4000-8000-000000000001',
+  '11111111-1111-4111-8111-111111111111',1,'failed'
+);
+insert into argus_private.staff_step_up_receipts(
+  user_id,session_id,action,target_id,receipt_hash,expires_at
+) values
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
+   'admin_job_retry','11111111-4200-4000-8000-000000000001',repeat('6',64),now()+interval '5 minutes'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
+   'admin_privacy_retry','11111111-4300-4000-8000-000000000001',repeat('7',64),now()+interval '5 minutes'),
+  ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
+   'admin_privacy_retry','11111111-4300-4000-8000-000000000002',repeat('8',64),now()+interval '5 minutes');
+
+set local role argus_runtime;
+select argus_private.set_request_context(
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-0000-4000-8000-000000000002','aal2'
+);
+select throws_ok(
+  $$insert into argus_private.outbox_events(
+      user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
+    ) values (
+      '11111111-1111-4111-8111-111111111111',0,
+      'argus_jobs','briefing.daily.requested',
+      '11111111-4100-4000-8000-000000000099','u11-direct-staff-retry-0001'
+    )$$,
+  '42501',
+  'new row violates row-level security policy for table "outbox_events"',
+  'staff runtime cannot directly insert even an allowlisted retained retry event'
+);
+select lives_ok(
+  $$select argus_private.request_admin_job_retry(
+      '11111111-4200-4000-8000-000000000001','u11-admin-job-retry-0001',
+      repeat('6',64),'11111111-0000-4000-8000-000000000002')$$,
+  'a dead-lettered job republishes its original retained source event'
+);
+select is(
+  (select event_type from argus_private.outbox_events
+    where dedupe_key='u11-admin-job-retry-0001'),
+  'briefing.daily.requested',
+  'job retry does not invent an administrative event type'
+);
+select is(
+  (select argus_private.retained_job_handler(event_type)
+     from argus_private.outbox_events
+    where dedupe_key='u11-admin-job-retry-0001'),
+  'briefing-builder',
+  'republished job retry resolves to the original retained handler'
+);
+select is(
+  (select aggregate_id from argus_private.outbox_events
+    where dedupe_key='u11-admin-job-retry-0001'),
+  '11111111-4100-4000-8000-000000000001'::uuid,
+  'republished job retry retains the original aggregate authority'
+);
+select lives_ok(
+  $$select argus_private.request_admin_privacy_retry(
+      '11111111-4300-4000-8000-000000000001','u11-privacy-export-retry-0001',
+      repeat('7',64),'11111111-0000-4000-8000-000000000002')$$,
+  'failed privacy export is re-enqueued through its retained source event'
+);
+select is(
+  (select event_type from argus_private.outbox_events
+    where dedupe_key='u11-privacy-export-retry-0001'),
+  'privacy.export.requested',
+  'privacy export retry resolves to the export handler event'
+);
+select lives_ok(
+  $$select argus_private.request_admin_privacy_retry(
+      '11111111-4300-4000-8000-000000000002','u11-privacy-delete-retry-0001',
+      repeat('8',64),'11111111-0000-4000-8000-000000000002')$$,
+  'failed privacy deletion is re-enqueued through its retained tombstone event'
+);
+select is(
+  (select event_type from argus_private.outbox_events
+    where dedupe_key='u11-privacy-delete-retry-0001'),
+  'privacy.deletion.requested',
+  'privacy deletion retry resolves to the purge handler event'
+);
+select is(
+  (select aggregate_id from argus_private.outbox_events
+    where dedupe_key='u11-privacy-delete-retry-0001'),
+  '11111111-4400-4000-8000-000000000001'::uuid,
+  'privacy deletion retry binds the existing private tombstone'
+);
+select ok(
+  (select user_id is null and deletion_epoch is null
+     from argus_private.outbox_events
+    where dedupe_key='u11-privacy-delete-retry-0001'),
+  'privacy deletion retry survives member deletion without exposing owner fields'
+);
+select is(
+  (select count(*)::integer from argus_private.outbox_events
+    where dedupe_key like 'u11-%-retry-%'
+      and argus_private.retained_job_handler(event_type) is null),
+  0,
+  'every U11 retry event resolves to a retained worker handler'
+);
+select is(
+  (select count(*)::integer from argus_private.outbox_events
+    where dedupe_key like 'u11-%-retry-%' and event_type like 'admin.%'),
+  0,
+  'U11 emits no unhandled administrative retry event types'
+);
+
+select * from finish();
+rollback;

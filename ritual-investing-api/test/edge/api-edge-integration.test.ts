@@ -232,7 +232,7 @@ describe("Supabase Edge retained API adapter", () => {
       },
       bindings,
     );
-    expect(revokedResponse.status).toBe(404);
+    expect(revokedResponse.status).toBe(403);
     expect(revoked.getStaffPrincipal).toHaveBeenCalledOnce();
 
     const nonStaff = fixture({
@@ -254,34 +254,6 @@ describe("Supabase Edge retained API adapter", () => {
     expect(nonStaffResponse.status).toBe(403);
     expect(nonStaff.listAudit).toHaveBeenCalledOnce();
     expect(await nonStaffResponse.json()).toMatchObject({
-      error: { code: "forbidden", retryable: false },
-    });
-  });
-
-  it("does not treat AAL2 alone as staff authorization for order reconciliation", async () => {
-    const staffReconciliation = vi.fn(async () => {
-      throw new StaffAuthorizationError();
-    });
-    const test = fixture({
-      verifyAccessToken: vi.fn(async () => principal("aal2")),
-      brokerageOrderService: {
-        staffReconciliation,
-      } as unknown as BrokerageOrderService,
-    });
-    const response = await test.app.request(
-      "/v1/admin/brokerage/order-commands/018f3c2a-4b67-7a89-8abc-123456789003",
-      {
-        headers: {
-          authorization: "Bearer aal2-nonstaff-token",
-          origin: bindings.adminOrigin,
-        },
-      },
-      bindings,
-    );
-
-    expect(response.status).toBe(403);
-    expect(staffReconciliation).toHaveBeenCalledOnce();
-    expect(await response.json()).toMatchObject({
       error: { code: "forbidden", retryable: false },
     });
   });

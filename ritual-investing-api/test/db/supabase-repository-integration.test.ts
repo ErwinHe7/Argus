@@ -16,6 +16,7 @@ import {
 } from "../../src/db/request-context.ts";
 import {
   StaffAuthorizationError,
+  withActiveStaffRequestTransaction,
   withRequestTransaction,
   withStaffRequestTransaction,
 } from "../../src/db/request-transaction.ts";
@@ -177,7 +178,11 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const recorded = recordingPool();
     recorded.query.mockImplementation(
       (async (text: string) => ({
-        rows: text.includes("has_staff_permission") ? [{ allowed: false }] : [],
+        rows: text.includes("has_live_staff_session")
+          ? [{ live: true }]
+          : text.includes("has_staff_permission")
+            ? [{ allowed: false }]
+            : [],
         rowCount: 0,
       })) as never,
     );
@@ -190,6 +195,83 @@ describe("Supabase transaction-pooler repository boundary", () => {
       ),
     ).rejects.toBeInstanceOf(StaffAuthorizationError);
     expect(recorded.query.mock.calls.map(([text]) => text)).toContain("rollback");
+  });
+
+  it("rejects a stale JWT on a staff read after its Supabase session is deleted", async () => {
+    const recorded = recordingPool((text) => ({
+      rows: text.includes("has_live_staff_session") ? [{ live: false }] : [],
+      rowCount: 0,
+    }));
+    const read = vi.fn(async () => "not reached");
+
+    await expect(
+      withActiveStaffRequestTransaction(
+        { pool: recorded.pool, verifiedClaims: claims() },
+        read,
+      ),
+    ).rejects.toBeInstanceOf(StaffAuthorizationError);
+    expect(read).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stale JWT on a staff write before current-role evaluation", async () => {
+    const recorded = recordingPool((text) => ({
+      rows: text.includes("has_live_staff_session") ? [{ live: false }] : [],
+      rowCount: 0,
+    }));
+    const write = vi.fn(async () => "not reached");
+
+    await expect(
+      withStaffRequestTransaction(
+        { pool: recorded.pool, verifiedClaims: claims() },
+        "editorial:write",
+        write,
+      ),
+    ).rejects.toBeInstanceOf(StaffAuthorizationError);
+    expect(write).not.toHaveBeenCalled();
+    expect(
+      recorded.queries.some(({ text }) => text.includes("has_staff_permission")),
+    ).toBe(false);
+  });
+
+  it("commits a high-trust self-approval denial audit before returning 403", async () => {
+    const itemId = "018f3c2a-4b67-7a89-8abc-123456789090";
+    const revisionId = "018f3c2a-4b67-7a89-8abc-123456789091";
+    const recorded = recordingPool((text) => {
+      if (text.includes("has_live_staff_session")) {
+        return { rows: [{ live: true }], rowCount: 1 };
+      }
+      if (text.includes("has_staff_permission")) {
+        return { rows: [{ allowed: true }], rowCount: 1 };
+      }
+      if (text.includes("select review.id,revision.author_staff_id")) {
+        return {
+          rows: [{ id: itemId, author_staff_id: userA, high_trust: true }],
+          rowCount: 1,
+        };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+    const admin = createSupabaseAdminRepository({
+      pool: recorded.pool,
+      claims: claims(),
+    });
+
+    await expect(
+      admin.commandEditorial(
+        "approve",
+        itemId,
+        revisionId,
+        "Author cannot approve this high-trust revision.",
+        true,
+        "018f3c2a-4b67-7a89-8abc-123456789092",
+      ),
+    ).rejects.toBeInstanceOf(StaffAuthorizationError);
+
+    const statements = recorded.queries.map(({ text }) => text);
+    expect(statements.some((text) => text.includes("admin_audit_events"))).toBe(true);
+    expect(statements.some((text) => text.includes("editorial_review_decisions"))).toBe(false);
+    expect(statements).toContain("commit");
+    expect(statements).not.toContain("rollback");
   });
 
   it("sets distinct transaction-local claims when a pooled client is reused", async () => {
@@ -411,6 +493,9 @@ describe("Supabase transaction-pooler repository boundary", () => {
       if (text.includes("select user_id from argus_app.members")) {
         return { rows: [{ user_id: userA }], rowCount: 1 };
       }
+      if (text.includes("has_live_staff_session")) {
+        return { rows: [{ live: true }], rowCount: 1 };
+      }
       if (text.includes("has_staff_permission")) {
         return { rows: [{ allowed: true }], rowCount: 1 };
       }
@@ -629,11 +714,22 @@ describe("Supabase transaction-pooler repository boundary", () => {
         await admin.getStaffPrincipal();
         await admin.listAudit(10);
         await admin.listEditorial(10);
+        await admin.issueStepUp("admin_job_retry", genericId);
+        await admin.commandEditorial(
+          "request_review", genericId, genericId, "Ready for review", false, genericId,
+        );
+        await admin.commandEditorial(
+          "approve", genericId, genericId, "Evidence reviewed", false, genericId,
+        );
+        await admin.commandEditorial(
+          "publish", genericId, genericId, "Approved publication", false, genericId,
+        );
       }),
       adminOperations: await capture(async () => {
         await adminOperations.listJobs(10);
         await adminOperations.listPrivacy(10);
         await adminOperations.listAudit(10);
+        await adminOperations.listBrokerageDiagnostics(10);
       }),
     };
 

@@ -1639,26 +1639,6 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       ),
     ));
 
-  const getStaffBrokerageOrderCommand = route(
-    "get",
-    "/v1/admin/brokerage/order-commands/{command_id}",
-    "getStaffWebullOrderReconciliation",
-    "Admin Brokerage",
-    {
-      pathParams: commandPath,
-      description:
-        "AAL2 staff-only redacted command and reconciliation diagnostics.",
-      response: brokerageOrderReconciliationResponseSchema,
-    },
-  );
-  register(getStaffBrokerageOrderCommand, async (context) =>
-    dataResponse(
-      context,
-      await brokerageOrders(context, options).staffReconciliation(
-        uuid.parse(context.req.param("command_id")),
-      ),
-    ));
-
   const account = route("get", "/v1/account", "getAccount", "Account");
   register(
     account,
@@ -2551,12 +2531,33 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   );
   register(
     adminSession,
-    async (context) =>
-      dataResponse(
-        context,
-        await repositories(context, options).admin.getStaffPrincipal(),
-      ),
+    async (context) => {
+      const staff = await repositories(context, options).admin
+        .getStaffPrincipal();
+      if (staff === null) throw new StaffAuthorizationError();
+      return dataResponse(context, staff);
+    },
   );
+  const adminStepUpBody = z.object({
+    action: z.enum(["admin_job_retry", "admin_privacy_retry"]),
+    target_id: uuid,
+  }).strict();
+  const adminStepUp = route(
+    "post",
+    "/v1/admin/step-up",
+    "issueAdminStepUp",
+    "Admin",
+    { body: adminStepUpBody },
+  );
+  register(adminStepUp, async (context) => {
+    const input = await parseBody(context, adminStepUpBody);
+    return dataResponse(context, {
+      receipt: await repositories(context, options).admin.issueStepUp(
+        input.action,
+        input.target_id,
+      ),
+    });
+  });
   const adminAudit = route(
     "get",
     "/v1/admin/audit",
@@ -2574,23 +2575,160 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         ),
       ),
   );
-  const adminEditorial = route(
+  const adminEditorialKind = z.enum([
+    "ritual",
+    "asset_codex",
+    "coven",
+    "grimoire",
+    "circle_template",
+    "rowan",
+    "briefing_template",
+  ]);
+  const adminEditorialCreateBody = z.object({
+    kind: adminEditorialKind,
+    slug: z.string().min(1).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    payload: jsonObject,
+  }).strict();
+  const adminEditorialRevisionBody = z.object({ payload: jsonObject }).strict();
+  const adminEditorialCommandBody = z.object({
+    action: z.enum([
+      "request_review",
+      "approve",
+      "changes_requested",
+      "publish",
+      "withdraw",
+    ]),
+    revision_id: uuid.nullable(),
+    reason: z.string().min(8).max(500),
+    high_trust: z.boolean().default(false),
+  }).strict();
+  const listAdminEditorial = route(
     "get",
     "/v1/admin/editorial",
     "listAdminEditorial",
     "Admin",
-    { query: z.object({ limit: limit.optional() }) },
+    { query: z.object({ limit: limit.optional(), kind: adminEditorialKind.optional() }) },
   );
   register(
-    adminEditorial,
+    listAdminEditorial,
     async (context) =>
       dataResponse(
         context,
         await repositories(context, options).admin.listEditorial(
           limit.parse(context.req.query("limit")),
+          context.req.query("kind"),
         ),
       ),
   );
+  const createAdminEditorial = route(
+    "post",
+    "/v1/admin/editorial",
+    "createAdminEditorial",
+    "Admin",
+    { body: adminEditorialCreateBody },
+  );
+  register(createAdminEditorial, async (context) => {
+    const body = await parseBody(context, adminEditorialCreateBody);
+    return dataResponse(
+      context,
+      await repositories(context, options).admin.createEditorial(
+        body.kind,
+        body.slug,
+        body.payload,
+        context.get("requestId"),
+      ),
+    );
+  });
+  const getAdminEditorial = route(
+    "get",
+    "/v1/admin/editorial/{item_id}",
+    "getAdminEditorial",
+    "Admin",
+    { pathParams: z.object({ item_id: uuid }) },
+  );
+  register(getAdminEditorial, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).admin.getEditorial(
+        uuid.parse(context.req.param("item_id")),
+      ),
+    ));
+  const createAdminEditorialRevision = route(
+    "post",
+    "/v1/admin/editorial/{item_id}/revisions",
+    "createAdminEditorialRevision",
+    "Admin",
+    {
+      pathParams: z.object({ item_id: uuid }),
+      body: adminEditorialRevisionBody,
+    },
+  );
+  register(createAdminEditorialRevision, async (context) => {
+    const body = await parseBody(context, adminEditorialRevisionBody);
+    return dataResponse(
+      context,
+      await repositories(context, options).admin.createEditorialRevision(
+        uuid.parse(context.req.param("item_id")),
+        body.payload,
+        context.get("requestId"),
+      ),
+    );
+  });
+  const patchAdminEditorialRevision = route(
+    "patch",
+    "/v1/admin/editorial/{item_id}/revisions/{revision_id}",
+    "patchAdminEditorialRevision",
+    "Admin",
+    {
+      pathParams: z.object({ item_id: uuid, revision_id: uuid }),
+      headers: scenarioVersionHeaders,
+      body: adminEditorialRevisionBody,
+    },
+  );
+  register(patchAdminEditorialRevision, async (context) => {
+    const body = await parseBody(context, adminEditorialRevisionBody);
+    return dataResponse(
+      context,
+      await repositories(context, options).admin.patchEditorialRevision(
+        uuid.parse(context.req.param("item_id")),
+        uuid.parse(context.req.param("revision_id")),
+        expectedVersion(context),
+        body.payload,
+        context.get("requestId"),
+      ),
+    );
+  });
+  const commandAdminEditorial = route(
+    "post",
+    "/v1/admin/editorial/{item_id}/commands",
+    "commandAdminEditorial",
+    "Admin",
+    {
+      pathParams: z.object({ item_id: uuid }),
+      body: adminEditorialCommandBody,
+    },
+  );
+  register(commandAdminEditorial, async (context) => {
+    const body = await parseBody(context, adminEditorialCommandBody);
+    if (body.action !== "withdraw" && body.revision_id === null) {
+      throw new HttpBoundaryError(
+        422,
+        "revision_required",
+        "This editorial command requires a revision.",
+      );
+    }
+    return dataResponse(
+      context,
+      await repositories(context, options).admin.commandEditorial(
+        body.action,
+        uuid.parse(context.req.param("item_id")),
+        body.revision_id,
+        body.reason,
+        body.high_trust,
+        context.get("requestId"),
+      ),
+    );
+  });
   const adminJobs = route(
     "get",
     "/v1/admin/operations/jobs",
@@ -2625,6 +2763,22 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         ),
       ),
   );
+  const adminBrokerage = route(
+    "get",
+    "/v1/admin/operations/brokerage",
+    "listAdminBrokerageDiagnostics",
+    "Admin Operations",
+    { query: z.object({ limit: limit.optional() }) },
+  );
+  register(adminBrokerage, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).adminOperations
+        .listBrokerageDiagnostics(limit.parse(context.req.query("limit"))),
+    ));
+  const adminRetryBody = z.object({
+    step_up_receipt: z.string().min(43).max(128).regex(/^[A-Za-z0-9_-]+$/),
+  }).strict();
   const retryJob = route(
     "post",
     "/v1/admin/operations/jobs/{job_id}/retry",
@@ -2633,16 +2787,42 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     {
       pathParams: z.object({ job_id: uuid }),
       headers: z.object({ "idempotency-key": idempotencyKey }),
+      body: adminRetryBody,
     },
   );
-  register(retryJob, async (context) =>
-    dataResponse(context, {
+  register(retryJob, async (context) => {
+    const body = await parseBody(context, adminRetryBody);
+    return dataResponse(context, {
       outbox_id: await repositories(context, options).adminOperations
         .requestJobRetry(
           uuid.parse(context.req.param("job_id")),
           idempotencyKey.parse(context.req.header("idempotency-key")),
+          body.step_up_receipt,
         ),
-    }));
+    });
+  });
+  const retryPrivacy = route(
+    "post",
+    "/v1/admin/operations/privacy/{request_id}/retry",
+    "retryAdminPrivacy",
+    "Admin Operations",
+    {
+      pathParams: z.object({ request_id: uuid }),
+      headers: z.object({ "idempotency-key": idempotencyKey }),
+      body: adminRetryBody,
+    },
+  );
+  register(retryPrivacy, async (context) => {
+    const body = await parseBody(context, adminRetryBody);
+    return dataResponse(context, {
+      outbox_id: await repositories(context, options).adminOperations
+        .requestPrivacyRetry(
+          uuid.parse(context.req.param("request_id")),
+          idempotencyKey.parse(context.req.header("idempotency-key")),
+          body.step_up_receipt,
+        ),
+    });
+  });
 
   return app;
 }

@@ -1,4 +1,4 @@
-# ritual_investing_api_client.model.BrokerageOrderReconciliationResponse
+# ritual_investing_api_client.model.CreateAdminEditorialRequest
 
 ## Load the model package
 ```dart
@@ -8,8 +8,9 @@ import 'package:ritual_investing_api_client/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
-**data** | [**BrokerageOrderReconciliation**](BrokerageOrderReconciliation.md) |  | 
-**meta** | [**GetAccount200ResponseMeta**](GetAccount200ResponseMeta.md) |  | 
+**kind** | **String** |  | 
+**payload** | **Map&lt;String, Object?&gt;** |  | 
+**slug** | **String** |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

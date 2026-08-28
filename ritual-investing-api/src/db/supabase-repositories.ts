@@ -1,6 +1,8 @@
 import type { DatabaseClient, DatabasePool } from "./database-port.ts";
 import {
   type RequestTransactionConfig,
+  StaffAuthorizationError,
+  withActiveStaffRequestTransaction,
   withAnonymousRequestTransaction,
   withRequestTransaction,
   withStaffRequestTransaction,
@@ -112,13 +114,21 @@ export const RETAINED_SUPABASE_RELATIONS = Object.freeze({
   search: ["argus_app.catalog_assets", "argus_app.editorial_items"],
   admin: [
     "argus_private.staff_principals",
+    "argus_private.staff_step_up_receipts",
     "argus_private.admin_audit_events",
     "argus_app.editorial_items",
+    "argus_app.editorial_revisions",
+    "argus_app.editorial_review_requests",
+    "argus_app.editorial_review_decisions",
+    "argus_app.publication_events",
   ],
   adminOperations: [
     "argus_private.job_runs",
     "argus_app.privacy_requests",
     "argus_private.admin_audit_events",
+    "argus_brokerage.connections",
+    "argus_private.provider_commands",
+    "argus_private.reconciliation_records",
   ],
 });
 
@@ -147,6 +157,15 @@ function staffTransaction<T>(
   callback: (database: DatabaseClient) => Promise<T>,
 ): Promise<T> {
   return withStaffRequestTransaction(config(binding), permission, (database) =>
+    callback(database),
+  );
+}
+
+function activeStaffTransaction<T>(
+  binding: SupabaseRepositoryBinding,
+  callback: (database: DatabaseClient) => Promise<T>,
+): Promise<T> {
+  return withActiveStaffRequestTransaction(config(binding), (database) =>
     callback(database),
   );
 }
@@ -960,41 +979,355 @@ export function createSupabaseSearchRepository(
 export function createSupabaseAdminRepository(
   binding: SupabaseRepositoryBinding,
 ) {
+  const viewEditorialItem = async (
+    database: DatabaseClient,
+    itemId: string,
+  ): Promise<JsonObject> =>
+    first(
+      (
+        await database.query<JsonObject>(
+          `select item.id,item.kind,item.slug,item.status,
+                  revision.id as revision_id,revision.revision_number,
+                  revision.edit_version as version,revision.state as revision_state,
+                  '"v' || revision.edit_version || '"' as etag
+             from argus_app.editorial_items item
+             join lateral (
+               select * from argus_app.editorial_revisions candidate
+                where candidate.item_id=item.id
+                order by candidate.revision_number desc,candidate.id desc
+                limit 1
+             ) revision on true
+            where item.id=$1`,
+          [itemId],
+        )
+      ).rows,
+    );
+  const auditEditorial = (
+    database: DatabaseClient,
+    action: string,
+    itemId: string,
+    outcome: "allowed" | "denied" | "failed",
+    requestId: string,
+    reasonCode: string | null = null,
+  ) =>
+    database.query(
+      `insert into argus_private.admin_audit_events(
+         actor_user_id,action,target_kind,target_id,outcome,reason_code,
+         correlation_id,details
+       ) values (
+         argus_private.request_user_id(),$1,'editorial_item',$2,$3,$4,$5,'{}'::jsonb
+       )`,
+      [action, itemId, outcome, reasonCode, requestId],
+    );
+
   return Object.freeze({
     getStaffPrincipal: () =>
-      ownerTransaction(binding, async (database) => {
+      activeStaffTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `select * from argus_private.staff_principals
+          `select user_id,display_label,permissions,revocation_epoch
+             from argus_private.staff_principals
             where user_id = argus_private.request_user_id() and status = 'active'`,
         );
         return result.rows[0] ?? null;
       }),
+    issueStepUp: (
+      action: "admin_job_retry" | "admin_privacy_retry",
+      targetId: string,
+    ) =>
+      staffTransaction(
+        binding,
+        action === "admin_job_retry" ? "operations:write" : "privacy:write",
+        async (database) => {
+        const receipt = `${crypto.randomUUID().replaceAll("-", "")}${crypto.randomUUID().replaceAll("-", "")}`;
+        await database.query(
+          `insert into argus_private.staff_step_up_receipts(
+             user_id,session_id,action,target_id,receipt_hash,expires_at
+           ) values (argus_private.request_user_id(),$1,$2,$3,$4,
+                     clock_timestamp()+interval '5 minutes')`,
+          [
+            binding.claims.sessionId,
+            action,
+            targetId,
+            await sha256TextHex(receipt),
+          ],
+        );
+        return receipt;
+        },
+      ),
     listAudit: (limit: number) =>
       staffTransaction(binding, "audit:read", async (database) =>
         (
           await database.query<JsonObject>(
-            `select * from argus_private.admin_audit_events
+            `select id,actor_user_id,action,target_kind,target_id,outcome,
+                    reason_code,correlation_id,occurred_at
+               from argus_private.admin_audit_events
               order by occurred_at desc, id desc
               limit $1`,
             [limit],
           )
         ).rows,
       ),
-    listEditorial: (limit: number) =>
+    listEditorial: (limit: number, kind?: string) =>
       staffTransaction(binding, "editorial:read", async (database) =>
         (
           await database.query<JsonObject>(
-            `select item.*, revision.revision_number,
-                    revision.state as revision_state, revision.payload
+            `select item.id,item.kind,item.slug,item.status,
+                    revision.id as revision_id,revision.revision_number,
+                    revision.edit_version as version,
+                    revision.state as revision_state,
+                    '"v' || revision.edit_version || '"' as etag
                from argus_app.editorial_items item
-               left join argus_app.editorial_revisions revision
-                 on revision.id = item.current_published_revision_id
+               join lateral (
+                 select * from argus_app.editorial_revisions candidate
+                  where candidate.item_id=item.id
+                  order by candidate.revision_number desc,candidate.id desc
+                  limit 1
+               ) revision on true
+              where ($2::text is null or item.kind=$2)
               order by item.created_at desc, item.id desc
               limit $1`,
-            [limit],
+            [limit, kind ?? null],
           )
         ).rows,
       ),
+    getEditorial: (itemId: string) =>
+      staffTransaction(binding, "editorial:read", async (database) => {
+        const item = await viewEditorialItem(database, itemId);
+        const revision = first(
+          (
+            await database.query<JsonObject>(
+              `select id,revision_number,edit_version as version,state,
+                      author_staff_id,content_hash,payload,created_at,
+                      '"v' || edit_version || '"' as etag
+                 from argus_app.editorial_revisions
+                where item_id=$1
+                order by revision_number desc,id desc limit 1`,
+              [itemId],
+            )
+          ).rows,
+        );
+        return { ...item, revision };
+      }),
+    createEditorial: (
+      kind: "ritual" | "asset_codex" | "coven" | "grimoire" |
+        "circle_template" | "rowan" | "briefing_template",
+      slug: string,
+      payload: JsonObject,
+      requestId: string,
+    ) =>
+      staffTransaction(binding, "editorial:write", async (database) => {
+        const item = first(
+          (
+            await database.query<{ id: string }>(
+              `insert into argus_app.editorial_items(kind,slug,status)
+               values ($1,$2,'draft') returning id`,
+              [kind, slug],
+            )
+          ).rows,
+        );
+        await database.query(
+          `insert into argus_app.editorial_revisions(
+             item_id,revision_number,state,author_staff_id,content_hash,payload
+           ) values ($1,1,'draft',argus_private.request_user_id(),$2,$3::jsonb)`,
+          [item.id, await sha256TextHex(JSON.stringify(payload)), JSON.stringify(payload)],
+        );
+        await database.query(
+          `select argus_private.create_editorial_kind_link($1,$2,$3::jsonb)`,
+          [kind, item.id, JSON.stringify(payload)],
+        );
+        await auditEditorial(database, "editorial.create", item.id, "allowed", requestId);
+        return viewEditorialItem(database, item.id);
+      }),
+    createEditorialRevision: (
+      itemId: string,
+      payload: JsonObject,
+      requestId: string,
+    ) =>
+      staffTransaction(binding, "editorial:write", async (database) => {
+        const item = first(
+          (
+            await database.query<{ id: string }>(
+              `select id from argus_app.editorial_items where id=$1 for update`,
+              [itemId],
+            )
+          ).rows,
+        );
+        await database.query(
+          `insert into argus_app.editorial_revisions(
+             item_id,revision_number,state,author_staff_id,content_hash,payload
+           ) select $1,coalesce(max(revision_number),0)+1,'draft',
+                    argus_private.request_user_id(),$2,$3::jsonb
+               from argus_app.editorial_revisions where item_id=$1`,
+          [item.id, await sha256TextHex(JSON.stringify(payload)), JSON.stringify(payload)],
+        );
+        await auditEditorial(database, "editorial.revision.create", item.id, "allowed", requestId);
+        return viewEditorialItem(database, item.id);
+      }),
+    patchEditorialRevision: (
+      itemId: string,
+      revisionId: string,
+      expectedVersion: number,
+      payload: JsonObject,
+      requestId: string,
+    ) =>
+      staffTransaction(binding, "editorial:write", async (database) => {
+        const result = await database.query<{ id: string }>(
+          `update argus_app.editorial_revisions
+              set payload=$1::jsonb,content_hash=$2,edit_version=edit_version+1
+            where id=$3 and item_id=$4 and state='draft' and edit_version=$5
+          returning id`,
+          [
+            JSON.stringify(payload),
+            await sha256TextHex(JSON.stringify(payload)),
+            revisionId,
+            itemId,
+            expectedVersion,
+          ],
+        );
+        if (result.rows.length === 0) throw new RepositoryRevisionConflictError();
+        await auditEditorial(database, "editorial.revision.patch", itemId, "allowed", requestId);
+        return viewEditorialItem(database, itemId);
+      }),
+    commandEditorial: (
+      action: "request_review" | "approve" | "changes_requested" | "publish" | "withdraw",
+      itemId: string,
+      revisionId: string | null,
+      reason: string,
+      highTrust: boolean,
+      requestId: string,
+    ) => {
+      const permission = action === "publish" || action === "withdraw"
+        ? "editorial:publish"
+        : action === "approve" || action === "changes_requested"
+        ? "editorial:review"
+        : "editorial:write";
+      return staffTransaction(binding, permission, async (database) => {
+        if (action === "request_review") {
+          const revision = first(
+            (
+              await database.query<{ id: string; kind: string; payload: JsonObject }>(
+                `select revision.id,item.kind,revision.payload
+                   from argus_app.editorial_revisions revision
+                   join argus_app.editorial_items item on item.id=revision.item_id
+                  where revision.id=$1 and revision.item_id=$2
+                    and revision.state='draft'
+                  for update of revision`,
+                [revisionId, itemId],
+              )
+            ).rows,
+          );
+          await database.query(
+            `select argus_private.materialize_editorial_revision($1,$2,$3::jsonb)`,
+            [revision.kind, revision.id, JSON.stringify(revision.payload)],
+          );
+          await database.query(
+            `update argus_app.editorial_revisions set state='submitted'
+              where id=$1`,
+            [revision.id],
+          );
+          await database.query(
+            `insert into argus_app.editorial_review_requests(
+               revision_id,requested_by,high_trust,status
+             ) values (
+               $1,argus_private.request_user_id(),
+               ($2 or $3 in ('ritual','rowan')),'open'
+             )`,
+            [revision.id, highTrust, revision.kind],
+          );
+        } else if (action === "approve" || action === "changes_requested") {
+          const request = first(
+            (
+              await database.query<{
+                id: string;
+                author_staff_id: string;
+                high_trust: boolean;
+              }>(
+                `select review.id,revision.author_staff_id,review.high_trust
+                   from argus_app.editorial_review_requests review
+                   join argus_app.editorial_revisions revision on revision.id=review.revision_id
+                  where review.revision_id=$1 and revision.item_id=$2
+                    and review.status='open' and revision.state='submitted'
+                  for update`,
+                [revisionId, itemId],
+              )
+            ).rows,
+          );
+          if (
+            request.high_trust === true &&
+            request.author_staff_id === binding.claims.userId
+          ) {
+            await auditEditorial(database, "editorial.review.decision", itemId, "denied", requestId, "self_approval");
+            return { _denied: "self_approval" };
+          }
+          const decision = action === "approve" ? "approved" : "changes_requested";
+          await database.query(
+            `insert into argus_app.editorial_review_decisions(
+               request_id,reviewer_id,decision,reason
+             ) values ($1,argus_private.request_user_id(),$2,$3)`,
+            [request.id, decision, reason],
+          );
+          await database.query(
+            `update argus_app.editorial_review_requests set status='closed' where id=$1`,
+            [request.id],
+          );
+          await database.query(
+            `update argus_app.editorial_revisions set state=$1 where id=$2`,
+            [action === "approve" ? "approved" : "rejected", revisionId],
+          );
+        } else if (action === "publish") {
+          first(
+            (
+              await database.query<{ id: string }>(
+                `update argus_app.editorial_revisions set state='published'
+                  where id=$1 and item_id=$2 and state='approved' returning id`,
+                [revisionId, itemId],
+              )
+            ).rows,
+          );
+          await database.query(
+            `update argus_app.editorial_items
+                set status='published',current_published_revision_id=$1
+              where id=$2`,
+            [revisionId, itemId],
+          );
+          await database.query(
+            `insert into argus_app.publication_events(
+               item_id,revision_id,action,effective_at,actor_id,reason
+             ) values ($1,$2,'publish',clock_timestamp(),argus_private.request_user_id(),$3)`,
+            [itemId, revisionId, reason],
+          );
+        } else {
+          const item = first(
+            (
+              await database.query<{ current_published_revision_id: string }>(
+                `update argus_app.editorial_items set status='withdrawn'
+                  where id=$1 and status='published'
+                  returning current_published_revision_id`,
+                [itemId],
+              )
+            ).rows,
+          );
+          await database.query(
+            `update argus_app.editorial_revisions set state='withdrawn'
+              where id=$1 and state='published'`,
+            [item.current_published_revision_id],
+          );
+          await database.query(
+            `insert into argus_app.publication_events(
+               item_id,revision_id,action,effective_at,actor_id,reason
+             ) values ($1,$2,'withdraw',clock_timestamp(),argus_private.request_user_id(),$3)`,
+            [itemId, item.current_published_revision_id, reason],
+          );
+        }
+        await auditEditorial(database, `editorial.${action}`, itemId, "allowed", requestId);
+        return viewEditorialItem(database, itemId);
+      }).then((result) => {
+        if (result._denied === "self_approval") {
+          throw new StaffAuthorizationError();
+        }
+        return result;
+      });
+    },
   });
 }
 
@@ -1006,7 +1339,9 @@ export function createSupabaseAdminOperationsRepository(
       staffTransaction(binding, "operations:read", async (database) =>
         (
           await database.query<JsonObject>(
-            `select * from argus_private.job_runs
+            `select id as correlation_id,job_type,status,attempts,
+                    next_attempt_at,last_error_code,created_at,updated_at
+               from argus_private.job_runs
               order by created_at desc, id desc
               limit $1`,
             [limit],
@@ -1017,7 +1352,11 @@ export function createSupabaseAdminOperationsRepository(
       staffTransaction(binding, "privacy:read", async (database) =>
         (
           await database.query<JsonObject>(
-            `select * from argus_app.privacy_requests
+            `select id as correlation_id,request_type,status,requested_at,
+                    completed_at,
+                    case when failure_code is null then null
+                         else 'privacy_failure_redacted' end as reason_code
+               from argus_app.privacy_requests
               order by requested_at desc, id desc
               limit $1`,
             [limit],
@@ -1028,20 +1367,89 @@ export function createSupabaseAdminOperationsRepository(
       staffTransaction(binding, "audit:read", async (database) =>
         (
           await database.query<JsonObject>(
-            `select * from argus_private.admin_audit_events
+            `select id,actor_user_id,action,target_kind,target_id,outcome,
+                    reason_code,correlation_id,occurred_at
+               from argus_private.admin_audit_events
               order by occurred_at desc, id desc
               limit $1`,
             [limit],
           )
         ).rows,
       ),
-    requestJobRetry: (jobId: string, dedupeKey: string) =>
+    listBrokerageDiagnostics: (limit: number) =>
+      staffTransaction(binding, "brokerage:read", async (database) =>
+        (
+          await database.query<JsonObject>(
+            `with diagnostics as (
+               select connection.id,'connection_health'::text as kind,
+                      connection.status,connection.last_error_code as reason_code,
+                      connection.updated_at as observed_at
+                 from argus_brokerage.connections connection
+               union all
+               select command.id,'provider_command'::text,command.state,
+                      null::text,command.updated_at
+                 from argus_private.provider_commands command
+               union all
+               select reconciliation.id,'reconciliation'::text,
+                      reconciliation.status,reconciliation.last_error_code,
+                      reconciliation.updated_at
+                 from argus_private.reconciliation_records reconciliation
+             )
+             select argus_private.admin_diagnostic_correlation(
+                      diagnostics.kind,diagnostics.id
+                    ) as correlation_id,
+                    diagnostics.kind,diagnostics.status,
+                    case when diagnostics.reason_code is null then null
+                         when diagnostics.reason_code ~ '^[a-z][a-z0-9_]{0,63}$'
+                           then diagnostics.reason_code
+                         else 'provider_error_redacted' end as reason_code,
+                    diagnostics.observed_at
+               from diagnostics
+              order by diagnostics.observed_at desc,diagnostics.id desc
+              limit $1`,
+            [limit],
+          )
+        ).rows,
+      ),
+    requestJobRetry: (jobId: string, dedupeKey: string, receipt: string) =>
       staffTransaction(binding, "operations:write", async (database) => {
         const result = await database.query<{ outbox_id: string }>(
-          `select argus_private.request_admin_job_retry($1, $2) as outbox_id`,
-          [jobId, dedupeKey],
+          `select argus_private.request_admin_job_retry($1,$2,$3,$4) as outbox_id`,
+          [
+            jobId,
+            dedupeKey,
+            await sha256TextHex(receipt),
+            binding.claims.sessionId,
+          ],
         );
         return first(result.rows).outbox_id;
+      }).catch((error: unknown) => {
+        if (error instanceof Error && error.message.includes("step_up_required")) {
+          throw new RepositoryStepUpRequiredError();
+        }
+        throw error;
+      }),
+    requestPrivacyRetry: (
+      requestId: string,
+      dedupeKey: string,
+      receipt: string,
+    ) =>
+      staffTransaction(binding, "privacy:write", async (database) => {
+        const result = await database.query<{ outbox_id: string }>(
+          `select argus_private.request_admin_privacy_retry($1,$2,$3,$4) as outbox_id`,
+          [
+            requestId,
+            dedupeKey,
+            await sha256TextHex(receipt),
+            binding.claims.sessionId,
+          ],
+        );
+        return first(result.rows).outbox_id;
+      }).catch((error: unknown) => {
+        if (error instanceof Error && error.message.includes("step_up_required")) {
+          throw new RepositoryStepUpRequiredError();
+        }
+        throw error;
       }),
   });
 }

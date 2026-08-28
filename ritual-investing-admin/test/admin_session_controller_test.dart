@@ -3,15 +3,21 @@ import 'package:ritual_investing_admin/application/admin_session_controller.dart
 import 'package:ritual_investing_admin/data/admin_gateway.dart';
 
 class _Credentials implements AdminCredentialRepository {
-  String? token = 'initial';
+  AdminCredentialSnapshot? snapshot = const AdminCredentialSnapshot(
+    accessToken: 'initial',
+    assuranceLevel: AdminAssuranceLevel.aal2,
+  );
   @override
-  Future<String?> freshToken() async => token;
+  Future<AdminCredentialSnapshot?> freshCredential() async => snapshot;
   @override
-  Future<String> login() async => token ?? (throw StateError('revoked'));
+  Future<AdminCredentialSnapshot?> login() async => snapshot;
   @override
-  Future<void> logout() async => token = null;
+  Future<AdminCredentialSnapshot?> verifySecondFactor(String code) async =>
+      snapshot;
   @override
-  Future<String?> restore() async => token;
+  Future<void> logout({required bool global}) async => snapshot = null;
+  @override
+  Future<AdminCredentialSnapshot?> restore() async => snapshot;
 }
 
 void main() {
@@ -23,7 +29,7 @@ void main() {
     expect(controller.isReady, isTrue);
     expect(await controller.accessToken(), 'initial');
 
-    credentials.token = null;
+    credentials.snapshot = null;
     expect(await controller.accessToken(), isNull);
     expect(controller.phase, AdminSessionPhase.signedOut);
     expect(controller.session, isNull);

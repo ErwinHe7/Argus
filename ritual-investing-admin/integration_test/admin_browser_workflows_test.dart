@@ -10,8 +10,8 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   // This suite proves browser rendering and permission-aware UI behavior with
-  // deterministic fixtures. Managed Auth0, Cloudflare Access, live HTTP, and
-  // the deployed production entrypoint are strict staging gates instead.
+  // deterministic fixtures. Supabase hosted-development Auth, live HTTP, and
+  // the intentionally disabled production entrypoint remain deployment gates.
 
   testWidgets('staff can review an editorial draft in the browser', (
     tester,

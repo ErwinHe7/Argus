@@ -65,6 +65,39 @@ export class StaffAuthorizationError extends Error {
   }
 }
 
+async function assertLiveStaffSession(
+  database: RequestDatabase,
+  context: VerifiedRequestClaims,
+): Promise<void> {
+  const authorization = await database.query<{ live: boolean }>(
+    `select argus_private.has_live_staff_session(
+       $1::uuid,$2::uuid
+     ) as live`,
+    [context.userId, context.sessionId],
+  );
+  if (authorization.rows[0]?.live !== true) {
+    throw new StaffAuthorizationError();
+  }
+}
+
+/**
+ * Runs a staff request only while the JWT's concrete Supabase Auth session is
+ * still live. This prevents an unexpired JWT from surviving global sign-out or
+ * server-side session deletion at the admin boundary.
+ */
+export async function withActiveStaffRequestTransaction<T>(
+  config: RequestTransactionConfig,
+  callback: (
+    database: RequestDatabase,
+    context: VerifiedRequestClaims,
+  ) => Promise<T>,
+): Promise<T> {
+  return withRequestTransaction(config, async (database, context) => {
+    await assertLiveStaffSession(database, context);
+    return callback(database, context);
+  });
+}
+
 export async function withStaffRequestTransaction<T>(
   config: RequestTransactionConfig,
   permission: string,
@@ -76,7 +109,7 @@ export async function withStaffRequestTransaction<T>(
   if (!/^[a-z][a-z0-9_.:-]{0,127}$/.test(permission)) {
     throw new StaffAuthorizationError();
   }
-  return withRequestTransaction(config, async (database, context) => {
+  return withActiveStaffRequestTransaction(config, async (database, context) => {
     const authorization = await database.query<{ allowed: boolean }>(
       "select argus_private.has_staff_permission($1::text) as allowed",
       [permission],

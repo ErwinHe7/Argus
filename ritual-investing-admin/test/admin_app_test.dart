@@ -11,7 +11,7 @@ void main() {
     tester,
   ) async {
     final session = AdminSessionController.fixture(
-      permissions: const {'admin:editorial:read'},
+      permissions: const {AdminPermission.editorialRead},
     );
     await tester.pumpWidget(
       AdminApp(
@@ -138,40 +138,6 @@ void main() {
     expect(gateway.transitions, contains('withdraw:item-1'));
   });
 
-  testWidgets('validates the guided media upload form before dispatch', (
-    tester,
-  ) async {
-    final gateway = FixtureAdminGateway();
-    await tester.pumpWidget(
-      AdminApp(
-        session: AdminSessionController.fixture(
-          permissions: AdminPermission.all,
-        ),
-        gateway: gateway,
-        initialLocation: '/operations/media',
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Upload request'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('MIME type'), findsOneWidget);
-    expect(find.text('Byte size'), findsOneWidget);
-    expect(find.text('SHA-256 checksum'), findsOneWidget);
-    await tester.tap(find.text('Continue'));
-    await tester.pump();
-    expect(find.text('Byte size is required.'), findsOneWidget);
-
-    await tester.enterText(find.byType(TextFormField).at(0), '1024');
-    await tester.enterText(
-      find.byType(TextFormField).at(1),
-      List.filled(64, 'a').join(),
-    );
-    await tester.tap(find.text('Continue'));
-    await tester.pumpAndSettle();
-    expect(gateway.transitions, contains('media-upload'));
-  });
-
   testWidgets('surfaces stale ETag conflicts without losing navigation', (
     tester,
   ) async {
@@ -197,61 +163,77 @@ void main() {
     expect(find.byTooltip('Open navigation'), findsOneWidget);
   });
 
-  testWidgets('wires schedule, media, moderation, privacy, and job controls', (
-    tester,
-  ) async {
-    Future<FixtureAdminGateway> open(String route, String action) async {
-      final gateway = FixtureAdminGateway(
+  testWidgets(
+    'wires stepped-up operations and keeps brokerage diagnostic-only',
+    (tester) async {
+      Future<FixtureAdminGateway> open(String route, String action) async {
+        final gateway = FixtureAdminGateway(
+          records: const [
+            AdminRecord(
+              id: 'record-1',
+              title: 'Operational record',
+              status: 'ready',
+              version: 1,
+              revisionId: 'revision-1',
+            ),
+          ],
+        );
+        await tester.pumpWidget(
+          AdminApp(
+            key: ValueKey('$route-${gateway.hashCode}'),
+            session: AdminSessionController.fixture(
+              permissions: AdminPermission.all,
+            ),
+            gateway: gateway,
+            initialLocation: route,
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Operational record'));
+        await tester.pump();
+        expect(find.text(action), findsOneWidget);
+        await tester.tap(find.text(action));
+        await tester.pumpAndSettle();
+        return gateway;
+      }
+
+      expect(
+        (await open('/operations/privacy', 'Retry request')).transitions,
+        contains('privacy-retry:record-1'),
+      );
+      expect(
+        (await open('/operations/jobs', 'Retry job')).transitions,
+        contains('job-retry:record-1'),
+      );
+
+      final brokerage = FixtureAdminGateway(
         records: const [
           AdminRecord(
-            id: 'record-1',
-            title: 'Operational record',
-            status: 'ready',
+            id: 'diag-redacted',
+            title: 'connection_health',
+            status: 'temporarily_unavailable',
             version: 1,
-            revisionId: 'revision-1',
           ),
         ],
       );
       await tester.pumpWidget(
         AdminApp(
-          key: ValueKey('$route-${gateway.hashCode}'),
+          key: ValueKey('brokerage-${brokerage.hashCode}'),
           session: AdminSessionController.fixture(
             permissions: AdminPermission.all,
           ),
-          gateway: gateway,
-          initialLocation: route,
+          gateway: brokerage,
+          initialLocation: '/operations/brokerage',
         ),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Operational record'));
+      await tester.tap(find.text('connection_health'));
       await tester.pump();
-      expect(find.text(action), findsOneWidget);
-      await tester.tap(find.text(action));
-      await tester.pumpAndSettle();
-      return gateway;
-    }
-
-    expect(
-      (await open('/catalog/schedules', 'Withdraw schedule')).transitions,
-      contains('schedule-withdraw:record-1'),
-    );
-    expect(
-      (await open('/operations/media', 'Retire media')).transitions,
-      contains('media-retire:record-1'),
-    );
-    expect(
-      (await open('/moderation', 'Open case')).transitions,
-      contains('moderation-open:record-1'),
-    );
-    expect(
-      (await open('/operations/privacy', 'Retry request')).transitions,
-      contains('privacy-retry:record-1'),
-    );
-    expect(
-      (await open('/operations/jobs', 'Retry job')).transitions,
-      contains('job-retry:record-1'),
-    );
-  });
+      expect(find.text('Retry job'), findsNothing);
+      expect(find.text('Place order'), findsNothing);
+      expect(find.textContaining('credential'), findsNothing);
+    },
+  );
 
   testWidgets('keeps audit read-only and gates Coven verification separately', (
     tester,

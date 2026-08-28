@@ -1,31 +1,29 @@
 import 'package:flutter/foundation.dart';
 
 abstract final class AdminPermission {
-  static const editorialRead = 'admin:editorial:read';
-  static const editorialWrite = 'admin:editorial:write';
-  static const editorialReview = 'admin:editorial:review';
-  static const editorialPublish = 'admin:editorial:publish';
-  static const catalogRead = 'admin:catalog:read';
-  static const catalogWrite = 'admin:catalog:write';
-  static const covenVerify = 'admin:coven:verify';
-  static const moderationRead = 'admin:moderation:read';
-  static const moderationWrite = 'admin:moderation:write';
-  static const mediaRead = 'admin:media:read';
-  static const mediaWrite = 'admin:media:write';
-  static const privacyRead = 'admin:privacy:read';
-  static const privacyRetry = 'admin:privacy:write';
-  static const operationsRead = 'admin:operations:read';
-  static const operationsRetry = 'admin:operations:write';
-  static const auditRead = 'admin:audit:read';
+  static const editorialRead = 'editorial:read';
+  static const editorialWrite = 'editorial:write';
+  static const editorialReview = 'editorial:review';
+  static const editorialPublish = 'editorial:publish';
+  static const catalogRead = 'editorial:read';
+  static const catalogWrite = 'editorial:write';
+  static const covenVerify = 'editorial:review';
+  static const moderationRead = 'moderation:read';
+  static const moderationWrite = 'moderation:write';
+  static const mediaRead = 'media:read';
+  static const mediaWrite = 'media:write';
+  static const privacyRead = 'privacy:read';
+  static const privacyRetry = 'privacy:write';
+  static const operationsRead = 'operations:read';
+  static const operationsRetry = 'operations:write';
+  static const auditRead = 'audit:read';
+  static const brokerageRead = 'brokerage:read';
 
   static const all = <String>{
     editorialRead,
     editorialWrite,
     editorialReview,
     editorialPublish,
-    catalogRead,
-    catalogWrite,
-    covenVerify,
     moderationRead,
     moderationWrite,
     mediaRead,
@@ -35,6 +33,7 @@ abstract final class AdminPermission {
     operationsRead,
     operationsRetry,
     auditRead,
+    brokerageRead,
   };
 }
 
@@ -58,6 +57,7 @@ class AdminDestination {
     required this.readPermission,
     required this.kind,
     this.writePermission,
+    this.editorialKind,
     this.highTrust = false,
   });
 
@@ -67,6 +67,7 @@ class AdminDestination {
   final String apiPath;
   final String readPermission;
   final String? writePermission;
+  final String? editorialKind;
   final AdminWorkspaceKind kind;
   final bool highTrust;
 }
@@ -76,137 +77,79 @@ const adminDestinations = <AdminDestination>[
     route: '/editorial/rituals',
     title: 'Ritual scenarios',
     subtitle: 'Draft, independently review, schedule, publish, or withdraw ritual guidance.',
-    apiPath: '/v1/admin/ritual-scenarios',
+    apiPath: '/v1/admin/editorial',
     readPermission: AdminPermission.editorialRead,
     writePermission: AdminPermission.editorialWrite,
     kind: AdminWorkspaceKind.editorial,
+    editorialKind: 'ritual',
     highTrust: true,
   ),
   AdminDestination(
     route: '/editorial/asset-codex',
     title: 'Asset Codex',
     subtitle: 'Maintain dated, evidenced Demo asset explanations and risks.',
-    apiPath: '/v1/admin/asset-codex',
+    apiPath: '/v1/admin/editorial',
     readPermission: AdminPermission.editorialRead,
     writePermission: AdminPermission.editorialWrite,
     kind: AdminWorkspaceKind.editorial,
+    editorialKind: 'asset_codex',
   ),
   AdminDestination(
     route: '/editorial/coven',
     title: "Founders' Coven",
     subtitle: 'Curate fictional-company entries with independently verified qualifications.',
-    apiPath: '/v1/admin/coven-entries',
+    apiPath: '/v1/admin/editorial',
     readPermission: AdminPermission.editorialRead,
     writePermission: AdminPermission.editorialWrite,
     kind: AdminWorkspaceKind.editorial,
+    editorialKind: 'coven',
   ),
   AdminDestination(
     route: '/editorial/grimoires',
     title: 'Grimoires',
     subtitle: 'Review versioned curated collections and their evidence.',
-    apiPath: '/v1/admin/grimoires',
+    apiPath: '/v1/admin/editorial',
     readPermission: AdminPermission.editorialRead,
     writePermission: AdminPermission.editorialWrite,
     kind: AdminWorkspaceKind.editorial,
+    editorialKind: 'grimoire',
   ),
   AdminDestination(
     route: '/editorial/circle-templates',
     title: 'Circle templates',
     subtitle: 'Manage fictional community templates and frozen allocations.',
-    apiPath: '/v1/admin/circle-templates',
+    apiPath: '/v1/admin/editorial',
     readPermission: AdminPermission.editorialRead,
     writePermission: AdminPermission.editorialWrite,
     kind: AdminWorkspaceKind.editorial,
+    editorialKind: 'circle_template',
   ),
   AdminDestination(
     route: '/editorial/rowan',
     title: 'Rowan scripts',
     subtitle: 'Review constrained, non-coercive assistant copy before release.',
-    apiPath: '/v1/admin/rowan-scripts',
+    apiPath: '/v1/admin/editorial',
     readPermission: AdminPermission.editorialRead,
     writePermission: AdminPermission.editorialWrite,
     kind: AdminWorkspaceKind.editorial,
+    editorialKind: 'rowan',
     highTrust: true,
   ),
   AdminDestination(
     route: '/editorial/briefings',
     title: 'Briefing templates',
     subtitle: 'Version Daily, weekly, and moon-cycle briefing structures.',
-    apiPath: '/v1/admin/briefing-templates',
+    apiPath: '/v1/admin/editorial',
     readPermission: AdminPermission.editorialRead,
     writePermission: AdminPermission.editorialWrite,
     kind: AdminWorkspaceKind.editorial,
-  ),
-  AdminDestination(
-    route: '/catalog/assets',
-    title: 'Assets',
-    subtitle:
-        'Maintain the Demo-only asset catalog and immutable metric snapshots.',
-    apiPath: '/v1/admin/assets',
-    readPermission: AdminPermission.catalogRead,
-    writePermission: AdminPermission.catalogWrite,
-    kind: AdminWorkspaceKind.catalog,
-  ),
-  AdminDestination(
-    route: '/catalog/evidence',
-    title: 'Evidence',
-    subtitle: 'Review allowlisted HTTPS sources and dated claims.',
-    apiPath: '/v1/admin/evidence-sources',
-    readPermission: AdminPermission.catalogRead,
-    writePermission: AdminPermission.catalogWrite,
-    kind: AdminWorkspaceKind.catalog,
-  ),
-  AdminDestination(
-    route: '/catalog/evidence-claims',
-    title: 'Evidence claims',
-    subtitle: 'Create dated claims without rewriting source history.',
-    apiPath: '/v1/admin/evidence-claims',
-    readPermission: AdminPermission.catalogRead,
-    writePermission: AdminPermission.catalogWrite,
-    kind: AdminWorkspaceKind.catalog,
-  ),
-  AdminDestination(
-    route: '/catalog/schedules',
-    title: 'Ritual schedules',
-    subtitle: 'Schedule approved revisions while preserving frozen member assignments.',
-    apiPath: '/v1/admin/ritual-schedules',
-    readPermission: AdminPermission.editorialRead,
-    writePermission: AdminPermission.editorialPublish,
-    kind: AdminWorkspaceKind.catalog,
-    highTrust: true,
-  ),
-  AdminDestination(
-    route: '/community/seeded-creators',
-    title: 'Seeded creators',
-    subtitle: 'Manage clearly fictional Demo community identities.',
-    apiPath: '/v1/admin/seeded-creators',
-    readPermission: AdminPermission.catalogRead,
-    writePermission: AdminPermission.catalogWrite,
-    kind: AdminWorkspaceKind.catalog,
-  ),
-  AdminDestination(
-    route: '/moderation',
-    title: 'Moderation',
-    subtitle: 'Triage redacted reports and record immutable decisions.',
-    apiPath: '/v1/admin/moderation/reports',
-    readPermission: AdminPermission.moderationRead,
-    writePermission: AdminPermission.moderationWrite,
-    kind: AdminWorkspaceKind.operations,
-  ),
-  AdminDestination(
-    route: '/operations/media',
-    title: 'Media',
-    subtitle: 'Inspect quarantine, scan, derivative, and reference state.',
-    apiPath: '/v1/admin/media',
-    readPermission: AdminPermission.mediaRead,
-    writePermission: AdminPermission.mediaWrite,
-    kind: AdminWorkspaceKind.operations,
+    editorialKind: 'briefing_template',
   ),
   AdminDestination(
     route: '/operations/privacy',
     title: 'Privacy requests',
     subtitle: 'Observe export and deletion lifecycles without download access.',
-    apiPath: '/v1/admin/privacy/requests',
+    apiPath: '/v1/admin/operations/privacy',
     readPermission: AdminPermission.privacyRead,
     writePermission: AdminPermission.privacyRetry,
     kind: AdminWorkspaceKind.operations,
@@ -216,16 +159,24 @@ const adminDestinations = <AdminDestination>[
     route: '/operations/jobs',
     title: 'Job operations',
     subtitle: 'Inspect redacted Queue state and replay terminal jobs safely.',
-    apiPath: '/v1/admin/jobs',
+    apiPath: '/v1/admin/operations/jobs',
     readPermission: AdminPermission.operationsRead,
     writePermission: AdminPermission.operationsRetry,
+    kind: AdminWorkspaceKind.operations,
+  ),
+  AdminDestination(
+    route: '/operations/brokerage',
+    title: 'Brokerage diagnostics',
+    subtitle: 'Inspect redacted Webull connection, command, and reconciliation health. No order controls or brokerage values are available.',
+    apiPath: '/v1/admin/operations/brokerage',
+    readPermission: AdminPermission.brokerageRead,
     kind: AdminWorkspaceKind.operations,
   ),
   AdminDestination(
     route: '/operations/audit',
     title: 'Audit log',
     subtitle: 'Search immutable allowed and denied administrative events.',
-    apiPath: '/v1/admin/audit-events',
+    apiPath: '/v1/admin/audit',
     readPermission: AdminPermission.auditRead,
     kind: AdminWorkspaceKind.operations,
   ),

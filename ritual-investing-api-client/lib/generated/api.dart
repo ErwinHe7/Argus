@@ -9,7 +9,6 @@ import 'package:ritual_investing_api_client/generated/auth/bearer_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/oauth.dart';
 import 'package:ritual_investing_api_client/generated/api/account_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_api.dart';
-import 'package:ritual_investing_api_client/generated/api/admin_brokerage_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_media_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_moderation_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_operations_api.dart';
@@ -171,12 +170,6 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   AdminApi getAdminApi() {
     return AdminApi(dio);
-  }
-
-  /// Get AdminBrokerageApi instance, base route and serializer can be overridden by a given but be careful,
-  /// by doing that all interceptors will not be executed
-  AdminBrokerageApi getAdminBrokerageApi() {
-    return AdminBrokerageApi(dio);
   }
 
   /// Get AdminMediaApi instance, base route and serializer can be overridden by a given but be careful,

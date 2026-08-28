@@ -16,8 +16,6 @@ import 'package:ritual_investing_api_client/generated/model/brokerage_order_deta
 import 'package:ritual_investing_api_client/generated/model/brokerage_order_list.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_order_preview.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_order_preview_response.dart';
-import 'package:ritual_investing_api_client/generated/model/brokerage_order_reconciliation.dart';
-import 'package:ritual_investing_api_client/generated/model/brokerage_order_reconciliation_response.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_orders_response.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_position.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_positions_projection.dart';
@@ -25,9 +23,12 @@ import 'package:ritual_investing_api_client/generated/model/brokerage_positions_
 import 'package:ritual_investing_api_client/generated/model/brokerage_restriction.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_restrictions_projection.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_restrictions_response.dart';
+import 'package:ritual_investing_api_client/generated/model/command_admin_editorial_request.dart';
 import 'package:ritual_investing_api_client/generated/model/confirm_cancel_brokerage_order.dart';
 import 'package:ritual_investing_api_client/generated/model/confirm_modify_brokerage_order.dart';
 import 'package:ritual_investing_api_client/generated/model/confirm_place_brokerage_order.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_editorial_request.dart';
+import 'package:ritual_investing_api_client/generated/model/create_admin_editorial_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_hypothetical_future_mirror.dart';
 import 'package:ritual_investing_api_client/generated/model/create_hypothetical_future_mirror_annual_return_bps.dart';
@@ -45,6 +46,7 @@ import 'package:ritual_investing_api_client/generated/model/hypothetical_future_
 import 'package:ritual_investing_api_client/generated/model/hypothetical_future_mirror_annual_return_bps.dart';
 import 'package:ritual_investing_api_client/generated/model/hypothetical_future_mirror_point.dart';
 import 'package:ritual_investing_api_client/generated/model/hypothetical_future_mirror_response.dart';
+import 'package:ritual_investing_api_client/generated/model/issue_admin_step_up_request.dart';
 import 'package:ritual_investing_api_client/generated/model/issue_member_step_up_request.dart';
 import 'package:ritual_investing_api_client/generated/model/member_intention.dart';
 import 'package:ritual_investing_api_client/generated/model/member_intention_page.dart';
@@ -60,6 +62,7 @@ import 'package:ritual_investing_api_client/generated/model/report_content_reque
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request.dart';
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request_one_of.dart';
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request_one_of1.dart';
+import 'package:ritual_investing_api_client/generated/model/retry_admin_job_request.dart';
 import 'package:ritual_investing_api_client/generated/model/scenario_money.dart';
 import 'package:ritual_investing_api_client/generated/model/select_webull_account_request.dart';
 import 'package:ritual_investing_api_client/generated/model/transition_ritual_request.dart';
@@ -152,16 +155,6 @@ ReturnType deserialize<ReturnType, BaseType>(
             value as Map<String, dynamic>,
           )
           as ReturnType;
-    case 'BrokerageOrderReconciliation':
-      return BrokerageOrderReconciliation.fromJson(
-            value as Map<String, dynamic>,
-          )
-          as ReturnType;
-    case 'BrokerageOrderReconciliationResponse':
-      return BrokerageOrderReconciliationResponse.fromJson(
-            value as Map<String, dynamic>,
-          )
-          as ReturnType;
     case 'BrokerageOrdersResponse':
       return BrokerageOrdersResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -189,6 +182,11 @@ ReturnType deserialize<ReturnType, BaseType>(
             value as Map<String, dynamic>,
           )
           as ReturnType;
+    case 'CommandAdminEditorialRequest':
+      return CommandAdminEditorialRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'ConfirmCancelBrokerageOrder':
       return ConfirmCancelBrokerageOrder.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -197,6 +195,14 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'ConfirmPlaceBrokerageOrder':
       return ConfirmPlaceBrokerageOrder.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateAdminEditorialRequest':
+      return CreateAdminEditorialRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'CreateAdminEditorialRevisionRequest':
+      return CreateAdminEditorialRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'CreateCircleRequest':
       return CreateCircleRequest.fromJson(value as Map<String, dynamic>)
@@ -263,6 +269,9 @@ ReturnType deserialize<ReturnType, BaseType>(
             value as Map<String, dynamic>,
           )
           as ReturnType;
+    case 'IssueAdminStepUpRequest':
+      return IssueAdminStepUpRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'IssueMemberStepUpRequest':
       return IssueMemberStepUpRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -315,6 +324,9 @@ ReturnType deserialize<ReturnType, BaseType>(
       return RequestPrivacyActionRequestOneOf1.fromJson(
             value as Map<String, dynamic>,
           )
+          as ReturnType;
+    case 'RetryAdminJobRequest':
+      return RetryAdminJobRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'ScenarioMoney':
       return ScenarioMoney.fromJson(value as Map<String, dynamic>)

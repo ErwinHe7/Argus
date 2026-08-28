@@ -1,23 +1,30 @@
-import 'package:auth0_flutter/auth0_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:ritual_investing_api_client/generated/api.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'application/admin_session_controller.dart';
 import 'core/runtime_config.dart';
 import 'data/admin_gateway.dart';
 import 'ui/admin_app.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
   try {
     final config = AdminRuntimeConfig.fromEnvironment();
+    await Supabase.initialize(
+      url: config.supabaseUrl,
+      publishableKey: config.supabasePublishableKey,
+      authOptions: const FlutterAuthClientOptions(
+        authFlowType: AuthFlowType.pkce,
+      ),
+    );
     final session = AdminSessionController(
-      credentials: Auth0AdminCredentialRepository(
-        Auth0(config.auth0Domain, config.auth0ClientId),
-        config.auth0Audience,
+      credentials: SupabaseAdminCredentialRepository(
+        Supabase.instance.client,
+        config.authRedirectUrl,
       ),
     );
     final client = RitualInvestingApiClient(

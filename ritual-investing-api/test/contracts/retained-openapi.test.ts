@@ -72,7 +72,18 @@ describe("Supabase retained OpenAPI contract", () => {
       "/v1/rowan/{surface}/{context_key}",
       "/v1/search",
       "/v1/admin/session",
+      "/v1/admin/step-up",
+      "/v1/admin/audit",
+      "/v1/admin/editorial",
+      "/v1/admin/editorial/{item_id}",
+      "/v1/admin/editorial/{item_id}/revisions",
+      "/v1/admin/editorial/{item_id}/revisions/{revision_id}",
+      "/v1/admin/editorial/{item_id}/commands",
       "/v1/admin/operations/jobs",
+      "/v1/admin/operations/jobs/{job_id}/retry",
+      "/v1/admin/operations/privacy",
+      "/v1/admin/operations/privacy/{request_id}/retry",
+      "/v1/admin/operations/brokerage",
       "/v1/brokerage/accounts",
       "/v1/brokerage/accounts/{account_id}/capabilities",
       "/v1/brokerage/accounts/{account_id}/balances",
@@ -85,7 +96,6 @@ describe("Supabase retained OpenAPI contract", () => {
       "/v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel-preview",
       "/v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel",
       "/v1/brokerage/order-commands/{command_id}",
-      "/v1/admin/brokerage/order-commands/{command_id}",
     ];
     for (const path of retainedFamilies) {
       expect(paths, path).toHaveProperty(path);
@@ -97,6 +107,9 @@ describe("Supabase retained OpenAPI contract", () => {
     );
     expect(serialized).not.toMatch(
       /provider_asset_id|provider_account_id|provider_order_id/i,
+    );
+    expect(paths).not.toHaveProperty(
+      "/v1/admin/brokerage/order-commands/{command_id}",
     );
   });
 
