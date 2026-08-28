@@ -1,9 +1,14 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.15";
+import {
+  assertEquals,
+  assertRejects,
+  assertThrows,
+} from "jsr:@std/assert@1.0.15";
 
 import type {
   DatabaseClient,
   DatabasePool,
 } from "../../../ritual-investing-api/src/db/database-port.ts";
+import { createSupabaseWorkerDatabasePool } from "../_shared/database.ts";
 import { createSupabaseAuthAdmin } from "../_shared/jobs/auth-admin.ts";
 import {
   authenticateWorkerRequest,
@@ -16,6 +21,35 @@ import { createWorkerHandler, type WorkerInvocationRuntime } from "./index.ts";
 
 const current = "current-worker-secret-at-least-32-characters";
 const next = "next-worker-secret-at-least-32-characters";
+
+Deno.test("worker database pool accepts only its local or Supavisor login", async () => {
+  for (const user of [
+    "argus_worker_edge",
+    "argus_worker_edge.abcdefghijklmnopqrst",
+  ]) {
+    const pool = createSupabaseWorkerDatabasePool(
+      `postgresql://${user}:synthetic-password@db.example.invalid/postgres`,
+    );
+    await pool.end();
+  }
+  for (const user of [
+    "argus_edge",
+    "argus_worker",
+    "postgres",
+    "argus_worker_edge_evil",
+    "argus_worker_edge.abcdefghijklmnopqrs",
+    "argus_worker_edge.abcdefghijklmnopqrs1",
+    "argus_worker_edge.abcdefghijklmnopqrst.evil",
+  ]) {
+    assertThrows(
+      () => createSupabaseWorkerDatabasePool(
+        `postgresql://${user}:synthetic-password@db.example.invalid/postgres`,
+      ),
+      Error,
+      "invalid_supabase_database_role",
+    );
+  }
+});
 
 Deno.test("worker secret accepts current and a bounded next overlap", async () => {
   const now = new Date("2026-08-28T12:00:00.000Z");

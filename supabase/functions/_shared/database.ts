@@ -87,6 +87,6 @@ export function createSupabaseWaitlistDatabasePool(
 export function createSupabaseWorkerDatabasePool(databaseUrl: string): DatabasePool {
   return createDatabasePool(
     databaseUrl,
-    /^argus_worker_edge$/,
+    /^argus_worker_edge(?:\.[a-z]{20})?$/,
   );
 }
