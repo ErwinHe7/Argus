@@ -1,5 +1,17 @@
 begin;
 
+create extension if not exists pgtap with schema extensions;
+set local search_path = extensions, pg_catalog, public;
+
+select plan(24);
+
+select ok(
+  has_schema_privilege('argus_runtime', 'extensions', 'usage')
+    and has_schema_privilege('argus_worker', 'extensions', 'usage')
+    and has_schema_privilege('argus_waitlist', 'extensions', 'usage'),
+  'capability roles can execute allowlisted extension-backed helpers'
+);
+
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
@@ -7,12 +19,6 @@ grant argus_runtime, argus_worker, argus_waitlist
   to current_user with set true;
 grant usage on schema extensions
   to argus_runtime, argus_worker, argus_waitlist;
-
-create extension if not exists pgtap with schema extensions;
-grant usage on schema extensions to argus_runtime;
-set local search_path = extensions, pg_catalog, public;
-
-select plan(23);
 
 select ok(not has_schema_privilege('anon', 'argus_app', 'usage'), 'anon has no Argus schema usage');
 select ok(not has_schema_privilege('authenticated', 'argus_app', 'usage'), 'authenticated has no Argus schema usage');

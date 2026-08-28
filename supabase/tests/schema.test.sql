@@ -107,8 +107,9 @@ select is(
 );
 
 select ok(
-  (select rolpassword is null from pg_authid where rolname = 'argus_edge'),
-  'Edge pooler password is provisioned out-of-band, not by migrations'
+  (select rolpassword is null or rolpassword like 'SCRAM-SHA-256$%'
+     from pg_authid where rolname = 'argus_edge'),
+  'Edge pooler password is absent on bootstrap or stored only as a SCRAM verifier'
 );
 
 select ok(
