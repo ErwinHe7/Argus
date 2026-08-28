@@ -88,11 +88,11 @@ class GeneratedBriefingService implements BriefingService {
         try {
           final raw = error.response?.data;
           if (raw is! Map) _terminal();
-          final response = api.GetDailyBriefing202Response.fromJson(
+          final response = api.BriefingPendingResponse.fromJson(
             Map<String, dynamic>.from(raw),
           );
           if (response.data.status !=
-              api.GetDailyBriefing202ResponseDataStatusEnum.briefingPending) {
+              api.BriefingPendingStatusEnum.briefingPending) {
             _terminal();
           }
           final pendingDate = _dateOnly(response.data.localDate);
@@ -135,7 +135,7 @@ class GeneratedBriefingService implements BriefingService {
   }
 }
 
-BriefingDetail _detail(api.GetBriefing200ResponseData value) {
+BriefingDetail _detail(api.BriefingDetail value) {
   final summary = BriefingSummary(
     id: value.id,
     type: _detailType(value.briefingType),
@@ -151,18 +151,14 @@ BriefingDetail _detail(api.GetBriefing200ResponseData value) {
   final sections =
       value.sections
           .map((section) {
-            if (section.sectionType != 'summary' ||
-                section.schemaVersion != 1 ||
+            if (section.schemaVersion != 1 ||
                 section.ordinal <= 0 ||
                 !ordinals.add(section.ordinal) ||
-                section.payload.length != 2 ||
-                section.payload['source_sequence'] is! int ||
-                section.payload['disclosure'] is! String) {
+                section.disclosure.trim().isEmpty) {
               _terminal();
             }
-            final sourceSequence = section.payload['source_sequence']! as int;
-            final disclosure = (section.payload['disclosure']! as String)
-                .trim();
+            final sourceSequence = section.sourceSequence;
+            final disclosure = section.disclosure.trim();
             if (sourceSequence != summary.sourceSequence ||
                 disclosure.isEmpty) {
               _terminal();
@@ -179,7 +175,7 @@ BriefingDetail _detail(api.GetBriefing200ResponseData value) {
   return BriefingDetail(summary: summary, sections: sections);
 }
 
-BriefingSummary _summary(api.ListBriefings200ResponseDataInner value) {
+BriefingSummary _summary(api.BriefingSummary value) {
   final result = BriefingSummary(
     id: value.id,
     type: _listType(value.briefingType),
@@ -206,29 +202,23 @@ void _validateSummary(BriefingSummary value) {
   }
 }
 
-BriefingType _listType(
-  api.ListBriefings200ResponseDataInnerBriefingTypeEnum value,
-) => switch (value) {
-  api.ListBriefings200ResponseDataInnerBriefingTypeEnum.daily =>
-    BriefingType.daily,
-  api.ListBriefings200ResponseDataInnerBriefingTypeEnum.weekly =>
-    BriefingType.weekly,
-  api.ListBriefings200ResponseDataInnerBriefingTypeEnum.moonCycle =>
-    BriefingType.moonCycle,
-  api.ListBriefings200ResponseDataInnerBriefingTypeEnum.unknownDefaultOpenApi =>
-    throw const LoadFailure(LoadPhase.terminalFailure),
-};
+BriefingType _listType(api.BriefingSummaryBriefingTypeEnum value) =>
+    switch (value) {
+      api.BriefingSummaryBriefingTypeEnum.daily => BriefingType.daily,
+      api.BriefingSummaryBriefingTypeEnum.weekly => BriefingType.weekly,
+      api.BriefingSummaryBriefingTypeEnum.moonCycle => BriefingType.moonCycle,
+      api.BriefingSummaryBriefingTypeEnum.unknownDefaultOpenApi =>
+        throw const LoadFailure(LoadPhase.terminalFailure),
+    };
 
-BriefingType _detailType(
-  api.GetBriefing200ResponseDataBriefingTypeEnum value,
-) => switch (value) {
-  api.GetBriefing200ResponseDataBriefingTypeEnum.daily => BriefingType.daily,
-  api.GetBriefing200ResponseDataBriefingTypeEnum.weekly => BriefingType.weekly,
-  api.GetBriefing200ResponseDataBriefingTypeEnum.moonCycle =>
-    BriefingType.moonCycle,
-  api.GetBriefing200ResponseDataBriefingTypeEnum.unknownDefaultOpenApi =>
-    throw const LoadFailure(LoadPhase.terminalFailure),
-};
+BriefingType _detailType(api.BriefingDetailBriefingTypeEnum value) =>
+    switch (value) {
+      api.BriefingDetailBriefingTypeEnum.daily => BriefingType.daily,
+      api.BriefingDetailBriefingTypeEnum.weekly => BriefingType.weekly,
+      api.BriefingDetailBriefingTypeEnum.moonCycle => BriefingType.moonCycle,
+      api.BriefingDetailBriefingTypeEnum.unknownDefaultOpenApi =>
+        throw const LoadFailure(LoadPhase.terminalFailure),
+    };
 
 String? _typeValue(BriefingType? value) => switch (value) {
   BriefingType.daily => 'daily',

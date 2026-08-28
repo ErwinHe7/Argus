@@ -148,8 +148,8 @@ void main() {
     }
     for (final mode in [
       _Mode.detailIdMismatch,
-      _Mode.unknownSection,
-      _Mode.extraSectionPayload,
+      _Mode.invalidSectionSchema,
+      _Mode.emptySectionDisclosure,
       _Mode.sectionSourceMismatch,
     ]) {
       harness.mode = mode;
@@ -245,8 +245,8 @@ enum _Mode {
   unknownBriefingType,
   inconsistentBriefingCursor,
   detailIdMismatch,
-  unknownSection,
-  extraSectionPayload,
+  invalidSectionSchema,
+  emptySectionDisclosure,
   sectionSourceMismatch,
   pendingDateMismatch,
   briefingReadEchoMismatch,
@@ -422,14 +422,12 @@ Map<String, Object?> _briefingDetail(_Mode mode) => {
   ..._briefingSummary(mode),
   'sections': [
     {
-      'section_type': mode == _Mode.unknownSection ? 'prediction' : 'summary',
       'ordinal': 1,
-      'schema_version': 1,
-      'payload': {
-        'source_sequence': mode == _Mode.sectionSourceMismatch ? 13 : 14,
-        'disclosure': 'Recorded Demo reflection; not financial advice.',
-        if (mode == _Mode.extraSectionPayload) 'model': 'invented',
-      },
+      'schema_version': mode == _Mode.invalidSectionSchema ? 2 : 1,
+      'source_sequence': mode == _Mode.sectionSourceMismatch ? 13 : 14,
+      'disclosure': mode == _Mode.emptySectionDisclosure
+          ? ' '
+          : 'Recorded Demo reflection; not financial advice.',
     },
   ],
 };

@@ -13,10 +13,10 @@ import 'repository.dart';
 class GeneratedGrimoireService implements GrimoireService {
   GeneratedGrimoireService(api.RitualInvestingApiClient client)
     : _discover = api.DiscoverApi(client.dio),
-      _saves = api.SavesApi(client.dio);
+      _saves = api.SavedApi(client.dio);
 
   final api.DiscoverApi _discover;
-  final api.SavesApi _saves;
+  final api.SavedApi _saves;
 
   @override
   Future<GrimoireDetail> fetchDetail(String grimoireId) async {
@@ -46,9 +46,10 @@ class GeneratedGrimoireService implements GrimoireService {
   @override
   Future<void> save(String grimoireId) async {
     try {
-      await _saves.saveGrimoire(
-        id: grimoireId,
-        saveAssetRequest: api.SaveAssetRequest(),
+      await _saves.saveItem(
+        itemKind: 'grimoire',
+        itemId: grimoireId,
+        saveItemRequest: api.SaveItemRequest(),
       );
     } on DioException catch (error) {
       if (_ambiguous(error)) throw const GrimoireAmbiguousMutation();
@@ -59,7 +60,7 @@ class GeneratedGrimoireService implements GrimoireService {
   @override
   Future<void> unsave(String grimoireId) async {
     try {
-      await _saves.unsaveGrimoire(id: grimoireId);
+      await _saves.unsaveItem(itemKind: 'grimoire', itemId: grimoireId);
     } on DioException catch (error) {
       if (_ambiguous(error)) throw const GrimoireAmbiguousMutation();
       throw ApiFailureMapper.map(error);
@@ -69,7 +70,7 @@ class GeneratedGrimoireService implements GrimoireService {
 
 GrimoireAssetReference _asset(api.AssetSummary value) {
   if (value.assetType == api.AssetSummaryAssetTypeEnum.unknownDefaultOpenApi ||
-      value.currency == api.AssetSummaryCurrencyEnum.unknownDefaultOpenApi) {
+      value.currency != 'USD') {
     throw const LoadFailure(LoadPhase.terminalFailure);
   }
   return GrimoireAssetReference(
@@ -83,7 +84,7 @@ GrimoireAssetReference _asset(api.AssetSummary value) {
   );
 }
 
-ResearchDemoDisclosure _demo(api.DemoDisclosure value) =>
+ResearchDemoDisclosure _demo(api.ResearchDisclosure value) =>
     ResearchDemoDisclosure(
       isDemo: value.isDemo,
       observedAt: value.observedAt,

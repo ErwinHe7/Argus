@@ -8,10 +8,10 @@ import 'repository.dart';
 
 class GeneratedCovenApiService implements CovenService {
   GeneratedCovenApiService(RitualInvestingApiClient client)
-    : _api = FoundersCovenApi(client.dio),
-      _saves = SavesApi(client.dio);
-  final FoundersCovenApi _api;
-  final SavesApi _saves;
+    : _api = CovenApi(client.dio),
+      _saves = SavedApi(client.dio);
+  final CovenApi _api;
+  final SavedApi _saves;
   @override
   Future<coven_domain.CovenModel> fetch() async {
     try {
@@ -43,7 +43,7 @@ class GeneratedCovenApiService implements CovenService {
   @override
   Future<coven_domain.CovenDetail> fetchDetail(String entryId) async {
     try {
-      final value = (await _api.getCovenEntry(entryId: entryId)).data!.data;
+      final value = (await _api.getCoven(entryId: entryId)).data!.data;
       return coven_domain.CovenDetail(
         id: value.id,
         revisionId: value.revisionId,
@@ -87,21 +87,7 @@ class GeneratedCovenApiService implements CovenService {
   ) async {
     try {
       final values = (await _api.getCovenEvidence(entryId: entryId)).data!.data;
-      return values
-          .map(
-            (value) => coven_domain.CovenEvidenceDetail(
-              claimId: value.claimId,
-              factorLabel: value.factorLabel,
-              observedAt: value.observedAt,
-              summary: value.summary,
-              uncertainty: value.uncertainty,
-              publisher: value.source_.publisher,
-              sourceTitle: value.source_.title,
-              sourceUrl: Uri.parse(value.source_.url),
-              publishedAt: value.source_.publishedAt,
-            ),
-          )
-          .toList(growable: false);
+      return values.map(_mapCovenEvidenceDetail).toList(growable: false);
     } on DioException catch (error) {
       ApiFailureMapper.throwFailure(error);
     } on FormatException {
@@ -112,7 +98,11 @@ class GeneratedCovenApiService implements CovenService {
   @override
   Future<void> save(String entryId) async {
     try {
-      await _saves.saveCoven(id: entryId, saveAssetRequest: SaveAssetRequest());
+      await _saves.saveItem(
+        itemKind: 'coven',
+        itemId: entryId,
+        saveItemRequest: SaveItemRequest(),
+      );
     } on DioException catch (error) {
       if (ApiFailureMapper.isTransportFailure(error)) {
         throw const CovenAmbiguousMutation();
@@ -124,7 +114,7 @@ class GeneratedCovenApiService implements CovenService {
   @override
   Future<void> unsave(String entryId) async {
     try {
-      await _saves.unsaveCoven(id: entryId);
+      await _saves.unsaveItem(itemKind: 'coven', itemId: entryId);
     } on DioException catch (error) {
       if (ApiFailureMapper.isTransportFailure(error)) {
         throw const CovenAmbiguousMutation();
@@ -157,7 +147,28 @@ coven_domain.CovenEvidenceSummary _mapCovenEvidenceSummary(
   uncertainty: value.uncertainty,
 );
 
-coven_domain.CovenDemoDisclosure _mapCovenDemo(DemoDisclosure value) =>
+coven_domain.CovenEvidenceDetail _mapCovenEvidenceDetail(EvidenceDetail value) {
+  final rawUrl = value.source_.url;
+  final sourceUrl = rawUrl == null ? null : Uri.tryParse(rawUrl);
+  if (sourceUrl == null ||
+      sourceUrl.scheme != 'https' ||
+      !sourceUrl.hasAuthority) {
+    throw const LoadFailure(LoadPhase.terminalFailure);
+  }
+  return coven_domain.CovenEvidenceDetail(
+    claimId: value.claimId,
+    factorLabel: value.factorLabel,
+    observedAt: value.observedAt,
+    summary: value.summary,
+    uncertainty: value.uncertainty,
+    publisher: value.source_.publisher,
+    sourceTitle: value.source_.title,
+    sourceUrl: sourceUrl,
+    publishedAt: value.source_.publishedAt,
+  );
+}
+
+coven_domain.CovenDemoDisclosure _mapCovenDemo(ResearchDisclosure value) =>
     coven_domain.CovenDemoDisclosure(
       isDemo: value.isDemo,
       observedAt: value.observedAt,

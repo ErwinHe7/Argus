@@ -20,7 +20,7 @@ class GeneratedSearchService implements SearchService {
       if (!cancelToken.isCancelled) cancelToken.cancel('superseded');
     });
     try {
-      final response = (await _api.searchPublishedCatalog(
+      final response = (await _api.search(
         q: request.context.query,
         kinds: _kinds(request.context.kinds),
         cursor: request.cursor,
@@ -71,7 +71,7 @@ SearchItem _item(api.SearchResult result) => switch (result.kind) {
 SearchItem _asset(api.AssetSummary? value) {
   if (value == null ||
       value.assetType == api.AssetSummaryAssetTypeEnum.unknownDefaultOpenApi ||
-      value.currency == api.AssetSummaryCurrencyEnum.unknownDefaultOpenApi) {
+      value.currency != 'USD') {
     throw const LoadFailure(LoadPhase.terminalFailure);
   }
   return SearchItem(

@@ -12,10 +12,10 @@ import 'repository.dart';
 class GeneratedAssetCodexService implements AssetCodexService {
   GeneratedAssetCodexService(api.RitualInvestingApiClient client)
     : _assets = api.AssetsApi(client.dio),
-      _saves = api.SavesApi(client.dio);
+      _saves = api.SavedApi(client.dio);
 
   final api.AssetsApi _assets;
-  final api.SavesApi _saves;
+  final api.SavedApi _saves;
 
   @override
   Future<AssetCodex> fetchDetail(String assetId) async {
@@ -41,15 +41,10 @@ class GeneratedAssetCodexService implements AssetCodexService {
                 title: risk.title,
                 detail: risk.detail,
                 severity: switch (risk.severity) {
-                  api.AssetCodexDetailRisksInnerSeverityEnum.low =>
-                    AssetRiskSeverity.low,
-                  api.AssetCodexDetailRisksInnerSeverityEnum.medium =>
-                    AssetRiskSeverity.medium,
-                  api.AssetCodexDetailRisksInnerSeverityEnum.high =>
-                    AssetRiskSeverity.high,
-                  api
-                      .AssetCodexDetailRisksInnerSeverityEnum
-                      .unknownDefaultOpenApi =>
+                  api.AssetRiskSeverityEnum.low => AssetRiskSeverity.low,
+                  api.AssetRiskSeverityEnum.medium => AssetRiskSeverity.medium,
+                  api.AssetRiskSeverityEnum.high => AssetRiskSeverity.high,
+                  api.AssetRiskSeverityEnum.unknownDefaultOpenApi =>
                     throw const LoadFailure(LoadPhase.terminalFailure),
                 },
               ),
@@ -70,21 +65,7 @@ class GeneratedAssetCodexService implements AssetCodexService {
       final values = (await _assets.getAssetEvidence(assetId: assetId))
           .data!
           .data;
-      return values
-          .map(
-            (value) => AssetEvidenceDetail(
-              claimId: value.claimId,
-              factorLabel: value.factorLabel,
-              observedAt: value.observedAt,
-              summary: value.summary,
-              uncertainty: value.uncertainty,
-              publisher: value.source_.publisher,
-              sourceTitle: value.source_.title,
-              sourceUrl: Uri.parse(value.source_.url),
-              publishedAt: value.source_.publishedAt,
-            ),
-          )
-          .toList(growable: false);
+      return values.map(_evidenceDetail).toList(growable: false);
     } on DioException catch (error) {
       _throwAssetFailure(error);
     } on FormatException {
@@ -111,15 +92,7 @@ class GeneratedAssetCodexService implements AssetCodexService {
         compareAssetsRequest: api.CompareAssetsRequest(assetIds: assetIds),
       )).data!.data;
       return AssetComparison(
-        items: value.assets
-            .map(
-              (item) => AssetComparisonItem(
-                asset: _summary(item.asset),
-                metric: _metric(item.latestMetric),
-                riskCount: item.riskCount,
-              ),
-            )
-            .toList(growable: false),
+        items: value.assets.map(_comparisonItem).toList(growable: false),
         comparedAt: value.comparedAt,
         demo: _demo(value.demo),
       );
@@ -131,9 +104,10 @@ class GeneratedAssetCodexService implements AssetCodexService {
   @override
   Future<void> save(String assetId, AssetSourceContext source) async {
     try {
-      await _saves.saveAsset(
-        id: assetId,
-        saveAssetRequest: api.SaveAssetRequest(
+      await _saves.saveItem(
+        itemKind: 'asset',
+        itemId: assetId,
+        saveItemRequest: api.SaveItemRequest(
           sourceId: source.resourceId,
           sourceKind: _sourceKind(source.kind),
         ),
@@ -147,7 +121,7 @@ class GeneratedAssetCodexService implements AssetCodexService {
   @override
   Future<void> unsave(String assetId) async {
     try {
-      await _saves.unsaveAsset(id: assetId);
+      await _saves.unsaveItem(itemKind: 'asset', itemId: assetId);
     } on DioException catch (error) {
       if (_ambiguous(error)) throw const AssetAmbiguousMutation();
       _throwAssetFailure(error);
@@ -167,9 +141,8 @@ AssetKind _assetKind(Object value) => switch (value) {
   _ => throw const LoadFailure(LoadPhase.terminalFailure),
 };
 
-String _currency(Object value) => switch (value) {
-  api.AssetCodexDetailCurrencyEnum.USD ||
-  api.AssetSummaryCurrencyEnum.USD => 'USD',
+String _currency(String value) => switch (value) {
+  'USD' => value,
   _ => throw const LoadFailure(LoadPhase.terminalFailure),
 };
 
@@ -182,7 +155,28 @@ AssetEvidenceSummary _evidenceSummary(api.EvidenceSummary value) =>
       uncertainty: value.uncertainty,
     );
 
-AssetDemoDisclosure _demo(api.DemoDisclosure value) => AssetDemoDisclosure(
+AssetEvidenceDetail _evidenceDetail(api.EvidenceDetail value) {
+  final rawUrl = value.source_.url;
+  final sourceUrl = rawUrl == null ? null : Uri.tryParse(rawUrl);
+  if (sourceUrl == null ||
+      sourceUrl.scheme != 'https' ||
+      !sourceUrl.hasAuthority) {
+    throw const LoadFailure(LoadPhase.terminalFailure);
+  }
+  return AssetEvidenceDetail(
+    claimId: value.claimId,
+    factorLabel: value.factorLabel,
+    observedAt: value.observedAt,
+    summary: value.summary,
+    uncertainty: value.uncertainty,
+    publisher: value.source_.publisher,
+    sourceTitle: value.source_.title,
+    sourceUrl: sourceUrl,
+    publishedAt: value.source_.publishedAt,
+  );
+}
+
+AssetDemoDisclosure _demo(api.ResearchDisclosure value) => AssetDemoDisclosure(
   isDemo: value.isDemo,
   observedAt: value.observedAt,
   sourceLabel: value.sourceLabel,
@@ -210,13 +204,25 @@ AssetSummaryView _summary(api.AssetSummary value) => AssetSummaryView(
   demo: _demo(value.demo),
 );
 
-api.SaveAssetRequestSourceKindEnum _sourceKind(AssetSourceKind value) =>
+AssetComparisonItem _comparisonItem(api.AssetComparisonAssetsInner value) {
+  final metric = value.latestMetric;
+  if (metric == null) {
+    throw const LoadFailure(LoadPhase.terminalFailure);
+  }
+  return AssetComparisonItem(
+    asset: _summary(value.asset),
+    metric: _metric(metric),
+    riskCount: value.riskCount,
+  );
+}
+
+api.SaveItemRequestSourceKindEnum _sourceKind(AssetSourceKind value) =>
     switch (value) {
-      AssetSourceKind.ritual => api.SaveAssetRequestSourceKindEnum.ritual,
-      AssetSourceKind.circle => api.SaveAssetRequestSourceKindEnum.circle,
-      AssetSourceKind.discover => api.SaveAssetRequestSourceKindEnum.discover,
-      AssetSourceKind.search => api.SaveAssetRequestSourceKindEnum.search,
-      AssetSourceKind.direct => api.SaveAssetRequestSourceKindEnum.direct,
+      AssetSourceKind.ritual => api.SaveItemRequestSourceKindEnum.ritual,
+      AssetSourceKind.circle => api.SaveItemRequestSourceKindEnum.circle,
+      AssetSourceKind.discover => api.SaveItemRequestSourceKindEnum.discover,
+      AssetSourceKind.search => api.SaveItemRequestSourceKindEnum.search,
+      AssetSourceKind.direct => api.SaveItemRequestSourceKindEnum.direct,
     };
 
 Never _throwAssetFailure(DioException error) {

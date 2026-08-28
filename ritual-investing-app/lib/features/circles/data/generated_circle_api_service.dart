@@ -14,11 +14,11 @@ class GeneratedCircleService implements CircleService {
   GeneratedCircleService(api.RitualInvestingApiClient client)
     : _circles = api.CirclesApi(client.dio),
       _discover = api.DiscoverApi(client.dio),
-      _saves = api.SavesApi(client.dio);
+      _saves = api.SavedApi(client.dio);
 
   final api.CirclesApi _circles;
   final api.DiscoverApi _discover;
-  final api.SavesApi _saves;
+  final api.SavedApi _saves;
 
   @override
   Future<CircleCollection> fetchList({required bool includeArchived}) async {
@@ -44,7 +44,7 @@ class GeneratedCircleService implements CircleService {
   @override
   Future<PrivateCircle> fetchDetail(String circleId) async {
     try {
-      return _circle((await _circles.getCircle(id: circleId)).data!.data);
+      return _circle((await _circles.getCircle(circleId: circleId)).data!.data);
     } on DioException catch (error) {
       throw ApiFailureMapper.map(error);
     } on LoadFailure {
@@ -76,7 +76,7 @@ class GeneratedCircleService implements CircleService {
   Future<PrivateCircle> copy(CircleCopyCommand command) async {
     try {
       final response = await _circles.copyCircleTemplate(
-        id: command.templateId,
+        templateId: command.templateId,
         idempotencyKey: command.idempotencyKey,
         copyCircleTemplateRequest: api.CopyCircleTemplateRequest(
           title: command.title,
@@ -96,10 +96,10 @@ class GeneratedCircleService implements CircleService {
     CircleDraft draft,
   ) async {
     try {
-      final response = await _circles.patchCircle(
-        id: circleId,
+      final response = await _circles.updateCircle(
+        circleId: circleId,
         ifMatch: _etag(expectedVersion),
-        patchCircleRequest: api.PatchCircleRequest(
+        updateCircleRequest: api.UpdateCircleRequest(
           title: draft.title,
           description: draft.description,
         ),
@@ -119,7 +119,7 @@ class GeneratedCircleService implements CircleService {
   ) async {
     try {
       final response = await _circles.replaceCircleAssets(
-        id: circleId,
+        circleId: circleId,
         ifMatch: _etag(expectedVersion),
         replaceCircleAssetsRequest: api.ReplaceCircleAssetsRequest(
           assets: assets.map(_requestAsset).toList(growable: false),
@@ -140,7 +140,7 @@ class GeneratedCircleService implements CircleService {
   ) async {
     try {
       final response = await _circles.putCircleAsset(
-        id: circleId,
+        circleId: circleId,
         assetId: asset.assetId,
         ifMatch: _etag(expectedVersion),
         putCircleAssetRequest: api.PutCircleAssetRequest(
@@ -164,7 +164,7 @@ class GeneratedCircleService implements CircleService {
   ) async {
     try {
       final response = await _circles.deleteCircleAsset(
-        id: circleId,
+        circleId: circleId,
         assetId: assetId,
         ifMatch: _etag(expectedVersion),
       );
@@ -179,7 +179,7 @@ class GeneratedCircleService implements CircleService {
   Future<void> archive(String circleId, int expectedVersion) async {
     try {
       await _circles.archiveCircle(
-        id: circleId,
+        circleId: circleId,
         ifMatch: _etag(expectedVersion),
       );
     } on DioException catch (error) {
@@ -191,7 +191,7 @@ class GeneratedCircleService implements CircleService {
   @override
   Future<CircleTemplateDetail> fetchTemplate(String templateId) async {
     try {
-      final value = (await _discover.getCircleTemplate(id: templateId))
+      final value = (await _discover.getCircleTemplate(templateId: templateId))
           .data!
           .data;
       return CircleTemplateDetail(
@@ -218,9 +218,10 @@ class GeneratedCircleService implements CircleService {
   @override
   Future<void> saveTemplate(String templateId) async {
     try {
-      await _saves.saveCircleTemplate(
-        id: templateId,
-        saveAssetRequest: api.SaveAssetRequest(),
+      await _saves.saveItem(
+        itemKind: 'circle_template',
+        itemId: templateId,
+        saveItemRequest: api.SaveItemRequest(),
       );
     } on DioException catch (error) {
       if (_ambiguous(error)) throw const CircleAmbiguousMutation();
@@ -231,7 +232,7 @@ class GeneratedCircleService implements CircleService {
   @override
   Future<void> unsaveTemplate(String templateId) async {
     try {
-      await _saves.unsaveCircleTemplate(id: templateId);
+      await _saves.unsaveItem(itemKind: 'circle_template', itemId: templateId);
     } on DioException catch (error) {
       if (_ambiguous(error)) throw const CircleAmbiguousMutation();
       throw ApiFailureMapper.map(error);
@@ -239,15 +240,17 @@ class GeneratedCircleService implements CircleService {
   }
 }
 
-PrivateCircle _circle(api.CircleView value) {
+PrivateCircle _circle(api.MemberCircle value) {
   if (!value.private) throw const LoadFailure(LoadPhase.terminalFailure);
+  final assets = value.assets;
+  if (assets == null) throw const LoadFailure(LoadPhase.terminalFailure);
   return PrivateCircle(
     id: value.id,
     title: value.title,
     description: value.description,
     private: value.private,
     version: value.version,
-    assets: value.assets
+    assets: assets
         .map(
           (asset) => CircleAsset(
             assetId: asset.assetId,
@@ -263,25 +266,24 @@ PrivateCircle _circle(api.CircleView value) {
   );
 }
 
-api.CreateCircleRequestAssetsInner _requestAsset(CircleAsset value) =>
-    api.CreateCircleRequestAssetsInner(
-      assetId: value.assetId,
-      ordinal: value.ordinal,
-      note: value.note,
-      weightBps: value.weightBps,
-    );
+api.CircleAssetInput _requestAsset(CircleAsset value) => api.CircleAssetInput(
+  assetId: value.assetId,
+  ordinal: value.ordinal,
+  note: value.note,
+  weightBps: value.weightBps,
+);
 
-CircleTemplateAsset _templateAsset(api.CircleTemplateDetailAssetsInner value) {
+CircleTemplateAsset _templateAsset(api.CircleTemplateAsset value) {
   switch (value.assetType) {
-    case api.CircleTemplateDetailAssetsInnerAssetTypeEnum.equity:
-    case api.CircleTemplateDetailAssetsInnerAssetTypeEnum.etf:
-    case api.CircleTemplateDetailAssetsInnerAssetTypeEnum.marketIndex:
-    case api.CircleTemplateDetailAssetsInnerAssetTypeEnum.cash:
+    case api.CircleTemplateAssetAssetTypeEnum.equity:
+    case api.CircleTemplateAssetAssetTypeEnum.etf:
+    case api.CircleTemplateAssetAssetTypeEnum.marketIndex:
+    case api.CircleTemplateAssetAssetTypeEnum.cash:
       break;
-    case api.CircleTemplateDetailAssetsInnerAssetTypeEnum.unknownDefaultOpenApi:
+    case api.CircleTemplateAssetAssetTypeEnum.unknownDefaultOpenApi:
       throw const LoadFailure(LoadPhase.terminalFailure);
   }
-  if (value.currency != api.CircleTemplateDetailAssetsInnerCurrencyEnum.USD) {
+  if (value.currency != 'USD') {
     throw const LoadFailure(LoadPhase.terminalFailure);
   }
   return CircleTemplateAsset(
@@ -312,7 +314,7 @@ SeededCreatorView _creator(api.SeededCreator value) {
   );
 }
 
-ResearchDemoDisclosure _demo(api.DemoDisclosure value) =>
+ResearchDemoDisclosure _demo(api.ResearchDisclosure value) =>
     ResearchDemoDisclosure(
       isDemo: value.isDemo,
       observedAt: value.observedAt,

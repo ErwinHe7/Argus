@@ -43,7 +43,7 @@ DiscoverItemView _mapDiscoverItem(DiscoverItem item) => switch (item.kind) {
     final value = item.asset;
     if (value == null ||
         value.assetType == AssetSummaryAssetTypeEnum.unknownDefaultOpenApi ||
-        value.currency == AssetSummaryCurrencyEnum.unknownDefaultOpenApi) {
+        value.currency != 'USD') {
       throw const LoadFailure(LoadPhase.terminalFailure);
     }
     return DiscoverItemView(
@@ -120,7 +120,7 @@ SeededCreatorView _mapSeededCreator(SeededCreator value) {
   );
 }
 
-ResearchDemoDisclosure _mapResearchDemo(DemoDisclosure value) =>
+ResearchDemoDisclosure _mapResearchDemo(ResearchDisclosure value) =>
     ResearchDemoDisclosure(
       isDemo: value.isDemo,
       observedAt: value.observedAt,
