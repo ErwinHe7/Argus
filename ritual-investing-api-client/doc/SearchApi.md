@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 
 # **search**
-> GetAccount200Response search(q, limit)
+> SearchResponse search(q, kinds, cursor, limit)
 
 
 
@@ -23,10 +23,12 @@ import 'package:ritual_investing_api_client/api.dart';
 
 final api = RitualInvestingApiClient().getSearchApi();
 final String q = q_example; // String | 
+final String kinds = kinds_example; // String | 
+final String cursor = cursor_example; // String | 
 final int limit = 56; // int | 
 
 try {
-    final response = api.search(q, limit);
+    final response = api.search(q, kinds, cursor, limit);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling SearchApi->search: $e\n');
@@ -38,11 +40,13 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **q** | **String**|  | 
+ **kinds** | **String**|  | 
+ **cursor** | **String**|  | [optional] 
  **limit** | **int**|  | [optional] [default to 25]
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**SearchResponse**](SearchResponse.md)
 
 ### Authorization
 

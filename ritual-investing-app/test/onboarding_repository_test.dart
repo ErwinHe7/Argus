@@ -3,8 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ritual_investing_api_client/ritual_investing_api_client.dart'
-    hide RitualInterest;
+import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_app/core/api/date_only_request_interceptor.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_repository.dart';
 import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
@@ -202,13 +201,13 @@ void main() {
     );
     ensureDateOnlyRequestSerialization(client.dio);
 
-    await AccountApi(client.dio).putAstrologyProfile(
-      putAstrologyProfileRequest: PutAstrologyProfileRequest(
+    await AccountApi(client.dio).updateAstrologyProfile(
+      updateAstrologyProfileRequest: UpdateAstrologyProfileRequest(
         birthDate: DateTime.utc(1994, 5, 14),
       ),
     );
 
-    expect(await requestSeen.future, {'birth_date': '1994-05-14'});
+    expect(await requestSeen.future, {'birthDate': '1994-05-14'});
   });
 }
 
@@ -220,49 +219,48 @@ class _CapturedRequest {
 
 const _completedBootstrapResponse = <String, Object?>{
   'data': {
-    'account': {
-      'id': '00000000-0000-4000-8000-000000000001',
-      'status': 'active',
-    },
     'astrology_profile': null,
-    'contract_version': '1.0.0',
-    'default_portfolio': {
-      'currency': 'USD',
-      'id': '00000000-0000-4000-8000-000000000002',
-      'name': 'Demo Portfolio',
-      'status': 'active',
-      'version': 1,
-    },
-    'entitlement': {'plan_code': 'demo-free', 'status': 'active'},
     'investor_profile': {
-      'contribution_rhythm': 'monthly',
-      'experience': 'new',
+      'deletion_epoch': 0,
       'goal_type': 'long_term_growth',
-      'is_demo': true,
       'risk_comfort': 'moderate',
       'time_horizon': 'long',
+      'user_id': '00000000-0000-4000-8000-000000000001',
       'version': 1,
     },
+    'member': {
+      'created_at': '2026-08-24T11:00:00.000Z',
+      'deletion_epoch': 0,
+      'deletion_requested_at': null,
+      'status': 'active',
+      'updated_at': '2026-08-24T12:00:00.000Z',
+      'user_id': '00000000-0000-4000-8000-000000000001',
+    },
     'onboarding': {
-      'cohort': 'member_v2',
       'completed_at': '2026-08-24T12:00:00.000Z',
       'completed_steps': ['welcome', 'ritual', 'profile'],
       'current_step': 'complete',
-      'schema_version': 2,
+      'deletion_epoch': 0,
+      'user_id': '00000000-0000-4000-8000-000000000001',
       'version': 4,
     },
     'preferences': {
+      'deletion_epoch': 0,
       'locale': 'en-US',
-      'ritual_familiarity': 'new',
-      'ritual_interests': ['practical_research'],
-      'ritual_language': 'practical',
       'ritual_mode': 'tarot',
       'theme_mode': 'system',
       'timezone': 'UTC',
+      'user_id': '00000000-0000-4000-8000-000000000001',
       'version': 1,
     },
-    'profile': {'display_name': 'Member', 'locale': 'en-US'},
-    'reset_generation': 0,
+    'profile': {
+      'avatar_media_id': null,
+      'deletion_epoch': 0,
+      'display_name': 'Member',
+      'locale': 'en-US',
+      'updated_at': '2026-08-24T12:00:00.000Z',
+      'user_id': '00000000-0000-4000-8000-000000000001',
+    },
     'server_time': '2026-08-24T12:00:00.000Z',
   },
   'meta': {'request_id': '00000000-0000-4000-8000-000000000003'},
@@ -272,8 +270,10 @@ const _astrologyProfileResponse = <String, Object?>{
   'data': {
     'algorithm_version': 'v1',
     'birth_date': '1994-05-14',
+    'deletion_epoch': 0,
     'derived_profile_code': 'lunar_patient',
     'enabled_at': '2026-08-24T12:00:00.000Z',
+    'user_id': '00000000-0000-4000-8000-000000000001',
     'version': 1,
   },
   'meta': {'request_id': '00000000-0000-4000-8000-000000000004'},

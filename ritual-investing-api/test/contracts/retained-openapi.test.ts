@@ -57,7 +57,11 @@ describe("Supabase retained OpenAPI contract", () => {
       "/v1/briefings",
       "/v1/circles",
       "/v1/coven",
+      "/v1/coven/{entry_id}/evidence",
+      "/v1/discover",
       "/v1/discover/assets",
+      "/v1/discover/grimoires/{id}",
+      "/v1/discover/creators",
       "/v1/media/upload-intents",
       "/v1/moderation/reports",
       "/v1/notifications",
@@ -111,6 +115,75 @@ describe("Supabase retained OpenAPI contract", () => {
     expect(paths).not.toHaveProperty(
       "/v1/admin/brokerage/order-commands/{command_id}",
     );
+  });
+
+  it("publishes distinct typed envelopes for retained member reads", () => {
+    const paths = buildRetainedOpenApiDocument(contractApp()).paths as Record<
+      string,
+      Record<string, { responses?: Record<string, unknown> }>
+    >;
+    const responseSchema = (path: string, method = "get") =>
+      JSON.stringify(paths[path]?.[method]?.responses?.["200"] ?? {});
+
+    for (const [path, expectedSchema] of [
+      ["/v1/account", "MemberAccountResponse"],
+      ["/v1/assets", "AssetCollectionResponse"],
+      ["/v1/briefings", "BriefingCollectionResponse"],
+      ["/v1/circles", "CircleCollectionResponse"],
+      ["/v1/coven", "CovenCollectionResponse"],
+      ["/v1/coven/{entry_id}/evidence", "CovenEvidenceResponse"],
+      ["/v1/discover", "DiscoverResponse"],
+      ["/v1/discover/assets", "DiscoverAssetCollectionResponse"],
+      ["/v1/discover/grimoires/{id}", "GrimoireDetailResponse"],
+      ["/v1/discover/creators", "CreatorCollectionResponse"],
+      ["/v1/notifications", "NotificationCollectionResponse"],
+      ["/v1/privacy/requests", "PrivacyRequestCollectionResponse"],
+      ["/v1/search", "SearchResponse"],
+    ] as const) {
+      expect(responseSchema(path), path).toContain(expectedSchema);
+      expect(responseSchema(path), path).not.toContain("GetAccount200Response");
+    }
+  });
+
+  it("keeps retained content precise and member-safe across generated boundaries", () => {
+    const document = buildRetainedOpenApiDocument(contractApp());
+    const serialized = JSON.stringify(document);
+    for (const schema of [
+      "AssetCodexDetail",
+      "BriefingDetail",
+      "CircleTemplateDetail",
+      "CovenEntryDetail",
+      "GrimoireDetail",
+      "DiscoverItem",
+      "SearchResult",
+      "SeededCreator",
+      "SaveItemRequest",
+    ]) {
+      expect(document.components?.schemas, schema).toHaveProperty(schema);
+    }
+    expect(serialized).toContain("source_kind");
+    expect(serialized).toContain("source_id");
+    expect(serialized).not.toMatch(/provider_asset_id|provider_account_id/i);
+  });
+
+  it("publishes explicit Webull connection envelopes instead of generic maps", () => {
+    const paths = buildRetainedOpenApiDocument(contractApp()).paths as Record<
+      string,
+      Record<string, { responses?: Record<string, unknown> }>
+    >;
+    for (const [path, method, schema] of [
+      ["/v1/brokerage/connections/start", "post", "WebullAuthorizationSessionResponse"],
+      ["/v1/brokerage/connections/reconnect", "post", "WebullAuthorizationSessionResponse"],
+      ["/v1/brokerage/connection", "get", "WebullConnectionResponse"],
+      ["/v1/brokerage/accounts/selection", "patch", "WebullAccountSelectionResponse"],
+      ["/v1/brokerage/connections/completions/redeem", "post", "WebullCompletionResponse"],
+      ["/v1/brokerage/connections/disconnect", "post", "WebullDisconnectResponse"],
+      ["/v1/member/step-up", "post", "MemberStepUpReceiptResponse"],
+    ] as const) {
+      const response = JSON.stringify(paths[path]?.[method]?.responses?.["200"] ?? {});
+      expect(response, `${method} ${path}`).toContain(schema);
+      expect(response, `${method} ${path}`).not.toContain("ListAdminAudit200Response");
+    }
   });
 
   it("serves OpenAPI with ETag revalidation through the portable factory", async () => {

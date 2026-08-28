@@ -9,20 +9,23 @@ import 'daily_ritual_repository.dart';
 class GeneratedRitualApiService implements DailyRitualService {
   GeneratedRitualApiService(RitualInvestingApiClient client)
     : _api = RitualsApi(client.dio);
+
   final RitualsApi _api;
+
   @override
   Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async {
     try {
-      final modeValue = switch (mode) {
-        null => null,
-        DailyRitualMode.tarot => 'tarot',
-        DailyRitualMode.astrology => 'astrology',
-        DailyRitualMode.unknown => throw const LoadFailure(
-          LoadPhase.terminalFailure,
-        ),
-      };
-      final data = (await _api.getDailyRitual(mode: modeValue)).data!.data;
-      return _mapDailyRitual(data);
+      final response = await _api.getDailyRitual(
+        mode: switch (mode) {
+          null => null,
+          DailyRitualMode.tarot => 'tarot',
+          DailyRitualMode.astrology => 'astrology',
+          DailyRitualMode.unknown => throw const LoadFailure(
+            LoadPhase.terminalFailure,
+          ),
+        },
+      );
+      return _map(response.data!.data);
     } on DioException catch (error) {
       ApiFailureMapper.throwFailure(error);
     }
@@ -31,8 +34,8 @@ class GeneratedRitualApiService implements DailyRitualService {
   @override
   Future<DailyRitual> fetchAssignment(String assignmentId) async {
     try {
-      return _mapDailyRitual(
-        (await _api.getRitualAssignment(assignmentId: assignmentId)).data!.data,
+      return _map(
+        (await _api.getRitual(assignmentId: assignmentId)).data!.data,
       );
     } on DioException catch (error) {
       ApiFailureMapper.throwFailure(error);
@@ -42,22 +45,22 @@ class GeneratedRitualApiService implements DailyRitualService {
   @override
   Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) async {
     try {
-      final values = (await _api.getRitualEvidence(assignmentId: assignmentId))
+      final claims = (await _api.getRitualEvidence(assignmentId: assignmentId))
           .data!
           .data;
-      return values
+      return claims
           .map(
-            (value) => RitualEvidenceDetail(
-              claimId: value.claimId,
-              factorLabel: value.factorLabel,
-              observedAt: value.observedAt,
-              summary: value.summary,
-              uncertainty: value.uncertainty,
+            (claim) => RitualEvidenceDetail(
+              claimId: claim.id,
+              factorLabel: claim.claimType,
+              observedAt: claim.observedAt ?? claim.source_.retrievedAt.toUtc(),
+              summary: claim.summary,
+              uncertainty: claim.uncertainty,
               source: RitualEvidenceSource(
-                publisher: value.source_.publisher,
-                title: value.source_.title,
-                url: Uri.parse(value.source_.url),
-                publishedAt: value.source_.publishedAt,
+                publisher: claim.source_.publisher,
+                title: claim.source_.title,
+                url: Uri.parse(claim.source_.canonicalUrl),
+                publishedAt: claim.source_.publishedAt?.toUtc(),
               ),
             ),
           )
@@ -71,41 +74,12 @@ class GeneratedRitualApiService implements DailyRitualService {
 
   @override
   Future<RitualHistoryPage> fetchHistory({String? cursor}) async {
+    if (cursor != null) throw const LoadFailure(LoadPhase.terminalFailure);
     try {
-      final response = (await _api.listRitualHistory(cursor: cursor)).data!;
-      return RitualHistoryPage(
-        items: response.data
-            .map((value) {
-              final mode = switch (value.mode) {
-                RitualHistoryItemModeEnum.tarot => DailyRitualMode.tarot,
-                RitualHistoryItemModeEnum.astrology =>
-                  DailyRitualMode.astrology,
-                RitualHistoryItemModeEnum.unknownDefaultOpenApi =>
-                  throw const LoadFailure(LoadPhase.terminalFailure),
-              };
-              final state = switch (value.state) {
-                RitualHistoryItemStateEnum.assigned =>
-                  DailyRitualState.assigned,
-                RitualHistoryItemStateEnum.revealed =>
-                  DailyRitualState.revealed,
-                RitualHistoryItemStateEnum.completed =>
-                  DailyRitualState.completed,
-                RitualHistoryItemStateEnum.unknownDefaultOpenApi =>
-                  throw const LoadFailure(LoadPhase.terminalFailure),
-              };
-              return RitualHistoryEntry(
-                assignmentId: value.assignmentId,
-                date: value.date,
-                mode: mode,
-                title: value.title,
-                state: state,
-                demo: _mapRitualDisclosure(value.demo),
-              );
-            })
-            .toList(growable: false),
-        nextCursor: response.meta.nextCursor,
-        hasMore: response.meta.hasMore,
-      );
+      final items = (await _api.listRitualHistory()).data!.data
+          .map((value) => RitualHistoryEntry.fromRitual(_map(value)))
+          .toList(growable: false);
+      return RitualHistoryPage(items: items, nextCursor: null, hasMore: false);
     } on DioException catch (error) {
       ApiFailureMapper.throwFailure(error);
     }
@@ -113,20 +87,33 @@ class GeneratedRitualApiService implements DailyRitualService {
 
   @override
   Future<DailyRitual> reveal(String assignmentId, int version) => _transition(
-    () => _api.revealRitual(assignmentId: assignmentId, ifMatch: '"v$version"'),
+    assignmentId: assignmentId,
+    version: version,
+    from: TransitionRitualRequestFromEnum.assigned,
+    to: TransitionRitualRequestToEnum.revealed,
   );
 
   @override
   Future<DailyRitual> complete(String assignmentId, int version) => _transition(
-    () =>
-        _api.completeRitual(assignmentId: assignmentId, ifMatch: '"v$version"'),
+    assignmentId: assignmentId,
+    version: version,
+    from: TransitionRitualRequestFromEnum.revealed,
+    to: TransitionRitualRequestToEnum.completed,
   );
 
-  Future<DailyRitual> _transition(
-    Future<Response<GetRitualAssignment200Response>> Function() request,
-  ) async {
+  Future<DailyRitual> _transition({
+    required String assignmentId,
+    required int version,
+    required TransitionRitualRequestFromEnum from,
+    required TransitionRitualRequestToEnum to,
+  }) async {
     try {
-      return _mapDailyRitual((await request()).data!.data);
+      final response = await _api.transitionRitual(
+        assignmentId: assignmentId,
+        ifMatch: '"v$version"',
+        transitionRitualRequest: TransitionRitualRequest(from: from, to: to),
+      );
+      return _map(response.data!.data);
     } on DioException catch (error) {
       if (ApiFailureMapper.isTransportFailure(error)) {
         throw const RitualAmbiguousMutation();
@@ -134,78 +121,108 @@ class GeneratedRitualApiService implements DailyRitualService {
       ApiFailureMapper.throwFailure(error);
     }
   }
-
-  DailyRitual _mapDailyRitual(DailyRitualDetail data) {
-    final mode = switch (data.mode) {
-      DailyRitualDetailModeEnum.tarot => DailyRitualMode.tarot,
-      DailyRitualDetailModeEnum.astrology => DailyRitualMode.astrology,
-      DailyRitualDetailModeEnum.unknownDefaultOpenApi =>
-        throw const LoadFailure(LoadPhase.terminalFailure),
-    };
-    final state = switch (data.state) {
-      DailyRitualDetailStateEnum.assigned => DailyRitualState.assigned,
-      DailyRitualDetailStateEnum.revealed => DailyRitualState.revealed,
-      DailyRitualDetailStateEnum.completed => DailyRitualState.completed,
-      DailyRitualDetailStateEnum.unknownDefaultOpenApi =>
-        throw const LoadFailure(LoadPhase.terminalFailure),
-    };
-    if (data.rowan.surface == RowanCounselSurfaceEnum.unknownDefaultOpenApi ||
-        data.art.key == ArtReferenceKeyEnum.unknownDefaultOpenApi) {
-      throw const LoadFailure(LoadPhase.terminalFailure);
-    }
-    return DailyRitual(
-      assignmentId: data.assignmentId,
-      date: data.date,
-      mode: mode,
-      revision: RitualRevision(
-        id: data.revision.id,
-        number: data.revision.number,
-      ),
-      title: data.title,
-      art: RitualArt(key: data.art.key.value, alt: data.art.alt),
-      interpretation: data.interpretation,
-      guidance: data.guidance,
-      marketLabel: data.marketLabel,
-      ideas: data.ideas
-          .map(
-            (idea) => RitualIdea(
-              assetId: idea.assetId,
-              symbol: idea.symbol,
-              name: idea.name,
-              appearanceReason: idea.appearanceReason,
-              riskSummary: idea.riskSummary,
-            ),
-          )
-          .toList(growable: false),
-      evidence: data.evidence
-          .map(
-            (evidence) => RitualEvidence(
-              claimId: evidence.claimId,
-              factorLabel: evidence.factorLabel,
-              observedAt: evidence.observedAt,
-              summary: evidence.summary,
-              uncertainty: evidence.uncertainty,
-            ),
-          )
-          .toList(growable: false),
-      rowan: RitualCounsel(
-        scriptRevisionId: data.rowan.scriptRevisionId,
-        surface: data.rowan.surface.value,
-        body: data.rowan.body,
-        riskFooter: data.rowan.riskFooter,
-      ),
-      version: data.version,
-      state: state,
-      revealedAt: data.revealedAt,
-      completedAt: data.completedAt,
-      demo: _mapRitualDisclosure(data.demo),
-    );
-  }
 }
 
-RitualDisclosure _mapRitualDisclosure(DemoDisclosure value) => RitualDisclosure(
-  isDemo: value.isDemo,
-  observedAt: value.observedAt,
-  sourceLabel: value.sourceLabel,
-  limitations: value.limitations,
+DailyRitual _map(DailyRitualAssignment value) {
+  final payload = value.payload;
+  final title = _string(payload, 'title');
+  final observedAt = _timestamp(payload['observation_at']) ?? value.localDate;
+  return DailyRitual(
+    assignmentId: value.id,
+    date: value.localDate,
+    mode: switch (value.mode) {
+      DailyRitualAssignmentModeEnum.tarot => DailyRitualMode.tarot,
+      DailyRitualAssignmentModeEnum.astrology => DailyRitualMode.astrology,
+      DailyRitualAssignmentModeEnum.unknownDefaultOpenApi =>
+        DailyRitualMode.unknown,
+    },
+    revision: RitualRevision(
+      id: value.revisionId,
+      number: _integer(payload['revision_number']) ?? 1,
+    ),
+    title: title,
+    art: RitualArt(
+      key: _optionalString(payload, 'art_key') ?? 'the-fool',
+      alt: _optionalString(payload, 'art_alt') ?? title,
+    ),
+    interpretation: _string(payload, 'interpretation'),
+    guidance: _string(payload, 'guidance'),
+    marketLabel: _string(payload, 'market_label'),
+    ideas: _objects(payload['ideas']).map(_idea).toList(growable: false),
+    evidence: _objects(payload['evidence'])
+        .map(_evidence)
+        .toList(growable: false),
+    rowan: RitualCounsel(
+      scriptRevisionId: value.rowanRevisionId ?? value.revisionId,
+      surface: 'daily_ritual',
+      body: value.bodyTemplate ?? _string(payload, 'guidance'),
+      riskFooter: value.riskFooter ?? _string(payload, 'uncertainty'),
+    ),
+    version: value.version,
+    state: switch (value.state) {
+      DailyRitualAssignmentStateEnum.assigned => DailyRitualState.assigned,
+      DailyRitualAssignmentStateEnum.revealed => DailyRitualState.revealed,
+      DailyRitualAssignmentStateEnum.completed => DailyRitualState.completed,
+      DailyRitualAssignmentStateEnum.unknownDefaultOpenApi =>
+        DailyRitualState.unknown,
+    },
+    revealedAt: value.revealedAt?.toUtc(),
+    completedAt: value.completedAt?.toUtc(),
+    demo: RitualDisclosure(
+      isDemo: false,
+      observedAt: observedAt.toUtc(),
+      sourceLabel: 'Argus editorial',
+      limitations: const ['Educational context only.'],
+    ),
+  );
+}
+
+RitualIdea _idea(Map<String, Object?> value) => RitualIdea(
+  assetId: _string(value, 'asset_id'),
+  symbol: _string(value, 'symbol'),
+  name: _string(value, 'name'),
+  appearanceReason: _string(value, 'appearance_reason'),
+  riskSummary: _string(value, 'risk_summary'),
 );
+
+RitualEvidence _evidence(Map<String, Object?> value) => RitualEvidence(
+  claimId: _string(value, 'claim_id'),
+  factorLabel: _string(value, 'factor_label'),
+  observedAt:
+      _timestamp(value['observed_at']) ??
+      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+  summary: _string(value, 'summary'),
+  uncertainty: _string(value, 'uncertainty'),
+);
+
+String _string(Map<String, Object?> value, String key) {
+  final field = value[key];
+  if (field is! String || field.trim().isEmpty) {
+    throw const LoadFailure(LoadPhase.terminalFailure);
+  }
+  return field;
+}
+
+String? _optionalString(Map<String, Object?> value, String key) {
+  final field = value[key];
+  return field is String && field.trim().isNotEmpty ? field : null;
+}
+
+int? _integer(Object? value) => value is int ? value : null;
+
+DateTime? _timestamp(Object? value) => value is String
+    ? DateTime.tryParse(value)?.toUtc()
+    : value is DateTime
+    ? value.toUtc()
+    : null;
+
+List<Map<String, Object?>> _objects(Object? value) {
+  if (value == null) return const [];
+  if (value is! List) throw const LoadFailure(LoadPhase.terminalFailure);
+  return value
+      .map((entry) {
+        if (entry is! Map) throw const LoadFailure(LoadPhase.terminalFailure);
+        return Map<String, Object?>.from(entry);
+      })
+      .toList(growable: false);
+}

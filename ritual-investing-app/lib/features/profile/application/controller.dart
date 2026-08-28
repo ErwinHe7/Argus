@@ -33,25 +33,21 @@ class ProfileController extends ChangeNotifier {
     }
   }
 
-  Future<bool> updatePreferences(ProfilePreferencesUpdate update) => _mutate(
-    () => _repository.updatePreferences(update),
-  );
+  Future<bool> updatePreferences(ProfilePreferencesUpdate update) =>
+      _mutate(() => _repository.updatePreferences(update));
 
-  Future<bool> updateInvestor(ProfileInvestorUpdate update) => _mutate(
-    () => _repository.updateInvestor(update),
-  );
+  Future<bool> updateInvestor(ProfileInvestorUpdate update) =>
+      _mutate(() => _repository.updateInvestor(update));
 
-  Future<bool> updateAstrology(ProfileAstrologyUpdate update) => _mutate(
-    () => _repository.updateAstrology(update),
-  );
+  Future<bool> updateAstrology(ProfileAstrologyUpdate update) =>
+      _mutate(() => _repository.updateAstrology(update));
 
   Future<bool> deleteAstrology({required int expectedVersion}) => _mutate(
     () => _repository.deleteAstrology(expectedVersion: expectedVersion),
   );
 
   void markBootstrapRefreshFailure() {
-    _message =
-        'Saved on the server, but the app could not refresh. Try again to apply it here.';
+    _message = 'Saved on the server, but the app could not refresh. Try again to apply it here.';
     _set(
       ViewState(
         phase: LoadPhase.retryableFailure,
@@ -114,11 +110,7 @@ class ProfileController extends ChangeNotifier {
     _isSaving = false;
     _message = message;
     _set(
-      ViewState(
-        phase: phase,
-        value: authoritative,
-        committedAt: committedAt,
-      ),
+      ViewState(phase: phase, value: authoritative, committedAt: committedAt),
     );
     return false;
   }

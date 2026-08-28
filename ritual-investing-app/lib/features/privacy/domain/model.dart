@@ -12,6 +12,16 @@ enum PrivacyExportStatus {
   cancelled,
 }
 
+enum PrivacyDeletionStatus {
+  requested,
+  verified,
+  queued,
+  processing,
+  completed,
+  failed,
+  cancelled,
+}
+
 @immutable
 class PrivacyExport {
   const PrivacyExport({
@@ -45,28 +55,13 @@ class PrivacyExport {
 class PrivacyDeletionReceipt {
   const PrivacyDeletionReceipt({
     required this.requestId,
-    required this.tombstoneId,
-    required this.effectiveAt,
-    required this.purgeBy,
-    required this.purgeGeneration,
+    required this.status,
+    required this.requestedAt,
   });
 
   final String requestId;
-  final String tombstoneId;
-  final DateTime effectiveAt;
-  final DateTime purgeBy;
-  final int purgeGeneration;
-}
-
-@immutable
-class DemoResetReceipt {
-  const DemoResetReceipt({
-    required this.resetGeneration,
-    required this.defaultPortfolioId,
-  });
-
-  final int resetGeneration;
-  final String defaultPortfolioId;
+  final PrivacyDeletionStatus status;
+  final DateTime requestedAt;
 }
 
 enum PrivacyFailureKind { forbidden, conflict, throttled, retryable, terminal }

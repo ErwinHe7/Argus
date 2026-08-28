@@ -622,11 +622,10 @@ class _RouterPrivacyRepository implements PrivacyRepository {
   Future<PrivacyExport> requestExport(String idempotencyKey) =>
       throw StateError('unused');
   @override
-  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey) =>
-      throw StateError('unused');
-  @override
-  Future<DemoResetReceipt> resetDemo(int seedVersion, String idempotencyKey) =>
-      throw StateError('unused');
+  Future<PrivacyDeletionReceipt> requestDeletion(
+    String idempotencyKey,
+    String stepUpReceipt,
+  ) => throw StateError('unused');
   @override
   Future<String?> restoreExportId() async => null;
 }

@@ -26,7 +26,7 @@ class GeneratedBrokerageConnectionApiService
         _reads.listWebullAccounts(),
       ]);
       final connection =
-          (responses[0] as Response<GetAccount200Response>).data!.data;
+          (responses[0] as Response<WebullConnectionResponse>).data!.data;
       final accounts =
           (responses[1] as Response<BrokerageAccountsResponse>).data!.data;
       return mapBrokerageConnectionSnapshot(connection, accounts);
@@ -56,16 +56,17 @@ class GeneratedBrokerageConnectionApiService
   );
 
   Future<BrokerageAuthorizationSession> _authorization(
-    Future<Response<GetAccount200Response>> Function() request,
+    Future<Response<WebullAuthorizationSessionResponse>> Function() request,
   ) async {
     try {
-      final data = _object(await request().then((value) => value.data!.data));
-      final authorizationUri = Uri.tryParse(_string(data, 'authorization_url'));
-      final expiresAt = DateTime.tryParse(_string(data, 'expires_at'))?.toUtc();
+      final data = await request().then((value) => value.data?.data);
+      final authorizationUri = Uri.tryParse(data?.authorizationUrl ?? '');
+      final expiresAt = data?.expiresAt.toUtc();
       if (authorizationUri == null ||
           !authorizationUri.isScheme('https') ||
           !authorizationUri.hasAuthority ||
-          expiresAt == null) {
+          expiresAt == null ||
+          !expiresAt.isAfter(DateTime.now().toUtc())) {
         ApiFailureMapper.terminalContract();
       }
       return BrokerageAuthorizationSession(
@@ -105,12 +106,9 @@ class GeneratedBrokerageConnectionApiService
 }
 
 BrokerageConnectionSnapshot mapBrokerageConnectionSnapshot(
-  Object? rawConnection,
+  WebullConnection connection,
   List<BrokerageAccount> rawAccounts,
 ) {
-  final connection = rawConnection == null
-      ? const <String, Object?>{'status': 'disconnected'}
-      : _object(rawConnection);
   final accounts = rawAccounts.map(mapBrokerageAccount).toList(growable: false);
   final active = accounts.where((account) => account.selected).toList();
   if (active.length > 1) ApiFailureMapper.terminalContract();
@@ -120,12 +118,12 @@ BrokerageConnectionSnapshot mapBrokerageConnectionSnapshot(
       .toList();
   observations.sort();
   return BrokerageConnectionSnapshot(
-    phase: _connectionPhase(_string(connection, 'status')),
+    phase: _connectionPhase(connection.status),
     accounts: List.unmodifiable(accounts),
-    connectionId: _optionalString(connection, 'id'),
+    connectionId: connection.id,
     activeAccountId: active.firstOrNull?.id,
     lastAuthoritativeObservation: observations.lastOrNull,
-    errorCode: _optionalString(connection, 'last_error_code'),
+    errorCode: connection.lastErrorCode,
   );
 }
 
@@ -192,41 +190,19 @@ BrokerageResourceState mapBrokerageResourceState(String value) =>
       _ => BrokerageResourceState.unknown,
     };
 
-BrokerageConnectionPhase _connectionPhase(String value) => switch (value) {
-  'disconnected' => BrokerageConnectionPhase.disconnected,
-  'pending' => BrokerageConnectionPhase.pending,
-  'connected' => BrokerageConnectionPhase.connected,
-  'denied' => BrokerageConnectionPhase.denied,
-  'failed' => BrokerageConnectionPhase.failed,
-  'temporarily_unavailable' => BrokerageConnectionPhase.temporarilyUnavailable,
-  'reauthorization_required' =>
-    BrokerageConnectionPhase.reauthorizationRequired,
-  _ => BrokerageConnectionPhase.unknown,
-};
-
-Map<String, Object?> _object(Object? value) {
-  if (value is! Map) ApiFailureMapper.terminalContract();
-  final result = <String, Object?>{};
-  for (final entry in value.entries) {
-    if (entry.key is! String) ApiFailureMapper.terminalContract();
-    result[entry.key as String] = entry.value;
-  }
-  return result;
-}
-
-String _string(Map<String, Object?> value, String key) {
-  final field = value[key];
-  if (field is! String || field.trim().isEmpty) {
-    ApiFailureMapper.terminalContract();
-  }
-  return field;
-}
-
-String? _optionalString(Map<String, Object?> value, String key) {
-  final field = value[key];
-  if (field == null) return null;
-  if (field is! String || field.trim().isEmpty) {
-    ApiFailureMapper.terminalContract();
-  }
-  return field;
-}
+BrokerageConnectionPhase _connectionPhase(WebullConnectionStatusEnum value) =>
+    switch (value) {
+      WebullConnectionStatusEnum.disconnected =>
+        BrokerageConnectionPhase.disconnected,
+      WebullConnectionStatusEnum.pending => BrokerageConnectionPhase.pending,
+      WebullConnectionStatusEnum.connected =>
+        BrokerageConnectionPhase.connected,
+      WebullConnectionStatusEnum.denied => BrokerageConnectionPhase.denied,
+      WebullConnectionStatusEnum.failed => BrokerageConnectionPhase.failed,
+      WebullConnectionStatusEnum.temporarilyUnavailable =>
+        BrokerageConnectionPhase.temporarilyUnavailable,
+      WebullConnectionStatusEnum.reauthorizationRequired =>
+        BrokerageConnectionPhase.reauthorizationRequired,
+      WebullConnectionStatusEnum.unknownDefaultOpenApi =>
+        BrokerageConnectionPhase.unknown,
+    };

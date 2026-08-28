@@ -14,7 +14,7 @@ Method | HTTP request | Description
 
 
 # **getLiveHealth**
-> GetAccount200Response getLiveHealth()
+> ListAdminAudit200Response getLiveHealth()
 
 
 
@@ -37,7 +37,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -51,7 +51,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getOpenApiDocument**
-> GetAccount200Response getOpenApiDocument()
+> ListAdminAudit200Response getOpenApiDocument()
 
 
 
@@ -74,7 +74,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 

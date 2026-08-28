@@ -19,36 +19,26 @@ class GeneratedProfileApiService implements ProfileService {
   @override
   Future<ProfileModel> fetch() async {
     try {
-      final accountRequest = _api.getMe();
-      final preferencesRequest = _api.getPreferences();
-      final investorRequest = _optionalResource(
-        () async => (await _api.getInvestorProfile()).data!.data,
-      );
-      final astrologyRequest = _optionalResource(
-        () async => (await _api.getAstrologyProfile()).data!.data,
-      );
-      final responses = await Future.wait<Object?>([
-        accountRequest,
-        preferencesRequest,
-        investorRequest,
-        astrologyRequest,
-      ]);
-      final account =
-          (responses[0] as Response<MemberAccountResponse>).data!.data;
-      final preferences =
-          (responses[1] as Response<MemberPreferencesResponse>).data!.data;
-      final investor = responses[2] as InvestorProfile?;
-      final astrology = responses[3] as AstrologyProfile?;
-      if (account.account.status.value != 'active') {
+      final account = (await _api.getAccount()).data?.data;
+      final profile = account?.profile;
+      final preferences = account?.preferences;
+      if (account == null ||
+          account.status != MemberAccountStatusEnum.active ||
+          profile == null ||
+          preferences == null) {
         throw const LoadFailure(LoadPhase.terminalFailure);
       }
       return ProfileModel(
-        displayName: account.profile.displayName,
-        profileVersion: account.profile.version,
+        displayName: profile.displayName,
+        profileVersion: preferences.version,
         preferences: _mapPreferences(preferences),
-        investor: investor == null ? null : _mapInvestor(investor),
-        astrology: astrology == null ? null : _mapAstrology(astrology),
-        astrologyDecision: astrology == null
+        investor: account.investorProfile == null
+            ? null
+            : _mapInvestor(account.investorProfile!),
+        astrology: account.astrologyProfile == null
+            ? null
+            : _mapAstrology(account.astrologyProfile!),
+        astrologyDecision: account.astrologyProfile == null
             ? ProfileConsentDecision.unknown
             : ProfileConsentDecision.accepted,
       );
@@ -63,15 +53,15 @@ class GeneratedProfileApiService implements ProfileService {
 
   @override
   Future<void> patchPreferences(ProfilePreferencesUpdate update) async {
+    if (update.ritualFamiliarity != null ||
+        update.ritualLanguage != null ||
+        update.ritualInterests != null) {
+      throw const LoadFailure(LoadPhase.terminalFailure);
+    }
     try {
-      await _api.patchPreferences(
-        ifMatch: update.expectedVersion.toString(),
-        patchPreferencesRequest: PatchPreferencesRequest(
-          ritualFamiliarity: _requestFamiliarity(update.ritualFamiliarity),
-          ritualInterests: update.ritualInterests
-              ?.map(_requestInterest)
-              .toList(growable: false),
-          ritualLanguage: _requestLanguage(update.ritualLanguage),
+      await _api.updatePreferences(
+        ifMatch: _etag(update.expectedVersion),
+        updatePreferencesRequest: UpdatePreferencesRequest(
           ritualMode: _requestRitualMode(update.ritualMode),
           themeMode: _requestTheme(update.theme),
         ),
@@ -83,15 +73,18 @@ class GeneratedProfileApiService implements ProfileService {
 
   @override
   Future<void> putInvestor(ProfileInvestorUpdate update) async {
+    if (update.experience != null || update.contributionRhythm != null) {
+      throw const LoadFailure(LoadPhase.terminalFailure);
+    }
     try {
-      await _api.putInvestorProfile(
-        ifMatch: update.expectedVersion?.toString(),
-        putInvestorProfileRequest: PutInvestorProfileRequest(
-          contributionRhythm: _requestContribution(update.contributionRhythm),
+      await _api.updateInvestorProfile(
+        ifMatch: update.expectedVersion == null
+            ? null
+            : _etag(update.expectedVersion!),
+        updateInvestorProfileRequest: UpdateInvestorProfileRequest(
           goalType: _requestGoal(update.goal),
-          investingExperience: _requestExperience(update.experience),
-          riskComfort: _requestRisk(update.risk),
           timeHorizon: _requestHorizon(update.horizon),
+          riskComfort: _requestRisk(update.risk),
         ),
       );
     } on DioException catch (error) {
@@ -105,11 +98,13 @@ class GeneratedProfileApiService implements ProfileService {
   ) async {
     try {
       final receipt = await _writeAstrologyConsent(
-        CreateConsentRequestDecisionEnum.accepted,
+        RecordConsentRequestDecisionEnum.accepted,
       );
-      await _api.putAstrologyProfile(
-        ifMatch: update.expectedVersion?.toString(),
-        putAstrologyProfileRequest: PutAstrologyProfileRequest(
+      await _api.updateAstrologyProfile(
+        ifMatch: update.expectedVersion == null
+            ? null
+            : _etag(update.expectedVersion!),
+        updateAstrologyProfileRequest: UpdateAstrologyProfileRequest(
           birthDate: update.birthDate.toUtc(),
         ),
       );
@@ -124,7 +119,7 @@ class GeneratedProfileApiService implements ProfileService {
     required int expectedVersion,
   }) async {
     try {
-      await _api.deleteAstrologyProfile(ifMatch: expectedVersion.toString());
+      await _api.deleteAstrologyProfile(ifMatch: _etag(expectedVersion));
     } on DioException catch (error) {
       if (error.response?.statusCode != 404) {
         ApiFailureMapper.throwFailure(error);
@@ -132,7 +127,7 @@ class GeneratedProfileApiService implements ProfileService {
     }
     try {
       return await _writeAstrologyConsent(
-        CreateConsentRequestDecisionEnum.withdrawn,
+        RecordConsentRequestDecisionEnum.withdrawn,
       );
     } on DioException catch (error) {
       throw AstrologyDeletionPartialFailure(_failurePhase(error));
@@ -144,16 +139,16 @@ class GeneratedProfileApiService implements ProfileService {
   }
 
   Future<ProfileConsentReceipt> _writeAstrologyConsent(
-    CreateConsentRequestDecisionEnum decision,
+    RecordConsentRequestDecisionEnum decision,
   ) async {
-    final receipt = (await _api.createConsent(
-      createConsentRequest: CreateConsentRequest(
+    final receipt = (await _api.recordConsent(
+      recordConsentRequest: RecordConsentRequest(
         decision: decision,
-        policyCode: CreateConsentRequestPolicyCodeEnum.astrology,
+        policyCode: 'astrology',
         policyVersion: '2026-08',
       ),
-    )).data!.data;
-    if (receipt.policyCode.value != 'astrology') {
+    )).data?.data;
+    if (receipt == null || receipt.policyCode != 'astrology') {
       throw const LoadFailure(LoadPhase.terminalFailure);
     }
     return ProfileConsentReceipt(
@@ -165,6 +160,8 @@ class GeneratedProfileApiService implements ProfileService {
   }
 }
 
+String _etag(int version) => '"v$version"';
+
 LoadPhase _failurePhase(DioException error) {
   if (error.type == DioExceptionType.connectionError ||
       error.type == DioExceptionType.connectionTimeout ||
@@ -175,39 +172,20 @@ LoadPhase _failurePhase(DioException error) {
   return ApiFailureMapper.map(error).phase;
 }
 
-Future<T?> _optionalResource<T>(Future<T> Function() request) async {
-  try {
-    return await request();
-  } on DioException catch (error) {
-    if (error.response?.statusCode == 404) return null;
-    rethrow;
-  }
-}
-
 SavedRitualPreferences _mapPreferences(MemberPreferences value) =>
     SavedRitualPreferences(
       locale: value.locale,
       timezone: value.timezone,
-      ritualFamiliarity: value.ritualFamiliarity == null
-          ? null
-          : _ritualFamiliarity(value.ritualFamiliarity!.value),
-      ritualLanguage: value.ritualLanguage == null
-          ? null
-          : _ritualLanguage(value.ritualLanguage!.value),
-      ritualInterests:
-          value.ritualInterests
-              ?.map((interest) => _ritualInterest(interest.value))
-              .toSet() ??
-          const {},
-      ritualMode: switch (value.ritualMode.value) {
-        'tarot' => ProfileRitualMode.tarot,
-        'astrology' => ProfileRitualMode.astrology,
+      ritualMode: switch (value.ritualMode) {
+        MemberPreferencesRitualModeEnum.tarot => ProfileRitualMode.tarot,
+        MemberPreferencesRitualModeEnum.astrology =>
+          ProfileRitualMode.astrology,
         _ => throw const LoadFailure(LoadPhase.terminalFailure),
       },
-      theme: switch (value.themeMode.value) {
-        'system' => ProfileTheme.system,
-        'light' => ProfileTheme.light,
-        'dark' => ProfileTheme.dark,
+      theme: switch (value.themeMode) {
+        MemberPreferencesThemeModeEnum.system => ProfileTheme.system,
+        MemberPreferencesThemeModeEnum.light => ProfileTheme.light,
+        MemberPreferencesThemeModeEnum.dark => ProfileTheme.dark,
         _ => throw const LoadFailure(LoadPhase.terminalFailure),
       },
       version: value.version,
@@ -215,27 +193,18 @@ SavedRitualPreferences _mapPreferences(MemberPreferences value) =>
 
 SavedInvestorProfile _mapInvestor(InvestorProfile value) =>
     SavedInvestorProfile(
-      experience: value.investingExperience == null
-          ? null
-          : _investingExperience(value.investingExperience!.value),
       goal: _investmentGoal(value.goalType.value),
       horizon: _investmentHorizon(value.timeHorizon.value),
       risk: _riskComfort(value.riskComfort.value),
-      contributionRhythm: value.contributionRhythm == null
-          ? null
-          : _contributionRhythm(value.contributionRhythm!.value),
-      isDemo: value.isDemo,
+      isDemo: false,
       version: value.version,
     );
 
 SavedAstrologyProfile _mapAstrology(AstrologyProfile value) {
-  if (value.algorithmVersion.value == 'unknown_default_open_api' ||
-      value.derivedProfileCode.value == 'unknown_default_open_api' ||
-      value.birthDate.hour != 0 ||
-      value.birthDate.minute != 0 ||
-      value.birthDate.second != 0 ||
-      value.birthDate.millisecond != 0 ||
-      value.birthDate.microsecond != 0) {
+  if (value.algorithmVersion ==
+          AstrologyProfileAlgorithmVersionEnum.unknownDefaultOpenApi ||
+      value.derivedProfileCode ==
+          AstrologyProfileDerivedProfileCodeEnum.unknownDefaultOpenApi) {
     throw const LoadFailure(LoadPhase.terminalFailure);
   }
   final birthDate = ProfileDate(
@@ -251,14 +220,6 @@ SavedAstrologyProfile _mapAstrology(AstrologyProfile value) {
     version: value.version,
   );
 }
-
-onboarding.InvestingExperience _investingExperience(String value) =>
-    switch (value) {
-      'new' => onboarding.InvestingExperience.newToInvesting,
-      'some_experience' => onboarding.InvestingExperience.someExperience,
-      'experienced' => onboarding.InvestingExperience.experienced,
-      _ => throw const LoadFailure(LoadPhase.terminalFailure),
-    };
 
 onboarding.InvestmentGoal _investmentGoal(String value) => switch (value) {
   'calm_fund' => onboarding.InvestmentGoal.calmFund,
@@ -283,43 +244,6 @@ onboarding.RiskComfort _riskComfort(String value) => switch (value) {
   _ => throw const LoadFailure(LoadPhase.terminalFailure),
 };
 
-onboarding.ContributionRhythm _contributionRhythm(String value) =>
-    switch (value) {
-      'weekly' => onboarding.ContributionRhythm.weekly,
-      'biweekly' => onboarding.ContributionRhythm.biweekly,
-      'monthly' => onboarding.ContributionRhythm.monthly,
-      'irregular' => onboarding.ContributionRhythm.irregular,
-      'not_sure' => onboarding.ContributionRhythm.notSure,
-      _ => throw const LoadFailure(LoadPhase.terminalFailure),
-    };
-
-onboarding.RitualFamiliarity _ritualFamiliarity(String value) =>
-    switch (value) {
-      'new' => onboarding.RitualFamiliarity.newToRitual,
-      'curious' => onboarding.RitualFamiliarity.curious,
-      'familiar' => onboarding.RitualFamiliarity.familiar,
-      'practiced' => onboarding.RitualFamiliarity.practiced,
-      'prefer_not_to_say' => onboarding.RitualFamiliarity.preferNotToSay,
-      _ => throw const LoadFailure(LoadPhase.terminalFailure),
-    };
-
-onboarding.RitualLanguage _ritualLanguage(String value) => switch (value) {
-  'practical' => onboarding.RitualLanguage.practical,
-  'balanced' => onboarding.RitualLanguage.balanced,
-  'mystical' => onboarding.RitualLanguage.mystical,
-  'prefer_not_to_say' => onboarding.RitualLanguage.preferNotToSay,
-  _ => throw const LoadFailure(LoadPhase.terminalFailure),
-};
-
-onboarding.RitualInterest _ritualInterest(String value) => switch (value) {
-  'practical_research' => onboarding.RitualInterest.practicalResearch,
-  'tarot' => onboarding.RitualInterest.tarot,
-  'astrology' => onboarding.RitualInterest.astrology,
-  'moon_cycles' => onboarding.RitualInterest.moonCycles,
-  'reflection' => onboarding.RitualInterest.reflection,
-  _ => throw const LoadFailure(LoadPhase.terminalFailure),
-};
-
 ProfileConsentDecision _consentDecision(String value) => switch (value) {
   'accepted' => ProfileConsentDecision.accepted,
   'declined' => ProfileConsentDecision.declined,
@@ -327,120 +251,53 @@ ProfileConsentDecision _consentDecision(String value) => switch (value) {
   _ => throw const LoadFailure(LoadPhase.terminalFailure),
 };
 
-PatchPreferencesRequestRitualFamiliarityEnum? _requestFamiliarity(
-  onboarding.RitualFamiliarity? value,
-) => switch (value) {
-  onboarding.RitualFamiliarity.newToRitual =>
-    PatchPreferencesRequestRitualFamiliarityEnum.new_,
-  onboarding.RitualFamiliarity.curious =>
-    PatchPreferencesRequestRitualFamiliarityEnum.curious,
-  onboarding.RitualFamiliarity.familiar =>
-    PatchPreferencesRequestRitualFamiliarityEnum.familiar,
-  onboarding.RitualFamiliarity.practiced =>
-    PatchPreferencesRequestRitualFamiliarityEnum.practiced,
-  onboarding.RitualFamiliarity.preferNotToSay =>
-    PatchPreferencesRequestRitualFamiliarityEnum.preferNotToSay,
-  null => null,
-};
-
-RitualInterest _requestInterest(onboarding.RitualInterest value) =>
-    switch (value) {
-      onboarding.RitualInterest.practicalResearch =>
-        RitualInterest.practicalResearch,
-      onboarding.RitualInterest.tarot => RitualInterest.tarot,
-      onboarding.RitualInterest.astrology => RitualInterest.astrology,
-      onboarding.RitualInterest.moonCycles => RitualInterest.moonCycles,
-      onboarding.RitualInterest.reflection => RitualInterest.reflection,
-    };
-
-PatchPreferencesRequestRitualLanguageEnum? _requestLanguage(
-  onboarding.RitualLanguage? value,
-) => switch (value) {
-  onboarding.RitualLanguage.practical =>
-    PatchPreferencesRequestRitualLanguageEnum.practical,
-  onboarding.RitualLanguage.balanced =>
-    PatchPreferencesRequestRitualLanguageEnum.balanced,
-  onboarding.RitualLanguage.mystical =>
-    PatchPreferencesRequestRitualLanguageEnum.mystical,
-  onboarding.RitualLanguage.preferNotToSay =>
-    PatchPreferencesRequestRitualLanguageEnum.preferNotToSay,
-  null => null,
-};
-
-PatchPreferencesRequestRitualModeEnum? _requestRitualMode(
+UpdatePreferencesRequestRitualModeEnum? _requestRitualMode(
   ProfileRitualMode? value,
 ) => switch (value) {
-  ProfileRitualMode.tarot => PatchPreferencesRequestRitualModeEnum.tarot,
+  ProfileRitualMode.tarot => UpdatePreferencesRequestRitualModeEnum.tarot,
   ProfileRitualMode.astrology =>
-    PatchPreferencesRequestRitualModeEnum.astrology,
+    UpdatePreferencesRequestRitualModeEnum.astrology,
   null => null,
 };
 
-PatchPreferencesRequestThemeModeEnum? _requestTheme(ProfileTheme? value) =>
+UpdatePreferencesRequestThemeModeEnum? _requestTheme(ProfileTheme? value) =>
     switch (value) {
-      ProfileTheme.system => PatchPreferencesRequestThemeModeEnum.system,
-      ProfileTheme.light => PatchPreferencesRequestThemeModeEnum.light,
-      ProfileTheme.dark => PatchPreferencesRequestThemeModeEnum.dark,
+      ProfileTheme.system => UpdatePreferencesRequestThemeModeEnum.system,
+      ProfileTheme.light => UpdatePreferencesRequestThemeModeEnum.light,
+      ProfileTheme.dark => UpdatePreferencesRequestThemeModeEnum.dark,
       null => null,
     };
 
-PutInvestorProfileRequestContributionRhythmEnum? _requestContribution(
-  onboarding.ContributionRhythm? value,
-) => switch (value) {
-  onboarding.ContributionRhythm.weekly =>
-    PutInvestorProfileRequestContributionRhythmEnum.weekly,
-  onboarding.ContributionRhythm.biweekly =>
-    PutInvestorProfileRequestContributionRhythmEnum.biweekly,
-  onboarding.ContributionRhythm.monthly =>
-    PutInvestorProfileRequestContributionRhythmEnum.monthly,
-  onboarding.ContributionRhythm.irregular =>
-    PutInvestorProfileRequestContributionRhythmEnum.irregular,
-  onboarding.ContributionRhythm.notSure =>
-    PutInvestorProfileRequestContributionRhythmEnum.notSure,
-  null => null,
-};
-
-PutInvestorProfileRequestGoalTypeEnum _requestGoal(
+UpdateInvestorProfileRequestGoalTypeEnum _requestGoal(
   onboarding.InvestmentGoal value,
 ) => switch (value) {
   onboarding.InvestmentGoal.calmFund =>
-    PutInvestorProfileRequestGoalTypeEnum.calmFund,
+    UpdateInvestorProfileRequestGoalTypeEnum.calmFund,
   onboarding.InvestmentGoal.longTermGrowth =>
-    PutInvestorProfileRequestGoalTypeEnum.longTermGrowth,
+    UpdateInvestorProfileRequestGoalTypeEnum.longTermGrowth,
   onboarding.InvestmentGoal.income =>
-    PutInvestorProfileRequestGoalTypeEnum.income,
+    UpdateInvestorProfileRequestGoalTypeEnum.income,
   onboarding.InvestmentGoal.exploration =>
-    PutInvestorProfileRequestGoalTypeEnum.exploration,
+    UpdateInvestorProfileRequestGoalTypeEnum.exploration,
 };
 
-PutInvestorProfileRequestInvestingExperienceEnum? _requestExperience(
-  onboarding.InvestingExperience? value,
-) => switch (value) {
-  onboarding.InvestingExperience.newToInvesting =>
-    PutInvestorProfileRequestInvestingExperienceEnum.new_,
-  onboarding.InvestingExperience.someExperience =>
-    PutInvestorProfileRequestInvestingExperienceEnum.someExperience,
-  onboarding.InvestingExperience.experienced =>
-    PutInvestorProfileRequestInvestingExperienceEnum.experienced,
-  null => null,
-};
-
-PutInvestorProfileRequestRiskComfortEnum _requestRisk(
+UpdateInvestorProfileRequestRiskComfortEnum _requestRisk(
   onboarding.RiskComfort value,
 ) => switch (value) {
-  onboarding.RiskComfort.low => PutInvestorProfileRequestRiskComfortEnum.low,
+  onboarding.RiskComfort.low => UpdateInvestorProfileRequestRiskComfortEnum.low,
   onboarding.RiskComfort.moderate =>
-    PutInvestorProfileRequestRiskComfortEnum.moderate,
-  onboarding.RiskComfort.high => PutInvestorProfileRequestRiskComfortEnum.high,
+    UpdateInvestorProfileRequestRiskComfortEnum.moderate,
+  onboarding.RiskComfort.high =>
+    UpdateInvestorProfileRequestRiskComfortEnum.high,
 };
 
-PutInvestorProfileRequestTimeHorizonEnum _requestHorizon(
+UpdateInvestorProfileRequestTimeHorizonEnum _requestHorizon(
   onboarding.InvestmentHorizon value,
 ) => switch (value) {
   onboarding.InvestmentHorizon.short =>
-    PutInvestorProfileRequestTimeHorizonEnum.short,
+    UpdateInvestorProfileRequestTimeHorizonEnum.short,
   onboarding.InvestmentHorizon.medium =>
-    PutInvestorProfileRequestTimeHorizonEnum.medium,
+    UpdateInvestorProfileRequestTimeHorizonEnum.medium,
   onboarding.InvestmentHorizon.long =>
-    PutInvestorProfileRequestTimeHorizonEnum.long,
+    UpdateInvestorProfileRequestTimeHorizonEnum.long,
 };

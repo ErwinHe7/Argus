@@ -57,8 +57,10 @@ Set<String> _dateOnlyQueryFields(RequestOptions options) {
 
 Set<String> _dateOnlyFields(RequestOptions options) {
   if (options.path == '/v1/session/onboarding/finalize' ||
-      (options.path == '/v1/me/astrology-profile' && options.method == 'PUT')) {
-    return const {'birth_date'};
+      (options.path == '/v1/astrology-profile' && options.method == 'PUT')) {
+    return options.path == '/v1/astrology-profile'
+        ? const {'birthDate'}
+        : const {'birth_date'};
   }
   final segments = Uri.parse(options.path).pathSegments;
   final intentionCreate =

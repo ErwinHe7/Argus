@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 
 # **finalizeUpload**
-> GetAccount200Response finalizeUpload(intentId, finalizeUploadRequest)
+> ListAdminAudit200Response finalizeUpload(intentId, finalizeUploadRequest)
 
 
 
@@ -42,7 +42,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 

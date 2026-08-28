@@ -3,7 +3,7 @@
 //
 
 // ignore_for_file: unused_element
-import 'package:ritual_investing_api_client/generated/model/get_account200_response_meta.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_audit200_response_meta.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_order_command.dart';
 import 'package:copy_with_extension/copy_with_extension.dart';
 import 'package:json_annotation/json_annotation.dart';
@@ -25,7 +25,7 @@ class BrokerageOrderCommandResponse {
   final BrokerageOrderCommand data;
 
   @JsonKey(name: r'meta', required: true, includeIfNull: false)
-  final GetAccount200ResponseMeta meta;
+  final ListAdminAudit200ResponseMeta meta;
 
   @override
   bool operator ==(Object other) =>

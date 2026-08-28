@@ -10,11 +10,12 @@ All URIs are relative to *https://PROJECT_REF.supabase.co/functions/v1/api*
 Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**getCoven**](CovenApi.md#getcoven) | **GET** /v1/coven/{entry_id} | 
+[**getCovenEvidence**](CovenApi.md#getcovenevidence) | **GET** /v1/coven/{entry_id}/evidence | 
 [**listCoven**](CovenApi.md#listcoven) | **GET** /v1/coven | 
 
 
 # **getCoven**
-> GetAccount200Response getCoven(entryId)
+> CovenDetailResponse getCoven(entryId)
 
 
 
@@ -41,7 +42,48 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**CovenDetailResponse**](CovenDetailResponse.md)
+
+### Authorization
+
+[SupabaseBearer](../README.md#SupabaseBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getCovenEvidence**
+> CovenEvidenceResponse getCovenEvidence(entryId)
+
+
+
+### Example
+```dart
+import 'package:ritual_investing_api_client/api.dart';
+
+final api = RitualInvestingApiClient().getCovenApi();
+final String entryId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+
+try {
+    final response = api.getCovenEvidence(entryId);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling CovenApi->getCovenEvidence: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **entryId** | **String**|  | 
+
+### Return type
+
+[**CovenEvidenceResponse**](CovenEvidenceResponse.md)
 
 ### Authorization
 
@@ -55,7 +97,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listCoven**
-> GetAccount200Response listCoven(limit)
+> CovenCollectionResponse listCoven(cursor, limit, category, verifiedAsOf)
 
 
 
@@ -64,10 +106,13 @@ Name | Type | Description  | Notes
 import 'package:ritual_investing_api_client/api.dart';
 
 final api = RitualInvestingApiClient().getCovenApi();
+final String cursor = cursor_example; // String | 
 final int limit = 56; // int | 
+final String category = category_example; // String | 
+final DateTime verifiedAsOf = 2013-10-20; // DateTime | 
 
 try {
-    final response = api.listCoven(limit);
+    final response = api.listCoven(cursor, limit, category, verifiedAsOf);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling CovenApi->listCoven: $e\n');
@@ -78,11 +123,14 @@ try {
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
+ **cursor** | **String**|  | [optional] 
  **limit** | **int**|  | [optional] [default to 25]
+ **category** | **String**|  | [optional] 
+ **verifiedAsOf** | **DateTime**|  | [optional] 
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**CovenCollectionResponse**](CovenCollectionResponse.md)
 
 ### Authorization
 

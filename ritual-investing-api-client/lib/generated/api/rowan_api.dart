@@ -9,8 +9,8 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
+import 'package:ritual_investing_api_client/generated/model/rowan_counsel_response.dart';
 
 class RowanApi {
   final Dio _dio;
@@ -30,9 +30,9 @@ class RowanApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [RowanCounselResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> resolveRowan({
+  Future<Response<RowanCounselResponse>> resolveRowan({
     required String surface,
     required String contextKey,
     CancelToken? cancelToken,
@@ -75,15 +75,15 @@ class RowanApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    RowanCounselResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<RowanCounselResponse, RowanCounselResponse>(
               rawData,
-              'GetAccount200Response',
+              'RowanCounselResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -96,7 +96,7 @@ class RowanApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<RowanCounselResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

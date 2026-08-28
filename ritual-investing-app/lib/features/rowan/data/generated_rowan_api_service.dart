@@ -16,26 +16,14 @@ class GeneratedRowanService implements RowanService {
   @override
   Future<RowanCounselResult> fetch(RowanRequest request) async {
     try {
-      final value = (await _api.getRowanCounsel(
+      final value = (await _api.resolveRowan(
         surface: _surface(request.surface),
-        contextCode: request.contextCode,
-        resourceId: request.resourceId,
+        contextKey: request.contextCode,
       )).data!.data;
-      final surface = switch (value.surface) {
-        api.RowanCounselSurfaceEnum.dailyRitual => RowanSurface.dailyRitual,
-        api.RowanCounselSurfaceEnum.evidence => RowanSurface.evidence,
-        api.RowanCounselSurfaceEnum.assetCodex => RowanSurface.assetCodex,
-        api.RowanCounselSurfaceEnum.coven => RowanSurface.coven,
-        api.RowanCounselSurfaceEnum.unknownDefaultOpenApi =>
-          throw const LoadFailure(LoadPhase.terminalFailure),
-      };
-      if (surface != request.surface) {
-        throw const LoadFailure(LoadPhase.terminalFailure);
-      }
       return RowanCounselResult(
-        scriptRevisionId: value.scriptRevisionId,
-        surface: surface,
-        body: value.body,
+        scriptRevisionId: value.id,
+        surface: request.surface,
+        body: value.bodyTemplate,
         riskFooter: value.riskFooter,
       );
     } on DioException catch (error) {

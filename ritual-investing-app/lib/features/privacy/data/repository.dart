@@ -15,9 +15,11 @@ abstract interface class PrivacyRepository {
   Future<PrivacyExport> requestExport(String idempotencyKey);
   Future<PrivacyExport> getExport(String requestId);
   Future<void> downloadAndShare(String requestId);
-  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey);
+  Future<PrivacyDeletionReceipt> requestDeletion(
+    String idempotencyKey,
+    String stepUpReceipt,
+  );
   Future<bool> accountInactive();
-  Future<DemoResetReceipt> resetDemo(int seedVersion, String idempotencyKey);
   Future<void> cancelAndClearLocal();
 }
 
@@ -25,9 +27,11 @@ abstract interface class PrivacyService {
   Future<PrivacyExport> requestExport(String idempotencyKey);
   Future<PrivacyExport> getExport(String requestId);
   Future<Uint8List> downloadLatest(String requestId);
-  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey);
+  Future<PrivacyDeletionReceipt> requestDeletion(
+    String idempotencyKey,
+    String stepUpReceipt,
+  );
   Future<bool> accountInactive();
-  Future<DemoResetReceipt> resetDemo(int seedVersion, String idempotencyKey);
   void cancel();
 }
 
@@ -88,15 +92,13 @@ class ScopedPrivacyRepository implements PrivacyRepository {
   }
 
   @override
-  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey) =>
-      _service.requestDeletion(idempotencyKey);
+  Future<PrivacyDeletionReceipt> requestDeletion(
+    String idempotencyKey,
+    String stepUpReceipt,
+  ) => _service.requestDeletion(idempotencyKey, stepUpReceipt);
 
   @override
   Future<bool> accountInactive() => _service.accountInactive();
-
-  @override
-  Future<DemoResetReceipt> resetDemo(int seedVersion, String idempotencyKey) =>
-      _service.resetDemo(seedVersion, idempotencyKey);
 
   @override
   Future<void> cancelAndClearLocal() async {

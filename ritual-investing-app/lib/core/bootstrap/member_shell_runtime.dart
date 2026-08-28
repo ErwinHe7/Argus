@@ -32,7 +32,6 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
     required MemberFeatureScope featureScope,
     MemberBootstrapRefresher? refreshBootstrap,
     Future<void> Function()? onDeletionAccepted,
-    Future<void> Function(int expectedGeneration)? onResetAccepted,
   }) {
     if (!bootstrap.canEnterMemberShell) {
       throw ArgumentError.value(
@@ -57,7 +56,6 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
       featureScope: featureScope,
       refreshBootstrap: refreshBootstrap,
       onDeletionAccepted: onDeletionAccepted,
-      onResetAccepted: onResetAccepted,
     );
     runtime._bindScopeLifecycle();
     featureScope.updateBootstrap(bootstrap);
@@ -69,22 +67,19 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
     required MemberFeatureScope featureScope,
     required MemberBootstrapRefresher? refreshBootstrap,
     required Future<void> Function()? onDeletionAccepted,
-    required Future<void> Function(int expectedGeneration)? onResetAccepted,
   }) : _cacheStorage = null,
        _pendingCommandStore = null,
        _featureScopeFactory = null,
        _memberBootstrap = bootstrap,
        _featureScope = featureScope,
        _refreshBootstrap = refreshBootstrap,
-       _onDeletionAccepted = onDeletionAccepted,
-       _onResetAccepted = onResetAccepted;
+       _onDeletionAccepted = onDeletionAccepted;
 
   final ScopedReadCacheStorage? _cacheStorage;
   final PendingCommandStore? _pendingCommandStore;
   final MemberFeatureScopeFactory? _featureScopeFactory;
   MemberBootstrapRefresher? _refreshBootstrap;
   Future<void> Function()? _onDeletionAccepted;
-  Future<void> Function(int expectedGeneration)? _onResetAccepted;
   MemberBootstrap? _memberBootstrap;
   MemberFeatureScope? _featureScope;
   ScopedReadCache? _scopedReadCache;
@@ -110,11 +105,9 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
   void configureLifecycle({
     MemberBootstrapRefresher? refreshBootstrap,
     Future<void> Function()? onDeletionAccepted,
-    Future<void> Function(int expectedGeneration)? onResetAccepted,
   }) {
     _refreshBootstrap = refreshBootstrap;
     _onDeletionAccepted = onDeletionAccepted;
-    _onResetAccepted = onResetAccepted;
     _bindScopeLifecycle();
   }
 
@@ -273,11 +266,9 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
     final scope = _featureScope;
     if (scope == null) return;
     final deletion = _onDeletionAccepted;
-    final reset = _onResetAccepted;
-    if (deletion != null && reset != null) {
+    if (deletion != null) {
       scope.privacyController?.bindAccountTransitions(
         onDeletionAccepted: deletion,
-        onResetAccepted: reset,
       );
     }
   }

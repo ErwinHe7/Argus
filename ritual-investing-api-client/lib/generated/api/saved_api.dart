@@ -9,8 +9,9 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_audit200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/save_item_request.dart';
 
 class SavedApi {
   final Dio _dio;
@@ -29,9 +30,9 @@ class SavedApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> listSaved({
+  Future<Response<ListAdminAudit200Response>> listSaved({
     int? limit = 25,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -66,15 +67,15 @@ class SavedApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -87,7 +88,7 @@ class SavedApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -105,6 +106,7 @@ class SavedApi {
   /// Parameters:
   /// * [itemKind]
   /// * [itemId]
+  /// * [saveItemRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -112,11 +114,12 @@ class SavedApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> saveItem({
+  Future<Response<ListAdminAudit200Response>> saveItem({
     required String itemKind,
     required String itemId,
+    SaveItemRequest? saveItemRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -146,26 +149,41 @@ class SavedApi {
         ],
         ...?extra,
       },
+      contentType: 'application/json',
       validateStatus: validateStatus,
     );
 
+    dynamic _bodyData;
+
+    try {
+      _bodyData = jsonEncode(saveItemRequest);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(_dio.options, _path),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
     final _response = await _dio.request<Object>(
       _path,
+      data: _bodyData,
       options: _options,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -178,7 +196,7 @@ class SavedApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -203,9 +221,9 @@ class SavedApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> unsaveItem({
+  Future<Response<ListAdminAudit200Response>> unsaveItem({
     required String itemKind,
     required String itemId,
     CancelToken? cancelToken,
@@ -248,15 +266,15 @@ class SavedApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -269,7 +287,7 @@ class SavedApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

@@ -14,7 +14,7 @@ Method | HTTP request | Description
 
 
 # **createUploadIntent**
-> GetAccount200Response createUploadIntent(createUploadIntentRequest)
+> ListAdminAudit200Response createUploadIntent(createUploadIntentRequest)
 
 
 
@@ -41,7 +41,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -55,7 +55,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getUploadIntent**
-> GetAccount200Response getUploadIntent(intentId)
+> ListAdminAudit200Response getUploadIntent(intentId)
 
 
 
@@ -82,7 +82,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 

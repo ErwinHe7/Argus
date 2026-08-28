@@ -21,7 +21,7 @@ Method | HTTP request | Description
 
 
 # **commandAdminEditorial**
-> GetAccount200Response commandAdminEditorial(itemId, commandAdminEditorialRequest)
+> ListAdminAudit200Response commandAdminEditorial(itemId, commandAdminEditorialRequest)
 
 
 
@@ -50,7 +50,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -64,7 +64,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **createAdminEditorial**
-> GetAccount200Response createAdminEditorial(createAdminEditorialRequest)
+> ListAdminAudit200Response createAdminEditorial(createAdminEditorialRequest)
 
 
 
@@ -91,7 +91,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -105,7 +105,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **createAdminEditorialRevision**
-> GetAccount200Response createAdminEditorialRevision(itemId, createAdminEditorialRevisionRequest)
+> ListAdminAudit200Response createAdminEditorialRevision(itemId, createAdminEditorialRevisionRequest)
 
 
 
@@ -134,7 +134,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -148,7 +148,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getAdminEditorial**
-> GetAccount200Response getAdminEditorial(itemId)
+> ListAdminAudit200Response getAdminEditorial(itemId)
 
 
 
@@ -175,7 +175,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -189,7 +189,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getAdminSession**
-> GetAccount200Response getAdminSession()
+> ListAdminAudit200Response getAdminSession()
 
 
 
@@ -212,7 +212,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -226,7 +226,7 @@ This endpoint does not need any parameter.
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **issueAdminStepUp**
-> GetAccount200Response issueAdminStepUp(issueAdminStepUpRequest)
+> ListAdminAudit200Response issueAdminStepUp(issueAdminStepUpRequest)
 
 
 
@@ -253,7 +253,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -267,7 +267,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listAdminAudit**
-> GetAccount200Response listAdminAudit(limit)
+> ListAdminAudit200Response listAdminAudit(limit)
 
 
 
@@ -294,7 +294,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -308,7 +308,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listAdminEditorial**
-> GetAccount200Response listAdminEditorial(limit, kind)
+> ListAdminAudit200Response listAdminEditorial(limit, kind)
 
 
 
@@ -337,7 +337,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -351,7 +351,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **patchAdminEditorialRevision**
-> GetAccount200Response patchAdminEditorialRevision(itemId, revisionId, ifMatch, createAdminEditorialRevisionRequest)
+> ListAdminAudit200Response patchAdminEditorialRevision(itemId, revisionId, ifMatch, createAdminEditorialRevisionRequest)
 
 
 
@@ -384,7 +384,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 

@@ -19,7 +19,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'generated loopback export reset and lost-deletion response stay private',
+    'generated loopback export and lost-deletion response stay private',
     (tester) async {
       late _Harness harness;
       late Directory temporaryRoot;
@@ -82,36 +82,13 @@ void main() {
         reason: 'download must use only the latest rotated status token',
       );
 
-      final resetGenerations = <int>[];
-      final resetController = _controller(
-        harness,
-        storage,
-        requestStore,
-        files,
-        scope,
-        onResetAccepted: (generation) async => resetGenerations.add(generation),
-      );
-      await tester.pumpWidget(
-        MaterialApp(home: DemoResetScreen(controller: resetController)),
-      );
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('demo-reset-review')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('demo-reset-confirm')));
-      await tester.pumpAndSettle();
-      expect(resetGenerations, [5]);
-      expect(find.text('The seeded Demo is ready.'), findsOneWidget);
-
       var deletionAccepted = 0;
       final deletionController = _controller(
         harness,
         storage,
         requestStore,
         files,
-        const CacheScope(
-          accountId: 'u11-integration-account',
-          resetGeneration: 5,
-        ),
+        scope,
         onDeletionAccepted: () async => deletionAccepted += 1,
       );
       await tester.pumpWidget(
@@ -154,7 +131,6 @@ PrivacyController _controller(
   PrivateExportFiles files,
   CacheScope scope, {
   Future<void> Function()? onDeletionAccepted,
-  Future<void> Function(int generation)? onResetAccepted,
 }) => PrivacyController(
   repository: ScopedPrivacyRepository(
     service: GeneratedPrivacyService(harness.client),
@@ -166,8 +142,8 @@ PrivacyController _controller(
   scope: scope,
   createKey: () => 'u11-integration-command-${harness.nextCommand++}',
   reauthenticate: () async {},
+  authorizeDeletion: () async => 'delete_step_up_receipt_000000000001',
   onDeletionAccepted: onDeletionAccepted ?? () async {},
-  onResetAccepted: onResetAccepted ?? (_) async {},
 );
 
 Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
@@ -237,33 +213,6 @@ class _Harness {
         downloadTokens.add(request.uri.queryParameters['token'] ?? '');
         request.response.headers.contentType = ContentType.binary;
         request.response.add([80, 75, 3, 4]);
-      } else if (request.method == 'POST' && path == '/v1/me/demo-reset') {
-        _json(request, {
-          'data': {
-            'reset_generation': 5,
-            'default_portfolio': {
-              'id': _portfolioId,
-              'name': 'Seeded Demo Portfolio',
-              'currency': 'USD',
-              'status': 'active',
-              'version': 1,
-            },
-            'entitlement': {
-              'id': _entitlementId,
-              'plan_code': 'free',
-              'status': 'active',
-              'source': 'demo',
-              'version': 1,
-            },
-            'demo': {
-              'is_demo': true,
-              'observed_at': '2026-08-25T12:00:00.000Z',
-              'source_label': 'Ritual seeded Demo',
-              'limitations': ['No real money moves or provider execution.'],
-            },
-          },
-          'meta': _meta,
-        });
       } else if (request.method == 'POST' &&
           path == '/v1/me/privacy/deletion-requests') {
         deletionCalls += 1;
@@ -359,8 +308,6 @@ class _TokenProvider implements AccessTokenProvider {
 
 const _meta = {'request_id': 'u11-integration-request'};
 const _exportId = '018f3c2a-4b67-7a89-8abc-123456789020';
-const _portfolioId = '018f3c2a-4b67-7a89-8abc-123456789099';
-const _entitlementId = '018f3c2a-4b67-7a89-8abc-123456789098';
 const _token1 =
     '1111111111111111111111111111111111111111111111111111111111111111';
 const _token2 =

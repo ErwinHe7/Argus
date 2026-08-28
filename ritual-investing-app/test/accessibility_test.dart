@@ -122,15 +122,13 @@ class _AccessibilityPrivacyRepository implements PrivacyRepository {
   Future<void> downloadAndShare(String requestId) => throw UnimplementedError();
 
   @override
-  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey) =>
-      throw UnimplementedError();
+  Future<PrivacyDeletionReceipt> requestDeletion(
+    String idempotencyKey,
+    String stepUpReceipt,
+  ) => throw UnimplementedError();
 
   @override
   Future<bool> accountInactive() async => false;
-
-  @override
-  Future<DemoResetReceipt> resetDemo(int seedVersion, String idempotencyKey) =>
-      throw UnimplementedError();
 
   @override
   Future<void> cancelAndClearLocal() async {}

@@ -14,7 +14,7 @@ Method | HTTP request | Description
 
 
 # **getEditorial**
-> GetAccount200Response getEditorial(slug)
+> ListAdminAudit200Response getEditorial(slug)
 
 
 
@@ -41,7 +41,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -55,7 +55,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listEditorial**
-> GetAccount200Response listEditorial(kind, limit)
+> ListAdminAudit200Response listEditorial(kind, limit)
 
 
 
@@ -84,7 +84,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 

@@ -1,5 +1,5 @@
 ---
-title: "Argus Member App: Product Intent and Target Authority"
+title: "Argus Member App: Product Intent and Current Authority"
 date: 2026-08-28
 category: architecture-patterns
 module: ritual-investing-app
@@ -27,13 +27,13 @@ tags:
   - "current-state"
 ---
 
-# Argus Member App: Product Intent and Target Authority
+# Argus Member App: Product Intent and Current Authority
 
-## Current-state warning
+## Current state
 
-The repository is in a replacement-first migration. Its current runtime still contains Auth0 identity, a synthetic Neon schema, Cloudflare Worker request handling, Cloudflare Queues and Cron, R2 objects, and server-authoritative simulated finance. Those paths describe the migration baseline, not the target product authority. They remain only until their Supabase or Webull replacements pass the relevant gates.
+The replacement-first repository migration is implemented. The current runtime no longer contains Auth0 identity, a Neon application schema, Cloudflare backend request handling, Cloudflare Queues or Cron, R2 application objects, or server-authoritative simulated finance. Supabase is the only Argus backend authority, and Cloudflare Pages is limited to the static landing and standalone Demo artifacts.
 
-All existing database contents are synthetic and the product is not live. The target therefore starts from a clean Supabase migration baseline; it does not copy data, dual-write, shadow-read, or preserve obsolete mobile routes. The existing generated Hono/Zod OpenAPI contract and Dart client remain the controlled client boundary while that breaking replacement occurs.
+All existing database contents are synthetic and the product is not live, so the Supabase baseline starts clean: there is no data copy, dual-write, shadow-read, or obsolete mobile-route compatibility layer. The generated Hono/Zod OpenAPI contract and Dart client are the controlled client boundary. Real Webull egress and order mutation remain fail-closed until the partner-confirmed sandbox and hosted acceptance gates pass.
 
 ## Product authority
 

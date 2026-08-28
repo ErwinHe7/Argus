@@ -9,7 +9,7 @@ import 'package:ritual_investing_api_client/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **requestType** | **String** |  | 
-**stepUpReceipt** | **String** |  | 
+**stepUpReceipt** | **String** |  | [optional] 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

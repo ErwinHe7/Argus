@@ -116,8 +116,9 @@ DependencyContainer fixtureContainer({
               scope: scope,
               createKey: () => 'fixture-privacy-key-00001',
               reauthenticate: () async {},
+              authorizeDeletion: () async =>
+                  'delete_step_up_receipt_000000000001',
               onDeletionAccepted: () async {},
-              onResetAccepted: (_) async {},
               personalization: bootstrap.personalization,
             )
           : null;

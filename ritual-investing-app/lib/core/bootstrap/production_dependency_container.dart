@@ -8,7 +8,6 @@ import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../features/brokerage_connection/data/generated_brokerage_connection_api_service.dart';
 import '../../features/brokerage_connection/data/repository.dart';
 import '../../features/onboarding/data/onboarding_draft_store.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';

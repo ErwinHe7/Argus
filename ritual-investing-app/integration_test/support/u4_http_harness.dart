@@ -41,7 +41,7 @@ class U4HttpHarness {
   final HttpServer _server;
   final api.RitualInvestingApiClient client;
   final List<U4CapturedRequest> requests = [];
-  var ritualState = api.DailyRitualDetailStateEnum.assigned;
+  var ritualState = api.DailyRitualAssignmentStateEnum.assigned;
   var ritualVersion = 1;
   var saved = false;
   var rowanUnavailable = true;
@@ -306,24 +306,19 @@ class U4HttpHarness {
       return;
     }
     if (request.method == 'POST' &&
-        path == '/v1/rituals/$u4AssignmentId/reveal') {
-      if (request.headers.value(HttpHeaders.ifMatchHeader) != '"v1"') {
+        path == '/v1/rituals/$u4AssignmentId/transition') {
+      final transition = jsonDecode(requests.last.body) as Map<String, dynamic>;
+      final to = transition['to'];
+      final expectedVersion = to == 'revealed' ? 1 : 2;
+      if (request.headers.value(HttpHeaders.ifMatchHeader) !=
+          '"v$expectedVersion"') {
         _versionConflict(request);
         return;
       }
-      ritualState = api.DailyRitualDetailStateEnum.revealed;
-      ritualVersion = 2;
-      _json(request, _assignmentResponse());
-      return;
-    }
-    if (request.method == 'POST' &&
-        path == '/v1/rituals/$u4AssignmentId/complete') {
-      if (request.headers.value(HttpHeaders.ifMatchHeader) != '"v2"') {
-        _versionConflict(request);
-        return;
-      }
-      ritualState = api.DailyRitualDetailStateEnum.completed;
-      ritualVersion = 3;
+      ritualState = to == 'revealed'
+          ? api.DailyRitualAssignmentStateEnum.revealed
+          : api.DailyRitualAssignmentStateEnum.completed;
+      ritualVersion = expectedVersion + 1;
       _json(request, _assignmentResponse());
       return;
     }
@@ -332,37 +327,18 @@ class U4HttpHarness {
       _json(
         request,
         api.RitualEvidenceResponse(
-          data: [_evidenceDetail()],
+          data: [_ritualEvidenceClaim()],
           meta: _responseMeta(),
         ).toJson(),
       );
       return;
     }
-    if (request.method == 'GET' && path == '/v1/rituals/history') {
+    if (request.method == 'GET' && path == '/v1/rituals') {
       _json(
         request,
         api.RitualHistoryResponse(
-          data: [
-            api.RitualHistoryItem(
-              assignmentId: u4AssignmentId,
-              date: DateTime.utc(2026, 8, 25),
-              demo: _demo(),
-              mode: api.RitualHistoryItemModeEnum.tarot,
-              state: switch (ritualState) {
-                api.DailyRitualDetailStateEnum.assigned =>
-                  api.RitualHistoryItemStateEnum.assigned,
-                api.DailyRitualDetailStateEnum.revealed =>
-                  api.RitualHistoryItemStateEnum.revealed,
-                _ => api.RitualHistoryItemStateEnum.completed,
-              },
-              title: 'Direction, not urgency.',
-            ),
-          ],
-          meta: api.CollectionMeta(
-            hasMore: false,
-            nextCursor: null,
-            requestId: _requestId,
-          ),
+          data: [_dailyDetail()],
+          meta: _responseMeta(),
         ).toJson(),
       );
       return;
@@ -416,22 +392,12 @@ class U4HttpHarness {
       );
       return;
     }
-    if (request.method == 'PUT' && path == '/v1/me/saved-assets/$u4AssetId') {
+    if (request.method == 'POST' && path == '/v1/saved/asset/$u4AssetId') {
       saved = true;
-      _json(
-        request,
-        api.SaveAsset200Response(
-          data: api.SavedItemReceipt(
-            saved: true,
-            savedAt: DateTime.utc(2026, 8, 25, 12, 31),
-          ),
-          meta: _responseMeta(),
-        ).toJson(),
-      );
+      _json(request, _savedReceipt());
       return;
     }
-    if (request.method == 'DELETE' &&
-        path == '/v1/me/saved-assets/$u4AssetId') {
+    if (request.method == 'DELETE' && path == '/v1/saved/asset/$u4AssetId') {
       saved = false;
       request.response.statusCode = HttpStatus.noContent;
       return;
@@ -455,8 +421,8 @@ class U4HttpHarness {
       );
       return;
     }
-    if (request.method == 'GET' && path == '/v1/rowan/counsel') {
-      final requestedSurface = request.uri.queryParameters['surface'];
+    if (request.method == 'GET' && path.startsWith('/v1/rowan/')) {
+      final requestedSurface = request.uri.pathSegments[2];
       if (rowanUnavailable && requestedSurface != 'coven') {
         request.response.statusCode = HttpStatus.serviceUnavailable;
         _json(request, const {
@@ -470,14 +436,16 @@ class U4HttpHarness {
           request,
           api.RowanCounselResponse(
             data: api.RowanCounsel(
-              body: requestedSurface == 'coven'
+              allowedTokens: const [],
+              bodyTemplate: requestedSurface == 'coven'
                   ? 'Qualification evidence is dated, not assumed.'
                   : 'Use the published evidence to compare uncertainty.',
+              id: '00000000-0000-4000-8000-000000000408',
+              priority: 1,
               riskFooter: 'Demo counsel; never an instruction to trade.',
-              scriptRevisionId: '00000000-0000-4000-8000-000000000408',
-              surface: requestedSurface == 'coven'
-                  ? api.RowanCounselSurfaceEnum.coven
-                  : api.RowanCounselSurfaceEnum.assetCodex,
+              scriptKey: requestedSurface == 'coven'
+                  ? 'coven_fixture'
+                  : 'asset_codex_fixture',
             ),
             meta: _responseMeta(),
           ).toJson(),
@@ -571,52 +539,51 @@ class U4HttpHarness {
     meta: _responseMeta(),
   ).toJson();
 
-  Map<String, dynamic> _assignmentResponse() =>
-      api.GetRitualAssignment200Response(
-        data: _dailyDetail(),
-        meta: _responseMeta(),
-      ).toJson();
+  Map<String, dynamic> _assignmentResponse() => api.DailyRitualResponse(
+    data: _dailyDetail(),
+    meta: _responseMeta(),
+  ).toJson();
 
-  api.DailyRitualDetail _dailyDetail() => api.DailyRitualDetail(
-    art: api.ArtReference(
-      alt: 'The Compass at a celestial crossroads',
-      key: api.ArtReferenceKeyEnum.theCompass,
-    ),
-    assignmentId: u4AssignmentId,
-    completedAt: ritualState == api.DailyRitualDetailStateEnum.completed
+  api.DailyRitualAssignment _dailyDetail() => api.DailyRitualAssignment(
+    allowedTokens: const [],
+    bodyTemplate: 'Notice what changed without rushing to act.',
+    completedAt: ritualState == api.DailyRitualAssignmentStateEnum.completed
         ? DateTime.utc(2026, 8, 25, 12, 20)
         : null,
-    date: DateTime.utc(2026, 8, 25),
-    demo: _demo(),
-    evidence: [_evidenceSummary()],
-    guidance: 'Inspect sources before choosing what to research.',
-    ideas: [
-      api.RitualAssetIdea(
-        appearanceReason: 'provider-free durability scenario',
-        assetId: u4AssetId,
-        name: 'Vigilant Demo ETF',
-        riskSummary: 'The fictional signal can reverse.',
-        symbol: 'VIG',
-      ),
-    ],
-    interpretation: 'Direction is an invitation, not an instruction.',
-    marketLabel: 'Market-informed Demo evidence',
-    mode: api.DailyRitualDetailModeEnum.tarot,
-    revealedAt: ritualState == api.DailyRitualDetailStateEnum.assigned
+    deletionEpoch: 0,
+    id: u4AssignmentId,
+    localDate: DateTime.utc(2026, 8, 25),
+    mode: api.DailyRitualAssignmentModeEnum.tarot,
+    payload: {
+      'title': 'Direction, not urgency.',
+      'art_key': 'the_compass',
+      'art_alt': 'The Compass at a celestial crossroads',
+      'interpretation': 'Direction is an invitation, not an instruction.',
+      'guidance': 'Inspect sources before choosing what to research.',
+      'market_label': 'Market-informed Demo evidence',
+      'observation_at': '2026-08-25T12:00:00.000Z',
+      'revision_number': 1,
+      'uncertainty': 'The fictional signal can reverse.',
+      'evidence': [_evidenceSummary().toJson()],
+      'ideas': [
+        {
+          'appearance_reason': 'provider-free durability scenario',
+          'asset_id': u4AssetId,
+          'name': 'Vigilant Demo ETF',
+          'risk_summary': 'The fictional signal can reverse.',
+          'symbol': 'VIG',
+        },
+      ],
+    },
+    revealedAt: ritualState == api.DailyRitualAssignmentStateEnum.assigned
         ? null
         : DateTime.utc(2026, 8, 25, 12, 10),
-    revision: api.DailyRitualDetailRevision(
-      id: '00000000-0000-4000-8000-000000000409',
-      number: 1,
-    ),
-    rowan: api.RowanCounsel(
-      body: 'Notice what changed without rushing to act.',
-      riskFooter: 'Demo counsel; not investment advice.',
-      scriptRevisionId: '00000000-0000-4000-8000-000000000410',
-      surface: api.RowanCounselSurfaceEnum.dailyRitual,
-    ),
+    revisionId: '00000000-0000-4000-8000-000000000409',
+    riskFooter: 'Demo counsel; not investment advice.',
+    rowanRevisionId: '00000000-0000-4000-8000-000000000410',
+    scheduleId: '00000000-0000-4000-8000-000000000411',
     state: ritualState,
-    title: 'Direction, not urgency.',
+    userId: '00000000-0000-4000-8000-000000000001',
     version: ritualVersion,
   );
 
@@ -627,7 +594,7 @@ class U4HttpHarness {
     data: api.AssetCodexDetail(
       appearanceReason: 'A deterministic provider-free scenario.',
       assetType: api.AssetCodexDetailAssetTypeEnum.etf,
-      currency: api.AssetCodexDetailCurrencyEnum.USD,
+      currency: 'USD',
       demo: _demo(),
       evidence: [_evidenceSummary()],
       id: assetId,
@@ -636,9 +603,9 @@ class U4HttpHarness {
       name: 'Vigilant Demo ETF',
       revisionId: u4AssetRevisionId,
       risks: [
-        api.AssetCodexDetailRisksInner(
+        api.AssetRisk(
           detail: 'The deterministic scenario can reverse.',
-          severity: api.AssetCodexDetailRisksInnerSeverityEnum.high,
+          severity: api.AssetRiskSeverityEnum.high,
           title: 'Scenario reversal',
         ),
       ],
@@ -653,7 +620,7 @@ class U4HttpHarness {
   api.AssetSummary _summary(String id) => api.AssetSummary(
     appearanceReason: 'A deterministic provider-free comparison.',
     assetType: api.AssetSummaryAssetTypeEnum.etf,
-    currency: api.AssetSummaryCurrencyEnum.USD,
+    currency: 'USD',
     demo: _demo(),
     id: id,
     name: id == u4AssetId ? 'Vigilant Demo ETF' : 'Patient Demo Fund',
@@ -678,7 +645,23 @@ class U4HttpHarness {
       publishedAt: DateTime.utc(2026, 8, 25, 11),
       publisher: 'Demo Research Desk',
       title: 'Provider-free evidence note',
-      url: 'https://example.invalid/evidence',
+      url: 'https://evidence.example.test/source',
+    ),
+    summary: 'The deterministic Demo signal remained within its range.',
+    uncertainty: 'The fictional pattern can reverse.',
+  );
+
+  api.EvidenceClaim _ritualEvidenceClaim() => api.EvidenceClaim(
+    claimType: 'durability',
+    id: _claimId,
+    observedAt: DateTime.utc(2026, 8, 25, 12),
+    source_: api.EvidenceSource(
+      canonicalUrl: 'https://evidence.example.test/source',
+      publishedAt: DateTime.utc(2026, 8, 25, 11),
+      publisher: 'Demo Research Desk',
+      retrievedAt: DateTime.utc(2026, 8, 25, 12),
+      sourceKind: 'research',
+      title: 'Provider-free evidence note',
     ),
     summary: 'The deterministic Demo signal remained within its range.',
     uncertainty: 'The fictional pattern can reverse.',
@@ -693,7 +676,7 @@ class U4HttpHarness {
     sourceLabel: 'Deterministic local fixture',
   );
 
-  api.DemoDisclosure _demo() => api.DemoDisclosure(
+  api.ResearchDisclosure _demo() => api.ResearchDisclosure(
     isDemo: true,
     limitations: const [
       'Fictional scenario; no external finance or banking provider.',
@@ -702,7 +685,8 @@ class U4HttpHarness {
     sourceLabel: 'Deterministic local fixture',
   );
 
-  api.ResponseMeta _responseMeta() => api.ResponseMeta(requestId: _requestId);
+  api.ListAdminAudit200ResponseMeta _responseMeta() =>
+      api.ListAdminAudit200ResponseMeta(requestId: _requestId);
 
   void _versionConflict(HttpRequest request) {
     request.response.statusCode = HttpStatus.conflict;

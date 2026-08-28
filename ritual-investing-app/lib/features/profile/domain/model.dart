@@ -247,10 +247,7 @@ class ProfileInvestorUpdate {
 
 @immutable
 class ProfileAstrologyUpdate {
-  const ProfileAstrologyUpdate({
-    required this.birthDate,
-    this.expectedVersion,
-  });
+  const ProfileAstrologyUpdate({required this.birthDate, this.expectedVersion});
 
   final ProfileDate birthDate;
   final int? expectedVersion;

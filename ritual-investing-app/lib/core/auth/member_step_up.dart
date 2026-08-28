@@ -63,7 +63,7 @@ abstract interface class StepUpReceiptRepository {
   });
 }
 
-typedef StepUpIssueCall = Future<Object?> Function(
+typedef StepUpIssueCall = Future<MemberStepUpReceipt?> Function(
   SensitiveMemberAction action,
 );
 
@@ -71,14 +71,12 @@ typedef StepUpIssueCall = Future<Object?> Function(
 /// before it reaches [AuthController]. No Supabase or Webull credential is
 /// accepted as a substitute for this action-bound receipt.
 class ApiStepUpReceiptRepository implements StepUpReceiptRepository {
-  // ignore: prefer_initializing_formals
-  const ApiStepUpReceiptRepository({required StepUpIssueCall issue})
-    : _issue = issue;
+  const ApiStepUpReceiptRepository({required this.issueCall});
 
   factory ApiStepUpReceiptRepository.fromClientProvider(
     RitualInvestingApiClient Function() client,
   ) => ApiStepUpReceiptRepository(
-    issue: (action) async {
+    issueCall: (action) async {
       final api = client().getMemberSecurityApi();
       final response = await api.issueMemberStepUp(
         issueMemberStepUpRequest: IssueMemberStepUpRequest(
@@ -94,7 +92,7 @@ class ApiStepUpReceiptRepository implements StepUpReceiptRepository {
     },
   );
 
-  final StepUpIssueCall _issue;
+  final StepUpIssueCall issueCall;
 
   @override
   Future<SensitiveActionAuthorization> issue({
@@ -102,34 +100,27 @@ class ApiStepUpReceiptRepository implements StepUpReceiptRepository {
     required AuthSession session,
   }) async {
     try {
-      final raw = await _issue(action);
-      if (raw is! Map) throw const InvalidStepUpReceipt();
-      final value = Map<String, Object?>.from(raw);
+      final value = await issueCall(action);
+      if (value == null) throw const InvalidStepUpReceipt();
       final expectedAction = switch (action) {
-        SensitiveMemberAction.webullDisconnect => 'webull_disconnect',
-        SensitiveMemberAction.argusDelete => 'argus_delete',
+        SensitiveMemberAction.webullDisconnect =>
+          MemberStepUpReceiptActionEnum.webullDisconnect,
+        SensitiveMemberAction.argusDelete =>
+          MemberStepUpReceiptActionEnum.argusDelete,
       };
-      final receipt = value['receipt'];
-      final responseAction = value['action'];
-      final userId = value['user_id'];
-      final sessionId = value['session_id'];
-      final expiresAtValue = value['expires_at'];
-      final expiresAt = expiresAtValue is String
-          ? DateTime.tryParse(expiresAtValue)?.toUtc()
-          : null;
-      if (receipt is! String ||
-          responseAction != expectedAction ||
-          userId != session.userId ||
-          sessionId != session.sessionId ||
-          expiresAt == null ||
+      final expiresAt = value.expiresAt.toUtc();
+      if (value.receipt.isEmpty ||
+          value.action != expectedAction ||
+          value.userId != session.userId ||
+          value.sessionId != session.sessionId ||
           !expiresAt.isAfter(DateTime.now().toUtc())) {
         throw const InvalidStepUpReceipt();
       }
       return SensitiveActionAuthorization(
-        receiptToken: receipt,
+        receiptToken: value.receipt,
         action: action,
-        userId: userId as String,
-        sessionId: sessionId as String,
+        userId: value.userId,
+        sessionId: value.sessionId,
         expiresAt: expiresAt,
       );
     } on InvalidStepUpReceipt {

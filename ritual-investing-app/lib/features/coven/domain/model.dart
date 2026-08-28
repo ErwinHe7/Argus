@@ -152,22 +152,20 @@ class CovenDetail {
   final bool saved;
   final CovenDemoDisclosure demo;
 
-  CovenDetail copyWith({
-    bool? saved,
-    List<CovenEvidenceDetail>? evidence,
-  }) => CovenDetail(
-    id: id,
-    revisionId: revisionId,
-    slug: slug,
-    company: company,
-    symbol: symbol,
-    focus: focus,
-    summary: summary,
-    inclusionRationale: inclusionRationale,
-    limitations: limitations,
-    qualifications: qualifications,
-    evidence: evidence ?? this.evidence,
-    saved: saved ?? this.saved,
-    demo: demo,
-  );
+  CovenDetail copyWith({bool? saved, List<CovenEvidenceDetail>? evidence}) =>
+      CovenDetail(
+        id: id,
+        revisionId: revisionId,
+        slug: slug,
+        company: company,
+        symbol: symbol,
+        focus: focus,
+        summary: summary,
+        inclusionRationale: inclusionRationale,
+        limitations: limitations,
+        qualifications: qualifications,
+        evidence: evidence ?? this.evidence,
+        saved: saved ?? this.saved,
+        demo: demo,
+      );
 }

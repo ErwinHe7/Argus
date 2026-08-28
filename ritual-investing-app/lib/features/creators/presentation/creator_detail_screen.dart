@@ -20,7 +20,10 @@ class CreatorDetailScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 36),
             children: [
-              StateStatus(phase: controller.state.phase, onRetry: controller.load),
+              StateStatus(
+                phase: controller.state.phase,
+                onRetry: controller.load,
+              ),
               if (value != null) ...[
                 const Center(
                   child: CircleAvatar(

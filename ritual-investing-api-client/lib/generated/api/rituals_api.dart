@@ -9,14 +9,96 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/daily_ritual_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
+import 'package:ritual_investing_api_client/generated/model/ritual_evidence_response.dart';
+import 'package:ritual_investing_api_client/generated/model/ritual_history_response.dart';
 import 'package:ritual_investing_api_client/generated/model/transition_ritual_request.dart';
 
 class RitualsApi {
   final Dio _dio;
 
   const RitualsApi(this._dio);
+
+  /// getDailyRitual
+  ///
+  ///
+  /// Parameters:
+  /// * [mode]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [DailyRitualResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<DailyRitualResponse>> getDailyRitual({
+    String? mode,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/rituals/daily';
+    final _options = Options(
+      method: r'GET',
+      headers: <String, dynamic>{...?headers},
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _queryParameters = <String, dynamic>{if (mode != null) r'mode': mode};
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      queryParameters: _queryParameters,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    DailyRitualResponse? _responseData;
+
+    try {
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<DailyRitualResponse, DailyRitualResponse>(
+              rawData,
+              'DailyRitualResponse',
+              growable: true,
+            );
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<DailyRitualResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
 
   /// getRitual
   ///
@@ -30,9 +112,9 @@ class RitualsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [DailyRitualResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> getRitual({
+  Future<Response<DailyRitualResponse>> getRitual({
     required String assignmentId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -67,15 +149,15 @@ class RitualsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    DailyRitualResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<DailyRitualResponse, DailyRitualResponse>(
               rawData,
-              'GetAccount200Response',
+              'DailyRitualResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -88,7 +170,171 @@ class RitualsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<DailyRitualResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// getRitualEvidence
+  ///
+  ///
+  /// Parameters:
+  /// * [assignmentId]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [RitualEvidenceResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<RitualEvidenceResponse>> getRitualEvidence({
+    required String assignmentId,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/rituals/{assignment_id}/evidence'.replaceAll(
+      '{'
+      r'assignment_id'
+      '}',
+      assignmentId.toString(),
+    );
+    final _options = Options(
+      method: r'GET',
+      headers: <String, dynamic>{...?headers},
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    RitualEvidenceResponse? _responseData;
+
+    try {
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<RitualEvidenceResponse, RitualEvidenceResponse>(
+              rawData,
+              'RitualEvidenceResponse',
+              growable: true,
+            );
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<RitualEvidenceResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// listRitualHistory
+  ///
+  ///
+  /// Parameters:
+  /// * [limit]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [RitualHistoryResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<RitualHistoryResponse>> listRitualHistory({
+    int? limit = 25,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/rituals';
+    final _options = Options(
+      method: r'GET',
+      headers: <String, dynamic>{...?headers},
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
+        ],
+        ...?extra,
+      },
+      validateStatus: validateStatus,
+    );
+
+    final _queryParameters = <String, dynamic>{
+      if (limit != null) r'limit': limit,
+    };
+
+    final _response = await _dio.request<Object>(
+      _path,
+      options: _options,
+      queryParameters: _queryParameters,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    RitualHistoryResponse? _responseData;
+
+    try {
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<RitualHistoryResponse, RitualHistoryResponse>(
+              rawData,
+              'RitualHistoryResponse',
+              growable: true,
+            );
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<RitualHistoryResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -114,9 +360,9 @@ class RitualsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [DailyRitualResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> transitionRitual({
+  Future<Response<DailyRitualResponse>> transitionRitual({
     required String assignmentId,
     required String ifMatch,
     required TransitionRitualRequest transitionRitualRequest,
@@ -168,15 +414,15 @@ class RitualsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    DailyRitualResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<DailyRitualResponse, DailyRitualResponse>(
               rawData,
-              'GetAccount200Response',
+              'DailyRitualResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -189,7 +435,7 @@ class RitualsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<DailyRitualResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

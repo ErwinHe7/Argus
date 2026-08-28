@@ -18,7 +18,7 @@ Method | HTTP request | Description
 
 
 # **disconnectWebullConnection**
-> GetAccount200Response disconnectWebullConnection(disconnectWebullConnectionRequest)
+> WebullDisconnectResponse disconnectWebullConnection(disconnectWebullConnectionRequest)
 
 
 
@@ -45,7 +45,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**WebullDisconnectResponse**](WebullDisconnectResponse.md)
 
 ### Authorization
 
@@ -59,7 +59,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getWebullConnection**
-> GetAccount200Response getWebullConnection()
+> WebullConnectionResponse getWebullConnection()
 
 
 
@@ -82,7 +82,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**WebullConnectionResponse**](WebullConnectionResponse.md)
 
 ### Authorization
 
@@ -96,7 +96,7 @@ This endpoint does not need any parameter.
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **reconnectWebullConnection**
-> GetAccount200Response reconnectWebullConnection(reconnectWebullConnectionRequest)
+> WebullAuthorizationSessionResponse reconnectWebullConnection(reconnectWebullConnectionRequest)
 
 
 
@@ -123,7 +123,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**WebullAuthorizationSessionResponse**](WebullAuthorizationSessionResponse.md)
 
 ### Authorization
 
@@ -137,7 +137,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **redeemWebullCompletion**
-> GetAccount200Response redeemWebullCompletion(redeemWebullCompletionRequest)
+> WebullCompletionResponse redeemWebullCompletion(redeemWebullCompletionRequest)
 
 
 
@@ -164,7 +164,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**WebullCompletionResponse**](WebullCompletionResponse.md)
 
 ### Authorization
 
@@ -178,7 +178,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **selectWebullAccount**
-> GetAccount200Response selectWebullAccount(selectWebullAccountRequest)
+> WebullAccountSelectionResponse selectWebullAccount(selectWebullAccountRequest)
 
 
 
@@ -205,7 +205,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**WebullAccountSelectionResponse**](WebullAccountSelectionResponse.md)
 
 ### Authorization
 
@@ -219,7 +219,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **startWebullConnection**
-> GetAccount200Response startWebullConnection(reconnectWebullConnectionRequest)
+> WebullAuthorizationSessionResponse startWebullConnection(reconnectWebullConnectionRequest)
 
 
 
@@ -246,7 +246,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**WebullAuthorizationSessionResponse**](WebullAuthorizationSessionResponse.md)
 
 ### Authorization
 

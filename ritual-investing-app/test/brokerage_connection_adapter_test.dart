@@ -9,7 +9,10 @@ void main() {
     'strict adapter maps generated account authority and active selection',
     () {
       final snapshot = mapBrokerageConnectionSnapshot(
-        const {'id': 'connection-a', 'status': 'connected'},
+        WebullConnection(
+          id: 'connection-a',
+          status: WebullConnectionStatusEnum.connected,
+        ),
         [_account('account-a', selected: true)],
       );
 
@@ -28,7 +31,9 @@ void main() {
 
   test('unknown provider lifecycle and asset authority fail closed', () {
     final snapshot = mapBrokerageConnectionSnapshot(
-      const {'status': 'brand_new_state'},
+      WebullConnection(
+        status: WebullConnectionStatusEnum.unknownDefaultOpenApi,
+      ),
       [
         _account(
           'account-a',
@@ -55,7 +60,7 @@ void main() {
     () {
       expect(
         () => mapBrokerageConnectionSnapshot(
-          const {'status': 'connected'},
+          WebullConnection(status: WebullConnectionStatusEnum.connected),
           [
             _account('account-a', selected: true),
             _account('account-b', selected: true),

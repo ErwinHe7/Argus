@@ -431,25 +431,7 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
     final scope = featureScope;
     scope?.privacyController?.bindAccountTransitions(
       onDeletionAccepted: logout,
-      onResetAccepted: _acceptDemoReset,
     );
-  }
-
-  Future<void> _acceptDemoReset(int expectedGeneration) async {
-    final coordinator = entryCoordinator;
-    if (coordinator != null) {
-      await coordinator.refreshCompletedBootstrap(
-        expectedResetGeneration: expectedGeneration,
-      );
-    } else {
-      final refreshed = await _sessionBootstrapService.bootstrap();
-      if (refreshed.resetGeneration != expectedGeneration ||
-          !refreshed.canEnterMemberShell) {
-        throw StateError('The Demo reset bootstrap did not match its receipt.');
-      }
-      await _transitionTo(refreshed);
-      notifyListeners();
-    }
   }
 
   MemberFeatureScope _requireScope() {

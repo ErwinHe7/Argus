@@ -1,0 +1,172 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'onboarding_state.dart';
+
+// **************************************************************************
+// CopyWithGenerator
+// **************************************************************************
+
+abstract class _$OnboardingStateCWProxy {
+  OnboardingState completedAt(DateTime? completedAt);
+
+  OnboardingState completedSteps(List<String> completedSteps);
+
+  OnboardingState currentStep(String currentStep);
+
+  OnboardingState deletionEpoch(int? deletionEpoch);
+
+  OnboardingState userId(String userId);
+
+  OnboardingState version(int version);
+
+  /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `OnboardingState(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
+  ///
+  /// Usage
+  /// ```dart
+  /// OnboardingState(...).copyWith(id: 12, name: "My name")
+  /// ````
+  OnboardingState call({
+    DateTime? completedAt,
+    List<String> completedSteps,
+    String currentStep,
+    int? deletionEpoch,
+    String userId,
+    int version,
+  });
+}
+
+/// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfOnboardingState.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfOnboardingState.copyWith.fieldName(...)`
+class _$OnboardingStateCWProxyImpl implements _$OnboardingStateCWProxy {
+  const _$OnboardingStateCWProxyImpl(this._value);
+
+  final OnboardingState _value;
+
+  @override
+  OnboardingState completedAt(DateTime? completedAt) =>
+      this(completedAt: completedAt);
+
+  @override
+  OnboardingState completedSteps(List<String> completedSteps) =>
+      this(completedSteps: completedSteps);
+
+  @override
+  OnboardingState currentStep(String currentStep) =>
+      this(currentStep: currentStep);
+
+  @override
+  OnboardingState deletionEpoch(int? deletionEpoch) =>
+      this(deletionEpoch: deletionEpoch);
+
+  @override
+  OnboardingState userId(String userId) => this(userId: userId);
+
+  @override
+  OnboardingState version(int version) => this(version: version);
+
+  @override
+  /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `OnboardingState(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
+  ///
+  /// Usage
+  /// ```dart
+  /// OnboardingState(...).copyWith(id: 12, name: "My name")
+  /// ````
+  OnboardingState call({
+    Object? completedAt = const $CopyWithPlaceholder(),
+    Object? completedSteps = const $CopyWithPlaceholder(),
+    Object? currentStep = const $CopyWithPlaceholder(),
+    Object? deletionEpoch = const $CopyWithPlaceholder(),
+    Object? userId = const $CopyWithPlaceholder(),
+    Object? version = const $CopyWithPlaceholder(),
+  }) {
+    return OnboardingState(
+      completedAt: completedAt == const $CopyWithPlaceholder()
+          ? _value.completedAt
+          // ignore: cast_nullable_to_non_nullable
+          : completedAt as DateTime?,
+      completedSteps: completedSteps == const $CopyWithPlaceholder()
+          ? _value.completedSteps
+          // ignore: cast_nullable_to_non_nullable
+          : completedSteps as List<String>,
+      currentStep: currentStep == const $CopyWithPlaceholder()
+          ? _value.currentStep
+          // ignore: cast_nullable_to_non_nullable
+          : currentStep as String,
+      deletionEpoch: deletionEpoch == const $CopyWithPlaceholder()
+          ? _value.deletionEpoch
+          // ignore: cast_nullable_to_non_nullable
+          : deletionEpoch as int?,
+      userId: userId == const $CopyWithPlaceholder()
+          ? _value.userId
+          // ignore: cast_nullable_to_non_nullable
+          : userId as String,
+      version: version == const $CopyWithPlaceholder()
+          ? _value.version
+          // ignore: cast_nullable_to_non_nullable
+          : version as int,
+    );
+  }
+}
+
+extension $OnboardingStateCopyWith on OnboardingState {
+  /// Returns a callable class that can be used as follows: `instanceOfOnboardingState.copyWith(...)` or like so:`instanceOfOnboardingState.copyWith.fieldName(...)`.
+  // ignore: library_private_types_in_public_api
+  _$OnboardingStateCWProxy get copyWith => _$OnboardingStateCWProxyImpl(this);
+}
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+OnboardingState _$OnboardingStateFromJson(Map<String, dynamic> json) =>
+    $checkedCreate(
+      'OnboardingState',
+      json,
+      ($checkedConvert) {
+        $checkKeys(
+          json,
+          requiredKeys: const [
+            'completed_at',
+            'completed_steps',
+            'current_step',
+            'deletion_epoch',
+            'user_id',
+            'version',
+          ],
+        );
+        final val = OnboardingState(
+          completedAt: $checkedConvert(
+            'completed_at',
+            (v) => v == null ? null : DateTime.parse(v as String),
+          ),
+          completedSteps: $checkedConvert(
+            'completed_steps',
+            (v) => (v as List<dynamic>).map((e) => e as String).toList(),
+          ),
+          currentStep: $checkedConvert('current_step', (v) => v as String),
+          deletionEpoch: $checkedConvert(
+            'deletion_epoch',
+            (v) => (v as num?)?.toInt(),
+          ),
+          userId: $checkedConvert('user_id', (v) => v as String),
+          version: $checkedConvert('version', (v) => (v as num).toInt()),
+        );
+        return val;
+      },
+      fieldKeyMap: const {
+        'completedAt': 'completed_at',
+        'completedSteps': 'completed_steps',
+        'currentStep': 'current_step',
+        'deletionEpoch': 'deletion_epoch',
+        'userId': 'user_id',
+      },
+    );
+
+Map<String, dynamic> _$OnboardingStateToJson(OnboardingState instance) =>
+    <String, dynamic>{
+      'completed_at': instance.completedAt?.toIso8601String(),
+      'completed_steps': instance.completedSteps,
+      'current_step': instance.currentStep,
+      'deletion_epoch': instance.deletionEpoch,
+      'user_id': instance.userId,
+      'version': instance.version,
+    };

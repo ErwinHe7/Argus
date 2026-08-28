@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 
 # **reportContent**
-> GetAccount200Response reportContent(reportContentRequest)
+> ListAdminAudit200Response reportContent(reportContentRequest)
 
 
 
@@ -40,7 +40,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 

@@ -185,6 +185,33 @@ void main() {
   );
 
   test(
+    'deletion forwards one action-bound receipt and never plain recent auth',
+    () async {
+      final repository = _FakePrivacyRepository();
+      var authorizations = 0;
+      var plainRecentAuth = 0;
+      final controller = _controller(
+        repository,
+        authorizeDeletion: () async {
+          authorizations += 1;
+          return 'delete_step_up_receipt_000000000099';
+        },
+        reauthenticate: () async => plainRecentAuth += 1,
+      );
+
+      controller.prepareDeletion();
+      await controller.confirmDeletion();
+
+      expect(controller.phase, PrivacyPhase.deletionAccepted);
+      expect(authorizations, 1);
+      expect(plainRecentAuth, 0);
+      expect(repository.deletionStepUpReceipts, [
+        'delete_step_up_receipt_000000000099',
+      ]);
+    },
+  );
+
+  test(
     'protected deletion failure never exposes export refresh authority',
     () async {
       final repository = _FakePrivacyRepository()
@@ -224,73 +251,6 @@ void main() {
   );
 
   test(
-    'Demo reset accepts only a newer generation and transfers authority',
-    () async {
-      final repository = _FakePrivacyRepository()
-        ..resetReceipt = const DemoResetReceipt(
-          resetGeneration: 8,
-          defaultPortfolioId: '018f3c2a-4b67-7a89-8abc-123456789099',
-        );
-      final transferred = <int>[];
-      final controller = _controller(
-        repository,
-        scope: const CacheScope(accountId: 'account-a', resetGeneration: 7),
-        onResetAccepted: (generation) async => transferred.add(generation),
-      );
-
-      controller.prepareDemoReset();
-      await controller.confirmDemoReset(seedVersion: 1);
-
-      expect(controller.phase, PrivacyPhase.resetAccepted);
-      expect(repository.resetSeedVersions, [1]);
-      expect(transferred, [8]);
-    },
-  );
-
-  test(
-    'accepted reset survives bootstrap failure and reconciles without another mutation',
-    () async {
-      final repository = _FakePrivacyRepository()
-        ..resetReceipt = const DemoResetReceipt(
-          resetGeneration: 8,
-          defaultPortfolioId: '018f3c2a-4b67-7a89-8abc-123456789099',
-        );
-      var bootstrapAttempts = 0;
-      final installedGenerations = <int>[];
-      final controller = _controller(
-        repository,
-        scope: const CacheScope(accountId: 'account-a', resetGeneration: 7),
-        onResetAccepted: (generation) async {
-          bootstrapAttempts += 1;
-          if (bootstrapAttempts == 1) {
-            throw StateError('bootstrap refresh failed');
-          }
-          installedGenerations.add(generation);
-        },
-      );
-
-      controller.prepareDemoReset();
-      await controller.confirmDemoReset(seedVersion: 1);
-
-      expect(controller.phase, PrivacyPhase.restoredReview);
-      expect(controller.message, contains('reset was accepted'));
-      expect(controller.hasProtectedReset, isTrue);
-      expect(repository.resetSeedVersions, [1]);
-
-      controller.prepareDemoReset();
-      expect(controller.phase, PrivacyPhase.restoredReview);
-      controller.reviewRestoredAction();
-      await controller.confirmDemoReset(seedVersion: 1);
-
-      expect(controller.phase, PrivacyPhase.resetAccepted);
-      expect(controller.hasProtectedReset, isFalse);
-      expect(repository.resetSeedVersions, [1]);
-      expect(bootstrapAttempts, 2);
-      expect(installedGenerations, [8]);
-    },
-  );
-
-  test(
     'deactivation cancels old-account work and clears local privacy state',
     () async {
       final repository = _FakePrivacyRepository();
@@ -320,58 +280,35 @@ void main() {
     },
   );
 
-  test(
-    'deactivation fences delayed export deletion and reset responses',
-    () async {
-      final exportRepository = _FakePrivacyRepository()
-        ..exportCompleter = Completer<PrivacyExport>();
-      final exportController = _controller(exportRepository);
-      final exportCall = exportController.requestExport();
-      await _waitFor(() => exportRepository.exportKeys.isNotEmpty);
-      await exportController.deactivate();
-      exportRepository.exportCompleter!.complete(
-        _export(PrivacyExportStatus.queued),
-      );
-      await exportCall;
-      expect(exportRepository.rememberedExportIds, isEmpty);
-      expect(exportController.export, isNull);
+  test('deactivation fences delayed export and deletion responses', () async {
+    final exportRepository = _FakePrivacyRepository()
+      ..exportCompleter = Completer<PrivacyExport>();
+    final exportController = _controller(exportRepository);
+    final exportCall = exportController.requestExport();
+    await _waitFor(() => exportRepository.exportKeys.isNotEmpty);
+    await exportController.deactivate();
+    exportRepository.exportCompleter!.complete(
+      _export(PrivacyExportStatus.queued),
+    );
+    await exportCall;
+    expect(exportRepository.rememberedExportIds, isEmpty);
+    expect(exportController.export, isNull);
 
-      final deletionRepository = _FakePrivacyRepository()
-        ..deletionCompleter = Completer<PrivacyDeletionReceipt>();
-      var deletionCallbacks = 0;
-      final deletionController = _controller(
-        deletionRepository,
-        onDeletionAccepted: () async => deletionCallbacks += 1,
-      );
-      deletionController.prepareDeletion();
-      final deletionCall = deletionController.confirmDeletion();
-      await _waitFor(() => deletionRepository.deletionKeys.isNotEmpty);
-      await deletionController.deactivate();
-      deletionRepository.deletionCompleter!.complete(_deletionReceipt());
-      await deletionCall;
-      expect(deletionCallbacks, 0);
-
-      final resetRepository = _FakePrivacyRepository()
-        ..resetCompleter = Completer<DemoResetReceipt>();
-      final resetCallbacks = <int>[];
-      final resetController = _controller(
-        resetRepository,
-        onResetAccepted: (generation) async => resetCallbacks.add(generation),
-      );
-      resetController.prepareDemoReset();
-      final resetCall = resetController.confirmDemoReset(seedVersion: 1);
-      await _waitFor(() => resetRepository.resetSeedVersions.isNotEmpty);
-      await resetController.deactivate();
-      resetRepository.resetCompleter!.complete(
-        const DemoResetReceipt(
-          resetGeneration: 5,
-          defaultPortfolioId: '018f3c2a-4b67-7a89-8abc-123456789099',
-        ),
-      );
-      await resetCall;
-      expect(resetCallbacks, isEmpty);
-    },
-  );
+    final deletionRepository = _FakePrivacyRepository()
+      ..deletionCompleter = Completer<PrivacyDeletionReceipt>();
+    var deletionCallbacks = 0;
+    final deletionController = _controller(
+      deletionRepository,
+      onDeletionAccepted: () async => deletionCallbacks += 1,
+    );
+    deletionController.prepareDeletion();
+    final deletionCall = deletionController.confirmDeletion();
+    await _waitFor(() => deletionRepository.deletionKeys.isNotEmpty);
+    await deletionController.deactivate();
+    deletionRepository.deletionCompleter!.complete(_deletionReceipt());
+    await deletionCall;
+    expect(deletionCallbacks, 0);
+  });
 
   test(
     'deactivation fences a delayed restored-export status response',
@@ -426,10 +363,8 @@ Future<void> _waitFor(bool Function() condition) async {
 
 PrivacyDeletionReceipt _deletionReceipt() => PrivacyDeletionReceipt(
   requestId: '018f3c2a-4b67-7a89-8abc-123456789021',
-  tombstoneId: '018f3c2a-4b67-7a89-8abc-123456789022',
-  effectiveAt: DateTime.utc(2026, 8, 25),
-  purgeBy: DateTime.utc(2026, 9, 24),
-  purgeGeneration: 1,
+  status: PrivacyDeletionStatus.queued,
+  requestedAt: DateTime.utc(2026, 8, 25),
 );
 
 PrivacyController _controller(
@@ -439,8 +374,8 @@ PrivacyController _controller(
     resetGeneration: 4,
   ),
   Future<void> Function()? reauthenticate,
+  Future<String> Function()? authorizeDeletion,
   Future<void> Function()? onDeletionAccepted,
-  Future<void> Function(int generation)? onResetAccepted,
   MemberPersonalization personalization = const MemberPersonalization(),
   ProtectedStorage? storage,
 }) => PrivacyController(
@@ -449,8 +384,9 @@ PrivacyController _controller(
   scope: scope,
   createKey: () => 'privacy-command-key-00000001',
   reauthenticate: reauthenticate ?? () async {},
+  authorizeDeletion:
+      authorizeDeletion ?? () async => 'delete_step_up_receipt_000000000001',
   onDeletionAccepted: onDeletionAccepted ?? () async {},
-  onResetAccepted: onResetAccepted ?? (_) async {},
   personalization: personalization,
 );
 
@@ -478,16 +414,14 @@ class _FakePrivacyRepository implements PrivacyRepository {
   final List<String> rememberedExportIds = [];
   final List<String> exportKeys = [];
   final List<String> deletionKeys = [];
-  final List<int> resetSeedVersions = [];
+  final List<String> deletionStepUpReceipts = [];
   Object? deletionError;
   bool inactive = false;
   int inactiveChecks = 0;
-  DemoResetReceipt? resetReceipt;
   Object? exportError;
   Completer<PrivacyExport>? exportCompleter;
   Completer<PrivacyExport>? getCompleter;
   Completer<PrivacyDeletionReceipt>? deletionCompleter;
-  Completer<DemoResetReceipt>? resetCompleter;
   bool cancelled = false;
   int localClearCount = 0;
   int staleFileClearCount = 0;
@@ -539,8 +473,12 @@ class _FakePrivacyRepository implements PrivacyRepository {
   }
 
   @override
-  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey) async {
+  Future<PrivacyDeletionReceipt> requestDeletion(
+    String idempotencyKey,
+    String stepUpReceipt,
+  ) async {
     deletionKeys.add(idempotencyKey);
+    deletionStepUpReceipts.add(stepUpReceipt);
     if (deletionError case final error?) throw error;
     if (deletionCompleter case final completer?) return completer.future;
     return _deletionReceipt();
@@ -550,16 +488,6 @@ class _FakePrivacyRepository implements PrivacyRepository {
   Future<bool> accountInactive() async {
     inactiveChecks += 1;
     return inactive;
-  }
-
-  @override
-  Future<DemoResetReceipt> resetDemo(
-    int seedVersion,
-    String idempotencyKey,
-  ) async {
-    resetSeedVersions.add(seedVersion);
-    if (resetCompleter case final completer?) return completer.future;
-    return resetReceipt!;
   }
 
   @override

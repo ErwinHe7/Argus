@@ -33,7 +33,6 @@ void main() {
 
     final noticePage = await notifications.list(
       filter: NotificationReadFilter.unread,
-      cursor: 'notification-page-2',
     );
     final preferences = await notifications.getPreferences();
     const draft = NotificationPreferencesDraft(
@@ -75,7 +74,7 @@ void main() {
       'type': 'weekly',
       'period_start': '2026-08-18',
       'period_end': '2026-08-25',
-      'limit': '20',
+      'limit': '25',
       'cursor': 'briefing-page-2',
     });
     expect(
@@ -86,12 +85,8 @@ void main() {
       harness.single('PUT', '/v1/briefings/$_briefingId/read-state').body,
       {'read': true},
     );
-    expect(harness.single('GET', '/v1/notifications').query, {
-      'read': 'unread',
-      'limit': '20',
-      'cursor': 'notification-page-2',
-    });
-    final patch = harness.single('PATCH', '/v1/me/notification-preferences');
+    expect(harness.single('GET', '/v1/notifications').query, {'limit': '25'});
+    final patch = harness.single('PATCH', '/v1/notification-preferences');
     expect(patch.ifMatch, '"v3"');
     expect(patch.body, {
       'daily_ritual': false,
@@ -106,7 +101,7 @@ void main() {
     });
     expect(
       harness
-          .single('PUT', '/v1/notifications/$_notificationId/read-state')
+          .single('PATCH', '/v1/notifications/$_notificationId/read')
           .body,
       {'read': true},
     );
@@ -169,7 +164,6 @@ void main() {
     for (final mode in [
       _Mode.unknownNotificationKind,
       _Mode.externalNotificationRoute,
-      _Mode.inconsistentNotificationCursor,
     ]) {
       harness.mode = mode;
       await expectLater(notifications.list(), throwsA(_terminalFailure));
@@ -252,7 +246,6 @@ enum _Mode {
   briefingReadEchoMismatch,
   unknownNotificationKind,
   externalNotificationRoute,
-  inconsistentNotificationCursor,
   notificationReadEchoMismatch,
   preferenceEchoMismatch,
   preferenceVersionNotAdvanced,
@@ -338,12 +331,10 @@ class _Harness {
         request.response.write(
           jsonEncode({
             'data': [_notification(mode)],
-            'meta': _collectionMeta(
-              inconsistent: mode == _Mode.inconsistentNotificationCursor,
-            ),
+            'meta': _responseMeta,
           }),
         );
-      } else if (path == '/v1/notifications/$_notificationId/read-state') {
+      } else if (path == '/v1/notifications/$_notificationId/read') {
         request.response.write(
           jsonEncode({
             'data': _notification(
@@ -353,7 +344,7 @@ class _Harness {
             'meta': _responseMeta,
           }),
         );
-      } else if (path == '/v1/me/notification-preferences') {
+      } else if (path == '/v1/notification-preferences') {
         request.response.write(
           jsonEncode({
             'data': _preferences(mode, patched: request.method == 'PATCH'),
@@ -434,6 +425,8 @@ Map<String, Object?> _briefingDetail(_Mode mode) => {
 
 Map<String, Object?> _notification(_Mode mode, {bool read = false}) => {
   'id': _notificationId,
+  'user_id': '00000000-0000-4000-8000-000000000093',
+  'deletion_epoch': 0,
   'kind': mode == _Mode.unknownNotificationKind
       ? 'provider_connected'
       : 'briefing_ready',
@@ -444,9 +437,12 @@ Map<String, Object?> _notification(_Mode mode, {bool read = false}) => {
       : '/briefings/$_briefingId',
   'scheduled_at': '2026-08-25T12:00:00.000Z',
   'read_at': read ? '2026-08-25T12:01:00.000Z' : null,
+  'created_at': '2026-08-25T11:59:00.000Z',
 };
 
 Map<String, Object?> _preferences(_Mode mode, {required bool patched}) => {
+  'user_id': '00000000-0000-4000-8000-000000000093',
+  'deletion_epoch': 0,
   'daily_ritual': patched && mode != _Mode.preferenceEchoMismatch
       ? false
       : true,

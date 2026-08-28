@@ -21,18 +21,20 @@ class GeneratedNotificationService implements NotificationService {
     String? cursor,
   }) async {
     try {
-      final response = (await _api.listNotifications(
-        read: filter.name,
-        cursor: cursor,
-      )).data!;
-      final items = response.data.map(_item).toList(growable: false);
+      if (cursor != null) _terminal();
+      final response = (await _api.listNotifications()).data!;
+      final items = response.data
+          .map(_item)
+          .where(
+            (item) => switch (filter) {
+              NotificationReadFilter.all => true,
+              NotificationReadFilter.read => item.isRead,
+              NotificationReadFilter.unread => !item.isRead,
+            },
+          )
+          .toList(growable: false);
       _requireUniqueIds(items.map((item) => item.id));
-      _requirePage(response.meta.hasMore, response.meta.nextCursor);
-      return NotificationPage(
-        items: items,
-        hasMore: response.meta.hasMore,
-        nextCursor: response.meta.nextCursor,
-      );
+      return NotificationPage(items: items, hasMore: false, nextCursor: null);
     } on DioException catch (error) {
       _throwFailure(error);
     } on LoadFailure {
@@ -60,9 +62,9 @@ class GeneratedNotificationService implements NotificationService {
     _requireUuid(notificationId);
     try {
       final result = _item(
-        (await _api.setNotificationReadState(
+        (await _api.markNotificationRead(
           notificationId: notificationId,
-          setBriefingReadStateRequest: api.SetBriefingReadStateRequest(
+          setNotificationReadStateRequest: api.SetNotificationReadStateRequest(
             read: read,
           ),
         )).data!.data,
@@ -87,21 +89,19 @@ class GeneratedNotificationService implements NotificationService {
     if (expectedVersion <= 0) _terminal();
     try {
       final result = _preferences(
-        (await _api.patchNotificationPreferences(
+        (await _api.updateNotificationPreferences(
           ifMatch: '"v$expectedVersion"',
-          patchNotificationPreferencesRequest:
-              api.PatchNotificationPreferencesRequest(
-                dailyRitual: draft.dailyRitual,
-                weeklyRecap: draft.weeklyRecap,
-                moonCycle: draft.moonCycle,
-                quietHours:
-                    api.GetNotificationPreferences200ResponseDataQuietHours(
-                      enabled: draft.quietHours.enabled,
-                      start: draft.quietHours.start,
-                      end: draft.quietHours.end,
-                      timezone: draft.quietHours.timezone,
-                    ),
-              ),
+          requestBody: {
+            'daily_ritual': draft.dailyRitual,
+            'weekly_recap': draft.weeklyRecap,
+            'moon_cycle': draft.moonCycle,
+            'quiet_hours': {
+              'enabled': draft.quietHours.enabled,
+              'start': draft.quietHours.start,
+              'end': draft.quietHours.end,
+              'timezone': draft.quietHours.timezone,
+            },
+          },
         )).data!.data,
       );
       if (result.version <= expectedVersion || !draft.exactlyMatches(result)) {
@@ -143,7 +143,7 @@ class GeneratedNotificationService implements NotificationService {
   }
 }
 
-NotificationItem _item(api.ListNotifications200ResponseDataInner value) {
+NotificationItem _item(api.MemberNotification value) {
   _requireUuid(value.id);
   final destination = NotificationDestination.tryParse(value.deepLink);
   if (value.kind != 'briefing_ready' ||
@@ -163,18 +163,17 @@ NotificationItem _item(api.ListNotifications200ResponseDataInner value) {
   );
 }
 
-NotificationPreferences _preferences(
-  api.GetNotificationPreferences200ResponseData value,
-) {
+NotificationPreferences _preferences(api.NotificationPreferences value) {
+  final quietHours = value.quietHours;
   final result = NotificationPreferences(
     dailyRitual: value.dailyRitual,
     weeklyRecap: value.weeklyRecap,
     moonCycle: value.moonCycle,
     quietHours: NotificationQuietHours(
-      enabled: value.quietHours.enabled,
-      start: value.quietHours.start,
-      end: value.quietHours.end,
-      timezone: value.quietHours.timezone,
+      enabled: quietHours['enabled'] == true,
+      start: quietHours['start'] as String? ?? '22:00',
+      end: quietHours['end'] as String? ?? '07:00',
+      timezone: quietHours['timezone'] as String? ?? 'UTC',
     ),
     version: value.version,
   );
@@ -206,10 +205,6 @@ void _requireUniqueIds(Iterable<String> ids) {
   for (final id in ids) {
     if (!seen.add(id)) _terminal();
   }
-}
-
-void _requirePage(bool hasMore, String? cursor) {
-  if (hasMore != (cursor != null && cursor.isNotEmpty)) _terminal();
 }
 
 Never _terminal() => throw const LoadFailure(LoadPhase.terminalFailure);

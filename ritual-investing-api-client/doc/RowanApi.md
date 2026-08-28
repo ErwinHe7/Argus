@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 
 # **resolveRowan**
-> GetAccount200Response resolveRowan(surface, contextKey)
+> RowanCounselResponse resolveRowan(surface, contextKey)
 
 
 
@@ -42,7 +42,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**RowanCounselResponse**](RowanCounselResponse.md)
 
 ### Authorization
 

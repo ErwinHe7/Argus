@@ -9,12 +9,21 @@ const requestId = '018f3c2a-4b67-7a89-8abc-1234567890ab';
 
 void main() {
   test('decodes retained response and error envelopes with future fields', () {
-    final response = GetAccount200Response.fromJson({
-      'data': {'version': 3, 'future_server_field': true},
+    final response = MemberAccountResponse.fromJson({
+      'data': {
+        'status': 'active',
+        'deletion_epoch': 0,
+        'profile': null,
+        'preferences': null,
+        'onboarding': null,
+        'investor_profile': null,
+        'astrology_profile': null,
+        'future_server_field': true,
+      },
       'meta': {'request_id': requestId, 'future_meta_field': true},
     });
     expect(response.meta.requestId, requestId);
-    expect(response.data, isA<Map<String, dynamic>>());
+    expect(response.data.status, MemberAccountStatusEnum.active);
 
     final error = GetAccount401Response.fromJson({
       'error': {
@@ -148,9 +157,9 @@ void main() {
 }
 
 class _RecordingAdapter implements HttpClientAdapter {
-  _RecordingAdapter({this.data = const {'version': 3}});
+  _RecordingAdapter({this.data});
 
-  final Map<String, Object?> data;
+  final Map<String, Object?>? data;
   final requests = <RequestOptions>[];
 
   @override
@@ -162,7 +171,7 @@ class _RecordingAdapter implements HttpClientAdapter {
     requests.add(options);
     return ResponseBody.fromString(
       jsonEncode({
-        'data': data,
+        'data': data ?? _defaultData(options.path),
         'meta': {'request_id': requestId},
       }),
       200,
@@ -174,4 +183,37 @@ class _RecordingAdapter implements HttpClientAdapter {
 
   @override
   void close({bool force = false}) {}
+}
+
+Map<String, Object?> _defaultData(String path) {
+  if (path == '/v1/session/bootstrap') {
+    return {
+      'astrology_profile': null,
+      'investor_profile': null,
+      'member': {
+        'created_at': null,
+        'deletion_epoch': 0,
+        'deletion_requested_at': null,
+        'status': 'active',
+        'updated_at': null,
+        'user_id': '018f3c2a-4b67-7a89-8abc-123456789001',
+      },
+      'onboarding': null,
+      'preferences': null,
+      'profile': null,
+      'server_time': '2026-08-28T12:00:00.000Z',
+    };
+  }
+  if (path == '/v1/preferences') {
+    return {
+      'deletion_epoch': 0,
+      'locale': 'en-US',
+      'ritual_mode': 'tarot',
+      'theme_mode': 'dark',
+      'timezone': 'UTC',
+      'user_id': '018f3c2a-4b67-7a89-8abc-123456789001',
+      'version': 4,
+    };
+  }
+  return const {};
 }

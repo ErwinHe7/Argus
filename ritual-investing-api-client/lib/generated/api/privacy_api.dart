@@ -9,9 +9,10 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/create_privacy_download_url200_response.dart';
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
+import 'package:ritual_investing_api_client/generated/model/privacy_download_url_response.dart';
+import 'package:ritual_investing_api_client/generated/model/privacy_request_collection_response.dart';
+import 'package:ritual_investing_api_client/generated/model/privacy_request_response.dart';
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request.dart';
 
 class PrivacyApi {
@@ -31,10 +32,9 @@ class PrivacyApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [CreatePrivacyDownloadUrl200Response] as data
+  /// Returns a [Future] containing a [Response] with a [PrivacyDownloadUrlResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<CreatePrivacyDownloadUrl200Response>>
-  createPrivacyDownloadUrl({
+  Future<Response<PrivacyDownloadUrlResponse>> createPrivacyDownloadUrl({
     required String requestId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -69,16 +69,17 @@ class PrivacyApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    CreatePrivacyDownloadUrl200Response? _responseData;
+    PrivacyDownloadUrlResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<
-              CreatePrivacyDownloadUrl200Response,
-              CreatePrivacyDownloadUrl200Response
-            >(rawData, 'CreatePrivacyDownloadUrl200Response', growable: true);
+          : deserialize<PrivacyDownloadUrlResponse, PrivacyDownloadUrlResponse>(
+              rawData,
+              'PrivacyDownloadUrlResponse',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -89,7 +90,7 @@ class PrivacyApi {
       );
     }
 
-    return Response<CreatePrivacyDownloadUrl200Response>(
+    return Response<PrivacyDownloadUrlResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -112,9 +113,9 @@ class PrivacyApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [PrivacyRequestCollectionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> listPrivacyRequests({
+  Future<Response<PrivacyRequestCollectionResponse>> listPrivacyRequests({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -143,17 +144,16 @@ class PrivacyApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    PrivacyRequestCollectionResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
-              rawData,
-              'GetAccount200Response',
-              growable: true,
-            );
+          : deserialize<
+              PrivacyRequestCollectionResponse,
+              PrivacyRequestCollectionResponse
+            >(rawData, 'PrivacyRequestCollectionResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -164,7 +164,7 @@ class PrivacyApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<PrivacyRequestCollectionResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -189,9 +189,9 @@ class PrivacyApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [PrivacyRequestResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> requestPrivacyAction({
+  Future<Response<PrivacyRequestResponse>> requestPrivacyAction({
     required String idempotencyKey,
     required RequestPrivacyActionRequest requestPrivacyActionRequest,
     CancelToken? cancelToken,
@@ -240,15 +240,15 @@ class PrivacyApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    PrivacyRequestResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<PrivacyRequestResponse, PrivacyRequestResponse>(
               rawData,
-              'GetAccount200Response',
+              'PrivacyRequestResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -261,7 +261,7 @@ class PrivacyApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<PrivacyRequestResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

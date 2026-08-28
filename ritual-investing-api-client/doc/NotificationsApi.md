@@ -12,11 +12,12 @@ Method | HTTP request | Description
 [**getNotificationPreferences**](NotificationsApi.md#getnotificationpreferences) | **GET** /v1/notification-preferences | 
 [**listNotifications**](NotificationsApi.md#listnotifications) | **GET** /v1/notifications | 
 [**markNotificationRead**](NotificationsApi.md#marknotificationread) | **PATCH** /v1/notifications/{notification_id}/read | 
+[**readAllNotifications**](NotificationsApi.md#readallnotifications) | **POST** /v1/notifications/read-all | 
 [**updateNotificationPreferences**](NotificationsApi.md#updatenotificationpreferences) | **PATCH** /v1/notification-preferences | 
 
 
 # **getNotificationPreferences**
-> GetAccount200Response getNotificationPreferences()
+> NotificationPreferencesResponse getNotificationPreferences()
 
 
 
@@ -39,7 +40,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**NotificationPreferencesResponse**](NotificationPreferencesResponse.md)
 
 ### Authorization
 
@@ -53,7 +54,7 @@ This endpoint does not need any parameter.
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listNotifications**
-> GetAccount200Response listNotifications(limit)
+> NotificationCollectionResponse listNotifications(limit)
 
 
 
@@ -80,7 +81,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**NotificationCollectionResponse**](NotificationCollectionResponse.md)
 
 ### Authorization
 
@@ -94,7 +95,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **markNotificationRead**
-> GetAccount200Response markNotificationRead(notificationId)
+> NotificationResponse markNotificationRead(notificationId, setNotificationReadStateRequest)
 
 
 
@@ -104,9 +105,10 @@ import 'package:ritual_investing_api_client/api.dart';
 
 final api = RitualInvestingApiClient().getNotificationsApi();
 final String notificationId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+final SetNotificationReadStateRequest setNotificationReadStateRequest = ; // SetNotificationReadStateRequest | 
 
 try {
-    final response = api.markNotificationRead(notificationId);
+    final response = api.markNotificationRead(notificationId, setNotificationReadStateRequest);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling NotificationsApi->markNotificationRead: $e\n');
@@ -118,10 +120,11 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **notificationId** | **String**|  | 
+ **setNotificationReadStateRequest** | [**SetNotificationReadStateRequest**](SetNotificationReadStateRequest.md)|  | 
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**NotificationResponse**](NotificationResponse.md)
 
 ### Authorization
 
@@ -129,13 +132,56 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
+ - **Content-Type**: application/json
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **readAllNotifications**
+> ReadAllNotificationsResponse readAllNotifications(idempotencyKey, readAllNotificationsRequest)
+
+
+
+### Example
+```dart
+import 'package:ritual_investing_api_client/api.dart';
+
+final api = RitualInvestingApiClient().getNotificationsApi();
+final String idempotencyKey = idempotencyKey_example; // String | 
+final ReadAllNotificationsRequest readAllNotificationsRequest = ; // ReadAllNotificationsRequest | 
+
+try {
+    final response = api.readAllNotifications(idempotencyKey, readAllNotificationsRequest);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling NotificationsApi->readAllNotifications: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **idempotencyKey** | **String**|  | 
+ **readAllNotificationsRequest** | [**ReadAllNotificationsRequest**](ReadAllNotificationsRequest.md)|  | 
+
+### Return type
+
+[**ReadAllNotificationsResponse**](ReadAllNotificationsResponse.md)
+
+### Authorization
+
+[SupabaseBearer](../README.md#SupabaseBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **updateNotificationPreferences**
-> GetAccount200Response updateNotificationPreferences(ifMatch, requestBody)
+> NotificationPreferencesResponse updateNotificationPreferences(ifMatch, requestBody)
 
 
 
@@ -164,7 +210,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**NotificationPreferencesResponse**](NotificationPreferencesResponse.md)
 
 ### Authorization
 

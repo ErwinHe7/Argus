@@ -9,8 +9,13 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
+import 'package:ritual_investing_api_client/generated/model/notification_collection_response.dart';
+import 'package:ritual_investing_api_client/generated/model/notification_preferences_response.dart';
+import 'package:ritual_investing_api_client/generated/model/notification_response.dart';
+import 'package:ritual_investing_api_client/generated/model/read_all_notifications_request.dart';
+import 'package:ritual_investing_api_client/generated/model/read_all_notifications_response.dart';
+import 'package:ritual_investing_api_client/generated/model/set_notification_read_state_request.dart';
 
 class NotificationsApi {
   final Dio _dio;
@@ -28,9 +33,9 @@ class NotificationsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [NotificationPreferencesResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> getNotificationPreferences({
+  Future<Response<NotificationPreferencesResponse>> getNotificationPreferences({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -59,17 +64,16 @@ class NotificationsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    NotificationPreferencesResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
-              rawData,
-              'GetAccount200Response',
-              growable: true,
-            );
+          : deserialize<
+              NotificationPreferencesResponse,
+              NotificationPreferencesResponse
+            >(rawData, 'NotificationPreferencesResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -80,7 +84,7 @@ class NotificationsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<NotificationPreferencesResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -104,9 +108,9 @@ class NotificationsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [NotificationCollectionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> listNotifications({
+  Future<Response<NotificationCollectionResponse>> listNotifications({
     int? limit = 25,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -141,17 +145,16 @@ class NotificationsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    NotificationCollectionResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
-              rawData,
-              'GetAccount200Response',
-              growable: true,
-            );
+          : deserialize<
+              NotificationCollectionResponse,
+              NotificationCollectionResponse
+            >(rawData, 'NotificationCollectionResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -162,7 +165,7 @@ class NotificationsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<NotificationCollectionResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -179,6 +182,7 @@ class NotificationsApi {
   ///
   /// Parameters:
   /// * [notificationId]
+  /// * [setNotificationReadStateRequest]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -186,10 +190,11 @@ class NotificationsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [NotificationResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> markNotificationRead({
+  Future<Response<NotificationResponse>> markNotificationRead({
     required String notificationId,
+    required SetNotificationReadStateRequest setNotificationReadStateRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -212,26 +217,41 @@ class NotificationsApi {
         ],
         ...?extra,
       },
+      contentType: 'application/json',
       validateStatus: validateStatus,
     );
 
+    dynamic _bodyData;
+
+    try {
+      _bodyData = jsonEncode(setNotificationReadStateRequest);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(_dio.options, _path),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
     final _response = await _dio.request<Object>(
       _path,
+      data: _bodyData,
       options: _options,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    NotificationResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<NotificationResponse, NotificationResponse>(
               rawData,
-              'GetAccount200Response',
+              'NotificationResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -244,7 +264,103 @@ class NotificationsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<NotificationResponse>(
+      data: _responseData,
+      headers: _response.headers,
+      isRedirect: _response.isRedirect,
+      requestOptions: _response.requestOptions,
+      redirects: _response.redirects,
+      statusCode: _response.statusCode,
+      statusMessage: _response.statusMessage,
+      extra: _response.extra,
+    );
+  }
+
+  /// readAllNotifications
+  ///
+  ///
+  /// Parameters:
+  /// * [idempotencyKey]
+  /// * [readAllNotificationsRequest]
+  /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
+  /// * [headers] - Can be used to add additional headers to the request
+  /// * [extras] - Can be used to add flags to the request
+  /// * [validateStatus] - A [ValidateStatus] callback that can be used to determine request success based on the HTTP status of the response
+  /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
+  /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
+  ///
+  /// Returns a [Future] containing a [Response] with a [ReadAllNotificationsResponse] as data
+  /// Throws [DioException] if API call or serialization fails
+  Future<Response<ReadAllNotificationsResponse>> readAllNotifications({
+    required String idempotencyKey,
+    required ReadAllNotificationsRequest readAllNotificationsRequest,
+    CancelToken? cancelToken,
+    Map<String, dynamic>? headers,
+    Map<String, dynamic>? extra,
+    ValidateStatus? validateStatus,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final _path = r'/v1/notifications/read-all';
+    final _options = Options(
+      method: r'POST',
+      headers: <String, dynamic>{
+        r'idempotency-key': idempotencyKey,
+        ...?headers,
+      },
+      extra: <String, dynamic>{
+        'secure': <Map<String, String>>[
+          {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
+        ],
+        ...?extra,
+      },
+      contentType: 'application/json',
+      validateStatus: validateStatus,
+    );
+
+    dynamic _bodyData;
+
+    try {
+      _bodyData = jsonEncode(readAllNotificationsRequest);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _options.compose(_dio.options, _path),
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    final _response = await _dio.request<Object>(
+      _path,
+      data: _bodyData,
+      options: _options,
+      cancelToken: cancelToken,
+      onSendProgress: onSendProgress,
+      onReceiveProgress: onReceiveProgress,
+    );
+
+    ReadAllNotificationsResponse? _responseData;
+
+    try {
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<
+              ReadAllNotificationsResponse,
+              ReadAllNotificationsResponse
+            >(rawData, 'ReadAllNotificationsResponse', growable: true);
+    } catch (error, stackTrace) {
+      throw DioException(
+        requestOptions: _response.requestOptions,
+        response: _response,
+        type: DioExceptionType.unknown,
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+
+    return Response<ReadAllNotificationsResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -269,9 +385,10 @@ class NotificationsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [NotificationPreferencesResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> updateNotificationPreferences({
+  Future<Response<NotificationPreferencesResponse>>
+  updateNotificationPreferences({
     required String ifMatch,
     required Map<String, Object?> requestBody,
     CancelToken? cancelToken,
@@ -317,17 +434,16 @@ class NotificationsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    NotificationPreferencesResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
-              rawData,
-              'GetAccount200Response',
-              growable: true,
-            );
+          : deserialize<
+              NotificationPreferencesResponse,
+              NotificationPreferencesResponse
+            >(rawData, 'NotificationPreferencesResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -338,7 +454,7 @@ class NotificationsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<NotificationPreferencesResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

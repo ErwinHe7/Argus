@@ -9,7 +9,7 @@ import 'package:ritual_investing_api_client/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **data** | [**MemberIntentionPage**](MemberIntentionPage.md) |  | 
-**meta** | [**GetAccount200ResponseMeta**](GetAccount200ResponseMeta.md) |  | 
+**meta** | [**ListAdminAudit200ResponseMeta**](ListAdminAudit200ResponseMeta.md) |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)
 

@@ -35,9 +35,11 @@ class GeneratedSessionBootstrapService implements SessionBootstrapService {
         _api.bootstrapSession(),
         _safeBrokerageBootstrap(),
       ]);
-      final session = (values[0] as Response<GetAccount200Response>).data!.data;
+      final session =
+          (values[0] as Response<SessionBootstrapResponse>).data?.data;
+      if (session == null) ApiFailureMapper.terminalContract();
       return mapSupabaseSessionBootstrap(
-        session,
+        session.toJson(),
         values[1] as BrokerageConnectionSnapshot,
       );
     } on DioException catch (error) {

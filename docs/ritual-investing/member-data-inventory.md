@@ -50,6 +50,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:asset_metric_snapshots` | retained-argus | Argus evidence data in Supabase |
 | `database-table:assets` | retained-argus | Argus asset catalog in Supabase |
 | `database-table:astrology_profiles` | retained-argus | Argus optional personalization in Supabase |
+| `database-table:briefing_read_states` | retained-argus | Owner- and deletion-epoch-fenced briefing read markers in Supabase |
 | `database-table:briefing_sections` | retained-argus | Argus briefing data in Supabase |
 | `database-table:briefing_template_revisions` | retained-argus | Argus editorial data in Supabase |
 | `database-table:briefing_templates` | retained-argus | Argus editorial data in Supabase |
@@ -332,4 +333,4 @@ Provider facts are not repurposed as Rowan context, marketing analytics, or a se
 
 Branches and pull requests use a fresh local Supabase CLI stack. One hosted development project receives serialized main/manual deployments; Supabase Pro branching is not required. A second Supabase project, production Webull registration, custom SMTP, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting are launch gates.
 
-The migration is replacement-first. Auth0, Neon, Cloudflare backend compute, Cloudflare Queues, R2, Cloudflare Access, Drizzle, and simulated-finance authority are removed only after focused replacement tests pass, then their external credentials, routes, bindings, and resources are revoked.
+The repository migration removed Auth0, Neon, Cloudflare backend compute, Cloudflare Queues, R2, Cloudflare Access, Drizzle, and simulated-finance authority after focused replacement tests passed. Revoking any corresponding external credentials, routes, bindings, and resources that still exist in provider dashboards is an operator cleanup step.

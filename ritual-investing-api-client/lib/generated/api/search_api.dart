@@ -9,8 +9,8 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
+import 'package:ritual_investing_api_client/generated/model/search_response.dart';
 
 class SearchApi {
   final Dio _dio;
@@ -22,6 +22,8 @@ class SearchApi {
   ///
   /// Parameters:
   /// * [q]
+  /// * [kinds]
+  /// * [cursor]
   /// * [limit]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
@@ -30,10 +32,12 @@ class SearchApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [SearchResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> search({
+  Future<Response<SearchResponse>> search({
     required String q,
+    required String kinds,
+    String? cursor,
     int? limit = 25,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -57,6 +61,8 @@ class SearchApi {
 
     final _queryParameters = <String, dynamic>{
       r'q': q,
+      r'kinds': kinds,
+      if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
     };
 
@@ -69,15 +75,15 @@ class SearchApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    SearchResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<SearchResponse, SearchResponse>(
               rawData,
-              'GetAccount200Response',
+              'SearchResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -90,7 +96,7 @@ class SearchApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<SearchResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

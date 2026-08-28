@@ -140,6 +140,483 @@ const responseSchema = z
   })
   .strict();
 const responseMetaSchema = z.object({ request_id: uuid }).strict();
+const collectionMetaSchema = responseMetaSchema.extend({
+  next_cursor: z.string().min(1).max(2048).nullable(),
+  has_more: z.boolean(),
+}).strict().openapi("CollectionMeta");
+const retainedTimestampSchema = z.string().datetime().nullable();
+
+function retainedEnvelope(name: string, data: z.ZodType) {
+  return z.object({ data, meta: responseMetaSchema }).strict().openapi(name);
+}
+
+function retainedCollectionEnvelope(name: string, data: z.ZodType) {
+  return z.object({ data, meta: collectionMetaSchema }).strict().openapi(name);
+}
+
+const memberProfileSchema = z.object({
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  display_name: z.string().min(1).max(80),
+  avatar_media_id: uuid.nullable(),
+  locale: z.string().min(2).max(35),
+  updated_at: retainedTimestampSchema,
+}).strict().openapi("MemberProfile");
+const memberPreferencesSchema = z.object({
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  theme_mode: z.enum(["system", "light", "dark"]),
+  ritual_mode: z.enum(["tarot", "astrology"]),
+  timezone: z.string().min(1).max(64),
+  locale: z.string().min(2).max(35),
+  version: z.coerce.number().int().positive(),
+}).strict().openapi("MemberPreferences");
+const onboardingStateSchema = z.object({
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  current_step: z.string().min(1).max(80),
+  completed_steps: z.array(z.string().min(1).max(80)).max(64),
+  completed_at: retainedTimestampSchema,
+  version: z.coerce.number().int().positive(),
+}).strict().openapi("OnboardingState");
+const investorProfileSchema = z.object({
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  goal_type: z.enum(["calm_fund", "long_term_growth", "income", "exploration"]),
+  time_horizon: z.enum(["short", "medium", "long"]),
+  risk_comfort: z.enum(["low", "moderate", "high"]),
+  version: z.coerce.number().int().positive(),
+}).strict().openapi("InvestorProfile");
+const astrologyProfileSchema = z.object({
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  birth_date: z.string().date(),
+  derived_profile_code: z.enum(["lunar_patient", "solar_builder", "rising_explorer"]),
+  algorithm_version: z.literal("v1"),
+  enabled_at: z.string().datetime(),
+  version: z.number().int().min(1).max(1),
+}).strict().openapi("AstrologyProfile");
+const memberAccountSchema = z.object({
+  status: z.enum(["active", "suspended", "deletion_pending", "purging", "purged"]),
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  profile: memberProfileSchema.nullable(),
+  preferences: memberPreferencesSchema.nullable(),
+  onboarding: onboardingStateSchema.nullable(),
+  investor_profile: investorProfileSchema.nullable(),
+  astrology_profile: astrologyProfileSchema.nullable(),
+}).strict().openapi("MemberAccount");
+const memberAccountResponseSchema = retainedEnvelope(
+  "MemberAccountResponse",
+  memberAccountSchema,
+);
+const consentReceiptSchema = z.object({
+  id: uuid,
+  policy_code: z.string().min(1).max(80),
+  policy_version: z.string().min(1).max(40),
+  decision: z.enum(["accepted", "declined", "withdrawn"]),
+  recorded_at: z.string().datetime(),
+}).strict().openapi("ConsentReceipt");
+const consentReceiptResponseSchema = retainedEnvelope(
+  "ConsentReceiptResponse",
+  consentReceiptSchema,
+);
+const sessionMemberSchema = z.object({
+  user_id: uuid,
+  status: z.literal("active"),
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  deletion_requested_at: retainedTimestampSchema,
+  created_at: retainedTimestampSchema,
+  updated_at: retainedTimestampSchema,
+}).passthrough().openapi("SessionMember");
+const sessionBootstrapSchema = z.object({
+  member: sessionMemberSchema,
+  profile: memberProfileSchema.nullable(),
+  preferences: memberPreferencesSchema.nullable(),
+  onboarding: onboardingStateSchema.nullable(),
+  investor_profile: investorProfileSchema.nullable(),
+  astrology_profile: z.record(z.string(), z.unknown()).nullable(),
+  server_time: z.string().datetime(),
+}).strict().openapi("SessionBootstrap");
+const sessionBootstrapResponseSchema = retainedEnvelope(
+  "SessionBootstrapResponse",
+  sessionBootstrapSchema,
+);
+
+const publicAssetTypeSchema = z.enum(["equity", "etf", "market_index", "cash"]);
+const catalogAssetSchema = z.object({
+  id: uuid,
+  slug: z.string().min(1).max(120),
+  symbol: z.string().min(1).max(32),
+  name: z.string().min(1).max(160),
+  asset_type: publicAssetTypeSchema,
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  exchange: z.string().max(64).nullable(),
+  status: z.enum(["active", "inactive"]),
+}).strict().openapi("CatalogAsset");
+const researchDisclosureSchema = z.object({
+  is_demo: z.boolean(),
+  observed_at: z.string().datetime(),
+  source_label: z.string().min(1).max(120),
+  limitations: z.array(z.string().min(1).max(500)).min(1).max(20),
+}).strict().openapi("ResearchDisclosure");
+const evidenceSummarySchema = z.object({
+  claim_id: uuid,
+  factor_label: z.string().min(1).max(120),
+  summary: z.string().min(1).max(1000),
+  observed_at: z.string().datetime(),
+  uncertainty: z.string().min(1).max(1000),
+}).strict().openapi("EvidenceSummary");
+const evidenceDetailSchema = evidenceSummarySchema.extend({
+  source: z.object({
+    title: z.string().min(1).max(240),
+    publisher: z.string().min(1).max(120),
+    url: z.string().url().refine((value) => value.startsWith("https://")).nullable(),
+    published_at: retainedTimestampSchema,
+  }).strict(),
+}).strict().openapi("EvidenceDetail");
+const assetSummarySchema = catalogAssetSchema.omit({ exchange: true, status: true }).extend({
+  revision_id: uuid,
+  appearance_reason: z.string().min(1).max(1000),
+  demo: researchDisclosureSchema,
+}).strict().openapi("AssetSummary");
+const assetRiskSchema = z.object({
+  title: z.string().min(1).max(120),
+  detail: z.string().min(1).max(2000),
+  severity: z.enum(["low", "medium", "high"]),
+}).strict().openapi("AssetRisk");
+const assetDetailSchema = assetSummarySchema.extend({
+  thesis: z.string().min(1).max(10000),
+  limitations: z.string().min(1).max(2000),
+  metrics_as_of: z.string().datetime(),
+  evidence: z.array(evidenceSummarySchema).max(20),
+  risks: z.array(assetRiskSchema).max(20),
+  saved: z.boolean(),
+}).strict().openapi("AssetCodexDetail");
+const assetMetricSchema = z.object({
+  observed_at: z.string().datetime(),
+  price_minor: z.number().int().nonnegative(),
+  change_bps: z.number().int().nullable(),
+  expense_ratio_bps: z.number().int().nonnegative().nullable(),
+  source_label: z.string().min(1).max(120),
+  demo: researchDisclosureSchema,
+}).strict().openapi("AssetMetric");
+const assetCollectionResponseSchema = retainedCollectionEnvelope(
+  "AssetCollectionResponse",
+  z.array(assetSummarySchema).max(100),
+);
+const assetDetailResponseSchema = retainedEnvelope(
+  "AssetDetailResponse",
+  assetDetailSchema,
+);
+const assetEvidenceResponseSchema = retainedEnvelope(
+  "AssetEvidenceResponse",
+  z.array(evidenceDetailSchema).max(20),
+);
+const assetMetricsResponseSchema = retainedEnvelope(
+  "AssetMetricsResponse",
+  z.array(assetMetricSchema).max(90),
+);
+const assetComparisonSchema = z.object({
+  assets: z.array(z.object({
+    asset: assetSummarySchema,
+    latest_metric: assetMetricSchema.nullable(),
+    risk_count: z.number().int().nonnegative(),
+  }).strict()).min(2).max(5),
+  compared_at: z.string().datetime(),
+  demo: researchDisclosureSchema,
+}).strict().openapi("AssetComparison");
+const assetComparisonResponseSchema = retainedEnvelope(
+  "AssetComparisonResponse",
+  assetComparisonSchema,
+);
+
+const briefingSummarySchema = z.object({
+  id: uuid,
+  briefing_type: z.enum(["daily", "weekly", "moon_cycle"]),
+  period_start: z.string().date(),
+  period_end: z.string().date(),
+  generated_at: z.string().datetime(),
+  generation: z.number().int().positive(),
+  source_sequence: z.number().int().positive(),
+  read_at: retainedTimestampSchema,
+}).strict().openapi("BriefingSummary");
+const briefingSectionSchema = z.object({
+  ordinal: z.number().int().positive(),
+  source_sequence: z.number().int().positive(),
+  schema_version: z.number().int().positive(),
+  disclosure: z.string().min(1).max(2000),
+}).strict().openapi("BriefingSection");
+const briefingDetailSchema = briefingSummarySchema.extend({
+  sections: z.array(briefingSectionSchema).max(100),
+}).strict().openapi("BriefingDetail");
+const briefingCollectionResponseSchema = retainedCollectionEnvelope(
+  "BriefingCollectionResponse",
+  z.array(briefingSummarySchema).max(100),
+);
+const briefingDetailResponseSchema = retainedEnvelope(
+  "BriefingDetailResponse",
+  briefingDetailSchema,
+);
+const briefingPendingResponseSchema = retainedEnvelope(
+  "BriefingPendingResponse",
+  z.object({
+    status: z.literal("briefing_pending"),
+    local_date: z.string().date(),
+  }).strict().openapi("BriefingPending"),
+);
+
+const circleSchema = z.object({
+  id: uuid,
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  title: z.string().min(1).max(80),
+  description: z.string().max(1000),
+  private: z.literal(true),
+  source_template_id: uuid.nullable(),
+  source_revision_id: uuid.nullable(),
+  version: z.coerce.number().int().positive(),
+  archived_at: retainedTimestampSchema,
+  assets: z.array(z.object({
+    id: uuid,
+    asset_id: uuid,
+    ordinal: z.coerce.number().int().positive(),
+    weight_bps: z.coerce.number().int().min(0).max(10000).nullable(),
+    note: z.string().max(2000).nullable(),
+  }).passthrough()).optional(),
+}).passthrough().openapi("MemberCircle");
+const circleCollectionResponseSchema = retainedCollectionEnvelope(
+  "CircleCollectionResponse",
+  z.array(circleSchema).max(100),
+);
+const circleDetailResponseSchema = retainedEnvelope("CircleDetailResponse", circleSchema);
+const seededCreatorSchema = z.object({
+  id: uuid,
+  slug: z.string().min(1).max(120),
+  display_name: z.string().min(1).max(120),
+  bio: z.string().min(1).max(2000),
+  is_fictional: z.literal(true),
+  demo: researchDisclosureSchema,
+}).strict().openapi("SeededCreator");
+const circleTemplateAssetSchema = assetSummarySchema.extend({
+  ordinal: z.number().int().min(1).max(50),
+  weight_bps: z.number().int().min(0).max(10000).nullable(),
+  note: z.string().max(2000).nullable(),
+}).strict().openapi("CircleTemplateAsset");
+const circleTemplateDetailSchema = z.object({
+  id: uuid,
+  revision_id: uuid,
+  slug: z.string().min(1).max(120),
+  title: z.string().min(1).max(120),
+  description: z.string().min(1).max(2000),
+  theme: z.string().min(1).max(64),
+  creator: seededCreatorSchema,
+  assets: z.array(circleTemplateAssetSchema).max(50),
+  saved: z.boolean(),
+  demo: researchDisclosureSchema,
+}).strict().openapi("CircleTemplateDetail");
+const circleTemplateDetailResponseSchema = retainedEnvelope(
+  "CircleTemplateDetailResponse",
+  circleTemplateDetailSchema,
+);
+
+const covenQualificationSchema = z.object({
+  category: z.enum(["founder", "owner", "chief_executive"]),
+  person_name: z.string().min(1).max(120),
+  effective_date: z.string().date(),
+  valid_to: z.string().date().nullable(),
+  verified_as_of: z.string().date(),
+  evidence: z.array(evidenceSummarySchema).max(20),
+}).strict().openapi("CovenQualification");
+const covenSummarySchema = z.object({
+  id: uuid,
+  revision_id: uuid,
+  slug: z.string().min(1).max(120),
+  company: z.string().min(1).max(160),
+  symbol: z.string().max(32).nullable(),
+  category: z.enum(["founder", "owner", "chief_executive"]),
+  focus: z.string().min(1).max(120),
+  teaser: z.string().min(1).max(500),
+  effective_date: z.string().date(),
+  verified_as_of: z.string().date(),
+  demo: researchDisclosureSchema,
+}).strict().openapi("CovenSummary");
+const covenDetailSchema = covenSummarySchema.extend({
+  summary: z.string().min(1).max(2000),
+  inclusion_rationale: z.string().min(1).max(5000),
+  limitations: z.string().min(1).max(2000),
+  qualifications: z.array(covenQualificationSchema).max(20),
+  evidence: z.array(evidenceDetailSchema).max(100),
+  saved: z.boolean(),
+}).strict().openapi("CovenEntryDetail");
+const covenCollectionResponseSchema = retainedCollectionEnvelope(
+  "CovenCollectionResponse",
+  z.array(covenSummarySchema).max(100),
+);
+const covenDetailResponseSchema = retainedEnvelope("CovenDetailResponse", covenDetailSchema);
+const covenEvidenceResponseSchema = retainedEnvelope(
+  "CovenEvidenceResponse",
+  z.array(evidenceDetailSchema).max(100),
+);
+const grimoireSummarySchema = z.object({
+  id: uuid,
+  revision_id: uuid,
+  slug: z.string().min(1).max(120),
+  title: z.string().min(1).max(120),
+  description: z.string().min(1).max(2000),
+  theme: z.string().min(1).max(64),
+  curator_label: z.string().min(1).max(120),
+  demo: researchDisclosureSchema,
+}).strict().openapi("GrimoireSummary");
+const grimoireDetailSchema = grimoireSummarySchema.extend({
+  assets: z.array(assetSummarySchema).max(50),
+  saved: z.boolean(),
+}).strict().openapi("GrimoireDetail");
+const circleTemplateSummarySchema = circleTemplateDetailSchema.omit({
+  assets: true,
+  saved: true,
+}).openapi("CircleTemplateSummary");
+const discoverAssetCollectionResponseSchema = retainedCollectionEnvelope(
+  "DiscoverAssetCollectionResponse",
+  z.array(assetSummarySchema).max(100),
+);
+const grimoireCollectionResponseSchema = retainedCollectionEnvelope(
+  "GrimoireCollectionResponse",
+  z.array(grimoireSummarySchema).max(100),
+);
+const circleTemplateCollectionResponseSchema = retainedCollectionEnvelope(
+  "CircleTemplateCollectionResponse",
+  z.array(circleTemplateSummarySchema).max(100),
+);
+const grimoireDetailResponseSchema = retainedEnvelope(
+  "GrimoireDetailResponse",
+  grimoireDetailSchema,
+);
+const creatorCollectionResponseSchema = retainedCollectionEnvelope(
+  "CreatorCollectionResponse",
+  z.array(seededCreatorSchema).max(100),
+);
+const discoverItemSchema = z.object({
+  kind: z.enum(["asset", "coven", "grimoire", "circle_template"]),
+  asset: assetSummarySchema.nullable().optional(),
+  coven: covenSummarySchema.nullable().optional(),
+  grimoire: grimoireSummarySchema.nullable().optional(),
+  circle_template: circleTemplateSummarySchema.nullable().optional(),
+}).strict().openapi("DiscoverItem");
+const discoverResponseSchema = retainedCollectionEnvelope(
+  "DiscoverResponse",
+  z.array(discoverItemSchema).max(100),
+);
+
+const notificationSchema = z.object({
+  id: uuid,
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  kind: z.string().min(1).max(80),
+  title: z.string().min(1).max(160),
+  body: z.string().min(1).max(2000),
+  deep_link: z.string().max(512).nullable(),
+  scheduled_at: retainedTimestampSchema,
+  read_at: retainedTimestampSchema,
+  created_at: z.string().datetime(),
+}).strict().openapi("MemberNotification");
+const notificationCollectionResponseSchema = retainedEnvelope(
+  "NotificationCollectionResponse",
+  z.array(notificationSchema).max(100),
+);
+const notificationPreferencesSchema = z.object({
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  daily_ritual: z.boolean(),
+  weekly_recap: z.boolean(),
+  moon_cycle: z.boolean(),
+  quiet_hours: jsonObject,
+  version: z.coerce.number().int().positive(),
+}).strict().openapi("NotificationPreferences");
+const notificationPreferencesResponseSchema = retainedEnvelope(
+  "NotificationPreferencesResponse",
+  notificationPreferencesSchema,
+);
+const privacyRequestSchema = z.object({
+  id: uuid,
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  request_type: z.enum(["export", "deletion"]),
+  status: z.enum(["requested", "verified", "queued", "processing", "completed", "failed", "cancelled"]),
+  requested_at: z.string().datetime(),
+  completed_at: retainedTimestampSchema,
+  failure_code: z.string().max(128).nullable(),
+}).strict().openapi("PrivacyRequest");
+const privacyRequestCollectionResponseSchema = retainedEnvelope(
+  "PrivacyRequestCollectionResponse",
+  z.array(privacyRequestSchema).max(100),
+);
+const privacyRequestResponseSchema = retainedEnvelope("PrivacyRequestResponse", privacyRequestSchema);
+const ritualAssignmentSchema = z.object({
+  id: uuid,
+  user_id: uuid,
+  deletion_epoch: z.coerce.number().int().nonnegative(),
+  local_date: z.string().date(),
+  mode: z.enum(["tarot", "astrology"]),
+  schedule_id: uuid,
+  revision_id: uuid,
+  rowan_revision_id: uuid.nullable(),
+  state: z.enum(["assigned", "revealed", "completed"]),
+  revealed_at: retainedTimestampSchema,
+  completed_at: retainedTimestampSchema,
+  version: z.coerce.number().int().positive(),
+  payload: jsonObject,
+  body_template: z.string().nullable(),
+  allowed_tokens: z.array(z.string()).nullable(),
+  risk_footer: z.string().nullable(),
+}).passthrough().openapi("DailyRitualAssignment");
+const ritualAssignmentResponseSchema = retainedEnvelope(
+  "DailyRitualResponse",
+  ritualAssignmentSchema,
+);
+const ritualHistoryResponseSchema = retainedEnvelope(
+  "RitualHistoryResponse",
+  z.array(ritualAssignmentSchema).max(100),
+);
+const evidenceSourceSchema = z.object({
+  canonical_url: z.string().url(),
+  title: z.string().min(1),
+  publisher: z.string().min(1),
+  published_at: retainedTimestampSchema,
+  retrieved_at: z.string().datetime(),
+  source_kind: z.string().min(1),
+}).passthrough().openapi("EvidenceSource");
+const evidenceClaimSchema = z.object({
+  id: uuid,
+  claim_type: z.string().min(1),
+  summary: z.string().min(1),
+  observed_at: retainedTimestampSchema,
+  uncertainty: z.string().min(1),
+  source: evidenceSourceSchema,
+}).passthrough().openapi("EvidenceClaim");
+const ritualEvidenceResponseSchema = retainedEnvelope(
+  "RitualEvidenceResponse",
+  z.array(evidenceClaimSchema).max(256),
+);
+const searchResultSchema = z.object({
+  kind: z.enum(["asset", "coven", "grimoire", "circle_template"]),
+  asset: assetSummarySchema.nullable().optional(),
+  coven: covenSummarySchema.nullable().optional(),
+  grimoire: grimoireSummarySchema.nullable().optional(),
+  circle_template: circleTemplateSummarySchema.nullable().optional(),
+}).strict().openapi("SearchResult");
+const searchResponseSchema = retainedCollectionEnvelope(
+  "SearchResponse",
+  z.array(searchResultSchema).max(100),
+);
+const rowanCounselSchema = z.object({
+  id: uuid,
+  script_key: z.string().min(1).max(160),
+  priority: z.coerce.number().int(),
+  body_template: z.string().min(1),
+  allowed_tokens: z.array(z.string()).max(64),
+  risk_footer: z.string().min(1),
+}).strict().openapi("RowanCounsel");
+const rowanCounselResponseSchema = retainedEnvelope("RowanCounselResponse", rowanCounselSchema);
 const brokerageStateSchema = z.enum([
   "fresh",
   "empty",
@@ -246,6 +723,74 @@ function brokerageProjectionResponseSchema(
 function brokerageEnvelope(name: string, data: z.ZodType) {
   return z.object({ data, meta: responseMetaSchema }).strict().openapi(name);
 }
+
+const memberStepUpReceiptSchema = z.object({
+  receipt: z.string().min(32).max(512).regex(/^[A-Za-z0-9_-]+$/),
+  action: z.enum(["webull_disconnect", "argus_delete"]),
+  user_id: uuid,
+  session_id: uuid,
+  expires_at: z.string().datetime(),
+}).strict().openapi("MemberStepUpReceipt");
+const memberStepUpReceiptResponseSchema = brokerageEnvelope(
+  "MemberStepUpReceiptResponse",
+  memberStepUpReceiptSchema,
+);
+const webullAuthorizationSessionSchema = z.object({
+  connection_id: uuid,
+  authorization_url: z.string().url().refine((value) => value.startsWith("https://")),
+  expires_at: z.string().datetime(),
+}).strict().openapi("WebullAuthorizationSession");
+const webullAuthorizationSessionResponseSchema = brokerageEnvelope(
+  "WebullAuthorizationSessionResponse",
+  webullAuthorizationSessionSchema,
+);
+const webullConnectionSchema = z.object({
+  id: uuid.nullable().optional(),
+  status: z.enum([
+    "disconnected",
+    "pending",
+    "connected",
+    "denied",
+    "failed",
+    "temporarily_unavailable",
+    "reauthorization_required",
+  ]),
+  capability_version: z.number().int().nonnegative().nullable().optional(),
+  authorized_at: z.string().datetime().nullable().optional(),
+  disconnected_at: z.string().datetime().nullable().optional(),
+  last_error_code: z.string().min(1).max(128).nullable().optional(),
+  updated_at: z.string().datetime().nullable().optional(),
+}).strict().openapi("WebullConnection");
+const webullConnectionResponseSchema = brokerageEnvelope(
+  "WebullConnectionResponse",
+  webullConnectionSchema,
+);
+const webullAccountSelectionSchema = z.object({
+  account_id: uuid,
+  selected: z.literal(true),
+}).strict().openapi("WebullAccountSelection");
+const webullAccountSelectionResponseSchema = brokerageEnvelope(
+  "WebullAccountSelectionResponse",
+  webullAccountSelectionSchema,
+);
+const webullCompletionSchema = z.object({
+  connection_id: uuid,
+  outcome: z.enum(["connected", "denied", "failed", "temporarily_unavailable"]),
+  created_at: z.string().datetime(),
+}).strict().openapi("WebullCompletion");
+const webullCompletionResponseSchema = brokerageEnvelope(
+  "WebullCompletionResponse",
+  webullCompletionSchema,
+);
+const webullDisconnectSchema = z.object({
+  connection_id: uuid,
+  status: z.literal("disconnected"),
+  provider_grant_revoked: z.literal(false),
+}).strict().openapi("WebullDisconnectReceipt");
+const webullDisconnectResponseSchema = brokerageEnvelope(
+  "WebullDisconnectResponse",
+  webullDisconnectSchema,
+);
 
 const brokerageAccountsResponseSchema = brokerageEnvelope(
   "BrokerageAccountsResponse",
@@ -603,21 +1148,448 @@ function dataResponse(
   );
 }
 
+function collectionDataResponse(
+  context: Context<RetainedAppEnvironment>,
+  data: unknown,
+  nextCursor: string | null = null,
+): Response {
+  return context.json(
+    {
+      data,
+      meta: {
+        request_id: context.get("requestId"),
+        next_cursor: nextCursor,
+        has_more: nextCursor !== null,
+      },
+    },
+    200,
+  );
+}
+
+function contentRecord(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function contentString(
+  value: Record<string, unknown>,
+  key: string,
+  fallback: string,
+): string {
+  const candidate = value[key];
+  return typeof candidate === "string" && candidate.trim().length > 0
+    ? candidate
+    : fallback;
+}
+
+function contentNullableString(
+  value: Record<string, unknown>,
+  key: string,
+): string | null {
+  const candidate = value[key];
+  return typeof candidate === "string" && candidate.trim().length > 0
+    ? candidate
+    : null;
+}
+
+function contentArray(value: Record<string, unknown>, key: string): unknown[] {
+  const candidate = value[key];
+  return Array.isArray(candidate) ? candidate : [];
+}
+
+function contentInteger(
+  value: Record<string, unknown>,
+  key: string,
+  fallback: number,
+): number {
+  const candidate = value[key];
+  return typeof candidate === "number" && Number.isSafeInteger(candidate)
+    ? candidate
+    : fallback;
+}
+
+function researchDisclosure(
+  observedAt: unknown,
+): Record<string, unknown> {
+  const timestamp = typeof observedAt === "string" &&
+      !Number.isNaN(Date.parse(observedAt))
+    ? new Date(observedAt).toISOString()
+    : new Date(0).toISOString();
+  return {
+    is_demo: false,
+    observed_at: timestamp,
+    source_label: "Argus editorial",
+    limitations: [
+      "Editorial research is informational and is not brokerage authority.",
+    ],
+  };
+}
+
+function presentEvidenceSummary(value: unknown): Record<string, unknown> {
+  const claim = contentRecord(value);
+  return {
+    claim_id: contentString(claim, "claim_id", contentString(claim, "id", "")),
+    factor_label: contentString(claim, "factor_label", contentString(claim, "claim_type", "Research evidence")),
+    summary: contentString(claim, "summary", "Evidence summary unavailable."),
+    observed_at: contentString(claim, "observed_at", new Date(0).toISOString()),
+    uncertainty: contentString(claim, "uncertainty", "Uncertainty not specified."),
+  };
+}
+
+function presentEvidenceDetail(value: unknown): Record<string, unknown> {
+  const claim = contentRecord(value);
+  const source = contentRecord(claim.source);
+  const candidateUrl = contentNullableString(source, "canonical_url");
+  const url = candidateUrl !== null && candidateUrl.startsWith("https://")
+    ? candidateUrl
+    : null;
+  return {
+    ...presentEvidenceSummary(claim),
+    source: {
+      title: contentString(source, "title", "Source"),
+      publisher: contentString(source, "publisher", "Unknown publisher"),
+      url,
+      published_at: contentNullableString(source, "published_at"),
+    },
+  };
+}
+
+function presentAssetSummary(value: unknown): Record<string, unknown> {
+  const asset = contentRecord(value);
+  const payload = contentRecord(asset.payload);
+  return {
+    id: asset.id,
+    slug: asset.slug,
+    symbol: asset.symbol,
+    name: asset.name,
+    asset_type: asset.asset_type === "index" ? "market_index" : asset.asset_type,
+    currency: asset.currency,
+    revision_id: asset.revision_id,
+    appearance_reason: contentString(
+      payload,
+      "appearance_reason",
+      "Included in the current Argus editorial catalog.",
+    ),
+    demo: researchDisclosure(asset.revision_created_at),
+  };
+}
+
+function presentAssetDetail(value: unknown): Record<string, unknown> {
+  const asset = contentRecord(value);
+  const payload = contentRecord(asset.payload);
+  return {
+    ...presentAssetSummary(asset),
+    thesis: contentString(payload, "thesis", "Editorial thesis unavailable."),
+    limitations: contentString(
+      payload,
+      "limitations",
+      "Review the cited evidence and current brokerage information.",
+    ),
+    metrics_as_of: contentString(
+      payload,
+      "metrics_as_of",
+      contentString(asset, "revision_created_at", new Date(0).toISOString()),
+    ),
+    evidence: contentArray(payload, "evidence").map(presentEvidenceSummary),
+    risks: contentArray(payload, "risks").map((entry) => {
+      const risk = contentRecord(entry);
+      return {
+        title: contentString(risk, "title", "Risk"),
+        detail: contentString(risk, "detail", "Risk detail unavailable."),
+        severity: ["low", "medium", "high"].includes(String(risk.severity))
+          ? risk.severity
+          : "medium",
+      };
+    }),
+    saved: asset.saved === true,
+  };
+}
+
+function presentAssetMetric(value: unknown): Record<string, unknown> {
+  const row = contentRecord(value);
+  const metric = contentRecord(row.metric ?? value);
+  return {
+    observed_at: contentString(metric, "observed_at", new Date(0).toISOString()),
+    price_minor: Math.max(0, contentInteger(metric, "price_minor", 0)),
+    change_bps: metric.change_bps === null
+      ? null
+      : contentInteger(metric, "change_bps", 0),
+    expense_ratio_bps: metric.expense_ratio_bps === null
+      ? null
+      : Math.max(0, contentInteger(metric, "expense_ratio_bps", 0)),
+    source_label: contentString(metric, "source_label", "Argus editorial"),
+    demo: researchDisclosure(metric.observed_at),
+  };
+}
+
+function presentBriefingSummary(value: unknown): Record<string, unknown> {
+  const briefing = contentRecord(value);
+  return {
+    id: briefing.id,
+    briefing_type: briefing.briefing_type,
+    period_start: briefing.period_start,
+    period_end: briefing.period_end,
+    generated_at: contentString(
+      briefing,
+      "generated_at",
+      new Date(0).toISOString(),
+    ),
+    generation: Math.max(1, contentInteger(briefing, "generation", 1)),
+    source_sequence: Math.max(
+      1,
+      contentInteger(briefing, "source_sequence", 1),
+    ),
+    read_at: contentNullableString(briefing, "read_at"),
+  };
+}
+
+function presentBriefingDetail(value: unknown): Record<string, unknown> {
+  const briefing = contentRecord(value);
+  return {
+    ...presentBriefingSummary(briefing),
+    sections: contentArray(briefing, "sections").map((entry, index) => {
+      const section = contentRecord(entry);
+      const payload = contentRecord(section.payload);
+      return {
+        ordinal: Math.max(1, contentInteger(section, "ordinal", index + 1)),
+        source_sequence: Math.max(
+          1,
+          contentInteger(payload, "source_sequence", contentInteger(briefing, "source_sequence", 1)),
+        ),
+        schema_version: Math.max(1, contentInteger(payload, "schema_version", 1)),
+        disclosure: contentString(
+          payload,
+          "disclosure",
+          contentString(payload, "summary", "Reviewed Argus briefing section."),
+        ),
+      };
+    }),
+  };
+}
+
+function presentCircleTemplate(value: unknown): Record<string, unknown> {
+  const template = contentRecord(value);
+  const payload = contentRecord(template.payload);
+  const observedAt = template.revision_created_at;
+  const creatorLabel = contentString(template, "creator_label", "Argus editor");
+  return {
+    id: template.id,
+    revision_id: template.revision_id,
+    slug: template.slug,
+    title: template.title,
+    description: template.description,
+    theme: contentString(payload, "theme", contentString(template, "theme_code", "research")),
+    creator: {
+      id: template.id,
+      slug: contentString(
+        payload,
+        "creator_slug",
+        String(template.slug ?? "creator"),
+      ),
+      display_name: creatorLabel,
+      bio: contentString(payload, "creator_bio", "Fictional Argus editorial creator."),
+      is_fictional: true,
+      demo: researchDisclosure(observedAt),
+    },
+    assets: contentArray(template, "assets").map((entry) => {
+      const asset = contentRecord(entry);
+      return {
+        ...presentAssetSummary(asset),
+        ordinal: Math.max(1, contentInteger(asset, "ordinal", 1)),
+        weight_bps: typeof asset.weight_bps === "number" ? asset.weight_bps : null,
+        note: contentNullableString(asset, "note"),
+      };
+    }),
+    saved: template.saved === true,
+    demo: researchDisclosure(observedAt),
+  };
+}
+
+function contentDate(value: unknown, fallback = "1970-01-01"): string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)
+    ? value.slice(0, 10)
+    : fallback;
+}
+
+function presentCovenSummary(value: unknown): Record<string, unknown> {
+  const row = contentRecord(value);
+  const payload = contentRecord(row.payload);
+  const company = contentRecord(row.company);
+  const qualifications = contentArray(row, "qualification_payload");
+  const firstQualification = contentRecord(qualifications[0]);
+  const category = contentString(
+    payload,
+    "category",
+    contentString(firstQualification, "category", "founder"),
+  );
+  const observed = row.revision_created_at;
+  return {
+    id: row.id,
+    revision_id: row.revision_id,
+    slug: row.slug,
+    company: contentString(company, "name", "Company"),
+    symbol: contentNullableString(row, "symbol"),
+    category: ["founder", "owner", "chief_executive"].includes(category)
+      ? category
+      : "founder",
+    focus: contentString(payload, "focus", "Long-term company research"),
+    teaser: contentString(payload, "teaser", contentString(payload, "summary", "Argus company research.")),
+    effective_date: contentDate(payload.effective_date, contentDate(observed)),
+    verified_as_of: contentDate(payload.verified_as_of, contentDate(observed)),
+    demo: researchDisclosure(observed),
+  };
+}
+
+function evidenceClaimIds(value: unknown): string[] {
+  const collected = new Set<string>();
+  const visit = (candidate: unknown, key?: string): void => {
+    if (Array.isArray(candidate)) {
+      for (const entry of candidate) visit(entry, key);
+      return;
+    }
+    if (typeof candidate !== "object" || candidate === null) {
+      if (
+        typeof candidate === "string" &&
+        (key === "evidence_claim_ids" || key === "claim_id") &&
+        uuid.safeParse(candidate).success
+      ) {
+        collected.add(candidate);
+      }
+      return;
+    }
+    for (const [childKey, child] of Object.entries(candidate)) {
+      visit(child, childKey);
+    }
+  };
+  visit(value);
+  return [...collected];
+}
+
+function presentCovenDetail(
+  value: unknown,
+  evidenceValues: readonly unknown[] = [],
+): Record<string, unknown> {
+  const row = contentRecord(value);
+  const payload = contentRecord(row.payload);
+  const observed = row.revision_created_at;
+  const evidenceById = new Map(
+    evidenceValues.map((entry) => {
+      const evidence = contentRecord(entry);
+      return [String(evidence.id ?? evidence.claim_id ?? ""), evidence] as const;
+    }),
+  );
+  const evidence = [...evidenceById.values()].map(presentEvidenceDetail);
+  return {
+    ...presentCovenSummary(row),
+    summary: contentString(payload, "summary", "Argus company research."),
+    inclusion_rationale: contentString(
+      payload,
+      "inclusion_rationale",
+      "Included under the published Argus editorial criteria.",
+    ),
+    limitations: contentString(
+      payload,
+      "limitations",
+      "Editorial qualification evidence can change over time.",
+    ),
+    qualifications: contentArray(row, "qualification_payload").map((entry) => {
+      const qualification = contentRecord(entry);
+      const category = contentString(qualification, "category", "founder");
+      const qualificationEvidence = evidenceClaimIds(qualification)
+        .map((claimId) => evidenceById.get(claimId))
+        .filter((claim): claim is Record<string, unknown> => claim !== undefined)
+        .map(presentEvidenceSummary);
+      return {
+        category: ["founder", "owner", "chief_executive"].includes(category)
+          ? category
+          : "founder",
+        person_name: contentString(qualification, "person_name", "Published qualification"),
+        effective_date: contentDate(qualification.effective_date, contentDate(observed)),
+        valid_to: qualification.valid_to == null ? null : contentDate(qualification.valid_to),
+        verified_as_of: contentDate(qualification.verified_as_of, contentDate(observed)),
+        evidence: qualificationEvidence.length > 0
+          ? qualificationEvidence
+          : contentArray(qualification, "evidence").map(presentEvidenceSummary),
+      };
+    }),
+    evidence: evidence.length > 0
+      ? evidence
+      : contentArray(payload, "evidence").map(presentEvidenceDetail),
+    saved: row.saved === true,
+  };
+}
+
+function presentGrimoireSummary(value: unknown): Record<string, unknown> {
+  const row = contentRecord(value);
+  const payload = contentRecord(row.payload);
+  return {
+    id: row.id,
+    revision_id: row.revision_id,
+    slug: row.slug,
+    title: contentString(payload, "title", String(row.slug ?? "Grimoire")),
+    description: contentString(payload, "description", "Published Argus research collection."),
+    theme: contentString(payload, "theme", contentString(row, "theme_code", "research")),
+    curator_label: contentString(payload, "curator_label", "Argus editorial"),
+    demo: researchDisclosure(row.revision_created_at),
+  };
+}
+
+function presentGrimoireDetail(value: unknown): Record<string, unknown> {
+  const row = contentRecord(value);
+  return {
+    ...presentGrimoireSummary(row),
+    assets: contentArray(row, "assets").map(presentAssetSummary),
+    saved: row.saved === true,
+  };
+}
+
+function presentCircleTemplateSummary(value: unknown): Record<string, unknown> {
+  const detail = presentCircleTemplate(value);
+  const { assets: _assets, saved: _saved, ...summary } = detail;
+  return summary;
+}
+
+function presentCreator(value: unknown): Record<string, unknown> {
+  const row = contentRecord(value);
+  const payload = contentRecord(row.payload);
+  return {
+    id: row.id,
+    slug: contentString(payload, "creator_slug", String(row.slug ?? "creator")),
+    display_name: contentString(row, "creator_label", "Argus editor"),
+    bio: contentString(payload, "creator_bio", "Fictional Argus editorial creator."),
+    is_fictional: true,
+    demo: researchDisclosure(row.revision_created_at),
+  };
+}
+
+function matchesPublishedSearch(value: Record<string, unknown>, query: string): boolean {
+  const normalized = query.trim().toLocaleLowerCase("en-US");
+  return ["slug", "symbol", "name", "title", "description", "company", "focus", "teaser"]
+    .some((key) => {
+      const candidate = value[key];
+      return typeof candidate === "string" &&
+        candidate.toLocaleLowerCase("en-US").includes(normalized);
+    });
+}
+
 type RouteOptions = Readonly<{
   public?: boolean;
   body?: z.ZodType;
+  optionalBody?: boolean;
   pathParams?: z.ZodType;
   query?: z.ZodType;
   headers?: z.ZodType;
   description?: string;
   response?: z.ZodType;
+  acceptedResponse?: z.ZodType;
 }>;
 
 type RouteAccess = Readonly<{ isPublic: boolean; isAdmin: boolean }>;
 const routeAccess = new WeakMap<object, RouteAccess>();
 
 function route(
-  method: "get" | "post" | "patch" | "delete",
+  method: "get" | "post" | "put" | "patch" | "delete",
   path: string,
   operationId: string,
   tag: string,
@@ -629,7 +1601,7 @@ function route(
   if (options.headers !== undefined) request.headers = options.headers;
   if (options.body !== undefined) {
     request.body = {
-      required: true,
+      required: options.optionalBody !== true,
       content: { "application/json": { schema: options.body } },
     };
   }
@@ -647,6 +1619,16 @@ function route(
           "application/json": { schema: options.response ?? responseSchema },
         },
       },
+      ...(options.acceptedResponse === undefined
+        ? {}
+        : {
+          202: {
+            description: "The requested resource is still being prepared.",
+            content: {
+              "application/json": { schema: options.acceptedResponse },
+            },
+          },
+        }),
       401: {
         description: "Invalid Supabase access token.",
         content: { "application/json": { schema: errorSchema } },
@@ -835,7 +1817,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       context.header("access-control-allow-origin", expectedOrigin);
       context.header(
         "access-control-allow-methods",
-        "GET, POST, PATCH, DELETE, OPTIONS",
+        "GET, POST, PUT, PATCH, DELETE, OPTIONS",
       );
       context.header(
         "access-control-allow-headers",
@@ -1189,12 +2171,83 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/session/bootstrap",
     "bootstrapSession",
     "Session",
+    { response: sessionBootstrapResponseSchema },
   );
   register(bodylessBootstrap, async (context) => {
     await rejectBody(context);
     return dataResponse(
       context,
       await repositories(context, options).session.bootstrap(),
+    );
+  });
+  const onboardingFinalizeBody = z.object({
+    schema_version: z.number().int().min(2).max(2),
+    expected_onboarding_version: z.number().int().positive(),
+    investing: z.object({
+      experience: z.enum(["new", "some_experience", "experienced"]),
+      goal_type: z.enum(["calm_fund", "long_term_growth", "income", "exploration"]),
+      time_horizon: z.enum(["short", "medium", "long"]),
+      risk_comfort: z.enum(["low", "moderate", "high"]),
+      contribution_rhythm: z.enum(["weekly", "biweekly", "monthly", "irregular", "not_sure"]),
+    }).strict(),
+    ritual: z.object({
+      familiarity: z.enum(["new", "curious", "familiar", "practiced", "prefer_not_to_say"]),
+      language_preference: z.enum(["practical", "balanced", "mystical", "prefer_not_to_say"]),
+      interests: z.array(
+        z.string().regex(/^(practical_research|tarot|astrology|moon_cycles|reflection)$/),
+      ).min(1).max(5),
+    }).strict(),
+    astrology: z.object({
+      enabled: z.boolean(),
+      birth_date: z.string().date().optional(),
+    }).strict().superRefine((value, issue) => {
+      if (value.enabled !== (value.birth_date !== undefined)) {
+        issue.addIssue({ code: "custom", path: ["birth_date"], message: "birth_date must match astrology opt-in" });
+      }
+    }),
+    consents: z.object({
+      terms: z.object({ policy_version: z.string().min(1).max(40), decision: z.literal("accepted") }).strict(),
+      privacy: z.object({ policy_version: z.string().min(1).max(40), decision: z.literal("accepted") }).strict(),
+      demo_disclosure: z.object({ policy_version: z.string().min(1).max(40), decision: z.literal("accepted") }).strict(),
+      astrology: z.object({ policy_version: z.string().min(1).max(40), decision: z.enum(["accepted", "declined"]) }).strict(),
+    }).strict(),
+  }).strict().openapi("FinalizeOnboardingRequest");
+  const finalizeOnboarding = route(
+    "post",
+    "/v1/session/onboarding/finalize",
+    "finalizeOnboarding",
+    "Session",
+    {
+      body: onboardingFinalizeBody,
+      headers: z.object({ "idempotency-key": idempotencyKey }),
+      response: sessionBootstrapResponseSchema,
+    },
+  );
+  register(finalizeOnboarding, async (context) => {
+    const input = await parseBody(context, onboardingFinalizeBody);
+    return dataResponse(
+      context,
+      await repositories(context, options).session.finalizeOnboarding(
+        {
+          expectedOnboardingVersion: input.expected_onboarding_version,
+          investing: {
+            goalType: input.investing.goal_type,
+            timeHorizon: input.investing.time_horizon,
+            riskComfort: input.investing.risk_comfort,
+          },
+          astrology: {
+            enabled: input.astrology.enabled,
+            ...(input.astrology.birth_date === undefined ? {} : { birthDate: input.astrology.birth_date }),
+          },
+          consents: Object.fromEntries(
+            Object.entries(input.consents).map(([policyCode, consent]) => [
+              policyCode,
+              { policyVersion: consent.policy_version, decision: consent.decision },
+            ]),
+          ),
+        },
+        idempotencyKey.parse(context.req.header("idempotency-key")),
+      ),
     );
   });
 
@@ -1206,7 +2259,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/member/step-up",
     "issueMemberStepUp",
     "Member Security",
-    { body: stepUpBody },
+    { body: stepUpBody, response: memberStepUpReceiptResponseSchema },
   );
   register(issueStepUp, async (context) => {
     const authenticatedAt = context.get("principal").authenticatedAt;
@@ -1237,7 +2290,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/brokerage/connections/start",
     "startWebullConnection",
     "Brokerage Connections",
-    { body: connectionStartBody },
+    { body: connectionStartBody, response: webullAuthorizationSessionResponseSchema },
   );
   register(startConnection, async (context) => {
     const input = await parseBody(context, connectionStartBody);
@@ -1252,7 +2305,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/brokerage/connections/reconnect",
     "reconnectWebullConnection",
     "Brokerage Connections",
-    { body: connectionStartBody },
+    { body: connectionStartBody, response: webullAuthorizationSessionResponseSchema },
   );
   register(reconnect, async (context) => {
     const input = await parseBody(context, connectionStartBody);
@@ -1269,6 +2322,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/brokerage/connection",
     "getWebullConnection",
     "Brokerage Connections",
+    { response: webullConnectionResponseSchema },
   );
   register(getConnection, async (context) =>
     dataResponse(
@@ -1282,7 +2336,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/brokerage/accounts/selection",
     "selectWebullAccount",
     "Brokerage Connections",
-    { body: selectAccountBody },
+    { body: selectAccountBody, response: webullAccountSelectionResponseSchema },
   );
   register(selectBrokerageAccount, async (context) => {
     const input = await parseBody(context, selectAccountBody);
@@ -1302,7 +2356,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/brokerage/connections/completions/redeem",
     "redeemWebullCompletion",
     "Brokerage Connections",
-    { body: completionBody },
+    { body: completionBody, response: webullCompletionResponseSchema },
   );
   register(redeemCompletion, async (context) => {
     const input = await parseBody(context, completionBody);
@@ -1322,7 +2376,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/brokerage/connections/disconnect",
     "disconnectWebullConnection",
     "Brokerage Connections",
-    { body: disconnectBody },
+    { body: disconnectBody, response: webullDisconnectResponseSchema },
   );
   register(disconnect, async (context) => {
     const input = await parseBody(context, disconnectBody);
@@ -1639,7 +2693,9 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       ),
     ));
 
-  const account = route("get", "/v1/account", "getAccount", "Account");
+  const account = route("get", "/v1/account", "getAccount", "Account", {
+    response: memberAccountResponseSchema,
+  });
   register(
     account,
     async (context) =>
@@ -1839,7 +2895,14 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/preferences",
     "updatePreferences",
     "Account",
-    { body: preferencesPatch, headers: z.object({ "if-match": z.string() }) },
+    {
+      body: preferencesPatch,
+      headers: z.object({ "if-match": z.string() }),
+      response: retainedEnvelope(
+        "UpdatePreferencesResponse",
+        memberPreferencesSchema,
+      ),
+    },
   );
   register(updatePreferences, async (context) => {
     const patch = await parseBody(context, preferencesPatch);
@@ -1861,6 +2924,82 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     );
   });
 
+  const investorBody = z.object({
+    goalType: z.enum(["calm_fund", "long_term_growth", "income", "exploration"]),
+    timeHorizon: z.enum(["short", "medium", "long"]),
+    riskComfort: z.enum(["low", "moderate", "high"]),
+  }).strict().openapi("UpdateInvestorProfileRequest");
+  const updateInvestor = route(
+    "put",
+    "/v1/investor-profile",
+    "updateInvestorProfile",
+    "Account",
+    {
+      body: investorBody,
+      headers: z.object({ "if-match": z.string().optional() }),
+      response: retainedEnvelope("InvestorProfileResponse", investorProfileSchema),
+    },
+  );
+  register(updateInvestor, async (context) => {
+    const input = await parseBody(context, investorBody);
+    const rawVersion = context.req.header("if-match");
+    return dataResponse(
+      context,
+      await repositories(context, options).accounts.updateInvestor(
+        input,
+        rawVersion === undefined ? undefined : expectedVersion(context),
+      ),
+    );
+  });
+
+  const astrologyBody = z.object({
+    birthDate: z.string().date(),
+  }).strict().openapi("UpdateAstrologyProfileRequest");
+  const updateAstrology = route(
+    "put",
+    "/v1/astrology-profile",
+    "updateAstrologyProfile",
+    "Account",
+    {
+      body: astrologyBody,
+      headers: z.object({ "if-match": z.string().optional() }),
+      response: retainedEnvelope("AstrologyProfileResponse", astrologyProfileSchema),
+    },
+  );
+  register(updateAstrology, async (context) => {
+    const input = await parseBody(context, astrologyBody);
+    const rawVersion = context.req.header("if-match");
+    return dataResponse(
+      context,
+      await repositories(context, options).accounts.updateAstrology(
+        input.birthDate,
+        rawVersion === undefined ? undefined : expectedVersion(context),
+      ),
+    );
+  });
+  const deleteAstrology = route(
+    "delete",
+    "/v1/astrology-profile",
+    "deleteAstrologyProfile",
+    "Account",
+    {
+      headers: z.object({ "if-match": z.string() }),
+      response: retainedEnvelope(
+        "DeleteAstrologyProfileResponse",
+        z.object({ removed: z.literal(true) }).strict(),
+      ),
+    },
+  );
+  register(deleteAstrology, async (context) => {
+    await rejectBody(context);
+    return dataResponse(
+      context,
+      await repositories(context, options).accounts.deleteAstrology(
+        expectedVersion(context),
+      ),
+    );
+  });
+
   const consentBody = z
     .object({
       policyCode: z.string().min(1).max(80),
@@ -1870,6 +3009,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     .strict();
   const consent = route("post", "/v1/consents", "recordConsent", "Account", {
     body: consentBody,
+    response: consentReceiptResponseSchema,
   });
   register(consent, async (context) =>
     dataResponse(
@@ -1882,35 +3022,106 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   const listAssets = route("get", "/v1/assets", "listAssets", "Assets", {
     query: z.object({
       limit: limit.optional(),
-      asset_type: z.string().optional(),
+      asset_type: publicAssetTypeSchema.optional(),
       symbol_prefix: z.string().optional(),
     }),
+    response: assetCollectionResponseSchema,
   });
   register(listAssets, async (context) => {
     const input = z.object({
       limit,
-      asset_type: z.string().optional(),
+      asset_type: publicAssetTypeSchema.optional(),
       symbol_prefix: z.string().optional(),
     }).parse(query(context));
-    return dataResponse(
+    return collectionDataResponse(
       context,
-      await repositories(context, options).assets.list(
+      (await repositories(context, options).assets.list(
         input.limit,
-        input.asset_type,
+        input.asset_type === "market_index" ? "index" : input.asset_type,
         input.symbol_prefix,
-      ),
+      )).map(presentAssetSummary),
     );
+  });
+
+  const compareAssetsBody = z.object({
+    assetIds: z.array(uuid).min(2).max(5),
+  }).strict().openapi("CompareAssetsRequest");
+  const compareAssets = route(
+    "post",
+    "/v1/assets/compare",
+    "compareAssets",
+    "Assets",
+    { body: compareAssetsBody, response: assetComparisonResponseSchema },
+  );
+  register(compareAssets, async (context) => {
+    const input = await parseBody(context, compareAssetsBody);
+    if (new Set(input.assetIds).size !== input.assetIds.length) {
+      throw new HttpBoundaryError(422, "validation_failed", "Asset identifiers must be unique.");
+    }
+    const rows = await repositories(context, options).assets.compare(input.assetIds);
+    if (rows.length !== input.assetIds.length) {
+      throw new HttpBoundaryError(404, "not_found", "A requested asset was not found.");
+    }
+    const comparedAt = new Date().toISOString();
+    return dataResponse(context, {
+      assets: rows.map((row) => {
+        const record = contentRecord(row);
+        const payload = contentRecord(record.payload);
+        const metrics = contentArray(payload, "metrics");
+        return {
+          asset: presentAssetSummary(record),
+          latest_metric: metrics.length === 0
+            ? null
+            : presentAssetMetric(metrics[metrics.length - 1]),
+          risk_count: contentArray(payload, "risks").length,
+        };
+      }),
+      compared_at: comparedAt,
+      demo: researchDisclosure(comparedAt),
+    });
   });
 
   const getAsset = route("get", "/v1/assets/{asset_id}", "getAsset", "Assets", {
     pathParams: z.object({ asset_id: uuid }),
+    response: assetDetailResponseSchema,
   });
-  register(getAsset, async (context) =>
+  register(getAsset, async (context) => {
+    const value = await repositories(context, options).assets.get(
+      uuid.parse(context.req.param("asset_id")),
+    );
+    return dataResponse(context, value === null ? null : presentAssetDetail(value));
+  });
+  const getAssetEvidence = route(
+    "get",
+    "/v1/assets/{asset_id}/evidence",
+    "getAssetEvidence",
+    "Assets",
+    { pathParams: z.object({ asset_id: uuid }), response: assetEvidenceResponseSchema },
+  );
+  register(getAssetEvidence, async (context) =>
     dataResponse(
       context,
-      await repositories(context, options).assets.get(
+      (await repositories(context, options).assets.evidence(
         uuid.parse(context.req.param("asset_id")),
-      ),
+      )).map(presentEvidenceDetail),
+    ));
+  const getAssetMetrics = route(
+    "get",
+    "/v1/assets/{asset_id}/metrics",
+    "getAssetMetrics",
+    "Assets",
+    {
+      pathParams: z.object({ asset_id: uuid }),
+      query: z.object({ as_of: z.string().datetime().optional() }),
+      response: assetMetricsResponseSchema,
+    },
+  );
+  register(getAssetMetrics, async (context) =>
+    dataResponse(
+      context,
+      (await repositories(context, options).assets.metrics(
+        uuid.parse(context.req.param("asset_id")),
+      )).map(presentAssetMetric),
     ));
 
   const listEditorial = route(
@@ -1952,63 +3163,163 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/briefings",
     "listBriefings",
     "Briefings",
-    { query: z.object({ limit: limit.optional() }) },
+    {
+      query: z.object({
+        type: z.enum(["daily", "weekly", "moon_cycle"]).optional(),
+        period_start: z.string().date().optional(),
+        period_end: z.string().date().optional(),
+        cursor: z.string().min(1).max(2048).optional(),
+        limit: limit.optional(),
+      }),
+      response: briefingCollectionResponseSchema,
+    },
   );
-  register(listBriefings, async (context) =>
-    dataResponse(
+  register(listBriefings, async (context) => {
+    const input = z.object({
+      type: z.enum(["daily", "weekly", "moon_cycle"]).optional(),
+      period_start: z.string().date().optional(),
+      period_end: z.string().date().optional(),
+      cursor: z.string().optional(),
+      limit,
+    }).parse(query(context));
+    if (input.cursor !== undefined) {
+      throw new HttpBoundaryError(422, "invalid_cursor", "The pagination cursor is invalid or stale.");
+    }
+    return collectionDataResponse(
       context,
-      await repositories(context, options).briefings.list(
-        limit.parse(context.req.query("limit")),
-      ),
-    ));
+      (await repositories(context, options).briefings.list(
+        input.limit,
+        input.type,
+        input.period_start,
+        input.period_end,
+      )).map(presentBriefingSummary),
+    );
+  });
+  const getDailyBriefing = route(
+    "get",
+    "/v1/briefings/daily",
+    "getDailyBriefing",
+    "Briefings",
+    {
+      query: z.object({ local_date: z.string().date().optional() }),
+      response: briefingDetailResponseSchema,
+      acceptedResponse: briefingPendingResponseSchema,
+    },
+  );
+  register(getDailyBriefing, async (context) => {
+    const localDate = context.req.query("local_date") ??
+      new Date().toISOString().slice(0, 10);
+    const value = await repositories(context, options).briefings.daily(localDate);
+    if (value === null || contentRecord(value).status !== "ready") {
+      return context.json(
+        {
+          data: { status: "briefing_pending", local_date: localDate },
+          meta: { request_id: context.get("requestId") },
+        },
+        202,
+      );
+    }
+    return dataResponse(context, presentBriefingDetail(value));
+  });
   const getBriefing = route(
     "get",
     "/v1/briefings/{briefing_id}",
     "getBriefing",
     "Briefings",
-    { pathParams: z.object({ briefing_id: uuid }) },
+    {
+      pathParams: z.object({ briefing_id: uuid }),
+      response: briefingDetailResponseSchema,
+    },
   );
-  register(getBriefing, async (context) =>
-    dataResponse(
+  register(getBriefing, async (context) => {
+    const value = await repositories(context, options).briefings.get(
+      uuid.parse(context.req.param("briefing_id")),
+    );
+    return dataResponse(context, value === null ? null : presentBriefingDetail(value));
+  });
+  const briefingReadBody = z.object({ read: z.boolean() }).strict()
+    .openapi("SetBriefingReadStateRequest");
+  const setBriefingReadState = route(
+    "put",
+    "/v1/briefings/{briefing_id}/read-state",
+    "setBriefingReadState",
+    "Briefings",
+    {
+      pathParams: z.object({ briefing_id: uuid }),
+      body: briefingReadBody,
+      response: retainedEnvelope("BriefingSummaryResponse", briefingSummarySchema),
+    },
+  );
+  register(setBriefingReadState, async (context) => {
+    const input = await parseBody(context, briefingReadBody);
+    return dataResponse(
       context,
-      await repositories(context, options).briefings.get(
-        uuid.parse(context.req.param("briefing_id")),
+      presentBriefingSummary(
+        await repositories(context, options).briefings.setRead(
+          uuid.parse(context.req.param("briefing_id")),
+          input.read,
+        ),
       ),
-    ));
+    );
+  });
 
   const listCircles = route("get", "/v1/circles", "listCircles", "Circles", {
-    query: z.object({ limit: limit.optional() }),
+    query: z.object({
+      archived: z.enum(["include", "exclude"]).optional(),
+      cursor: z.string().min(1).max(2048).optional(),
+      limit: limit.optional(),
+    }),
+    response: circleCollectionResponseSchema,
   });
-  register(listCircles, async (context) =>
-    dataResponse(
+  register(listCircles, async (context) => {
+    if (context.req.query("cursor") !== undefined) {
+      throw new HttpBoundaryError(422, "invalid_cursor", "The pagination cursor is invalid or stale.");
+    }
+    const rows = await repositories(context, options).circles.list(
+      limit.parse(context.req.query("limit")),
+    );
+    const includeArchived = context.req.query("archived") === "include";
+    return collectionDataResponse(
       context,
-      await repositories(context, options).circles.list(
-        limit.parse(context.req.query("limit")),
-      ),
-    ));
+      includeArchived ? rows : rows.filter((row) => contentRecord(row).archived_at == null),
+    );
+  });
+  const circleAssetBody = z.object({
+    assetId: uuid,
+    ordinal: z.number().int().min(1).max(50),
+    weightBps: z.number().int().min(0).max(10000).nullable().optional(),
+    note: z.string().max(2000).nullable().optional(),
+  }).strict().openapi("CircleAssetInput");
   const circleBody = z
     .object({
       title: z.string().min(1).max(120),
       description: z.string().max(1000),
+      assets: z.array(circleAssetBody).max(50).optional(),
     })
-    .strict();
+    .strict().openapi("CreateCircleRequest");
   const createCircle = route("post", "/v1/circles", "createCircle", "Circles", {
     body: circleBody,
+    headers: z.object({ "idempotency-key": idempotencyKey }),
+    response: circleDetailResponseSchema,
   });
-  register(createCircle, async (context) =>
-    dataResponse(
+  register(createCircle, async (context) => {
+    const input = await parseBody(context, circleBody);
+    return dataResponse(
       context,
-      await repositories(context, options).circles.create(
-        await parseBody(context, circleBody),
-      ),
-    ));
+      await repositories(context, options).circles.create({
+        title: input.title,
+        description: input.description,
+        ...(input.assets === undefined ? {} : { assets: input.assets }),
+      }),
+    );
+  });
   const circlePath = z.object({ circle_id: uuid });
   const getCircle = route(
     "get",
     "/v1/circles/{circle_id}",
     "getCircle",
     "Circles",
-    { pathParams: circlePath },
+    { pathParams: circlePath, response: circleDetailResponseSchema },
   );
   register(getCircle, async (context) =>
     dataResponse(
@@ -2024,12 +3335,13 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "Circles",
     {
       pathParams: circlePath,
-      body: circleBody.partial(),
+      body: circleBody.omit({ assets: true }).partial(),
       headers: z.object({ "if-match": z.string() }),
+      response: circleDetailResponseSchema,
     },
   );
   register(updateCircle, async (context) => {
-    const patch = await parseBody(context, circleBody.partial());
+    const patch = await parseBody(context, circleBody.omit({ assets: true }).partial());
     return dataResponse(
       context,
       await repositories(context, options).circles.update(
@@ -2042,6 +3354,140 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         },
         expectedVersion(context),
       ),
+    );
+  });
+  const replaceCircleAssetsBody = z.object({
+    assets: z.array(circleAssetBody).max(50),
+  }).strict().openapi("ReplaceCircleAssetsRequest");
+  const replaceCircleAssets = route(
+    "put",
+    "/v1/circles/{circle_id}/assets",
+    "replaceCircleAssets",
+    "Circles",
+    {
+      pathParams: circlePath,
+      headers: z.object({ "if-match": z.string() }),
+      body: replaceCircleAssetsBody,
+      response: circleDetailResponseSchema,
+    },
+  );
+  register(replaceCircleAssets, async (context) => {
+    const input = await parseBody(context, replaceCircleAssetsBody);
+    return dataResponse(
+      context,
+      await repositories(context, options).circles.replaceAssets(
+        uuid.parse(context.req.param("circle_id")),
+        input.assets,
+        expectedVersion(context),
+      ),
+    );
+  });
+  const circleAssetPath = z.object({ circle_id: uuid, asset_id: uuid });
+  const putCircleAssetBody = circleAssetBody.omit({ assetId: true })
+    .openapi("PutCircleAssetRequest");
+  const putCircleAsset = route(
+    "put",
+    "/v1/circles/{circle_id}/assets/{asset_id}",
+    "putCircleAsset",
+    "Circles",
+    {
+      pathParams: circleAssetPath,
+      headers: z.object({ "if-match": z.string() }),
+      body: putCircleAssetBody,
+      response: circleDetailResponseSchema,
+    },
+  );
+  register(putCircleAsset, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).circles.putAsset(
+        uuid.parse(context.req.param("circle_id")),
+        uuid.parse(context.req.param("asset_id")),
+        await parseBody(context, putCircleAssetBody),
+        expectedVersion(context),
+      ),
+    ));
+  const deleteCircleAsset = route(
+    "delete",
+    "/v1/circles/{circle_id}/assets/{asset_id}",
+    "deleteCircleAsset",
+    "Circles",
+    {
+      pathParams: circleAssetPath,
+      headers: z.object({ "if-match": z.string() }),
+      response: circleDetailResponseSchema,
+    },
+  );
+  register(deleteCircleAsset, async (context) => {
+    await rejectBody(context);
+    return dataResponse(
+      context,
+      await repositories(context, options).circles.deleteAsset(
+        uuid.parse(context.req.param("circle_id")),
+        uuid.parse(context.req.param("asset_id")),
+        expectedVersion(context),
+      ),
+    );
+  });
+  const archiveCircle = route(
+    "delete",
+    "/v1/circles/{circle_id}",
+    "archiveCircle",
+    "Circles",
+    {
+      pathParams: circlePath,
+      headers: z.object({ "if-match": z.string() }),
+      response: circleDetailResponseSchema,
+    },
+  );
+  register(archiveCircle, async (context) => {
+    await rejectBody(context);
+    return dataResponse(
+      context,
+      await repositories(context, options).circles.archive(
+        uuid.parse(context.req.param("circle_id")),
+        expectedVersion(context),
+      ),
+    );
+  });
+  const copyCircleTemplateBody = z.object({
+    title: z.string().min(1).max(120).nullable().optional(),
+  }).strict().openapi("CopyCircleTemplateRequest");
+  const copyCircleTemplate = route(
+    "post",
+    "/v1/circle-templates/{template_id}/copy",
+    "copyCircleTemplate",
+    "Circles",
+    {
+      pathParams: z.object({ template_id: uuid }),
+      headers: z.object({ "idempotency-key": idempotencyKey }),
+      body: copyCircleTemplateBody,
+      response: circleDetailResponseSchema,
+    },
+  );
+  register(copyCircleTemplate, async (context) => {
+    const body = await parseBody(context, copyCircleTemplateBody);
+    const template = await repositories(context, options).circles.getTemplate(
+      uuid.parse(context.req.param("template_id")),
+    );
+    if (template === null) throw new RepositoryNotFoundError();
+    const value = contentRecord(template);
+    return dataResponse(
+      context,
+      await repositories(context, options).circles.create({
+        title: body.title ?? contentString(value, "title", "My circle"),
+        description: contentString(value, "description", ""),
+        sourceTemplateId: String(value.id),
+        assets: contentArray(value, "assets").map((entry, index) => {
+          const asset = contentRecord(entry);
+          return {
+            assetId: String(asset.id),
+            ordinal: contentInteger(asset, "ordinal", index + 1),
+            weightBps: typeof asset.weight_bps === "number" ? asset.weight_bps : null,
+            note: contentNullableString(asset, "note"),
+          };
+        }),
+      }),
     );
   });
 
@@ -2064,16 +3510,36 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/saved/{item_kind}/{item_id}",
     "saveItem",
     "Saved",
-    { pathParams: savedPath },
+    {
+      pathParams: savedPath,
+      body: z.object({
+        source_kind: z.enum(["ritual", "circle", "discover", "search", "direct"]).optional(),
+        source_id: uuid.nullable().optional(),
+      }).strict().openapi("SaveItemRequest"),
+      optionalBody: true,
+    },
   );
-  register(saveItem, async (context) =>
-    dataResponse(
+  register(saveItem, async (context) => {
+    const body = z.object({
+      source_kind: z.enum(["ritual", "circle", "discover", "search", "direct"]).optional(),
+      source_id: uuid.nullable().optional(),
+    }).strict().parse(context.req.valid("json" as never) ?? {});
+    if (
+      (body.source_kind === undefined || body.source_kind === "direct") &&
+      body.source_id != null
+    ) {
+      throw new HttpBoundaryError(422, "validation_failed", "source_id requires an attributed source_kind.");
+    }
+    return dataResponse(
       context,
       await repositories(context, options).circles.save(
         savedPath.shape.item_kind.parse(context.req.param("item_kind")),
         uuid.parse(context.req.param("item_id")),
+        body.source_kind ?? "direct",
+        body.source_id ?? undefined,
       ),
-    ));
+    );
+  });
   const unsaveItem = route(
     "delete",
     "/v1/saved/{item_kind}/{item_id}",
@@ -2090,59 +3556,212 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       ) ?? { removed: true },
     ));
 
+  const pagedContentQuery = z.object({
+    cursor: z.string().min(1).max(2_048).optional(),
+    limit: limit.optional(),
+  }).strict();
+  const rejectRetainedCursor = (context: Context<RetainedAppEnvironment>): void => {
+    if (context.req.query("cursor") !== undefined) {
+      throw new HttpBoundaryError(
+        422,
+        "invalid_cursor",
+        "This retained collection has no additional page for the supplied cursor.",
+      );
+    }
+  };
+
   const listCoven = route("get", "/v1/coven", "listCoven", "Coven", {
-    query: z.object({ limit: limit.optional() }),
+    query: pagedContentQuery.extend({
+      category: z.enum(["founder", "owner", "chief_executive"]).optional(),
+      verified_as_of: z.string().date().optional(),
+    }).strict(),
+    response: covenCollectionResponseSchema,
   });
-  register(listCoven, async (context) =>
-    dataResponse(
-      context,
+  register(listCoven, async (context) => {
+    rejectRetainedCursor(context);
+    const category = context.req.query("category");
+    const verifiedAsOf = context.req.query("verified_as_of");
+    const values = (
       await repositories(context, options).coven.list(
         limit.parse(context.req.query("limit")),
-      ),
-    ));
+      )
+    ).map(presentCovenSummary).filter((entry) =>
+      (category === undefined || entry.category === category) &&
+      (verifiedAsOf === undefined || String(entry.verified_as_of) <= verifiedAsOf)
+    );
+    return collectionDataResponse(context, values);
+  });
   const getCoven = route("get", "/v1/coven/{entry_id}", "getCoven", "Coven", {
     pathParams: z.object({ entry_id: uuid }),
+    response: covenDetailResponseSchema,
   });
-  register(getCoven, async (context) =>
-    dataResponse(
-      context,
-      await repositories(context, options).coven.get(
-        uuid.parse(context.req.param("entry_id")),
-      ),
-    ));
+  register(getCoven, async (context) => {
+    const value = await repositories(context, options).coven.get(
+      uuid.parse(context.req.param("entry_id")),
+    );
+    if (value === null) return dataResponse(context, null);
+    const claimIds = evidenceClaimIds(value);
+    const evidence = claimIds.length === 0
+      ? []
+      : await repositories(context, options).assets.listEvidence(claimIds);
+    return dataResponse(context, presentCovenDetail(value, evidence));
+  });
+  const getCovenEvidence = route(
+    "get",
+    "/v1/coven/{entry_id}/evidence",
+    "getCovenEvidence",
+    "Coven",
+    {
+      pathParams: z.object({ entry_id: uuid }),
+      response: covenEvidenceResponseSchema,
+    },
+  );
+  register(getCovenEvidence, async (context) => {
+    const value = await repositories(context, options).coven.get(
+      uuid.parse(context.req.param("entry_id")),
+    );
+    if (value === null) return dataResponse(context, null);
+    const claimIds = evidenceClaimIds(value);
+    const evidence = claimIds.length === 0
+      ? []
+      : await repositories(context, options).assets.listEvidence(claimIds);
+    return dataResponse(context, evidence.map(presentEvidenceDetail));
+  });
 
-  for (
-    const [path, operationId, loader] of [
-      [
-        "/v1/discover/assets",
-        "listDiscoverAssets",
-        (r: RetainedRepositorySet, n: number) => r.discover.listAssets(n),
-      ],
-      [
-        "/v1/discover/grimoires",
-        "listGrimoires",
-        (r: RetainedRepositorySet, n: number) => r.discover.listGrimoires(n),
-      ],
-      [
-        "/v1/discover/circle-templates",
-        "listCircleTemplates",
-        (r: RetainedRepositorySet, n: number) =>
-          r.discover.listCircleTemplates(n),
-      ],
-    ] as const
-  ) {
-    const definition = route("get", path, operationId, "Discover", {
-      query: z.object({ limit: limit.optional() }),
-    });
-    register(definition, async (context) =>
-      dataResponse(
-        context,
-        await loader(
-          repositories(context, options),
-          limit.parse(context.req.query("limit")),
-        ),
-      ));
-  }
+  const getCircleTemplate = route(
+    "get",
+    "/v1/discover/circle-templates/{template_id}",
+    "getCircleTemplate",
+    "Discover",
+    {
+      pathParams: z.object({ template_id: uuid }),
+      response: circleTemplateDetailResponseSchema,
+    },
+  );
+  register(getCircleTemplate, async (context) => {
+    const value = await repositories(context, options).circles.getTemplate(
+      uuid.parse(context.req.param("template_id")),
+    );
+    return dataResponse(context, value === null ? null : presentCircleTemplate(value));
+  });
+
+  const listDiscoverAssets = route(
+    "get",
+    "/v1/discover/assets",
+    "listDiscoverAssets",
+    "Discover",
+    { query: pagedContentQuery, response: discoverAssetCollectionResponseSchema },
+  );
+  register(listDiscoverAssets, async (context) => {
+    rejectRetainedCursor(context);
+    const values = await repositories(context, options).assets.list(
+      limit.parse(context.req.query("limit")),
+    );
+    return collectionDataResponse(context, values.map(presentAssetSummary));
+  });
+
+  const listGrimoires = route(
+    "get",
+    "/v1/discover/grimoires",
+    "listGrimoires",
+    "Discover",
+    {
+      query: pagedContentQuery.extend({
+        theme: z.string().min(1).max(64).regex(/^[a-z0-9_]+$/).optional(),
+      }).strict(),
+      response: grimoireCollectionResponseSchema,
+    },
+  );
+  register(listGrimoires, async (context) => {
+    rejectRetainedCursor(context);
+    const values = await repositories(context, options).discover.listGrimoires(
+      limit.parse(context.req.query("limit")),
+      context.req.query("theme"),
+    );
+    return collectionDataResponse(context, values.map(presentGrimoireSummary));
+  });
+
+  const getGrimoire = route(
+    "get",
+    "/v1/discover/grimoires/{id}",
+    "getGrimoire",
+    "Discover",
+    { pathParams: z.object({ id: uuid }), response: grimoireDetailResponseSchema },
+  );
+  register(getGrimoire, async (context) => {
+    const value = await repositories(context, options).discover.getGrimoire(
+      uuid.parse(context.req.param("id")),
+    );
+    return dataResponse(context, value === null ? null : presentGrimoireDetail(value));
+  });
+
+  const listCircleTemplates = route(
+    "get",
+    "/v1/discover/circle-templates",
+    "listCircleTemplates",
+    "Discover",
+    {
+      query: pagedContentQuery.extend({
+        creator: z.string().min(1).max(120).optional(),
+      }).strict(),
+      response: circleTemplateCollectionResponseSchema,
+    },
+  );
+  register(listCircleTemplates, async (context) => {
+    rejectRetainedCursor(context);
+    const values = await repositories(context, options).discover.listCircleTemplates(
+      limit.parse(context.req.query("limit")),
+      context.req.query("creator"),
+    );
+    return collectionDataResponse(context, values.map(presentCircleTemplateSummary));
+  });
+
+  const listSeededCreators = route(
+    "get",
+    "/v1/discover/creators",
+    "listSeededCreators",
+    "Discover",
+    { query: pagedContentQuery, response: creatorCollectionResponseSchema },
+  );
+  register(listSeededCreators, async (context) => {
+    rejectRetainedCursor(context);
+    const values = await repositories(context, options).discover.listCreators(
+      limit.parse(context.req.query("limit")),
+    );
+    return collectionDataResponse(context, values.map(presentCreator));
+  });
+
+  const discoverQuery = pagedContentQuery.extend({
+    section: z.enum(["asset", "coven", "grimoire", "circle_template"]).optional(),
+  }).strict();
+  const listDiscover = route("get", "/v1/discover", "listDiscover", "Discover", {
+    query: discoverQuery,
+    response: discoverResponseSchema,
+  });
+  register(listDiscover, async (context) => {
+    rejectRetainedCursor(context);
+    const requestedLimit = limit.parse(context.req.query("limit"));
+    const section = context.req.query("section");
+    const repositorySet = repositories(context, options);
+    const [assets, coven, grimoires, templates] = await Promise.all([
+      section === undefined || section === "asset" ? repositorySet.assets.list(requestedLimit) : [],
+      section === undefined || section === "coven" ? repositorySet.coven.list(requestedLimit) : [],
+      section === undefined || section === "grimoire" ? repositorySet.discover.listGrimoires(requestedLimit) : [],
+      section === undefined || section === "circle_template"
+        ? repositorySet.discover.listCircleTemplates(requestedLimit)
+        : [],
+    ]);
+    const values = [
+      ...assets.map((asset) => ({ kind: "asset", asset: presentAssetSummary(asset) })),
+      ...coven.map((entry) => ({ kind: "coven", coven: presentCovenSummary(entry) })),
+      ...grimoires.map((entry) => ({ kind: "grimoire", grimoire: presentGrimoireSummary(entry) })),
+      ...templates.map((entry) => ({
+        kind: "circle_template",
+        circle_template: presentCircleTemplateSummary(entry),
+      })),
+    ].slice(0, requestedLimit);
+    return collectionDataResponse(context, values);
+  });
 
   const uploadIntentBody = z.object({
     bucketId: z.enum(["member-media", "media-quarantine"]),
@@ -2268,7 +3887,10 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/notifications",
     "listNotifications",
     "Notifications",
-    { query: z.object({ limit: limit.optional() }) },
+    {
+      query: z.object({ limit: limit.optional() }),
+      response: notificationCollectionResponseSchema,
+    },
   );
   register(
     listNotifications,
@@ -2285,6 +3907,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/notification-preferences",
     "getNotificationPreferences",
     "Notifications",
+    { response: notificationPreferencesResponseSchema },
   );
   register(
     notificationPreferences,
@@ -2299,7 +3922,11 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/notification-preferences",
     "updateNotificationPreferences",
     "Notifications",
-    { body: jsonObject, headers: z.object({ "if-match": z.string() }) },
+    {
+      body: jsonObject,
+      headers: z.object({ "if-match": z.string() }),
+      response: notificationPreferencesResponseSchema,
+    },
   );
   register(
     updateNotificationPreferences,
@@ -2317,24 +3944,56 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     "/v1/notifications/{notification_id}/read",
     "markNotificationRead",
     "Notifications",
-    { pathParams: z.object({ notification_id: uuid }) },
+    {
+      pathParams: z.object({ notification_id: uuid }),
+      body: z.object({ read: z.boolean() }).strict().openapi("SetNotificationReadStateRequest"),
+      response: retainedEnvelope("NotificationResponse", notificationSchema),
+    },
   );
-  register(
-    markNotificationRead,
-    async (context) =>
-      dataResponse(
-        context,
-        await repositories(context, options).notifications.markRead(
-          uuid.parse(context.req.param("notification_id")),
-        ),
+  register(markNotificationRead, async (context) => {
+    const input = await parseBody(
+      context,
+      z.object({ read: z.boolean() }).strict(),
+    );
+    return dataResponse(
+      context,
+      await repositories(context, options).notifications.setRead(
+        uuid.parse(context.req.param("notification_id")),
+        input.read,
       ),
+    );
+  });
+  const readAllNotificationsBody = z.object({
+    before: z.string().datetime(),
+  }).strict().openapi("ReadAllNotificationsRequest");
+  const readAllNotifications = route(
+    "post",
+    "/v1/notifications/read-all",
+    "readAllNotifications",
+    "Notifications",
+    {
+      body: readAllNotificationsBody,
+      headers: z.object({ "idempotency-key": idempotencyKey }),
+      response: retainedEnvelope(
+        "ReadAllNotificationsResponse",
+        z.object({ updated_count: z.number().int().nonnegative().max(10000) }).strict(),
+      ),
+    },
   );
+  register(readAllNotifications, async (context) => {
+    const input = await parseBody(context, readAllNotificationsBody);
+    return dataResponse(
+      context,
+      await repositories(context, options).notifications.readAll(input.before),
+    );
+  });
 
   const listPrivacy = route(
     "get",
     "/v1/privacy/requests",
     "listPrivacyRequests",
     "Privacy",
+    { response: privacyRequestCollectionResponseSchema },
   );
   register(
     listPrivacy,
@@ -2344,13 +4003,26 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         await repositories(context, options).privacy.list(),
       ),
   );
-  const privacyBody = z.discriminatedUnion("requestType", [
-    z.object({ requestType: z.literal("export") }).strict(),
-    z.object({
-      requestType: z.literal("deletion"),
-      step_up_receipt: z.string().min(32).max(512).regex(/^[A-Za-z0-9_-]+$/),
-    }).strict(),
-  ]);
+  const privacyBody = z.object({
+    requestType: z.enum(["export", "deletion"]),
+    step_up_receipt: z.string().min(32).max(512).regex(/^[A-Za-z0-9_-]+$/)
+      .optional(),
+  }).strict().superRefine((value, context) => {
+    if (value.requestType === "deletion" && value.step_up_receipt === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["step_up_receipt"],
+        message: "Deletion requires an action-bound step-up receipt.",
+      });
+    }
+    if (value.requestType === "export" && value.step_up_receipt !== undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["step_up_receipt"],
+        message: "Export requests do not accept a step-up receipt.",
+      });
+    }
+  }).openapi("RequestPrivacyActionRequest");
   const requestPrivacy = route(
     "post",
     "/v1/privacy/requests",
@@ -2359,6 +4031,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     {
       body: privacyBody,
       headers: z.object({ "idempotency-key": idempotencyKey }),
+      response: privacyRequestResponseSchema,
     },
   );
   register(requestPrivacy, async (context) => {
@@ -2368,7 +4041,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       await repositories(context, options).privacy.request(
         input.requestType,
         idempotencyKey.parse(context.req.header("idempotency-key")),
-        input.requestType === "deletion" ? input.step_up_receipt : undefined,
+        input.step_up_receipt,
       ),
     );
   });
@@ -2380,10 +4053,13 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     {
       pathParams: z.object({ request_id: uuid }),
       description: "Mint an owner-scoped privacy export URL that expires in five minutes.",
-      response: z.object({
-        url: z.string().url(),
-        expires_at: z.string().datetime(),
-      }).strict(),
+      response: retainedEnvelope(
+        "PrivacyDownloadUrlResponse",
+        z.object({
+          url: z.string().url(),
+          expires_at: z.string().datetime(),
+        }).strict().openapi("PrivacyDownloadUrl"),
+      ),
     },
   );
   register(createPrivacyDownload, async (context) => {
@@ -2397,12 +4073,46 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   });
 
   const ritualPath = z.object({ assignment_id: uuid });
+  const getDailyRitual = route(
+    "get",
+    "/v1/rituals/daily",
+    "getDailyRitual",
+    "Rituals",
+    {
+      query: z.object({ mode: z.enum(["tarot", "astrology"]).optional() }),
+      response: ritualAssignmentResponseSchema,
+    },
+  );
+  register(getDailyRitual, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).rituals.getDaily(
+        context.req.query("mode") as "tarot" | "astrology" | undefined,
+      ),
+    ));
+  const ritualHistory = route(
+    "get",
+    "/v1/rituals",
+    "listRitualHistory",
+    "Rituals",
+    {
+      query: z.object({ limit: limit.optional() }),
+      response: ritualHistoryResponseSchema,
+    },
+  );
+  register(ritualHistory, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).rituals.history(
+        limit.parse(context.req.query("limit")),
+      ),
+    ));
   const getRitual = route(
     "get",
     "/v1/rituals/{assignment_id}",
     "getRitual",
     "Rituals",
-    { pathParams: ritualPath },
+    { pathParams: ritualPath, response: ritualAssignmentResponseSchema },
   );
   register(
     getRitual,
@@ -2414,6 +4124,20 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         ),
       ),
   );
+  const ritualEvidence = route(
+    "get",
+    "/v1/rituals/{assignment_id}/evidence",
+    "getRitualEvidence",
+    "Rituals",
+    { pathParams: ritualPath, response: ritualEvidenceResponseSchema },
+  );
+  register(ritualEvidence, async (context) =>
+    dataResponse(
+      context,
+      await repositories(context, options).rituals.evidence(
+        uuid.parse(context.req.param("assignment_id")),
+      ),
+    ));
   const transitionBody = z.object({
     from: z.enum(["assigned", "revealed"]),
     to: z.enum(["revealed", "completed"]),
@@ -2427,6 +4151,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       pathParams: ritualPath,
       body: transitionBody,
       headers: z.object({ "if-match": z.string() }),
+      response: ritualAssignmentResponseSchema,
     },
   );
   register(transitionRitual, async (context) => {
@@ -2443,19 +4168,48 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   });
 
   const search = route("get", "/v1/search", "search", "Search", {
-    query: z.object({ q: z.string().min(1).max(160), limit: limit.optional() }),
-  });
-  register(
-    search,
-    async (context) =>
-      dataResponse(
-        context,
-        await repositories(context, options).search.search(
-          z.string().min(1).max(160).parse(context.req.query("q")),
-          limit.parse(context.req.query("limit")),
-        ),
+    query: z.object({
+      q: z.string().trim().min(2).max(100),
+      kinds: z.string().min(1).max(80).regex(
+        /^(asset|coven|grimoire|circle_template)(,(asset|coven|grimoire|circle_template))*$/,
       ),
-  );
+      cursor: z.string().min(1).max(2_048).optional(),
+      limit: limit.optional(),
+    }).strict(),
+    response: searchResponseSchema,
+  });
+  register(search, async (context) => {
+    if (context.req.query("cursor") !== undefined) {
+      throw new HttpBoundaryError(
+        422,
+        "invalid_cursor",
+        "This retained search has no additional page for the supplied cursor.",
+      );
+    }
+    const query = z.string().trim().min(2).max(100).parse(context.req.query("q"));
+    const kinds = new Set(
+      z.string().parse(context.req.query("kinds")).split(","),
+    );
+    const requestedLimit = limit.parse(context.req.query("limit"));
+    const repositorySet = repositories(context, options);
+    const [assets, coven, grimoires, templates] = await Promise.all([
+      kinds.has("asset") ? repositorySet.assets.list(100) : [],
+      kinds.has("coven") ? repositorySet.coven.list(100) : [],
+      kinds.has("grimoire") ? repositorySet.discover.listGrimoires(100) : [],
+      kinds.has("circle_template") ? repositorySet.discover.listCircleTemplates(100) : [],
+    ]);
+    const values = [
+      ...assets.map(presentAssetSummary).filter((entry) => matchesPublishedSearch(entry, query))
+        .map((asset) => ({ kind: "asset", asset })),
+      ...coven.map(presentCovenSummary).filter((entry) => matchesPublishedSearch(entry, query))
+        .map((entry) => ({ kind: "coven", coven: entry })),
+      ...grimoires.map(presentGrimoireSummary).filter((entry) => matchesPublishedSearch(entry, query))
+        .map((entry) => ({ kind: "grimoire", grimoire: entry })),
+      ...templates.map(presentCircleTemplateSummary).filter((entry) => matchesPublishedSearch(entry, query))
+        .map((entry) => ({ kind: "circle_template", circle_template: entry })),
+    ].slice(0, requestedLimit);
+    return collectionDataResponse(context, values);
+  });
   const rowan = route(
     "get",
     "/v1/rowan/{surface}/{context_key}",
@@ -2466,6 +4220,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         surface: z.string().min(1).max(80),
         context_key: z.string().min(1).max(160),
       }),
+      response: rowanCounselResponseSchema,
     },
   );
   register(

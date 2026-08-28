@@ -14,38 +14,47 @@ import 'package:ritual_investing_app/features/discover/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
 
 void main() {
-  test('mixed Discover preserves all four kinds in server priority order', () async {
-    final controller = DiscoverController(
-      repository: CachedDiscoverRepository(
-        service: _MixedDiscoverService(),
-        cache: MemoryReadCache(),
-      ),
-      personalization: const MemberPersonalization(
-        explanationDepth: MemberExplanationDepth.beginner,
-        ritualVoice: MemberRitualVoice.practical,
-        riskFraming: MemberRiskFraming.low,
-      ),
-    );
+  test(
+    'mixed Discover preserves all four kinds in server priority order',
+    () async {
+      final controller = DiscoverController(
+        repository: CachedDiscoverRepository(
+          service: _MixedDiscoverService(),
+          cache: MemoryReadCache(),
+        ),
+        personalization: const MemberPersonalization(
+          explanationDepth: MemberExplanationDepth.beginner,
+          ritualVoice: MemberRitualVoice.practical,
+          riskFraming: MemberRiskFraming.low,
+        ),
+      );
 
-    await controller.load();
+      await controller.load();
 
-    expect(
-      controller.state.value!.items.map((item) => item.kind),
-      const [
+      expect(controller.state.value!.items.map((item) => item.kind), const [
         DiscoverItemKind.asset,
         DiscoverItemKind.grimoire,
         DiscoverItemKind.circleTemplate,
         DiscoverItemKind.coven,
-      ],
-    );
-    expect(controller.lead.id, _assetId);
-    expect(controller.personalization.riskFraming, MemberRiskFraming.low);
-    expect(controller.personalization.explanationDepth, MemberExplanationDepth.beginner);
-    expect(controller.personalization.ritualVoice, MemberRitualVoice.practical);
-    expect(controller.state.value!.items.every((item) => item.demo.isDemo), isTrue);
-    expect(controller.state.value!.items[1].revisionId, _grimoireRevisionId);
-    expect(controller.state.value!.items[2].creator!.isFictional, isTrue);
-  });
+      ]);
+      expect(controller.lead.id, _assetId);
+      expect(controller.personalization.riskFraming, MemberRiskFraming.low);
+      expect(
+        controller.personalization.explanationDepth,
+        MemberExplanationDepth.beginner,
+      );
+      expect(
+        controller.personalization.ritualVoice,
+        MemberRitualVoice.practical,
+      );
+      expect(
+        controller.state.value!.items.every((item) => item.demo.isDemo),
+        isTrue,
+      );
+      expect(controller.state.value!.items[1].revisionId, _grimoireRevisionId);
+      expect(controller.state.value!.items[2].creator!.isFictional, isTrue);
+    },
+  );
 
   test('offline Discover restores a stale account-scoped mixed feed', () async {
     final cache = MemoryReadCache();
@@ -75,7 +84,7 @@ void main() {
 
     final result = await GeneratedDiscoverApiService(client).fetch();
 
-    expect(adapter.paths, ['/v1/discover', '/v1/community/creators']);
+    expect(adapter.paths, ['/v1/discover', '/v1/discover/creators']);
     expect(result.items.map((item) => item.kind), [
       DiscoverItemKind.asset,
       DiscoverItemKind.grimoire,
@@ -91,23 +100,26 @@ void main() {
     expect(result.hasMore, isTrue);
   });
 
-  test('generated Discover rejects a seeded creator that is not fictional', () async {
-    final client = RitualInvestingApiClient(
-      basePathOverride: 'https://api.ritual-investing.invalid',
-    );
-    client.dio.httpClientAdapter = _DiscoverJsonAdapter(isFictional: false);
+  test(
+    'generated Discover rejects a seeded creator that is not fictional',
+    () async {
+      final client = RitualInvestingApiClient(
+        basePathOverride: 'https://api.ritual-investing.invalid',
+      );
+      client.dio.httpClientAdapter = _DiscoverJsonAdapter(isFictional: false);
 
-    await expectLater(
-      GeneratedDiscoverApiService(client).fetch(),
-      throwsA(
-        isA<LoadFailure>().having(
-          (failure) => failure.phase,
-          'phase',
-          LoadPhase.terminalFailure,
+      await expectLater(
+        GeneratedDiscoverApiService(client).fetch(),
+        throwsA(
+          isA<LoadFailure>().having(
+            (failure) => failure.phase,
+            'phase',
+            LoadPhase.terminalFailure,
+          ),
         ),
-      ),
-    );
-  });
+      );
+    },
+  );
 }
 
 const _assetId = '00000000-0000-4000-8000-000000000701';
@@ -202,7 +214,7 @@ class _DiscoverJsonAdapter implements HttpClientAdapter {
   ) async {
     paths.add(options.path);
     final creator = {..._creatorJson, 'is_fictional': isFictional};
-    final data = options.path == '/v1/community/creators'
+    final data = options.path == '/v1/discover/creators'
         ? {
             'data': [creator],
             'meta': _meta(hasMore: false, nextCursor: null),
@@ -222,7 +234,9 @@ class _DiscoverJsonAdapter implements HttpClientAdapter {
     return ResponseBody.fromString(
       jsonEncode(data),
       200,
-      headers: {Headers.contentTypeHeader: [Headers.jsonContentType]},
+      headers: {
+        Headers.contentTypeHeader: [Headers.jsonContentType],
+      },
     );
   }
 

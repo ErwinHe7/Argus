@@ -14,11 +14,11 @@ void main() {
       ensureDateOnlyRequestSerialization(dio);
 
       await dio.put<void>(
-        '/v1/me/astrology-profile',
-        data: jsonEncode({'birth_date': value}),
+        '/v1/astrology-profile',
+        data: jsonEncode({'birthDate': value}),
       );
 
-      expect(jsonDecode(adapter.body!)['birth_date'], '1994-05-14');
+      expect(jsonDecode(adapter.body!)['birthDate'], '1994-05-14');
     }
   });
 
@@ -35,8 +35,8 @@ void main() {
 
       await expectLater(
         dio.put<void>(
-          '/v1/me/astrology-profile',
-          data: jsonEncode({'birth_date': value}),
+          '/v1/astrology-profile',
+          data: jsonEncode({'birthDate': value}),
         ),
         throwsA(isA<DioException>()),
         reason: value,

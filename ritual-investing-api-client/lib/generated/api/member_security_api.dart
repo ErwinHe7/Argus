@@ -9,9 +9,9 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 import 'package:ritual_investing_api_client/generated/model/issue_member_step_up_request.dart';
+import 'package:ritual_investing_api_client/generated/model/member_step_up_receipt_response.dart';
 
 class MemberSecurityApi {
   final Dio _dio;
@@ -30,9 +30,9 @@ class MemberSecurityApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [MemberStepUpReceiptResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> issueMemberStepUp({
+  Future<Response<MemberStepUpReceiptResponse>> issueMemberStepUp({
     required IssueMemberStepUpRequest issueMemberStepUpRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -77,17 +77,16 @@ class MemberSecurityApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    MemberStepUpReceiptResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
-              rawData,
-              'GetAccount200Response',
-              growable: true,
-            );
+          : deserialize<
+              MemberStepUpReceiptResponse,
+              MemberStepUpReceiptResponse
+            >(rawData, 'MemberStepUpReceiptResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -98,7 +97,7 @@ class MemberSecurityApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<MemberStepUpReceiptResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

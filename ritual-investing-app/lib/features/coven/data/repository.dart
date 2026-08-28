@@ -34,11 +34,8 @@ class CovenRepository {
   final CovenService _service;
   final ReadCache _cache;
 
-  Future<RepositoryRead<CovenModel>> load() => cachedRead(
-    key: 'coven',
-    cache: _cache,
-    fetch: _service.fetch,
-  );
+  Future<RepositoryRead<CovenModel>> load() =>
+      cachedRead(key: 'coven', cache: _cache, fetch: _service.fetch);
 
   Future<RepositoryRead<CovenDetail>> loadDetail(String entryId) => cachedRead(
     key: 'coven-detail:$entryId',

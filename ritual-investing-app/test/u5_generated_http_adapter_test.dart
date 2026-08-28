@@ -114,7 +114,7 @@ void main() {
       );
       expect(
         adapter.requests
-            .singleWhere((request) => request.path.endsWith('/copies'))
+            .singleWhere((request) => request.path.endsWith('/copy'))
             .headers['idempotency-key'],
         'copy-key-u5',
       );
@@ -154,13 +154,9 @@ void main() {
         '"v6"',
       );
       final rowanRequest = adapter.requests.singleWhere(
-        (request) => request.path == '/v1/rowan/counsel',
+        (request) => request.path == '/v1/rowan/coven/coven',
       );
-      expect(rowanRequest.query, {
-        'surface': 'coven',
-        'context_code': 'coven',
-        'resource_id': _covenId,
-      });
+      expect(rowanRequest.query, isEmpty);
     },
   );
 }
@@ -207,8 +203,20 @@ class _U5Adapter implements HttpClientAdapter {
   String circleDescription = 'Only visible to this member.';
   DateTime? archivedAt;
   List<Map<String, Object?>> assets = [
-    {'asset_id': _assetA, 'ordinal': 1, 'note': null, 'weight_bps': 6000},
-    {'asset_id': _assetB, 'ordinal': 2, 'note': null, 'weight_bps': 4000},
+    {
+      'id': '00000000-0000-4000-8000-000000000751',
+      'asset_id': _assetA,
+      'ordinal': 1,
+      'note': null,
+      'weight_bps': 6000,
+    },
+    {
+      'id': '00000000-0000-4000-8000-000000000752',
+      'asset_id': _assetB,
+      'ordinal': 2,
+      'note': null,
+      'weight_bps': 4000,
+    },
   ];
 
   @override
@@ -229,10 +237,11 @@ class _U5Adapter implements HttpClientAdapter {
     final path = options.path;
     final method = options.method;
 
-    if (method == 'GET' && path == '/v1/grimoires/$_grimoireId') {
+    if (method == 'GET' &&
+        path == '/v1/discover/grimoires/$_grimoireId') {
       return _json({'data': _grimoireJson, 'meta': _meta});
     }
-    if (method == 'PUT' && path == '/v1/me/saved-grimoires/$_grimoireId') {
+    if (method == 'POST' && path == '/v1/saved/grimoire/$_grimoireId') {
       grimoireSaved = true;
       return _saved();
     }
@@ -245,20 +254,21 @@ class _U5Adapter implements HttpClientAdapter {
         'meta': _meta,
       });
     }
-    if (method == 'PUT' && path == '/v1/me/saved-coven/$_covenId') {
+    if (method == 'POST' && path == '/v1/saved/coven/$_covenId') {
       covenSaved = true;
       return _saved();
     }
-    if (method == 'GET' && path == '/v1/circle-templates/$_templateId') {
+    if (method == 'GET' &&
+        path == '/v1/discover/circle-templates/$_templateId') {
       return _json({'data': _templateJson, 'meta': _meta});
     }
-    if (method == 'PUT' &&
-        path == '/v1/me/saved-circle-templates/$_templateId') {
+    if (method == 'POST' &&
+        path == '/v1/saved/circle_template/$_templateId') {
       templateSaved = true;
       return _saved();
     }
     if (method == 'POST' &&
-        path == '/v1/circle-templates/$_templateId/copies') {
+        path == '/v1/circle-templates/$_templateId/copy') {
       final copy = {
         ..._circleJson,
         'title': 'My copied research',
@@ -298,6 +308,7 @@ class _U5Adapter implements HttpClientAdapter {
       final body = _body(options.data);
       assets = [
         {
+          'id': '00000000-0000-4000-8000-000000000751',
           'asset_id': _assetA,
           'ordinal': body['ordinal'] as int,
           'note': body['note'],
@@ -319,13 +330,15 @@ class _U5Adapter implements HttpClientAdapter {
       archivedAt = DateTime.utc(2026, 8, 25, 18);
       return _empty();
     }
-    if (method == 'GET' && path == '/v1/rowan/counsel') {
+    if (method == 'GET' && path == '/v1/rowan/coven/coven') {
       return _json({
         'data': {
-          'body': 'Use dated qualification evidence.',
+          'id': '00000000-0000-4000-8000-000000000799',
+          'script_key': 'coven.coven',
+          'body_template': 'Use dated qualification evidence.',
+          'allowed_tokens': <String>[],
           'risk_footer': 'Demo only; not investment advice.',
-          'script_revision_id': '00000000-0000-4000-8000-000000000799',
-          'surface': 'coven',
+          'priority': 1,
         },
         'meta': _meta,
       });
@@ -355,6 +368,10 @@ class _U5Adapter implements HttpClientAdapter {
     'company': 'Aurora Healthworks',
     'symbol': 'AUR',
     'focus': 'Preventive care',
+    'category': 'founder',
+    'effective_date': '2026-08-01',
+    'verified_as_of': '2026-08-25T12:00:00.000Z',
+    'teaser': 'Verified Demo evidence.',
     'summary': 'Fictional provider-free company profile.',
     'inclusion_rationale': 'Dated founder evidence is available.',
     'limitations': 'Demo only; not investment advice.',
@@ -368,6 +385,7 @@ class _U5Adapter implements HttpClientAdapter {
         'verified_as_of': '2026-08-25T12:00:00.000Z',
       },
     ],
+    'evidence': [],
     'saved': covenSaved,
     'demo': _demo,
   };
@@ -401,6 +419,8 @@ class _U5Adapter implements HttpClientAdapter {
 
   Map<String, Object?> get _circleJson => {
     'id': _circleId,
+    'user_id': '00000000-0000-4000-8000-000000000749',
+    'deletion_epoch': 0,
     'title': circleTitle,
     'description': circleDescription,
     'private': true,

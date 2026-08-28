@@ -35,25 +35,6 @@ void main() {
     });
   }
 
-  testWidgets('Demo reset requires review before the generated command', (
-    tester,
-  ) async {
-    final repository = _UiRepository();
-    final controller = _controller(repository);
-    await tester.pumpWidget(
-      MaterialApp(home: DemoResetScreen(controller: controller)),
-    );
-
-    await tester.tap(find.byKey(const Key('demo-reset-review')));
-    await tester.pump();
-    expect(repository.resetCalls, 0);
-    expect(find.textContaining('cannot be undone'), findsOneWidget);
-
-    await tester.tap(find.byKey(const Key('demo-reset-confirm')));
-    await tester.pumpAndSettle();
-    expect(repository.resetCalls, 1);
-  });
-
   testWidgets('completed export without a fresh grant is never called ready', (
     tester,
   ) async {
@@ -157,61 +138,6 @@ void main() {
     expect(find.textContaining('temporarily unavailable'), findsOneWidget);
   });
 
-  testWidgets('direct reset route restores the same command for review', (
-    tester,
-  ) async {
-    final storage = _Storage();
-    final interrupted = _UiRepository(
-      resetError: const AmbiguousPrivacyMutation(),
-    );
-    final first = _controller(interrupted, storage: storage);
-    first.prepareDemoReset();
-    await first.confirmDemoReset(seedVersion: 1);
-    expect(first.hasProtectedReset, isTrue);
-
-    final resumed = _UiRepository();
-    final second = _controller(resumed, storage: storage);
-    await tester.pumpWidget(
-      MaterialApp(home: DemoResetScreen(controller: second)),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Review saved Demo reset'), findsOneWidget);
-    expect(find.byKey(const Key('demo-reset-confirm')), findsNothing);
-    expect(resumed.resetCalls, 0);
-    await tester.tap(find.byKey(const Key('demo-reset-restored-review')));
-    await tester.pump();
-    expect(find.byKey(const Key('demo-reset-confirm')), findsOneWidget);
-    expect(resumed.resetCalls, 0);
-  });
-
-  testWidgets('reset route redirects a saved export back to Privacy', (
-    tester,
-  ) async {
-    final repository = _UiRepository(
-      requestError: const PrivacyFailure(PrivacyFailureKind.terminal),
-    );
-    final controller = _controller(repository);
-    await controller.requestExport();
-    var openedPrivacy = false;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: DemoResetScreen(
-          controller: controller,
-          onOpenPrivacy: () => openedPrivacy = true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('different privacy action'), findsOneWidget);
-    expect(find.byKey(const Key('demo-reset-restored-review')), findsNothing);
-    expect(find.byKey(const Key('demo-reset-review')), findsNothing);
-    await tester.tap(find.byKey(const Key('demo-reset-open-privacy')));
-    expect(openedPrivacy, isTrue);
-  });
-
   testWidgets('protected deletion recovery never renders export controls', (
     tester,
   ) async {
@@ -249,35 +175,6 @@ void main() {
     expect(find.byKey(const Key('privacy-export-refresh')), findsNothing);
     expect(find.byKey(const Key('privacy-export-share')), findsNothing);
   });
-
-  testWidgets('privacy route sends a saved reset to the reset screen', (
-    tester,
-  ) async {
-    final storage = _Storage();
-    final first = _controller(
-      _UiRepository(resetError: const AmbiguousPrivacyMutation()),
-      storage: storage,
-    );
-    first.prepareDemoReset();
-    await first.confirmDemoReset(seedVersion: 1);
-    final resumed = _controller(_UiRepository(), storage: storage);
-    var openedReset = false;
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: PrivacySettingsScreen(
-          controller: resumed,
-          onOpenDemoReset: () => openedReset = true,
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('Open saved Demo reset'), findsOneWidget);
-    expect(find.byKey(const Key('privacy-restored-review')), findsNothing);
-    await tester.tap(find.byKey(const Key('privacy-open-demo-reset')));
-    expect(openedReset, isTrue);
-  });
 }
 
 PrivacyController _controller(
@@ -289,8 +186,8 @@ PrivacyController _controller(
   scope: const CacheScope(accountId: 'account-a', resetGeneration: 4),
   createKey: () => 'privacy-ui-command-00001',
   reauthenticate: () async {},
+  authorizeDeletion: () async => 'delete_step_up_receipt_000000000001',
   onDeletionAccepted: () async {},
-  onResetAccepted: (_) async {},
 );
 
 class _UiRepository implements PrivacyRepository {
@@ -298,16 +195,13 @@ class _UiRepository implements PrivacyRepository {
     this.restoredExport,
     this.requestError,
     this.shareError,
-    this.resetError,
     this.deletionError,
   });
 
   final PrivacyExport? restoredExport;
   final Object? requestError;
   final Object? shareError;
-  final Object? resetError;
   final Object? deletionError;
-  int resetCalls = 0;
 
   @override
   Future<void> clearStaleLocalFiles() async {}
@@ -339,26 +233,16 @@ class _UiRepository implements PrivacyRepository {
   }
 
   @override
-  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey) async {
+  Future<PrivacyDeletionReceipt> requestDeletion(
+    String idempotencyKey,
+    String stepUpReceipt,
+  ) async {
     if (deletionError case final error?) throw error;
     throw UnimplementedError();
   }
 
   @override
   Future<bool> accountInactive() async => false;
-  @override
-  Future<DemoResetReceipt> resetDemo(
-    int seedVersion,
-    String idempotencyKey,
-  ) async {
-    resetCalls += 1;
-    if (resetError case final error?) throw error;
-    return const DemoResetReceipt(
-      resetGeneration: 5,
-      defaultPortfolioId: '018f3c2a-4b67-7a89-8abc-123456789099',
-    );
-  }
-
   @override
   Future<void> cancelAndClearLocal() async {}
 }

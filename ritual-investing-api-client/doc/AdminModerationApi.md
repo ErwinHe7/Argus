@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 
 # **decideModeration**
-> GetAccount200Response decideModeration(caseId, ifMatch, idempotencyKey, decideModerationRequest)
+> ListAdminAudit200Response decideModeration(caseId, ifMatch, idempotencyKey, decideModerationRequest)
 
 
 
@@ -46,7 +46,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 

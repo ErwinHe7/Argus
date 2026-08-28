@@ -9,7 +9,7 @@ part of 'hypothetical_future_mirror_response.dart';
 abstract class _$HypotheticalFutureMirrorResponseCWProxy {
   HypotheticalFutureMirrorResponse data(HypotheticalFutureMirror data);
 
-  HypotheticalFutureMirrorResponse meta(GetAccount200ResponseMeta meta);
+  HypotheticalFutureMirrorResponse meta(ListAdminAudit200ResponseMeta meta);
 
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `HypotheticalFutureMirrorResponse(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
@@ -19,7 +19,7 @@ abstract class _$HypotheticalFutureMirrorResponseCWProxy {
   /// ````
   HypotheticalFutureMirrorResponse call({
     HypotheticalFutureMirror data,
-    GetAccount200ResponseMeta meta,
+    ListAdminAudit200ResponseMeta meta,
   });
 }
 
@@ -35,7 +35,7 @@ class _$HypotheticalFutureMirrorResponseCWProxyImpl
       this(data: data);
 
   @override
-  HypotheticalFutureMirrorResponse meta(GetAccount200ResponseMeta meta) =>
+  HypotheticalFutureMirrorResponse meta(ListAdminAudit200ResponseMeta meta) =>
       this(meta: meta);
 
   @override
@@ -57,7 +57,7 @@ class _$HypotheticalFutureMirrorResponseCWProxyImpl
       meta: meta == const $CopyWithPlaceholder()
           ? _value.meta
           // ignore: cast_nullable_to_non_nullable
-          : meta as GetAccount200ResponseMeta,
+          : meta as ListAdminAudit200ResponseMeta,
     );
   }
 }
@@ -86,7 +86,8 @@ HypotheticalFutureMirrorResponse _$HypotheticalFutureMirrorResponseFromJson(
         ),
         meta: $checkedConvert(
           'meta',
-          (v) => GetAccount200ResponseMeta.fromJson(v as Map<String, dynamic>),
+          (v) =>
+              ListAdminAudit200ResponseMeta.fromJson(v as Map<String, dynamic>),
         ),
       );
       return val;

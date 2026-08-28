@@ -15,7 +15,7 @@ Method | HTTP request | Description
 
 
 # **listSaved**
-> GetAccount200Response listSaved(limit)
+> ListAdminAudit200Response listSaved(limit)
 
 
 
@@ -42,7 +42,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -56,7 +56,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **saveItem**
-> GetAccount200Response saveItem(itemKind, itemId)
+> ListAdminAudit200Response saveItem(itemKind, itemId, saveItemRequest)
 
 
 
@@ -67,9 +67,10 @@ import 'package:ritual_investing_api_client/api.dart';
 final api = RitualInvestingApiClient().getSavedApi();
 final String itemKind = itemKind_example; // String | 
 final String itemId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+final SaveItemRequest saveItemRequest = ; // SaveItemRequest | 
 
 try {
-    final response = api.saveItem(itemKind, itemId);
+    final response = api.saveItem(itemKind, itemId, saveItemRequest);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling SavedApi->saveItem: $e\n');
@@ -82,10 +83,11 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **itemKind** | **String**|  | 
  **itemId** | **String**|  | 
+ **saveItemRequest** | [**SaveItemRequest**](SaveItemRequest.md)|  | [optional] 
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 
@@ -93,13 +95,13 @@ Name | Type | Description  | Notes
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **unsaveItem**
-> GetAccount200Response unsaveItem(itemKind, itemId)
+> ListAdminAudit200Response unsaveItem(itemKind, itemId)
 
 
 
@@ -128,7 +130,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
 
 ### Authorization
 

@@ -9,8 +9,8 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_audit200_response.dart';
 
 class PlatformApi {
   final Dio _dio;
@@ -28,9 +28,9 @@ class PlatformApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> getLiveHealth({
+  Future<Response<ListAdminAudit200Response>> getLiveHealth({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -54,15 +54,15 @@ class PlatformApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -75,7 +75,7 @@ class PlatformApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -98,9 +98,9 @@ class PlatformApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> getOpenApiDocument({
+  Future<Response<ListAdminAudit200Response>> getOpenApiDocument({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -124,15 +124,15 @@ class PlatformApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -145,7 +145,7 @@ class PlatformApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

@@ -10,8 +10,8 @@ import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
 import 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_audit200_response.dart';
 
 class MediaApi {
   final Dio _dio;
@@ -30,9 +30,9 @@ class MediaApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> createUploadIntent({
+  Future<Response<ListAdminAudit200Response>> createUploadIntent({
     required CreateUploadIntentRequest createUploadIntentRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -77,15 +77,15 @@ class MediaApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -98,7 +98,7 @@ class MediaApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -122,9 +122,9 @@ class MediaApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> getUploadIntent({
+  Future<Response<ListAdminAudit200Response>> getUploadIntent({
     required String intentId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -159,15 +159,15 @@ class MediaApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -180,7 +180,7 @@ class MediaApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

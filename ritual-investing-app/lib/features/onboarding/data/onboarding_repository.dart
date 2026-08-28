@@ -4,12 +4,12 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:ritual_investing_api_client/ritual_investing_api_client.dart'
-    hide RitualInterest;
+import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 
-import '../../../core/api/ritual_api.dart';
 import '../../../core/api/date_only_request_interceptor.dart';
+import '../../../core/bootstrap/generated_member_bootstrap_mapper.dart';
 import '../../../core/bootstrap/member_bootstrap.dart';
+import '../../brokerage_connection/domain/model.dart';
 import '../domain/onboarding_draft.dart';
 
 enum OnboardingFailureKind {
@@ -83,14 +83,16 @@ class GeneratedOnboardingRepository implements OnboardingRepository {
           _generatedFinalizationPayload(command.payload),
         ),
       );
-      final data = response.data!.data;
-      if (data.contractVersion !=
-          SessionBootstrapContractVersionEnum.n1period0Period0) {
+      final data = response.data?.data;
+      if (data == null) {
         throw const OnboardingFinalizationException(
           OnboardingFailureKind.terminal,
         );
       }
-      return mapSessionBootstrap(data);
+      return mapSupabaseSessionBootstrap(
+        data.toJson(),
+        const BrokerageConnectionSnapshot.disconnected(),
+      );
     } on DioException catch (error) {
       throw OnboardingFinalizationException(_failureKind(error));
     }

@@ -337,14 +337,10 @@ class EntryCoordinator extends ChangeNotifier {
     if (initialLink != null) await handleBrokerageNativeLink(initialLink);
   }
 
-  Future<void> refreshCompletedBootstrap({int? expectedResetGeneration}) async {
+  Future<void> refreshCompletedBootstrap() async {
     final refreshed = await _bootstrapService.bootstrap();
     if (!refreshed.onboarding.isComplete) {
       throw StateError('The member account is no longer onboarding complete.');
-    }
-    if (expectedResetGeneration != null &&
-        refreshed.resetGeneration != expectedResetGeneration) {
-      throw StateError('The Demo reset bootstrap did not match its receipt.');
     }
     await _apply(refreshed);
     _bootstrap = refreshed;

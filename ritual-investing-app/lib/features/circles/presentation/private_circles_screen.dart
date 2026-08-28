@@ -79,12 +79,14 @@ class PrivateCirclesScreen extends StatelessWidget {
                   ),
                 ),
               if (collection != null) ...[
-                ...collection.items.where((circle) => !circle.isArchived).map(
-                  (circle) => _CircleTile(
-                    circle: circle,
-                    onTap: () => onOpenCircle(circle.id),
-                  ),
-                ),
+                ...collection.items
+                    .where((circle) => !circle.isArchived)
+                    .map(
+                      (circle) => _CircleTile(
+                        circle: circle,
+                        onTap: () => onOpenCircle(circle.id),
+                      ),
+                    ),
                 if (collection.items.any((circle) => circle.isArchived)) ...[
                   const SizedBox(height: 24),
                   Text(
@@ -92,12 +94,14 @@ class PrivateCirclesScreen extends StatelessWidget {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),
-                  ...collection.items.where((circle) => circle.isArchived).map(
-                    (circle) => _CircleTile(
-                      circle: circle,
-                      onTap: () => onOpenCircle(circle.id),
-                    ),
-                  ),
+                  ...collection.items
+                      .where((circle) => circle.isArchived)
+                      .map(
+                        (circle) => _CircleTile(
+                          circle: circle,
+                          onTap: () => onOpenCircle(circle.id),
+                        ),
+                      ),
                 ],
               ],
             ],
@@ -152,10 +156,7 @@ class PrivateCirclesScreen extends StatelessWidget {
       ),
     );
     if (create == true) {
-      await controller.create(
-        title: title.text,
-        description: description.text,
-      );
+      await controller.create(title: title.text, description: description.text);
     }
     title.dispose();
     description.dispose();
@@ -175,7 +176,9 @@ class _CircleTile extends StatelessWidget {
       minTileHeight: 72,
       onTap: onTap,
       leading: CircleAvatar(
-        child: Icon(circle.isArchived ? Icons.archive_outlined : Icons.lock_outline),
+        child: Icon(
+          circle.isArchived ? Icons.archive_outlined : Icons.lock_outline,
+        ),
       ),
       title: Text(
         circle.title,
@@ -192,11 +195,7 @@ class _CircleTile extends StatelessWidget {
 }
 
 class _Notice extends StatelessWidget {
-  const _Notice({
-    required this.message,
-    this.actionLabel,
-    this.onAction,
-  });
+  const _Notice({required this.message, this.actionLabel, this.onAction});
 
   final String message;
   final String? actionLabel;

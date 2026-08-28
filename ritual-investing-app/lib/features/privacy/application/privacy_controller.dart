@@ -22,8 +22,6 @@ enum PrivacyPhase {
   exportFailed,
   deletionReview,
   deletionAccepted,
-  resetReview,
-  resetAccepted,
   restoredReview,
   conflict,
   forbidden,
@@ -32,7 +30,7 @@ enum PrivacyPhase {
   terminalFailure,
 }
 
-enum _PrivacyOperation { export, deletion, reset }
+enum _PrivacyOperation { export, deletion }
 
 class PrivacyController extends ChangeNotifier {
   PrivacyController({
@@ -41,13 +39,13 @@ class PrivacyController extends ChangeNotifier {
     required this.scope,
     required String Function() createKey,
     required Future<void> Function() reauthenticate,
+    required Future<String> Function() authorizeDeletion,
     required Future<void> Function() onDeletionAccepted,
-    required Future<void> Function(int generation) onResetAccepted,
     MemberPersonalization personalization = const MemberPersonalization(),
   }) : _repository = repository,
        _reauthenticate = reauthenticate,
+       _authorizeDeletion = authorizeDeletion,
        _onDeletionAccepted = onDeletionAccepted,
-       _onResetAccepted = onResetAccepted,
        _personalization = personalization,
        _journal = FinancialCommandJournal(
          store: pendingStore,
@@ -59,15 +57,14 @@ class PrivacyController extends ChangeNotifier {
   final PrivacyRepository _repository;
   final FinancialCommandJournal _journal;
   final Future<void> Function() _reauthenticate;
+  final Future<String> Function() _authorizeDeletion;
   Future<void> Function() _onDeletionAccepted;
-  Future<void> Function(int generation) _onResetAccepted;
   final CacheScope scope;
   MemberPersonalization _personalization;
 
   PrivacyPhase _phase = PrivacyPhase.idle;
   PrivacyExport? _export;
   PrivacyDeletionReceipt? _deletionReceipt;
-  DemoResetReceipt? _acceptedResetReceipt;
   String? _knownExportRequestId;
   String? _message;
   JournaledFinancialCommand? _protectedCommand;
@@ -85,7 +82,6 @@ class PrivacyController extends ChangeNotifier {
       _protectedOperation == _PrivacyOperation.export;
   bool get hasProtectedDeletion =>
       _protectedOperation == _PrivacyOperation.deletion;
-  bool get hasProtectedReset => _protectedOperation == _PrivacyOperation.reset;
   bool get canRefreshExport =>
       _knownExportRequestId != null &&
       !hasProtectedCommand &&
@@ -100,7 +96,6 @@ class PrivacyController extends ChangeNotifier {
   String? get protectedActionLabel => switch (_protectedOperation) {
     _PrivacyOperation.export => 'Review saved export request',
     _PrivacyOperation.deletion => 'Review saved account deletion',
-    _PrivacyOperation.reset => 'Review saved Demo reset',
     null => null,
   };
 
@@ -121,10 +116,8 @@ class PrivacyController extends ChangeNotifier {
 
   void bindAccountTransitions({
     required Future<void> Function() onDeletionAccepted,
-    required Future<void> Function(int generation) onResetAccepted,
   }) {
     _onDeletionAccepted = onDeletionAccepted;
-    _onResetAccepted = onResetAccepted;
   }
 
   void updatePersonalization(MemberPersonalization value) {
@@ -300,9 +293,6 @@ class PrivacyController extends ChangeNotifier {
       case _PrivacyOperation.deletion:
         _phase = PrivacyPhase.deletionReview;
         _message = 'Review the irreversible deletion again. Nothing has been resubmitted.';
-      case _PrivacyOperation.reset:
-        _phase = PrivacyPhase.resetReview;
-        _message = 'Review the unchanged Demo reset again. Nothing has been resubmitted.';
     }
     notifyListeners();
   }
@@ -333,8 +323,11 @@ class PrivacyController extends ChangeNotifier {
       }
       _protectedCommand = protected;
       _protectedOperation = _PrivacyOperation.deletion;
-      final receipt = await _withRecentAuth(
-        () => _repository.requestDeletion(_protectedCommand!.key),
+      final stepUpReceipt = await _authorizeDeletion();
+      if (_deactivated) return;
+      final receipt = await _repository.requestDeletion(
+        _protectedCommand!.key,
+        stepUpReceipt,
       );
       if (_deactivated) return;
       _deletionReceipt = receipt;
@@ -370,82 +363,6 @@ class PrivacyController extends ChangeNotifier {
     }
   }
 
-  void prepareDemoReset() {
-    if (_deactivated || _busy || hasProtectedCommand) return;
-    _phase = PrivacyPhase.resetReview;
-    _message = 'Reset replaces all fictional portfolio, plan, goal, recap, and membership state with the seeded Demo.';
-    notifyListeners();
-  }
-
-  Future<void> confirmDemoReset({required int seedVersion}) async {
-    if (_deactivated ||
-        _busy ||
-        _phase != PrivacyPhase.resetReview &&
-            !(_phase == PrivacyPhase.restoredReview &&
-                _protectedOperation == _PrivacyOperation.reset)) {
-      return;
-    }
-    final payload = <String, Object?>{
-      'confirmation': 'RESET_DEMO',
-      'seed_version': seedVersion,
-    };
-    final current = _commandFor(_PrivacyOperation.reset);
-    _busy = true;
-    _phase = PrivacyPhase.loading;
-    notifyListeners();
-    try {
-      final acceptedReceipt = _acceptedResetReceipt;
-      if (acceptedReceipt != null) {
-        if (current == null || !current.matchesPayload(payload)) {
-          throw StateError(
-            'An accepted Demo reset can reconcile only its protected command.',
-          );
-        }
-        await _installAcceptedReset(acceptedReceipt);
-        return;
-      }
-      final protected = await _journal.protect(
-        operation: _operationName(_PrivacyOperation.reset),
-        payload: payload,
-        precondition: payload,
-        reuse: current,
-      );
-      if (_deactivated) {
-        await _journal.clear(_operationName(_PrivacyOperation.reset));
-        return;
-      }
-      _protectedCommand = protected;
-      _protectedOperation = _PrivacyOperation.reset;
-      final receipt = await _withRecentAuth(
-        () => _repository.resetDemo(seedVersion, _protectedCommand!.key),
-      );
-      if (_deactivated) return;
-      if (receipt.resetGeneration <= scope.resetGeneration) {
-        throw const PrivacyFailure(PrivacyFailureKind.terminal);
-      }
-      _acceptedResetReceipt = receipt;
-      await _installAcceptedReset(receipt);
-    } on AmbiguousPrivacyMutation {
-      if (!_deactivated) {
-        _phase = PrivacyPhase.restoredReview;
-        _message = 'The reset response was interrupted. Nothing will retry automatically; review the unchanged reset.';
-      }
-    } on Object catch (error) {
-      if (!_deactivated) {
-        if (_acceptedResetReceipt != null) {
-          _phase = PrivacyPhase.restoredReview;
-          _message =
-              'The reset was accepted, but the refreshed Demo is temporarily unavailable. Continue the saved reset to finish without creating another one.';
-        } else {
-          _setFailure(error);
-        }
-      }
-    } finally {
-      _busy = false;
-      if (!_deactivated) notifyListeners();
-    }
-  }
-
   Future<void> deactivate() async {
     _deactivated = true;
     await Future.wait([
@@ -459,7 +376,6 @@ class PrivacyController extends ChangeNotifier {
     _export = null;
     _knownExportRequestId = null;
     _deletionReceipt = null;
-    _acceptedResetReceipt = null;
     _message = null;
   }
 
@@ -511,16 +427,6 @@ class PrivacyController extends ChangeNotifier {
     await _onDeletionAccepted();
   }
 
-  Future<void> _installAcceptedReset(DemoResetReceipt receipt) async {
-    _phase = PrivacyPhase.resetAccepted;
-    _message = 'The seeded Demo is ready.';
-    await _onResetAccepted(receipt.resetGeneration);
-    if (_deactivated) return;
-    await _clearProtected();
-    if (_deactivated) return;
-    _acceptedResetReceipt = null;
-  }
-
   Future<void> _restoreProtectedCommand() async {
     final restored = <(_PrivacyOperation, JournaledFinancialCommand)>[];
     for (final operation in _PrivacyOperation.values) {
@@ -553,11 +459,6 @@ class PrivacyController extends ChangeNotifier {
         payload.length == 1 && payload['format'] == 'zip',
       _PrivacyOperation.deletion =>
         payload.length == 1 && payload['confirmation'] == 'DELETE',
-      _PrivacyOperation.reset =>
-        payload.length == 2 &&
-            payload['confirmation'] == 'RESET_DEMO' &&
-            payload['seed_version'] is int &&
-            (payload['seed_version']! as int) > 0,
     };
   }
 
@@ -627,7 +528,6 @@ class PrivacyController extends ChangeNotifier {
 String _operationName(_PrivacyOperation value) => switch (value) {
   _PrivacyOperation.export => 'privacy.export',
   _PrivacyOperation.deletion => 'privacy.deletion',
-  _PrivacyOperation.reset => 'privacy.demo-reset',
 };
 
 final _uuid = RegExp(

@@ -73,10 +73,8 @@ class BriefingDetail {
   bool get isRead => summary.isRead;
   String get formatLabel => 'Reviewed local parser · summary v1';
 
-  BriefingDetail copyWithSummary(BriefingSummary value) => BriefingDetail(
-    summary: value,
-    sections: sections,
-  );
+  BriefingDetail copyWithSummary(BriefingSummary value) =>
+      BriefingDetail(summary: value, sections: sections);
 }
 
 @immutable

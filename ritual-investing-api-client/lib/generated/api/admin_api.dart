@@ -12,9 +12,9 @@ import 'package:dio/dio.dart';
 import 'package:ritual_investing_api_client/generated/model/command_admin_editorial_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_admin_editorial_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_admin_editorial_revision_request.dart';
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 import 'package:ritual_investing_api_client/generated/model/issue_admin_step_up_request.dart';
+import 'package:ritual_investing_api_client/generated/model/list_admin_audit200_response.dart';
 
 class AdminApi {
   final Dio _dio;
@@ -34,9 +34,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> commandAdminEditorial({
+  Future<Response<ListAdminAudit200Response>> commandAdminEditorial({
     required String itemId,
     required CommandAdminEditorialRequest commandAdminEditorialRequest,
     CancelToken? cancelToken,
@@ -87,15 +87,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -108,7 +108,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -132,9 +132,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> createAdminEditorial({
+  Future<Response<ListAdminAudit200Response>> createAdminEditorial({
     required CreateAdminEditorialRequest createAdminEditorialRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -179,15 +179,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -200,7 +200,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -225,9 +225,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> createAdminEditorialRevision({
+  Future<Response<ListAdminAudit200Response>> createAdminEditorialRevision({
     required String itemId,
     required CreateAdminEditorialRevisionRequest
     createAdminEditorialRevisionRequest,
@@ -279,15 +279,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -300,7 +300,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -324,9 +324,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> getAdminEditorial({
+  Future<Response<ListAdminAudit200Response>> getAdminEditorial({
     required String itemId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -361,15 +361,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -382,7 +382,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -405,9 +405,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> getAdminSession({
+  Future<Response<ListAdminAudit200Response>> getAdminSession({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -436,15 +436,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -457,7 +457,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -481,9 +481,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> issueAdminStepUp({
+  Future<Response<ListAdminAudit200Response>> issueAdminStepUp({
     required IssueAdminStepUpRequest issueAdminStepUpRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -528,15 +528,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -549,7 +549,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -573,9 +573,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> listAdminAudit({
+  Future<Response<ListAdminAudit200Response>> listAdminAudit({
     int? limit = 25,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -610,15 +610,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -631,7 +631,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -656,9 +656,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> listAdminEditorial({
+  Future<Response<ListAdminAudit200Response>> listAdminEditorial({
     int? limit = 25,
     String? kind,
     CancelToken? cancelToken,
@@ -695,15 +695,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -716,7 +716,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -743,9 +743,9 @@ class AdminApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> patchAdminEditorialRevision({
+  Future<Response<ListAdminAudit200Response>> patchAdminEditorialRevision({
     required String itemId,
     required String revisionId,
     required String ifMatch,
@@ -806,15 +806,15 @@ class AdminApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    ListAdminAudit200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
               rawData,
-              'GetAccount200Response',
+              'ListAdminAudit200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -827,7 +827,7 @@ class AdminApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<ListAdminAudit200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

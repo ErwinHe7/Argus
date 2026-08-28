@@ -49,12 +49,13 @@ import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 
 
 final api = RitualInvestingApiClient().getAccountApi();
+final String ifMatch = ifMatch_example; // String | 
 
 try {
-    final response = await api.getAccount();
+    final response = await api.deleteAstrologyProfile(ifMatch);
     print(response);
 } on DioException catch (e) {
-    print("Exception when calling AccountApi->getAccount: $e\n");
+    print("Exception when calling AccountApi->deleteAstrologyProfile: $e\n");
 }
 
 ```
@@ -65,8 +66,11 @@ All URIs are relative to *https://PROJECT_REF.supabase.co/functions/v1/api*
 
 Class | Method | HTTP request | Description
 ------------ | ------------- | ------------- | -------------
+[*AccountApi*](doc/AccountApi.md) | [**deleteAstrologyProfile**](doc/AccountApi.md#deleteastrologyprofile) | **DELETE** /v1/astrology-profile | 
 [*AccountApi*](doc/AccountApi.md) | [**getAccount**](doc/AccountApi.md#getaccount) | **GET** /v1/account | 
 [*AccountApi*](doc/AccountApi.md) | [**recordConsent**](doc/AccountApi.md#recordconsent) | **POST** /v1/consents | 
+[*AccountApi*](doc/AccountApi.md) | [**updateAstrologyProfile**](doc/AccountApi.md#updateastrologyprofile) | **PUT** /v1/astrology-profile | 
+[*AccountApi*](doc/AccountApi.md) | [**updateInvestorProfile**](doc/AccountApi.md#updateinvestorprofile) | **PUT** /v1/investor-profile | 
 [*AccountApi*](doc/AccountApi.md) | [**updatePreferences**](doc/AccountApi.md#updatepreferences) | **PATCH** /v1/preferences | 
 [*AdminApi*](doc/AdminApi.md) | [**commandAdminEditorial**](doc/AdminApi.md#commandadmineditorial) | **POST** /v1/admin/editorial/{item_id}/commands | 
 [*AdminApi*](doc/AdminApi.md) | [**createAdminEditorial**](doc/AdminApi.md#createadmineditorial) | **POST** /v1/admin/editorial | 
@@ -84,10 +88,15 @@ Class | Method | HTTP request | Description
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminPrivacy**](doc/AdminOperationsApi.md#listadminprivacy) | **GET** /v1/admin/operations/privacy | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**retryAdminJob**](doc/AdminOperationsApi.md#retryadminjob) | **POST** /v1/admin/operations/jobs/{job_id}/retry | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**retryAdminPrivacy**](doc/AdminOperationsApi.md#retryadminprivacy) | **POST** /v1/admin/operations/privacy/{request_id}/retry | 
+[*AssetsApi*](doc/AssetsApi.md) | [**compareAssets**](doc/AssetsApi.md#compareassets) | **POST** /v1/assets/compare | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /v1/assets/{asset_id} | 
+[*AssetsApi*](doc/AssetsApi.md) | [**getAssetEvidence**](doc/AssetsApi.md#getassetevidence) | **GET** /v1/assets/{asset_id}/evidence | 
+[*AssetsApi*](doc/AssetsApi.md) | [**getAssetMetrics**](doc/AssetsApi.md#getassetmetrics) | **GET** /v1/assets/{asset_id}/metrics | 
 [*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /v1/assets | 
 [*BriefingsApi*](doc/BriefingsApi.md) | [**getBriefing**](doc/BriefingsApi.md#getbriefing) | **GET** /v1/briefings/{briefing_id} | 
+[*BriefingsApi*](doc/BriefingsApi.md) | [**getDailyBriefing**](doc/BriefingsApi.md#getdailybriefing) | **GET** /v1/briefings/daily | 
 [*BriefingsApi*](doc/BriefingsApi.md) | [**listBriefings**](doc/BriefingsApi.md#listbriefings) | **GET** /v1/briefings | 
+[*BriefingsApi*](doc/BriefingsApi.md) | [**setBriefingReadState**](doc/BriefingsApi.md#setbriefingreadstate) | **PUT** /v1/briefings/{briefing_id}/read-state | 
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**disconnectWebullConnection**](doc/BrokerageConnectionsApi.md#disconnectwebullconnection) | **POST** /v1/brokerage/connections/disconnect | 
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**getWebullConnection**](doc/BrokerageConnectionsApi.md#getwebullconnection) | **GET** /v1/brokerage/connection | 
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**reconnectWebullConnection**](doc/BrokerageConnectionsApi.md#reconnectwebullconnection) | **POST** /v1/brokerage/connections/reconnect | 
@@ -108,15 +117,25 @@ Class | Method | HTTP request | Description
 [*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullPositions**](doc/BrokerageReadsApi.md#getwebullpositions) | **GET** /v1/brokerage/accounts/{account_id}/positions | 
 [*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullRestrictions**](doc/BrokerageReadsApi.md#getwebullrestrictions) | **GET** /v1/brokerage/accounts/{account_id}/restrictions | 
 [*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**listWebullAccounts**](doc/BrokerageReadsApi.md#listwebullaccounts) | **GET** /v1/brokerage/accounts | 
+[*CirclesApi*](doc/CirclesApi.md) | [**archiveCircle**](doc/CirclesApi.md#archivecircle) | **DELETE** /v1/circles/{circle_id} | 
+[*CirclesApi*](doc/CirclesApi.md) | [**copyCircleTemplate**](doc/CirclesApi.md#copycircletemplate) | **POST** /v1/circle-templates/{template_id}/copy | 
 [*CirclesApi*](doc/CirclesApi.md) | [**createCircle**](doc/CirclesApi.md#createcircle) | **POST** /v1/circles | 
+[*CirclesApi*](doc/CirclesApi.md) | [**deleteCircleAsset**](doc/CirclesApi.md#deletecircleasset) | **DELETE** /v1/circles/{circle_id}/assets/{asset_id} | 
 [*CirclesApi*](doc/CirclesApi.md) | [**getCircle**](doc/CirclesApi.md#getcircle) | **GET** /v1/circles/{circle_id} | 
 [*CirclesApi*](doc/CirclesApi.md) | [**listCircles**](doc/CirclesApi.md#listcircles) | **GET** /v1/circles | 
+[*CirclesApi*](doc/CirclesApi.md) | [**putCircleAsset**](doc/CirclesApi.md#putcircleasset) | **PUT** /v1/circles/{circle_id}/assets/{asset_id} | 
+[*CirclesApi*](doc/CirclesApi.md) | [**replaceCircleAssets**](doc/CirclesApi.md#replacecircleassets) | **PUT** /v1/circles/{circle_id}/assets | 
 [*CirclesApi*](doc/CirclesApi.md) | [**updateCircle**](doc/CirclesApi.md#updatecircle) | **PATCH** /v1/circles/{circle_id} | 
 [*CovenApi*](doc/CovenApi.md) | [**getCoven**](doc/CovenApi.md#getcoven) | **GET** /v1/coven/{entry_id} | 
+[*CovenApi*](doc/CovenApi.md) | [**getCovenEvidence**](doc/CovenApi.md#getcovenevidence) | **GET** /v1/coven/{entry_id}/evidence | 
 [*CovenApi*](doc/CovenApi.md) | [**listCoven**](doc/CovenApi.md#listcoven) | **GET** /v1/coven | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**getCircleTemplate**](doc/DiscoverApi.md#getcircletemplate) | **GET** /v1/discover/circle-templates/{template_id} | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**getGrimoire**](doc/DiscoverApi.md#getgrimoire) | **GET** /v1/discover/grimoires/{id} | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listCircleTemplates**](doc/DiscoverApi.md#listcircletemplates) | **GET** /v1/discover/circle-templates | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**listDiscover**](doc/DiscoverApi.md#listdiscover) | **GET** /v1/discover | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listDiscoverAssets**](doc/DiscoverApi.md#listdiscoverassets) | **GET** /v1/discover/assets | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listGrimoires**](doc/DiscoverApi.md#listgrimoires) | **GET** /v1/discover/grimoires | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**listSeededCreators**](doc/DiscoverApi.md#listseededcreators) | **GET** /v1/discover/creators | 
 [*EditorialApi*](doc/EditorialApi.md) | [**getEditorial**](doc/EditorialApi.md#geteditorial) | **GET** /v1/editorial/items/{slug} | 
 [*EditorialApi*](doc/EditorialApi.md) | [**listEditorial**](doc/EditorialApi.md#listeditorial) | **GET** /v1/editorial/{kind} | 
 [*FutureMirrorApi*](doc/FutureMirrorApi.md) | [**createFutureMirror**](doc/FutureMirrorApi.md#createfuturemirror) | **POST** /v1/intentions/{intention_id}/future-mirror | 
@@ -134,6 +153,7 @@ Class | Method | HTTP request | Description
 [*NotificationsApi*](doc/NotificationsApi.md) | [**getNotificationPreferences**](doc/NotificationsApi.md#getnotificationpreferences) | **GET** /v1/notification-preferences | 
 [*NotificationsApi*](doc/NotificationsApi.md) | [**listNotifications**](doc/NotificationsApi.md#listnotifications) | **GET** /v1/notifications | 
 [*NotificationsApi*](doc/NotificationsApi.md) | [**markNotificationRead**](doc/NotificationsApi.md#marknotificationread) | **PATCH** /v1/notifications/{notification_id}/read | 
+[*NotificationsApi*](doc/NotificationsApi.md) | [**readAllNotifications**](doc/NotificationsApi.md#readallnotifications) | **POST** /v1/notifications/read-all | 
 [*NotificationsApi*](doc/NotificationsApi.md) | [**updateNotificationPreferences**](doc/NotificationsApi.md#updatenotificationpreferences) | **PATCH** /v1/notification-preferences | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getLiveHealth**](doc/PlatformApi.md#getlivehealth) | **GET** /v1/health/live | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getOpenApiDocument**](doc/PlatformApi.md#getopenapidocument) | **GET** /v1/openapi.json | 
@@ -142,7 +162,10 @@ Class | Method | HTTP request | Description
 [*PrivacyApi*](doc/PrivacyApi.md) | [**requestPrivacyAction**](doc/PrivacyApi.md#requestprivacyaction) | **POST** /v1/privacy/requests | 
 [*PublicApi*](doc/PublicApi.md) | [**getPublicEditorial**](doc/PublicApi.md#getpubliceditorial) | **GET** /v1/public/editorial/items/{slug} | 
 [*PublicApi*](doc/PublicApi.md) | [**listPublicEditorial**](doc/PublicApi.md#listpubliceditorial) | **GET** /v1/public/editorial/{kind} | 
+[*RitualsApi*](doc/RitualsApi.md) | [**getDailyRitual**](doc/RitualsApi.md#getdailyritual) | **GET** /v1/rituals/daily | 
 [*RitualsApi*](doc/RitualsApi.md) | [**getRitual**](doc/RitualsApi.md#getritual) | **GET** /v1/rituals/{assignment_id} | 
+[*RitualsApi*](doc/RitualsApi.md) | [**getRitualEvidence**](doc/RitualsApi.md#getritualevidence) | **GET** /v1/rituals/{assignment_id}/evidence | 
+[*RitualsApi*](doc/RitualsApi.md) | [**listRitualHistory**](doc/RitualsApi.md#listritualhistory) | **GET** /v1/rituals | 
 [*RitualsApi*](doc/RitualsApi.md) | [**transitionRitual**](doc/RitualsApi.md#transitionritual) | **POST** /v1/rituals/{assignment_id}/transition | 
 [*RowanApi*](doc/RowanApi.md) | [**resolveRowan**](doc/RowanApi.md#resolverowan) | **GET** /v1/rowan/{surface}/{context_key} | 
 [*SavedApi*](doc/SavedApi.md) | [**listSaved**](doc/SavedApi.md#listsaved) | **GET** /v1/saved | 
@@ -150,10 +173,32 @@ Class | Method | HTTP request | Description
 [*SavedApi*](doc/SavedApi.md) | [**unsaveItem**](doc/SavedApi.md#unsaveitem) | **DELETE** /v1/saved/{item_kind}/{item_id} | 
 [*SearchApi*](doc/SearchApi.md) | [**search**](doc/SearchApi.md#search) | **GET** /v1/search | 
 [*SessionApi*](doc/SessionApi.md) | [**bootstrapSession**](doc/SessionApi.md#bootstrapsession) | **POST** /v1/session/bootstrap | 
+[*SessionApi*](doc/SessionApi.md) | [**finalizeOnboarding**](doc/SessionApi.md#finalizeonboarding) | **POST** /v1/session/onboarding/finalize | 
 
 
 ## Documentation For Models
 
+ - [AssetCodexDetail](doc/AssetCodexDetail.md)
+ - [AssetCollectionResponse](doc/AssetCollectionResponse.md)
+ - [AssetComparison](doc/AssetComparison.md)
+ - [AssetComparisonAssetsInner](doc/AssetComparisonAssetsInner.md)
+ - [AssetComparisonResponse](doc/AssetComparisonResponse.md)
+ - [AssetDetailResponse](doc/AssetDetailResponse.md)
+ - [AssetEvidenceResponse](doc/AssetEvidenceResponse.md)
+ - [AssetMetric](doc/AssetMetric.md)
+ - [AssetMetricsResponse](doc/AssetMetricsResponse.md)
+ - [AssetRisk](doc/AssetRisk.md)
+ - [AssetSummary](doc/AssetSummary.md)
+ - [AstrologyProfile](doc/AstrologyProfile.md)
+ - [AstrologyProfileResponse](doc/AstrologyProfileResponse.md)
+ - [BriefingCollectionResponse](doc/BriefingCollectionResponse.md)
+ - [BriefingDetail](doc/BriefingDetail.md)
+ - [BriefingDetailResponse](doc/BriefingDetailResponse.md)
+ - [BriefingPending](doc/BriefingPending.md)
+ - [BriefingPendingResponse](doc/BriefingPendingResponse.md)
+ - [BriefingSection](doc/BriefingSection.md)
+ - [BriefingSummary](doc/BriefingSummary.md)
+ - [BriefingSummaryResponse](doc/BriefingSummaryResponse.md)
  - [BrokerageAccount](doc/BrokerageAccount.md)
  - [BrokerageAccountAuthority](doc/BrokerageAccountAuthority.md)
  - [BrokerageAccountsResponse](doc/BrokerageAccountsResponse.md)
@@ -179,51 +224,144 @@ Class | Method | HTTP request | Description
  - [BrokerageRestriction](doc/BrokerageRestriction.md)
  - [BrokerageRestrictionsProjection](doc/BrokerageRestrictionsProjection.md)
  - [BrokerageRestrictionsResponse](doc/BrokerageRestrictionsResponse.md)
+ - [CircleAssetInput](doc/CircleAssetInput.md)
+ - [CircleCollectionResponse](doc/CircleCollectionResponse.md)
+ - [CircleDetailResponse](doc/CircleDetailResponse.md)
+ - [CircleTemplateAsset](doc/CircleTemplateAsset.md)
+ - [CircleTemplateCollectionResponse](doc/CircleTemplateCollectionResponse.md)
+ - [CircleTemplateDetail](doc/CircleTemplateDetail.md)
+ - [CircleTemplateDetailResponse](doc/CircleTemplateDetailResponse.md)
+ - [CircleTemplateSummary](doc/CircleTemplateSummary.md)
+ - [CollectionMeta](doc/CollectionMeta.md)
  - [CommandAdminEditorialRequest](doc/CommandAdminEditorialRequest.md)
+ - [CompareAssetsRequest](doc/CompareAssetsRequest.md)
  - [ConfirmCancelBrokerageOrder](doc/ConfirmCancelBrokerageOrder.md)
  - [ConfirmModifyBrokerageOrder](doc/ConfirmModifyBrokerageOrder.md)
  - [ConfirmPlaceBrokerageOrder](doc/ConfirmPlaceBrokerageOrder.md)
+ - [ConsentReceipt](doc/ConsentReceipt.md)
+ - [ConsentReceiptResponse](doc/ConsentReceiptResponse.md)
+ - [CopyCircleTemplateRequest](doc/CopyCircleTemplateRequest.md)
+ - [CovenCollectionResponse](doc/CovenCollectionResponse.md)
+ - [CovenDetailResponse](doc/CovenDetailResponse.md)
+ - [CovenEntryDetail](doc/CovenEntryDetail.md)
+ - [CovenEvidenceResponse](doc/CovenEvidenceResponse.md)
+ - [CovenQualification](doc/CovenQualification.md)
+ - [CovenSummary](doc/CovenSummary.md)
  - [CreateAdminEditorialRequest](doc/CreateAdminEditorialRequest.md)
  - [CreateAdminEditorialRevisionRequest](doc/CreateAdminEditorialRevisionRequest.md)
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
  - [CreateHypotheticalFutureMirror](doc/CreateHypotheticalFutureMirror.md)
  - [CreateHypotheticalFutureMirrorAnnualReturnBps](doc/CreateHypotheticalFutureMirrorAnnualReturnBps.md)
  - [CreateMemberIntention](doc/CreateMemberIntention.md)
- - [CreatePrivacyDownloadUrl200Response](doc/CreatePrivacyDownloadUrl200Response.md)
  - [CreateUploadIntentRequest](doc/CreateUploadIntentRequest.md)
+ - [CreatorCollectionResponse](doc/CreatorCollectionResponse.md)
+ - [DailyRitualAssignment](doc/DailyRitualAssignment.md)
+ - [DailyRitualResponse](doc/DailyRitualResponse.md)
  - [DecideModerationRequest](doc/DecideModerationRequest.md)
+ - [DeleteAstrologyProfileResponse](doc/DeleteAstrologyProfileResponse.md)
+ - [DeleteAstrologyProfileResponseData](doc/DeleteAstrologyProfileResponseData.md)
  - [DisconnectWebullConnectionRequest](doc/DisconnectWebullConnectionRequest.md)
+ - [DiscoverAssetCollectionResponse](doc/DiscoverAssetCollectionResponse.md)
+ - [DiscoverItem](doc/DiscoverItem.md)
+ - [DiscoverResponse](doc/DiscoverResponse.md)
+ - [EvidenceClaim](doc/EvidenceClaim.md)
+ - [EvidenceDetail](doc/EvidenceDetail.md)
+ - [EvidenceDetailSource](doc/EvidenceDetailSource.md)
+ - [EvidenceSource](doc/EvidenceSource.md)
+ - [EvidenceSummary](doc/EvidenceSummary.md)
+ - [FinalizeOnboardingRequest](doc/FinalizeOnboardingRequest.md)
+ - [FinalizeOnboardingRequestAstrology](doc/FinalizeOnboardingRequestAstrology.md)
+ - [FinalizeOnboardingRequestConsents](doc/FinalizeOnboardingRequestConsents.md)
+ - [FinalizeOnboardingRequestConsentsAstrology](doc/FinalizeOnboardingRequestConsentsAstrology.md)
+ - [FinalizeOnboardingRequestConsentsDemoDisclosure](doc/FinalizeOnboardingRequestConsentsDemoDisclosure.md)
+ - [FinalizeOnboardingRequestInvesting](doc/FinalizeOnboardingRequestInvesting.md)
+ - [FinalizeOnboardingRequestRitual](doc/FinalizeOnboardingRequestRitual.md)
  - [FinalizeUploadRequest](doc/FinalizeUploadRequest.md)
- - [GetAccount200Response](doc/GetAccount200Response.md)
- - [GetAccount200ResponseMeta](doc/GetAccount200ResponseMeta.md)
  - [GetAccount401Response](doc/GetAccount401Response.md)
  - [GetAccount401ResponseError](doc/GetAccount401ResponseError.md)
+ - [GrimoireCollectionResponse](doc/GrimoireCollectionResponse.md)
+ - [GrimoireDetail](doc/GrimoireDetail.md)
+ - [GrimoireDetailResponse](doc/GrimoireDetailResponse.md)
+ - [GrimoireSummary](doc/GrimoireSummary.md)
  - [HypotheticalFutureMirror](doc/HypotheticalFutureMirror.md)
  - [HypotheticalFutureMirrorAnnualReturnBps](doc/HypotheticalFutureMirrorAnnualReturnBps.md)
  - [HypotheticalFutureMirrorPoint](doc/HypotheticalFutureMirrorPoint.md)
  - [HypotheticalFutureMirrorResponse](doc/HypotheticalFutureMirrorResponse.md)
+ - [InvestorProfile](doc/InvestorProfile.md)
+ - [InvestorProfileResponse](doc/InvestorProfileResponse.md)
  - [IssueAdminStepUpRequest](doc/IssueAdminStepUpRequest.md)
  - [IssueMemberStepUpRequest](doc/IssueMemberStepUpRequest.md)
+ - [ListAdminAudit200Response](doc/ListAdminAudit200Response.md)
+ - [ListAdminAudit200ResponseMeta](doc/ListAdminAudit200ResponseMeta.md)
+ - [MemberAccount](doc/MemberAccount.md)
+ - [MemberAccountResponse](doc/MemberAccountResponse.md)
+ - [MemberCircle](doc/MemberCircle.md)
+ - [MemberCircleAssetsInner](doc/MemberCircleAssetsInner.md)
  - [MemberIntention](doc/MemberIntention.md)
  - [MemberIntentionPage](doc/MemberIntentionPage.md)
  - [MemberIntentionPageResponse](doc/MemberIntentionPageResponse.md)
  - [MemberIntentionResponse](doc/MemberIntentionResponse.md)
+ - [MemberNotification](doc/MemberNotification.md)
+ - [MemberPreferences](doc/MemberPreferences.md)
+ - [MemberProfile](doc/MemberProfile.md)
+ - [MemberStepUpReceipt](doc/MemberStepUpReceipt.md)
+ - [MemberStepUpReceiptResponse](doc/MemberStepUpReceiptResponse.md)
  - [ModifyBrokerageOrderIntent](doc/ModifyBrokerageOrderIntent.md)
+ - [NotificationCollectionResponse](doc/NotificationCollectionResponse.md)
+ - [NotificationPreferences](doc/NotificationPreferences.md)
+ - [NotificationPreferencesResponse](doc/NotificationPreferencesResponse.md)
+ - [NotificationResponse](doc/NotificationResponse.md)
+ - [OnboardingState](doc/OnboardingState.md)
  - [PatchMemberIntention](doc/PatchMemberIntention.md)
  - [PlaceBrokerageOrderIntent](doc/PlaceBrokerageOrderIntent.md)
+ - [PrivacyDownloadUrl](doc/PrivacyDownloadUrl.md)
+ - [PrivacyDownloadUrlResponse](doc/PrivacyDownloadUrlResponse.md)
+ - [PrivacyRequest](doc/PrivacyRequest.md)
+ - [PrivacyRequestCollectionResponse](doc/PrivacyRequestCollectionResponse.md)
+ - [PrivacyRequestResponse](doc/PrivacyRequestResponse.md)
+ - [PutCircleAssetRequest](doc/PutCircleAssetRequest.md)
+ - [ReadAllNotificationsRequest](doc/ReadAllNotificationsRequest.md)
+ - [ReadAllNotificationsResponse](doc/ReadAllNotificationsResponse.md)
+ - [ReadAllNotificationsResponseData](doc/ReadAllNotificationsResponseData.md)
  - [ReconnectWebullConnectionRequest](doc/ReconnectWebullConnectionRequest.md)
  - [RecordConsentRequest](doc/RecordConsentRequest.md)
  - [RedeemWebullCompletionRequest](doc/RedeemWebullCompletionRequest.md)
+ - [ReplaceCircleAssetsRequest](doc/ReplaceCircleAssetsRequest.md)
  - [ReportContentRequest](doc/ReportContentRequest.md)
  - [RequestPrivacyActionRequest](doc/RequestPrivacyActionRequest.md)
- - [RequestPrivacyActionRequestOneOf](doc/RequestPrivacyActionRequestOneOf.md)
- - [RequestPrivacyActionRequestOneOf1](doc/RequestPrivacyActionRequestOneOf1.md)
+ - [ResearchDisclosure](doc/ResearchDisclosure.md)
  - [RetryAdminJobRequest](doc/RetryAdminJobRequest.md)
+ - [RitualEvidenceResponse](doc/RitualEvidenceResponse.md)
+ - [RitualHistoryResponse](doc/RitualHistoryResponse.md)
+ - [RowanCounsel](doc/RowanCounsel.md)
+ - [RowanCounselResponse](doc/RowanCounselResponse.md)
+ - [SaveItemRequest](doc/SaveItemRequest.md)
  - [ScenarioMoney](doc/ScenarioMoney.md)
+ - [SearchResponse](doc/SearchResponse.md)
+ - [SearchResult](doc/SearchResult.md)
+ - [SeededCreator](doc/SeededCreator.md)
  - [SelectWebullAccountRequest](doc/SelectWebullAccountRequest.md)
+ - [SessionBootstrap](doc/SessionBootstrap.md)
+ - [SessionBootstrapResponse](doc/SessionBootstrapResponse.md)
+ - [SessionMember](doc/SessionMember.md)
+ - [SetBriefingReadStateRequest](doc/SetBriefingReadStateRequest.md)
+ - [SetNotificationReadStateRequest](doc/SetNotificationReadStateRequest.md)
  - [TransitionRitualRequest](doc/TransitionRitualRequest.md)
+ - [UpdateAstrologyProfileRequest](doc/UpdateAstrologyProfileRequest.md)
  - [UpdateCircleRequest](doc/UpdateCircleRequest.md)
+ - [UpdateInvestorProfileRequest](doc/UpdateInvestorProfileRequest.md)
  - [UpdatePreferencesRequest](doc/UpdatePreferencesRequest.md)
+ - [UpdatePreferencesResponse](doc/UpdatePreferencesResponse.md)
+ - [WebullAccountSelection](doc/WebullAccountSelection.md)
+ - [WebullAccountSelectionResponse](doc/WebullAccountSelectionResponse.md)
+ - [WebullAuthorizationSession](doc/WebullAuthorizationSession.md)
+ - [WebullAuthorizationSessionResponse](doc/WebullAuthorizationSessionResponse.md)
+ - [WebullCompletion](doc/WebullCompletion.md)
+ - [WebullCompletionResponse](doc/WebullCompletionResponse.md)
+ - [WebullConnection](doc/WebullConnection.md)
+ - [WebullConnectionResponse](doc/WebullConnectionResponse.md)
+ - [WebullDisconnectReceipt](doc/WebullDisconnectReceipt.md)
+ - [WebullDisconnectResponse](doc/WebullDisconnectResponse.md)
 
 
 ## Documentation For Authorization

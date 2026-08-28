@@ -25,63 +25,79 @@ void main() {
     expect(controller.state.phase, LoadPhase.conflict);
     expect(controller.state.value?.preferences.theme, ProfileTheme.dark);
     expect(controller.message, contains('changed elsewhere'));
-    expect(edit.theme, ProfileTheme.light, reason: 'editable choice is retained');
-  });
-
-  test('network failure is retryable and retains server-backed value', () async {
-    final repository = _ProfileRepository(_profile());
-    final controller = ProfileController(repository: repository);
-    await controller.load();
-    repository.failure = const OfflineException();
-
-    final saved = await controller.updateInvestor(
-      const ProfileInvestorUpdate(
-        expectedVersion: 5,
-        goal: InvestmentGoal.income,
-        horizon: InvestmentHorizon.medium,
-        risk: RiskComfort.low,
-      ),
+    expect(
+      edit.theme,
+      ProfileTheme.light,
+      reason: 'editable choice is retained',
     );
-
-    expect(saved, isFalse);
-    expect(controller.state.phase, LoadPhase.retryableFailure);
-    expect(controller.state.value, isNotNull);
-    expect(controller.message, contains('Try again'));
   });
 
-  test('astrology delete failure still refetches and drops absent birth data', () async {
-    final repository = _ProfileRepository(_profile(withAstrology: true));
-    final controller = ProfileController(repository: repository);
-    await controller.load();
-    repository.failure = const OfflineException();
-    repository.authoritative = _profile();
+  test(
+    'network failure is retryable and retains server-backed value',
+    () async {
+      final repository = _ProfileRepository(_profile());
+      final controller = ProfileController(repository: repository);
+      await controller.load();
+      repository.failure = const OfflineException();
 
-    final saved = await controller.deleteAstrology(expectedVersion: 4);
+      final saved = await controller.updateInvestor(
+        const ProfileInvestorUpdate(
+          expectedVersion: 5,
+          goal: InvestmentGoal.income,
+          horizon: InvestmentHorizon.medium,
+          risk: RiskComfort.low,
+        ),
+      );
 
-    expect(saved, isFalse);
-    expect(controller.state.value?.astrology, isNull);
-    expect(controller.state.phase, LoadPhase.retryableFailure);
-  });
+      expect(saved, isFalse);
+      expect(controller.state.phase, LoadPhase.retryableFailure);
+      expect(controller.state.value, isNotNull);
+      expect(controller.message, contains('Try again'));
+    },
+  );
 
-  test('completed server deletion clears cached birth data if consent write fails', () async {
-    final service = _PartialDeleteService(_profile(withAstrology: true));
-    final controller = ProfileController(
-      repository: CachedProfileRepository(
-        service: service,
-        cache: MemoryReadCache(),
-        now: () => DateTime.utc(2026, 8, 25),
-      ),
-    );
-    await controller.load();
-    service.afterDeletion = true;
+  test(
+    'astrology delete failure still refetches and drops absent birth data',
+    () async {
+      final repository = _ProfileRepository(_profile(withAstrology: true));
+      final controller = ProfileController(repository: repository);
+      await controller.load();
+      repository.failure = const OfflineException();
+      repository.authoritative = _profile();
 
-    final saved = await controller.deleteAstrology(expectedVersion: 4);
+      final saved = await controller.deleteAstrology(expectedVersion: 4);
 
-    expect(saved, isFalse);
-    expect(controller.state.phase, LoadPhase.retryableFailure);
-    expect(controller.state.value?.astrology, isNull);
-    expect(controller.state.value?.astrologyDecision, ProfileConsentDecision.unknown);
-  });
+      expect(saved, isFalse);
+      expect(controller.state.value?.astrology, isNull);
+      expect(controller.state.phase, LoadPhase.retryableFailure);
+    },
+  );
+
+  test(
+    'completed server deletion clears cached birth data if consent write fails',
+    () async {
+      final service = _PartialDeleteService(_profile(withAstrology: true));
+      final controller = ProfileController(
+        repository: CachedProfileRepository(
+          service: service,
+          cache: MemoryReadCache(),
+          now: () => DateTime.utc(2026, 8, 25),
+        ),
+      );
+      await controller.load();
+      service.afterDeletion = true;
+
+      final saved = await controller.deleteAstrology(expectedVersion: 4);
+
+      expect(saved, isFalse);
+      expect(controller.state.phase, LoadPhase.retryableFailure);
+      expect(controller.state.value?.astrology, isNull);
+      expect(
+        controller.state.value?.astrologyDecision,
+        ProfileConsentDecision.unknown,
+      );
+    },
+  );
 }
 
 ProfileModel _profile({
@@ -180,9 +196,8 @@ class _PartialDeleteService implements ProfileService {
   @override
   Future<void> putInvestor(ProfileInvestorUpdate update) async {}
   @override
-  Future<ProfileConsentReceipt> putAstrology(
-    ProfileAstrologyUpdate update,
-  ) => throw UnimplementedError();
+  Future<ProfileConsentReceipt> putAstrology(ProfileAstrologyUpdate update) =>
+      throw UnimplementedError();
   @override
   Future<ProfileConsentReceipt> deleteAstrology({
     required int expectedVersion,

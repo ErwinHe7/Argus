@@ -9,7 +9,7 @@ part of 'brokerage_orders_response.dart';
 abstract class _$BrokerageOrdersResponseCWProxy {
   BrokerageOrdersResponse data(BrokerageOrderList data);
 
-  BrokerageOrdersResponse meta(GetAccount200ResponseMeta meta);
+  BrokerageOrdersResponse meta(ListAdminAudit200ResponseMeta meta);
 
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `BrokerageOrdersResponse(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
@@ -19,7 +19,7 @@ abstract class _$BrokerageOrdersResponseCWProxy {
   /// ````
   BrokerageOrdersResponse call({
     BrokerageOrderList data,
-    GetAccount200ResponseMeta meta,
+    ListAdminAudit200ResponseMeta meta,
   });
 }
 
@@ -34,7 +34,7 @@ class _$BrokerageOrdersResponseCWProxyImpl
   BrokerageOrdersResponse data(BrokerageOrderList data) => this(data: data);
 
   @override
-  BrokerageOrdersResponse meta(GetAccount200ResponseMeta meta) =>
+  BrokerageOrdersResponse meta(ListAdminAudit200ResponseMeta meta) =>
       this(meta: meta);
 
   @override
@@ -56,7 +56,7 @@ class _$BrokerageOrdersResponseCWProxyImpl
       meta: meta == const $CopyWithPlaceholder()
           ? _value.meta
           // ignore: cast_nullable_to_non_nullable
-          : meta as GetAccount200ResponseMeta,
+          : meta as ListAdminAudit200ResponseMeta,
     );
   }
 }
@@ -83,7 +83,7 @@ BrokerageOrdersResponse _$BrokerageOrdersResponseFromJson(
     ),
     meta: $checkedConvert(
       'meta',
-      (v) => GetAccount200ResponseMeta.fromJson(v as Map<String, dynamic>),
+      (v) => ListAdminAudit200ResponseMeta.fromJson(v as Map<String, dynamic>),
     ),
   );
   return val;

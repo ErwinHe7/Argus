@@ -301,6 +301,9 @@ describe("Supabase transaction-pooler repository boundary", () => {
       if (text.includes("select user_id from argus_app.members")) {
         return { rows: [{ user_id: userA }], rowCount: 1 };
       }
+      if (text.includes("select * from argus_app.privacy_requests")) {
+        return { rows: [{ id: requestId }], rowCount: 1 };
+      }
       return text.includes("insert into argus_app.privacy_requests")
         ? { rows: [{ id: requestId }], rowCount: 1 }
         : { rows: [], rowCount: 0 };
@@ -331,6 +334,9 @@ describe("Supabase transaction-pooler repository boundary", () => {
           rowCount: 1,
         };
       }
+      if (text.includes("select * from argus_app.privacy_requests")) {
+        return { rows: [{ id: requestId }], rowCount: 1 };
+      }
       return { rows: [], rowCount: 0 };
     });
     const repository = createSupabasePrivacyRepository({
@@ -353,6 +359,14 @@ describe("Supabase transaction-pooler repository boundary", () => {
       }
       if (text.includes("select event_type,aggregate_id")) {
         return { rows: [], rowCount: 0 };
+      }
+      if (text.includes("select * from argus_app.privacy_requests")) {
+        return {
+          rows: [{ id: created === 1
+            ? "018f3c2a-4b67-7a89-8abc-123456789041"
+            : "018f3c2a-4b67-7a89-8abc-123456789042" }],
+          rowCount: 1,
+        };
       }
       if (text.includes("insert into argus_app.privacy_requests")) {
         created += 1;
@@ -414,11 +428,59 @@ describe("Supabase transaction-pooler repository boundary", () => {
     nowSpy.mockRestore();
   });
 
+  it("persists briefing read state and joins it into subsequent owner reads", async () => {
+    const briefingId = "018f3c2a-4b67-7a89-8abc-123456789061";
+    const recorded = recordingPool((text) => {
+      if (text.includes("with target as materialized")) {
+        return {
+          rows: [{
+            id: briefingId,
+            briefing_type: "daily",
+            period_start: "2026-08-28",
+            period_end: "2026-08-28",
+            generated_at: "2026-08-28T12:00:00.000Z",
+            generation: 1,
+            source_sequence: 1,
+            read_at: "2026-08-28T16:30:00.000Z",
+          }],
+          rowCount: 1,
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    const repository = createSupabaseBriefingRepository({
+      pool: recorded.pool,
+      claims: claims(),
+    });
+
+    await expect(repository.setRead(briefingId, true)).resolves.toMatchObject({
+      id: briefingId,
+      read_at: "2026-08-28T16:30:00.000Z",
+    });
+    await repository.list(20);
+    await repository.get(briefingId);
+
+    const mutation = recorded.queries.find(({ text }) =>
+      text.includes("insert into argus_app.briefing_read_states")
+    );
+    expect(mutation?.text).toContain("on conflict (user_id,briefing_id) do update");
+    expect(mutation?.text).toContain("delete from argus_app.briefing_read_states");
+    expect(mutation?.values).toEqual([briefingId, true]);
+    const reads = recorded.queries.filter(({ text }) =>
+      text.includes("left join argus_app.briefing_read_states")
+    );
+    expect(reads).toHaveLength(2);
+    expect(reads.every(({ text }) =>
+      text.includes("read_state.deletion_epoch=briefing.deletion_epoch")
+    )).toBe(true);
+  });
+
   it("routes deletion through the action-bound Supabase definer function", async () => {
     const requestId = "018f3c2a-4b67-7a89-8abc-123456789041";
     const receipt = "R".repeat(43);
     const recorded = recordingPool((text) =>
-      text.includes("begin_member_deletion")
+      text.includes("begin_member_deletion") ||
+        text.includes("select * from argus_app.privacy_requests")
         ? { rows: [{ id: requestId }], rowCount: 1 }
         : { rows: [], rowCount: 0 }
     );

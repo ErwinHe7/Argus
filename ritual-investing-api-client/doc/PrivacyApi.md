@@ -15,7 +15,7 @@ Method | HTTP request | Description
 
 
 # **createPrivacyDownloadUrl**
-> CreatePrivacyDownloadUrl200Response createPrivacyDownloadUrl(requestId)
+> PrivacyDownloadUrlResponse createPrivacyDownloadUrl(requestId)
 
 
 
@@ -42,7 +42,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**CreatePrivacyDownloadUrl200Response**](CreatePrivacyDownloadUrl200Response.md)
+[**PrivacyDownloadUrlResponse**](PrivacyDownloadUrlResponse.md)
 
 ### Authorization
 
@@ -56,7 +56,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listPrivacyRequests**
-> GetAccount200Response listPrivacyRequests()
+> PrivacyRequestCollectionResponse listPrivacyRequests()
 
 
 
@@ -79,7 +79,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**PrivacyRequestCollectionResponse**](PrivacyRequestCollectionResponse.md)
 
 ### Authorization
 
@@ -93,7 +93,7 @@ This endpoint does not need any parameter.
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **requestPrivacyAction**
-> GetAccount200Response requestPrivacyAction(idempotencyKey, requestPrivacyActionRequest)
+> PrivacyRequestResponse requestPrivacyAction(idempotencyKey, requestPrivacyActionRequest)
 
 
 
@@ -122,7 +122,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**PrivacyRequestResponse**](PrivacyRequestResponse.md)
 
 ### Authorization
 

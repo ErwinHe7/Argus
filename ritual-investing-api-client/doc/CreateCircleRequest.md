@@ -8,6 +8,7 @@ import 'package:ritual_investing_api_client/api.dart';
 ## Properties
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
+**assets** | [**List&lt;CircleAssetInput&gt;**](CircleAssetInput.md) |  | [optional] 
 **description** | **String** |  | 
 **title** | **String** |  | 
 

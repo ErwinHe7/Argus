@@ -46,6 +46,7 @@ import '../api/pending_command_store.dart';
 import '../api/ritual_api.dart';
 import '../auth/auth_controller.dart';
 import '../auth/member_auth.dart';
+import '../auth/member_step_up.dart';
 import '../cache/read_cache.dart';
 import 'member_bootstrap.dart';
 import 'member_feature_scope.dart';
@@ -149,8 +150,27 @@ class ProductionMemberFeatureScopeFactory {
           throw const RecentAuthCancelled();
         }
       },
+      authorizeDeletion: () async {
+        try {
+          final authorization = await authController.authorizeSensitiveAction(
+            SensitiveMemberAction.argusDelete,
+          );
+          final session = authController.activeSession;
+          if (session == null) throw const StepUpUnavailable();
+          return authorization.consumeFor(
+            action: SensitiveMemberAction.argusDelete,
+            session: session,
+            now: now(),
+          );
+        } on MemberAuthCancelled {
+          throw const RecentAuthCancelled();
+        } on InvalidStepUpReceipt {
+          throw const RecentAuthRequired();
+        } on StepUpUnavailable {
+          throw const RecentAuthRequired();
+        }
+      },
       onDeletionAccepted: () async {},
-      onResetAccepted: (_) async {},
       personalization: bootstrap.personalization,
     );
     return MemberFeatureScope(

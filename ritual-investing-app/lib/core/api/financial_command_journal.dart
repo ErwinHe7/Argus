@@ -146,7 +146,9 @@ Object? _canonicalize(Object? value) {
       for (final key in keys) key: _canonicalize(value[key]),
     };
   }
-  if (value is Iterable) return value.map(_canonicalize).toList(growable: false);
+  if (value is Iterable) {
+    return value.map(_canonicalize).toList(growable: false);
+  }
   if (value is DateTime) return value.toUtc().toIso8601String();
   return value;
 }

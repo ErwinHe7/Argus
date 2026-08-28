@@ -31,6 +31,7 @@ void main() {
         harness.ritualController.state.value?.state,
         DailyRitualState.revealed,
       );
+      expect(harness.ritualController.historyState.phase, LoadPhase.ready);
       expect(
         harness.ritualController.historyState.value?.items.single.state,
         DailyRitualState.revealed,
@@ -94,15 +95,22 @@ void _expectGeneratedTransport(U4HttpHarness harness) {
     ),
     isTrue,
   );
+  final transitions = harness.requests.where(
+    (request) => request.uri.path.endsWith('/transition'),
+  );
   expect(
-    harness.requests
-        .singleWhere((request) => request.uri.path.endsWith('/reveal'))
+    transitions
+        .singleWhere(
+          (request) => (jsonDecode(request.body) as Map)['to'] == 'revealed',
+        )
         .ifMatch,
     '"v1"',
   );
   expect(
-    harness.requests
-        .singleWhere((request) => request.uri.path.endsWith('/complete'))
+    transitions
+        .singleWhere(
+          (request) => (jsonDecode(request.body) as Map)['to'] == 'completed',
+        )
         .ifMatch,
     '"v2"',
   );
@@ -111,10 +119,12 @@ void _expectGeneratedTransport(U4HttpHarness harness) {
     (request) => request.uri.path == '/v1/assets/compare',
   );
   expect(jsonDecode(comparison.body), {
-    'asset_ids': [u4AssetId, u4PeerId],
+    'assetIds': [u4AssetId, u4PeerId],
   });
   final save = harness.requests.singleWhere(
-    (request) => request.method == 'PUT',
+    (request) =>
+        request.method == 'POST' &&
+        request.uri.path == '/v1/saved/asset/$u4AssetId',
   );
   expect(jsonDecode(save.body), {
     'source_id': u4AssignmentId,
@@ -129,13 +139,9 @@ void _expectGeneratedTransport(U4HttpHarness harness) {
     'asset,circle_template,coven,grimoire',
   );
   final rowan = harness.requests
-      .where((request) => request.uri.path == '/v1/rowan/counsel')
+      .where((request) => request.uri.path == '/v1/rowan/asset_codex/asset')
       .last;
-  expect(rowan.uri.queryParameters, {
-    'surface': 'asset_codex',
-    'context_code': 'asset',
-    'resource_id': u4AssetId,
-  });
+  expect(rowan.uri.queryParameters, isEmpty);
 
   final serialized = harness.requests
       .map((request) => '${request.uri} ${request.body}')

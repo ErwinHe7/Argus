@@ -13,30 +13,28 @@ import 'repository.dart';
 class GeneratedPrivacyService implements PrivacyService {
   GeneratedPrivacyService(api.RitualInvestingApiClient client)
     : _privacy = api.PrivacyApi(client.dio),
-      _simulation = api.SimulationApi(client.dio),
       _session = api.SessionApi(client.dio),
+      _download = Dio(),
       _apiOrigin = Uri.parse(client.dio.options.baseUrl);
 
   final api.PrivacyApi _privacy;
-  final api.SimulationApi _simulation;
   final api.SessionApi _session;
+  final Dio _download;
   final Uri _apiOrigin;
-  final Map<String, String> _downloadTokens = {};
   CancelToken? _downloadCancellation;
-  int _cancellationVersion = 0;
 
   @override
   Future<PrivacyExport> requestExport(String idempotencyKey) async {
     _requireKey(idempotencyKey);
     try {
-      return _export(
-        (await _privacy.requestPrivacyExport(
-          idempotencyKey: idempotencyKey,
-          requestPrivacyExportRequest: api.RequestPrivacyExportRequest(
-            format: api.RequestPrivacyExportRequestFormatEnum.zip,
-          ),
-        )).data!.data,
-      );
+      final value = (await _privacy.requestPrivacyAction(
+        idempotencyKey: idempotencyKey,
+        requestPrivacyActionRequest: api.RequestPrivacyActionRequest(
+          requestType: api.RequestPrivacyActionRequestRequestTypeEnum.export_,
+        ),
+      )).data?.data;
+      if (value == null) _terminal();
+      return _export(value);
     } on DioException catch (error) {
       _throwMutation(error);
     } on PrivacyFailure {
@@ -49,13 +47,12 @@ class GeneratedPrivacyService implements PrivacyService {
   @override
   Future<PrivacyExport> getExport(String requestId) async {
     _requireUuid(requestId);
-    _downloadTokens.remove(requestId);
     try {
-      final value = (await _privacy.getPrivacyExport(requestId: requestId))
-          .data!
-          .data;
-      if (value.id != requestId) _terminal();
-      return _export(value);
+      final values = (await _privacy.listPrivacyRequests()).data?.data;
+      if (values == null) _terminal();
+      final matches = values.where((value) => value.id == requestId).toList();
+      if (matches.length != 1) _terminal();
+      return _export(matches.single);
     } on DioException catch (error) {
       _throwRead(error);
     } on PrivacyFailure {
@@ -68,29 +65,40 @@ class GeneratedPrivacyService implements PrivacyService {
   @override
   Future<Uint8List> downloadLatest(String requestId) async {
     _requireUuid(requestId);
-    final token = _downloadTokens.remove(requestId);
-    if (token == null) _terminal();
-    final cancellationVersion = _cancellationVersion;
     final cancellation = CancelToken();
     _downloadCancellation?.cancel('superseded');
     _downloadCancellation = cancellation;
     try {
-      final bytes = (await _privacy.downloadPrivacyExport(
+      final grant = (await _privacy.createPrivacyDownloadUrl(
         requestId: requestId,
-        token: token,
         cancelToken: cancellation,
-      )).data;
+      )).data?.data;
+      if (grant == null || !grant.expiresAt.isAfter(DateTime.now().toUtc())) {
+        _terminal();
+      }
+      final uri = Uri.tryParse(grant.url);
+      if (uri == null ||
+          uri.scheme != _apiOrigin.scheme ||
+          uri.host != _apiOrigin.host ||
+          uri.port != _apiOrigin.port ||
+          uri.userInfo.isNotEmpty ||
+          uri.fragment.isNotEmpty) {
+        _terminal();
+      }
+      final response = await _download.get<List<int>>(
+        uri.toString(),
+        options: Options(responseType: ResponseType.bytes),
+        cancelToken: cancellation,
+      );
+      final bytes = response.data;
       if (bytes == null || bytes.isEmpty) _terminal();
-      return bytes;
+      return Uint8List.fromList(bytes);
     } on DioException catch (error) {
       final code = _errorCode(error);
-      if (code == 'recent_auth_required') {
-        if (cancellationVersion == _cancellationVersion) {
-          _downloadTokens.putIfAbsent(requestId, () => token);
-        }
+      if (code == 'recent_auth_required' || error.response?.statusCode == 403) {
         throw const RecentAuthRequired();
       }
-      if (code == 'not_found') {
+      if (code == 'not_found' || error.response?.statusCode == 404) {
         throw const PrivacyFailure(PrivacyFailureKind.retryable);
       }
       _throwRead(error);
@@ -106,32 +114,33 @@ class GeneratedPrivacyService implements PrivacyService {
   }
 
   @override
-  Future<PrivacyDeletionReceipt> requestDeletion(String idempotencyKey) async {
+  Future<PrivacyDeletionReceipt> requestDeletion(
+    String idempotencyKey,
+    String stepUpReceipt,
+  ) async {
     _requireKey(idempotencyKey);
+    if (stepUpReceipt.length < 32 ||
+        stepUpReceipt.length > 512 ||
+        !RegExp(r'^[A-Za-z0-9_-]+$').hasMatch(stepUpReceipt)) {
+      throw const RecentAuthRequired();
+    }
     try {
-      final value = (await _privacy.requestAccountDeletion(
+      final value = (await _privacy.requestPrivacyAction(
         idempotencyKey: idempotencyKey,
-        requestAccountDeletionRequest: api.RequestAccountDeletionRequest(
-          confirmation:
-              api.RequestAccountDeletionRequestConfirmationEnum.DELETE,
+        requestPrivacyActionRequest: api.RequestPrivacyActionRequest(
+          requestType: api.RequestPrivacyActionRequestRequestTypeEnum.deletion,
+          stepUpReceipt: stepUpReceipt,
         ),
-      )).data!.data;
-      _requireUuid(value.requestId);
-      _requireUuid(value.tombstoneId);
-      if (value.status !=
-              api.RequestAccountDeletion202ResponseDataStatusEnum.queued ||
-          value.purgeGeneration <= 0 ||
-          !value.effectiveAt.isUtc ||
-          !value.purgeBy.isUtc ||
-          !value.purgeBy.isAfter(value.effectiveAt)) {
+      )).data?.data;
+      if (value == null ||
+          value.requestType != api.PrivacyRequestRequestTypeEnum.deletion) {
         _terminal();
       }
+      _requireUuid(value.id);
       return PrivacyDeletionReceipt(
-        requestId: value.requestId,
-        tombstoneId: value.tombstoneId,
-        effectiveAt: value.effectiveAt.toUtc(),
-        purgeBy: value.purgeBy.toUtc(),
-        purgeGeneration: value.purgeGeneration,
+        requestId: value.id,
+        status: _deletionStatus(value.status),
+        requestedAt: value.requestedAt.toUtc(),
       );
     } on DioException catch (error) {
       _throwMutation(error);
@@ -149,7 +158,9 @@ class GeneratedPrivacyService implements PrivacyService {
       return false;
     } on DioException catch (error) {
       final code = _errorCode(error);
-      if (code == 'account_inactive') return true;
+      if (code == 'account_inactive') {
+        return true;
+      }
       _throwRead(error);
     } on PrivacyFailure {
       rethrow;
@@ -158,144 +169,54 @@ class GeneratedPrivacyService implements PrivacyService {
     }
   }
 
-  @override
-  Future<DemoResetReceipt> resetDemo(
-    int seedVersion,
-    String idempotencyKey,
-  ) async {
-    if (seedVersion <= 0) _terminal();
-    _requireKey(idempotencyKey);
-    try {
-      final value = (await _simulation.resetDemoState(
-        idempotencyKey: idempotencyKey,
-        resetDemoStateRequest: api.ResetDemoStateRequest(
-          confirmation: api.ResetDemoStateRequestConfirmationEnum.RESET_DEMO,
-          seedVersion: seedVersion,
-        ),
-      )).data!.data;
-      _requireUuid(value.defaultPortfolio.id);
-      _requireUuid(value.entitlement.id);
-      final disclosureSource = value.demo.sourceLabel.trim();
-      final disclosureLimitations = value.demo.limitations
-          .map((item) => item.trim())
-          .toList(growable: false);
-      if (value.resetGeneration <= 0 ||
-          !value.demo.isDemo ||
-          !value.demo.observedAt.isUtc ||
-          disclosureSource.isEmpty ||
-          disclosureLimitations.isEmpty ||
-          disclosureLimitations.any((item) => item.isEmpty) ||
-          !disclosureLimitations.any(
-            (item) =>
-                item.toLowerCase().contains('no money') ||
-                item.toLowerCase().contains('no real'),
-          ) ||
-          value.defaultPortfolio.currency !=
-              api.DemoResetResultDefaultPortfolioCurrencyEnum.USD ||
-          value.defaultPortfolio.status !=
-              api.DemoResetResultDefaultPortfolioStatusEnum.active ||
-          value.defaultPortfolio.version <= 0 ||
-          value.defaultPortfolio.name.trim().isEmpty ||
-          value.entitlement.planCode !=
-              api.DemoResetResultEntitlementPlanCodeEnum.free ||
-          value.entitlement.source_ !=
-              api.DemoResetResultEntitlementSource_Enum.demo ||
-          value.entitlement.status !=
-              api.DemoResetResultEntitlementStatusEnum.active ||
-          value.entitlement.version <= 0) {
-        _terminal();
-      }
-      return DemoResetReceipt(
-        resetGeneration: value.resetGeneration,
-        defaultPortfolioId: value.defaultPortfolio.id,
-      );
-    } on DioException catch (error) {
-      _throwMutation(error);
-    } on PrivacyFailure {
-      rethrow;
-    } on Object {
-      _terminal();
-    }
-  }
-
-  PrivacyExport _export(api.RequestPrivacyExport202ResponseData value) {
+  PrivacyExport _export(api.PrivacyRequest value) {
     _requireUuid(value.id);
-    if (value.requestType !=
-            api.RequestPrivacyExport202ResponseDataRequestTypeEnum.export_ ||
-        value.format != api.RequestPrivacyExport202ResponseDataFormatEnum.zip ||
-        (value.expiresAt != null && !value.expiresAt!.isUtc) ||
-        (value.completedAt != null && !value.completedAt!.isUtc) ||
-        (value.snapshotAt != null && !value.snapshotAt!.isUtc)) {
+    if (value.requestType != api.PrivacyRequestRequestTypeEnum.export_) {
       _terminal();
     }
-    final status = switch (value.status) {
-      api.RequestPrivacyExport202ResponseDataStatusEnum.requested =>
-        PrivacyExportStatus.requested,
-      api.RequestPrivacyExport202ResponseDataStatusEnum.verified =>
-        PrivacyExportStatus.verified,
-      api.RequestPrivacyExport202ResponseDataStatusEnum.queued =>
-        PrivacyExportStatus.queued,
-      api.RequestPrivacyExport202ResponseDataStatusEnum.processing =>
-        PrivacyExportStatus.processing,
-      api.RequestPrivacyExport202ResponseDataStatusEnum.completed =>
-        PrivacyExportStatus.completed,
-      api.RequestPrivacyExport202ResponseDataStatusEnum.failed =>
-        PrivacyExportStatus.failed,
-      api.RequestPrivacyExport202ResponseDataStatusEnum.cancelled =>
-        PrivacyExportStatus.cancelled,
-      api.RequestPrivacyExport202ResponseDataStatusEnum.unknownDefaultOpenApi =>
-        _terminal(),
-    };
-    final link = value.downloadLink;
-    if (link != null && status != PrivacyExportStatus.completed ||
-        (status == PrivacyExportStatus.failed) !=
-            (value.failureCode != null && value.failureCode!.isNotEmpty)) {
+    final status = _status(value.status);
+    if ((status == PrivacyExportStatus.failed) !=
+        (value.failureCode != null && value.failureCode!.trim().isNotEmpty)) {
       _terminal();
-    }
-    if (link != null) {
-      final grant = _parseGrant(value.id, link);
-      _downloadTokens[value.id] = grant;
     }
     return PrivacyExport(
       id: value.id,
       status: status,
       format: PrivacyExportFormat.zip,
-      hasDownloadGrant: link != null,
-      snapshotAt: value.snapshotAt?.toUtc(),
+      hasDownloadGrant: status == PrivacyExportStatus.completed,
       completedAt: value.completedAt?.toUtc(),
-      expiresAt: value.expiresAt?.toUtc(),
       failureCode: value.failureCode,
     );
   }
 
-  String _parseGrant(
-    String requestId,
-    api.RequestPrivacyExport202ResponseDataDownloadLink link,
-  ) {
-    final uri = Uri.tryParse(link.url);
-    final expectedPath = '/v1/me/privacy/exports/$requestId/download';
-    final token = uri?.queryParameters['token'];
-    if (uri == null ||
-        !uri.hasScheme ||
-        uri.scheme != _apiOrigin.scheme ||
-        uri.host != _apiOrigin.host ||
-        uri.port != _apiOrigin.port ||
-        uri.userInfo.isNotEmpty ||
-        uri.fragment.isNotEmpty ||
-        uri.path != expectedPath ||
-        uri.queryParameters.length != 1 ||
-        token == null ||
-        !_token.hasMatch(token) ||
-        !link.expiresAt.isUtc) {
-      _terminal();
-    }
-    return token;
-  }
+  PrivacyExportStatus _status(api.PrivacyRequestStatusEnum value) =>
+      switch (value) {
+        api.PrivacyRequestStatusEnum.requested => PrivacyExportStatus.requested,
+        api.PrivacyRequestStatusEnum.verified => PrivacyExportStatus.verified,
+        api.PrivacyRequestStatusEnum.queued => PrivacyExportStatus.queued,
+        api.PrivacyRequestStatusEnum.processing =>
+          PrivacyExportStatus.processing,
+        api.PrivacyRequestStatusEnum.completed => PrivacyExportStatus.completed,
+        api.PrivacyRequestStatusEnum.failed => PrivacyExportStatus.failed,
+        api.PrivacyRequestStatusEnum.cancelled => PrivacyExportStatus.cancelled,
+        api.PrivacyRequestStatusEnum.unknownDefaultOpenApi => _terminal(),
+      };
+
+  PrivacyDeletionStatus _deletionStatus(
+    api.PrivacyRequestStatusEnum value,
+  ) => switch (value) {
+    api.PrivacyRequestStatusEnum.requested => PrivacyDeletionStatus.requested,
+    api.PrivacyRequestStatusEnum.verified => PrivacyDeletionStatus.verified,
+    api.PrivacyRequestStatusEnum.queued => PrivacyDeletionStatus.queued,
+    api.PrivacyRequestStatusEnum.processing => PrivacyDeletionStatus.processing,
+    api.PrivacyRequestStatusEnum.completed => PrivacyDeletionStatus.completed,
+    api.PrivacyRequestStatusEnum.failed => PrivacyDeletionStatus.failed,
+    api.PrivacyRequestStatusEnum.cancelled => PrivacyDeletionStatus.cancelled,
+    api.PrivacyRequestStatusEnum.unknownDefaultOpenApi => _terminal(),
+  };
 
   @override
   void cancel() {
-    _cancellationVersion += 1;
-    _downloadTokens.clear();
     _downloadCancellation?.cancel('privacy_scope_disposed');
     _downloadCancellation = null;
   }
@@ -349,7 +270,6 @@ PrivacyFailureKind _failureKind(DioException error, String? code) {
 
 String? _errorCode(DioException error) {
   var data = error.response?.data;
-  if (data is api.ErrorResponse) return data.error.code;
   if (data is Uint8List && data.length <= 64 * 1024) {
     try {
       data = jsonDecode(utf8.decode(data));
@@ -377,6 +297,5 @@ void _requireUuid(String value) {
 Never _terminal() => throw const PrivacyFailure(PrivacyFailureKind.terminal);
 
 final _uuid = RegExp(
-  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
+  r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$',
 );
-final _token = RegExp(r'^[a-f0-9]{64}$');

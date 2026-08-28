@@ -13,7 +13,7 @@ Method | HTTP request | Description
 
 
 # **issueMemberStepUp**
-> GetAccount200Response issueMemberStepUp(issueMemberStepUpRequest)
+> MemberStepUpReceiptResponse issueMemberStepUp(issueMemberStepUpRequest)
 
 
 
@@ -40,7 +40,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**GetAccount200Response**](GetAccount200Response.md)
+[**MemberStepUpReceiptResponse**](MemberStepUpReceiptResponse.md)
 
 ### Authorization
 

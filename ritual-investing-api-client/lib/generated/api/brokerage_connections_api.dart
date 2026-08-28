@@ -10,11 +10,15 @@ import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
 import 'package:ritual_investing_api_client/generated/model/disconnect_webull_connection_request.dart';
-import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 import 'package:ritual_investing_api_client/generated/model/reconnect_webull_connection_request.dart';
 import 'package:ritual_investing_api_client/generated/model/redeem_webull_completion_request.dart';
 import 'package:ritual_investing_api_client/generated/model/select_webull_account_request.dart';
+import 'package:ritual_investing_api_client/generated/model/webull_account_selection_response.dart';
+import 'package:ritual_investing_api_client/generated/model/webull_authorization_session_response.dart';
+import 'package:ritual_investing_api_client/generated/model/webull_completion_response.dart';
+import 'package:ritual_investing_api_client/generated/model/webull_connection_response.dart';
+import 'package:ritual_investing_api_client/generated/model/webull_disconnect_response.dart';
 
 class BrokerageConnectionsApi {
   final Dio _dio;
@@ -33,9 +37,9 @@ class BrokerageConnectionsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [WebullDisconnectResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> disconnectWebullConnection({
+  Future<Response<WebullDisconnectResponse>> disconnectWebullConnection({
     required DisconnectWebullConnectionRequest
     disconnectWebullConnectionRequest,
     CancelToken? cancelToken,
@@ -81,15 +85,15 @@ class BrokerageConnectionsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    WebullDisconnectResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<WebullDisconnectResponse, WebullDisconnectResponse>(
               rawData,
-              'GetAccount200Response',
+              'WebullDisconnectResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -102,7 +106,7 @@ class BrokerageConnectionsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<WebullDisconnectResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -125,9 +129,9 @@ class BrokerageConnectionsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [WebullConnectionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> getWebullConnection({
+  Future<Response<WebullConnectionResponse>> getWebullConnection({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -156,15 +160,15 @@ class BrokerageConnectionsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    WebullConnectionResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<WebullConnectionResponse, WebullConnectionResponse>(
               rawData,
-              'GetAccount200Response',
+              'WebullConnectionResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -177,7 +181,7 @@ class BrokerageConnectionsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<WebullConnectionResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -201,9 +205,10 @@ class BrokerageConnectionsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [WebullAuthorizationSessionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> reconnectWebullConnection({
+  Future<Response<WebullAuthorizationSessionResponse>>
+  reconnectWebullConnection({
     required ReconnectWebullConnectionRequest reconnectWebullConnectionRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -248,17 +253,16 @@ class BrokerageConnectionsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    WebullAuthorizationSessionResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
-              rawData,
-              'GetAccount200Response',
-              growable: true,
-            );
+          : deserialize<
+              WebullAuthorizationSessionResponse,
+              WebullAuthorizationSessionResponse
+            >(rawData, 'WebullAuthorizationSessionResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -269,7 +273,7 @@ class BrokerageConnectionsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<WebullAuthorizationSessionResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -293,9 +297,9 @@ class BrokerageConnectionsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [WebullCompletionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> redeemWebullCompletion({
+  Future<Response<WebullCompletionResponse>> redeemWebullCompletion({
     required RedeemWebullCompletionRequest redeemWebullCompletionRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -340,15 +344,15 @@ class BrokerageConnectionsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    WebullCompletionResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
+          : deserialize<WebullCompletionResponse, WebullCompletionResponse>(
               rawData,
-              'GetAccount200Response',
+              'WebullCompletionResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -361,7 +365,7 @@ class BrokerageConnectionsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<WebullCompletionResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -385,9 +389,9 @@ class BrokerageConnectionsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [WebullAccountSelectionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> selectWebullAccount({
+  Future<Response<WebullAccountSelectionResponse>> selectWebullAccount({
     required SelectWebullAccountRequest selectWebullAccountRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -432,17 +436,16 @@ class BrokerageConnectionsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    WebullAccountSelectionResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
-              rawData,
-              'GetAccount200Response',
-              growable: true,
-            );
+          : deserialize<
+              WebullAccountSelectionResponse,
+              WebullAccountSelectionResponse
+            >(rawData, 'WebullAccountSelectionResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -453,7 +456,7 @@ class BrokerageConnectionsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<WebullAccountSelectionResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -477,9 +480,9 @@ class BrokerageConnectionsApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
+  /// Returns a [Future] containing a [Response] with a [WebullAuthorizationSessionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<GetAccount200Response>> startWebullConnection({
+  Future<Response<WebullAuthorizationSessionResponse>> startWebullConnection({
     required ReconnectWebullConnectionRequest reconnectWebullConnectionRequest,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -524,17 +527,16 @@ class BrokerageConnectionsApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    GetAccount200Response? _responseData;
+    WebullAuthorizationSessionResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<GetAccount200Response, GetAccount200Response>(
-              rawData,
-              'GetAccount200Response',
-              growable: true,
-            );
+          : deserialize<
+              WebullAuthorizationSessionResponse,
+              WebullAuthorizationSessionResponse
+            >(rawData, 'WebullAuthorizationSessionResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -545,7 +547,7 @@ class BrokerageConnectionsApi {
       );
     }
 
-    return Response<GetAccount200Response>(
+    return Response<WebullAuthorizationSessionResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

@@ -75,9 +75,7 @@ class CovenDetailScreen extends StatelessWidget {
               onPressed: controller.savePhase == CovenSavePhase.saving
                   ? null
                   : controller.toggleSaved,
-              icon: Icon(
-                value.saved ? Icons.bookmark : Icons.bookmark_border,
-              ),
+              icon: Icon(value.saved ? Icons.bookmark : Icons.bookmark_border),
               label: Text(value.saved ? 'Saved' : 'Save Coven entry'),
             ),
           ),

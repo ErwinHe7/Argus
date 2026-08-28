@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/auth/member_step_up.dart';
 import 'package:ritual_investing_app/core/auth/supabase_session_repository.dart';
@@ -321,16 +322,13 @@ void main() {
       'generated API receipt is action, user, session, and expiry bound',
       () async {
         final repository = ApiStepUpReceiptRepository(
-          issue: (action) async => <String, Object?>{
-            'receipt': 'server-issued-receipt-token',
-            'action': 'webull_disconnect',
-            'user_id': _userId,
-            'session_id': _sessionId,
-            'expires_at': DateTime.now()
-                .toUtc()
-                .add(const Duration(minutes: 2))
-                .toIso8601String(),
-          },
+          issueCall: (action) async => MemberStepUpReceipt(
+            receipt: 'server-issued-receipt-token',
+            action: MemberStepUpReceiptActionEnum.webullDisconnect,
+            userId: _userId,
+            sessionId: _sessionId,
+            expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 2)),
+          ),
         );
         final authorization = await repository.issue(
           action: SensitiveMemberAction.webullDisconnect,
@@ -348,16 +346,13 @@ void main() {
 
     test('generated API receipt rejects an intercepted session', () async {
       final repository = ApiStepUpReceiptRepository(
-        issue: (action) async => <String, Object?>{
-          'receipt': 'server-issued-receipt-token',
-          'action': 'argus_delete',
-          'user_id': _userId,
-          'session_id': '018f3c2a-4b67-7a89-8abc-123456789099',
-          'expires_at': DateTime.now()
-              .toUtc()
-              .add(const Duration(minutes: 2))
-              .toIso8601String(),
-        },
+        issueCall: (action) async => MemberStepUpReceipt(
+          receipt: 'server-issued-receipt-token',
+          action: MemberStepUpReceiptActionEnum.argusDelete,
+          userId: _userId,
+          sessionId: '018f3c2a-4b67-7a89-8abc-123456789099',
+          expiresAt: DateTime.now().toUtc().add(const Duration(minutes: 2)),
+        ),
       );
       await expectLater(
         repository.issue(

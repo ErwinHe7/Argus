@@ -55,55 +55,53 @@ void main() {
     );
     client.dio.httpClientAdapter = _JsonAdapter(
       DailyRitualResponse(
-        data: DailyRitualDetail(
-          art: ArtReference(
-            alt: 'Compass art',
-            key: ArtReferenceKeyEnum.theCompass,
-          ),
-          assignmentId: 'assignment-1',
+        data: DailyRitualAssignment(
+          allowedTokens: const [],
+          bodyTemplate: 'You decide what to explore.',
           completedAt: DateTime.utc(2026, 8, 20, 14, 5),
-          date: DateTime.utc(2026, 8, 20),
-          demo: DemoDisclosure(
-            isDemo: true,
-            limitations: const ['Fictional prices.'],
-            observedAt: DateTime.utc(2026, 8, 20, 13, 35),
-            sourceLabel: 'Deterministic fixture',
-          ),
-          evidence: [
-            EvidenceSummary(
-              claimId: 'claim-1',
-              factorLabel: 'Durability',
-              observedAt: DateTime.utc(2026, 8, 20, 13, 35),
-              summary: 'Durable momentum appeared.',
-              uncertainty: 'It may reverse.',
-            ),
-          ],
-          guidance: 'Compare the evidence.',
-          ideas: [
-            RitualAssetIdea(
-              appearanceReason: 'steady wealth',
-              assetId: 'asset-1',
-              name: 'Dividend ETF',
-              riskSummary: 'It can decline.',
-              symbol: 'VIG',
-            ),
-          ],
-          interpretation: 'Direction, not urgency.',
-          marketLabel: 'Market-informed',
-          mode: DailyRitualDetailModeEnum.tarot,
+          deletionEpoch: 0,
+          id: 'assignment-1',
+          localDate: DateTime.utc(2026, 8, 20),
+          mode: DailyRitualAssignmentModeEnum.tarot,
+          payload: const {
+            'title': 'The Compass',
+            'art_key': 'the_compass',
+            'art_alt': 'Compass art',
+            'interpretation': 'Direction, not urgency.',
+            'guidance': 'Compare the evidence.',
+            'market_label': 'Market-informed',
+            'observation_at': '2026-08-20T13:35:00.000Z',
+            'revision_number': 3,
+            'uncertainty': 'It may reverse.',
+            'evidence': [
+              {
+                'claim_id': 'claim-1',
+                'factor_label': 'Durability',
+                'observed_at': '2026-08-20T13:35:00.000Z',
+                'summary': 'Durable momentum appeared.',
+                'uncertainty': 'It may reverse.',
+              },
+            ],
+            'ideas': [
+              {
+                'appearance_reason': 'steady wealth',
+                'asset_id': 'asset-1',
+                'name': 'Dividend ETF',
+                'risk_summary': 'It can decline.',
+                'symbol': 'VIG',
+              },
+            ],
+          },
           revealedAt: DateTime.utc(2026, 8, 20, 14),
-          revision: DailyRitualDetailRevision(id: 'revision-1', number: 3),
-          rowan: RowanCounsel(
-            body: 'You decide what to explore.',
-            riskFooter: 'Not advice.',
-            scriptRevisionId: 'rowan-1',
-            surface: RowanCounselSurfaceEnum.dailyRitual,
-          ),
-          state: DailyRitualDetailStateEnum.completed,
-          title: 'The Compass',
+          revisionId: 'revision-1',
+          riskFooter: 'Not advice.',
+          rowanRevisionId: 'rowan-1',
+          scheduleId: 'schedule-1',
+          state: DailyRitualAssignmentStateEnum.completed,
+          userId: 'user-1',
           version: 4,
         ),
-        meta: ResponseMeta(requestId: 'request-1'),
+        meta: ListAdminAudit200ResponseMeta(requestId: 'request-1'),
       ).toJson(),
     );
 
@@ -119,7 +117,7 @@ void main() {
     expect(ritual.rowan.riskFooter, 'Not advice.');
     expect(ritual.state, DailyRitualState.completed);
     expect(ritual.completedAt, DateTime.utc(2026, 8, 20, 14, 5));
-    expect(ritual.demo.limitations, const ['Fictional prices.']);
+    expect(ritual.demo.limitations, const ['Educational context only.']);
   });
 
   test(
