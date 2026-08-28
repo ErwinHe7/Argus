@@ -22,6 +22,9 @@ import {
 } from "../../../../ritual-investing-api/src/jobs/scheduled.ts";
 import { sha256TextHex } from "../../../../ritual-investing-api/src/security/sha256.ts";
 import type { WorkerTransaction } from "./purge.ts";
+import { runWebullProjectionRefresh } from "../../../../ritual-investing-api/src/jobs/webull-projection-refresh.ts";
+import { runWebullReconciliation } from "../../../../ritual-investing-api/src/jobs/webull-reconciliation.ts";
+import { runWebullTokenRefresh } from "../../../../ritual-investing-api/src/jobs/webull-token-refresh.ts";
 
 type ClaimedJob = Readonly<{
   job_run_id: string;
@@ -37,6 +40,13 @@ type ClaimedJob = Readonly<{
 }>;
 
 type ProcessOutcome = "empty" | "succeeded" | "retry" | "dead_lettered";
+
+const externalSagaHandlers = new Set<RetainedJobHandler>([
+  "privacy-purge",
+  "webull-token-refresh",
+  "webull-projection-refresh",
+  "webull-reconciliation",
+]);
 
 async function establishWorkerTransaction(database: DatabaseClient): Promise<void> {
   const session = await database.query<{ session_user: string }>(
@@ -102,7 +112,14 @@ async function failClaim(
     "select argus_private.fail_argus_job($1,$2,$3,$4) as outcome",
     [claim.job_run_id, claim.lease_token, failureCode, diagnosticHash],
   );
-  return failed.rows[0]?.outcome ?? "dead_lettered";
+  const outcome = failed.rows[0]?.outcome ?? "dead_lettered";
+  if (outcome === "dead_lettered") {
+    await database.query(
+      "select argus_private.terminalize_webull_recovery_dead_letter($1,$2)",
+      [eventId, failureCode],
+    );
+  }
+  return outcome;
 }
 
 export function createSupabaseWorkerRuntime(config: Readonly<{
@@ -141,8 +158,8 @@ export function createSupabaseWorkerRuntime(config: Readonly<{
           "select * from argus_private.set_worker_event_context($1,$2,$3)",
           [event.id, claim.job_run_id, claim.lease_token],
         );
-        if (event.handlerName === "privacy-purge") {
-          return { kind: "purge" as const, claim, event };
+        if (externalSagaHandlers.has(event.handlerName)) {
+          return { kind: "external" as const, claim, event };
         }
         const effect = await handlerFor(event, config.dependencies)(database, event);
         await database.query("select argus_private.assert_worker_event_current($1)", [
@@ -162,15 +179,12 @@ export function createSupabaseWorkerRuntime(config: Readonly<{
       }
     });
 
-    if (claimed.kind !== "purge") return claimed.kind;
+    if (claimed.kind !== "external") return claimed.kind;
 
     // The claim is committed before Storage and Auth calls, so no database row
     // lock or transaction survives across external purge boundaries.
     try {
-      const effect = await runPrivacyPurge(
-        claimed.event,
-        config.dependencies.purgeSaga,
-        () => transaction(async (database) => {
+      const keepAlive = () => transaction(async (database) => {
           const workerToken = activeWorkerLeaseToken;
           if (workerToken === null) throw new Error("worker_lease_lost");
           await database.query(
@@ -181,8 +195,30 @@ export function createSupabaseWorkerRuntime(config: Readonly<{
               workerToken,
             ],
           );
-        }),
-      );
+        });
+      const effect = claimed.event.handlerName === "privacy-purge"
+        ? await runPrivacyPurge(
+          claimed.event,
+          config.dependencies.purgeSaga,
+          keepAlive,
+        )
+        : claimed.event.handlerName === "webull-token-refresh"
+        ? await runWebullTokenRefresh(
+          claimed.event,
+          config.dependencies.webull.tokenRefresh,
+          keepAlive,
+        )
+        : claimed.event.handlerName === "webull-projection-refresh"
+        ? await runWebullProjectionRefresh(
+          claimed.event,
+          config.dependencies.webull.projectionRefresh,
+          keepAlive,
+        )
+        : await runWebullReconciliation(
+          claimed.event,
+          config.dependencies.webull.reconciliation,
+          keepAlive,
+        );
       await transaction(async (database) => {
         await database.query(
           "select * from argus_private.set_worker_event_context($1,$2,$3)",

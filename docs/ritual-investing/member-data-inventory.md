@@ -192,6 +192,9 @@ Each surface below appears exactly once. The contract test derives current table
 | `background-handler:editorial-publisher` | retained-argus | Supabase Queue/Cron worker |
 | `background-handler:recurring-plan-delivery` | deleted | No background financial execution |
 | `background-handler:privacy-export-retention` | retained-argus | Supabase Queue/Cron worker |
+| `background-handler:webull-token-refresh` | replaced-webull | Supabase Queue recovery worker with provider egress gate |
+| `background-handler:webull-projection-refresh` | replaced-webull | Supabase Queue read-projection recovery worker |
+| `background-handler:webull-reconciliation` | replaced-webull | Supabase Queue existing-command lookup worker; no financial execution |
 | `api-route-pattern:^/health$` | retained-argus | Supabase Edge liveness route |
 | `api-route-pattern:^/v1/admin/` | retained-argus | Argus staff API through Supabase Edge |
 | `api-route-pattern:^/v1/public/` | retained-argus | Approved Argus public editorial API |

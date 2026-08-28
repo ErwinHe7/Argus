@@ -95,7 +95,7 @@ describe("provider command database security boundary", () => {
       "blocked.state in ('dispatching','ambiguous','reconciling','manual_review')",
     );
     expect(repository).toContain(
-      "'provider_command_reconciliation_requested',id",
+      "'webull.command.reconciliation.requested',id",
     );
     expect(repository).toContain("'provider-command:' || id::text");
     expect(repository).not.toMatch(

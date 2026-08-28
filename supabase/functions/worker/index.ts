@@ -11,6 +11,15 @@ import {
 } from "../_shared/jobs/runtime.ts";
 import { createPrivateSupabaseStorage } from "../_shared/jobs/storage.ts";
 import {
+  createBlockedWebullRecoveryPorts,
+  createBlockedWebullRecoveryProvider,
+  createWebullRecoveryPorts,
+} from "../_shared/jobs/webull-recovery.ts";
+import {
+  parseWebullMasterKeyRing,
+  WebullTokenVault,
+} from "../_shared/webull/tokens.ts";
+import {
   runSupabaseQueue,
   type SupabaseQueueRuntime,
 } from "../../../ritual-investing-api/src/jobs/queue-runtime.ts";
@@ -146,9 +155,24 @@ function productionHandler(): (request: Request) => Promise<Response> {
     authAdmin,
     transaction: createWorkerTransaction(pool),
   });
+  const webullKeyRing = Deno.env.get("WEBULL_MASTER_KEY_RING");
+  const webullEnvironment = Deno.env.get("WEBULL_ENVIRONMENT");
+  const webull = webullKeyRing !== undefined &&
+      (webullEnvironment === "sandbox" || webullEnvironment === "production")
+    ? createWebullRecoveryPorts({
+      transaction: createWorkerTransaction(pool),
+      vault: new WebullTokenVault(
+        webullEnvironment,
+        parseWebullMasterKeyRing(webullKeyRing),
+      ),
+      // U5 remains unresolved. A partner-confirmed recovery transport can be
+      // injected here without changing any queue or database authority.
+      provider: createBlockedWebullRecoveryProvider(),
+    })
+    : createBlockedWebullRecoveryPorts();
   const runtime = createSupabaseWorkerRuntime({
     pool,
-    dependencies: { storage, purgeSaga },
+    dependencies: { storage, purgeSaga, webull },
   });
   const next = Deno.env.get("WORKER_SECRET_NEXT") || undefined;
   const nextValidUntilText = Deno.env.get("WORKER_SECRET_NEXT_VALID_UNTIL");

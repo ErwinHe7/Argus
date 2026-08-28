@@ -11,6 +11,9 @@ export const retainedJobHandlers = Object.freeze({
   "privacy.export.requested": "privacy-export",
   "privacy.deletion.requested": "privacy-purge",
   "privacy.export.retention.requested": "privacy-export-retention",
+  "webull.token.refresh.requested": "webull-token-refresh",
+  "webull.projection.refresh.requested": "webull-projection-refresh",
+  "webull.command.reconciliation.requested": "webull-reconciliation",
 } as const);
 
 export type RetainedEventType = keyof typeof retainedJobHandlers;

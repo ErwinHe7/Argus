@@ -6,6 +6,9 @@ import {
 } from "../domains/privacy/service.ts";
 import { sha256TextHex } from "../security/sha256.ts";
 import type { OutboxEvent } from "./consumer-receipts.ts";
+import type { WebullProjectionRefreshPort } from "./webull-projection-refresh.ts";
+import type { WebullReconciliationPort } from "./webull-reconciliation.ts";
+import type { WebullTokenRefreshPort } from "./webull-token-refresh.ts";
 
 export type WorkerStorageObject = Readonly<{
   body: Uint8Array;
@@ -25,6 +28,11 @@ export interface WorkerPurgeSagaPort {
 export type JobHandlerDependencies = Readonly<{
   storage: WorkerStoragePort;
   purgeSaga: WorkerPurgeSagaPort;
+  webull: Readonly<{
+    tokenRefresh: WebullTokenRefreshPort;
+    projectionRefresh: WebullProjectionRefreshPort;
+    reconciliation: WebullReconciliationPort;
+  }>;
 }>;
 
 export type JobEffect = (
@@ -298,6 +306,10 @@ export function handlerFor(
       return privacyPurge(dependencies.purgeSaga);
     case "moderation-triage":
       return moderationTriage();
+    case "webull-token-refresh":
+    case "webull-projection-refresh":
+    case "webull-reconciliation":
+      throw new Error("external_handler_requires_saga");
   }
 }
 

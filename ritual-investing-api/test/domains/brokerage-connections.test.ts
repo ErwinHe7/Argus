@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 import {
   BrokerageConnectionError,
   type BrokerageConnectionRepository,
+  createBrokerageConnectionRepository,
 } from "../../src/domains/brokerage-connections/repository.ts";
+import type {
+  DatabaseClient,
+  DatabasePool,
+} from "../../src/db/database-port.ts";
+import { createVerifiedRequestClaims } from "../../src/db/request-context.ts";
 import {
   createRetainedApp,
   type RetainedRepositorySet,
@@ -71,6 +77,45 @@ const headers = {
   origin: bindings.consumerOrigin,
   "content-type": "application/json",
 };
+
+function repositoryWithDisconnectResult(
+  disconnectResult: readonly unknown[] | Error,
+) {
+  const query = vi.fn(async (sql: string) => {
+    if (sql.includes("disconnect_webull_connection")) {
+      if (disconnectResult instanceof Error) throw disconnectResult;
+      return { rows: [...disconnectResult] };
+    }
+    return { rows: [] };
+  });
+  const client: DatabaseClient = {
+    async query<Row>(sql: string) {
+      return await query(sql) as { rows: Row[] };
+    },
+    release: vi.fn(),
+  };
+  const pool: DatabasePool = {
+    connect: vi.fn(async () => client),
+    end: vi.fn(async () => undefined),
+  };
+  return {
+    pool,
+    query,
+    repository: createBrokerageConnectionRepository({
+      pool,
+      claims: createVerifiedRequestClaims({
+        userId,
+        sessionId,
+        aal: "aal2",
+      }),
+      authorization: {
+        contractVersion: "unavailable",
+        environment: "sandbox",
+        authorizationUrl: () => new URL("https://passport.webull.com/blocked"),
+      },
+    }),
+  };
+}
 
 describe("brokerage connection HTTP contract", () => {
   it("issues one action-bound receipt only after verified recent auth", async () => {
@@ -174,5 +219,95 @@ describe("brokerage connection HTTP contract", () => {
     expect(await response.json()).toMatchObject({
       data: { status: "disconnected", provider_grant_revoked: false },
     });
+  });
+
+  it("rejects malformed disconnect receipts before invoking the repository", async () => {
+    const test = fixture();
+    const response = await test.app.request(
+      "/v1/brokerage/connections/disconnect",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ step_up_receipt: "not valid" }),
+      },
+      bindings,
+    );
+    expect(response.status).toBe(422);
+    expect(test.brokerage.disconnect).not.toHaveBeenCalled();
+  });
+
+  it("maps replayed database step-up denials without exposing a 500", async () => {
+    const test = fixture();
+    vi.mocked(test.brokerage.disconnect).mockRejectedValue(
+      new BrokerageConnectionError("step_up_required"),
+    );
+    const response = await test.app.request(
+      "/v1/brokerage/connections/disconnect",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ step_up_receipt: "R".repeat(43) }),
+      },
+      bindings,
+    );
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({
+      error: { code: "step_up_required", retryable: false },
+    });
+  });
+
+  it("maps a missing connection without exposing a 500", async () => {
+    const test = fixture();
+    vi.mocked(test.brokerage.disconnect).mockRejectedValue(
+      new BrokerageConnectionError("connection_not_found"),
+    );
+    const response = await test.app.request(
+      "/v1/brokerage/connections/disconnect",
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ step_up_receipt: "R".repeat(43) }),
+      },
+      bindings,
+    );
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({
+      error: { code: "connection_not_found", retryable: false },
+    });
+  });
+});
+
+describe("brokerage connection disconnect repository boundary", () => {
+  it("rejects an invalid receipt before opening a database transaction", async () => {
+    const test = repositoryWithDisconnectResult([]);
+    await expect(test.repository.disconnect("not valid")).rejects.toMatchObject({
+      name: "BrokerageConnectionError",
+      code: "step_up_required",
+    });
+    expect(test.pool.connect).not.toHaveBeenCalled();
+  });
+
+  it("translates an exact replay/step-up SQL denial", async () => {
+    const error = Object.assign(new Error("step_up_required"), { code: "42501" });
+    const test = repositoryWithDisconnectResult(error);
+    await expect(test.repository.disconnect("R".repeat(43))).rejects.toMatchObject({
+      name: "BrokerageConnectionError",
+      code: "step_up_required",
+    });
+  });
+
+  it("translates an exact missing-connection SQL denial", async () => {
+    const error = Object.assign(new Error("connection_not_found"), { code: "P0001" });
+    const test = repositoryWithDisconnectResult(error);
+    await expect(test.repository.disconnect("R".repeat(43))).rejects.toMatchObject({
+      name: "BrokerageConnectionError",
+      code: "connection_not_found",
+    });
+  });
+
+  it("preserves unknown database failures", async () => {
+    const error = Object.assign(new Error("step_up_required"), { code: "XX000" });
+    const test = repositoryWithDisconnectResult(error);
+    await expect(test.repository.disconnect("R".repeat(43))).rejects.toBe(error);
   });
 });

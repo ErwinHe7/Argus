@@ -25,9 +25,11 @@ select ok(
 
 select is(
   (select count(*)::bigint from cron.job
-    where jobname in ('argus-retained-enqueue','argus-worker-dispatch')),
-  2::bigint,
-  'Cron declares only the retained enqueue and authenticated worker dispatch ticks'
+    where jobname in (
+      'argus-retained-enqueue','argus-webull-recovery-enqueue','argus-worker-dispatch'
+    )),
+  3::bigint,
+  'Cron declares only retained enqueue, Webull recovery enqueue, and authenticated dispatch ticks'
 );
 select is(
   (select count(*)::bigint from cron.job

@@ -472,7 +472,7 @@ export function createBrokerageOrderRepository(
           `insert into argus_private.outbox_events(
            user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
          ) select user_id,deletion_epoch,'brokerage_reconcile',
-                  'provider_command_reconciliation_requested',id,
+                  'webull.command.reconciliation.requested',id,
                   'provider-command:' || id::text
              from argus_private.provider_commands
             where id=$1 and user_id=argus_private.request_user_id()

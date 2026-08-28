@@ -48,6 +48,21 @@ function randomOpaqueValue(): string {
   );
 }
 
+function translateDisconnectDatabaseError(error: unknown): never {
+  if (typeof error === "object" && error !== null) {
+    const record = error as { code?: unknown; message?: unknown };
+    if (record.code === "42501" && record.message === "step_up_required") {
+      throw new BrokerageConnectionError("step_up_required");
+    }
+    if (
+      record.code === "P0001" && record.message === "connection_not_found"
+    ) {
+      throw new BrokerageConnectionError("connection_not_found");
+    }
+  }
+  throw error;
+}
+
 export type BrokerageConnectionRepository = ReturnType<
   typeof createBrokerageConnectionRepository
 >;
@@ -306,72 +321,29 @@ export function createBrokerageConnectionRepository(
         throw new BrokerageConnectionError("step_up_required");
       }
       const receiptHash = await hash(receipt);
-      return withRequestTransaction(
-        { pool: input.pool, verifiedClaims: input.claims },
-        async (database) => {
-          const consumed = await database.query<{ id: string }>(
-            `update argus_private.step_up_receipts receipt
-                set consumed_at=now()
-              where receipt.receipt_hash=$1
-                and receipt.user_id=argus_private.request_user_id()
-                and receipt.session_id=$2
-                and receipt.action='webull_disconnect'
-                and receipt.consumed_at is null
-                and receipt.expires_at > now()
-              returning id`,
-            [receiptHash, input.claims.sessionId],
-          );
-          if (consumed.rows.length !== 1) {
-            throw new BrokerageConnectionError("step_up_required");
-          }
-          const connection = await database.query<{ id: string }>(
-            `select id from argus_brokerage.connections
-              where user_id=argus_private.request_user_id() and status <> 'disconnected'
-              order by created_at desc limit 1 for update`,
-          );
-          const connectionId = connection.rows[0]?.id;
-          if (connectionId === undefined) {
-            throw new BrokerageConnectionError("connection_not_found");
-          }
-          await database.query(
-            `delete from argus_brokerage.accounts
-              where user_id=argus_private.request_user_id() and connection_id=$1`,
-            [connectionId],
-          );
-          await database.query(
-            `delete from argus_private.webull_credentials
-              where user_id=argus_private.request_user_id() and connection_id=$1`,
-            [connectionId],
-          );
-          await database.query(
-            `delete from argus_private.refresh_leases
-              where user_id=argus_private.request_user_id() and connection_id=$1`,
-            [connectionId],
-          );
-          await database.query(
-            `delete from argus_private.oauth_states
-              where user_id=argus_private.request_user_id() and connection_id=$1`,
-            [connectionId],
-          );
-          await database.query(
-            `delete from argus_private.webull_completion_handles
-              where user_id=argus_private.request_user_id() and connection_id=$1`,
-            [connectionId],
-          );
-          await database.query(
-            `update argus_brokerage.connections
-                set status='disconnected',disconnected_at=now(),
-                    last_error_code=null,updated_at=now()
-              where id=$1 and user_id=argus_private.request_user_id()`,
-            [connectionId],
-          );
-          return Object.freeze({
-            connection_id: connectionId,
-            status: "disconnected",
-            provider_grant_revoked: false,
-          });
-        },
-      );
+      try {
+        return await withRequestTransaction(
+          { pool: input.pool, verifiedClaims: input.claims },
+          async (database) => {
+            const disconnected = await database.query<{
+              connection_id: string;
+              status: "disconnected";
+              provider_grant_revoked: boolean;
+            }>(
+              "select * from argus_private.disconnect_webull_connection($1,$2)",
+              [receiptHash, input.claims.sessionId],
+            );
+            const result = disconnected.rows[0];
+            if (result === undefined) {
+              throw new BrokerageConnectionError("connection_not_found");
+            }
+            return Object.freeze(result);
+          },
+        );
+      } catch (error) {
+        if (error instanceof BrokerageConnectionError) throw error;
+        translateDisconnectDatabaseError(error);
+      }
     },
   });
 }

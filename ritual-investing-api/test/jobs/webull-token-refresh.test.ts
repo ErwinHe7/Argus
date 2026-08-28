@@ -1,0 +1,56 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { describe, expect, it, vi } from "vitest";
+
+import { runWebullTokenRefresh } from "../../src/jobs/webull-token-refresh.ts";
+
+const migration = readFileSync(resolve(
+  import.meta.dirname,
+  "../../../supabase/migrations/20260828152000_u15_webull_recovery.sql",
+), "utf8");
+const adapter = readFileSync(resolve(
+  import.meta.dirname,
+  "../../../supabase/functions/_shared/jobs/webull-recovery.ts",
+), "utf8");
+
+const event = {
+  id: "018f3c2a-4b67-7a89-8abc-123456789001",
+  eventType: "webull.token.refresh.requested" as const,
+  handlerName: "webull-token-refresh" as const,
+  aggregateId: "018f3c2a-4b67-7a89-8abc-123456789002",
+  userId: "018f3c2a-4b67-7a89-8abc-123456789003",
+  deletionEpoch: 2,
+};
+
+describe("Webull token recovery", () => {
+  it("can rotate only an existing connection reference", async () => {
+    const refreshExistingConnection = vi.fn(async () => "rotated" as const);
+    await expect(runWebullTokenRefresh(event, { refreshExistingConnection }, vi.fn()))
+      .resolves.toContain(":rotated");
+    expect(refreshExistingConnection).toHaveBeenCalledWith(expect.objectContaining({
+      eventId: event.id,
+      connectionId: event.aggregateId,
+    }));
+  });
+
+  it("persists possible egress before refresh and CASes token, key, and AAD", () => {
+    const egress = adapter.indexOf("mark_webull_refresh_egress_started");
+    const provider = adapter.indexOf("config.provider.refresh", egress);
+    const commit = adapter.indexOf("commit_webull_token_refresh", provider);
+    expect(egress).toBeGreaterThan(0);
+    expect(provider).toBeGreaterThan(egress);
+    expect(commit).toBeGreaterThan(provider);
+    expect(migration).toContain("credential.token_version=p_expected_token_version");
+    expect(migration).toContain("credential.key_version=p_expected_key_version");
+    expect(migration).toContain("credential.associated_data_hash=p_expected_aad_hash");
+    expect(migration).toContain("prior.egress_started_at is not null");
+    expect(migration).toContain("refresh_outcome_unknown");
+  });
+
+  it("clears an egress marker only for an explicit before-egress result", () => {
+    const reset = adapter.indexOf("reset_webull_refresh_before_egress");
+    expect(reset).toBeGreaterThan(adapter.indexOf("WebullRecoveryBeforeEgressError"));
+    expect(migration).toContain("lease.egress_started_at is not null");
+    expect(migration).toContain("lease.egress_started_at is null");
+  });
+});

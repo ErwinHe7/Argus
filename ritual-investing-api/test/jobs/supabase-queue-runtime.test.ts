@@ -27,6 +27,8 @@ describe("Supabase queue runtime", () => {
     expect(handlerForEventType("recurring.plan.due")).toBeNull();
     expect(handlerForEventType("order.place.requested")).toBeNull();
     expect(handlerForEventType("provider_command_reconciliation_requested")).toBeNull();
+    expect(handlerForEventType("webull.command.reconciliation.requested"))
+      .toBe("webull-reconciliation");
   });
 
   it("bounds batches and releases the overlap lease", async () => {

@@ -541,6 +541,74 @@ export class WebullTokenVault {
       throw new Error("webull_provider_asset_owner_mismatch");
     }
   }
+
+  async protectProviderOrderReference(
+    ownership: Omit<TokenOwnership, "keyVersion">,
+    accountResourceId: string,
+    orderResourceId: string,
+    providerOrderReference: string,
+  ): Promise<Uint8Array> {
+    if (
+      !uuidPattern.test(accountResourceId) ||
+      !uuidPattern.test(orderResourceId) ||
+      !/^[\x21-\x7e]{1,512}$/.test(providerOrderReference)
+    ) throw new Error("invalid_webull_provider_order_reference");
+    const full: TokenOwnership = {
+      ...ownership,
+      keyVersion: this.keyRing.activeVersion,
+    };
+    validateOwnership(full);
+    const key = await importAesKey(this.masterKeyBytes(full.keyVersion), false);
+    const sealed = await encrypt(
+      key,
+      encoder.encode(providerOrderReference),
+      aad(full, `order-ref:${accountResourceId}:${orderResourceId}`, 1),
+    );
+    return encoder.encode(JSON.stringify({
+      v: 1,
+      k: full.keyVersion,
+      n: bytesToBase64(sealed.nonce),
+      c: bytesToBase64(sealed.ciphertext),
+      t: bytesToBase64(sealed.tag),
+    }));
+  }
+
+  async openProviderOrderReference(
+    protectedValue: Uint8Array,
+    ownership: Omit<TokenOwnership, "keyVersion">,
+    accountResourceId: string,
+    orderResourceId: string,
+    expectedKeyVersion: number,
+  ): Promise<string> {
+    if (!uuidPattern.test(accountResourceId) || !uuidPattern.test(orderResourceId)) {
+      throw new Error("invalid_webull_provider_order_resource");
+    }
+    const full: TokenOwnership = { ...ownership, keyVersion: expectedKeyVersion };
+    validateOwnership(full);
+    try {
+      const parsed = JSON.parse(decoder.decode(protectedValue)) as Record<string, unknown>;
+      if (
+        typeof parsed !== "object" || parsed === null || Array.isArray(parsed) ||
+        Object.keys(parsed).sort().join(",") !== "c,k,n,t,v" ||
+        parsed.v !== 1 || parsed.k !== expectedKeyVersion ||
+        typeof parsed.n !== "string" || typeof parsed.c !== "string" ||
+        typeof parsed.t !== "string"
+      ) throw new Error();
+      const key = await importAesKey(this.masterKeyBytes(expectedKeyVersion), false);
+      const plaintext = await decrypt(
+        key,
+        base64ToBytes(parsed.c),
+        base64ToBytes(parsed.n),
+        base64ToBytes(parsed.t),
+        aad(full, `order-ref:${accountResourceId}:${orderResourceId}`, 1),
+      );
+      const reference = decoder.decode(plaintext);
+      if (!/^[\x21-\x7e]{1,512}$/.test(reference)) throw new Error();
+      return reference;
+    } catch {
+      throw new Error("webull_provider_order_reference_owner_mismatch");
+    }
+  }
 }
 
 export class WebullRefreshRejectedError extends Error {}
