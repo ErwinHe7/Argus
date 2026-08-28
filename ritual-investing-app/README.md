@@ -1,20 +1,33 @@
 # Ritual Investing
 
-Standalone Flutter application for the ritual-first investing product. The app ships one shared Dart UI to iOS and Android and does not import from, run, or modify the AXIO7 research services.
+Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS and Android and does not import from, run, or modify the AXIO7 research services.
 
-## Current member experience
+## Product authority
 
-- Adaptive iOS/Android bottom navigation with Ritual, Discover, Coven, and You destinations.
-- Approved lunar-lilac and aubergine-night themes with a server-authoritative theme setting.
-- Daily Compass ritual using the preserved generated artwork.
-- Inspectable `Market-informed` explanation sheet and explicit Demo limitations.
-- Asset Codex search and comparison; Grimoires, Circles, and Founders’ Coven discovery and saving.
-- Provider-free Demo portfolio, fictional funding, simulated orders, recurring investing, and rebalancing with explicit confirmation.
-- Intentions, Future Mirror, briefings, in-app notifications, Demo membership, privacy export/deletion status, and seeded-Demo reset flows.
-- Guided investing, ritual-language, spirituality, and optional date-only astrology onboarding before Auth0 sign-up/sign-in, followed by server-complete shell gating.
-- Rowan counsel using the preserved portrait study.
-- Active personalization changes presentation and defaults only; it never authorizes a command or moves real money.
-- Widget, accessibility, generated-Dio integration, and deterministic light/dark visual-regression tests.
+Webull is authoritative for brokerage accounts, capabilities, restrictions, balances, positions, and orders. Argus is authoritative for ritual, editorial, community, preference, and privacy state. Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Cloudflare Pages serves only static landing and standalone Demo assets.
+
+The production member app is a frontend for an existing Webull brokerage relationship; it is not a brokerage ledger. Flutter never receives Webull credentials or raw provider payloads and never calls Webull directly. Brokerage reads and supported manual order commands cross the generated, versioned Argus API. Funding, account opening, recurring financial execution, autonomous trading, and rebalance execution are outside the product.
+
+The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated. It remains in `ritual-investing-demo/`; production must not import its fixtures, state, services, or reset behavior.
+
+## Member surfaces
+
+- Daily Ritual, evidence, discovery, Asset Codex, Grimoires, Circles, Founders' Coven, Rowan, preferences, and editorial content remain Argus-owned.
+- Intentions and Future Mirror remain non-authoritative scenarios; they do not change Webull state or authorize orders.
+- Account selection, balances, positions, restrictions, and order history are timestamped Webull projections with explicit fresh, stale, unavailable, and empty states.
+- Only partner-approved manual order combinations may proceed through preview, review, and explicit confirmation. Stale or incoherent authority disables mutations.
+- Rowan cannot issue financial commands and cannot receive Webull credentials, raw provider payloads, balances, or positions as prompt context.
+- Privacy export and deletion operate on Argus-owned data. Disconnecting or deleting Argus never claims to close a Webull account or cancel a Webull order.
+
+## Runtime boundary
+
+- Supabase Auth is the member identity provider.
+- The generated Dio client is the only application-data and brokerage-data boundary.
+- Direct Supabase client use is limited to Auth and approved private Storage transport.
+- Secure device storage may hold the Supabase session and short-lived local coordination state, never Webull credentials.
+- Screens depend on controllers and repository contracts rather than provider SDKs.
+
+The current source still contains migration-era Auth0, Neon, Cloudflare Worker/Queue/R2, and simulated-finance implementations. They are replacement inputs, not target authority, and are removed only after their Supabase or Webull replacements pass the cutover gates.
 
 ## Local checks
 
@@ -29,38 +42,12 @@ flutter test integration_test/member_experience_test.dart -d <device-id> \
 
 The visual baselines live under `test/goldens/`. Regenerate them only after comparing the result with the approved authority at `../docs/visual-references/standalone-ritual-investing/approved-light-dark-reference.html`.
 
-The aggregate integration target starts local loopback services and traverses
-every member slice through the generated Dio client. Its injected identity is
-test-only and ephemeral; it does not contact a bank, broker, payment, market-data,
-push, or hosted Auth0 provider.
-
 ## Native prerequisites
 
-The project includes generated `ios/` and `android/` hosts. Device builds additionally require full Xcode and CocoaPods for iOS, plus Android Studio/SDK for Android. Run `flutter doctor -v` after installing them.
+Device builds require full Xcode and CocoaPods for iOS plus Android Studio/SDK for Android. Run `flutter doctor -v` after installing them. Bundle identifiers remain provisional until the product name and store identity are finalized.
 
-The bundle identifiers generated for the working scaffold are provisional until the product name and store identity are finalized.
+## Hosted release gates
 
-## Beta iOS Simulator build
+Before a mobile release, verify on real iOS and Android devices that Supabase sign-up, sign-in, callback recovery, session restoration, reauthentication, sign-out, and different-account isolation work. Webull connection, refresh, disconnect, reads, and manual orders require separate hosted sandbox evidence; local mocks are not provider proof.
 
-From the repository root, use this single command to regenerate the Flutter iOS settings and build the beta app for the unsigned Simulator callback lane:
-
-```sh
-cd ritual-investing-app && flutter pub get && flutter build ios --simulator --debug --dart-define=RITUAL_API_BASE_URL=https://api-beta.just-build-this.app --dart-define=AUTH0_DOMAIN=dev-pxee7db52tqc4xoe.us.auth0.com --dart-define=AUTH0_CLIENT_ID=VIFuQLVxk6baW27jS9TzQ22pIV8lAqHz --dart-define=AUTH0_AUDIENCE=https://api-beta.just-build-this.app --dart-define=AUTH0_USE_HTTPS=false
-```
-
-`AUTH0_USE_HTTPS=false` is only for the unsigned iOS Simulator lane. Keep HTTPS callbacks enabled for signed real-device and release builds.
-
-## Release smoke gates
-
-The loopback integration suite exercises an injectable hosted-auth seam; it does not imitate or claim proof of the external Auth0 browser. Before a mobile release, verify on real iOS and Android devices that:
-
-- Auth0 Universal Login opens for both sign-up and returning sign-in.
-- Cancel returns to the editable review with the protected draft intact.
-- The configured callback returns to this app and the authenticated account is reconciled before the member shell opens.
-- Logout clears the Auth0 session and a different-account sign-in cannot inherit the prior account's draft or cache.
-
-The iOS simulator build is a separate local build gate. Android build and device smoke proof require an installed Android SDK; SDK absence is an environment limitation, not a passing Android result.
-
-See the repository [member release gates](../docs/ritual-investing/member-release-gates.md),
-[member data inventory](../docs/ritual-investing/member-data-inventory.md), and
-[Auth0 setup](../docs/ritual-investing/auth0-setup.md) before beta promotion.
+See [member release gates](../docs/ritual-investing/member-release-gates.md) and the [member data inventory](../docs/ritual-investing/member-data-inventory.md). Those documents must be updated as legacy runtime paths are replaced.

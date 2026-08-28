@@ -10,32 +10,42 @@ adaptive
 
 ## Users
 
-Gen Z and millennial women who are curious about investing but do not identify with conventional catch-all brokerage interfaces. They use the app in short daily rituals, deeper research sessions, and periodic goal reviews. Their job is to understand what may be worth exploring, why it appeared, and how uncertainty affects a simulated plan without being pressured into a transaction.
+Gen Z and millennial women who want investing to feel approachable without losing evidence, uncertainty, or control. They use Argus for short daily rituals, deeper research, and deliberate reviews of an existing Webull brokerage relationship.
 
 ## Product Purpose
 
-Create a standalone iOS and Android investing companion where tarot and astrology make market research emotionally approachable while factual signals remain inspectable. Success means the complete simulated investing journey feels native to this original mystical world, clearly separates metaphor from evidence, and never pretends that fictional prices, accounts, payments, or orders are real.
+Create an iOS and Android investing companion where tarot and astrology make market research emotionally approachable while factual signals remain inspectable. Members may connect an existing Webull account, understand timestamped brokerage state, and explicitly confirm only supported manual order actions. Argus is not a brokerage, does not open or fund accounts, and does not maintain a second brokerage ledger.
+
+## Authority Model
+
+- Webull is authoritative for brokerage accounts, capabilities, restrictions, balances, positions, and orders.
+- Argus is authoritative for ritual, editorial, community, preference, and privacy state, including Daily Ritual, discovery, Circle, Grimoire, Founders' Coven, Intentions, and Future Mirror scenarios.
+- Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Flutter calls the versioned Argus API for application and brokerage data and uses Supabase directly only for Auth and approved Storage transport.
+- The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated. It is a separate product surface, not a mode or ledger in the production member app.
+- Cloudflare Pages serves only static landing and standalone Demo assets.
 
 ## Brand Personality
 
-Mystic, discerning, intimate. The product should feel composed and observant rather than breathless, juvenile, or sales-driven. Rowan brings romance-lead warmth and clarity, but the user always retains agency.
+Mystic, discerning, intimate. The product should feel composed and observant rather than breathless, juvenile, or sales-driven. Rowan brings warmth and clarity, but the member always retains agency.
 
 ## Anti-references
 
 - Generic navy-and-green brokerage dashboards with mystical decoration added afterward.
 - Juvenile horoscope apps, novelty occult clip art, or an uncurated “Etsy witch” collage.
-- Direct visual or verbal copies of Labyrinthos, Alinea, or their proprietary characters and interface patterns.
-- Hidden market influence, supernatural guarantees, or disclosure language designed to escape notice.
+- Hidden market influence, supernatural guarantees, stale brokerage state presented as current, or disclosures designed to escape notice.
+- Funding, recurring execution, autonomous trading, rebalancing execution, account-opening, or custody claims.
 - Romance, urgency, jealousy, exclusivity, or sexual pressure used to influence a financial decision.
 
 ## Design Principles
 
 - Ritual before metrics: begin with an emotionally legible reading, then let evidence deepen it.
-- Evidence in one gesture: market observations, timing, uncertainty, and limitations are always adjacent and inspectable.
+- Evidence in one gesture: observations, timing, uncertainty, limitations, provider timestamps, fetch timestamps, and freshness remain adjacent and inspectable.
+- Provider truth without a second ledger: stale or unavailable brokerage projections are labeled; mutations require fresh authoritative capability and restriction checks.
 - Original world, familiar behavior: bespoke art and language live inside platform-appropriate navigation, accessibility, and controls.
 - Counsel without coercion: Rowan explains and reassures; he never decides, pressures, or impersonates an adviser.
-- Demonstrate honestly: fictional accounts, prices, community, subscriptions, and transactions remain visibly marked Demo.
+- Rowan cannot issue financial commands and cannot receive Webull credentials, raw provider payloads, balances, or positions as prompt context.
+- Demonstrate honestly: synthetic state exists only in the standalone Demo and remains visibly marked Demo.
 
 ## Accessibility & Inclusion
 
-Target WCAG 2.2 AA contrast and semantics while respecting iOS Dynamic Type, Android font scaling, VoiceOver, TalkBack, reduced-motion settings, platform back gestures, safe areas, and minimum 44pt iOS / 48dp Android touch targets. Information must never rely on color alone. Astrology personalization remains optional, and tarot remains fully usable without birth details.
+Target WCAG 2.2 AA contrast and semantics while respecting iOS Dynamic Type, Android font scaling, VoiceOver, TalkBack, reduced-motion settings, platform back gestures, safe areas, and minimum 44pt iOS / 48dp Android touch targets. Information, authority, freshness, and risk must never rely on color alone. Astrology personalization remains optional, and tarot remains fully usable without birth details.
