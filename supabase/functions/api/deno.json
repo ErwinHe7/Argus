@@ -10,7 +10,7 @@
   },
   "lock": "./deno.lock",
   "tasks": {
-    "check": "deno check index.ts ../_shared/auth.ts ../_shared/database.ts ../_shared/http.ts ../_shared/rate-limit.ts ../_shared/jobs/storage.ts",
-    "test": "deno test --allow-env api_test.ts"
+    "check": "deno check index.ts ../_shared/auth.ts ../_shared/database.ts ../_shared/environment.ts ../_shared/http.ts ../_shared/rate-limit.ts ../_shared/jobs/storage.ts",
+    "test": "deno test --allow-env api_test.ts ../_shared/environment_test.ts"
   }
 }

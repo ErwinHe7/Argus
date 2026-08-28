@@ -13,8 +13,6 @@ begin
 end
 $$;
 
-alter role argus_worker_edge
-  with login noinherit nosuperuser nocreatedb nocreaterole noreplication nobypassrls;
 alter role argus_worker_edge password null;
 alter role argus_worker_edge set statement_timeout = '45s';
 alter role argus_worker_edge set lock_timeout = '3s';

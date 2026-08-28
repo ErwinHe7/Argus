@@ -1,5 +1,13 @@
 begin;
 
+-- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
+-- newly created roles. Enable role switching only for this test transaction;
+-- the final rollback restores the hosted membership options.
+grant argus_runtime, argus_worker, argus_waitlist
+  to current_user with set true;
+grant usage on schema extensions
+  to argus_runtime, argus_worker, argus_waitlist;
+
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
@@ -57,24 +65,24 @@ insert into argus_private.staff_principals(
 );
 
 insert into argus_private.staff_step_up_receipts(
-  user_id,session_id,action,target_id,receipt_hash,expires_at
+  user_id,session_id,action,target_id,receipt_hash,expires_at,created_at
 ) values
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
-   'admin_job_retry','11111111-1000-4000-8000-000000000001',repeat('a',64),now()+interval '5 minutes'),
+   'admin_job_retry','11111111-1000-4000-8000-000000000001',repeat('a',64),now()+interval '5 minutes',now()),
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
-   'admin_job_retry','11111111-1000-4000-8000-000000000002',repeat('b',64),now()+interval '5 minutes'),
+   'admin_job_retry','11111111-1000-4000-8000-000000000002',repeat('b',64),now()+interval '5 minutes',now()),
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
-   'admin_privacy_retry','11111111-1000-4000-8000-000000000003',repeat('c',64),now()+interval '5 minutes'),
+   'admin_privacy_retry','11111111-1000-4000-8000-000000000003',repeat('c',64),now()+interval '5 minutes',now()),
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
-   'admin_job_retry','11111111-1000-4000-8000-000000000004',repeat('d',64),now()-interval '1 second'),
+   'admin_job_retry','11111111-1000-4000-8000-000000000004',repeat('d',64),now()-interval '1 second',now()-interval '2 seconds'),
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
-   'admin_job_retry','11111111-1000-4000-8000-000000000005',repeat('e',64),now()+interval '5 minutes'),
+   'admin_job_retry','11111111-1000-4000-8000-000000000005',repeat('e',64),now()+interval '5 minutes',now()),
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000001',
-   'admin_job_retry','11111111-1000-4000-8000-000000000006',repeat('f',64),now()+interval '5 minutes'),
+   'admin_job_retry','11111111-1000-4000-8000-000000000006',repeat('f',64),now()+interval '5 minutes',now()),
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
-   'admin_job_retry','11111111-1000-4000-8000-000000000007',repeat('1',64),now()+interval '5 minutes'),
+   'admin_job_retry','11111111-1000-4000-8000-000000000007',repeat('1',64),now()+interval '5 minutes',now()),
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
-   'admin_job_retry','11111111-1000-4000-8000-000000000008',repeat('2',64),now()+interval '5 minutes');
+   'admin_job_retry','11111111-1000-4000-8000-000000000008',repeat('2',64),now()+interval '5 minutes',now());
 
 set local role argus_runtime;
 select argus_private.set_request_context(
@@ -237,6 +245,14 @@ insert into auth.users(
   ('00000000-0000-0000-0000-000000000000',
    '33333333-3333-4333-8333-333333333333','authenticated','authenticated',
    'u11-publisher@example.test','',now(),
+   '{"provider":"email","providers":["email"]}','{}',now(),now()),
+  ('00000000-0000-0000-0000-000000000000',
+   '44444444-4444-4444-8444-444444444444','authenticated','authenticated',
+   'u11-operations-target@example.test','',now(),
+   '{"provider":"email","providers":["email"]}','{}',now(),now()),
+  ('00000000-0000-0000-0000-000000000000',
+   '55555555-5555-4555-8555-555555555555','authenticated','authenticated',
+   'u11-deletion-target@example.test','',now(),
    '{"provider":"email","providers":["email"]}','{}',now(),now());
 insert into auth.sessions(id,user_id,created_at,updated_at) values
   ('22222222-0000-4000-8000-000000000001','22222222-2222-4222-8222-222222222222',now(),now()),
@@ -318,6 +334,7 @@ select lives_ok(
     )$$,
   'standalone editorial:publish appends immutable publication evidence'
 );
+reset role;
 select is(
   (select actor_id from argus_app.publication_events
     where item_id='11111111-2000-4000-8000-000000000001'),
@@ -466,7 +483,7 @@ insert into argus_private.outbox_events(
   published_at
 ) values (
   '11111111-4000-4000-8000-000000000001',
-  '11111111-1111-4111-8111-111111111111',0,
+  '44444444-4444-4444-8444-444444444444',0,
   'argus_jobs','briefing.daily.requested',
   '11111111-4100-4000-8000-000000000001','u11-original-event-0001',now()
 );
@@ -475,7 +492,7 @@ insert into argus_private.job_runs(
   queue_message_id,handler_name,max_attempts,diagnostic_hash
 ) values (
   '11111111-4200-4000-8000-000000000001',
-  '11111111-1111-4111-8111-111111111111',0,'briefing-builder',
+  '44444444-4444-4444-8444-444444444444',0,'briefing-builder',
   '11111111-4000-4000-8000-000000000001','dead_lettered',5,1001,
   'briefing-builder',5,repeat('9',64)
 );
@@ -483,14 +500,25 @@ insert into argus_app.privacy_requests(
   id,user_id,deletion_epoch,request_type,status,failure_code
 ) values
   ('11111111-4300-4000-8000-000000000001',
-   '11111111-1111-4111-8111-111111111111',0,'export','failed','storage_unavailable'),
-  ('11111111-4300-4000-8000-000000000002',
-   '11111111-1111-4111-8111-111111111111',1,'deletion','failed','worker_killed');
+   '44444444-4444-4444-8444-444444444444',0,'export','failed','storage_unavailable');
+update argus_app.members
+   set deletion_epoch=1
+ where user_id='55555555-5555-4555-8555-555555555555';
+insert into argus_app.privacy_requests(
+  id,user_id,deletion_epoch,request_type,status,failure_code
+) values (
+  '11111111-4300-4000-8000-000000000002',
+  '55555555-5555-4555-8555-555555555555',1,'deletion','failed','worker_killed'
+);
+update argus_app.members
+   set status='deletion_pending',deletion_requested_at=clock_timestamp()
+ where user_id='55555555-5555-4555-8555-555555555555'
+   and deletion_epoch=1;
 insert into argus_private.deletion_tombstones(
   id,user_id,deletion_epoch,status
 ) values (
   '11111111-4400-4000-8000-000000000001',
-  '11111111-1111-4111-8111-111111111111',1,'failed'
+  '55555555-5555-4555-8555-555555555555',1,'failed'
 );
 insert into argus_private.staff_step_up_receipts(
   user_id,session_id,action,target_id,receipt_hash,expires_at
@@ -531,6 +559,7 @@ select is(
   'briefing.daily.requested',
   'job retry does not invent an administrative event type'
 );
+reset role;
 select is(
   (select argus_private.retained_job_handler(event_type)
      from argus_private.outbox_events
@@ -538,6 +567,7 @@ select is(
   'briefing-builder',
   'republished job retry resolves to the original retained handler'
 );
+set local role argus_runtime;
 select is(
   (select aggregate_id from argus_private.outbox_events
     where dedupe_key='u11-admin-job-retry-0001'),
@@ -562,6 +592,7 @@ select lives_ok(
       repeat('8',64),'11111111-0000-4000-8000-000000000002')$$,
   'failed privacy deletion is re-enqueued through its retained tombstone event'
 );
+reset role;
 select is(
   (select event_type from argus_private.outbox_events
     where dedupe_key='u11-privacy-delete-retry-0001'),

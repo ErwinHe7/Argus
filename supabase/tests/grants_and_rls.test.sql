@@ -1,5 +1,13 @@
 begin;
 
+-- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
+-- newly created roles. Enable role switching only for this test transaction;
+-- the final rollback restores the hosted membership options.
+grant argus_runtime, argus_worker, argus_waitlist
+  to current_user with set true;
+grant usage on schema extensions
+  to argus_runtime, argus_worker, argus_waitlist;
+
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to argus_runtime;
 set local search_path = extensions, pg_catalog, public;
@@ -52,8 +60,22 @@ select is(
     where n.nspname in ('argus_app', 'argus_brokerage', 'argus_private')
       and p.prosecdef
       and not (
-        coalesce(p.proconfig @> array['search_path=pg_catalog, argus_private'], false)
-        or coalesce(p.proconfig @> array['search_path=pg_catalog'], false)
+        exists (
+          select 1
+            from unnest(coalesce(p.proconfig, array[]::text[])) config(value)
+            cross join lateral (
+              select regexp_split_to_array(
+                regexp_replace(config.value, '^search_path=', ''),
+                '\s*,\s*'
+              ) as schemas
+            ) trusted_path
+           where config.value like 'search_path=%'
+             and (trusted_path.schemas)[1] = 'pg_catalog'
+             and trusted_path.schemas <@ array[
+               'pg_catalog', 'argus_private', 'argus_app', 'argus_brokerage',
+               'auth', 'extensions', 'net', 'pgmq', 'storage', 'vault'
+             ]::text[]
+        )
       )),
   0::bigint,
   'every security-definer helper has an immutable trusted search path'

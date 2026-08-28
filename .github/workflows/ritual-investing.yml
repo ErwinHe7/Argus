@@ -465,7 +465,7 @@ jobs:
       - name: Link only the verified hosted-development project
         run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
       - name: Apply the reviewed schema before Edge functions
-        run: supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
+        run: supabase db push --include-all --include-seed --password "$SUPABASE_DB_PASSWORD"
       - name: Require all fences after clean-project bootstrap
         run: psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -f scripts/fence-supabase-deployment.sql
       - name: Prove hosted migration state with pgTAP

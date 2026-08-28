@@ -1,5 +1,13 @@
 begin;
 
+-- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
+-- newly created roles. Enable role switching only for this test transaction;
+-- the final rollback restores the hosted membership options.
+grant argus_runtime, argus_worker, argus_waitlist
+  to current_user with set true;
+grant usage on schema extensions
+  to argus_runtime, argus_worker, argus_waitlist;
+
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
@@ -92,7 +100,7 @@ select throws_ok(
       '13131313-1313-4313-8313-131313131313',0,
       '13131313-1000-4000-8000-000000000001',clock_timestamp()
     ) on conflict (user_id,briefing_id) do update set read_at=excluded.read_at$$,
-  '42501',null,
+  'P0001','member_deletion_epoch_mismatch',
   'another member cannot overwrite the owner read marker'
 );
 reset role;

@@ -36,7 +36,8 @@ Before any remote mutation, `scripts/check-supabase-deploy-target.ts` verifies:
   `5432` or transaction-pooler port `6543`, and required TLS mode.
 
 The deployment then enables `background_workers`, `provider_egress`, and
-`order_mutations` kill switches, applies migrations, records the Git revision,
+`order_mutations` kill switches, applies migrations plus the idempotent
+non-brokerage synthetic seed, records the Git revision,
 reasserts every fence, runs `supabase test db --linked` against the newly
 applied hosted schema, and deploys callback, worker, waitlist, then API
 functions. The executable hosted acceptance hook then verifies Auth health,
@@ -74,3 +75,23 @@ After revoking legacy credentials and routes, run
 `scripts/check-legacy-backend-removal.sh`. Record negative probes showing the
 old API host and bindings cannot serve requests before removing the final
 provider-side resources.
+
+### Edge runtime bindings
+
+Supabase supplies `SUPABASE_URL`, `SUPABASE_DB_URL`,
+`SUPABASE_PUBLISHABLE_KEYS`, and `SUPABASE_SECRET_KEYS` automatically. The
+functions use the named `default` secret key for private Auth and Storage calls,
+but deliberately reject the automatic owner database URL.
+
+Provision these project secrets out of band before the first function deploy:
+
+- `EDGE_RUNTIME_DATABASE_URL`: transaction-pooler DSN for `argus_edge` (API
+  and Webull callback only).
+- `EDGE_WORKER_DATABASE_URL`: transaction-pooler DSN for
+  `argus_worker_edge`.
+- `EDGE_WAITLIST_DATABASE_URL`: transaction-pooler DSN for
+  `argus_waitlist_edge`.
+
+Each role password is independently generated and rotated. The migration
+baseline intentionally leaves all three passwords null; never substitute the
+automatic `postgres` owner DSN or reuse the deployment-owner password.

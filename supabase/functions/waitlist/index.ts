@@ -465,6 +465,6 @@ if (import.meta.main) {
     TURNSTILE_EXPECTED_HOSTNAME: requiredEnvironment(
       "TURNSTILE_EXPECTED_HOSTNAME",
     ),
-    SUPABASE_DB_URL: requiredEnvironment("SUPABASE_DB_URL"),
+    SUPABASE_DB_URL: requiredEnvironment("EDGE_WAITLIST_DATABASE_URL"),
   }));
 }

@@ -1,4 +1,8 @@
 import { createSupabaseWorkerDatabasePool } from "../_shared/database.ts";
+import {
+  requiredEnvironment,
+  supabaseSecretKey,
+} from "../_shared/environment.ts";
 import { createSupabaseAuthAdmin } from "../_shared/jobs/auth-admin.ts";
 import {
   authenticateWorkerRequest,
@@ -134,21 +138,17 @@ export function createWorkerHandler(config: Readonly<{
   };
 }
 
-function requiredEnvironment(name: string): string {
-  const value = Deno.env.get(name);
-  if (value === undefined || value.length === 0) throw new Error("worker_configuration_missing");
-  return value;
-}
-
 function productionHandler(): (request: Request) => Promise<Response> {
-  const pool = createSupabaseWorkerDatabasePool(requiredEnvironment("SUPABASE_DB_URL"));
+  const pool = createSupabaseWorkerDatabasePool(
+    requiredEnvironment("EDGE_WORKER_DATABASE_URL"),
+  );
   const storage = createPrivateSupabaseStorage({
     supabaseUrl: requiredEnvironment("SUPABASE_URL"),
-    secretKey: requiredEnvironment("SUPABASE_SECRET_KEY"),
+    secretKey: supabaseSecretKey(),
   });
   const authAdmin = createSupabaseAuthAdmin({
     supabaseUrl: requiredEnvironment("SUPABASE_URL"),
-    secretKey: requiredEnvironment("SUPABASE_SECRET_KEY"),
+    secretKey: supabaseSecretKey(),
   });
   const purgeSaga = createMemberPurgeSaga({
     storage,

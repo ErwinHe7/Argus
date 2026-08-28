@@ -26,6 +26,10 @@ import { createSupabaseScenarioRepository } from "../../../ritual-investing-api/
 
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
+import {
+  requiredEnvironment,
+  supabaseSecretKey,
+} from "../_shared/environment.ts";
 import { rewriteSupabaseFunctionRequest } from "../_shared/http.ts";
 import { createPostgresRateLimitPort } from "../_shared/rate-limit.ts";
 import { createPrivateSupabaseStorage } from "../_shared/jobs/storage.ts";
@@ -43,14 +47,6 @@ import {
   createBrokerageOrderService,
 } from "../../../ritual-investing-api/src/domains/brokerage-orders/service.ts";
 
-function requiredEnvironment(name: string): string {
-  const value = Deno.env.get(name)?.trim();
-  if (value === undefined || value.length === 0) {
-    throw new Error(`missing_${name.toLowerCase()}`);
-  }
-  return value;
-}
-
 const environment = (Deno.env.get("ARGUS_ENVIRONMENT") ?? "development") as
   | "development"
   | "test"
@@ -62,11 +58,11 @@ if (!["development", "test", "staging", "production"].includes(environment)) {
 
 const supabaseUrl = requiredEnvironment("SUPABASE_URL");
 const databasePool = createSupabaseDatabasePool(
-  requiredEnvironment("SUPABASE_DB_URL"),
+  requiredEnvironment("EDGE_RUNTIME_DATABASE_URL"),
 );
 const privateStorage = createPrivateSupabaseStorage({
   supabaseUrl,
-  secretKey: requiredEnvironment("SUPABASE_SECRET_KEY"),
+  secretKey: supabaseSecretKey(),
 });
 const configuredWebullContract = parsePartnerConfirmedContractFromEnvironment(
   (name) => Deno.env.get(name),

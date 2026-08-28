@@ -1,5 +1,13 @@
 begin;
 
+-- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
+-- newly created roles. Enable role switching only for this test transaction;
+-- the final rollback restores the hosted membership options.
+grant argus_runtime, argus_worker, argus_waitlist
+  to current_user with set true;
+grant usage on schema extensions
+  to argus_runtime, argus_worker, argus_waitlist;
+
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
@@ -17,9 +25,11 @@ insert into auth.users(
    '{"provider":"email","providers":["email"]}','{}',now(),now());
 insert into argus_app.members(user_id) values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
-  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
+on conflict (user_id) do nothing;
 insert into argus_app.profiles(user_id,deletion_epoch,display_name)
-values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,'Purge me');
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,'Purge me')
+on conflict (user_id) do update set display_name=excluded.display_name;
 insert into argus_private.media_upload_intents(
   id,user_id,deletion_epoch,bucket_id,object_path,mime_type,max_bytes,status,expires_at
 ) values (
@@ -86,6 +96,7 @@ select is(
   1::bigint,
   'deletion creates one tombstone'
 );
+reset role;
 select is(
   (select count(*)::bigint from argus_private.outbox_events event
     join argus_private.deletion_tombstones tombstone on tombstone.id=event.aggregate_id
@@ -94,6 +105,7 @@ select is(
   1::bigint,
   'purge event is provider-neutral and survives member Auth cascade'
 );
+set local role argus_runtime;
 select ok(
   (select consumed_at is not null from argus_private.step_up_receipts
     where receipt_hash='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),

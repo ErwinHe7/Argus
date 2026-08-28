@@ -430,11 +430,13 @@ begin
      or not argus_private.has_live_staff_session(
        argus_private.request_user_id(),p_session_id
      )
-     or not case p_action
-       when 'admin_job_retry' then argus_private.has_staff_permission('operations:write')
-       when 'admin_privacy_retry' then argus_private.has_staff_permission('privacy:write')
-       else false
-     end then
+     or not (
+       case p_action
+         when 'admin_job_retry' then argus_private.has_staff_permission('operations:write')
+         when 'admin_privacy_retry' then argus_private.has_staff_permission('privacy:write')
+         else false
+       end
+     ) then
     return false;
   end if;
   update argus_private.staff_step_up_receipts receipt

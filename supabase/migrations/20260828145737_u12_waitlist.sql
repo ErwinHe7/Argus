@@ -15,10 +15,6 @@ begin
 end
 $$;
 
-alter role argus_waitlist
-  with nologin noinherit nosuperuser nocreatedb nocreaterole noreplication nobypassrls;
-alter role argus_waitlist_edge
-  with login noinherit nosuperuser nocreatedb nocreaterole noreplication nobypassrls;
 alter role argus_waitlist_edge password null;
 alter role argus_waitlist_edge set statement_timeout = '10s';
 alter role argus_waitlist_edge set lock_timeout = '2s';

@@ -50,7 +50,8 @@ insert into auth.users(
   '{"provider":"email","providers":["email"]}','{}',now(),now()
 );
 insert into argus_app.members(user_id)
-values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc')
+on conflict (user_id) do nothing;
 insert into argus_brokerage.connections(
   id,user_id,deletion_epoch,status,capability_version,authorized_at
 ) values (

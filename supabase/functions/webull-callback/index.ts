@@ -1,5 +1,6 @@
 import { createWebullCallbackRepository } from "../../../ritual-investing-api/src/domains/brokerage-connections/repository.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
+import { requiredEnvironment } from "../_shared/environment.ts";
 import { createBlockedWebullProvider } from "../_shared/webull/client.ts";
 import {
   parsePartnerConfirmedContractFromEnvironment,
@@ -11,14 +12,6 @@ import {
 } from "../_shared/webull/tokens.ts";
 import { createWebullCallbackHandler } from "./handler.ts";
 
-function requiredEnvironment(name: string): string {
-  const value = Deno.env.get(name)?.trim();
-  if (value === undefined || value.length === 0) {
-    throw new Error(`missing_${name.toLowerCase()}`);
-  }
-  return value;
-}
-
 const configuredContract = parsePartnerConfirmedContractFromEnvironment(
   (name) => Deno.env.get(name),
 );
@@ -29,7 +22,7 @@ if ("confirmationReference" in configuredContract) {
 }
 const provider = createBlockedWebullProvider(configuredContract);
 const databasePool = createSupabaseDatabasePool(
-  requiredEnvironment("SUPABASE_DB_URL"),
+  requiredEnvironment("EDGE_RUNTIME_DATABASE_URL"),
 );
 const tokenVault = new WebullTokenVault(
   configuredContract.environment,

@@ -1,5 +1,13 @@
 begin;
 
+-- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
+-- newly created roles. Enable role switching only for this test transaction;
+-- the final rollback restores the hosted membership options.
+grant argus_runtime, argus_worker, argus_waitlist
+  to current_user with set true;
+grant usage on schema extensions
+  to argus_runtime, argus_worker, argus_waitlist;
+
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to argus_runtime;
 set local search_path = extensions, pg_catalog, public;
@@ -76,6 +84,10 @@ insert into argus_private.staff_principals (
   array['editorial:read','privacy:read','privacy:write','operations:read','operations:write'],
   'U14 operator'
 );
+insert into auth.sessions(id,user_id,created_at,updated_at) values (
+  'eeeeeeee-0000-4000-8000-000000000001',
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',now(),now()
+);
 insert into argus_app.editorial_items (id, kind, slug, status) values
   ('dddddddd-1000-4000-8000-000000000001', 'ritual', 'u14-published', 'published'),
   ('dddddddd-1000-4000-8000-000000000002', 'ritual', 'u14-draft', 'draft');
@@ -104,17 +116,19 @@ insert into argus_app.evidence_claims (
   ('dddddddd-5100-4000-8000-000000000001', 'dddddddd-5000-4000-8000-000000000001', 'fact', 'Active claim', 'low', 'active'),
   ('dddddddd-5100-4000-8000-000000000002', 'dddddddd-5000-4000-8000-000000000002', 'fact', 'Withdrawn claim', 'low', 'withdrawn');
 
-insert into argus_app.editorial_items (id, kind, slug, status) values
-  ('dddddddd-5200-4000-8000-000000000001', 'coven', 'u14-coven-published', 'published'),
-  ('dddddddd-5200-4000-8000-000000000002', 'coven', 'u14-coven-draft', 'draft'),
-  ('dddddddd-5200-4000-8000-000000000003', 'grimoire', 'u14-grimoire-published', 'published'),
-  ('dddddddd-5200-4000-8000-000000000004', 'grimoire', 'u14-grimoire-draft', 'draft'),
-  ('dddddddd-5200-4000-8000-000000000005', 'circle_template', 'u14-template-published', 'published'),
-  ('dddddddd-5200-4000-8000-000000000006', 'circle_template', 'u14-template-draft', 'draft'),
-  ('dddddddd-5200-4000-8000-000000000007', 'ritual', 'u14-scenario-published', 'published'),
-  ('dddddddd-5200-4000-8000-000000000008', 'ritual', 'u14-scenario-draft', 'draft'),
-  ('dddddddd-5200-4000-8000-000000000009', 'rowan', 'u14-rowan-published', 'published'),
-  ('dddddddd-5200-4000-8000-000000000010', 'rowan', 'u14-rowan-draft', 'draft');
+insert into argus_app.editorial_items (
+  id, kind, slug, status, current_published_revision_id
+) values
+  ('dddddddd-5200-4000-8000-000000000001', 'coven', 'u14-coven-published', 'published', 'dddddddd-5300-4000-8000-000000000001'),
+  ('dddddddd-5200-4000-8000-000000000002', 'coven', 'u14-coven-draft', 'draft', null),
+  ('dddddddd-5200-4000-8000-000000000003', 'grimoire', 'u14-grimoire-published', 'published', 'dddddddd-5300-4000-8000-000000000003'),
+  ('dddddddd-5200-4000-8000-000000000004', 'grimoire', 'u14-grimoire-draft', 'draft', null),
+  ('dddddddd-5200-4000-8000-000000000005', 'circle_template', 'u14-template-published', 'published', 'dddddddd-5300-4000-8000-000000000005'),
+  ('dddddddd-5200-4000-8000-000000000006', 'circle_template', 'u14-template-draft', 'draft', null),
+  ('dddddddd-5200-4000-8000-000000000007', 'ritual', 'u14-scenario-published', 'published', 'dddddddd-5300-4000-8000-000000000007'),
+  ('dddddddd-5200-4000-8000-000000000008', 'ritual', 'u14-scenario-draft', 'draft', null),
+  ('dddddddd-5200-4000-8000-000000000009', 'rowan', 'u14-rowan-published', 'published', 'dddddddd-5300-4000-8000-000000000009'),
+  ('dddddddd-5200-4000-8000-000000000010', 'rowan', 'u14-rowan-draft', 'draft', null);
 insert into argus_app.editorial_revisions (
   id, item_id, revision_number, state, author_staff_id, content_hash, payload
 ) values
@@ -128,12 +142,6 @@ insert into argus_app.editorial_revisions (
   ('dddddddd-5300-4000-8000-000000000008', 'dddddddd-5200-4000-8000-000000000008', 1, 'draft', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'u14-scenario-draft', '{}'),
   ('dddddddd-5300-4000-8000-000000000009', 'dddddddd-5200-4000-8000-000000000009', 1, 'published', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'u14-rowan-published', '{}'),
   ('dddddddd-5300-4000-8000-000000000010', 'dddddddd-5200-4000-8000-000000000010', 1, 'draft', 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'u14-rowan-draft', '{}');
-update argus_app.editorial_items item
-   set current_published_revision_id = revision.id
-  from argus_app.editorial_revisions revision
- where revision.item_id = item.id
-   and item.id::text like 'dddddddd-5200-%';
-
 insert into argus_app.companies (id, slug, name, status) values
   ('dddddddd-5400-4000-8000-000000000001', 'u14-company-published', 'Published company', 'active'),
   ('dddddddd-5400-4000-8000-000000000002', 'u14-company-draft', 'Draft company', 'active');
@@ -249,14 +257,32 @@ insert into argus_app.privacy_requests (
   'export',
   'failed'
 );
+insert into argus_private.outbox_events(
+  id,user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key,published_at
+) values (
+  'dddddddd-2f00-4000-8000-000000000001',
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',0,'argus_jobs',
+  'privacy.export.requested','dddddddd-2000-4000-8000-000000000001',
+  'u14-original-export-event',now()
+);
 insert into argus_private.job_runs (
-  id, user_id, deletion_epoch, job_type, status
+  id,user_id,deletion_epoch,job_type,source_event_id,status,attempts,
+  queue_message_id,handler_name,max_attempts,diagnostic_hash
 ) values (
   'dddddddd-3000-4000-8000-000000000001',
   'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   0,
   'privacy-export',
-  'dead_lettered'
+  'dddddddd-2f00-4000-8000-000000000001','dead_lettered',5,14001,
+  'privacy-export',5,repeat('d',64)
+);
+insert into argus_private.staff_step_up_receipts(
+  user_id,session_id,action,target_id,receipt_hash,expires_at
+) values (
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  'eeeeeeee-0000-4000-8000-000000000001','admin_job_retry',
+  'dddddddd-3000-4000-8000-000000000001',repeat('9',64),
+  now()+interval '5 minutes'
 );
 
 set local role argus_runtime;
@@ -280,12 +306,13 @@ select is(
 select ok(
   argus_private.request_admin_job_retry(
     'dddddddd-3000-4000-8000-000000000001',
-    'u14-job-retry-1'
+    'u14-job-retry-01',repeat('9',64),
+    'eeeeeeee-0000-4000-8000-000000000001'
   ) is not null,
   'operations write permission atomically creates a retry request'
 );
 select is(
-  (select count(*)::bigint from argus_private.outbox_events where dedupe_key = 'u14-job-retry-1'),
+  (select count(*)::bigint from argus_private.outbox_events where dedupe_key = 'u14-job-retry-01'),
   1::bigint,
   'admin retry is represented by a durable outbox event'
 );
@@ -311,16 +338,21 @@ select is(
 select throws_ok(
   $$select argus_private.request_admin_job_retry(
       'dddddddd-3000-4000-8000-000000000001',
-      'u14-job-retry-revoked'
+      'u14-job-retry-revoked',repeat('8',64),
+      'eeeeeeee-0000-4000-8000-000000000001'
     )$$,
   '42501',
-  'staff_permission_required',
+  'step_up_required',
   'revoked staff cannot request a retry'
 );
 reset role;
 
-insert into argus_app.editorial_items (id, kind, slug, status)
-values ('dddddddd-4000-4000-8000-000000000001', 'ritual', 'u14-ritual', 'published');
+insert into argus_app.editorial_items (
+  id, kind, slug, status, current_published_revision_id
+) values (
+  'dddddddd-4000-4000-8000-000000000001', 'ritual', 'u14-ritual',
+  'published', 'dddddddd-4100-4000-8000-000000000001'
+);
 insert into argus_app.editorial_revisions (
   id, item_id, revision_number, state, author_staff_id, content_hash, payload
 ) values (
@@ -332,9 +364,6 @@ insert into argus_app.editorial_revisions (
   'u14-content-hash',
   '{"title":"U14"}'
 );
-update argus_app.editorial_items
-   set current_published_revision_id = 'dddddddd-4100-4000-8000-000000000001'
- where id = 'dddddddd-4000-4000-8000-000000000001';
 insert into argus_app.ritual_schedules (
   id, local_date, mode, revision_id, audience, state, effective_at
 ) values (
