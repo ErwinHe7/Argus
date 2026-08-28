@@ -1,0 +1,3 @@
+// Copy this file to NativeLinks.xcconfig before an iOS device build.
+// The host serves the claimed universal-link association for both exact paths.
+RITUAL_LINK_HOST = just-build-this.app

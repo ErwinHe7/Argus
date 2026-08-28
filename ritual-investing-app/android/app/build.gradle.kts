@@ -9,6 +9,9 @@ val ritualAuth0Domain = providers.gradleProperty("auth0Domain").orNull
     ?: "localhost"
 val ritualAuth0Scheme = providers.gradleProperty("auth0Scheme").orNull
     ?: "https"
+val ritualLinkHost = providers.gradleProperty("ritualLinkHost").orNull
+    ?: providers.environmentVariable("RITUAL_LINK_HOST").orNull
+    ?: "just-build-this.app"
 
 android {
     namespace = "com.ritualinvesting.ritual_investing_app"
@@ -38,6 +41,7 @@ android {
         // Auth0's custom-scheme rollback.
         manifestPlaceholders["auth0Domain"] = ritualAuth0Domain
         manifestPlaceholders["auth0Scheme"] = ritualAuth0Scheme
+        manifestPlaceholders["ritualLinkHost"] = ritualLinkHost
     }
 
     buildTypes {

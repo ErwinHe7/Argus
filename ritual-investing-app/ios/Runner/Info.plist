@@ -22,6 +22,8 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+				<string>com.ritualinvesting.ritual-investing-app.auth</string>
+				<string>com.ritualinvesting.ritual-investing-app.webull</string>
 			</array>
 		</dict>
 	</array>

@@ -1,3 +1,5 @@
+import '../auth/member_auth.dart';
+
 class RuntimeConfigException implements Exception {
   const RuntimeConfigException(this.message);
   final String message;
@@ -8,32 +10,51 @@ class RuntimeConfigException implements Exception {
 class RuntimeConfig {
   RuntimeConfig({
     required String apiBaseUrl,
-    required String auth0Domain,
-    required String auth0ClientId,
-    required String auth0Audience,
-    this.auth0UseHttpsCallbacks = true,
+    required String supabaseUrl,
+    required String supabasePublishableKey,
+    String memberAuthProviders = 'google,apple',
+    String argusAuthRedirectAllowlist =
+        'https://just-build-this.app/mobile/argus-auth/callback,'
+        'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
+    String webullCompletionAllowlist =
+        'https://just-build-this.app/mobile/webull/complete,'
+        'com.ritualinvesting.ritual-investing-app.webull://webull/complete',
   }) : apiBaseUrl = _httpsUrl(apiBaseUrl, 'RITUAL_API_BASE_URL'),
-       auth0Domain = _required(auth0Domain, 'AUTH0_DOMAIN'),
-       auth0ClientId = _required(auth0ClientId, 'AUTH0_CLIENT_ID'),
-       auth0Audience = _httpsUrl(auth0Audience, 'AUTH0_AUDIENCE');
+       supabaseUrl = _supabaseUrl(supabaseUrl),
+       supabasePublishableKey = _publishableKey(supabasePublishableKey),
+       memberAuthProviders = _providers(memberAuthProviders),
+       nativeLinks = _nativeLinks(
+         argusAuthRedirectAllowlist,
+         webullCompletionAllowlist,
+       );
 
   final String apiBaseUrl;
-  final String auth0Domain;
-  final String auth0ClientId;
-  final String auth0Audience;
-  final bool auth0UseHttpsCallbacks;
+  final Uri supabaseUrl;
+  final String supabasePublishableKey;
+  final MemberAuthProviderAllowlist memberAuthProviders;
+  final MemberNativeLinkPolicy nativeLinks;
 
   factory RuntimeConfig.fromEnvironment() => RuntimeConfig(
-    apiBaseUrl: const String.fromEnvironment(
-      'RITUAL_API_BASE_URL',
-      defaultValue: 'https://api.just-build-this.app',
+    apiBaseUrl: const String.fromEnvironment('RITUAL_API_BASE_URL'),
+    supabaseUrl: const String.fromEnvironment('SUPABASE_URL'),
+    supabasePublishableKey: const String.fromEnvironment(
+      'SUPABASE_PUBLISHABLE_KEY',
     ),
-    auth0Domain: const String.fromEnvironment('AUTH0_DOMAIN'),
-    auth0ClientId: const String.fromEnvironment('AUTH0_CLIENT_ID'),
-    auth0Audience: const String.fromEnvironment('AUTH0_AUDIENCE'),
-    auth0UseHttpsCallbacks: const bool.fromEnvironment(
-      'AUTH0_USE_HTTPS',
-      defaultValue: true,
+    memberAuthProviders: const String.fromEnvironment(
+      'SUPABASE_AUTH_PROVIDERS',
+      defaultValue: 'google,apple',
+    ),
+    argusAuthRedirectAllowlist: const String.fromEnvironment(
+      'ARGUS_AUTH_REDIRECT_ALLOWLIST',
+      defaultValue:
+          'https://just-build-this.app/mobile/argus-auth/callback,'
+          'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
+    ),
+    webullCompletionAllowlist: const String.fromEnvironment(
+      'WEBULL_COMPLETION_ALLOWLIST',
+      defaultValue:
+          'https://just-build-this.app/mobile/webull/complete,'
+          'com.ritualinvesting.ritual-investing-app.webull://webull/complete',
     ),
   );
 
@@ -52,9 +73,58 @@ class RuntimeConfig {
         uri.scheme != 'https' ||
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
-        uri.fragment.isNotEmpty) {
-      throw RuntimeConfigException('$name must be an HTTPS URL.');
+        uri.hasQuery ||
+        uri.hasFragment) {
+      throw RuntimeConfigException('$name must be an exact HTTPS URL.');
     }
     return normalized;
+  }
+
+  static Uri _supabaseUrl(String value) {
+    final normalized = _httpsUrl(value, 'SUPABASE_URL');
+    final uri = Uri.parse(normalized);
+    if (uri.hasPort || (uri.path.isNotEmpty && uri.path != '/')) {
+      throw const RuntimeConfigException(
+        'SUPABASE_URL must be an origin without a path or port.',
+      );
+    }
+    return Uri(scheme: uri.scheme, host: uri.host);
+  }
+
+  static String _publishableKey(String value) {
+    final normalized = _required(value, 'SUPABASE_PUBLISHABLE_KEY');
+    if (!RegExp(r'^sb_publishable_[A-Za-z0-9_-]{16,240}$')
+        .hasMatch(normalized)) {
+      throw const RuntimeConfigException(
+        'SUPABASE_PUBLISHABLE_KEY must be a client publishable key.',
+      );
+    }
+    return normalized;
+  }
+
+  static MemberAuthProviderAllowlist _providers(String value) {
+    try {
+      return MemberAuthProviderAllowlist.parse(value);
+    } on FormatException {
+      throw const RuntimeConfigException(
+        'SUPABASE_AUTH_PROVIDERS must contain only apple and google.',
+      );
+    }
+  }
+
+  static MemberNativeLinkPolicy _nativeLinks(
+    String argusAuth,
+    String webullCompletion,
+  ) {
+    try {
+      return MemberNativeLinkPolicy.parse(
+        argusAuthAllowlist: argusAuth,
+        webullCompletionAllowlist: webullCompletion,
+      );
+    } on FormatException {
+      throw const RuntimeConfigException(
+        'Native callback allowlists are missing, unsafe, overlapping, or invalid.',
+      );
+    }
   }
 }

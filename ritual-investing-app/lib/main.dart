@@ -1,21 +1,32 @@
 import 'package:flutter/material.dart';
 
 import 'app/ritual_investing_app.dart';
+import 'core/auth/supabase_session_repository.dart';
 import 'core/bootstrap/production_dependency_container.dart';
 import 'core/config/runtime_config.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
+    final config = RuntimeConfig.fromEnvironment();
+    await initializeMemberSupabase(
+      url: config.supabaseUrl,
+      publishableKey: config.supabasePublishableKey,
+      nativeLinks: config.nativeLinks,
+    );
     runApp(
       RitualInvestingApp(
-        container: createProductionDependencyContainer(
-          RuntimeConfig.fromEnvironment(),
-        ),
+        container: createProductionDependencyContainer(config),
       ),
     );
   } on RuntimeConfigException catch (error) {
     runApp(_ConfigurationFailureApp(message: error.message));
+  } on Object {
+    runApp(
+      const _ConfigurationFailureApp(
+        message: 'Secure member authentication could not be initialized.',
+      ),
+    );
   }
 }
 

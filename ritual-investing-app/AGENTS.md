@@ -15,38 +15,37 @@
 - Before tapping or typing, take a fresh runtime UI snapshot and use its
   element references. Re-snapshot after every navigation or layout change.
 
-## Beta build and hosted login
+## Supabase member Auth build and hosted login
 
 - XcodeBuildMCP consumes Flutter's generated iOS settings. Before the first MCP
-  build, and whenever a beta endpoint or Auth0 value changes, regenerate them
+  build, and whenever a Supabase endpoint or native-link host changes, copy
+  `ios/Flutter/NativeLinks.xcconfig.example` to the ignored
+  `ios/Flutter/NativeLinks.xcconfig`, set the claimed-link host, and regenerate
+  Flutter's settings
   from this app directory:
 
   ```sh
   flutter pub get
   flutter build ios --simulator --debug \
-    --dart-define=RITUAL_API_BASE_URL=https://api-beta.just-build-this.app \
-    --dart-define=AUTH0_DOMAIN=dev-pxee7db52tqc4xoe.us.auth0.com \
-    --dart-define=AUTH0_CLIENT_ID=VIFuQLVxk6baW27jS9TzQ22pIV8lAqHz \
-    --dart-define=AUTH0_AUDIENCE=https://api-beta.just-build-this.app \
-    --dart-define=AUTH0_USE_HTTPS=false
+    --dart-define=RITUAL_API_BASE_URL=https://YOUR_PROJECT.supabase.co/functions/v1/api \
+    --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
+    --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY \
+    --dart-define=SUPABASE_AUTH_PROVIDERS=google,apple \
+    --dart-define=ARGUS_AUTH_REDIRECT_ALLOWLIST=https://just-build-this.app/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback \
+    --dart-define=WEBULL_COMPLETION_ALLOWLIST=https://just-build-this.app/mobile/webull/complete,com.ritualinvesting.ritual-investing-app.webull://webull/complete
   ```
 
-- `AUTH0_USE_HTTPS=false` is the unsigned Simulator lane. Keep the signed HTTPS
-  callback and associated-domain configuration for real-device release proof.
-- The ignored `ios/Flutter/Auth0.xcconfig` supplies the native Auth0 domain and
-  must match the Dart `AUTH0_DOMAIN`; a Dart define does not populate the native
-  entitlement setting.
-- Local test credentials live in
-  `../.xcodebuildmcp/ritual-investing-app.credentials`. Read them only when a
-  hosted-login test requires them. Never print, log, commit, or place the
-  password in screenshots or durable test evidence.
-- Enter credentials only into the Auth0 hosted login opened by this app. Do not
-  use them for unrelated services.
-- Hosted Auth0 login is an iOS-owned `ASWebAuthenticationSession` sheet, so it
-  may be absent from the app's ordinary UI snapshot. Inspect the current system
-  accessibility state through XcodeBuildMCP's bundled bridge; do not use stale
-  coordinates or capture credential-bearing screenshots.
-- A simulator login is exploratory beta evidence, not a substitute for the
-  real-device Auth0 release smoke gates documented in the app README.
-- The durable setup, troubleshooting signals, and verified boundary live in
-  `../docs/solutions/developer-experience/xcodebuildmcp-ios-simulator-auth0-workflow.md`.
+- Supabase OAuth uses PKCE, secure device-only session and verifier storage, and
+  the first exact Argus HTTPS callback above. Register that exact URL in the
+  Supabase redirect allowlist. The Webull completion targets are a separate
+  lifecycle and must never be accepted by the Supabase callback predicate.
+- Hosted OAuth runs in a system-owned browser surface and may be absent from the
+  app's ordinary UI snapshot. Inspect the fresh system accessibility state;
+  never use stale coordinates or capture credential-bearing screenshots.
+- Exercise cold start, warm return, expired-session refresh, offline refresh,
+  recovery events, local logout, global logout, wrong-account return, and every
+  malformed or cross-lifecycle link. Never print or preserve access, refresh,
+  provider, callback, or step-up tokens in screenshots, logs, or test evidence.
+- Auth0 native entries remain rollback-only until the Supabase hosted smoke is
+  complete. Do not use the ignored Auth0 credentials for new member proof; U13
+  removes them after replacement evidence.

@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:path_provider/path_provider.dart';
 import 'package:ritual_investing_api_client/generated/api.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../features/onboarding/data/onboarding_draft_store.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
@@ -12,8 +13,8 @@ import '../../features/privacy/data/repository.dart';
 import '../api/flutter_protected_storage.dart';
 import '../api/pending_command_store.dart';
 import '../api/ritual_api.dart';
-import '../auth/auth0_session_repository.dart';
 import '../auth/auth_controller.dart';
+import '../auth/supabase_session_repository.dart';
 import '../cache/read_cache.dart';
 import '../config/runtime_config.dart';
 import 'dependency_container.dart';
@@ -25,11 +26,11 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
   final protectedStorage = FlutterProtectedStorage();
   final pendingCommandStore = PendingCommandStore(storage: protectedStorage);
   final auth = AuthController(
-    repository: Auth0SessionRepository.production(
-      domain: config.auth0Domain,
-      memberClientId: config.auth0ClientId,
-      audience: config.auth0Audience,
-      useHttpsCallbacks: config.auth0UseHttpsCallbacks,
+    repository: SupabaseSessionRepository.production(
+      client: Supabase.instance.client,
+      provider: config.memberAuthProviders.primary,
+      nativeLinks: config.nativeLinks,
+      supabaseUrl: config.supabaseUrl,
     ),
   );
   final client = RitualInvestingApiClient(

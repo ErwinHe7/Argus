@@ -43,6 +43,7 @@ dependencies:
   ritual_investing_api_client:
     path: ../ritual-investing-api-client
   share_plus: ^13.3.0
+  supabase_flutter: 2.17.2
 
 dev_dependencies:
   flutter_test:
