@@ -86,6 +86,11 @@ Class | Method | HTTP request | Description
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**redeemWebullCompletion**](doc/BrokerageConnectionsApi.md#redeemwebullcompletion) | **POST** /v1/brokerage/connections/completions/redeem | 
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**selectWebullAccount**](doc/BrokerageConnectionsApi.md#selectwebullaccount) | **PATCH** /v1/brokerage/accounts/selection | 
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**startWebullConnection**](doc/BrokerageConnectionsApi.md#startwebullconnection) | **POST** /v1/brokerage/connections/start | 
+[*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullAccountCapabilities**](doc/BrokerageReadsApi.md#getwebullaccountcapabilities) | **GET** /v1/brokerage/accounts/{account_id}/capabilities | 
+[*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullBalances**](doc/BrokerageReadsApi.md#getwebullbalances) | **GET** /v1/brokerage/accounts/{account_id}/balances | 
+[*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullPositions**](doc/BrokerageReadsApi.md#getwebullpositions) | **GET** /v1/brokerage/accounts/{account_id}/positions | 
+[*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullRestrictions**](doc/BrokerageReadsApi.md#getwebullrestrictions) | **GET** /v1/brokerage/accounts/{account_id}/restrictions | 
+[*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**listWebullAccounts**](doc/BrokerageReadsApi.md#listwebullaccounts) | **GET** /v1/brokerage/accounts | 
 [*CirclesApi*](doc/CirclesApi.md) | [**createCircle**](doc/CirclesApi.md#createcircle) | **POST** /v1/circles | 
 [*CirclesApi*](doc/CirclesApi.md) | [**getCircle**](doc/CirclesApi.md#getcircle) | **GET** /v1/circles/{circle_id} | 
 [*CirclesApi*](doc/CirclesApi.md) | [**listCircles**](doc/CirclesApi.md#listcircles) | **GET** /v1/circles | 
@@ -123,6 +128,22 @@ Class | Method | HTTP request | Description
 
 ## Documentation For Models
 
+ - [BrokerageAccount](doc/BrokerageAccount.md)
+ - [BrokerageAccountAuthority](doc/BrokerageAccountAuthority.md)
+ - [BrokerageAccountsResponse](doc/BrokerageAccountsResponse.md)
+ - [BrokerageAsset](doc/BrokerageAsset.md)
+ - [BrokerageBalance](doc/BrokerageBalance.md)
+ - [BrokerageBalancesProjection](doc/BrokerageBalancesProjection.md)
+ - [BrokerageBalancesResponse](doc/BrokerageBalancesResponse.md)
+ - [BrokerageCapabilitiesProjection](doc/BrokerageCapabilitiesProjection.md)
+ - [BrokerageCapabilitiesResponse](doc/BrokerageCapabilitiesResponse.md)
+ - [BrokerageCapability](doc/BrokerageCapability.md)
+ - [BrokeragePosition](doc/BrokeragePosition.md)
+ - [BrokeragePositionsProjection](doc/BrokeragePositionsProjection.md)
+ - [BrokeragePositionsResponse](doc/BrokeragePositionsResponse.md)
+ - [BrokerageRestriction](doc/BrokerageRestriction.md)
+ - [BrokerageRestrictionsProjection](doc/BrokerageRestrictionsProjection.md)
+ - [BrokerageRestrictionsResponse](doc/BrokerageRestrictionsResponse.md)
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
  - [CreateUploadIntentRequest](doc/CreateUploadIntentRequest.md)
  - [DecideModerationRequest](doc/DecideModerationRequest.md)

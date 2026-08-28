@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(26);
+select plan(38);
 
 select has_table('argus_brokerage', 'connections', 'normalized connection state exists');
 select has_table('argus_brokerage', 'accounts', 'local brokerage account projection root exists');
@@ -14,6 +14,27 @@ select has_table('argus_private', 'webull_account_mappings', 'provider identifie
 select has_table('argus_private', 'webull_completion_handles', 'one-use completion handles are private');
 select has_table('argus_private', 'provider_commands', 'durable provider commands are private');
 select has_table('argus_private', 'provider_command_attempts', 'command attempts are private');
+select has_table('argus_private', 'webull_asset_mappings', 'provider asset identifiers stay in a private mapping');
+select has_column('argus_private', 'webull_credentials', 'provider_environment', 'credential envelope is provider-environment bound');
+select has_column('argus_private', 'webull_account_mappings', 'provider_environment', 'account identifier envelope is provider-environment bound');
+select has_column('argus_brokerage', 'accounts', 'capabilities', 'normalized account capabilities are stored privately');
+select has_column('argus_brokerage', 'projection_generations', 'reason_code', 'projection availability reason is explicit');
+select has_column('argus_brokerage', 'projection_generations', 'purge_after', 'projection retention is bounded');
+select has_column('argus_private', 'projection_refresh_leases', 'connection_id', 'refresh lease is connection-bound');
+select has_index('argus_brokerage', 'projection_generations', 'projection_generations_purge_due_idx', 'projection purge deadline is indexed');
+select ok(
+  has_table_privilege('argus_worker', 'argus_brokerage.projection_generations', 'delete'),
+  'bounded worker may delete expired projection generations'
+);
+select is(
+  (select count(*)::bigint from pg_policies
+    where schemaname='argus_brokerage'
+      and tablename='projection_generations'
+      and policyname='worker_projection_retention'
+      and cmd='DELETE'),
+  1::bigint,
+  'worker projection deletion is constrained by an explicit retention policy'
+);
 
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -42,6 +63,17 @@ insert into argus_brokerage.projection_generations (
   'aaaaaaaa-1000-4000-8000-000000000001', 'aaaaaaaa-2000-4000-8000-000000000001',
   'positions', 1, '{"positions":[]}', now(), now(), now() + interval '5 minutes', 'available'
 );
+insert into argus_private.webull_asset_mappings (
+  instrument_id, account_id, connection_id, user_id, deletion_epoch,
+  provider_environment, provider_asset_id_ciphertext,
+  provider_asset_id_hash, key_version
+) values (
+  'aaaaaaaa-6000-4000-8000-000000000001',
+  'aaaaaaaa-2000-4000-8000-000000000001',
+  'aaaaaaaa-1000-4000-8000-000000000001',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0, 'sandbox',
+  decode(repeat('ab',32),'hex'), repeat('e',64), 1
+);
 
 set local role argus_runtime;
 do $$ begin
@@ -54,6 +86,7 @@ end $$;
 select is((select count(*)::bigint from argus_brokerage.connections), 0::bigint, 'user B cannot read user A connection');
 select is((select count(*)::bigint from argus_brokerage.accounts), 0::bigint, 'user B cannot read user A account');
 select is((select count(*)::bigint from argus_brokerage.projection_generations), 0::bigint, 'user B cannot read user A projection');
+select is((select count(*)::bigint from argus_private.webull_asset_mappings), 0::bigint, 'user B cannot read user A provider asset mapping');
 
 do $$ begin
   perform argus_private.set_request_context(
@@ -63,6 +96,7 @@ do $$ begin
   );
 end $$;
 select is((select count(*)::bigint from argus_brokerage.projection_generations), 1::bigint, 'verified owner can read projection');
+select is((select count(*)::bigint from argus_private.webull_asset_mappings), 1::bigint, 'verified owner can read only their provider asset mapping');
 select throws_ok(
   $$update argus_brokerage.projection_generations set normalized_payload = '{"positions":[{"symbol":"NO"}]}' where id = 'aaaaaaaa-3000-4000-8000-000000000001'$$,
   '42501',
@@ -222,7 +256,7 @@ select is(
   (select count(*)::bigint from information_schema.role_table_grants
     where grantee in ('anon','authenticated')
       and table_schema = 'argus_private'
-      and table_name in ('oauth_states','webull_credentials','webull_completion_handles','provider_commands','provider_command_attempts')),
+      and table_name in ('oauth_states','webull_credentials','webull_completion_handles','webull_asset_mappings','provider_commands','provider_command_attempts')),
   0::bigint,
   'client roles receive no credential or command table grants'
 );

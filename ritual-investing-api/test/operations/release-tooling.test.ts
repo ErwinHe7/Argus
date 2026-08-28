@@ -1,3 +1,7 @@
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -5,6 +9,8 @@ import {
   fingerprintArtifact,
 } from "../../scripts/check-openapi-drift";
 import { assertUpgradePlan } from "../../scripts/check-migration-upgrade";
+
+const apiRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 describe("release drift and upgrade tooling", () => {
   it("requires the OpenAPI and generated client contract to move together", () => {
@@ -43,5 +49,26 @@ describe("release drift and upgrade tooling", () => {
         },
       ]),
     ).not.toThrow();
+  });
+
+  it("runs the pinned client generator with least-privilege mounts", () => {
+    const source = readFileSync(
+      resolve(apiRoot, "scripts/generate-client.mjs"),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      "openapitools/openapi-generator-cli:v7.24.0",
+    );
+    expect(source).toContain('["--user", `${process.getuid()}:${process.getgid()}`]');
+    expect(source).toContain(
+      "${openApiPath}:/input/ritual-investing-v1.yaml:ro",
+    );
+    expect(source).toContain("${templateRoot}:/templates/dart-dio:ro");
+    expect(source).toContain("${clientRoot}:/output");
+    expect(source).not.toContain("${repositoryRoot}:/local");
+    expect(source.indexOf("const regeneratedFiles")).toBeGreaterThan(
+      source.indexOf('"openapitools/openapi-generator-cli:v7.24.0"'),
+    );
   });
 });

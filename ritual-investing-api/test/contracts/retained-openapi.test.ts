@@ -68,6 +68,11 @@ describe("Supabase retained OpenAPI contract", () => {
       "/v1/search",
       "/v1/admin/session",
       "/v1/admin/operations/jobs",
+      "/v1/brokerage/accounts",
+      "/v1/brokerage/accounts/{account_id}/capabilities",
+      "/v1/brokerage/accounts/{account_id}/balances",
+      "/v1/brokerage/accounts/{account_id}/positions",
+      "/v1/brokerage/accounts/{account_id}/restrictions",
     ];
     for (const path of retainedFamilies) expect(paths, path).toHaveProperty(path);
 
@@ -75,6 +80,7 @@ describe("Supabase retained OpenAPI contract", () => {
     expect(serialized).not.toMatch(
       /demo-|demo_reset|recurring-plans|rebalance|order-previews|funding-sources/,
     );
+    expect(serialized).not.toMatch(/provider_asset_id|provider_account_id/i);
   });
 
   it("serves OpenAPI with ETag revalidation through the portable factory", async () => {

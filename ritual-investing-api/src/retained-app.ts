@@ -17,6 +17,11 @@ import {
   BrokerageConnectionError,
   type BrokerageConnectionRepository,
 } from "./domains/brokerage-connections/repository.ts";
+import {
+  BrokerageProjectionError,
+  type BrokerageProjectionResource,
+} from "./domains/brokerage-projections/types.ts";
+import type { BrokerageProjectionService } from "./domains/brokerage-projections/service.ts";
 
 type RepositoryModule = typeof import("./db/supabase-repositories.ts");
 
@@ -91,6 +96,9 @@ export type CreateRetainedAppOptions = Readonly<{
   createBrokerageConnections?: (
     claims: VerifiedRequestClaims,
   ) => BrokerageConnectionRepository;
+  createBrokerageProjections?: (
+    claims: VerifiedRequestClaims,
+  ) => BrokerageProjectionService;
   requestId?: () => string;
   telemetry?: (event: RetainedTelemetryEvent) => void | Promise<void>;
 }>;
@@ -106,6 +114,146 @@ const responseSchema = z
     meta: z.object({ request_id: uuid }).strict(),
   })
   .strict();
+const responseMetaSchema = z.object({ request_id: uuid }).strict();
+const brokerageStateSchema = z.enum([
+  "fresh",
+  "empty",
+  "stale",
+  "partial",
+  "unavailable",
+  "offline",
+  "rate_limited",
+  "disconnected",
+  "reauthorization_required",
+]);
+const brokerageCapabilitySchema = z.object({
+  capability: z.enum([
+    "balances_read",
+    "positions_read",
+    "orders_read",
+    "manual_orders",
+    "unsupported",
+  ]),
+  provider_code: z.string().min(1).max(128),
+  available: z.boolean(),
+}).strict().openapi("BrokerageCapability");
+const brokerageAccountSchema = z.object({
+  id: uuid,
+  connection_id: uuid,
+  display_label: z.string().min(1).max(160),
+  base_currency: z.string().regex(/^[A-Z]{3}$/),
+  market_timezone: z.string().min(1).max(64).nullable(),
+  status: z.enum(["available", "restricted", "closed", "unavailable"]),
+  capability_version: z.number().int().nonnegative(),
+  capabilities: z.array(brokerageCapabilitySchema).max(64),
+  state: brokerageStateSchema,
+  selected: z.boolean(),
+  provider_observed_at: z.string().datetime().nullable(),
+  fetched_at: z.string().datetime().nullable(),
+  expires_at: z.string().datetime().nullable(),
+}).strict().openapi("BrokerageAccount");
+const brokerageAccountAuthoritySchema = z.object({
+  display_label: z.string().min(1).max(160),
+  base_currency: z.string().regex(/^[A-Z]{3}$/),
+  market_timezone: z.string().min(1).max(64),
+  status: z.enum(["available", "restricted", "closed", "unavailable"]),
+  capability_version: z.number().int().nonnegative(),
+  capabilities: z.array(brokerageCapabilitySchema).max(64),
+}).strict().openapi("BrokerageAccountAuthority");
+const decimalStringSchema = z.string().regex(
+  /^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$/,
+);
+const brokerageBalanceSchema = z.object({
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  cash: decimalStringSchema,
+  buying_power: decimalStringSchema.nullable(),
+  market_value: decimalStringSchema.nullable(),
+  total_equity: decimalStringSchema,
+}).strict().openapi("BrokerageBalance");
+const brokerageAssetSchema = z.object({
+  instrument_id: uuid,
+  symbol: z.string().min(1).max(32),
+  name: z.string().min(1).max(160),
+  asset_kind: z.enum(["equity", "etf", "unsupported"]),
+  provider_asset_kind: z.string().min(1).max(128),
+  supported: z.boolean(),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  exchange: z.string().max(32).nullable(),
+  market_timezone: z.string().min(1).max(64),
+}).strict().openapi("BrokerageAsset");
+const brokeragePositionSchema = z.object({
+  asset: brokerageAssetSchema,
+  quantity: decimalStringSchema,
+  available_quantity: decimalStringSchema,
+  average_cost: decimalStringSchema.nullable(),
+  market_value: decimalStringSchema.nullable(),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+}).strict().openapi("BrokeragePosition");
+const brokerageRestrictionSchema = z.object({
+  restriction: z.enum([
+    "closing_only",
+    "trading_disabled",
+    "liquidation_only",
+    "unsupported",
+  ]),
+  provider_code: z.string().min(1).max(128),
+  active: z.boolean(),
+  detail: z.string().max(256).nullable(),
+}).strict().openapi("BrokerageRestriction");
+
+function brokerageProjectionResponseSchema(
+  name: string,
+  data: z.ZodType,
+) {
+  return z.object({
+    account_id: uuid,
+    resource: z.enum(["account", "balance", "positions", "restrictions"]),
+    generation: z.number().int().positive().nullable(),
+    state: brokerageStateSchema,
+    reason: z.string().max(64).nullable(),
+    provider_observed_at: z.string().datetime().nullable(),
+    fetched_at: z.string().datetime().nullable(),
+    expires_at: z.string().datetime().nullable(),
+    data: data.nullable(),
+  }).strict().openapi(name);
+}
+
+function brokerageEnvelope(name: string, data: z.ZodType) {
+  return z.object({ data, meta: responseMetaSchema }).strict().openapi(name);
+}
+
+const brokerageAccountsResponseSchema = brokerageEnvelope(
+  "BrokerageAccountsResponse",
+  z.array(brokerageAccountSchema).max(100),
+);
+const brokerageCapabilitiesResponseSchema = brokerageEnvelope(
+  "BrokerageCapabilitiesResponse",
+  brokerageProjectionResponseSchema(
+    "BrokerageCapabilitiesProjection",
+    brokerageAccountAuthoritySchema,
+  ),
+);
+const brokerageBalancesResponseSchema = brokerageEnvelope(
+  "BrokerageBalancesResponse",
+  brokerageProjectionResponseSchema(
+    "BrokerageBalancesProjection",
+    brokerageBalanceSchema,
+  ),
+);
+const brokeragePositionsResponseSchema = brokerageEnvelope(
+  "BrokeragePositionsResponse",
+  brokerageProjectionResponseSchema(
+    "BrokeragePositionsProjection",
+    z.array(brokeragePositionSchema).max(10_000),
+  ),
+);
+const brokerageRestrictionsResponseSchema = brokerageEnvelope(
+  "BrokerageRestrictionsResponse",
+  brokerageProjectionResponseSchema(
+    "BrokerageRestrictionsProjection",
+    z.array(brokerageRestrictionSchema).max(256),
+  ),
+);
 const errorSchema = z
   .object({
     error: z
@@ -275,6 +423,7 @@ type RouteOptions = Readonly<{
   query?: z.ZodType;
   headers?: z.ZodType;
   description?: string;
+  response?: z.ZodType;
 }>;
 
 type RouteAccess = Readonly<{ isPublic: boolean; isAdmin: boolean }>;
@@ -307,7 +456,9 @@ function route(
     responses: {
       200: {
         description: options.description ?? "Argus response.",
-        content: { "application/json": { schema: responseSchema } },
+        content: {
+          "application/json": { schema: options.response ?? responseSchema },
+        },
       },
       401: {
         description: "Invalid Supabase access token.",
@@ -363,6 +514,22 @@ function brokerageConnections(
       503,
       "webull_contract_unavailable",
       "Webull connection is temporarily unavailable.",
+      true,
+    );
+  }
+  return factory(context.get("claims"));
+}
+
+function brokerageProjections(
+  context: Context<RetainedAppEnvironment>,
+  options: CreateRetainedAppOptions,
+): BrokerageProjectionService {
+  const factory = options.createBrokerageProjections;
+  if (factory === undefined) {
+    throw new HttpBoundaryError(
+      503,
+      "brokerage_reads_unavailable",
+      "Brokerage data is temporarily unavailable.",
       true,
     );
   }
@@ -647,6 +814,20 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         ),
       );
     }
+    if (error instanceof BrokerageProjectionError) {
+      const notFound = error.code === "account_not_found";
+      return errorResponse(
+        context,
+        new HttpBoundaryError(
+          notFound ? 404 : 503,
+          notFound ? "account_not_found" : "brokerage_reads_unavailable",
+          notFound
+            ? "The requested brokerage resource was not found."
+            : "Brokerage data is temporarily unavailable.",
+          !notFound,
+        ),
+      );
+    }
     return errorResponse(
       context,
       new HttpBoundaryError(
@@ -883,6 +1064,81 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       ),
     );
   });
+
+  const listBrokerageAccounts = route(
+    "get",
+    "/v1/brokerage/accounts",
+    "listWebullAccounts",
+    "Brokerage Reads",
+    {
+      description: "Owner-scoped Webull accounts and normalized capabilities.",
+      response: brokerageAccountsResponseSchema,
+    },
+  );
+  register(listBrokerageAccounts, async (context) =>
+    dataResponse(
+      context,
+      await brokerageProjections(context, options).listAccounts(),
+    ));
+
+  const brokerageReadPath = z.object({ account_id: uuid });
+  const brokerageReadQuery = z.object({
+    refresh: z.enum(["true", "false"]).optional(),
+  });
+  for (const [path, operationId, resource, response] of [
+    [
+      "/v1/brokerage/accounts/{account_id}/capabilities",
+      "getWebullAccountCapabilities",
+      "account",
+      brokerageCapabilitiesResponseSchema,
+    ],
+    [
+      "/v1/brokerage/accounts/{account_id}/balances",
+      "getWebullBalances",
+      "balance",
+      brokerageBalancesResponseSchema,
+    ],
+    [
+      "/v1/brokerage/accounts/{account_id}/positions",
+      "getWebullPositions",
+      "positions",
+      brokeragePositionsResponseSchema,
+    ],
+    [
+      "/v1/brokerage/accounts/{account_id}/restrictions",
+      "getWebullRestrictions",
+      "restrictions",
+      brokerageRestrictionsResponseSchema,
+    ],
+  ] as const satisfies readonly (readonly [
+    string,
+    string,
+    BrokerageProjectionResource,
+    z.ZodType,
+  ])[]) {
+    const definition = route(
+      "get",
+      path,
+      operationId,
+      "Brokerage Reads",
+      {
+        pathParams: brokerageReadPath,
+        query: brokerageReadQuery,
+        description:
+          "Immutable provider-authoritative projection with independent freshness timestamps.",
+        response,
+      },
+    );
+    register(definition, async (context) =>
+      dataResponse(
+        context,
+        await brokerageProjections(context, options).read(
+          uuid.parse(context.req.param("account_id")),
+          resource,
+          context.req.query("refresh") === "true",
+        ),
+      ));
+  }
 
   const account = route("get", "/v1/account", "getAccount", "Account");
   register(account, async (context) =>

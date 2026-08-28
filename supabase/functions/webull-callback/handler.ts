@@ -11,6 +11,10 @@ import type {
   WebullAuthorizationProvider,
   WebullAuthorizedAccount,
 } from "../_shared/webull/client.ts";
+import {
+  normalizeCapability,
+} from "../../../ritual-investing-api/src/domains/brokerage-accounts/normalization.ts";
+import { normalizedMarketTimezone } from "../../../ritual-investing-api/src/domains/brokerage-assets/normalization.ts";
 import { WebullTransientProviderError } from "../_shared/webull/client.ts";
 import {
   WEBULL_PUBLIC_CONTRACT_VERSION,
@@ -151,10 +155,15 @@ function validateAccount(account: WebullAuthorizedAccount): void {
       account.status,
     ) ||
     !Number.isInteger(account.capabilityVersion) ||
-    account.capabilityVersion < 0
+    account.capabilityVersion < 0 ||
+    !Number.isSafeInteger(account.capabilityVersion) ||
+    !Array.isArray(account.capabilities) ||
+    account.capabilities.length > 64
   ) {
     throw new Error("invalid_webull_account");
   }
+  normalizedMarketTimezone(account.marketTimezone);
+  account.capabilities.forEach(normalizeCapability);
 }
 
 function generic(status: 400 | 404 | 503): Response {
@@ -245,6 +254,8 @@ export function createWebullCallbackHandler(
         ...plain,
       });
       const accounts: ProtectedCallbackAccount[] = [];
+      const accountsFetchedAt = now();
+      const accountsExpireAt = new Date(accountsFetchedAt.getTime() + 60_000);
       for (const providerAccount of providerAccounts) {
         validateAccount(providerAccount);
         const id = crypto.randomUUID();
@@ -254,6 +265,14 @@ export function createWebullCallbackHandler(
           baseCurrency: providerAccount.baseCurrency,
           status: providerAccount.status,
           capabilityVersion: providerAccount.capabilityVersion,
+          marketTimezone: normalizedMarketTimezone(
+            providerAccount.marketTimezone,
+          ),
+          capabilities: Object.freeze(
+            providerAccount.capabilities.map(normalizeCapability),
+          ),
+          fetchedAt: accountsFetchedAt,
+          expiresAt: accountsExpireAt,
           providerIdCiphertext: await input.tokenVault
             .protectProviderIdentifier(
               {

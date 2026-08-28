@@ -414,6 +414,10 @@ export type ProtectedCallbackAccount = Readonly<{
   baseCurrency: string;
   status: "available" | "restricted" | "closed" | "unavailable";
   capabilityVersion: number;
+  marketTimezone: string;
+  capabilities: readonly unknown[];
+  fetchedAt: Date;
+  expiresAt: Date;
   providerIdCiphertext: Uint8Array;
   providerIdHash: string;
   keyVersion: number;
@@ -514,13 +518,15 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
           }
           await database.query(
             `insert into argus_private.webull_credentials(
-               connection_id,user_id,deletion_epoch,token_version,key_version,
+               connection_id,user_id,deletion_epoch,provider_environment,
+               token_version,key_version,
                access_ciphertext,access_nonce,access_tag,
                refresh_ciphertext,refresh_nonce,refresh_tag,
                wrapped_data_key,wrapped_key_nonce,wrapped_key_tag,
                associated_data_hash,access_expires_at,refresh_expires_at
-             ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+             ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
              on conflict (connection_id) do update set
+               provider_environment=excluded.provider_environment,
                token_version=excluded.token_version,
                key_version=excluded.key_version,
                access_ciphertext=excluded.access_ciphertext,
@@ -540,6 +546,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
               state.connectionId,
               state.userId,
               state.deletionEpoch,
+              credentials.environment,
               credentials.tokenVersion,
               credentials.keyVersion,
               credentials.accessCiphertext,
@@ -565,8 +572,9 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
             await database.query(
               `insert into argus_brokerage.accounts(
                  id,user_id,deletion_epoch,connection_id,display_label,
-                 base_currency,status,capability_version,fetched_at,expires_at
-               ) values ($1,$2,$3,$4,$5,$6,$7,$8,now(),now())`,
+                 base_currency,status,capability_version,market_timezone,
+                 capabilities,fetched_at,expires_at
+               ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)`,
               [
                 account.id,
                 state.userId,
@@ -576,18 +584,24 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
                 account.baseCurrency,
                 account.status,
                 account.capabilityVersion,
+                account.marketTimezone,
+                JSON.stringify(account.capabilities),
+                account.fetchedAt,
+                account.expiresAt,
               ],
             );
             await database.query(
               `insert into argus_private.webull_account_mappings(
                  account_id,connection_id,user_id,deletion_epoch,
-                 provider_account_id_ciphertext,provider_account_id_hash,key_version
-               ) values ($1,$2,$3,$4,$5,$6,$7)`,
+                 provider_environment,provider_account_id_ciphertext,
+                 provider_account_id_hash,key_version
+               ) values ($1,$2,$3,$4,$5,$6,$7,$8)`,
               [
                 account.id,
                 state.connectionId,
                 state.userId,
                 state.deletionEpoch,
+                credentials.environment,
                 account.providerIdCiphertext,
                 account.providerIdHash,
                 account.keyVersion,

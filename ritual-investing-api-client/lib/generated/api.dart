@@ -15,6 +15,7 @@ import 'package:ritual_investing_api_client/generated/api/admin_operations_api.d
 import 'package:ritual_investing_api_client/generated/api/assets_api.dart';
 import 'package:ritual_investing_api_client/generated/api/briefings_api.dart';
 import 'package:ritual_investing_api_client/generated/api/brokerage_connections_api.dart';
+import 'package:ritual_investing_api_client/generated/api/brokerage_reads_api.dart';
 import 'package:ritual_investing_api_client/generated/api/circles_api.dart';
 import 'package:ritual_investing_api_client/generated/api/coven_api.dart';
 import 'package:ritual_investing_api_client/generated/api/discover_api.dart';
@@ -202,6 +203,12 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   BrokerageConnectionsApi getBrokerageConnectionsApi() {
     return BrokerageConnectionsApi(dio);
+  }
+
+  /// Get BrokerageReadsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  BrokerageReadsApi getBrokerageReadsApi() {
+    return BrokerageReadsApi(dio);
   }
 
   /// Get CirclesApi instance, base route and serializer can be overridden by a given but be careful,

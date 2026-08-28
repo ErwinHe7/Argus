@@ -1,3 +1,19 @@
+import 'package:ritual_investing_api_client/generated/model/brokerage_account.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_account_authority.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_accounts_response.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_asset.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_balance.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_balances_projection.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_balances_response.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_capabilities_projection.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_capabilities_response.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_capability.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_position.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_positions_projection.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_positions_response.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_restriction.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_restrictions_projection.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_restrictions_response.dart';
 import 'package:ritual_investing_api_client/generated/model/create_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/decide_moderation_request.dart';
@@ -40,6 +56,64 @@ ReturnType deserialize<ReturnType, BaseType>(
       return (valueString == 'true' || valueString == '1') as ReturnType;
     case 'double':
       return (value is double ? value : double.parse('$value')) as ReturnType;
+    case 'BrokerageAccount':
+      return BrokerageAccount.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageAccountAuthority':
+      return BrokerageAccountAuthority.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageAccountsResponse':
+      return BrokerageAccountsResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageAsset':
+      return BrokerageAsset.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageBalance':
+      return BrokerageBalance.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageBalancesProjection':
+      return BrokerageBalancesProjection.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageBalancesResponse':
+      return BrokerageBalancesResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageCapabilitiesProjection':
+      return BrokerageCapabilitiesProjection.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokerageCapabilitiesResponse':
+      return BrokerageCapabilitiesResponse.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokerageCapability':
+      return BrokerageCapability.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokeragePosition':
+      return BrokeragePosition.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokeragePositionsProjection':
+      return BrokeragePositionsProjection.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokeragePositionsResponse':
+      return BrokeragePositionsResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageRestriction':
+      return BrokerageRestriction.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageRestrictionsProjection':
+      return BrokerageRestrictionsProjection.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokerageRestrictionsResponse':
+      return BrokerageRestrictionsResponse.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'CreateCircleRequest':
       return CreateCircleRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;

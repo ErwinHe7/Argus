@@ -1,0 +1,423 @@
+import type { DatabasePool } from "../../db/database-port.ts";
+import type { VerifiedRequestClaims } from "../../db/request-context.ts";
+import { withRequestTransaction } from "../../db/request-transaction.ts";
+import {
+  type BrokerageAccountContext,
+  type BrokerageAccountSummary,
+  BrokerageProjectionError,
+  type BrokerageProjectionResource,
+  type ProviderProjection,
+  type StoredProjection,
+} from "./types.ts";
+
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function date(value: unknown, field: string): Date {
+  const parsed = value instanceof Date ? value : new Date(String(value));
+  if (!Number.isFinite(parsed.getTime())) {
+    throw new Error(`invalid_${field}`);
+  }
+  return parsed;
+}
+
+export function parseBrokerageSafeInteger(
+  value: unknown,
+  field: string,
+  minimum = 0,
+): number {
+  const parsed = typeof value === "string" && /^\d+$/.test(value)
+    ? Number(value)
+    : value;
+  if (!Number.isSafeInteger(parsed) || Number(parsed) < minimum) {
+    throw new Error(`invalid_${field}`);
+  }
+  return Number(parsed);
+}
+
+function storedProjection(row: Record<string, unknown>): StoredProjection {
+  return Object.freeze({
+    id: String(row.id),
+    generation: parseBrokerageSafeInteger(
+      row.generation,
+      "projection_generation",
+      1,
+    ),
+    resource: row.resource_type as BrokerageProjectionResource,
+    payload: row.normalized_payload,
+    providerObservedAt: row.provider_observed_at === null
+      ? null
+      : date(row.provider_observed_at, "provider_observed_at"),
+    fetchedAt: date(row.fetched_at, "fetched_at"),
+    expiresAt: date(row.expires_at, "expires_at"),
+    availability: row.availability as StoredProjection["availability"],
+    reasonCode: row.reason_code === null ? null : String(row.reason_code),
+  });
+}
+
+function safeCapabilities(value: unknown): readonly unknown[] {
+  if (!Array.isArray(value) || value.length > 64) {
+    throw new Error("invalid_account_capabilities");
+  }
+  return Object.freeze(value.map((entry) => {
+    if (
+      typeof entry !== "object" ||
+      entry === null ||
+      Array.isArray(entry) ||
+      Object.keys(entry).sort().join(",") !==
+        "available,capability,provider_code"
+    ) {
+      throw new Error("invalid_account_capabilities");
+    }
+    const capability = entry as Record<string, unknown>;
+    if (
+      typeof capability.available !== "boolean" ||
+      typeof capability.capability !== "string" ||
+      typeof capability.provider_code !== "string"
+    ) {
+      throw new Error("invalid_account_capabilities");
+    }
+    return Object.freeze({ ...capability });
+  }));
+}
+
+export interface BrokerageProjectionRepository {
+  listAccounts(): Promise<readonly BrokerageAccountSummary[]>;
+  account(accountId: string): Promise<BrokerageAccountContext>;
+  latest(
+    accountId: string,
+    resource: BrokerageProjectionResource,
+  ): Promise<StoredProjection | null>;
+  acquireRefreshLease(
+    input: Readonly<{
+      context: BrokerageAccountContext;
+      resource: BrokerageProjectionResource;
+      leaseToken: string;
+      leasedUntil: Date;
+    }>,
+  ): Promise<boolean>;
+  appendGeneration(
+    input: Readonly<{
+      context: BrokerageAccountContext;
+      resource: BrokerageProjectionResource;
+      leaseToken: string;
+      projection: ProviderProjection;
+      purgeAfter: Date;
+    }>,
+  ): Promise<StoredProjection>;
+  releaseRefreshLease(
+    input: Readonly<{
+      accountId: string;
+      resource: BrokerageProjectionResource;
+      leaseToken: string;
+    }>,
+  ): Promise<void>;
+  invalidateAccount(accountId: string): Promise<void>;
+  requireReauthorization(connectionId: string): Promise<void>;
+}
+
+export function createBrokerageProjectionRepository(
+  input: Readonly<{
+    pool: DatabasePool;
+    claims: VerifiedRequestClaims;
+  }>,
+): BrokerageProjectionRepository {
+  const transaction = <T>(
+    callback: Parameters<typeof withRequestTransaction<T>>[1],
+  ) =>
+    withRequestTransaction(
+      { pool: input.pool, verifiedClaims: input.claims },
+      callback,
+    );
+
+  const account = async (
+    accountId: string,
+  ): Promise<BrokerageAccountContext> => {
+    if (!uuidPattern.test(accountId)) {
+      throw new BrokerageProjectionError("account_not_found");
+    }
+    return transaction(async (database) => {
+      const result = await database.query<Record<string, unknown>>(
+        `select account.user_id,account.deletion_epoch,
+                account.connection_id,connection.status connection_status,
+                account.id account_id,account.status account_status,
+                account.capability_version
+           from argus_brokerage.accounts account
+           join argus_brokerage.connections connection
+             on connection.id=account.connection_id
+            and connection.user_id=account.user_id
+            and connection.deletion_epoch=account.deletion_epoch
+          where account.id=$1 and account.user_id=auth.uid()`,
+        [accountId],
+      );
+      const row = result.rows[0];
+      if (row === undefined) {
+        throw new BrokerageProjectionError("account_not_found");
+      }
+      return Object.freeze({
+        userId: String(row.user_id),
+        deletionEpoch: parseBrokerageSafeInteger(
+          row.deletion_epoch,
+          "deletion_epoch",
+        ),
+        connectionId: String(row.connection_id),
+        connectionStatus: row
+          .connection_status as BrokerageAccountContext["connectionStatus"],
+        accountId: String(row.account_id),
+        accountStatus: row
+          .account_status as BrokerageAccountContext["accountStatus"],
+        capabilityVersion: parseBrokerageSafeInteger(
+          row.capability_version,
+          "capability_version",
+        ),
+      });
+    });
+  };
+
+  const repository: BrokerageProjectionRepository = {
+    listAccounts: () =>
+      transaction(async (database) => {
+        const result = await database.query<Record<string, unknown>>(
+          `select account.id,account.connection_id,account.display_label,
+                  account.base_currency,account.market_timezone,account.status,
+                  account.capability_version,account.capabilities,
+                  account.provider_observed_at,account.fetched_at,
+                  account.expires_at,
+                  case
+                    when connection.status='reauthorization_required'
+                      then 'reauthorization_required'
+                    when connection.status='disconnected' then 'disconnected'
+                    when account.status='unavailable' then 'unavailable'
+                    when account.expires_at is null then 'unavailable'
+                    when account.expires_at <= now() then 'stale'
+                    else 'fresh'
+                  end authority_state,
+                  (selection.account_id is not null) selected
+             from argus_brokerage.accounts account
+             join argus_brokerage.connections connection
+               on connection.id=account.connection_id
+              and connection.user_id=account.user_id
+              and connection.deletion_epoch=account.deletion_epoch
+             left join argus_brokerage.active_account_selections selection
+               on selection.user_id=account.user_id
+              and selection.connection_id=account.connection_id
+              and selection.account_id=account.id
+            where account.user_id=auth.uid()
+              and connection.status not in ('denied','failed','disconnected')
+            order by account.display_label,account.id`,
+        );
+        return Object.freeze(result.rows.map((row) =>
+          Object.freeze({
+            id: String(row.id),
+            connection_id: String(row.connection_id),
+            display_label: String(row.display_label),
+            base_currency: String(row.base_currency),
+            market_timezone: row.market_timezone === null
+              ? null
+              : String(row.market_timezone),
+            status: row.status as BrokerageAccountSummary["status"],
+            capability_version: parseBrokerageSafeInteger(
+              row.capability_version,
+              "capability_version",
+            ),
+            capabilities: safeCapabilities(row.capabilities),
+            state: row.authority_state as BrokerageAccountSummary["state"],
+            selected: row.selected === true,
+            provider_observed_at: row.provider_observed_at === null
+              ? null
+              : date(row.provider_observed_at, "provider_observed_at")
+                .toISOString(),
+            fetched_at: row.fetched_at === null
+              ? null
+              : date(row.fetched_at, "fetched_at").toISOString(),
+            expires_at: row.expires_at === null
+              ? null
+              : date(row.expires_at, "expires_at").toISOString(),
+          })
+        ));
+      }),
+    account,
+    latest: (accountId, resource) =>
+      transaction(async (database) => {
+        // The owner predicate is repeated explicitly in addition to RLS so an
+        // attacker-supplied UUID can never become a cross-owner filter oracle.
+        const result = await database.query<Record<string, unknown>>(
+          `select generation.*
+             from argus_brokerage.projection_generations generation
+             join argus_brokerage.accounts account
+               on account.id=generation.account_id
+              and account.user_id=generation.user_id
+            where generation.account_id=$1
+              and generation.resource_type=$2
+              and generation.user_id=auth.uid()
+            order by generation.generation desc limit 1`,
+          [accountId, resource],
+        );
+        return result.rows[0] === undefined
+          ? null
+          : storedProjection(result.rows[0]);
+      }),
+    acquireRefreshLease: ({
+      context,
+      resource,
+      leaseToken,
+      leasedUntil,
+    }) =>
+      transaction(async (database) => {
+        const result = await database.query(
+          `insert into argus_private.projection_refresh_leases(
+             account_id,connection_id,user_id,deletion_epoch,resource_type,
+             lease_token,leased_until
+           ) select account.id,account.connection_id,account.user_id,
+                    account.deletion_epoch,$2,$3,$4
+               from argus_brokerage.accounts account
+               join argus_brokerage.connections connection
+                 on connection.id=account.connection_id
+                and connection.user_id=account.user_id
+                and connection.deletion_epoch=account.deletion_epoch
+              where account.id=$1 and account.user_id=auth.uid()
+                and account.connection_id=$5
+                and account.deletion_epoch=$6
+                and connection.status='connected'
+           on conflict (account_id,resource_type) do update
+             set connection_id=excluded.connection_id,
+                 user_id=excluded.user_id,
+                 deletion_epoch=excluded.deletion_epoch,
+                 lease_token=excluded.lease_token,
+                 leased_until=excluded.leased_until,
+                 acquired_at=now()
+           where projection_refresh_leases.leased_until <= now()
+             and projection_refresh_leases.connection_id=excluded.connection_id
+             and projection_refresh_leases.user_id=excluded.user_id
+             and projection_refresh_leases.deletion_epoch=excluded.deletion_epoch
+           returning lease_token`,
+          [
+            context.accountId,
+            resource,
+            leaseToken,
+            leasedUntil,
+            context.connectionId,
+            context.deletionEpoch,
+          ],
+        );
+        return result.rows.length === 1;
+      }),
+    appendGeneration: ({
+      context,
+      resource,
+      leaseToken,
+      projection,
+      purgeAfter,
+    }) =>
+      transaction(async (database) => {
+        // Re-lock the current account and re-check the live deletion epoch,
+        // connection and exact lease after provider I/O. A callback, reconnect,
+        // disconnect or deletion that occurred in flight fences this write.
+        const locked = await database.query(
+          `select account.id
+             from argus_brokerage.accounts account
+             join argus_brokerage.connections connection
+               on connection.id=account.connection_id
+              and connection.user_id=account.user_id
+              and connection.deletion_epoch=account.deletion_epoch
+             join argus_private.projection_refresh_leases lease
+               on lease.account_id=account.id
+              and lease.connection_id=account.connection_id
+              and lease.user_id=account.user_id
+              and lease.deletion_epoch=account.deletion_epoch
+              and lease.resource_type=$2
+              and lease.lease_token=$3
+              and lease.leased_until > now()
+            where account.id=$1 and account.user_id=auth.uid()
+              and account.connection_id=$4 and account.deletion_epoch=$5
+              and connection.status='connected'
+            for update of account`,
+          [
+            context.accountId,
+            resource,
+            leaseToken,
+            context.connectionId,
+            context.deletionEpoch,
+          ],
+        );
+        if (locked.rows.length !== 1) {
+          throw new BrokerageProjectionError("refresh_fenced");
+        }
+        const result = await database.query<Record<string, unknown>>(
+          `insert into argus_brokerage.projection_generations(
+             user_id,deletion_epoch,connection_id,account_id,resource_type,
+             generation,normalized_payload,provider_observed_at,fetched_at,
+             expires_at,availability,reason_code,purge_after
+           ) select auth.uid(),$5,$4,$1,$2,
+                    coalesce(max(existing.generation),0)+1,$6::jsonb,$7,$8,
+                    $9,$10,$11,$12
+               from argus_brokerage.projection_generations existing
+              where existing.account_id=$1 and existing.resource_type=$2
+           returning *`,
+          [
+            context.accountId,
+            resource,
+            leaseToken,
+            context.connectionId,
+            context.deletionEpoch,
+            JSON.stringify(projection.payload),
+            projection.providerObservedAt,
+            projection.fetchedAt,
+            projection.expiresAt,
+            projection.availability,
+            projection.reasonCode ?? null,
+            purgeAfter,
+          ],
+        );
+        const row = result.rows[0];
+        if (row === undefined) {
+          throw new BrokerageProjectionError("refresh_fenced");
+        }
+        return storedProjection(row);
+      }),
+    releaseRefreshLease: ({ accountId, resource, leaseToken }) =>
+      transaction(async (database) => {
+        await database.query(
+          `delete from argus_private.projection_refresh_leases
+            where account_id=$1 and resource_type=$2 and lease_token=$3
+              and user_id=auth.uid()`,
+          [accountId, resource, leaseToken],
+        );
+      }),
+    invalidateAccount: (accountId) =>
+      transaction(async (database) => {
+        const result = await database.query(
+          `update argus_brokerage.accounts
+              set status='unavailable',expires_at=now()
+            where id=$1 and user_id=auth.uid()
+          returning connection_id`,
+          [accountId],
+        );
+        if (result.rows.length !== 1) {
+          throw new BrokerageProjectionError("account_not_found");
+        }
+        await database.query(
+          `delete from argus_brokerage.active_account_selections
+            where account_id=$1 and user_id=auth.uid()`,
+          [accountId],
+        );
+      }),
+    requireReauthorization: (connectionId) =>
+      transaction(async (database) => {
+        await database.query(
+          `update argus_brokerage.connections
+              set status='reauthorization_required',
+                  last_error_code='provider_authorization_invalid',
+                  updated_at=now()
+            where id=$1 and user_id=auth.uid()`,
+          [connectionId],
+        );
+        await database.query(
+          `delete from argus_brokerage.active_account_selections
+            where connection_id=$1 and user_id=auth.uid()`,
+          [connectionId],
+        );
+      }),
+  };
+  return Object.freeze(repository);
+}

@@ -155,7 +155,10 @@ Each surface below appears exactly once. The contract test derives current table
 | `api-domain:admin-operations` | retained-argus | Argus staff operations in Supabase |
 | `api-domain:assets` | retained-argus | Argus evidence API |
 | `api-domain:briefings` | retained-argus | Argus briefing API |
+| `api-domain:brokerage-accounts` | replaced-webull | Owner-scoped Webull accounts, capabilities, and restrictions |
+| `api-domain:brokerage-assets` | replaced-webull | Normalized Webull balances, positions, and private provider mappings |
 | `api-domain:brokerage-connections` | replaced-webull | Webull connection lifecycle and encrypted credential custody |
+| `api-domain:brokerage-projections` | replaced-webull | Immutable timestamped provider-authoritative read generations |
 | `api-domain:circles` | retained-argus | Argus community API |
 | `api-domain:coven` | retained-argus | Argus editorial API |
 | `api-domain:discover` | retained-argus | Argus discovery API |
@@ -193,11 +196,12 @@ Each surface below appears exactly once. The contract test derives current table
 | `api-route-pattern:^/v1/public/` | retained-argus | Approved Argus public editorial API |
 | `api-route-pattern:^/v1/portfolios` | replaced-webull | Rewrite as Webull projections; delete recurring/rebalance actions |
 | `api-route-pattern:^/v1/orders` | replaced-webull | Rewrite as Webull order projections |
+| `api-route-pattern:^/v1/brokerage/` | replaced-webull | Webull connection and normalized brokerage projection routes |
 | `api-route-pattern:^/v1/demo-` | deleted | Remove production Demo endpoints |
 | `api-route-pattern:^/v1/recurring-plans` | deleted | Remove recurring execution endpoints |
 | `api-route-pattern:^/v1/me/demo-reset$` | deleted | Reset remains standalone-Demo-only |
 | `api-route-pattern:^/v1/me/entitlements` | deleted | Remove Demo membership endpoints |
-| `api-route-pattern:^/v1/(?!admin/)(?!public/)(?!portfolios)(?!orders)(?!demo-)(?!recurring-plans)(?!me/demo-reset)(?!me/entitlements).*` | retained-argus | Retained member and contract routes through Supabase Edge |
+| `api-route-pattern:^/v1/(?!admin/)(?!public/)(?!brokerage/)(?!portfolios)(?!orders)(?!demo-)(?!recurring-plans)(?!me/demo-reset)(?!me/entitlements).*` | retained-argus | Retained member and contract routes through Supabase Edge |
 | `live-financial-feature:funding` | deleted | No bank link, deposit, withdrawal, ACH, or wire flow |
 | `live-financial-feature:brokerage-reads` | replaced-webull | Webull timestamped account and asset projections |
 | `live-financial-feature:manual-orders` | replaced-webull | Webull-approved preview/place/modify/cancel only |

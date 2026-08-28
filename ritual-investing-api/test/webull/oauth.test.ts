@@ -44,6 +44,11 @@ function fixture(overrides: Record<string, unknown> = {}) {
       baseCurrency: "USD",
       status: "available" as const,
       capabilityVersion: 1,
+      marketTimezone: "America/New_York",
+      capabilities: [
+        { code: "BALANCES_READ", available: true },
+        { code: "POSITIONS_READ", available: true },
+      ],
     }]),
     ...overrides,
   };

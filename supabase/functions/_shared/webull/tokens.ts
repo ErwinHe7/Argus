@@ -192,6 +192,10 @@ export class WebullTokenVault {
     }
   }
 
+  get activeKeyVersion(): number {
+    return this.keyRing.activeVersion;
+  }
+
   private masterKeyBytes(version: number): Uint8Array {
     const encoded = this.keyRing.keys[version];
     if (encoded === undefined) throw new Error("missing_webull_key_version");
@@ -379,6 +383,163 @@ export class WebullTokenVault {
       c: bytesToBase64(sealed.ciphertext),
       t: bytesToBase64(sealed.tag),
     }));
+  }
+
+  async openProviderIdentifier(
+    protectedValue: Uint8Array,
+    ownership: Omit<TokenOwnership, "keyVersion">,
+    resourceId: string,
+    expectedKeyVersion: number,
+  ): Promise<string> {
+    if (!uuidPattern.test(resourceId)) {
+      throw new Error("invalid_webull_account_resource_id");
+    }
+    const full: TokenOwnership = {
+      ...ownership,
+      keyVersion: expectedKeyVersion,
+    };
+    validateOwnership(full);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(decoder.decode(protectedValue));
+    } catch {
+      throw new Error("invalid_webull_provider_identifier_envelope");
+    }
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      Array.isArray(parsed) ||
+      Object.keys(parsed).sort().join(",") !== "c,k,n,t,v"
+    ) {
+      throw new Error("invalid_webull_provider_identifier_envelope");
+    }
+    const envelope = parsed as Record<string, unknown>;
+    if (
+      envelope.v !== 1 ||
+      envelope.k !== expectedKeyVersion ||
+      typeof envelope.n !== "string" ||
+      typeof envelope.c !== "string" ||
+      typeof envelope.t !== "string"
+    ) {
+      throw new Error("invalid_webull_provider_identifier_envelope");
+    }
+    const key = await importAesKey(
+      this.masterKeyBytes(expectedKeyVersion),
+      false,
+    );
+    let plaintext: Uint8Array;
+    try {
+      plaintext = await decrypt(
+        key,
+        base64ToBytes(envelope.c),
+        base64ToBytes(envelope.n),
+        base64ToBytes(envelope.t),
+        aad(full, `account-id:${resourceId}`, 1),
+      );
+    } catch {
+      // Collapse malformed, swapped and tampered envelopes into one safe
+      // boundary failure so no resource-ownership oracle leaks out.
+      throw new Error("webull_provider_identifier_owner_mismatch");
+    }
+    const providerAccountId = decoder.decode(plaintext);
+    if (!/^[\x21-\x7e]{1,512}$/.test(providerAccountId)) {
+      throw new Error("invalid_webull_provider_account_id");
+    }
+    return providerAccountId;
+  }
+
+  async protectProviderAssetIdentifier(
+    ownership: Omit<TokenOwnership, "keyVersion">,
+    accountResourceId: string,
+    instrumentId: string,
+    providerAssetId: string,
+  ): Promise<Uint8Array> {
+    if (
+      !uuidPattern.test(accountResourceId) ||
+      !uuidPattern.test(instrumentId) ||
+      !/^[\x21-\x7e]{1,512}$/.test(providerAssetId)
+    ) {
+      throw new Error("invalid_webull_provider_asset_id");
+    }
+    const full: TokenOwnership = {
+      ...ownership,
+      keyVersion: this.keyRing.activeVersion,
+    };
+    validateOwnership(full);
+    const key = await importAesKey(this.masterKeyBytes(full.keyVersion), false);
+    const sealed = await encrypt(
+      key,
+      encoder.encode(providerAssetId),
+      aad(full, `asset-id:${accountResourceId}:${instrumentId}`, 1),
+    );
+    return encoder.encode(JSON.stringify({
+      v: 1,
+      k: full.keyVersion,
+      n: bytesToBase64(sealed.nonce),
+      c: bytesToBase64(sealed.ciphertext),
+      t: bytesToBase64(sealed.tag),
+    }));
+  }
+
+  async openProviderAssetIdentifier(
+    protectedValue: Uint8Array,
+    ownership: Omit<TokenOwnership, "keyVersion">,
+    accountResourceId: string,
+    instrumentId: string,
+    expectedKeyVersion: number,
+  ): Promise<string> {
+    if (
+      !uuidPattern.test(accountResourceId) || !uuidPattern.test(instrumentId)
+    ) {
+      throw new Error("invalid_webull_provider_asset_resource");
+    }
+    const full: TokenOwnership = {
+      ...ownership,
+      keyVersion: expectedKeyVersion,
+    };
+    validateOwnership(full);
+    let envelope: Record<string, unknown>;
+    try {
+      const parsed = JSON.parse(decoder.decode(protectedValue));
+      if (
+        typeof parsed !== "object" ||
+        parsed === null ||
+        Array.isArray(parsed) ||
+        Object.keys(parsed).sort().join(",") !== "c,k,n,t,v"
+      ) {
+        throw new Error();
+      }
+      envelope = parsed as Record<string, unknown>;
+      if (
+        envelope.v !== 1 ||
+        envelope.k !== expectedKeyVersion ||
+        typeof envelope.n !== "string" ||
+        typeof envelope.c !== "string" ||
+        typeof envelope.t !== "string"
+      ) {
+        throw new Error();
+      }
+    } catch {
+      throw new Error("invalid_webull_provider_asset_envelope");
+    }
+    try {
+      const key = await importAesKey(
+        this.masterKeyBytes(expectedKeyVersion),
+        false,
+      );
+      const plaintext = await decrypt(
+        key,
+        base64ToBytes(envelope.c as string),
+        base64ToBytes(envelope.n as string),
+        base64ToBytes(envelope.t as string),
+        aad(full, `asset-id:${accountResourceId}:${instrumentId}`, 1),
+      );
+      const providerAssetId = decoder.decode(plaintext);
+      if (!/^[\x21-\x7e]{1,512}$/.test(providerAssetId)) throw new Error();
+      return providerAssetId;
+    } catch {
+      throw new Error("webull_provider_asset_owner_mismatch");
+    }
   }
 }
 

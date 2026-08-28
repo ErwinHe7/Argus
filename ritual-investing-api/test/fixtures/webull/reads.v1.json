@@ -1,0 +1,61 @@
+{
+  "fixture_version": "argus-webull-sanitized-reads-v1",
+  "provider_observed_at": "2026-08-28T12:00:00Z",
+  "account": {
+    "display_label": "Webull •••• 0001",
+    "base_currency": "USD",
+    "market_timezone": "America/New_York",
+    "status": "available",
+    "capability_version": 7,
+    "capabilities": [
+      { "code": "BALANCES_READ", "available": true },
+      { "code": "POSITIONS_READ", "available": true },
+      { "code": "FUTURE_PROVIDER_CAPABILITY", "available": true }
+    ]
+  },
+  "balances": {
+    "currency": "USD",
+    "cash": "9007199254740993.123400",
+    "buying_power": "10000000000000000.000001",
+    "market_value": "0.000000000000000001",
+    "total_equity": "19007199254740993.123401"
+  },
+  "positions": [
+    {
+      "asset": {
+        "provider_asset_id": "synthetic-asset-1",
+        "symbol": "ARGX",
+        "name": "Synthetic Argus Equity",
+        "asset_kind": "EQUITY",
+        "currency": "USD",
+        "exchange": "NASDAQ",
+        "market_timezone": "America/New_York"
+      },
+      "quantity": "9007199254740993.00000001",
+      "available_quantity": "9007199254740992.99999999",
+      "average_cost": "123.4500",
+      "market_value": "1111999897873519111.123456",
+      "currency": "USD"
+    },
+    {
+      "asset": {
+        "provider_asset_id": "synthetic-asset-future",
+        "symbol": "FUTR",
+        "name": "Synthetic Unsupported Asset",
+        "asset_kind": "FUTURE_PROVIDER_ASSET",
+        "currency": "USD",
+        "exchange": null,
+        "market_timezone": "America/New_York"
+      },
+      "quantity": "1.25",
+      "available_quantity": "1.25",
+      "average_cost": null,
+      "market_value": null,
+      "currency": "USD"
+    }
+  ],
+  "restrictions": [
+    { "code": "CLOSING_ONLY", "active": false, "detail": null },
+    { "code": "FUTURE_PROVIDER_RESTRICTION", "active": true, "detail": "Preserved without guessing." }
+  ]
+}

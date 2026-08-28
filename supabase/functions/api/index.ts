@@ -30,6 +30,11 @@ import { createPostgresRateLimitPort } from "../_shared/rate-limit.ts";
 import { createBrokerageConnectionRepository } from "../../../ritual-investing-api/src/domains/brokerage-connections/repository.ts";
 import { createBlockedWebullProvider } from "../_shared/webull/client.ts";
 import { parsePartnerConfirmedContractFromEnvironment } from "../_shared/webull/contract.ts";
+import { createBrokerageProjectionRepository } from "../../../ritual-investing-api/src/domains/brokerage-projections/repository.ts";
+import {
+  createBlockedBrokerageProjectionProvider,
+  createBrokerageProjectionService,
+} from "../../../ritual-investing-api/src/domains/brokerage-projections/service.ts";
 
 function requiredEnvironment(name: string): string {
   const value = Deno.env.get(name)?.trim();
@@ -107,6 +112,17 @@ const app = createRetainedApp({
         environment: blockedWebullContract.environment,
         authorizationUrl: blockedWebull.authorizationUrl,
       },
+    }),
+  createBrokerageProjections: (claims) =>
+    createBrokerageProjectionService({
+      repository: createBrokerageProjectionRepository({
+        pool: databasePool,
+        claims,
+      }),
+      // The U5 public-contract conflicts remain unresolved. Cached synthetic
+      // generations can be served, but provider egress stays fail-closed until
+      // a versioned partner read fixture and approval gate are configured.
+      provider: createBlockedBrokerageProjectionProvider(),
     }),
   telemetry: (event) => console.log(JSON.stringify(event)),
 });

@@ -16,6 +16,8 @@ export type WebullAuthorizedAccount = Readonly<{
   baseCurrency: string;
   status: "available" | "restricted" | "closed" | "unavailable";
   capabilityVersion: number;
+  marketTimezone: string;
+  capabilities: readonly Readonly<{ code: string; available: boolean }>[];
 }>;
 
 export interface WebullAuthorizationProvider extends WebullRefreshProvider {
