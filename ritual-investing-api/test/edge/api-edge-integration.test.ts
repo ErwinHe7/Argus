@@ -8,6 +8,7 @@ import {
   type VerifiedSupabasePrincipal,
 } from "../../src/retained-app.ts";
 import { StaffAuthorizationError } from "../../src/db/request-transaction.ts";
+import type { BrokerageOrderService } from "../../src/domains/brokerage-orders/service.ts";
 import type { RateLimitPort } from "../../src/ports/infrastructure.ts";
 import { rewriteSupabaseFunctionRequest } from "../../../supabase/functions/_shared/http.ts";
 
@@ -37,10 +38,12 @@ type FixtureOptions = Readonly<{
   listAudit?: ReturnType<typeof vi.fn>;
   account?: unknown;
   updatePreferences?: ReturnType<typeof vi.fn>;
+  brokerageOrderService?: BrokerageOrderService;
 }>;
 
 function fixture(options: FixtureOptions = {}) {
-  const verifyAccessToken = options.verifyAccessToken ?? vi.fn(async () => principal());
+  const verifyAccessToken = options.verifyAccessToken ??
+    vi.fn(async () => principal());
   const bootstrap = vi.fn(async () => ({ member: { user_id: userId } }));
   const getStaffPrincipal = vi.fn(async () =>
     options.staffPrincipal === undefined
@@ -53,7 +56,9 @@ function fixture(options: FixtureOptions = {}) {
   const listAudit = options.listAudit ?? vi.fn(async () => []);
   const getAccount = vi.fn(async () => options.account ?? { version: 3 });
   const updatePreferences = options.updatePreferences ??
-    vi.fn(async (_patch: unknown, version: number) => ({ version: version + 1 }));
+    vi.fn(async (_patch: unknown, version: number) => ({
+      version: version + 1,
+    }));
   const getCircle = vi.fn(async (id: string) => ({ id, version: 1 }));
   const updateCircle = vi.fn(
     async (id: string, _patch: unknown, version: number) => ({
@@ -85,7 +90,12 @@ function fixture(options: FixtureOptions = {}) {
     },
     rateLimit,
     requestId: () => "018f3c2a-4b67-7a89-8abc-123456789077",
-    ...(options.telemetry === undefined ? {} : { telemetry: options.telemetry }),
+    ...(options.telemetry === undefined
+      ? {}
+      : { telemetry: options.telemetry }),
+    ...(options.brokerageOrderService === undefined
+      ? {}
+      : { createBrokerageOrders: () => options.brokerageOrderService! }),
   });
   return {
     app,
@@ -168,7 +178,9 @@ describe("Supabase Edge retained API adapter", () => {
     );
     expect(wrongOrigin.status).toBe(403);
     expect(test.createRepositories).not.toHaveBeenCalled();
-    expect(JSON.stringify(await invalidToken.json())).not.toContain("malformed");
+    expect(JSON.stringify(await invalidToken.json())).not.toContain(
+      "malformed",
+    );
   });
 
   it("requires AAL2 before the database-backed active staff recheck", async () => {
@@ -242,6 +254,34 @@ describe("Supabase Edge retained API adapter", () => {
     expect(nonStaffResponse.status).toBe(403);
     expect(nonStaff.listAudit).toHaveBeenCalledOnce();
     expect(await nonStaffResponse.json()).toMatchObject({
+      error: { code: "forbidden", retryable: false },
+    });
+  });
+
+  it("does not treat AAL2 alone as staff authorization for order reconciliation", async () => {
+    const staffReconciliation = vi.fn(async () => {
+      throw new StaffAuthorizationError();
+    });
+    const test = fixture({
+      verifyAccessToken: vi.fn(async () => principal("aal2")),
+      brokerageOrderService: {
+        staffReconciliation,
+      } as unknown as BrokerageOrderService,
+    });
+    const response = await test.app.request(
+      "/v1/admin/brokerage/order-commands/018f3c2a-4b67-7a89-8abc-123456789003",
+      {
+        headers: {
+          authorization: "Bearer aal2-nonstaff-token",
+          origin: bindings.adminOrigin,
+        },
+      },
+      bindings,
+    );
+
+    expect(response.status).toBe(403);
+    expect(staffReconciliation).toHaveBeenCalledOnce();
+    expect(await response.json()).toMatchObject({
       error: { code: "forbidden", retryable: false },
     });
   });

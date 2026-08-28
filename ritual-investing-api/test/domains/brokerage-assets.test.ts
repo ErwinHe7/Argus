@@ -79,6 +79,8 @@ describe("brokerage asset normalization", () => {
       instrumentId: string;
       ciphertext: Uint8Array;
       keyVersion: number;
+      assetKind: "equity" | "etf" | "unsupported";
+      providerAssetKind: string;
     }>();
     const repository: BrokerageAssetMappingRepository = {
       resolve: vi.fn(async (mapping) => {
@@ -88,6 +90,8 @@ describe("brokerage asset normalization", () => {
             instrumentId: mapping.candidateInstrumentId,
             ciphertext: mapping.providerAssetIdCiphertext,
             keyVersion: mapping.keyVersion,
+            assetKind: mapping.assetKind,
+            providerAssetKind: mapping.providerAssetKind,
           };
           persisted.set(mapping.providerAssetIdHash, winner);
         }
@@ -125,6 +129,10 @@ describe("brokerage asset normalization", () => {
     expect(JSON.stringify(left)).not.toContain("synthetic-asset-1");
     const winner = [...persisted.values()][0]!;
     expect(winner.keyVersion).toBe(3);
+    expect(winner).toMatchObject({
+      assetKind: "equity",
+      providerAssetKind: "EQUITY",
+    });
     await expect(vault.openProviderAssetIdentifier(
       winner.ciphertext,
       {

@@ -1,6 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
+grant usage on schema extensions to argus_runtime;
 set local search_path = extensions, pg_catalog, public;
 
 select plan(23);
@@ -51,7 +52,7 @@ select is(
     where n.nspname in ('argus_app', 'argus_brokerage', 'argus_private')
       and p.prosecdef
       and not (
-        coalesce(p.proconfig @> array['search_path=pg_catalog, auth, argus_private'], false)
+        coalesce(p.proconfig @> array['search_path=pg_catalog, argus_private'], false)
         or coalesce(p.proconfig @> array['search_path=pg_catalog'], false)
       )),
   0::bigint,
@@ -65,9 +66,9 @@ select is(
     where n.nspname = 'argus_private'
       and p.prosecdef
       and p.proname = 'has_staff_permission'
-      and p.prosrc not like '%auth.uid()%'),
+      and p.prosrc not like '%argus_private.request_user_id()%'),
   0::bigint,
-  'staff privilege helper checks the verified Supabase user'
+  'staff privilege helper checks the Argus-owned request identity'
 );
 
 insert into auth.users (
@@ -114,7 +115,9 @@ do $$ begin
 end $$;
 
 select is(
-  (select count(*)::bigint from argus_app.profiles),
+  (select count(*)::bigint
+     from argus_app.profiles
+    where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
   0::bigint,
   'runtime claims for user B cannot read user A profile'
 );
@@ -194,6 +197,7 @@ select is(
      from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('argus_app', 'argus_brokerage', 'argus_private')
+      and p.prokind in ('f', 'p')
       and pg_get_functiondef(p.oid) like '%auth.role()%'),
   0::bigint,
   'database code does not use deprecated auth.role()'

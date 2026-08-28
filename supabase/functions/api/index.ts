@@ -35,6 +35,11 @@ import {
   createBlockedBrokerageProjectionProvider,
   createBrokerageProjectionService,
 } from "../../../ritual-investing-api/src/domains/brokerage-projections/service.ts";
+import { createBrokerageOrderRepository } from "../../../ritual-investing-api/src/domains/brokerage-orders/repository.ts";
+import {
+  createBlockedBrokerageOrderProvider,
+  createBrokerageOrderService,
+} from "../../../ritual-investing-api/src/domains/brokerage-orders/service.ts";
 
 function requiredEnvironment(name: string): string {
   const value = Deno.env.get(name)?.trim();
@@ -123,6 +128,16 @@ const app = createRetainedApp({
       // generations can be served, but provider egress stays fail-closed until
       // a versioned partner read fixture and approval gate are configured.
       provider: createBlockedBrokerageProjectionProvider(),
+    }),
+  createBrokerageOrders: (claims) =>
+    createBrokerageOrderService({
+      repository: createBrokerageOrderRepository({
+        pool: databasePool,
+        claims,
+      }),
+      // Preview, mutation, and reconciliation egress remain closed until an
+      // exact versioned partner order contract is confirmed and sandboxed.
+      provider: createBlockedBrokerageOrderProvider(),
     }),
   telemetry: (event) => console.log(JSON.stringify(event)),
 });

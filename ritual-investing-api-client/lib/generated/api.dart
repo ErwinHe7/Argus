@@ -9,12 +9,14 @@ import 'package:ritual_investing_api_client/generated/auth/bearer_auth.dart';
 import 'package:ritual_investing_api_client/generated/auth/oauth.dart';
 import 'package:ritual_investing_api_client/generated/api/account_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_brokerage_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_media_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_moderation_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_operations_api.dart';
 import 'package:ritual_investing_api_client/generated/api/assets_api.dart';
 import 'package:ritual_investing_api_client/generated/api/briefings_api.dart';
 import 'package:ritual_investing_api_client/generated/api/brokerage_connections_api.dart';
+import 'package:ritual_investing_api_client/generated/api/brokerage_orders_api.dart';
 import 'package:ritual_investing_api_client/generated/api/brokerage_reads_api.dart';
 import 'package:ritual_investing_api_client/generated/api/circles_api.dart';
 import 'package:ritual_investing_api_client/generated/api/coven_api.dart';
@@ -169,6 +171,12 @@ class RitualInvestingApiClient {
     return AdminApi(dio);
   }
 
+  /// Get AdminBrokerageApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminBrokerageApi getAdminBrokerageApi() {
+    return AdminBrokerageApi(dio);
+  }
+
   /// Get AdminMediaApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   AdminMediaApi getAdminMediaApi() {
@@ -203,6 +211,12 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   BrokerageConnectionsApi getBrokerageConnectionsApi() {
     return BrokerageConnectionsApi(dio);
+  }
+
+  /// Get BrokerageOrdersApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  BrokerageOrdersApi getBrokerageOrdersApi() {
+    return BrokerageOrdersApi(dio);
   }
 
   /// Get BrokerageReadsApi instance, base route and serializer can be overridden by a given but be careful,

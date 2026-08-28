@@ -71,6 +71,7 @@ Class | Method | HTTP request | Description
 [*AdminApi*](doc/AdminApi.md) | [**getAdminSession**](doc/AdminApi.md#getadminsession) | **GET** /v1/admin/session | 
 [*AdminApi*](doc/AdminApi.md) | [**listAdminAudit**](doc/AdminApi.md#listadminaudit) | **GET** /v1/admin/audit | 
 [*AdminApi*](doc/AdminApi.md) | [**listAdminEditorial**](doc/AdminApi.md#listadmineditorial) | **GET** /v1/admin/editorial | 
+[*AdminBrokerageApi*](doc/AdminBrokerageApi.md) | [**getStaffWebullOrderReconciliation**](doc/AdminBrokerageApi.md#getstaffwebullorderreconciliation) | **GET** /v1/admin/brokerage/order-commands/{command_id} | 
 [*AdminMediaApi*](doc/AdminMediaApi.md) | [**finalizeUpload**](doc/AdminMediaApi.md#finalizeupload) | **POST** /v1/admin/media/upload-intents/{intent_id}/finalize | 
 [*AdminModerationApi*](doc/AdminModerationApi.md) | [**decideModeration**](doc/AdminModerationApi.md#decidemoderation) | **POST** /v1/admin/moderation/{case_id}/decision | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminJobs**](doc/AdminOperationsApi.md#listadminjobs) | **GET** /v1/admin/operations/jobs | 
@@ -86,6 +87,15 @@ Class | Method | HTTP request | Description
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**redeemWebullCompletion**](doc/BrokerageConnectionsApi.md#redeemwebullcompletion) | **POST** /v1/brokerage/connections/completions/redeem | 
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**selectWebullAccount**](doc/BrokerageConnectionsApi.md#selectwebullaccount) | **PATCH** /v1/brokerage/accounts/selection | 
 [*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**startWebullConnection**](doc/BrokerageConnectionsApi.md#startwebullconnection) | **POST** /v1/brokerage/connections/start | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**cancelWebullOrder**](doc/BrokerageOrdersApi.md#cancelwebullorder) | **POST** /v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**getWebullOrder**](doc/BrokerageOrdersApi.md#getwebullorder) | **GET** /v1/brokerage/accounts/{account_id}/orders/{order_id} | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**getWebullOrderCommand**](doc/BrokerageOrdersApi.md#getwebullordercommand) | **GET** /v1/brokerage/order-commands/{command_id} | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**listWebullOrders**](doc/BrokerageOrdersApi.md#listwebullorders) | **GET** /v1/brokerage/accounts/{account_id}/orders | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**modifyWebullOrder**](doc/BrokerageOrdersApi.md#modifywebullorder) | **PATCH** /v1/brokerage/accounts/{account_id}/orders/{order_id} | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**placeWebullOrder**](doc/BrokerageOrdersApi.md#placewebullorder) | **POST** /v1/brokerage/accounts/{account_id}/orders | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**previewWebullOrder**](doc/BrokerageOrdersApi.md#previewwebullorder) | **POST** /v1/brokerage/accounts/{account_id}/orders/previews | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**previewWebullOrderCancellation**](doc/BrokerageOrdersApi.md#previewwebullordercancellation) | **POST** /v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel-preview | 
+[*BrokerageOrdersApi*](doc/BrokerageOrdersApi.md) | [**previewWebullOrderModification**](doc/BrokerageOrdersApi.md#previewwebullordermodification) | **POST** /v1/brokerage/accounts/{account_id}/orders/{order_id}/modify-preview | 
 [*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullAccountCapabilities**](doc/BrokerageReadsApi.md#getwebullaccountcapabilities) | **GET** /v1/brokerage/accounts/{account_id}/capabilities | 
 [*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullBalances**](doc/BrokerageReadsApi.md#getwebullbalances) | **GET** /v1/brokerage/accounts/{account_id}/balances | 
 [*BrokerageReadsApi*](doc/BrokerageReadsApi.md) | [**getWebullPositions**](doc/BrokerageReadsApi.md#getwebullpositions) | **GET** /v1/brokerage/accounts/{account_id}/positions | 
@@ -138,12 +148,26 @@ Class | Method | HTTP request | Description
  - [BrokerageCapabilitiesProjection](doc/BrokerageCapabilitiesProjection.md)
  - [BrokerageCapabilitiesResponse](doc/BrokerageCapabilitiesResponse.md)
  - [BrokerageCapability](doc/BrokerageCapability.md)
+ - [BrokerageOrder](doc/BrokerageOrder.md)
+ - [BrokerageOrderCommand](doc/BrokerageOrderCommand.md)
+ - [BrokerageOrderCommandResponse](doc/BrokerageOrderCommandResponse.md)
+ - [BrokerageOrderDetail](doc/BrokerageOrderDetail.md)
+ - [BrokerageOrderDetailResponse](doc/BrokerageOrderDetailResponse.md)
+ - [BrokerageOrderList](doc/BrokerageOrderList.md)
+ - [BrokerageOrderPreview](doc/BrokerageOrderPreview.md)
+ - [BrokerageOrderPreviewResponse](doc/BrokerageOrderPreviewResponse.md)
+ - [BrokerageOrderReconciliation](doc/BrokerageOrderReconciliation.md)
+ - [BrokerageOrderReconciliationResponse](doc/BrokerageOrderReconciliationResponse.md)
+ - [BrokerageOrdersResponse](doc/BrokerageOrdersResponse.md)
  - [BrokeragePosition](doc/BrokeragePosition.md)
  - [BrokeragePositionsProjection](doc/BrokeragePositionsProjection.md)
  - [BrokeragePositionsResponse](doc/BrokeragePositionsResponse.md)
  - [BrokerageRestriction](doc/BrokerageRestriction.md)
  - [BrokerageRestrictionsProjection](doc/BrokerageRestrictionsProjection.md)
  - [BrokerageRestrictionsResponse](doc/BrokerageRestrictionsResponse.md)
+ - [ConfirmCancelBrokerageOrder](doc/ConfirmCancelBrokerageOrder.md)
+ - [ConfirmModifyBrokerageOrder](doc/ConfirmModifyBrokerageOrder.md)
+ - [ConfirmPlaceBrokerageOrder](doc/ConfirmPlaceBrokerageOrder.md)
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
  - [CreateUploadIntentRequest](doc/CreateUploadIntentRequest.md)
  - [DecideModerationRequest](doc/DecideModerationRequest.md)
@@ -154,6 +178,8 @@ Class | Method | HTTP request | Description
  - [GetAccount401Response](doc/GetAccount401Response.md)
  - [GetAccount401ResponseError](doc/GetAccount401ResponseError.md)
  - [IssueMemberStepUpRequest](doc/IssueMemberStepUpRequest.md)
+ - [ModifyBrokerageOrderIntent](doc/ModifyBrokerageOrderIntent.md)
+ - [PlaceBrokerageOrderIntent](doc/PlaceBrokerageOrderIntent.md)
  - [ReconnectWebullConnectionRequest](doc/ReconnectWebullConnectionRequest.md)
  - [RecordConsentRequest](doc/RecordConsentRequest.md)
  - [RedeemWebullCompletionRequest](doc/RedeemWebullCompletionRequest.md)

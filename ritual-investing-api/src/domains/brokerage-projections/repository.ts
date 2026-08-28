@@ -147,7 +147,7 @@ export function createBrokerageProjectionRepository(
              on connection.id=account.connection_id
             and connection.user_id=account.user_id
             and connection.deletion_epoch=account.deletion_epoch
-          where account.id=$1 and account.user_id=auth.uid()`,
+          where account.id=$1 and account.user_id=argus_private.request_user_id()`,
         [accountId],
       );
       const row = result.rows[0];
@@ -202,7 +202,7 @@ export function createBrokerageProjectionRepository(
                on selection.user_id=account.user_id
               and selection.connection_id=account.connection_id
               and selection.account_id=account.id
-            where account.user_id=auth.uid()
+            where account.user_id=argus_private.request_user_id()
               and connection.status not in ('denied','failed','disconnected')
             order by account.display_label,account.id`,
         );
@@ -249,7 +249,7 @@ export function createBrokerageProjectionRepository(
               and account.user_id=generation.user_id
             where generation.account_id=$1
               and generation.resource_type=$2
-              and generation.user_id=auth.uid()
+              and generation.user_id=argus_private.request_user_id()
             order by generation.generation desc limit 1`,
           [accountId, resource],
         );
@@ -275,7 +275,7 @@ export function createBrokerageProjectionRepository(
                  on connection.id=account.connection_id
                 and connection.user_id=account.user_id
                 and connection.deletion_epoch=account.deletion_epoch
-              where account.id=$1 and account.user_id=auth.uid()
+              where account.id=$1 and account.user_id=argus_private.request_user_id()
                 and account.connection_id=$5
                 and account.deletion_epoch=$6
                 and connection.status='connected'
@@ -328,7 +328,7 @@ export function createBrokerageProjectionRepository(
               and lease.resource_type=$2
               and lease.lease_token=$3
               and lease.leased_until > now()
-            where account.id=$1 and account.user_id=auth.uid()
+            where account.id=$1 and account.user_id=argus_private.request_user_id()
               and account.connection_id=$4 and account.deletion_epoch=$5
               and connection.status='connected'
             for update of account`,
@@ -348,7 +348,7 @@ export function createBrokerageProjectionRepository(
              user_id,deletion_epoch,connection_id,account_id,resource_type,
              generation,normalized_payload,provider_observed_at,fetched_at,
              expires_at,availability,reason_code,purge_after
-           ) select auth.uid(),$5,$4,$1,$2,
+           ) select argus_private.request_user_id(),$5,$4,$1,$2,
                     coalesce(max(existing.generation),0)+1,$6::jsonb,$7,$8,
                     $9,$10,$11,$12
                from argus_brokerage.projection_generations existing
@@ -380,7 +380,7 @@ export function createBrokerageProjectionRepository(
         await database.query(
           `delete from argus_private.projection_refresh_leases
             where account_id=$1 and resource_type=$2 and lease_token=$3
-              and user_id=auth.uid()`,
+              and user_id=argus_private.request_user_id()`,
           [accountId, resource, leaseToken],
         );
       }),
@@ -389,7 +389,7 @@ export function createBrokerageProjectionRepository(
         const result = await database.query(
           `update argus_brokerage.accounts
               set status='unavailable',expires_at=now()
-            where id=$1 and user_id=auth.uid()
+            where id=$1 and user_id=argus_private.request_user_id()
           returning connection_id`,
           [accountId],
         );
@@ -398,7 +398,7 @@ export function createBrokerageProjectionRepository(
         }
         await database.query(
           `delete from argus_brokerage.active_account_selections
-            where account_id=$1 and user_id=auth.uid()`,
+            where account_id=$1 and user_id=argus_private.request_user_id()`,
           [accountId],
         );
       }),
@@ -409,12 +409,12 @@ export function createBrokerageProjectionRepository(
               set status='reauthorization_required',
                   last_error_code='provider_authorization_invalid',
                   updated_at=now()
-            where id=$1 and user_id=auth.uid()`,
+            where id=$1 and user_id=argus_private.request_user_id()`,
           [connectionId],
         );
         await database.query(
           `delete from argus_brokerage.active_account_selections
-            where connection_id=$1 and user_id=auth.uid()`,
+            where connection_id=$1 and user_id=argus_private.request_user_id()`,
           [connectionId],
         );
       }),

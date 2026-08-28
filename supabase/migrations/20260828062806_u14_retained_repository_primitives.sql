@@ -5,7 +5,7 @@ create or replace function argus_private.provision_argus_member()
 returns trigger
 language plpgsql
 security definer
-set search_path = pg_catalog, auth, argus_private
+set search_path = pg_catalog, argus_private
 as $$
 begin
   insert into argus_app.members (user_id)
@@ -86,7 +86,7 @@ create or replace function argus_private.request_admin_job_retry(
 returns uuid
 language plpgsql
 security invoker
-set search_path = pg_catalog, auth, argus_private
+set search_path = pg_catalog, argus_private
 as $$
 declare
   requested_job argus_private.job_runs%rowtype;
@@ -129,7 +129,7 @@ create policy runtime_member_active_evidence_source_read
     status = 'active'
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -143,7 +143,7 @@ create policy runtime_member_active_evidence_claim_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -162,7 +162,7 @@ create policy runtime_member_published_company_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -179,7 +179,7 @@ create policy runtime_member_published_coven_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -196,7 +196,7 @@ create policy runtime_member_published_grimoire_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -213,7 +213,7 @@ create policy runtime_member_published_template_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -230,7 +230,7 @@ create policy runtime_member_published_ritual_scenario_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -248,7 +248,7 @@ create policy runtime_member_published_ritual_revision_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -265,7 +265,7 @@ create policy runtime_member_published_rowan_script_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -283,7 +283,7 @@ create policy runtime_member_published_rowan_revision_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );
 
@@ -301,6 +301,6 @@ create policy runtime_member_published_rowan_binding_read
     )
     and exists (
       select 1 from argus_app.members member
-       where member.user_id = (select auth.uid()) and member.status = 'active'
+       where member.user_id = (select argus_private.request_user_id()) and member.status = 'active'
     )
   );

@@ -1,0 +1,49 @@
+//
+// AUTO-GENERATED FILE, DO NOT MODIFY!
+//
+
+// ignore_for_file: unused_element
+import 'package:ritual_investing_api_client/generated/model/get_account200_response_meta.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_command.dart';
+import 'package:copy_with_extension/copy_with_extension.dart';
+import 'package:json_annotation/json_annotation.dart';
+
+part 'brokerage_order_command_response.g.dart';
+
+@CopyWith()
+@JsonSerializable(
+  checked: true,
+  createToJson: true,
+  disallowUnrecognizedKeys: false,
+  explicitToJson: true,
+)
+class BrokerageOrderCommandResponse {
+  /// Returns a new [BrokerageOrderCommandResponse] instance.
+  BrokerageOrderCommandResponse({required this.data, required this.meta});
+
+  @JsonKey(name: r'data', required: true, includeIfNull: false)
+  final BrokerageOrderCommand data;
+
+  @JsonKey(name: r'meta', required: true, includeIfNull: false)
+  final GetAccount200ResponseMeta meta;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is BrokerageOrderCommandResponse &&
+          other.data == data &&
+          other.meta == meta;
+
+  @override
+  int get hashCode => data.hashCode + meta.hashCode;
+
+  factory BrokerageOrderCommandResponse.fromJson(Map<String, dynamic> json) =>
+      _$BrokerageOrderCommandResponseFromJson(json);
+
+  Map<String, dynamic> toJson() => _$BrokerageOrderCommandResponseToJson(this);
+
+  @override
+  String toString() {
+    return toJson().toString();
+  }
+}

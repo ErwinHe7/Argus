@@ -1,0 +1,45 @@
+{
+  "fixture_version": "webull-order-synthetic-v1",
+  "contract_status": "partner_confirmation_required",
+  "real_egress_enabled": false,
+  "approved_manual_subset": {
+    "asset_kinds": ["EQUITY", "ETF"],
+    "sides": ["BUY", "SELL"],
+    "order_types": ["MARKET", "LIMIT"],
+    "time_in_force": ["DAY"],
+    "fractional": false,
+    "notional": false
+  },
+  "synthetic_detail": {
+    "provider_order_id": "SYNTHETIC-ORDER-0001",
+    "provider_asset_id": "SYNTHETIC-ASSET-0001",
+    "symbol": "ARGX",
+    "side": "BUY",
+    "order_type": "LIMIT",
+    "time_in_force": "DAY",
+    "quantity": "3.000000000000000001",
+    "filled_quantity": "1.000000000000000001",
+    "limit_price": "10.250000000000000001",
+    "stop_price": null,
+    "average_fill_price": "10.250000000000000001",
+    "currency": "USD",
+    "state": "PARTIALLY_FILLED",
+    "provider_observed_at": "2026-08-28T12:00:00Z"
+  },
+  "synthetic_unknown_detail": {
+    "provider_order_id": "SYNTHETIC-ORDER-UNKNOWN",
+    "provider_asset_id": "SYNTHETIC-ASSET-0001",
+    "symbol": "ARGX",
+    "side": "OPEN_LONG_V2",
+    "order_type": "PEGGED_V2",
+    "time_in_force": "SESSION_V2",
+    "quantity": "1",
+    "filled_quantity": "0",
+    "limit_price": null,
+    "stop_price": null,
+    "average_fill_price": null,
+    "currency": "USD",
+    "state": "PARKED_V2",
+    "provider_observed_at": "2026-08-28T12:00:00Z"
+  }
+}

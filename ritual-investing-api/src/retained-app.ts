@@ -22,6 +22,8 @@ import {
   type BrokerageProjectionResource,
 } from "./domains/brokerage-projections/types.ts";
 import type { BrokerageProjectionService } from "./domains/brokerage-projections/service.ts";
+import { BrokerageOrderError } from "./domains/brokerage-orders/types.ts";
+import type { BrokerageOrderService } from "./domains/brokerage-orders/service.ts";
 
 type RepositoryModule = typeof import("./db/supabase-repositories.ts");
 
@@ -35,14 +37,20 @@ export type RetainedRepositorySet = Readonly<{
   coven: ReturnType<RepositoryModule["createSupabaseCovenRepository"]>;
   discover: ReturnType<RepositoryModule["createSupabaseDiscoverRepository"]>;
   media: ReturnType<RepositoryModule["createSupabaseMediaRepository"]>;
-  moderation: ReturnType<RepositoryModule["createSupabaseModerationRepository"]>;
-  notifications: ReturnType<RepositoryModule["createSupabaseNotificationRepository"]>;
+  moderation: ReturnType<
+    RepositoryModule["createSupabaseModerationRepository"]
+  >;
+  notifications: ReturnType<
+    RepositoryModule["createSupabaseNotificationRepository"]
+  >;
   privacy: ReturnType<RepositoryModule["createSupabasePrivacyRepository"]>;
   rituals: ReturnType<RepositoryModule["createSupabaseRitualRepository"]>;
   rowan: ReturnType<RepositoryModule["createSupabaseRowanRepository"]>;
   search: ReturnType<RepositoryModule["createSupabaseSearchRepository"]>;
   admin: ReturnType<RepositoryModule["createSupabaseAdminRepository"]>;
-  adminOperations: ReturnType<RepositoryModule["createSupabaseAdminOperationsRepository"]>;
+  adminOperations: ReturnType<
+    RepositoryModule["createSupabaseAdminOperationsRepository"]
+  >;
 }>;
 
 export type PublicPreviewRepository = ReturnType<
@@ -99,6 +107,9 @@ export type CreateRetainedAppOptions = Readonly<{
   createBrokerageProjections?: (
     claims: VerifiedRequestClaims,
   ) => BrokerageProjectionService;
+  createBrokerageOrders?: (
+    claims: VerifiedRequestClaims,
+  ) => BrokerageOrderService;
   requestId?: () => string;
   telemetry?: (event: RetainedTelemetryEvent) => void | Promise<void>;
 }>;
@@ -254,6 +265,141 @@ const brokerageRestrictionsResponseSchema = brokerageEnvelope(
     z.array(brokerageRestrictionSchema).max(256),
   ),
 );
+const brokerageOrderStateSchema = z.enum([
+  "pending",
+  "partially_filled",
+  "filled",
+  "cancelled",
+  "rejected",
+  "expired",
+  "unknown",
+]);
+const brokerageOrderSchema = z.object({
+  id: uuid,
+  instrument_id: uuid,
+  symbol: z.string().min(1).max(32),
+  side: z.enum(["buy", "sell", "unsupported"]),
+  provider_side: z.string().min(1).max(128),
+  order_type: z.enum(["market", "limit", "stop", "stop_limit", "unsupported"]),
+  provider_order_type: z.string().min(1).max(128),
+  time_in_force: z.enum(["day", "gtc", "unsupported"]),
+  provider_time_in_force: z.string().min(1).max(128),
+  quantity: decimalStringSchema,
+  filled_quantity: decimalStringSchema,
+  limit_price: decimalStringSchema.nullable(),
+  stop_price: decimalStringSchema.nullable(),
+  average_fill_price: decimalStringSchema.nullable(),
+  currency: z.string().regex(/^[A-Z]{3}$/),
+  state: brokerageOrderStateSchema,
+  provider_state: z.string().min(1).max(128),
+  terminal: z.boolean(),
+}).strict().openapi("BrokerageOrder");
+const brokerageOrderDetailSchema = brokerageOrderSchema.extend({
+  generation: z.number().int().positive(),
+  source: z.enum(["list", "detail"]),
+  provider_observed_at: z.string().datetime(),
+  fetched_at: z.string().datetime(),
+}).strict().openapi("BrokerageOrderDetail");
+const brokerageOrdersResponseSchema = brokerageEnvelope(
+  "BrokerageOrdersResponse",
+  z.object({
+    account_id: uuid,
+    state: brokerageStateSchema,
+    provider_observed_at: z.string().datetime().nullable(),
+    fetched_at: z.string().datetime().nullable(),
+    expires_at: z.string().datetime().nullable(),
+    orders: z.array(brokerageOrderSchema).max(10_000),
+  }).strict().openapi("BrokerageOrderList"),
+);
+const brokerageOrderDetailResponseSchema = brokerageEnvelope(
+  "BrokerageOrderDetailResponse",
+  brokerageOrderDetailSchema,
+);
+const placeOrderIntentSchema = z.object({
+  instrument_id: uuid,
+  side: z.enum(["buy", "sell"]),
+  order_type: z.enum(["market", "limit"]),
+  time_in_force: z.literal("day"),
+  quantity: decimalStringSchema,
+  limit_price: decimalStringSchema.nullable(),
+}).strict().openapi("PlaceBrokerageOrderIntent");
+const modifyOrderIntentSchema = z.object({
+  quantity: decimalStringSchema,
+  limit_price: decimalStringSchema.nullable(),
+}).strict().openapi("ModifyBrokerageOrderIntent");
+const brokerageOrderPreviewSchema = z.object({
+  id: uuid,
+  account_id: uuid,
+  operation: z.enum(["place", "modify", "cancel"]),
+  target_order_id: uuid.nullable(),
+  policy_version: z.string().min(8).max(128),
+  capability_version: z.number().int().nonnegative(),
+  restriction_generation: z.number().int().positive(),
+  reviewed_payload_hash: z.string().regex(/^[a-f0-9]{64}$/),
+  estimated_total: decimalStringSchema.nullable(),
+  currency: z.string().regex(/^[A-Z]{3}$/).nullable(),
+  expires_at: z.string().datetime(),
+}).strict().openapi("BrokerageOrderPreview");
+const brokerageOrderPreviewResponseSchema = brokerageEnvelope(
+  "BrokerageOrderPreviewResponse",
+  brokerageOrderPreviewSchema,
+);
+const confirmPlaceOrderSchema = z.object({
+  preview_id: uuid,
+  confirmed: z.literal(true),
+  intent: placeOrderIntentSchema,
+}).strict().openapi("ConfirmPlaceBrokerageOrder");
+const confirmModifyOrderSchema = z.object({
+  preview_id: uuid,
+  confirmed: z.literal(true),
+  intent: modifyOrderIntentSchema,
+}).strict().openapi("ConfirmModifyBrokerageOrder");
+const confirmCancelOrderSchema = z.object({
+  preview_id: uuid,
+  confirmed: z.literal(true),
+}).strict().openapi("ConfirmCancelBrokerageOrder");
+const brokerageCommandStateSchema = z.enum([
+  "dispatching",
+  "accepted",
+  "ambiguous",
+  "reconciling",
+  "resolved",
+  "failed",
+  "manual_review",
+]);
+const brokerageOrderCommandSchema = z.object({
+  id: uuid,
+  account_id: uuid,
+  operation: z.enum(["place", "modify", "cancel"]),
+  target_order_id: uuid.nullable(),
+  order_id: uuid.nullable(),
+  state: brokerageCommandStateSchema,
+  ambiguous: z.boolean(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+}).strict().openapi("BrokerageOrderCommand");
+const brokerageOrderCommandResponseSchema = brokerageEnvelope(
+  "BrokerageOrderCommandResponse",
+  brokerageOrderCommandSchema,
+);
+const brokerageOrderReconciliationResponseSchema = brokerageEnvelope(
+  "BrokerageOrderReconciliationResponse",
+  z.object({
+    command: brokerageOrderCommandSchema,
+    status: z.enum([
+      "pending",
+      "running",
+      "resolved",
+      "manual_review",
+      "exhausted",
+    ])
+      .nullable(),
+    attempts: z.number().int().nonnegative(),
+    next_attempt_at: z.string().datetime().nullable(),
+    last_error_code: z.string().max(64).nullable(),
+    egress_started_at: z.string().datetime(),
+  }).strict().openapi("BrokerageOrderReconciliation"),
+);
 const errorSchema = z
   .object({
     error: z
@@ -320,7 +466,9 @@ function bearerToken(value: string | undefined): string | null {
   return match?.[1] ?? null;
 }
 
-function claimsFrom(principal: VerifiedSupabasePrincipal): VerifiedRequestClaims {
+function claimsFrom(
+  principal: VerifiedSupabasePrincipal,
+): VerifiedRequestClaims {
   return Object.freeze({
     userId: uuid.parse(principal.userId),
     sessionId: uuid.parse(principal.sessionId),
@@ -402,13 +550,12 @@ function dataResponse(
       "The requested resource was not found.",
     );
   }
-  const version =
-    typeof data === "object" &&
-    data !== null &&
-    "version" in data &&
-    Number.isInteger((data as { version?: unknown }).version)
-      ? Number((data as { version: number }).version)
-      : undefined;
+  const version = typeof data === "object" &&
+      data !== null &&
+      "version" in data &&
+      Number.isInteger((data as { version?: unknown }).version)
+    ? Number((data as { version: number }).version)
+    : undefined;
   if (version !== undefined) context.header("etag", `"v${version}"`);
   return context.json(
     { data, meta: { request_id: context.get("requestId") } },
@@ -536,6 +683,22 @@ function brokerageProjections(
   return factory(context.get("claims"));
 }
 
+function brokerageOrders(
+  context: Context<RetainedAppEnvironment>,
+  options: CreateRetainedAppOptions,
+): BrokerageOrderService {
+  const factory = options.createBrokerageOrders;
+  if (factory === undefined) {
+    throw new HttpBoundaryError(
+      503,
+      "brokerage_orders_unavailable",
+      "Brokerage orders are temporarily unavailable.",
+      true,
+    );
+  }
+  return factory(context.get("claims"));
+}
+
 export function buildRetainedOpenApiDocument(
   app: OpenAPIHono<RetainedAppEnvironment>,
 ) {
@@ -630,12 +793,18 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     }
     if (origin === expectedOrigin) {
       context.header("access-control-allow-origin", expectedOrigin);
-      context.header("access-control-allow-methods", "GET, POST, PATCH, DELETE, OPTIONS");
+      context.header(
+        "access-control-allow-methods",
+        "GET, POST, PATCH, DELETE, OPTIONS",
+      );
       context.header(
         "access-control-allow-headers",
         "authorization, content-type, if-match, idempotency-key, x-request-id",
       );
-      context.header("access-control-expose-headers", "etag, retry-after, x-request-id");
+      context.header(
+        "access-control-expose-headers",
+        "etag, retry-after, x-request-id",
+      );
       context.header("access-control-max-age", "600");
       context.header("vary", "origin");
     }
@@ -828,6 +997,36 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         ),
       );
     }
+    if (error instanceof BrokerageOrderError) {
+      const notFound = [
+        "account_not_found",
+        "order_not_found",
+        "command_not_found",
+      ]
+        .includes(error.code);
+      const conflict = [
+        "idempotency_conflict",
+        "account_command_blocked",
+        "preview_replayed",
+        "preview_mismatch",
+      ].includes(error.code);
+      const unavailable = error.code === "provider_contract_unavailable";
+      return errorResponse(
+        context,
+        new HttpBoundaryError(
+          notFound ? 404 : conflict ? 409 : unavailable ? 503 : 422,
+          error.code,
+          notFound
+            ? "The requested brokerage order resource was not found."
+            : conflict
+            ? "The financial command conflicts with existing or reviewed state."
+            : unavailable
+            ? "Brokerage order execution is temporarily unavailable."
+            : "Current brokerage authority does not permit this order action.",
+          unavailable,
+        ),
+      );
+    }
     return errorResponse(
       context,
       new HttpBoundaryError(
@@ -852,7 +1051,9 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   const middlewareByPath = new Map<string, RouteAccess>();
   const register = (
     definition: ReturnType<typeof route>,
-    handler: (context: Context<RetainedAppEnvironment>) => Response | Promise<Response>,
+    handler: (
+      context: Context<RetainedAppEnvironment>,
+    ) => Response | Promise<Response>,
   ) => {
     const routingPath = definition.getRoutingPath();
     const access = routeAccess.get(definition);
@@ -926,7 +1127,10 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   );
   register(bodylessBootstrap, async (context) => {
     await rejectBody(context);
-    return dataResponse(context, await repositories(context, options).session.bootstrap());
+    return dataResponse(
+      context,
+      await repositories(context, options).session.bootstrap(),
+    );
   });
 
   const stepUpBody = z.object({
@@ -1085,37 +1289,39 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   const brokerageReadQuery = z.object({
     refresh: z.enum(["true", "false"]).optional(),
   });
-  for (const [path, operationId, resource, response] of [
-    [
-      "/v1/brokerage/accounts/{account_id}/capabilities",
-      "getWebullAccountCapabilities",
-      "account",
-      brokerageCapabilitiesResponseSchema,
-    ],
-    [
-      "/v1/brokerage/accounts/{account_id}/balances",
-      "getWebullBalances",
-      "balance",
-      brokerageBalancesResponseSchema,
-    ],
-    [
-      "/v1/brokerage/accounts/{account_id}/positions",
-      "getWebullPositions",
-      "positions",
-      brokeragePositionsResponseSchema,
-    ],
-    [
-      "/v1/brokerage/accounts/{account_id}/restrictions",
-      "getWebullRestrictions",
-      "restrictions",
-      brokerageRestrictionsResponseSchema,
-    ],
-  ] as const satisfies readonly (readonly [
-    string,
-    string,
-    BrokerageProjectionResource,
-    z.ZodType,
-  ])[]) {
+  for (
+    const [path, operationId, resource, response] of [
+      [
+        "/v1/brokerage/accounts/{account_id}/capabilities",
+        "getWebullAccountCapabilities",
+        "account",
+        brokerageCapabilitiesResponseSchema,
+      ],
+      [
+        "/v1/brokerage/accounts/{account_id}/balances",
+        "getWebullBalances",
+        "balance",
+        brokerageBalancesResponseSchema,
+      ],
+      [
+        "/v1/brokerage/accounts/{account_id}/positions",
+        "getWebullPositions",
+        "positions",
+        brokeragePositionsResponseSchema,
+      ],
+      [
+        "/v1/brokerage/accounts/{account_id}/restrictions",
+        "getWebullRestrictions",
+        "restrictions",
+        brokerageRestrictionsResponseSchema,
+      ],
+    ] as const satisfies readonly (readonly [
+      string,
+      string,
+      BrokerageProjectionResource,
+      z.ZodType,
+    ])[]
+  ) {
     const definition = route(
       "get",
       path,
@@ -1140,9 +1346,263 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       ));
   }
 
+  const brokerageOrderPath = z.object({ account_id: uuid });
+  const brokerageOrderReadQuery = z.object({
+    refresh: z.enum(["true", "false"]).optional(),
+  });
+  const brokerageOrderDetailPath = z.object({
+    account_id: uuid,
+    order_id: uuid,
+  });
+  const listBrokerageOrders = route(
+    "get",
+    "/v1/brokerage/accounts/{account_id}/orders",
+    "listWebullOrders",
+    "Brokerage Orders",
+    {
+      pathParams: brokerageOrderPath,
+      query: brokerageOrderReadQuery,
+      description:
+        "Provider-authoritative order history with explicit freshness.",
+      response: brokerageOrdersResponseSchema,
+    },
+  );
+  register(listBrokerageOrders, async (context) =>
+    dataResponse(
+      context,
+      await brokerageOrders(context, options).listOrders(
+        uuid.parse(context.req.param("account_id")),
+        context.req.query("refresh") === "true",
+      ),
+    ));
+
+  const getBrokerageOrder = route(
+    "get",
+    "/v1/brokerage/accounts/{account_id}/orders/{order_id}",
+    "getWebullOrder",
+    "Brokerage Orders",
+    {
+      pathParams: brokerageOrderDetailPath,
+      description:
+        "Latest positive order detail evidence; provider identifiers stay private.",
+      response: brokerageOrderDetailResponseSchema,
+    },
+  );
+  register(getBrokerageOrder, async (context) =>
+    dataResponse(
+      context,
+      await brokerageOrders(context, options).order(
+        uuid.parse(context.req.param("account_id")),
+        uuid.parse(context.req.param("order_id")),
+      ),
+    ));
+
+  const previewPlaceOrder = route(
+    "post",
+    "/v1/brokerage/accounts/{account_id}/orders/previews",
+    "previewWebullOrder",
+    "Brokerage Orders",
+    {
+      pathParams: brokerageOrderPath,
+      body: placeOrderIntentSchema,
+      description:
+        "Short-lived capability- and restriction-bound manual order review.",
+      response: brokerageOrderPreviewResponseSchema,
+    },
+  );
+  register(previewPlaceOrder, async (context) =>
+    dataResponse(
+      context,
+      await brokerageOrders(context, options).previewPlace(
+        uuid.parse(context.req.param("account_id")),
+        await parseBody(context, placeOrderIntentSchema),
+      ),
+    ));
+
+  const previewModifyOrder = route(
+    "post",
+    "/v1/brokerage/accounts/{account_id}/orders/{order_id}/modify-preview",
+    "previewWebullOrderModification",
+    "Brokerage Orders",
+    {
+      pathParams: brokerageOrderDetailPath,
+      body: modifyOrderIntentSchema,
+      description:
+        "Review a modification only after proving target-order ownership.",
+      response: brokerageOrderPreviewResponseSchema,
+    },
+  );
+  register(previewModifyOrder, async (context) =>
+    dataResponse(
+      context,
+      await brokerageOrders(context, options).previewModify(
+        uuid.parse(context.req.param("account_id")),
+        uuid.parse(context.req.param("order_id")),
+        await parseBody(context, modifyOrderIntentSchema),
+      ),
+    ));
+
+  const previewCancelOrder = route(
+    "post",
+    "/v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel-preview",
+    "previewWebullOrderCancellation",
+    "Brokerage Orders",
+    {
+      pathParams: brokerageOrderDetailPath,
+      description:
+        "Review cancellation only after proving target-order ownership.",
+      response: brokerageOrderPreviewResponseSchema,
+    },
+  );
+  register(previewCancelOrder, async (context) => {
+    await rejectBody(context);
+    return dataResponse(
+      context,
+      await brokerageOrders(context, options).previewCancel(
+        uuid.parse(context.req.param("account_id")),
+        uuid.parse(context.req.param("order_id")),
+      ),
+    );
+  });
+
+  const mutationHeaders = z.object({ "idempotency-key": idempotencyKey });
+  const placeBrokerageOrder = route(
+    "post",
+    "/v1/brokerage/accounts/{account_id}/orders",
+    "placeWebullOrder",
+    "Brokerage Orders",
+    {
+      pathParams: brokerageOrderPath,
+      headers: mutationHeaders,
+      body: confirmPlaceOrderSchema,
+      description:
+        "Persist once before one provider submission; ambiguous results are never blindly retried.",
+      response: brokerageOrderCommandResponseSchema,
+    },
+  );
+  register(placeBrokerageOrder, async (context) => {
+    const body = await parseBody(context, confirmPlaceOrderSchema);
+    return dataResponse(
+      context,
+      await brokerageOrders(context, options).confirmPlace({
+        accountId: uuid.parse(context.req.param("account_id")),
+        previewId: body.preview_id,
+        idempotencyKey: idempotencyKey.parse(
+          context.req.header("idempotency-key"),
+        ),
+        intent: body.intent,
+      }),
+    );
+  });
+
+  const modifyBrokerageOrder = route(
+    "patch",
+    "/v1/brokerage/accounts/{account_id}/orders/{order_id}",
+    "modifyWebullOrder",
+    "Brokerage Orders",
+    {
+      pathParams: brokerageOrderDetailPath,
+      headers: mutationHeaders,
+      body: confirmModifyOrderSchema,
+      description:
+        "Create a distinct durable modification command against an owned order.",
+      response: brokerageOrderCommandResponseSchema,
+    },
+  );
+  register(modifyBrokerageOrder, async (context) => {
+    const body = await parseBody(context, confirmModifyOrderSchema);
+    return dataResponse(
+      context,
+      await brokerageOrders(context, options).confirmModify({
+        accountId: uuid.parse(context.req.param("account_id")),
+        orderId: uuid.parse(context.req.param("order_id")),
+        previewId: body.preview_id,
+        idempotencyKey: idempotencyKey.parse(
+          context.req.header("idempotency-key"),
+        ),
+        intent: body.intent,
+      }),
+    );
+  });
+
+  const cancelBrokerageOrder = route(
+    "post",
+    "/v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel",
+    "cancelWebullOrder",
+    "Brokerage Orders",
+    {
+      pathParams: brokerageOrderDetailPath,
+      headers: mutationHeaders,
+      body: confirmCancelOrderSchema,
+      description:
+        "Create a distinct durable cancellation command against an owned order.",
+      response: brokerageOrderCommandResponseSchema,
+    },
+  );
+  register(cancelBrokerageOrder, async (context) => {
+    const body = await parseBody(context, confirmCancelOrderSchema);
+    return dataResponse(
+      context,
+      await brokerageOrders(context, options).confirmCancel({
+        accountId: uuid.parse(context.req.param("account_id")),
+        orderId: uuid.parse(context.req.param("order_id")),
+        previewId: body.preview_id,
+        idempotencyKey: idempotencyKey.parse(
+          context.req.header("idempotency-key"),
+        ),
+      }),
+    );
+  });
+
+  const commandPath = z.object({ command_id: uuid });
+  const getBrokerageOrderCommand = route(
+    "get",
+    "/v1/brokerage/order-commands/{command_id}",
+    "getWebullOrderCommand",
+    "Brokerage Orders",
+    {
+      pathParams: commandPath,
+      description: "Owner-scoped redacted command and reconciliation state.",
+      response: brokerageOrderCommandResponseSchema,
+    },
+  );
+  register(getBrokerageOrderCommand, async (context) =>
+    dataResponse(
+      context,
+      await brokerageOrders(context, options).command(
+        uuid.parse(context.req.param("command_id")),
+      ),
+    ));
+
+  const getStaffBrokerageOrderCommand = route(
+    "get",
+    "/v1/admin/brokerage/order-commands/{command_id}",
+    "getStaffWebullOrderReconciliation",
+    "Admin Brokerage",
+    {
+      pathParams: commandPath,
+      description:
+        "AAL2 staff-only redacted command and reconciliation diagnostics.",
+      response: brokerageOrderReconciliationResponseSchema,
+    },
+  );
+  register(getStaffBrokerageOrderCommand, async (context) =>
+    dataResponse(
+      context,
+      await brokerageOrders(context, options).staffReconciliation(
+        uuid.parse(context.req.param("command_id")),
+      ),
+    ));
+
   const account = route("get", "/v1/account", "getAccount", "Account");
-  register(account, async (context) =>
-    dataResponse(context, await repositories(context, options).accounts.get()));
+  register(
+    account,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).accounts.get(),
+      ),
+  );
 
   const preferencesPatch = z
     .object({
@@ -1165,8 +1625,12 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       context,
       await repositories(context, options).accounts.updatePreferences(
         {
-          ...(patch.themeMode === undefined ? {} : { themeMode: patch.themeMode }),
-          ...(patch.ritualMode === undefined ? {} : { ritualMode: patch.ritualMode }),
+          ...(patch.themeMode === undefined
+            ? {}
+            : { themeMode: patch.themeMode }),
+          ...(patch.ritualMode === undefined
+            ? {}
+            : { ritualMode: patch.ritualMode }),
           ...(patch.timezone === undefined ? {} : { timezone: patch.timezone }),
           ...(patch.locale === undefined ? {} : { locale: patch.locale }),
         },
@@ -1301,7 +1765,10 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       ),
     ));
   const circleBody = z
-    .object({ title: z.string().min(1).max(120), description: z.string().max(1000) })
+    .object({
+      title: z.string().min(1).max(120),
+      description: z.string().max(1000),
+    })
     .strict();
   const createCircle = route("post", "/v1/circles", "createCircle", "Circles", {
     body: circleBody,
@@ -1366,7 +1833,10 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         limit.parse(context.req.query("limit")),
       ),
     ));
-  const savedPath = z.object({ item_kind: z.enum(["asset", "grimoire", "circle_template", "coven"]), item_id: uuid });
+  const savedPath = z.object({
+    item_kind: z.enum(["asset", "grimoire", "circle_template", "coven"]),
+    item_id: uuid,
+  });
   const saveItem = route(
     "post",
     "/v1/saved/{item_kind}/{item_id}",
@@ -1419,11 +1889,26 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       ),
     ));
 
-  for (const [path, operationId, loader] of [
-    ["/v1/discover/assets", "listDiscoverAssets", (r: RetainedRepositorySet, n: number) => r.discover.listAssets(n)],
-    ["/v1/discover/grimoires", "listGrimoires", (r: RetainedRepositorySet, n: number) => r.discover.listGrimoires(n)],
-    ["/v1/discover/circle-templates", "listCircleTemplates", (r: RetainedRepositorySet, n: number) => r.discover.listCircleTemplates(n)],
-  ] as const) {
+  for (
+    const [path, operationId, loader] of [
+      [
+        "/v1/discover/assets",
+        "listDiscoverAssets",
+        (r: RetainedRepositorySet, n: number) => r.discover.listAssets(n),
+      ],
+      [
+        "/v1/discover/grimoires",
+        "listGrimoires",
+        (r: RetainedRepositorySet, n: number) => r.discover.listGrimoires(n),
+      ],
+      [
+        "/v1/discover/circle-templates",
+        "listCircleTemplates",
+        (r: RetainedRepositorySet, n: number) =>
+          r.discover.listCircleTemplates(n),
+      ],
+    ] as const
+  ) {
     const definition = route("get", path, operationId, "Discover", {
       query: z.object({ limit: limit.optional() }),
     });
@@ -1444,85 +1929,449 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     maxBytes: z.number().int().min(1).max(10 * 1024 * 1024),
     expiresAt: z.coerce.date(),
   }).strict();
-  const createUploadIntent = route("post", "/v1/media/upload-intents", "createUploadIntent", "Media", { body: uploadIntentBody });
-  register(createUploadIntent, async (context) =>
-    dataResponse(context, await repositories(context, options).media.createUploadIntent(await parseBody(context, uploadIntentBody))));
-  const getUploadIntent = route("get", "/v1/media/upload-intents/{intent_id}", "getUploadIntent", "Media", { pathParams: z.object({ intent_id: uuid }) });
-  register(getUploadIntent, async (context) =>
-    dataResponse(context, await repositories(context, options).media.getUploadIntent(uuid.parse(context.req.param("intent_id")))));
-  const finalizeMediaBody = z.object({ byteSize: z.number().int().positive(), checksum: z.string().regex(/^[a-f0-9]{64}$/) }).strict();
-  const finalizeMedia = route("post", "/v1/admin/media/upload-intents/{intent_id}/finalize", "finalizeUpload", "Admin Media", { pathParams: z.object({ intent_id: uuid }), body: finalizeMediaBody });
+  const createUploadIntent = route(
+    "post",
+    "/v1/media/upload-intents",
+    "createUploadIntent",
+    "Media",
+    { body: uploadIntentBody },
+  );
+  register(
+    createUploadIntent,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).media.createUploadIntent(
+          await parseBody(context, uploadIntentBody),
+        ),
+      ),
+  );
+  const getUploadIntent = route(
+    "get",
+    "/v1/media/upload-intents/{intent_id}",
+    "getUploadIntent",
+    "Media",
+    { pathParams: z.object({ intent_id: uuid }) },
+  );
+  register(
+    getUploadIntent,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).media.getUploadIntent(
+          uuid.parse(context.req.param("intent_id")),
+        ),
+      ),
+  );
+  const finalizeMediaBody = z.object({
+    byteSize: z.number().int().positive(),
+    checksum: z.string().regex(/^[a-f0-9]{64}$/),
+  }).strict();
+  const finalizeMedia = route(
+    "post",
+    "/v1/admin/media/upload-intents/{intent_id}/finalize",
+    "finalizeUpload",
+    "Admin Media",
+    { pathParams: z.object({ intent_id: uuid }), body: finalizeMediaBody },
+  );
   register(finalizeMedia, async (context) => {
     const input = await parseBody(context, finalizeMediaBody);
-    return dataResponse(context, await repositories(context, options).media.finalizeUpload(uuid.parse(context.req.param("intent_id")), input.byteSize, input.checksum));
+    return dataResponse(
+      context,
+      await repositories(context, options).media.finalizeUpload(
+        uuid.parse(context.req.param("intent_id")),
+        input.byteSize,
+        input.checksum,
+      ),
+    );
   });
 
-  const reportBody = z.object({ targetKind: z.string().min(1).max(80), targetId: uuid, reasonCode: z.string().min(1).max(80), details: z.string().max(1000).optional() }).strict();
-  const reportContent = route("post", "/v1/moderation/reports", "reportContent", "Moderation", { body: reportBody });
+  const reportBody = z.object({
+    targetKind: z.string().min(1).max(80),
+    targetId: uuid,
+    reasonCode: z.string().min(1).max(80),
+    details: z.string().max(1000).optional(),
+  }).strict();
+  const reportContent = route(
+    "post",
+    "/v1/moderation/reports",
+    "reportContent",
+    "Moderation",
+    { body: reportBody },
+  );
   register(reportContent, async (context) => {
     const input = await parseBody(context, reportBody);
-    return dataResponse(context, await repositories(context, options).moderation.report({
-      targetKind: input.targetKind,
-      targetId: input.targetId,
-      reasonCode: input.reasonCode,
-      ...(input.details === undefined ? {} : { details: input.details }),
-    }));
+    return dataResponse(
+      context,
+      await repositories(context, options).moderation.report({
+        targetKind: input.targetKind,
+        targetId: input.targetId,
+        reasonCode: input.reasonCode,
+        ...(input.details === undefined ? {} : { details: input.details }),
+      }),
+    );
   });
-  const moderationDecision = z.object({ status: z.string().min(1).max(40) }).passthrough();
-  const decideModeration = route("post", "/v1/admin/moderation/{case_id}/decision", "decideModeration", "Admin Moderation", { pathParams: z.object({ case_id: uuid }), body: moderationDecision, headers: z.object({ "if-match": z.string(), "idempotency-key": idempotencyKey }) });
-  register(decideModeration, async (context) =>
-    dataResponse(context, await repositories(context, options).moderation.decide(uuid.parse(context.req.param("case_id")), expectedVersion(context), await parseBody(context, moderationDecision), idempotencyKey.parse(context.req.header("idempotency-key")))));
+  const moderationDecision = z.object({ status: z.string().min(1).max(40) })
+    .passthrough();
+  const decideModeration = route(
+    "post",
+    "/v1/admin/moderation/{case_id}/decision",
+    "decideModeration",
+    "Admin Moderation",
+    {
+      pathParams: z.object({ case_id: uuid }),
+      body: moderationDecision,
+      headers: z.object({
+        "if-match": z.string(),
+        "idempotency-key": idempotencyKey,
+      }),
+    },
+  );
+  register(
+    decideModeration,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).moderation.decide(
+          uuid.parse(context.req.param("case_id")),
+          expectedVersion(context),
+          await parseBody(context, moderationDecision),
+          idempotencyKey.parse(context.req.header("idempotency-key")),
+        ),
+      ),
+  );
 
-  const listNotifications = route("get", "/v1/notifications", "listNotifications", "Notifications", { query: z.object({ limit: limit.optional() }) });
-  register(listNotifications, async (context) => dataResponse(context, await repositories(context, options).notifications.list(limit.parse(context.req.query("limit")))));
-  const notificationPreferences = route("get", "/v1/notification-preferences", "getNotificationPreferences", "Notifications");
-  register(notificationPreferences, async (context) => dataResponse(context, await repositories(context, options).notifications.getPreferences()));
-  const updateNotificationPreferences = route("patch", "/v1/notification-preferences", "updateNotificationPreferences", "Notifications", { body: jsonObject, headers: z.object({ "if-match": z.string() }) });
-  register(updateNotificationPreferences, async (context) => dataResponse(context, await repositories(context, options).notifications.updatePreferences(await parseBody(context, jsonObject), expectedVersion(context))));
-  const markNotificationRead = route("patch", "/v1/notifications/{notification_id}/read", "markNotificationRead", "Notifications", { pathParams: z.object({ notification_id: uuid }) });
-  register(markNotificationRead, async (context) => dataResponse(context, await repositories(context, options).notifications.markRead(uuid.parse(context.req.param("notification_id")))));
+  const listNotifications = route(
+    "get",
+    "/v1/notifications",
+    "listNotifications",
+    "Notifications",
+    { query: z.object({ limit: limit.optional() }) },
+  );
+  register(
+    listNotifications,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).notifications.list(
+          limit.parse(context.req.query("limit")),
+        ),
+      ),
+  );
+  const notificationPreferences = route(
+    "get",
+    "/v1/notification-preferences",
+    "getNotificationPreferences",
+    "Notifications",
+  );
+  register(
+    notificationPreferences,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).notifications.getPreferences(),
+      ),
+  );
+  const updateNotificationPreferences = route(
+    "patch",
+    "/v1/notification-preferences",
+    "updateNotificationPreferences",
+    "Notifications",
+    { body: jsonObject, headers: z.object({ "if-match": z.string() }) },
+  );
+  register(
+    updateNotificationPreferences,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).notifications.updatePreferences(
+          await parseBody(context, jsonObject),
+          expectedVersion(context),
+        ),
+      ),
+  );
+  const markNotificationRead = route(
+    "patch",
+    "/v1/notifications/{notification_id}/read",
+    "markNotificationRead",
+    "Notifications",
+    { pathParams: z.object({ notification_id: uuid }) },
+  );
+  register(
+    markNotificationRead,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).notifications.markRead(
+          uuid.parse(context.req.param("notification_id")),
+        ),
+      ),
+  );
 
-  const listPrivacy = route("get", "/v1/privacy/requests", "listPrivacyRequests", "Privacy");
-  register(listPrivacy, async (context) => dataResponse(context, await repositories(context, options).privacy.list()));
-  const privacyBody = z.object({ requestType: z.enum(["export", "deletion"]) }).strict();
-  const requestPrivacy = route("post", "/v1/privacy/requests", "requestPrivacyAction", "Privacy", { body: privacyBody, headers: z.object({ "idempotency-key": idempotencyKey }) });
+  const listPrivacy = route(
+    "get",
+    "/v1/privacy/requests",
+    "listPrivacyRequests",
+    "Privacy",
+  );
+  register(
+    listPrivacy,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).privacy.list(),
+      ),
+  );
+  const privacyBody = z.object({ requestType: z.enum(["export", "deletion"]) })
+    .strict();
+  const requestPrivacy = route(
+    "post",
+    "/v1/privacy/requests",
+    "requestPrivacyAction",
+    "Privacy",
+    {
+      body: privacyBody,
+      headers: z.object({ "idempotency-key": idempotencyKey }),
+    },
+  );
   register(requestPrivacy, async (context) => {
     const input = await parseBody(context, privacyBody);
-    return dataResponse(context, await repositories(context, options).privacy.request(input.requestType, idempotencyKey.parse(context.req.header("idempotency-key"))));
+    return dataResponse(
+      context,
+      await repositories(context, options).privacy.request(
+        input.requestType,
+        idempotencyKey.parse(context.req.header("idempotency-key")),
+      ),
+    );
   });
 
   const ritualPath = z.object({ assignment_id: uuid });
-  const getRitual = route("get", "/v1/rituals/{assignment_id}", "getRitual", "Rituals", { pathParams: ritualPath });
-  register(getRitual, async (context) => dataResponse(context, await repositories(context, options).rituals.get(uuid.parse(context.req.param("assignment_id")))));
-  const transitionBody = z.object({ from: z.enum(["assigned", "revealed"]), to: z.enum(["revealed", "completed"]) }).strict();
-  const transitionRitual = route("post", "/v1/rituals/{assignment_id}/transition", "transitionRitual", "Rituals", { pathParams: ritualPath, body: transitionBody, headers: z.object({ "if-match": z.string() }) });
+  const getRitual = route(
+    "get",
+    "/v1/rituals/{assignment_id}",
+    "getRitual",
+    "Rituals",
+    { pathParams: ritualPath },
+  );
+  register(
+    getRitual,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).rituals.get(
+          uuid.parse(context.req.param("assignment_id")),
+        ),
+      ),
+  );
+  const transitionBody = z.object({
+    from: z.enum(["assigned", "revealed"]),
+    to: z.enum(["revealed", "completed"]),
+  }).strict();
+  const transitionRitual = route(
+    "post",
+    "/v1/rituals/{assignment_id}/transition",
+    "transitionRitual",
+    "Rituals",
+    {
+      pathParams: ritualPath,
+      body: transitionBody,
+      headers: z.object({ "if-match": z.string() }),
+    },
+  );
   register(transitionRitual, async (context) => {
     const input = await parseBody(context, transitionBody);
-    return dataResponse(context, await repositories(context, options).rituals.transition(uuid.parse(context.req.param("assignment_id")), input.from, input.to, expectedVersion(context)));
+    return dataResponse(
+      context,
+      await repositories(context, options).rituals.transition(
+        uuid.parse(context.req.param("assignment_id")),
+        input.from,
+        input.to,
+        expectedVersion(context),
+      ),
+    );
   });
 
-  const search = route("get", "/v1/search", "search", "Search", { query: z.object({ q: z.string().min(1).max(160), limit: limit.optional() }) });
-  register(search, async (context) => dataResponse(context, await repositories(context, options).search.search(z.string().min(1).max(160).parse(context.req.query("q")), limit.parse(context.req.query("limit")))));
-  const rowan = route("get", "/v1/rowan/{surface}/{context_key}", "resolveRowan", "Rowan", { pathParams: z.object({ surface: z.string().min(1).max(80), context_key: z.string().min(1).max(160) }) });
-  register(rowan, async (context) => dataResponse(context, await repositories(context, options).rowan.resolve(z.string().min(1).max(80).parse(context.req.param("surface")), z.string().min(1).max(160).parse(context.req.param("context_key")))));
+  const search = route("get", "/v1/search", "search", "Search", {
+    query: z.object({ q: z.string().min(1).max(160), limit: limit.optional() }),
+  });
+  register(
+    search,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).search.search(
+          z.string().min(1).max(160).parse(context.req.query("q")),
+          limit.parse(context.req.query("limit")),
+        ),
+      ),
+  );
+  const rowan = route(
+    "get",
+    "/v1/rowan/{surface}/{context_key}",
+    "resolveRowan",
+    "Rowan",
+    {
+      pathParams: z.object({
+        surface: z.string().min(1).max(80),
+        context_key: z.string().min(1).max(160),
+      }),
+    },
+  );
+  register(
+    rowan,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).rowan.resolve(
+          z.string().min(1).max(80).parse(context.req.param("surface")),
+          z.string().min(1).max(160).parse(context.req.param("context_key")),
+        ),
+      ),
+  );
 
-  const publicList = route("get", "/v1/public/editorial/{kind}", "listPublicEditorial", "Public", { public: true, pathParams: z.object({ kind: z.string().min(1).max(80) }), query: z.object({ limit: limit.optional() }) });
-  register(publicList, async (context) => dataResponse(context, await options.publicPreviewRepository.listPublished(z.string().min(1).max(80).parse(context.req.param("kind")), limit.parse(context.req.query("limit")))));
-  const publicGet = route("get", "/v1/public/editorial/items/{slug}", "getPublicEditorial", "Public", { public: true, pathParams: z.object({ slug: z.string().min(1).max(120) }) });
-  register(publicGet, async (context) => dataResponse(context, await options.publicPreviewRepository.getPublished(z.string().min(1).max(120).parse(context.req.param("slug")))));
+  const publicList = route(
+    "get",
+    "/v1/public/editorial/{kind}",
+    "listPublicEditorial",
+    "Public",
+    {
+      public: true,
+      pathParams: z.object({ kind: z.string().min(1).max(80) }),
+      query: z.object({ limit: limit.optional() }),
+    },
+  );
+  register(
+    publicList,
+    async (context) =>
+      dataResponse(
+        context,
+        await options.publicPreviewRepository.listPublished(
+          z.string().min(1).max(80).parse(context.req.param("kind")),
+          limit.parse(context.req.query("limit")),
+        ),
+      ),
+  );
+  const publicGet = route(
+    "get",
+    "/v1/public/editorial/items/{slug}",
+    "getPublicEditorial",
+    "Public",
+    {
+      public: true,
+      pathParams: z.object({ slug: z.string().min(1).max(120) }),
+    },
+  );
+  register(
+    publicGet,
+    async (context) =>
+      dataResponse(
+        context,
+        await options.publicPreviewRepository.getPublished(
+          z.string().min(1).max(120).parse(context.req.param("slug")),
+        ),
+      ),
+  );
 
-  const adminSession = route("get", "/v1/admin/session", "getAdminSession", "Admin");
-  register(adminSession, async (context) => dataResponse(context, await repositories(context, options).admin.getStaffPrincipal()));
-  const adminAudit = route("get", "/v1/admin/audit", "listAdminAudit", "Admin", { query: z.object({ limit: limit.optional() }) });
-  register(adminAudit, async (context) => dataResponse(context, await repositories(context, options).admin.listAudit(limit.parse(context.req.query("limit")))));
-  const adminEditorial = route("get", "/v1/admin/editorial", "listAdminEditorial", "Admin", { query: z.object({ limit: limit.optional() }) });
-  register(adminEditorial, async (context) => dataResponse(context, await repositories(context, options).admin.listEditorial(limit.parse(context.req.query("limit")))));
-  const adminJobs = route("get", "/v1/admin/operations/jobs", "listAdminJobs", "Admin Operations", { query: z.object({ limit: limit.optional() }) });
-  register(adminJobs, async (context) => dataResponse(context, await repositories(context, options).adminOperations.listJobs(limit.parse(context.req.query("limit")))));
-  const adminPrivacy = route("get", "/v1/admin/operations/privacy", "listAdminPrivacy", "Admin Operations", { query: z.object({ limit: limit.optional() }) });
-  register(adminPrivacy, async (context) => dataResponse(context, await repositories(context, options).adminOperations.listPrivacy(limit.parse(context.req.query("limit")))));
-  const retryJob = route("post", "/v1/admin/operations/jobs/{job_id}/retry", "retryAdminJob", "Admin Operations", { pathParams: z.object({ job_id: uuid }), headers: z.object({ "idempotency-key": idempotencyKey }) });
-  register(retryJob, async (context) => dataResponse(context, { outbox_id: await repositories(context, options).adminOperations.requestJobRetry(uuid.parse(context.req.param("job_id")), idempotencyKey.parse(context.req.header("idempotency-key"))) }));
+  const adminSession = route(
+    "get",
+    "/v1/admin/session",
+    "getAdminSession",
+    "Admin",
+  );
+  register(
+    adminSession,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).admin.getStaffPrincipal(),
+      ),
+  );
+  const adminAudit = route(
+    "get",
+    "/v1/admin/audit",
+    "listAdminAudit",
+    "Admin",
+    { query: z.object({ limit: limit.optional() }) },
+  );
+  register(
+    adminAudit,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).admin.listAudit(
+          limit.parse(context.req.query("limit")),
+        ),
+      ),
+  );
+  const adminEditorial = route(
+    "get",
+    "/v1/admin/editorial",
+    "listAdminEditorial",
+    "Admin",
+    { query: z.object({ limit: limit.optional() }) },
+  );
+  register(
+    adminEditorial,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).admin.listEditorial(
+          limit.parse(context.req.query("limit")),
+        ),
+      ),
+  );
+  const adminJobs = route(
+    "get",
+    "/v1/admin/operations/jobs",
+    "listAdminJobs",
+    "Admin Operations",
+    { query: z.object({ limit: limit.optional() }) },
+  );
+  register(
+    adminJobs,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).adminOperations.listJobs(
+          limit.parse(context.req.query("limit")),
+        ),
+      ),
+  );
+  const adminPrivacy = route(
+    "get",
+    "/v1/admin/operations/privacy",
+    "listAdminPrivacy",
+    "Admin Operations",
+    { query: z.object({ limit: limit.optional() }) },
+  );
+  register(
+    adminPrivacy,
+    async (context) =>
+      dataResponse(
+        context,
+        await repositories(context, options).adminOperations.listPrivacy(
+          limit.parse(context.req.query("limit")),
+        ),
+      ),
+  );
+  const retryJob = route(
+    "post",
+    "/v1/admin/operations/jobs/{job_id}/retry",
+    "retryAdminJob",
+    "Admin Operations",
+    {
+      pathParams: z.object({ job_id: uuid }),
+      headers: z.object({ "idempotency-key": idempotencyKey }),
+    },
+  );
+  register(retryJob, async (context) =>
+    dataResponse(context, {
+      outbox_id: await repositories(context, options).adminOperations
+        .requestJobRetry(
+          uuid.parse(context.req.param("job_id")),
+          idempotencyKey.parse(context.req.header("idempotency-key")),
+        ),
+    }));
 
   return app;
 }

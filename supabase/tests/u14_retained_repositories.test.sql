@@ -1,6 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
+grant usage on schema extensions to argus_runtime;
 set local search_path = extensions, pg_catalog, public;
 
 select plan(30);
@@ -27,7 +28,8 @@ select trigger_is(
   'auth',
   'users',
   'provision_argus_member_after_auth_insert',
-  'argus_private.provision_argus_member()',
+  'argus_private',
+  'provision_argus_member',
   'auth.users invokes private Argus provisioning'
 );
 select ok(
@@ -366,23 +368,25 @@ do $$ begin
     'aal1'
   );
 end $$;
+with changed as (
+  update argus_app.daily_ritual_assignments
+     set state = 'revealed', version = version + 1
+   where id = 'dddddddd-4300-4000-8000-000000000001' and version = 1
+  returning id
+)
 select is(
-  (with changed as (
-    update argus_app.daily_ritual_assignments
-       set state = 'revealed', version = version + 1
-     where id = 'dddddddd-4300-4000-8000-000000000001' and version = 1
-    returning id
-  ) select count(*)::bigint from changed),
+  (select count(*)::bigint from changed),
   1::bigint,
   'matching ritual revision mutates once'
 );
+with changed as (
+  update argus_app.daily_ritual_assignments
+     set state = 'completed', version = version + 1
+   where id = 'dddddddd-4300-4000-8000-000000000001' and version = 1
+  returning id
+)
 select is(
-  (with changed as (
-    update argus_app.daily_ritual_assignments
-       set state = 'completed', version = version + 1
-     where id = 'dddddddd-4300-4000-8000-000000000001' and version = 1
-    returning id
-  ) select count(*)::bigint from changed),
+  (select count(*)::bigint from changed),
   0::bigint,
   'stale ritual revision cannot overwrite the newer state'
 );

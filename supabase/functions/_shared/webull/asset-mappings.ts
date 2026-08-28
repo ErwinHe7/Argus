@@ -1,4 +1,5 @@
 import {
+  normalizeAssetKind,
   type NormalizedPosition,
   normalizedProviderCode,
   normalizePosition,
@@ -44,6 +45,15 @@ function rawProviderAssetId(position: unknown): string {
   );
 }
 
+function rawProviderAssetKind(position: unknown): ReturnType<
+  typeof normalizeAssetKind
+> {
+  return normalizeAssetKind(
+    ((position as Record<string, unknown>).asset as Record<string, unknown>)
+      .asset_kind,
+  );
+}
+
 export function createWebullAssetMapper(
   input: Readonly<{
     environment: "sandbox" | "production";
@@ -55,6 +65,7 @@ export function createWebullAssetMapper(
   const instrumentId = async (
     context: BrokerageAccountContext,
     providerAssetId: string,
+    kind: ReturnType<typeof normalizeAssetKind>,
   ): Promise<string> => {
     normalizedProviderCode(providerAssetId);
     const hash = await hmacHex(
@@ -88,6 +99,8 @@ export function createWebullAssetMapper(
       candidateInstrumentId,
       providerAssetIdCiphertext: ciphertext,
       keyVersion: input.vault.activeKeyVersion,
+      assetKind: kind.asset_kind,
+      providerAssetKind: kind.provider_asset_kind,
     })).instrumentId;
   };
 
@@ -100,12 +113,33 @@ export function createWebullAssetMapper(
       if (positions.length > 10_000) {
         throw new Error("invalid_webull_position_count");
       }
-      const providerIds = [...new Set(positions.map(rawProviderAssetId))];
+      const providerKinds = new Map<
+        string,
+        ReturnType<typeof normalizeAssetKind>
+      >();
+      for (const position of positions) {
+        const providerId = rawProviderAssetId(position);
+        const kind = rawProviderAssetKind(position);
+        const previous = providerKinds.get(providerId);
+        if (
+          previous !== undefined &&
+          (previous.asset_kind !== kind.asset_kind ||
+            previous.provider_asset_kind !== kind.provider_asset_kind)
+        ) {
+          throw new Error("inconsistent_webull_asset_kind");
+        }
+        providerKinds.set(providerId, kind);
+      }
+      const providerIds = [...providerKinds.keys()];
       const mapped = new Map(
         await Promise.all(providerIds.map(async (providerId) =>
           [
             providerId,
-            await instrumentId(context, providerId),
+            await instrumentId(
+              context,
+              providerId,
+              providerKinds.get(providerId)!,
+            ),
           ] as const
         )),
       );

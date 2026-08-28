@@ -96,9 +96,9 @@ alter table argus_private.webull_asset_mappings enable row level security;
 alter table argus_private.webull_asset_mappings force row level security;
 create policy runtime_owner on argus_private.webull_asset_mappings
   for all to argus_runtime
-  using ((select auth.uid()) = user_id)
+  using ((select argus_private.request_user_id()) = user_id)
   with check (
-    (select auth.uid()) = user_id
+    (select argus_private.request_user_id()) = user_id
     and exists (
       select 1 from argus_app.members member
        where member.user_id=webull_asset_mappings.user_id

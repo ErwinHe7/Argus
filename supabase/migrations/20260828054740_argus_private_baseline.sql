@@ -974,17 +974,34 @@ insert into argus_private.kill_switches(name, enabled, reason) values
   ('order_mutations', true, 'disabled until Webull sandbox order gate passes'),
   ('background_workers', false, null);
 
+create or replace function argus_private.request_user_id()
+returns uuid
+language sql
+stable
+security invoker
+set search_path = pg_catalog
+as $$
+  select coalesce(
+    nullif(nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'sub', ''),
+    nullif(current_setting('request.jwt.claim.sub', true), '')
+  )::uuid
+$$;
+
+revoke all on function argus_private.request_user_id()
+  from public, anon, authenticated;
+grant execute on function argus_private.request_user_id() to argus_runtime;
+
 create or replace function argus_private.has_staff_permission(p_permission text)
 returns boolean
 language sql
 stable
 security definer
-set search_path = pg_catalog, auth, argus_private
+set search_path = pg_catalog, argus_private
 as $$
   select exists (
     select 1
       from argus_private.staff_principals staff
-     where staff.user_id = auth.uid()
+     where staff.user_id = argus_private.request_user_id()
        and staff.status = 'active'
        and staff.revoked_at is null
        and (p_permission = any(staff.permissions) or '*' = any(staff.permissions))
@@ -1081,12 +1098,12 @@ create or replace function argus_private.create_provider_command(
 returns uuid
 language plpgsql
 security invoker
-set search_path = pg_catalog, auth, argus_private
+set search_path = pg_catalog, argus_private
 as $$
 declare
   existing argus_private.provider_commands%rowtype;
 begin
-  if auth.uid() is distinct from p_user_id then
+  if argus_private.request_user_id() is distinct from p_user_id then
     raise exception 'owner_mismatch' using errcode = '42501';
   end if;
 
@@ -1148,8 +1165,8 @@ $$;
 
 create policy runtime_member_self on argus_app.members
   for all to argus_runtime
-  using ((select auth.uid()) = user_id)
-  with check ((select auth.uid()) = user_id);
+  using ((select argus_private.request_user_id()) = user_id)
+  with check ((select argus_private.request_user_id()) = user_id);
 
 do $$
 declare
@@ -1198,7 +1215,7 @@ begin
     ) owner_tables(schema_name, table_name)
   loop
     execute format(
-      'create policy runtime_owner on %I.%I for all to argus_runtime using ((select auth.uid()) = user_id) with check ((select auth.uid()) = user_id and exists (select 1 from argus_app.members member where member.user_id = %I.user_id and member.status = ''active'' and member.deletion_epoch = %I.deletion_epoch))',
+      'create policy runtime_owner on %I.%I for all to argus_runtime using ((select argus_private.request_user_id()) = user_id) with check ((select argus_private.request_user_id()) = user_id and exists (select 1 from argus_app.members member where member.user_id = %I.user_id and member.status = ''active'' and member.deletion_epoch = %I.deletion_epoch))',
       schema_name, table_name, table_name, table_name
     );
   end loop;
@@ -1246,7 +1263,7 @@ create policy runtime_active_ritual_schedules on argus_app.ritual_schedules
 
 create policy runtime_staff_self on argus_private.staff_principals
   for select to argus_runtime
-  using ((select auth.uid()) = user_id);
+  using ((select argus_private.request_user_id()) = user_id);
 
 create policy runtime_contract_read on argus_private.schema_contract_versions
   for select to argus_runtime using (true);
@@ -1258,10 +1275,10 @@ create policy runtime_rate_limit on argus_private.provider_rate_limits
 
 create policy runtime_outbox_owner on argus_private.outbox_events
   for all to argus_runtime
-  using (user_id is not null and (select auth.uid()) = user_id)
+  using (user_id is not null and (select argus_private.request_user_id()) = user_id)
   with check (
     user_id is not null
-    and (select auth.uid()) = user_id
+    and (select argus_private.request_user_id()) = user_id
     and exists (
       select 1 from argus_app.members member
        where member.user_id = outbox_events.user_id
@@ -1290,9 +1307,9 @@ end
 $$;
 
 create policy runtime_deletion_owner on argus_private.deletion_tombstones
-  for select to argus_runtime using ((select auth.uid()) = user_id);
+  for select to argus_runtime using ((select argus_private.request_user_id()) = user_id);
 create policy runtime_deletion_create on argus_private.deletion_tombstones
-  for insert to argus_runtime with check ((select auth.uid()) = user_id);
+  for insert to argus_runtime with check ((select argus_private.request_user_id()) = user_id);
 
 create policy runtime_kill_switch_read on argus_private.kill_switches
   for select to argus_runtime using (true);
@@ -1302,16 +1319,16 @@ create policy runtime_admin_audit_read on argus_private.admin_audit_events
   using (argus_private.has_staff_permission('audit:read'));
 create policy runtime_admin_audit_insert on argus_private.admin_audit_events
   for insert to argus_runtime
-  with check (actor_user_id is null or actor_user_id = (select auth.uid()));
+  with check (actor_user_id is null or actor_user_id = (select argus_private.request_user_id()));
 create policy worker_admin_audit_insert on argus_private.admin_audit_events
   for insert to argus_worker with check (true);
 
 create policy runtime_security_event_read on argus_private.security_events
   for select to argus_runtime
-  using (user_id = (select auth.uid()) or argus_private.has_staff_permission('security:read'));
+  using (user_id = (select argus_private.request_user_id()) or argus_private.has_staff_permission('security:read'));
 create policy runtime_security_event_insert on argus_private.security_events
   for insert to argus_runtime
-  with check (user_id is null or user_id = (select auth.uid()));
+  with check (user_id is null or user_id = (select argus_private.request_user_id()));
 create policy worker_security_event_insert on argus_private.security_events
   for insert to argus_worker with check (true);
 
@@ -1412,7 +1429,8 @@ revoke all on all tables in schema argus_app, argus_brokerage, argus_private
   from public, anon, authenticated;
 revoke all on all functions in schema argus_app, argus_brokerage, argus_private
   from public, anon, authenticated;
-grant execute on function argus_private.has_staff_permission(text),
+grant execute on function argus_private.request_user_id(),
+  argus_private.has_staff_permission(text),
   argus_private.set_request_context(uuid,uuid,text),
   argus_private.create_provider_command(uuid,uuid,bigint,uuid,uuid,text,text,text,text,text,integer)
 to argus_runtime;

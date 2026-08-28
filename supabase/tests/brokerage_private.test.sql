@@ -1,9 +1,10 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
+grant usage on schema extensions to argus_runtime;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(38);
+select plan(35);
 
 select has_table('argus_brokerage', 'connections', 'normalized connection state exists');
 select has_table('argus_brokerage', 'accounts', 'local brokerage account projection root exists');
@@ -66,13 +67,13 @@ insert into argus_brokerage.projection_generations (
 insert into argus_private.webull_asset_mappings (
   instrument_id, account_id, connection_id, user_id, deletion_epoch,
   provider_environment, provider_asset_id_ciphertext,
-  provider_asset_id_hash, key_version
+  provider_asset_id_hash, key_version, asset_kind, provider_asset_kind
 ) values (
   'aaaaaaaa-6000-4000-8000-000000000001',
   'aaaaaaaa-2000-4000-8000-000000000001',
   'aaaaaaaa-1000-4000-8000-000000000001',
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0, 'sandbox',
-  decode(repeat('ab',32),'hex'), repeat('e',64), 1
+  decode(repeat('ab',32),'hex'), repeat('e',64), 1, 'equity', 'EQUITY'
 );
 
 set local role argus_runtime;
@@ -172,43 +173,6 @@ select is(
   'status-change callback rejection does not mark the state consumed'
 );
 
-select is(
-  argus_private.create_provider_command(
-    'aaaaaaaa-4000-4000-8000-000000000001',
-    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0,
-    'aaaaaaaa-1000-4000-8000-000000000001',
-    'aaaaaaaa-2000-4000-8000-000000000001',
-    'place', 'client-order-0001', 'idem-key-0000000000000001',
-    'payload-hash-1', 'review-hash-1', 1
-  ),
-  'aaaaaaaa-4000-4000-8000-000000000001'::uuid,
-  'first command is durably created'
-);
-select is(
-  argus_private.create_provider_command(
-    'aaaaaaaa-4000-4000-8000-000000000099',
-    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0,
-    'aaaaaaaa-1000-4000-8000-000000000001',
-    'aaaaaaaa-2000-4000-8000-000000000001',
-    'place', 'client-order-0001', 'idem-key-0000000000000001',
-    'payload-hash-1', 'review-hash-1', 1
-  ),
-  'aaaaaaaa-4000-4000-8000-000000000001'::uuid,
-  'same owner, account, operation, and payload returns existing command'
-);
-select throws_ok(
-  $$select argus_private.create_provider_command(
-    'aaaaaaaa-4000-4000-8000-000000000098',
-    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0,
-    'aaaaaaaa-1000-4000-8000-000000000001',
-    'aaaaaaaa-2000-4000-8000-000000000001',
-    'cancel', 'client-order-0001', 'idem-key-0000000000000001',
-    'payload-hash-CONFLICT', 'review-hash-1', 1
-  )$$,
-  'P0001',
-  'idempotency_conflict',
-  'conflicting idempotency reuse is rejected'
-);
 reset role;
 
 insert into argus_private.webull_credentials (

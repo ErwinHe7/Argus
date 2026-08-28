@@ -18,6 +18,8 @@ export interface BrokerageAssetMappingRepository {
       candidateInstrumentId: string;
       providerAssetIdCiphertext: Uint8Array;
       keyVersion: number;
+      assetKind: "equity" | "etf" | "unsupported";
+      providerAssetKind: string;
     }>,
   ): Promise<PersistedWebullAssetMapping>;
 }
@@ -39,6 +41,10 @@ export function createBrokerageAssetMappingRepository(
         !uuidPattern.test(mapping.context.connectionId) ||
         !uuidPattern.test(mapping.candidateInstrumentId) ||
         !/^[a-f0-9]{64}$/.test(mapping.providerAssetIdHash) ||
+        !["equity", "etf", "unsupported"].includes(mapping.assetKind) ||
+        !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,127}$/.test(
+          mapping.providerAssetKind,
+        ) ||
         !Number.isSafeInteger(mapping.keyVersion) ||
         mapping.keyVersion < 1
       ) {
@@ -51,20 +57,25 @@ export function createBrokerageAssetMappingRepository(
             `insert into argus_private.webull_asset_mappings(
                instrument_id,account_id,connection_id,user_id,deletion_epoch,
                provider_environment,provider_asset_id_ciphertext,
-               provider_asset_id_hash,key_version
+               provider_asset_id_hash,key_version,asset_kind,
+               provider_asset_kind
              ) select $1,account.id,account.connection_id,account.user_id,
-                      account.deletion_epoch,$2,$3,$4,$5
+                      account.deletion_epoch,$2,$3,$4,$5,$9,$10
                  from argus_brokerage.accounts account
                  join argus_brokerage.connections connection
                    on connection.id=account.connection_id
                   and connection.user_id=account.user_id
                   and connection.deletion_epoch=account.deletion_epoch
-                where account.id=$6 and account.user_id=auth.uid()
+                where account.id=$6 and account.user_id=argus_private.request_user_id()
                   and account.connection_id=$7
                   and account.deletion_epoch=$8
                   and connection.status='connected'
              on conflict (user_id,account_id,provider_asset_id_hash)
-             do nothing`,
+             do update set
+               asset_kind=excluded.asset_kind,
+               provider_asset_kind=excluded.provider_asset_kind
+             where webull_asset_mappings.asset_kind='unsupported'
+               and webull_asset_mappings.provider_asset_kind='LEGACY_UNKNOWN'`,
             [
               mapping.candidateInstrumentId,
               mapping.environment,
@@ -74,6 +85,8 @@ export function createBrokerageAssetMappingRepository(
               mapping.context.accountId,
               mapping.context.connectionId,
               mapping.context.deletionEpoch,
+              mapping.assetKind,
+              mapping.providerAssetKind,
             ],
           );
           const result = await database.query<{
@@ -82,7 +95,7 @@ export function createBrokerageAssetMappingRepository(
           }>(
             `select instrument_id,key_version
                from argus_private.webull_asset_mappings
-              where user_id=auth.uid() and account_id=$1
+              where user_id=argus_private.request_user_id() and account_id=$1
                 and connection_id=$2 and deletion_epoch=$3
                 and provider_environment=$4 and provider_asset_id_hash=$5`,
             [

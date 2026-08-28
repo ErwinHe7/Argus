@@ -105,6 +105,20 @@ const supportedAssetKinds = new Map(
 );
 const unsafeDisplayText = /[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069]/;
 
+export function normalizeAssetKind(value: unknown): Readonly<{
+  asset_kind: "equity" | "etf" | "unsupported";
+  provider_asset_kind: string;
+  supported: boolean;
+}> {
+  const providerKind = normalizedProviderCode(value);
+  const kind = supportedAssetKinds.get(providerKind as "EQUITY" | "ETF");
+  return Object.freeze({
+    asset_kind: kind ?? "unsupported",
+    provider_asset_kind: providerKind,
+    supported: kind !== undefined,
+  });
+}
+
 export function normalizeAsset(
   value: unknown,
   mapProviderAssetId: ProviderAssetIdentifierMapper,
@@ -121,8 +135,7 @@ export function normalizeAsset(
   ) {
     throw new BrokerageReadContractError("invalid_argus_instrument_id");
   }
-  const providerKind = normalizedProviderCode(input.asset_kind);
-  const kind = supportedAssetKinds.get(providerKind as "EQUITY" | "ETF");
+  const kind = normalizeAssetKind(input.asset_kind);
   if (
     typeof input.symbol !== "string" ||
     !/^[A-Z0-9][A-Z0-9.-]{0,31}$/.test(input.symbol) ||
@@ -141,9 +154,9 @@ export function normalizeAsset(
     instrument_id: instrumentId,
     symbol: input.symbol,
     name: input.name,
-    asset_kind: kind ?? "unsupported",
-    provider_asset_kind: providerKind,
-    supported: kind !== undefined,
+    asset_kind: kind.asset_kind,
+    provider_asset_kind: kind.provider_asset_kind,
+    supported: kind.supported,
     currency: normalizedCurrency(input.currency),
     exchange: input.exchange,
     market_timezone: normalizedMarketTimezone(input.market_timezone),

@@ -475,7 +475,7 @@ const supabaseDatabaseUrl = process.env.SUPABASE_DB_URL;
 describe.skipIf(supabaseDatabaseUrl === undefined)(
   "live Supabase transaction-pooler claims",
   () => {
-    it("scopes auth.uid to one transaction and recovers the pooled client after rollback", async () => {
+    it("scopes the request user helper to one transaction and recovers the pooled client after rollback", async () => {
       const nodePool = new pg.Pool({
         connectionString: supabaseDatabaseUrl,
         max: 1,
@@ -490,7 +490,7 @@ describe.skipIf(supabaseDatabaseUrl === undefined)(
           { pool, verifiedClaims: claims(userA, sessionA) },
           async (database) =>
             database.query<{ user_id: string }>(
-              "select auth.uid()::text as user_id",
+              "select argus_private.request_user_id()::text as user_id",
             ),
         );
         expect(first.rows[0]?.user_id).toBe(userA);
@@ -506,7 +506,7 @@ describe.skipIf(supabaseDatabaseUrl === undefined)(
           { pool, verifiedClaims: claims(userB, sessionB) },
           async (database) =>
             database.query<{ user_id: string }>(
-              "select auth.uid()::text as user_id",
+              "select argus_private.request_user_id()::text as user_id",
             ),
         );
         expect(recovered.rows[0]?.user_id).toBe(userB);

@@ -69,7 +69,7 @@ export function createWebullAccountMappingStore(
                  on connection.id=account.connection_id
                 and connection.user_id=account.user_id
                 and connection.deletion_epoch=account.deletion_epoch
-              where mapping.account_id=$1 and mapping.user_id=auth.uid()
+              where mapping.account_id=$1 and mapping.user_id=argus_private.request_user_id()
                 and mapping.connection_id=$2 and mapping.deletion_epoch=$3
                 and connection.status='connected'`,
             [context.accountId, context.connectionId, context.deletionEpoch],

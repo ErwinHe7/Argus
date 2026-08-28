@@ -389,6 +389,508 @@ components:
         - provider_code
         - available
       type: object
+    BrokerageOrder:
+      additionalProperties: false
+      properties:
+        average_fill_price:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        currency:
+          pattern: ^[A-Z]{3}$
+          type: string
+        filled_quantity:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        id:
+          format: uuid
+          type: string
+        instrument_id:
+          format: uuid
+          type: string
+        limit_price:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        order_type:
+          enum:
+            - market
+            - limit
+            - stop
+            - stop_limit
+            - unsupported
+          type: string
+        provider_order_type:
+          maxLength: 128
+          minLength: 1
+          type: string
+        provider_side:
+          maxLength: 128
+          minLength: 1
+          type: string
+        provider_state:
+          maxLength: 128
+          minLength: 1
+          type: string
+        provider_time_in_force:
+          maxLength: 128
+          minLength: 1
+          type: string
+        quantity:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        side:
+          enum:
+            - buy
+            - sell
+            - unsupported
+          type: string
+        state:
+          enum:
+            - pending
+            - partially_filled
+            - filled
+            - cancelled
+            - rejected
+            - expired
+            - unknown
+          type: string
+        stop_price:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        symbol:
+          maxLength: 32
+          minLength: 1
+          type: string
+        terminal:
+          type: boolean
+        time_in_force:
+          enum:
+            - day
+            - gtc
+            - unsupported
+          type: string
+      required:
+        - id
+        - instrument_id
+        - symbol
+        - side
+        - provider_side
+        - order_type
+        - provider_order_type
+        - time_in_force
+        - provider_time_in_force
+        - quantity
+        - filled_quantity
+        - limit_price
+        - stop_price
+        - average_fill_price
+        - currency
+        - state
+        - provider_state
+        - terminal
+      type: object
+    BrokerageOrderCommand:
+      additionalProperties: false
+      properties:
+        account_id:
+          format: uuid
+          type: string
+        ambiguous:
+          type: boolean
+        created_at:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        operation:
+          enum:
+            - place
+            - modify
+            - cancel
+          type: string
+        order_id:
+          format: uuid
+          nullable: true
+          type: string
+        state:
+          enum:
+            - dispatching
+            - accepted
+            - ambiguous
+            - reconciling
+            - resolved
+            - failed
+            - manual_review
+          type: string
+        target_order_id:
+          format: uuid
+          nullable: true
+          type: string
+        updated_at:
+          format: date-time
+          type: string
+      required:
+        - id
+        - account_id
+        - operation
+        - target_order_id
+        - order_id
+        - state
+        - ambiguous
+        - created_at
+        - updated_at
+      type: object
+    BrokerageOrderCommandResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/BrokerageOrderCommand"
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
+      type: object
+    BrokerageOrderDetail:
+      additionalProperties: false
+      properties:
+        average_fill_price:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        currency:
+          pattern: ^[A-Z]{3}$
+          type: string
+        fetched_at:
+          format: date-time
+          type: string
+        filled_quantity:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        generation:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        id:
+          format: uuid
+          type: string
+        instrument_id:
+          format: uuid
+          type: string
+        limit_price:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        order_type:
+          enum:
+            - market
+            - limit
+            - stop
+            - stop_limit
+            - unsupported
+          type: string
+        provider_observed_at:
+          format: date-time
+          type: string
+        provider_order_type:
+          maxLength: 128
+          minLength: 1
+          type: string
+        provider_side:
+          maxLength: 128
+          minLength: 1
+          type: string
+        provider_state:
+          maxLength: 128
+          minLength: 1
+          type: string
+        provider_time_in_force:
+          maxLength: 128
+          minLength: 1
+          type: string
+        quantity:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        side:
+          enum:
+            - buy
+            - sell
+            - unsupported
+          type: string
+        source:
+          enum:
+            - list
+            - detail
+          type: string
+        state:
+          enum:
+            - pending
+            - partially_filled
+            - filled
+            - cancelled
+            - rejected
+            - expired
+            - unknown
+          type: string
+        stop_price:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        symbol:
+          maxLength: 32
+          minLength: 1
+          type: string
+        terminal:
+          type: boolean
+        time_in_force:
+          enum:
+            - day
+            - gtc
+            - unsupported
+          type: string
+      required:
+        - id
+        - instrument_id
+        - symbol
+        - side
+        - provider_side
+        - order_type
+        - provider_order_type
+        - time_in_force
+        - provider_time_in_force
+        - quantity
+        - filled_quantity
+        - limit_price
+        - stop_price
+        - average_fill_price
+        - currency
+        - state
+        - provider_state
+        - terminal
+        - generation
+        - source
+        - provider_observed_at
+        - fetched_at
+      type: object
+    BrokerageOrderDetailResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/BrokerageOrderDetail"
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
+      type: object
+    BrokerageOrderList:
+      additionalProperties: false
+      properties:
+        account_id:
+          format: uuid
+          type: string
+        expires_at:
+          format: date-time
+          nullable: true
+          type: string
+        fetched_at:
+          format: date-time
+          nullable: true
+          type: string
+        orders:
+          items:
+            $ref: "#/components/schemas/BrokerageOrder"
+          maxItems: 10000
+          type: array
+        provider_observed_at:
+          format: date-time
+          nullable: true
+          type: string
+        state:
+          enum:
+            - fresh
+            - empty
+            - stale
+            - partial
+            - unavailable
+            - offline
+            - rate_limited
+            - disconnected
+            - reauthorization_required
+          type: string
+      required:
+        - account_id
+        - state
+        - provider_observed_at
+        - fetched_at
+        - expires_at
+        - orders
+      type: object
+    BrokerageOrderPreview:
+      additionalProperties: false
+      properties:
+        account_id:
+          format: uuid
+          type: string
+        capability_version:
+          minimum: 0
+          type: integer
+        currency:
+          nullable: true
+          pattern: ^[A-Z]{3}$
+          type: string
+        estimated_total:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        expires_at:
+          format: date-time
+          type: string
+        id:
+          format: uuid
+          type: string
+        operation:
+          enum:
+            - place
+            - modify
+            - cancel
+          type: string
+        policy_version:
+          maxLength: 128
+          minLength: 8
+          type: string
+        restriction_generation:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        reviewed_payload_hash:
+          pattern: ^[a-f0-9]{64}$
+          type: string
+        target_order_id:
+          format: uuid
+          nullable: true
+          type: string
+      required:
+        - id
+        - account_id
+        - operation
+        - target_order_id
+        - policy_version
+        - capability_version
+        - restriction_generation
+        - reviewed_payload_hash
+        - estimated_total
+        - currency
+        - expires_at
+      type: object
+    BrokerageOrderPreviewResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/BrokerageOrderPreview"
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
+      type: object
+    BrokerageOrderReconciliation:
+      additionalProperties: false
+      properties:
+        attempts:
+          minimum: 0
+          type: integer
+        command:
+          $ref: "#/components/schemas/BrokerageOrderCommand"
+        egress_started_at:
+          format: date-time
+          type: string
+        last_error_code:
+          maxLength: 64
+          nullable: true
+          type: string
+        next_attempt_at:
+          format: date-time
+          nullable: true
+          type: string
+        status:
+          enum:
+            - pending
+            - running
+            - resolved
+            - manual_review
+            - exhausted
+            - null
+          nullable: true
+          type: string
+      required:
+        - command
+        - status
+        - attempts
+        - next_attempt_at
+        - last_error_code
+        - egress_started_at
+      type: object
+    BrokerageOrderReconciliationResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/BrokerageOrderReconciliation"
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
+      type: object
+    BrokerageOrdersResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/BrokerageOrderList"
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
+      type: object
     BrokeragePosition:
       additionalProperties: false
       properties:
@@ -606,6 +1108,103 @@ components:
       required:
         - data
         - meta
+      type: object
+    ConfirmCancelBrokerageOrder:
+      additionalProperties: false
+      properties:
+        confirmed:
+          enum:
+            - true
+          type: boolean
+        preview_id:
+          format: uuid
+          type: string
+      required:
+        - preview_id
+        - confirmed
+      type: object
+    ConfirmModifyBrokerageOrder:
+      additionalProperties: false
+      properties:
+        confirmed:
+          enum:
+            - true
+          type: boolean
+        intent:
+          $ref: "#/components/schemas/ModifyBrokerageOrderIntent"
+        preview_id:
+          format: uuid
+          type: string
+      required:
+        - preview_id
+        - confirmed
+        - intent
+      type: object
+    ConfirmPlaceBrokerageOrder:
+      additionalProperties: false
+      properties:
+        confirmed:
+          enum:
+            - true
+          type: boolean
+        intent:
+          $ref: "#/components/schemas/PlaceBrokerageOrderIntent"
+        preview_id:
+          format: uuid
+          type: string
+      required:
+        - preview_id
+        - confirmed
+        - intent
+      type: object
+    ModifyBrokerageOrderIntent:
+      additionalProperties: false
+      properties:
+        limit_price:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        quantity:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+      required:
+        - quantity
+        - limit_price
+      type: object
+    PlaceBrokerageOrderIntent:
+      additionalProperties: false
+      properties:
+        instrument_id:
+          format: uuid
+          type: string
+        limit_price:
+          nullable: true
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        order_type:
+          enum:
+            - market
+            - limit
+          type: string
+        quantity:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d{1,18})?$
+          type: string
+        side:
+          enum:
+            - buy
+            - sell
+          type: string
+        time_in_force:
+          enum:
+            - day
+          type: string
+      required:
+        - instrument_id
+        - side
+        - order_type
+        - time_in_force
+        - quantity
+        - limit_price
       type: object
   securitySchemes:
     SupabaseBearer:
@@ -1082,6 +1681,225 @@ paths:
         - SupabaseBearer: []
       tags:
         - Admin
+  /v1/admin/brokerage/order-commands/{command_id}:
+    get:
+      operationId: getStaffWebullOrderReconciliation
+      parameters:
+        - in: path
+          name: command_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderReconciliationResponse"
+          description: AAL2 staff-only redacted command and reconciliation diagnostics.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Admin Brokerage
   /v1/admin/editorial:
     get:
       operationId: listAdminEditorial
@@ -4389,6 +5207,1848 @@ paths:
         - SupabaseBearer: []
       tags:
         - Brokerage Reads
+  /v1/brokerage/accounts/{account_id}/orders:
+    get:
+      operationId: listWebullOrders
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: refresh
+          required: false
+          schema:
+            enum:
+              - "true"
+              - "false"
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrdersResponse"
+          description: Provider-authoritative order history with explicit freshness.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
+    post:
+      operationId: placeWebullOrder
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7E]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmPlaceBrokerageOrder"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderCommandResponse"
+          description: Persist once before one provider submission; ambiguous results are never blindly retried.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
+  /v1/brokerage/accounts/{account_id}/orders/{order_id}:
+    get:
+      operationId: getWebullOrder
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderDetailResponse"
+          description: Latest positive order detail evidence; provider identifiers stay private.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
+    patch:
+      operationId: modifyWebullOrder
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7E]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmModifyBrokerageOrder"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderCommandResponse"
+          description: Create a distinct durable modification command against an owned order.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
+  /v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel:
+    post:
+      operationId: cancelWebullOrder
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7E]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmCancelBrokerageOrder"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderCommandResponse"
+          description: Create a distinct durable cancellation command against an owned order.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
+  /v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel-preview:
+    post:
+      operationId: previewWebullOrderCancellation
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderPreviewResponse"
+          description: Review cancellation only after proving target-order ownership.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
+  /v1/brokerage/accounts/{account_id}/orders/{order_id}/modify-preview:
+    post:
+      operationId: previewWebullOrderModification
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: path
+          name: order_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModifyBrokerageOrderIntent"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderPreviewResponse"
+          description: Review a modification only after proving target-order ownership.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
+  /v1/brokerage/accounts/{account_id}/orders/previews:
+    post:
+      operationId: previewWebullOrder
+      parameters:
+        - in: path
+          name: account_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaceBrokerageOrderIntent"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderPreviewResponse"
+          description: Short-lived capability- and restriction-bound manual order review.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
   /v1/brokerage/accounts/{account_id}/positions:
     get:
       operationId: getWebullPositions
@@ -6278,6 +8938,225 @@ paths:
         - SupabaseBearer: []
       tags:
         - Brokerage Connections
+  /v1/brokerage/order-commands/{command_id}:
+    get:
+      operationId: getWebullOrderCommand
+      parameters:
+        - in: path
+          name: command_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageOrderCommandResponse"
+          description: Owner-scoped redacted command and reconciliation state.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Orders
   /v1/circles:
     get:
       operationId: listCircles

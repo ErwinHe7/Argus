@@ -158,6 +158,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `api-domain:brokerage-accounts` | replaced-webull | Owner-scoped Webull accounts, capabilities, and restrictions |
 | `api-domain:brokerage-assets` | replaced-webull | Normalized Webull balances, positions, and private provider mappings |
 | `api-domain:brokerage-connections` | replaced-webull | Webull connection lifecycle and encrypted credential custody |
+| `api-domain:brokerage-orders` | replaced-webull | Capability-gated manual Webull commands and immutable order projections |
 | `api-domain:brokerage-projections` | replaced-webull | Immutable timestamped provider-authoritative read generations |
 | `api-domain:circles` | retained-argus | Argus community API |
 | `api-domain:coven` | retained-argus | Argus editorial API |

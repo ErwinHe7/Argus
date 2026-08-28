@@ -73,14 +73,26 @@ describe("Supabase retained OpenAPI contract", () => {
       "/v1/brokerage/accounts/{account_id}/balances",
       "/v1/brokerage/accounts/{account_id}/positions",
       "/v1/brokerage/accounts/{account_id}/restrictions",
+      "/v1/brokerage/accounts/{account_id}/orders",
+      "/v1/brokerage/accounts/{account_id}/orders/{order_id}",
+      "/v1/brokerage/accounts/{account_id}/orders/previews",
+      "/v1/brokerage/accounts/{account_id}/orders/{order_id}/modify-preview",
+      "/v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel-preview",
+      "/v1/brokerage/accounts/{account_id}/orders/{order_id}/cancel",
+      "/v1/brokerage/order-commands/{command_id}",
+      "/v1/admin/brokerage/order-commands/{command_id}",
     ];
-    for (const path of retainedFamilies) expect(paths, path).toHaveProperty(path);
+    for (const path of retainedFamilies) {
+      expect(paths, path).toHaveProperty(path);
+    }
 
     const serialized = JSON.stringify(paths);
     expect(serialized).not.toMatch(
       /demo-|demo_reset|recurring-plans|rebalance|order-previews|funding-sources/,
     );
-    expect(serialized).not.toMatch(/provider_asset_id|provider_account_id/i);
+    expect(serialized).not.toMatch(
+      /provider_asset_id|provider_account_id|provider_order_id/i,
+    );
   });
 
   it("serves OpenAPI with ETag revalidation through the portable factory", async () => {

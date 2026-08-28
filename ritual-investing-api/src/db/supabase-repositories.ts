@@ -177,7 +177,7 @@ export function createSupabaseSessionRepository(
            left join argus_app.onboarding_states onboarding on onboarding.user_id = member.user_id
            left join argus_app.investor_profiles investor on investor.user_id = member.user_id
            left join argus_app.astrology_profiles astrology on astrology.user_id = member.user_id
-           where member.user_id = auth.uid() and member.status = 'active'`,
+           where member.user_id = argus_private.request_user_id() and member.status = 'active'`,
         );
         return supabaseSessionSnapshotSchema.parse(first(result.rows).snapshot);
       }),
@@ -203,7 +203,7 @@ export function createSupabaseAccountRepository(
              left join argus_app.onboarding_states onboarding on onboarding.user_id = member.user_id
              left join argus_app.investor_profiles investor on investor.user_id = member.user_id
              left join argus_app.astrology_profiles astrology on astrology.user_id = member.user_id
-            where member.user_id = auth.uid()`,
+            where member.user_id = argus_private.request_user_id()`,
         );
         return first(result.rows);
       }),
@@ -224,7 +224,7 @@ export function createSupabaseAccountRepository(
                   timezone = coalesce($3, timezone),
                   locale = coalesce($4, locale),
                   version = version + 1
-            where user_id = auth.uid() and version = $5
+            where user_id = argus_private.request_user_id() and version = $5
           returning *`,
           [
             patch.themeMode ?? null,
@@ -251,9 +251,9 @@ export function createSupabaseAccountRepository(
           `insert into argus_app.consent_records(
              user_id, deletion_epoch, policy_code, policy_version, decision
            )
-           select auth.uid(), member.deletion_epoch, $1, $2, $3
+           select argus_private.request_user_id(), member.deletion_epoch, $1, $2, $3
              from argus_app.members member
-            where member.user_id = auth.uid() and member.status = 'active'
+            where member.user_id = argus_private.request_user_id() and member.status = 'active'
           returning *`,
           [input.policyCode, input.policyVersion, input.decision],
         );
@@ -273,7 +273,7 @@ export function createSupabaseCircleRepository(
          from argus_app.circles circle
          left join argus_app.circle_assets asset
            on asset.user_id = circle.user_id and asset.circle_id = circle.id
-        where circle.user_id = auth.uid() and circle.id = $1
+        where circle.user_id = argus_private.request_user_id() and circle.id = $1
         group by circle.id`,
       [id],
     );
@@ -285,7 +285,7 @@ export function createSupabaseCircleRepository(
         (
           await database.query<JsonObject>(
             `select * from argus_app.circles
-              where user_id = auth.uid()
+              where user_id = argus_private.request_user_id()
               order by archived_at nulls first, id
               limit $1`,
             [limit],
@@ -300,9 +300,9 @@ export function createSupabaseCircleRepository(
           `insert into argus_app.circles(
              user_id, deletion_epoch, title, description
            )
-           select auth.uid(), member.deletion_epoch, $1, $2
+           select argus_private.request_user_id(), member.deletion_epoch, $1, $2
              from argus_app.members member
-            where member.user_id = auth.uid() and member.status = 'active'
+            where member.user_id = argus_private.request_user_id() and member.status = 'active'
           returning *`,
           [input.title, input.description],
         );
@@ -319,7 +319,7 @@ export function createSupabaseCircleRepository(
               set title = coalesce($2, title),
                   description = coalesce($3, description),
                   version = version + 1
-            where user_id = auth.uid() and id = $1 and version = $4
+            where user_id = argus_private.request_user_id() and id = $1 and version = $4
           returning id`,
           [
             id,
@@ -338,7 +338,7 @@ export function createSupabaseCircleRepository(
         (
           await database.query<JsonObject>(
             `select * from argus_app.saved_items
-              where user_id = auth.uid()
+              where user_id = argus_private.request_user_id()
               order by saved_at desc, item_kind, item_id
               limit $1`,
             [limit],
@@ -356,9 +356,9 @@ export function createSupabaseCircleRepository(
           `insert into argus_app.saved_items(
              user_id, deletion_epoch, item_kind, item_id, source_kind, source_id
            )
-           select auth.uid(), member.deletion_epoch, $1, $2, $3, $4
+           select argus_private.request_user_id(), member.deletion_epoch, $1, $2, $3, $4
              from argus_app.members member
-            where member.user_id = auth.uid() and member.status = 'active'
+            where member.user_id = argus_private.request_user_id() and member.status = 'active'
            on conflict (user_id, item_kind, item_id) do update
              set source_kind = excluded.source_kind, source_id = excluded.source_id
           returning *`,
@@ -373,7 +373,7 @@ export function createSupabaseCircleRepository(
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `delete from argus_app.saved_items
-            where user_id = auth.uid() and item_kind = $1 and item_id = $2
+            where user_id = argus_private.request_user_id() and item_kind = $1 and item_id = $2
           returning *`,
           [itemKind, itemId],
         );
@@ -435,7 +435,7 @@ export function createSupabaseBriefingRepository(
         (
           await database.query<JsonObject>(
             `select * from argus_app.briefings
-              where user_id = auth.uid()
+              where user_id = argus_private.request_user_id()
               order by period_end desc, id desc
               limit $1`,
             [limit],
@@ -452,7 +452,7 @@ export function createSupabaseBriefingRepository(
              left join argus_app.briefing_sections section
                on section.user_id = briefing.user_id
               and section.briefing_id = briefing.id
-            where briefing.user_id = auth.uid() and briefing.id = $1
+            where briefing.user_id = argus_private.request_user_id() and briefing.id = $1
             group by briefing.id`,
           [id],
         );
@@ -470,7 +470,7 @@ export function createSupabaseNotificationRepository(
         (
           await database.query<JsonObject>(
             `select * from argus_app.notifications
-              where user_id = auth.uid()
+              where user_id = argus_private.request_user_id()
               order by created_at desc, id desc
               limit $1`,
             [limit],
@@ -482,7 +482,7 @@ export function createSupabaseNotificationRepository(
         const result = await database.query<JsonObject>(
           `update argus_app.notifications
               set read_at = coalesce(read_at, clock_timestamp())
-            where user_id = auth.uid() and id = $1
+            where user_id = argus_private.request_user_id() and id = $1
           returning *`,
           [id],
         );
@@ -492,7 +492,7 @@ export function createSupabaseNotificationRepository(
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `select * from argus_app.notification_preferences
-            where user_id = auth.uid()`,
+            where user_id = argus_private.request_user_id()`,
         );
         return first(result.rows);
       }),
@@ -505,7 +505,7 @@ export function createSupabaseNotificationRepository(
                   moon_cycle = coalesce(($1::jsonb->>'moon_cycle')::boolean, moon_cycle),
                   quiet_hours = coalesce($1::jsonb->'quiet_hours', quiet_hours),
                   version = version + 1
-            where user_id = auth.uid() and version = $2
+            where user_id = argus_private.request_user_id() and version = $2
           returning *`,
           [patch, expectedVersion],
         );
@@ -536,9 +536,9 @@ export function createSupabaseMediaRepository(
              user_id, deletion_epoch, bucket_id, object_path, mime_type,
              max_bytes, expires_at
            )
-           select auth.uid(), member.deletion_epoch, $1, $2, $3, $4, $5
+           select argus_private.request_user_id(), member.deletion_epoch, $1, $2, $3, $4, $5
              from argus_app.members member
-            where member.user_id = auth.uid() and member.status = 'active'
+            where member.user_id = argus_private.request_user_id() and member.status = 'active'
           returning *`,
           [
             input.bucketId,
@@ -554,7 +554,7 @@ export function createSupabaseMediaRepository(
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `select * from argus_private.media_upload_intents
-            where user_id = auth.uid() and id = $1`,
+            where user_id = argus_private.request_user_id() and id = $1`,
           [id],
         );
         return result.rows[0] ?? null;
@@ -569,7 +569,7 @@ export function createSupabaseMediaRepository(
         }>(
           `update argus_private.media_upload_intents
               set status = 'uploaded'
-            where id = $1 and user_id = auth.uid() and status = 'pending'
+            where id = $1 and user_id = argus_private.request_user_id() and status = 'pending'
               and expires_at > clock_timestamp() and max_bytes >= $2
           returning bucket_id, object_path, mime_type, max_bytes`,
           [intentId, byteSize],
@@ -619,9 +619,9 @@ export function createSupabaseModerationRepository(
              user_id, deletion_epoch, target_kind, target_id, reason_code,
              details
            )
-           select auth.uid(), member.deletion_epoch, $1, $2, $3, $4
+           select argus_private.request_user_id(), member.deletion_epoch, $1, $2, $3, $4
              from argus_app.members member
-            where member.user_id = auth.uid() and member.status = 'active'
+            where member.user_id = argus_private.request_user_id() and member.status = 'active'
           returning *`,
           [
             input.targetKind,
@@ -656,7 +656,7 @@ export function createSupabaseModerationRepository(
           `insert into argus_private.admin_audit_events(
              actor_user_id, action, target_kind, target_id, outcome,
              correlation_id
-           ) values (auth.uid(), 'moderation.decide', 'moderation_case', $1,
+           ) values (argus_private.request_user_id(), 'moderation.decide', 'moderation_case', $1,
                      'allowed', $2)`,
           [caseId, correlationId],
         );
@@ -674,7 +674,7 @@ export function createSupabasePrivacyRepository(
         (
           await database.query<JsonObject>(
             `select * from argus_app.privacy_requests
-              where user_id = auth.uid()
+              where user_id = argus_private.request_user_id()
               order by requested_at desc, id desc`,
           )
         ).rows,
@@ -688,9 +688,9 @@ export function createSupabasePrivacyRepository(
           `insert into argus_app.privacy_requests(
              user_id, deletion_epoch, request_type, status
            )
-           select auth.uid(), member.deletion_epoch, $1, 'requested'
+           select argus_private.request_user_id(), member.deletion_epoch, $1, 'requested'
              from argus_app.members member
-            where member.user_id = auth.uid() and member.status = 'active'
+            where member.user_id = argus_private.request_user_id() and member.status = 'active'
           returning id`,
           [requestType],
         );
@@ -700,9 +700,9 @@ export function createSupabasePrivacyRepository(
              user_id, deletion_epoch, topic, event_type, aggregate_id,
              dedupe_key
            )
-           select auth.uid(), member.deletion_epoch, 'argus_jobs', $2, $1, $3
+           select argus_private.request_user_id(), member.deletion_epoch, 'argus_jobs', $2, $1, $3
              from argus_app.members member
-            where member.user_id = auth.uid() and member.status = 'active'`,
+            where member.user_id = argus_private.request_user_id() and member.status = 'active'`,
           [request.id, `privacy.${requestType}.requested`, dedupeKey],
         );
         return request;
@@ -711,7 +711,7 @@ export function createSupabasePrivacyRepository(
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `select * from argus_private.deletion_tombstones
-            where user_id = auth.uid()
+            where user_id = argus_private.request_user_id()
             order by deletion_epoch desc
             limit 1`,
         );
@@ -734,7 +734,7 @@ export function createSupabaseRitualRepository(
                on revision.id = assignment.revision_id
              left join argus_app.rowan_script_revisions rowan
                on rowan.revision_id = assignment.rowan_revision_id
-            where assignment.user_id = auth.uid() and assignment.id = $1`,
+            where assignment.user_id = argus_private.request_user_id() and assignment.id = $1`,
           [assignmentId],
         );
         return result.rows[0] ?? null;
@@ -754,7 +754,7 @@ export function createSupabaseRitualRepository(
                   completed_at = case when $3 = 'completed'
                     then coalesce(completed_at, clock_timestamp()) else completed_at end,
                   version = version + 1
-            where user_id = auth.uid() and id = $1 and state = $2
+            where user_id = argus_private.request_user_id() and id = $1 and state = $2
               and version = $4
           returning *`,
           [assignmentId, from, to, expectedVersion],
@@ -823,7 +823,7 @@ export function createSupabaseAdminRepository(
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `select * from argus_private.staff_principals
-            where user_id = auth.uid() and status = 'active'`,
+            where user_id = argus_private.request_user_id() and status = 'active'`,
         );
         return result.rows[0] ?? null;
       }),

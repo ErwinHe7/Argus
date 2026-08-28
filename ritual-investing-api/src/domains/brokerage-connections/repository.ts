@@ -80,7 +80,7 @@ export function createBrokerageConnectionRepository(
           deletion_epoch: number;
         }>(
           `select deletion_epoch from argus_app.members
-            where user_id = auth.uid() and status = 'active' for update`,
+            where user_id = argus_private.request_user_id() and status = 'active' for update`,
         );
         const deletionEpoch = member.rows[0]?.deletion_epoch;
         if (deletionEpoch === undefined) {
@@ -88,7 +88,7 @@ export function createBrokerageConnectionRepository(
         }
         const existing = await database.query<{ id: string; status: string }>(
           `select id,status from argus_brokerage.connections
-            where user_id = auth.uid()
+            where user_id = argus_private.request_user_id()
               and status not in ('denied','failed','disconnected')
             order by created_at desc limit 1 for update`,
         );
@@ -101,44 +101,44 @@ export function createBrokerageConnectionRepository(
           await database.query(
             `insert into argus_brokerage.connections(
                id,user_id,deletion_epoch,status
-             ) values ($1,auth.uid(),$2,'pending')`,
+             ) values ($1,argus_private.request_user_id(),$2,'pending')`,
             [connectionId, deletionEpoch],
           );
         } else {
           if (reconnect) {
             await database.query(
               `delete from argus_brokerage.accounts
-                where user_id=auth.uid() and connection_id=$1`,
+                where user_id=argus_private.request_user_id() and connection_id=$1`,
               [connectionId],
             );
             await database.query(
               `delete from argus_private.webull_credentials
-                where user_id=auth.uid() and connection_id=$1`,
+                where user_id=argus_private.request_user_id() and connection_id=$1`,
               [connectionId],
             );
             await database.query(
               `delete from argus_private.refresh_leases
-                where user_id=auth.uid() and connection_id=$1`,
+                where user_id=argus_private.request_user_id() and connection_id=$1`,
               [connectionId],
             );
           }
           await database.query(
             `update argus_brokerage.connections
                 set status='pending',last_error_code=null,updated_at=$2
-              where id=$1 and user_id=auth.uid()`,
+              where id=$1 and user_id=argus_private.request_user_id()`,
             [connectionId, startedAt],
           );
         }
         await database.query(
           `update argus_private.oauth_states set consumed_at=$1
-            where user_id=auth.uid() and consumed_at is null`,
+            where user_id=argus_private.request_user_id() and consumed_at is null`,
           [startedAt],
         );
         await database.query(
           `insert into argus_private.oauth_states(
              id,user_id,session_id,deletion_epoch,connection_id,state_hash,
              return_target,contract_version,provider_environment,expires_at
-           ) values ($1,auth.uid(),$2,$3,$4,$5,$6,$7,$8,$9)`,
+           ) values ($1,argus_private.request_user_id(),$2,$3,$4,$5,$6,$7,$8,$9)`,
           [
             crypto.randomUUID(),
             input.claims.sessionId,
@@ -172,9 +172,9 @@ export function createBrokerageConnectionRepository(
           const inserted = await database.query(
             `insert into argus_private.step_up_receipts(
                user_id,session_id,deletion_epoch,action,receipt_hash,aal,expires_at
-             ) select auth.uid(),$1,member.deletion_epoch,$2,$3,$4,$5
+             ) select argus_private.request_user_id(),$1,member.deletion_epoch,$2,$3,$4,$5
                  from argus_app.members member
-                where member.user_id=auth.uid() and member.status='active'
+                where member.user_id=argus_private.request_user_id() and member.status='active'
              returning id`,
             [
               input.claims.sessionId,
@@ -226,7 +226,7 @@ export function createBrokerageConnectionRepository(
                left join argus_brokerage.active_account_selections selection
                  on selection.user_id=connection.user_id
                 and selection.account_id=account.id
-              where connection.user_id=auth.uid()
+              where connection.user_id=argus_private.request_user_id()
               group by connection.id
               order by connection.created_at desc limit 1`,
           );
@@ -249,7 +249,7 @@ export function createBrokerageConnectionRepository(
                join argus_brokerage.connections connection
                  on connection.id=account.connection_id
                 and connection.user_id=account.user_id
-              where account.id=$1 and account.user_id=auth.uid()
+              where account.id=$1 and account.user_id=argus_private.request_user_id()
                 and account.status='available' and connection.status='connected'`,
             [accountId],
           );
@@ -260,9 +260,9 @@ export function createBrokerageConnectionRepository(
           await database.query(
             `insert into argus_brokerage.active_account_selections(
                user_id,deletion_epoch,connection_id,account_id
-             ) select auth.uid(),member.deletion_epoch,$1,$2
+             ) select argus_private.request_user_id(),member.deletion_epoch,$1,$2
                  from argus_app.members member
-                where member.user_id=auth.uid() and member.status='active'
+                where member.user_id=argus_private.request_user_id() and member.status='active'
              on conflict (user_id) do update
                set deletion_epoch=excluded.deletion_epoch,
                    connection_id=excluded.connection_id,
@@ -286,7 +286,7 @@ export function createBrokerageConnectionRepository(
             `update argus_private.webull_completion_handles completion
                 set consumed_at=now()
               where completion.handle_hash=$1
-                and completion.user_id=auth.uid()
+                and completion.user_id=argus_private.request_user_id()
                 and completion.session_id=$2
                 and completion.consumed_at is null
                 and completion.expires_at > now()
@@ -313,7 +313,7 @@ export function createBrokerageConnectionRepository(
             `update argus_private.step_up_receipts receipt
                 set consumed_at=now()
               where receipt.receipt_hash=$1
-                and receipt.user_id=auth.uid()
+                and receipt.user_id=argus_private.request_user_id()
                 and receipt.session_id=$2
                 and receipt.action='webull_disconnect'
                 and receipt.consumed_at is null
@@ -326,7 +326,7 @@ export function createBrokerageConnectionRepository(
           }
           const connection = await database.query<{ id: string }>(
             `select id from argus_brokerage.connections
-              where user_id=auth.uid() and status <> 'disconnected'
+              where user_id=argus_private.request_user_id() and status <> 'disconnected'
               order by created_at desc limit 1 for update`,
           );
           const connectionId = connection.rows[0]?.id;
@@ -335,34 +335,34 @@ export function createBrokerageConnectionRepository(
           }
           await database.query(
             `delete from argus_brokerage.accounts
-              where user_id=auth.uid() and connection_id=$1`,
+              where user_id=argus_private.request_user_id() and connection_id=$1`,
             [connectionId],
           );
           await database.query(
             `delete from argus_private.webull_credentials
-              where user_id=auth.uid() and connection_id=$1`,
+              where user_id=argus_private.request_user_id() and connection_id=$1`,
             [connectionId],
           );
           await database.query(
             `delete from argus_private.refresh_leases
-              where user_id=auth.uid() and connection_id=$1`,
+              where user_id=argus_private.request_user_id() and connection_id=$1`,
             [connectionId],
           );
           await database.query(
             `delete from argus_private.oauth_states
-              where user_id=auth.uid() and connection_id=$1`,
+              where user_id=argus_private.request_user_id() and connection_id=$1`,
             [connectionId],
           );
           await database.query(
             `delete from argus_private.webull_completion_handles
-              where user_id=auth.uid() and connection_id=$1`,
+              where user_id=argus_private.request_user_id() and connection_id=$1`,
             [connectionId],
           );
           await database.query(
             `update argus_brokerage.connections
                 set status='disconnected',disconnected_at=now(),
                     last_error_code=null,updated_at=now()
-              where id=$1 and user_id=auth.uid()`,
+              where id=$1 and user_id=argus_private.request_user_id()`,
             [connectionId],
           );
           return Object.freeze({
@@ -499,7 +499,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
               join argus_brokerage.connections connection
                 on connection.id=state.connection_id
                and connection.user_id=state.user_id
-             where state.id=$1 and state.user_id=auth.uid()
+             where state.id=$1 and state.user_id=argus_private.request_user_id()
                and state.session_id=$2 and state.connection_id=$3
                and state.deletion_epoch=$4 and state.consumed_at is not null
                and member.status='active'
@@ -565,7 +565,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
           );
           await database.query(
             `delete from argus_brokerage.accounts
-              where user_id=auth.uid() and connection_id=$1`,
+              where user_id=argus_private.request_user_id() and connection_id=$1`,
             [state.connectionId],
           );
           for (const account of accounts) {
@@ -612,7 +612,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
             `update argus_brokerage.connections
                 set status='connected',authorized_at=now(),disconnected_at=null,
                     last_error_code=null,updated_at=now()
-              where id=$1 and user_id=auth.uid()`,
+              where id=$1 and user_id=argus_private.request_user_id()`,
             [state.connectionId],
           );
           await database.query(
@@ -653,7 +653,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
                join argus_brokerage.connections connection
                  on connection.id=state.connection_id
                 and connection.user_id=state.user_id
-              where state.id=$1 and state.user_id=auth.uid()
+              where state.id=$1 and state.user_id=argus_private.request_user_id()
                 and state.session_id=$2 and state.connection_id=$3
                 and state.deletion_epoch=$4 and state.consumed_at is not null
                 and member.status='active'
@@ -672,18 +672,18 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
           }
           await database.query(
             `delete from argus_private.webull_credentials
-              where user_id=auth.uid() and connection_id=$1`,
+              where user_id=argus_private.request_user_id() and connection_id=$1`,
             [state.connectionId],
           );
           await database.query(
             `delete from argus_private.refresh_leases
-              where user_id=auth.uid() and connection_id=$1`,
+              where user_id=argus_private.request_user_id() and connection_id=$1`,
             [state.connectionId],
           );
           await database.query(
             `update argus_brokerage.connections
                 set status=$2,last_error_code=$2,updated_at=now()
-              where id=$1 and user_id=auth.uid() and status='pending'`,
+              where id=$1 and user_id=argus_private.request_user_id() and status='pending'`,
             [state.connectionId, outcome],
           );
           await database.query(

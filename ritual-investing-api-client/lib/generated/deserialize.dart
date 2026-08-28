@@ -8,12 +8,26 @@ import 'package:ritual_investing_api_client/generated/model/brokerage_balances_r
 import 'package:ritual_investing_api_client/generated/model/brokerage_capabilities_projection.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_capabilities_response.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_capability.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_command.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_command_response.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_detail.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_detail_response.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_list.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_preview.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_preview_response.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_reconciliation.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_order_reconciliation_response.dart';
+import 'package:ritual_investing_api_client/generated/model/brokerage_orders_response.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_position.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_positions_projection.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_positions_response.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_restriction.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_restrictions_projection.dart';
 import 'package:ritual_investing_api_client/generated/model/brokerage_restrictions_response.dart';
+import 'package:ritual_investing_api_client/generated/model/confirm_cancel_brokerage_order.dart';
+import 'package:ritual_investing_api_client/generated/model/confirm_modify_brokerage_order.dart';
+import 'package:ritual_investing_api_client/generated/model/confirm_place_brokerage_order.dart';
 import 'package:ritual_investing_api_client/generated/model/create_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/decide_moderation_request.dart';
@@ -24,6 +38,8 @@ import 'package:ritual_investing_api_client/generated/model/get_account200_respo
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response_error.dart';
 import 'package:ritual_investing_api_client/generated/model/issue_member_step_up_request.dart';
+import 'package:ritual_investing_api_client/generated/model/modify_brokerage_order_intent.dart';
+import 'package:ritual_investing_api_client/generated/model/place_brokerage_order_intent.dart';
 import 'package:ritual_investing_api_client/generated/model/reconnect_webull_connection_request.dart';
 import 'package:ritual_investing_api_client/generated/model/record_consent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/redeem_webull_completion_request.dart';
@@ -90,6 +106,49 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'BrokerageCapability':
       return BrokerageCapability.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'BrokerageOrder':
+      return BrokerageOrder.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageOrderCommand':
+      return BrokerageOrderCommand.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageOrderCommandResponse':
+      return BrokerageOrderCommandResponse.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokerageOrderDetail':
+      return BrokerageOrderDetail.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageOrderDetailResponse':
+      return BrokerageOrderDetailResponse.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokerageOrderList':
+      return BrokerageOrderList.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageOrderPreview':
+      return BrokerageOrderPreview.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BrokerageOrderPreviewResponse':
+      return BrokerageOrderPreviewResponse.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokerageOrderReconciliation':
+      return BrokerageOrderReconciliation.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokerageOrderReconciliationResponse':
+      return BrokerageOrderReconciliationResponse.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'BrokerageOrdersResponse':
+      return BrokerageOrdersResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'BrokeragePosition':
       return BrokeragePosition.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -113,6 +172,15 @@ ReturnType deserialize<ReturnType, BaseType>(
       return BrokerageRestrictionsResponse.fromJson(
             value as Map<String, dynamic>,
           )
+          as ReturnType;
+    case 'ConfirmCancelBrokerageOrder':
+      return ConfirmCancelBrokerageOrder.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ConfirmModifyBrokerageOrder':
+      return ConfirmModifyBrokerageOrder.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ConfirmPlaceBrokerageOrder':
+      return ConfirmPlaceBrokerageOrder.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'CreateCircleRequest':
       return CreateCircleRequest.fromJson(value as Map<String, dynamic>)
@@ -145,6 +213,12 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'IssueMemberStepUpRequest':
       return IssueMemberStepUpRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ModifyBrokerageOrderIntent':
+      return ModifyBrokerageOrderIntent.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PlaceBrokerageOrderIntent':
+      return PlaceBrokerageOrderIntent.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'ReconnectWebullConnectionRequest':
       return ReconnectWebullConnectionRequest.fromJson(
