@@ -40,16 +40,16 @@ flutter test integration_test/member_experience_test.dart -d <device-id> \
 ../scripts/check-member-provider-boundaries.sh
 ```
 
-Launch the member app against the hosted Ritual Investment development project
-from the repository root:
+Launch the member app against the persistent `beta` branch of the hosted
+Ritual Investment Supabase project from the repository root:
 
 ```sh
 ./scripts/run-ritual-investing-beta.sh -d <device-id>
 ```
 
 The script reads the committed public client configuration from
-`ritual-investing-app/config/beta.json`. It contains only the hosted project
-URL and Supabase publishable key; no server secret or database credential is
+`ritual-investing-app/config/beta.json`. It contains only the beta branch URL
+and Supabase publishable key; no server secret or database credential is
 shipped to Flutter.
 
 The visual baselines live under `test/goldens/`. Regenerate them only after comparing the result with the approved authority at `../docs/visual-references/standalone-ritual-investing/approved-light-dark-reference.html`.

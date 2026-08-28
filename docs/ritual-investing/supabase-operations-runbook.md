@@ -15,16 +15,19 @@ against local fixtures or the local stack. A PR must never receive
 `SUPABASE_ACCESS_TOKEN`, a database password, a secret key, or a hosted member
 token.
 
-Supabase branching is deliberately not part of this workflow. The account does
-not have the required Pro subscription. Each branch gets a fresh local stack;
-the same ordered migrations are promoted later to one hosted development
-project.
+Pull requests continue to use fresh local stacks so untrusted code never
+receives hosted credentials. Approved hosted-development promotions target the
+persistent Supabase `beta` branch under the Ritual Investment project. That
+branch has its own database, Auth, API credentials, Edge secrets, Cron, Queues,
+and Storage boundary; it is not a Git-only environment label.
 
 ## Hosted-development promotion
 
 Only a protected `main` push or an approved manual run may enter the
-`ritual-supabase-development` GitHub environment. Promotions are serialized and
-never cancel an in-flight deployment.
+`ritual-supabase-development` GitHub environment. Its project variables and
+database credentials must resolve to the persistent Supabase `beta` branch,
+never the parent production branch. Promotions are serialized and never cancel
+an in-flight deployment.
 
 Before any remote mutation, `scripts/check-supabase-deploy-target.ts` verifies:
 

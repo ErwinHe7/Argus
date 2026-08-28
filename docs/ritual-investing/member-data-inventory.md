@@ -331,6 +331,6 @@ Provider facts are not repurposed as Rowan context, marketing analytics, or a se
 
 ## Development and launch gates
 
-Branches and pull requests use a fresh local Supabase CLI stack. One hosted development project receives serialized main/manual deployments; Supabase Pro branching is not required. A second Supabase project, production Webull registration, custom SMTP, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting are launch gates.
+Branches and pull requests use a fresh local Supabase CLI stack. Serialized approved main/manual deployments target the persistent Supabase `beta` branch; pull requests receive no hosted credentials. A separate production project or reviewed production-branch promotion, production Webull registration, custom SMTP, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting remain launch gates.
 
 The repository migration removed Auth0, Neon, Cloudflare backend compute, Cloudflare Queues, R2, Cloudflare Access, Drizzle, and simulated-finance authority after focused replacement tests passed. Revoking any corresponding external credentials, routes, bindings, and resources that still exist in provider dashboards is an operator cleanup step.

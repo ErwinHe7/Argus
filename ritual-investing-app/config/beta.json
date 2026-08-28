@@ -1,6 +1,6 @@
 {
-  "RITUAL_API_BASE_URL": "https://punuomgshlypbntanomz.supabase.co/functions/v1/api",
-  "SUPABASE_URL": "https://punuomgshlypbntanomz.supabase.co",
-  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_L7Gl0dxJdvtJ3yQB8yhJwQ_nlN-_YqG",
+  "RITUAL_API_BASE_URL": "https://zbgjjufjkhfhirbuuolv.supabase.co/functions/v1/api",
+  "SUPABASE_URL": "https://zbgjjufjkhfhirbuuolv.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_A4POPCI9WnO-VnSb1IQXFg_4GM58St0",
   "SUPABASE_AUTH_PROVIDERS": "google,apple"
 }
