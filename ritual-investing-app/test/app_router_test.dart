@@ -336,9 +336,7 @@ void main() {
     },
   );
 
-  testWidgets('U11 privacy and Demo reset use stable focused You routes', (
-    tester,
-  ) async {
+  testWidgets('U11 privacy uses a stable focused You route', (tester) async {
     await tester.pumpWidget(
       RitualInvestingApp(
         container: fixtureContainer(
@@ -359,86 +357,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(router.state.uri.path, MemberRoutes.youPrivacyPath);
     expect(find.text('Privacy and data'), findsOneWidget);
-
-    router.go(MemberRoutes.you.path);
-    await tester.pumpAndSettle();
-    await _scrollTo(tester, find.byKey(const Key('you-demo-reset')));
-    await tester.tap(find.byKey(const Key('you-demo-reset')));
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, MemberRoutes.youDemoResetPath);
-    expect(find.text('Reset Demo'), findsOneWidget);
-
-    router.go(MemberRoutes.youPrivacyPath);
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, MemberRoutes.youPrivacyPath);
-  });
-
-  testWidgets(
-    'U10 gates free surfaces from fresh capability codes and restores context',
-    (tester) async {
-      await tester.pumpWidget(
-        RitualInvestingApp(container: fixtureContainer(includeU10: true)),
-      );
-      await tester.pumpAndSettle();
-      final router = GoRouter.of(
-        tester.element(find.byKey(const Key('app-shell-scaffold'))),
-      );
-
-      expect(
-        find.byKey(const Key('daily-ritual-capability-gate')),
-        findsOneWidget,
-      );
-      expect(find.text('PRIVATE RITUAL CONTENT'), findsNothing);
-
-      const intentionId = '11111111-1111-4111-8111-111111111111';
-      final returnLocation = MemberRoutes.futureMirrorLocation(
-        'fixture-portfolio',
-        intentionId,
-      );
-      router.go(
-        MemberRoutes.membershipLocation(
-          capabilityCode: 'future_mirror',
-          returnLocation: returnLocation,
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text('Open Future Mirror'), findsOneWidget);
-      await _scrollTo(
-        tester,
-        find.byKey(const Key('membership-choose-premium')),
-      );
-      expect(
-        find.byKey(const Key('membership-choose-premium')),
-        findsOneWidget,
-      );
-
-      router.go(
-        '${MemberRoutes.youMembershipPath}?capability=future_mirror&'
-        'return_to=${Uri.encodeQueryComponent('https://provider.example')}',
-      );
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('membership-choose-premium')), findsNothing);
-      expect(find.textContaining('provider.example'), findsNothing);
-
-      router.go('${MemberRoutes.youMembershipPath}/checkout/not-a-uuid');
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, MemberRoutes.youMembershipPath);
-      expect(find.textContaining('not-a-uuid'), findsNothing);
-    },
-  );
-
-  test('membership route builders reject external and malformed context', () {
-    expect(
-      () => MemberRoutes.membershipLocation(
-        capabilityCode: 'future_mirror',
-        returnLocation: 'https://provider.example',
-      ),
-      throwsArgumentError,
-    );
-    expect(
-      () => MemberRoutes.membershipCheckoutLocation('not-a-uuid'),
-      throwsArgumentError,
-    );
   });
 
   testWidgets('U5 stable UUID routes restore every research/private detail', (
@@ -573,44 +491,6 @@ void main() {
       findsOneWidget,
     );
   });
-
-  testWidgets(
-    'U7 portfolio A to B order route never leaks labeled asset state',
-    (tester) async {
-      const assetA = '00000000-0000-4000-8000-000000000701';
-      const assetB = '00000000-0000-4000-8000-000000000702';
-      final container = fixtureContainer(includeU7: true);
-      await tester.pumpWidget(RitualInvestingApp(container: container));
-      await tester.pumpAndSettle();
-      final router = GoRouter.of(
-        tester.element(find.byKey(const Key('app-shell-scaffold'))),
-      );
-
-      router.go(
-        MemberRoutes.portfolioOrdersLocation(
-          'portfolio-a',
-          assetId: assetA,
-          symbol: 'AAA',
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, '/you/portfolios/portfolio-a/orders');
-      expect(find.text('AAA · from Asset Codex'), findsOneWidget);
-
-      router.go(
-        MemberRoutes.portfolioOrdersLocation(
-          'portfolio-b',
-          assetId: assetB,
-          symbol: 'BBB',
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, '/you/portfolios/portfolio-b/orders');
-      expect(find.text('BBB · from Asset Codex'), findsOneWidget);
-      expect(find.text('AAA · from Asset Codex'), findsNothing);
-      expect(container.orderController.operation, 'order.commit:portfolio-b');
-    },
-  );
 
   testWidgets('U9 briefing A to B route replaces selected authority', (
     tester,

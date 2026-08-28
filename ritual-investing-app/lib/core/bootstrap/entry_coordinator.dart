@@ -19,7 +19,6 @@ enum EntryDestination {
   review,
   reconcile,
   authenticatedRecovery,
-  entitlementBlocked,
   finalizing,
   shell,
   failure,
@@ -349,11 +348,7 @@ class EntryCoordinator extends ChangeNotifier {
     }
     await _apply(refreshed);
     _bootstrap = refreshed;
-    _set(
-      refreshed.canEnterMemberShell
-          ? EntryDestination.shell
-          : EntryDestination.entitlementBlocked,
-    );
+    _set(EntryDestination.shell);
   }
 
   Future<void> _readDraft() async {
@@ -381,11 +376,7 @@ class EntryCoordinator extends ChangeNotifier {
       _draft = null;
       _draftStatus = DraftReadStatus.empty;
       await _clearDraftBestEffort();
-      _set(
-        bootstrap.canEnterMemberShell
-            ? EntryDestination.shell
-            : EntryDestination.entitlementBlocked,
-      );
+      _set(EntryDestination.shell);
     } else if (_draft != null) {
       _set(EntryDestination.reconcile);
     } else {
@@ -408,11 +399,7 @@ class EntryCoordinator extends ChangeNotifier {
     _draft = null;
     _draftStatus = DraftReadStatus.empty;
     await _clearDraftBestEffort();
-    _set(
-      completed.canEnterMemberShell
-          ? EntryDestination.shell
-          : EntryDestination.entitlementBlocked,
-    );
+    _set(EntryDestination.shell);
   }
 
   void _routeSignedOutDraft() {

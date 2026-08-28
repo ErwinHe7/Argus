@@ -5,7 +5,6 @@ import '../../brokerage_connection/application/controller.dart';
 import '../../brokerage_connection/domain/model.dart';
 import '../../onboarding/domain/onboarding_draft.dart';
 import '../../portfolio/application/brokerage_controller.dart';
-import '../../portfolio/application/controller.dart';
 import '../application/controller.dart';
 import '../domain/model.dart';
 
@@ -26,37 +25,29 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
     super.key,
     required this.controller,
-    this.portfolioController,
     this.brokerageConnectionController,
     this.brokeragePortfolioController,
-    this.isDemo = true,
     this.onOpenInvesting,
     this.onOpenRitualPreferences,
     this.onOpenAstrology,
     this.onOpenPolicies,
     this.onOpenAccount,
     this.onOpenNotifications,
-    this.onOpenMembership,
     this.onOpenPrivacy,
-    this.onOpenDemoReset,
     this.onOpenIntentions,
     this.onOpenPortfolio,
   });
 
   final ProfileController controller;
-  final PortfolioController? portfolioController;
   final BrokerageConnectionController? brokerageConnectionController;
   final BrokeragePortfolioController? brokeragePortfolioController;
-  final bool isDemo;
   final VoidCallback? onOpenInvesting;
   final VoidCallback? onOpenRitualPreferences;
   final VoidCallback? onOpenAstrology;
   final VoidCallback? onOpenPolicies;
   final VoidCallback? onOpenAccount;
   final VoidCallback? onOpenNotifications;
-  final VoidCallback? onOpenMembership;
   final VoidCallback? onOpenPrivacy;
-  final VoidCallback? onOpenDemoReset;
   final VoidCallback? onOpenIntentions;
   final ValueChanged<String>? onOpenPortfolio;
 
@@ -64,7 +55,6 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: Listenable.merge([
       controller,
-      ?portfolioController,
       ?brokerageConnectionController,
       ?brokeragePortfolioController,
     ]),
@@ -87,18 +77,13 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              if (isDemo) const Chip(label: Text('Demo')),
             ],
           ),
           const SizedBox(height: 8),
           Text(
-            isDemo
-                ? 'Your saved answers, active personalization, and Demo account settings.'
-                : 'Your saved answers, active personalization, and Webull connection.',
+            'Your saved answers, active personalization, and Webull connection.',
           ),
           StateStatus(phase: controller.state.phase, onRetry: controller.load),
-          if (portfolioController case final value?)
-            StateStatus(phase: value.state.phase, onRetry: value.load),
           if (brokerageConnectionController case final value?)
             StateStatus(phase: value.phase, onRetry: value.load),
           if (controller.state.value case final profile?) ...[
@@ -138,16 +123,6 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Policy decisions',
                 subtitle: 'Onboarding consent status',
                 onTap: onOpenPolicies,
-              ),
-            if (portfolioController?.selected case final portfolio?)
-              _MenuTile(
-                key: const Key('you-portfolio'),
-                icon: Icons.account_balance_wallet_outlined,
-                title: portfolio.name,
-                subtitle: 'Open your simulated portfolio',
-                onTap: onOpenPortfolio == null
-                    ? null
-                    : () => onOpenPortfolio!(portfolio.id),
               ),
             if (brokerageConnectionController case final brokerage?)
               _MenuTile(
@@ -193,14 +168,6 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'Recap feed and preferences · no push delivery',
                 onTap: onOpenNotifications,
               ),
-            if (onOpenMembership != null)
-              _MenuTile(
-                key: const Key('you-membership'),
-                icon: Icons.auto_awesome,
-                title: 'Demo membership',
-                subtitle: 'Free and premium simulations · no charge',
-                onTap: onOpenMembership,
-              ),
             if (onOpenPrivacy != null)
               _MenuTile(
                 key: const Key('you-privacy'),
@@ -208,14 +175,6 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Privacy and data',
                 subtitle: 'Private export and account deletion',
                 onTap: onOpenPrivacy,
-              ),
-            if (onOpenDemoReset != null)
-              _MenuTile(
-                key: const Key('you-demo-reset'),
-                icon: Icons.restart_alt,
-                title: 'Reset Demo',
-                subtitle: 'Restore the seeded fictional experience',
-                onTap: onOpenDemoReset,
               ),
             if (onOpenAccount != null)
               _MenuTile(

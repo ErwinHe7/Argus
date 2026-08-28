@@ -30,9 +30,7 @@ void main() {
         await tester.pumpWidget(
           RitualInvestingApp(
             container: fixtureContainer(
-              includeU7: true,
               includeU9: true,
-              includeU10: true,
               includeU11: true,
               privacyRepository: _AccessibilityPrivacyRepository(),
             ),
@@ -65,9 +63,7 @@ void main() {
         }
 
         for (final route in const <(String, String)>[
-          (MemberRoutes.youMembershipPath, 'Demo membership'),
           (MemberRoutes.youPrivacyPath, 'Privacy and data'),
-          (MemberRoutes.youDemoResetPath, 'Reset Demo'),
         ]) {
           router.go(route.$1);
           await tester.pumpAndSettle();
@@ -81,23 +77,6 @@ void main() {
           await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
           await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
         }
-
-        router.go(MemberRoutes.portfolioRebalanceLocation('fixture-portfolio'));
-        await tester.pumpAndSettle();
-        expect(find.text('Rebalance'), findsOneWidget);
-        final preview = find.byKey(const Key('preview-rebalance'));
-        await tester.scrollUntilVisible(preview, 220);
-        await tester.tap(preview);
-        await tester.pumpAndSettle();
-        expect(
-          find.text('Review allocation and frozen trades'),
-          findsOneWidget,
-        );
-        expect(find.byKey(const Key('confirm-rebalance')), findsOneWidget);
-        await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
-        await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-        expect(tester.takeException(), isNull);
 
         router.go(MemberRoutes.you.path);
         await tester.pumpAndSettle();

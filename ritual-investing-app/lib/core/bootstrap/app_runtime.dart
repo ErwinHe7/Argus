@@ -11,23 +11,14 @@ import '../../features/circles/application/controller.dart';
 import '../../features/coven/application/controller.dart';
 import '../../features/creators/application/controller.dart';
 import '../../features/discover/application/controller.dart';
-import '../../features/entitlements/application/entitlement_controller.dart';
-import '../../features/funding/application/contribution_controller.dart';
-import '../../features/funding/application/funding_source_controller.dart';
-import '../../features/future_mirror/application/future_mirror_controller.dart';
 import '../../features/grimoires/application/controller.dart';
 import '../../features/intentions/application/member_scenario_controller.dart';
-import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
-import '../../features/orders/application/order_controller.dart';
 import '../../features/orders/application/brokerage_order_controller.dart';
-import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/domain/model.dart';
-import '../../features/rebalancing/application/rebalance_controller.dart';
-import '../../features/recurring/application/recurring_plan_controller.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
@@ -37,29 +28,7 @@ import 'member_feature_scope.dart';
 
 export 'member_feature_scope.dart' show MemberBranch;
 
-enum MemberEntryGate {
-  restoring,
-  signedOut,
-  failure,
-  onboarding,
-  entitlement,
-  member,
-}
-
-/// Controls which production-owned member surfaces are presented by a host.
-///
-/// This policy removes unsupported controls from the widget tree; it is not an
-/// authorization mechanism. The standalone web demo uses [demo], while the
-/// authenticated mobile entry uses [production].
-enum MemberPresentationPolicy {
-  production,
-  demo;
-
-  bool get isDemo => this == demo;
-  bool get allowsProfileEditing => this == production;
-  bool get showsAccount => this == production;
-  bool get showsFunding => this == demo;
-}
+enum MemberEntryGate { restoring, signedOut, failure, onboarding, member }
 
 /// The provider-neutral contract consumed by member navigation and screens.
 ///
@@ -67,7 +36,6 @@ enum MemberPresentationPolicy {
 /// to the production entry layer and are deliberately absent from this port.
 abstract interface class AppRuntime implements Listenable {
   MemberEntryGate get entryGate;
-  MemberPresentationPolicy get presentationPolicy;
   MemberBootstrap? get memberBootstrap;
   MemberFeatureScope? get featureScope;
   CacheScope? get activeCacheScope;
@@ -86,18 +54,6 @@ extension AppRuntimeFeatureAccess on AppRuntime {
       _requireScope().discoverController;
   CovenController get covenController => _requireScope().covenController;
   ProfileController get profileController => _requireScope().profileController;
-  PortfolioController get portfolioController => _required(
-    _requireScope().portfolioController,
-    'Demo portfolio is unavailable.',
-  );
-  FundingSourceController get fundingSourceController => _required(
-    _requireScope().fundingSourceController,
-    'Demo funding is unavailable.',
-  );
-  ContributionController get contributionController => _required(
-    _requireScope().contributionController,
-    'Demo contributions are unavailable.',
-  );
   BrokerageConnectionController get brokerageConnectionController => _required(
     _requireScope().brokerageConnectionController,
     'Webull connection is unavailable.',
@@ -107,27 +63,9 @@ extension AppRuntimeFeatureAccess on AppRuntime {
     'Webull portfolio is unavailable.',
   );
 
-  OrderController get orderController =>
-      _required(_requireScope().orderController, 'Orders are unavailable.');
   BrokerageOrderController get brokerageOrderController => _required(
     _requireScope().brokerageOrderController,
     'Webull orders are unavailable.',
-  );
-  RecurringPlanController get recurringPlanController => _required(
-    _requireScope().recurringPlanController,
-    'Recurring plans are unavailable.',
-  );
-  RebalanceController get rebalanceController => _required(
-    _requireScope().rebalanceController,
-    'Rebalancing is unavailable.',
-  );
-  IntentionController get intentionController => _required(
-    _requireScope().intentionController,
-    'Intentions are unavailable.',
-  );
-  FutureMirrorController get futureMirrorController => _required(
-    _requireScope().futureMirrorController,
-    'Future Mirror is unavailable.',
   );
   MemberScenarioController get memberScenarioController => _required(
     _requireScope().memberScenarioController,
@@ -140,10 +78,6 @@ extension AppRuntimeFeatureAccess on AppRuntime {
   NotificationController get notificationController => _required(
     _requireScope().notificationController,
     'In-app notices are unavailable.',
-  );
-  EntitlementController get entitlementController => _required(
-    _requireScope().entitlementController,
-    'Demo membership is unavailable.',
   );
   PrivacyController get privacyController => _required(
     _requireScope().privacyController,
@@ -173,29 +107,14 @@ extension AppRuntimeFeatureAccess on AppRuntime {
   }
 
   bool get hasAssetCodex => featureScope?.assetCodexRepository != null;
-  bool get hasSimulatedInvesting =>
-      presentationPolicy.isDemo &&
-      featureScope?.orderController != null &&
-      featureScope?.recurringPlanController != null &&
-      featureScope?.rebalanceController != null;
-  bool get hasBrokerageOrders =>
-      presentationPolicy == MemberPresentationPolicy.production &&
-      featureScope?.brokerageOrderController != null;
+  bool get hasBrokerageOrders => featureScope?.brokerageOrderController != null;
   bool get hasBrokeragePortfolio =>
       featureScope?.brokerageConnectionController != null &&
       featureScope?.brokeragePortfolioController != null;
-  bool get hasIntentionsAndFutureMirror =>
-      presentationPolicy.isDemo &&
-      featureScope?.intentionController != null &&
-      featureScope?.futureMirrorController != null;
-  bool get hasMemberScenarios =>
-      presentationPolicy == MemberPresentationPolicy.production &&
-      featureScope?.memberScenarioController != null;
+  bool get hasMemberScenarios => featureScope?.memberScenarioController != null;
   bool get hasBriefingsAndNotifications =>
       featureScope?.briefingController != null &&
       featureScope?.notificationController != null;
-  bool get hasDemoMembership =>
-      presentationPolicy.isDemo && featureScope?.entitlementController != null;
   bool get hasPrivacyControls => featureScope?.privacyController != null;
   bool get hasMemberResearch =>
       featureScope?.covenRepository != null &&

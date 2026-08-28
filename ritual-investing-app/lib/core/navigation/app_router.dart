@@ -42,7 +42,6 @@ GoRouter createAppRouter({
             path == '/onboarding/reconcile' ? null : '/onboarding/reconcile',
           EntryDestination.authenticatedRecovery =>
             path == '/onboarding/recovery' ? null : '/onboarding/recovery',
-          EntryDestination.entitlementBlocked ||
           EntryDestination.failure => path == '/entry' ? null : '/entry',
           EntryDestination.shell =>
             isEntry || path == '/' ? MemberRoutes.ritual.path : null,
@@ -321,13 +320,6 @@ class _EntryGate extends StatelessWidget {
       ),
       MemberEntryGate.onboarding => (
         'Complete onboarding to continue.',
-        null,
-        null,
-        'Log out',
-        container.logout,
-      ),
-      MemberEntryGate.entitlement => (
-        'Demo membership is unavailable for this account.',
         null,
         null,
         'Log out',

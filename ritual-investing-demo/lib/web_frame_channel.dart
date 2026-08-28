@@ -1,6 +1,7 @@
 import 'dart:js_interop';
 
-import 'package:ritual_investing_app/demo/demo_bootstrap.dart';
+import 'demo_bootstrap.dart';
+
 import 'package:web/web.dart' as web;
 
 class BrowserDemoFrameChannel implements DemoFrameChannel {

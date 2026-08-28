@@ -16,24 +16,20 @@ typedef MemberBootstrapRefresher = Future<MemberBootstrap> Function();
 /// Owns the member feature scope after entry has produced a completed bootstrap.
 ///
 /// This runtime has no knowledge of authentication, sessions, generated API
-/// clients, or platform storage. Production supplies those concerns outside the
-/// boundary; a demo can supply a completed bootstrap and in-memory feature
-/// ports directly.
+/// clients, or platform storage. Production supplies those concerns outside
+/// this provider-neutral boundary.
 class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
   MemberShellRuntime.managed({
     required ScopedReadCacheStorage cacheStorage,
     required PendingCommandStore pendingCommandStore,
     required MemberFeatureScopeFactory featureScopeFactory,
-  }) : _presentationPolicy = MemberPresentationPolicy.production,
-       _cacheStorage = cacheStorage,
+  }) : _cacheStorage = cacheStorage,
        _pendingCommandStore = pendingCommandStore,
        _featureScopeFactory = featureScopeFactory;
 
   factory MemberShellRuntime.completed({
     required MemberBootstrap bootstrap,
     required MemberFeatureScope featureScope,
-    MemberPresentationPolicy presentationPolicy =
-        MemberPresentationPolicy.production,
     MemberBootstrapRefresher? refreshBootstrap,
     Future<void> Function()? onDeletionAccepted,
     Future<void> Function(int expectedGeneration)? onResetAccepted,
@@ -59,7 +55,6 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
     final runtime = MemberShellRuntime._completed(
       bootstrap: bootstrap,
       featureScope: featureScope,
-      presentationPolicy: presentationPolicy,
       refreshBootstrap: refreshBootstrap,
       onDeletionAccepted: onDeletionAccepted,
       onResetAccepted: onResetAccepted,
@@ -72,7 +67,6 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
   MemberShellRuntime._completed({
     required MemberBootstrap bootstrap,
     required MemberFeatureScope featureScope,
-    required MemberPresentationPolicy presentationPolicy,
     required MemberBootstrapRefresher? refreshBootstrap,
     required Future<void> Function()? onDeletionAccepted,
     required Future<void> Function(int expectedGeneration)? onResetAccepted,
@@ -81,7 +75,6 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
        _featureScopeFactory = null,
        _memberBootstrap = bootstrap,
        _featureScope = featureScope,
-       _presentationPolicy = presentationPolicy,
        _refreshBootstrap = refreshBootstrap,
        _onDeletionAccepted = onDeletionAccepted,
        _onResetAccepted = onResetAccepted;
@@ -94,7 +87,6 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
   Future<void> Function(int expectedGeneration)? _onResetAccepted;
   MemberBootstrap? _memberBootstrap;
   MemberFeatureScope? _featureScope;
-  final MemberPresentationPolicy _presentationPolicy;
   ScopedReadCache? _scopedReadCache;
   MemberFeatureScope? _retiredScope;
   bool _legacyMutationsCleared = false;
@@ -111,9 +103,6 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
 
   @override
   MemberFeatureScope? get featureScope => _featureScope;
-
-  @override
-  MemberPresentationPolicy get presentationPolicy => _presentationPolicy;
 
   @override
   CacheScope? get activeCacheScope => _featureScope?.scope;
@@ -265,7 +254,7 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
             current.accountId != refreshed.accountId ||
             current.resetGeneration != refreshed.resetGeneration ||
             !refreshed.canEnterMemberShell) {
-          throw StateError('The refreshed bootstrap changed demo scope.');
+          throw StateError('The refreshed bootstrap changed account scope.');
         }
         _memberBootstrap = refreshed;
         _featureScope?.updateBootstrap(refreshed);
@@ -283,19 +272,6 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
   void _bindScopeLifecycle() {
     final scope = _featureScope;
     if (scope == null) return;
-    final refresh = _refreshBootstrap;
-    if (refresh != null) {
-      scope.entitlementController?.bindAuthorityTransition(() async {
-        final next = await refresh();
-        if (_featureScopeFactory == null) {
-          _memberBootstrap = next;
-          scope.updateBootstrap(next);
-          notifyListeners();
-        } else {
-          await transitionTo(next);
-        }
-      });
-    }
     final deletion = _onDeletionAccepted;
     final reset = _onResetAccepted;
     if (deletion != null && reset != null) {

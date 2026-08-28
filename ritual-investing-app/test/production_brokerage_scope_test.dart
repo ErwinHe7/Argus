@@ -14,7 +14,8 @@ void main() {
     expect(source, isNot(contains('GeneratedOrderApiService')));
     expect(source, isNot(contains('GeneratedRecurringPlanApiService')));
     expect(source, isNot(contains('GeneratedRebalanceApiService')));
-    expect(source, contains('intentionController: intentionController'));
-    expect(source, contains('futureMirrorController: futureMirrorController'));
+    expect(source, contains('memberScenarioController:'));
+    expect(source, isNot(contains('intentionController:')));
+    expect(source, isNot(contains('futureMirrorController:')));
   });
 }

@@ -12,25 +12,16 @@ import '../../features/coven/application/controller.dart';
 import '../../features/circles/application/controller.dart';
 import '../../features/creators/application/controller.dart';
 import '../../features/discover/application/controller.dart';
-import '../../features/entitlements/application/entitlement_controller.dart';
-import '../../features/funding/application/contribution_controller.dart';
-import '../../features/funding/application/funding_source_controller.dart';
-import '../../features/future_mirror/application/future_mirror_controller.dart';
 import '../../features/grimoires/application/controller.dart';
 import '../../features/intentions/application/member_scenario_controller.dart';
-import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
-import '../../features/orders/application/order_controller.dart';
 import '../../features/orders/application/brokerage_order_controller.dart';
 import '../../features/onboarding/domain/onboarding_draft.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/domain/model.dart';
-import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
-import '../../features/recurring/application/recurring_plan_controller.dart';
-import '../../features/rebalancing/application/rebalance_controller.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
@@ -90,10 +81,6 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
   MemberShellRuntime get memberShellRuntime => _memberShellRuntime;
 
   @override
-  MemberPresentationPolicy get presentationPolicy =>
-      MemberPresentationPolicy.production;
-
-  @override
   MemberBootstrap? get memberBootstrap => _memberShellRuntime.memberBootstrap;
 
   @override
@@ -115,7 +102,6 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
         EntryDestination.failure => MemberEntryGate.failure,
         EntryDestination.reconcile ||
         EntryDestination.authenticatedRecovery => MemberEntryGate.onboarding,
-        EntryDestination.entitlementBlocked => MemberEntryGate.entitlement,
         EntryDestination.shell => MemberEntryGate.member,
       };
     }
@@ -130,9 +116,6 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
         null => MemberEntryGate.restoring,
         final value when !value.onboarding.isComplete =>
           MemberEntryGate.onboarding,
-        final value
-            when value.entitlement.status != MemberEntitlementStatus.active =>
-          MemberEntryGate.entitlement,
         _ => MemberEntryGate.member,
       },
     };
@@ -144,54 +127,15 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       _requireScope().discoverController;
   CovenController get covenController => _requireScope().covenController;
   ProfileController get profileController => _requireScope().profileController;
-  PortfolioController get portfolioController =>
-      _requireScope().portfolioController ??
-      (throw StateError('Demo portfolio is unavailable.'));
-  FundingSourceController get fundingSourceController =>
-      _requireScope().fundingSourceController ??
-      (throw StateError('Demo funding is unavailable.'));
-  ContributionController get contributionController =>
-      _requireScope().contributionController ??
-      (throw StateError('Demo contributions are unavailable.'));
   BrokerageConnectionController get brokerageConnectionController =>
       _requireScope().brokerageConnectionController ??
       (throw StateError('Webull connection is unavailable.'));
   BrokeragePortfolioController get brokeragePortfolioController =>
       _requireScope().brokeragePortfolioController ??
       (throw StateError('Webull portfolio is unavailable.'));
-  OrderController get orderController {
-    final value = _requireScope().orderController;
-    if (value == null) throw StateError('Orders are unavailable.');
-    return value;
-  }
-
   BrokerageOrderController get brokerageOrderController =>
       _requireScope().brokerageOrderController ??
       (throw StateError('Webull orders are unavailable.'));
-
-  RecurringPlanController get recurringPlanController {
-    final value = _requireScope().recurringPlanController;
-    if (value == null) throw StateError('Recurring plans are unavailable.');
-    return value;
-  }
-
-  RebalanceController get rebalanceController {
-    final value = _requireScope().rebalanceController;
-    if (value == null) throw StateError('Rebalancing is unavailable.');
-    return value;
-  }
-
-  IntentionController get intentionController {
-    final value = _requireScope().intentionController;
-    if (value == null) throw StateError('Intentions are unavailable.');
-    return value;
-  }
-
-  FutureMirrorController get futureMirrorController {
-    final value = _requireScope().futureMirrorController;
-    if (value == null) throw StateError('Future Mirror is unavailable.');
-    return value;
-  }
 
   MemberScenarioController get memberScenarioController =>
       _requireScope().memberScenarioController ??
@@ -206,12 +150,6 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
   NotificationController get notificationController {
     final value = _requireScope().notificationController;
     if (value == null) throw StateError('In-app notices are unavailable.');
-    return value;
-  }
-
-  EntitlementController get entitlementController {
-    final value = _requireScope().entitlementController;
-    if (value == null) throw StateError('Demo membership is unavailable.');
     return value;
   }
 
@@ -253,33 +191,17 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
 
   bool get hasAssetCodex => featureScope?.assetCodexRepository != null;
 
-  bool get hasSimulatedInvesting =>
-      presentationPolicy.isDemo &&
-      featureScope?.orderController != null &&
-      featureScope?.recurringPlanController != null &&
-      featureScope?.rebalanceController != null;
-
   bool get hasBrokerageOrders => featureScope?.brokerageOrderController != null;
 
   bool get hasBrokeragePortfolio =>
       featureScope?.brokerageConnectionController != null &&
       featureScope?.brokeragePortfolioController != null;
 
-  bool get hasIntentionsAndFutureMirror =>
-      presentationPolicy.isDemo &&
-      featureScope?.intentionController != null &&
-      featureScope?.futureMirrorController != null;
-
-  bool get hasMemberScenarios =>
-      !presentationPolicy.isDemo &&
-      featureScope?.memberScenarioController != null;
+  bool get hasMemberScenarios => featureScope?.memberScenarioController != null;
 
   bool get hasBriefingsAndNotifications =>
       featureScope?.briefingController != null &&
       featureScope?.notificationController != null;
-
-  bool get hasDemoMembership =>
-      presentationPolicy.isDemo && featureScope?.entitlementController != null;
 
   bool get hasPrivacyControls => featureScope?.privacyController != null;
 
@@ -507,9 +429,6 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
   Future<void> _transitionTo(MemberBootstrap? next) async {
     await _memberShellRuntime.transitionTo(next);
     final scope = featureScope;
-    scope?.entitlementController?.bindAuthorityTransition(() async {
-      await _refreshMemberBootstrap();
-    });
     scope?.privacyController?.bindAccountTransitions(
       onDeletionAccepted: logout,
       onResetAccepted: _acceptDemoReset,

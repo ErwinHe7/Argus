@@ -244,20 +244,6 @@ class _AssetCodexRouteState extends State<_AssetCodexRoute> {
         widget.container.memberBootstrap?.personalization ??
         const MemberPersonalization(),
     searchController: widget.container.optionalSearchController,
-    onPreviewDemoOrder: widget.container.hasSimulatedInvesting
-        ? (assetId, symbol) {
-            final portfolioId =
-                widget.container.memberBootstrap?.defaultPortfolioId;
-            if (portfolioId == null) return;
-            context.push(
-              MemberRoutes.portfolioOrdersLocation(
-                portfolioId,
-                assetId: assetId,
-                symbol: symbol,
-              ),
-            );
-          }
-        : null,
   );
 }
 

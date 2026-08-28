@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:go_router/go_router.dart';
-
-import '../app/theme/app_theme.dart';
-import '../core/bootstrap/app_runtime.dart';
-import '../core/bootstrap/member_bootstrap.dart';
-import '../core/navigation/member_app_router.dart';
+import 'package:ritual_investing_app/app/theme/app_theme.dart';
+import 'package:ritual_investing_app/core/bootstrap/app_runtime.dart';
+import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
+import 'package:ritual_investing_app/core/navigation/member_app_router.dart';
 
 const demoCurrentProtocolVersion = 2;
 const demoPreviousProtocolVersion = 1;
@@ -40,14 +39,12 @@ class DemoFrameEvent {
     required this.protocolVersion,
     required this.environment,
     required this.attemptId,
-    this.detail,
   });
 
   final DemoFrameEventType type;
   final int protocolVersion;
   final DemoEnvironment environment;
   final String attemptId;
-  final String? detail;
 
   String get targetOrigin => switch (environment) {
     DemoEnvironment.production => 'https://just-build-this.app',
@@ -77,7 +74,6 @@ class RecordingDemoFrameChannel implements DemoFrameChannel {
   void send(DemoFrameEvent event) => events.add(event);
 }
 
-/// Member-only application entry used by the standalone web package.
 class DemoRitualInvestingApp extends StatefulWidget {
   const DemoRitualInvestingApp({
     super.key,

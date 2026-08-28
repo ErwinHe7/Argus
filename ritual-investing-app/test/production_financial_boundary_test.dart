@@ -17,37 +17,22 @@ void main() {
       expect(source, isNot(contains('GeneratedRebalanceApiService')));
       expect(source, isNot(contains('CachedFundingRepository')));
       expect(source, isNot(contains('GeneratedEntitlementService')));
-      expect(source, contains('intentionController: intentionController'));
-      expect(
-        source,
-        contains('futureMirrorController: futureMirrorController'),
-      );
+      expect(source, contains('memberScenarioController:'));
     },
   );
 
-  test(
-    'production routes exclude Demo authority while retaining notifications',
-    () {
-      final source = File('lib/features/profile/you_routes.dart')
-          .readAsStringSync();
+  test('production routes retain brokerage and notifications without Demo authority', () {
+    final source = File('lib/features/profile/you_routes.dart')
+        .readAsStringSync();
 
-      expect(source, contains('..._brokerageOrderRoutes(container)'));
-      expect(source, contains("path: 'notifications'"));
-      expect(source, contains("path: 'notification-preferences'"));
-      expect(
-        source,
-        contains(
-          "if (container.presentationPolicy.isDemo)\n    GoRoute(\n      path: 'demo-reset'",
-        ),
-      );
-      expect(
-        source,
-        contains(
-          "if (container.presentationPolicy.isDemo)\n    GoRoute(\n      path: 'membership'",
-        ),
-      );
-    },
-  );
+    expect(source, contains('..._brokerageOrderRoutes(container)'));
+    expect(source, contains("path: 'notifications'"));
+    expect(source, contains("path: 'notification-preferences'"));
+    expect(source, contains('..._memberScenarioRoutes(container)'));
+    expect(source, isNot(contains("path: 'demo-reset'")));
+    expect(source, isNot(contains("path: 'membership'")));
+    expect(source, isNot(contains('_simulatedInvestingRoutes')));
+  });
 
   test(
     'Rowan production boundary has no brokerage context or command tool',

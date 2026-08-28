@@ -6,49 +6,41 @@ import 'package:ritual_investing_app/features/profile/application/controller.dar
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/domain/model.dart';
 import 'package:ritual_investing_app/features/profile/presentation/profile_screen.dart';
-import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
-import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
-import 'package:ritual_investing_app/features/portfolio/domain/model.dart';
 
 void main() {
-  testWidgets(
-    'You is a summary menu with focused settings and portfolio access',
-    (tester) async {
-      final profile = _controller();
-      final portfolio = _portfolioController();
-      await profile.load();
-      await portfolio.load();
-      var opened = '';
+  testWidgets('You is a summary menu with focused member settings', (
+    tester,
+  ) async {
+    final profile = _controller();
+    await profile.load();
+    var opened = '';
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(
-              controller: profile,
-              portfolioController: portfolio,
-              onOpenInvesting: () => opened = 'investing',
-              onOpenRitualPreferences: () => opened = 'ritual',
-              onOpenAstrology: () => opened = 'astrology',
-              onOpenPolicies: () => opened = 'policies',
-              onOpenAccount: () => opened = 'account',
-              onOpenPortfolio: (_) => opened = 'portfolio',
-            ),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ProfileScreen(
+            controller: profile,
+            onOpenInvesting: () => opened = 'investing',
+            onOpenRitualPreferences: () => opened = 'ritual',
+            onOpenAstrology: () => opened = 'astrology',
+            onOpenPolicies: () => opened = 'policies',
+            onOpenAccount: () => opened = 'account',
+            onOpenPortfolio: (_) => opened = 'portfolio',
           ),
         ),
-      );
+      ),
+    );
 
-      expect(find.text('You'), findsOneWidget);
-      expect(find.byKey(const Key('you-investing')), findsOneWidget);
-      expect(find.byKey(const Key('you-ritual-preferences')), findsOneWidget);
-      expect(find.byKey(const Key('you-astrology')), findsOneWidget);
-      expect(find.byKey(const Key('you-policies')), findsOneWidget);
-      expect(find.byKey(const Key('you-account')), findsOneWidget);
-      expect(find.byKey(const Key('you-portfolio')), findsOneWidget);
-      expect(find.text('Default Demo Portfolio'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('you-investing')));
-      expect(opened, 'investing');
-    },
-  );
+    expect(find.text('You'), findsOneWidget);
+    expect(find.byKey(const Key('you-investing')), findsOneWidget);
+    expect(find.byKey(const Key('you-ritual-preferences')), findsOneWidget);
+    expect(find.byKey(const Key('you-astrology')), findsOneWidget);
+    expect(find.byKey(const Key('you-policies')), findsOneWidget);
+    expect(find.byKey(const Key('you-account')), findsOneWidget);
+    expect(find.byKey(const Key('you-portfolio')), findsNothing);
+    await tester.tap(find.byKey(const Key('you-investing')));
+    expect(opened, 'investing');
+  });
 
   testWidgets('investing screen explains active Demo personalization', (
     tester,
@@ -208,19 +200,12 @@ void main() {
 
   testWidgets('You menu remains scrollable with large text', (tester) async {
     final profile = _controller();
-    final portfolio = _portfolioController();
     await profile.load();
-    await portfolio.load();
     await tester.pumpWidget(
       MediaQuery(
         data: const MediaQueryData(textScaler: TextScaler.linear(2.5)),
         child: MaterialApp(
-          home: Scaffold(
-            body: ProfileScreen(
-              controller: profile,
-              portfolioController: portfolio,
-            ),
-          ),
+          home: Scaffold(body: ProfileScreen(controller: profile)),
         ),
       ),
     );
@@ -304,81 +289,4 @@ class _ReadyProfileRepository implements ProfileRepository {
     );
     return read;
   }
-}
-
-PortfolioController _portfolioController() => PortfolioController(
-  repository: _ReadyPortfolioRepository(),
-  bootstrapDefaultPortfolioId: 'portfolio-2',
-  createKey: () => 'create-key',
-);
-
-class _ReadyPortfolioRepository implements PortfolioRepository {
-  @override
-  Future<RepositoryRead<PortfolioCollection>> loadList() async =>
-      RepositoryRead(
-        value: PortfolioCollection(
-          items: [
-            PortfolioSummary(
-              id: 'portfolio-1',
-              name: 'Demo Portfolio',
-              cashMinor: 100000,
-              valuationMinor: 100000,
-              currency: PortfolioCurrency.usd,
-              status: PortfolioStatus.active,
-              isDefault: true,
-              version: 1,
-              ledgerWatermark: 0,
-              asOfTransactionId: null,
-              demo: PortfolioDemoDisclosure(
-                isDemo: true,
-                observedAt: DateTime.utc(2026, 8, 25),
-                sourceLabel: 'Demo ledger',
-                limitations: const ['No real money.'],
-              ),
-              targetAllocation: const [],
-            ),
-            PortfolioSummary(
-              id: 'portfolio-2',
-              name: 'Default Demo Portfolio',
-              cashMinor: 200000,
-              valuationMinor: 200000,
-              currency: PortfolioCurrency.usd,
-              status: PortfolioStatus.active,
-              isDefault: false,
-              version: 2,
-              ledgerWatermark: 1,
-              asOfTransactionId: null,
-              demo: PortfolioDemoDisclosure(
-                isDemo: true,
-                observedAt: DateTime.utc(2026, 8, 25),
-                sourceLabel: 'Demo ledger',
-                limitations: const ['No real money.'],
-              ),
-              targetAllocation: const [],
-            ),
-          ],
-        ),
-        isStale: false,
-        committedAt: DateTime.utc(2026, 8, 25),
-      );
-
-  @override
-  Future<RepositoryRead<PortfolioDetail>> loadDetail(String portfolioId) =>
-      throw UnimplementedError();
-  @override
-  Future<PortfolioSummary> create({
-    required String name,
-    required String idempotencyKey,
-  }) => throw UnimplementedError();
-  @override
-  Future<PortfolioSummary> rename({
-    required String portfolioId,
-    required String name,
-    required int expectedVersion,
-  }) => throw UnimplementedError();
-  @override
-  Future<void> archive({
-    required String portfolioId,
-    required int expectedVersion,
-  }) => throw UnimplementedError();
 }

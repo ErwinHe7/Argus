@@ -65,11 +65,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('You').last);
     await tester.pumpAndSettle();
-    expect(
-      find.bySemanticsLabel('You, Ritual Member'),
-      findsOneWidget,
-    );
-    expect(find.text('Demo Portfolio'), findsOneWidget);
+    expect(find.bySemanticsLabel('You, Ritual Member'), findsOneWidget);
+    expect(find.text('Demo Portfolio'), findsNothing);
     expect(find.text('Investing profile'), findsOneWidget);
     expect(find.text('Ritual and appearance'), findsOneWidget);
     expect(find.text('Future Mirror'), findsNothing);
@@ -77,7 +74,9 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('theme control saves and applies server authority', (tester) async {
+  testWidgets('theme control saves and applies server authority', (
+    tester,
+  ) async {
     await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();

@@ -1,35 +1,27 @@
-import '../core/api/invalidation_bus.dart';
-import '../core/api/pending_command_store.dart';
-import '../core/bootstrap/app_runtime.dart';
-import '../core/bootstrap/member_bootstrap.dart';
-import '../core/bootstrap/member_feature_scope.dart';
-import '../core/bootstrap/member_shell_runtime.dart';
-import '../core/cache/read_cache.dart';
-import '../features/asset_codex/data/repository.dart';
-import '../features/asset_codex/domain/model.dart';
-import '../features/coven/application/controller.dart';
-import '../features/coven/data/repository.dart';
-import '../features/coven/domain/model.dart';
-import '../features/discover/application/controller.dart';
-import '../features/discover/data/repository.dart';
-import '../features/discover/domain/model.dart';
-import '../features/funding/application/contribution_controller.dart';
-import '../features/funding/application/funding_source_controller.dart';
-import '../features/funding/data/repository.dart';
-import '../features/funding/domain/model.dart';
-import '../features/grimoires/data/repository.dart';
-import '../features/grimoires/domain/model.dart';
-import '../features/portfolio/application/controller.dart';
-import '../features/portfolio/data/repository.dart';
-import '../features/portfolio/domain/model.dart';
-import '../features/profile/application/controller.dart';
-import '../features/profile/data/repository.dart';
-import '../features/profile/domain/model.dart';
-import '../features/ritual/application/daily_ritual_controller.dart';
-import '../features/ritual/data/daily_ritual_repository.dart';
-import '../features/ritual/domain/daily_ritual.dart';
+import 'package:ritual_investing_app/core/api/invalidation_bus.dart';
+import 'package:ritual_investing_app/core/bootstrap/app_runtime.dart';
+import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
+import 'package:ritual_investing_app/core/bootstrap/member_feature_scope.dart';
+import 'package:ritual_investing_app/core/bootstrap/member_shell_runtime.dart';
+import 'package:ritual_investing_app/core/cache/read_cache.dart';
+import 'package:ritual_investing_app/features/asset_codex/data/repository.dart';
+import 'package:ritual_investing_app/features/asset_codex/domain/model.dart';
+import 'package:ritual_investing_app/features/coven/application/controller.dart';
+import 'package:ritual_investing_app/features/coven/data/repository.dart';
+import 'package:ritual_investing_app/features/coven/domain/model.dart';
+import 'package:ritual_investing_app/features/discover/application/controller.dart';
+import 'package:ritual_investing_app/features/discover/data/repository.dart';
+import 'package:ritual_investing_app/features/discover/domain/model.dart';
+import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
+import 'package:ritual_investing_app/features/grimoires/domain/model.dart';
+import 'package:ritual_investing_app/features/profile/application/controller.dart';
+import 'package:ritual_investing_app/features/profile/data/repository.dart';
+import 'package:ritual_investing_app/features/profile/domain/model.dart';
+import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
+import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
+import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 
-/// A fresh, disposable set of deterministic services for one demo document.
+/// A fresh, memory-only set of deterministic services for one demo document.
 class DemoServices {
   DemoServices._(this.runtime);
 
@@ -39,35 +31,18 @@ class DemoServices {
     const scope = CacheScope(accountId: 'demo-frame', resetGeneration: 0);
     final cache = ScopedReadCache(storage: MemoryReadCache(), scope: scope);
     final invalidationBus = InvalidationBus();
-    final portfolioService = _DemoPortfolioService();
-    final portfolioController = PortfolioController(
-      repository: CachedPortfolioRepository(
-        service: portfolioService,
-        cache: cache,
-      ),
-      bootstrapDefaultPortfolioId: _DemoPortfolioService.portfolioId,
-      createKey: () => 'demo-disabled-portfolio-command',
-    );
-    final fundingRepository = CachedFundingRepository(
-      service: portfolioService,
+    final covenRepository = CovenRepository(
+      service: _DemoCovenService(),
       cache: cache,
-    );
-    final pendingCommands = PendingCommandStore(
-      storage: _MemoryProtectedStorage(),
     );
     final bootstrap = MemberBootstrap(
       accountId: 'demo-frame',
       resetGeneration: 0,
-      onboarding: MemberOnboardingGate.complete(version: 1),
-      entitlement: MemberEntitlement(
-        planCode: 'standalone-demo',
-        status: MemberEntitlementStatus.active,
-      ),
-      defaultPortfolioId: _DemoPortfolioService.portfolioId,
+      onboarding: const MemberOnboardingGate.complete(version: 1),
       serverTime: _demoDate,
-      contractVersion: 'demo-v1',
+      contractVersion: 'demo-v2',
       themePreference: MemberThemePreference.light,
-      personalization: MemberPersonalization(
+      personalization: const MemberPersonalization(
         explanationDepth: MemberExplanationDepth.guided,
         ritualVoice: MemberRitualVoice.mystical,
         riskFraming: MemberRiskFraming.moderate,
@@ -75,7 +50,7 @@ class DemoServices {
         contributionRhythm: MemberContributionRhythm.monthly,
       ),
     );
-    final scopeRuntime = MemberFeatureScope(
+    final featureScope = MemberFeatureScope(
       scope: scope,
       dailyRitualController: DailyRitualController(
         repository: DailyRitualRepository(
@@ -90,9 +65,7 @@ class DemoServices {
         ),
         personalization: bootstrap.personalization,
       ),
-      covenController: CovenController(
-        repository: CovenRepository(service: _DemoCovenService(), cache: cache),
-      ),
+      covenController: CovenController(repository: covenRepository),
       profileController: ProfileController(
         repository: CachedProfileRepository(
           service: _DemoProfileService(),
@@ -100,30 +73,12 @@ class DemoServices {
           now: () => _demoDate,
         ),
       ),
-      portfolioController: portfolioController,
-      fundingSourceController: FundingSourceController(
-        repository: fundingRepository,
-        createKey: () => 'demo-disabled-funding-command',
-      ),
-      contributionController: ContributionController(
-        repository: fundingRepository,
-        portfolioController: portfolioController,
-        pendingStore: pendingCommands,
-        invalidationBus: invalidationBus,
-        scope: scope,
-        createKey: () => 'demo-disabled-contribution-command',
-        now: () => _demoDate,
-        rhythm: bootstrap.personalization.contributionRhythm,
-      ),
       invalidationBus: invalidationBus,
       assetCodexRepository: AssetCodexRepository(
         service: _DemoAssetCodexService(),
         cache: cache,
       ),
-      covenRepository: CovenRepository(
-        service: _DemoCovenService(),
-        cache: cache,
-      ),
+      covenRepository: covenRepository,
       grimoireRepository: GrimoireRepository(
         service: _DemoGrimoireService(),
         cache: cache,
@@ -131,8 +86,7 @@ class DemoServices {
     );
     final runtime = MemberShellRuntime.completed(
       bootstrap: bootstrap,
-      featureScope: scopeRuntime,
-      presentationPolicy: MemberPresentationPolicy.demo,
+      featureScope: featureScope,
     );
     await runtime.ensureBranchLoaded(MemberBranch.ritual);
     if (runtime.dailyRitualController.state.value == null) {
@@ -283,16 +237,6 @@ class _DemoDiscoverService implements DiscoverService {
   Future<DiscoverModel> fetch() async => DiscoverModel(
     items: [
       DiscoverItemView(
-        id: _assetId,
-        revisionId: '00000000-0000-4000-8000-000000000502',
-        slug: 'quiet-power',
-        kind: DiscoverItemKind.asset,
-        title: 'Quiet Power',
-        subtitle: 'Open the shared Asset Codex',
-        appearanceReason: 'A deterministic durability research fixture.',
-        demo: _researchDisclosure,
-      ),
-      DiscoverItemView(
         id: _grimoireId,
         revisionId: '00000000-0000-4000-8000-000000000542',
         slug: 'quiet-power-grimoire',
@@ -300,16 +244,6 @@ class _DemoDiscoverService implements DiscoverService {
         title: 'Quiet Power Grimoire',
         subtitle: 'A memory-only collection',
         appearanceReason: 'Demonstrates a reversible local save.',
-        demo: _researchDisclosure,
-      ),
-      DiscoverItemView(
-        id: _covenId,
-        revisionId: '00000000-0000-4000-8000-000000000520',
-        slug: 'aurora-healthworks',
-        kind: DiscoverItemKind.coven,
-        title: 'Aurora Healthworks',
-        subtitle: 'Open its Founders’ Coven evidence',
-        appearanceReason: 'Shows dated qualification boundaries.',
         demo: _researchDisclosure,
       ),
     ],
@@ -516,110 +450,7 @@ class _DemoProfileService implements ProfileService {
   ) async => ProfileConsentReceipt(
     id: 'demo-consent',
     decision: decision,
-    policyVersion: 'demo-v1',
+    policyVersion: 'demo-v2',
     recordedAt: _demoDate,
   );
-}
-
-class _DemoPortfolioService implements PortfolioService, FundingService {
-  static const portfolioId = 'demo-portfolio';
-  static final _portfolio = PortfolioSummary(
-    id: portfolioId,
-    name: 'North Star Portfolio',
-    cashMinor: 100000,
-    valuationMinor: 125000,
-    currency: PortfolioCurrency.usd,
-    status: PortfolioStatus.active,
-    isDefault: true,
-    version: 1,
-    ledgerWatermark: 1,
-    asOfTransactionId: 'demo-transaction-1',
-    demo: PortfolioDemoDisclosure(
-      isDemo: true,
-      observedAt: _demoDate,
-      sourceLabel: 'Ritual deterministic Demo ledger',
-      limitations: const ['No real money moves.'],
-    ),
-    targetAllocation: const [],
-  );
-
-  @override
-  Future<PortfolioCollection> fetchList() async =>
-      PortfolioCollection(items: [_portfolio]);
-
-  @override
-  Future<PortfolioSummary> fetchDetail(String portfolioId) async => _portfolio;
-
-  @override
-  Future<List<PortfolioHolding>> fetchHoldings(String portfolioId) async =>
-      const [
-        PortfolioHolding(
-          assetId: _assetId,
-          symbol: 'VIG',
-          quantityValue: '1.250000',
-          quantityScale: 6,
-          marketValueMinor: 25000,
-          currency: PortfolioCurrency.usd,
-          ledgerWatermark: 1,
-          asOfTransactionId: 'demo-transaction-1',
-        ),
-      ];
-
-  @override
-  Future<List<PortfolioActivityEntry>> fetchActivity(
-    String portfolioId,
-  ) async => const [];
-
-  @override
-  Future<List<PortfolioSnapshotView>> fetchSnapshots(
-    String portfolioId,
-  ) async => const [];
-
-  @override
-  Future<PortfolioSummary> create({
-    required String name,
-    required String idempotencyKey,
-  }) async => _portfolio;
-
-  @override
-  Future<PortfolioSummary> rename({
-    required String portfolioId,
-    required String name,
-    required int expectedVersion,
-  }) async => _portfolio;
-
-  @override
-  Future<void> archive({
-    required String portfolioId,
-    required int expectedVersion,
-  }) async {}
-
-  @override
-  Future<List<FundingSource>> fetchSources() async => const [];
-
-  @override
-  Future<FundingSource> createSource({
-    required FundingFixture fixture,
-    required String idempotencyKey,
-  }) => throw StateError('Funding controls are absent from the demo.');
-
-  @override
-  Future<void> deleteSource(String sourceId) async {}
-
-  @override
-  Future<ContributionReceipt> contribute(ContributionCommand command) =>
-      throw StateError('Funding controls are absent from the demo.');
-}
-
-class _MemoryProtectedStorage implements ProtectedStorage {
-  final Map<String, String> _values = {};
-
-  @override
-  Future<void> delete(String key) async => _values.remove(key);
-
-  @override
-  Future<Map<String, String>> readAll() async => Map.of(_values);
-
-  @override
-  Future<void> write(String key, String value) async => _values[key] = value;
 }

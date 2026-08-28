@@ -21,32 +21,13 @@ import 'package:ritual_investing_app/features/creators/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/application/controller.dart';
 import 'package:ritual_investing_app/features/discover/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/domain/model.dart';
-import 'package:ritual_investing_app/features/entitlements/application/entitlement_controller.dart';
-import 'package:ritual_investing_app/features/entitlements/data/repository.dart';
-import 'package:ritual_investing_app/features/entitlements/domain/model.dart';
 import 'package:ritual_investing_app/features/grimoires/data/repository.dart';
 import 'package:ritual_investing_app/features/grimoires/domain/model.dart';
 import 'package:ritual_investing_app/features/notifications/application/notification_controller.dart';
 import 'package:ritual_investing_app/features/notifications/data/repository.dart';
 import 'package:ritual_investing_app/features/notifications/domain/model.dart';
-import 'package:ritual_investing_app/features/orders/application/order_controller.dart';
-import 'package:ritual_investing_app/features/orders/data/repository.dart';
-import 'package:ritual_investing_app/features/orders/domain/model.dart';
-import 'package:ritual_investing_app/features/funding/application/contribution_controller.dart';
-import 'package:ritual_investing_app/features/funding/application/funding_source_controller.dart';
-import 'package:ritual_investing_app/features/funding/data/repository.dart';
-import 'package:ritual_investing_app/features/funding/domain/model.dart';
-import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
-import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
-import 'package:ritual_investing_app/features/portfolio/domain/model.dart';
 import 'package:ritual_investing_app/features/privacy/application/privacy_controller.dart';
 import 'package:ritual_investing_app/features/privacy/data/repository.dart';
-import 'package:ritual_investing_app/features/rebalancing/application/rebalance_controller.dart';
-import 'package:ritual_investing_app/features/rebalancing/data/repository.dart';
-import 'package:ritual_investing_app/features/rebalancing/domain/model.dart';
-import 'package:ritual_investing_app/features/recurring/application/recurring_plan_controller.dart';
-import 'package:ritual_investing_app/features/recurring/data/repository.dart';
-import 'package:ritual_investing_app/features/recurring/domain/model.dart';
 import 'package:ritual_investing_app/features/profile/application/controller.dart';
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/domain/model.dart';
@@ -71,9 +52,7 @@ DependencyContainer fixtureContainer({
   FeatureLoadTracker? loadTracker,
   PendingCommandStore? pendingCommandStore,
   EntryCoordinator? entryCoordinator,
-  bool includeU7 = false,
   bool includeU9 = false,
-  bool includeU10 = false,
   bool includeU11 = false,
   PrivacyRepository? privacyRepository,
 }) {
@@ -100,57 +79,7 @@ DependencyContainer fixtureContainer({
         service: _FixtureCovenService(tracker),
         cache: scopedCache,
       );
-      final financeService = _FixturePortfolioService();
-      final portfolioController = PortfolioController(
-        repository: CachedPortfolioRepository(
-          service: financeService,
-          cache: scopedCache,
-        ),
-        bootstrapDefaultPortfolioId: bootstrap.defaultPortfolioId,
-        createKey: () => 'fixture-portfolio-key',
-      );
-      final fundingRepository = CachedFundingRepository(
-        service: financeService,
-        cache: scopedCache,
-      );
       final invalidationBus = InvalidationBus();
-      final orderController = includeU7
-          ? OrderController(
-              repository: OrderRepository(service: _FixtureOrderService()),
-              portfolioController: portfolioController,
-              pendingStore: commands,
-              invalidationBus: invalidationBus,
-              scope: scope,
-              createKey: () => 'fixture-order-key-01',
-              now: () => DateTime.utc(2026, 8, 25, 12),
-            )
-          : null;
-      final recurringPlanController = includeU7
-          ? RecurringPlanController(
-              repository: RecurringPlanRepository(
-                service: _FixtureRecurringService(),
-              ),
-              pendingStore: commands,
-              scope: scope,
-              createKey: () => 'fixture-recurring-1',
-              now: () => DateTime.utc(2026, 8, 25, 12),
-              rhythm: bootstrap.personalization.contributionRhythm,
-              isFundingSourceActive: (_) async => true,
-            )
-          : null;
-      final rebalanceController = includeU7
-          ? RebalanceController(
-              repository: RebalanceRepository(
-                service: _FixtureRebalanceService(),
-              ),
-              portfolioController: portfolioController,
-              pendingStore: commands,
-              invalidationBus: invalidationBus,
-              scope: scope,
-              createKey: () => 'fixture-rebalance-1',
-              now: () => DateTime.utc(2026, 8, 25, 12),
-            )
-          : null;
       final briefingController = includeU9
           ? BriefingController(
               repository: CachedBriefingRepository(
@@ -172,19 +101,6 @@ DependencyContainer fixtureContainer({
               invalidationBus: invalidationBus,
               scope: scope,
               createKey: () => 'fixture-read-all-key-01',
-              now: () => DateTime.utc(2026, 8, 25, 12),
-              personalization: bootstrap.personalization,
-            )
-          : null;
-      final entitlementController = includeU10
-          ? EntitlementController(
-              repository: CachedEntitlementRepository(
-                service: _FixtureEntitlementService(),
-                cache: scopedCache,
-              ),
-              pendingStore: commands,
-              scope: scope,
-              createKey: () => 'fixture-membership-key-0001',
               now: () => DateTime.utc(2026, 8, 25, 12),
               personalization: bootstrap.personalization,
             )
@@ -227,28 +143,9 @@ DependencyContainer fixtureContainer({
             cache: scopedCache,
           ),
         ),
-        portfolioController: portfolioController,
-        fundingSourceController: FundingSourceController(
-          repository: fundingRepository,
-          createKey: () => 'fixture-source-key',
-        ),
-        contributionController: ContributionController(
-          repository: fundingRepository,
-          portfolioController: portfolioController,
-          pendingStore: commands,
-          invalidationBus: invalidationBus,
-          scope: scope,
-          createKey: () => 'fixture-contribution-key',
-          now: () => DateTime.utc(2026, 8, 25),
-          rhythm: bootstrap.personalization.contributionRhythm,
-        ),
         invalidationBus: invalidationBus,
-        orderController: orderController,
-        recurringPlanController: recurringPlanController,
-        rebalanceController: rebalanceController,
         briefingController: briefingController,
         notificationController: notificationController,
-        entitlementController: entitlementController,
         privacyController: privacyController,
         assetCodexRepository: AssetCodexRepository(
           service: _FixtureAssetCodexService(),
@@ -332,103 +229,6 @@ class _MemoryProtectedStorage implements ProtectedStorage {
   @override
   Future<void> write(String key, String value) async => values[key] = value;
 }
-
-class _FixtureEntitlementService implements EntitlementService {
-  DemoEntitlement _entitlement = DemoEntitlement(
-    id: '00000000-0000-4000-8000-000000000701',
-    planCode: DemoPlanCode.free,
-    status: DemoEntitlementStatus.active,
-    startsAt: DateTime.utc(2026, 8, 1),
-    version: 1,
-    disclosure: _membershipDisclosure,
-  );
-  DemoCheckout _checkout = DemoCheckout(
-    id: '00000000-0000-4000-8000-000000000702',
-    planCode: DemoPlanCode.premiumDemo,
-    status: DemoCheckoutStatus.open,
-    expiresAt: DateTime.utc(2026, 8, 25, 13),
-    version: 1,
-    disclosure: _membershipDisclosure,
-  );
-
-  @override
-  Future<List<DemoPlan>> listPlans() async => [
-    DemoPlan(
-      code: DemoPlanCode.free,
-      displayName: 'Ritual Free Demo',
-      priceCopy: 'No charge — simulated access only',
-      capabilityCodes: {'daily_ritual', 'demo_portfolio'},
-      disclosure: _membershipDisclosure,
-    ),
-    DemoPlan(
-      code: DemoPlanCode.premiumDemo,
-      displayName: 'Ritual Premium Demo',
-      priceCopy: 'Illustrative premium access — no charge',
-      capabilityCodes: {'daily_ritual', 'demo_portfolio', 'future_mirror'},
-      disclosure: _membershipDisclosure,
-    ),
-  ];
-
-  @override
-  Future<DemoEntitlement> getEntitlement() async => _entitlement;
-
-  @override
-  Future<DemoCheckout> getCheckout(String sessionId) async => _checkout;
-
-  @override
-  Future<DemoCheckout> createCheckout(String planCode, String key) async =>
-      _checkout;
-
-  @override
-  Future<DemoEntitlement> confirmCheckout(
-    String sessionId,
-    int expectedVersion,
-    String key,
-  ) async {
-    _checkout = DemoCheckout(
-      id: _checkout.id,
-      planCode: DemoPlanCode.premiumDemo,
-      status: DemoCheckoutStatus.completed,
-      expiresAt: _checkout.expiresAt,
-      version: expectedVersion + 1,
-      disclosure: _membershipDisclosure,
-    );
-    _entitlement = DemoEntitlement(
-      id: '00000000-0000-4000-8000-000000000703',
-      planCode: DemoPlanCode.premiumDemo,
-      status: DemoEntitlementStatus.active,
-      startsAt: DateTime.utc(2026, 8, 25, 12),
-      version: 2,
-      disclosure: _membershipDisclosure,
-    );
-    return _entitlement;
-  }
-
-  @override
-  Future<DemoEntitlement> restore(String key) async => _entitlement;
-
-  @override
-  Future<DemoEntitlement> downgrade(int expectedVersion, String key) async {
-    _entitlement = DemoEntitlement(
-      id: '00000000-0000-4000-8000-000000000704',
-      planCode: DemoPlanCode.free,
-      status: DemoEntitlementStatus.active,
-      startsAt: DateTime.utc(2026, 8, 25, 12),
-      version: expectedVersion + 1,
-      disclosure: _membershipDisclosure,
-    );
-    return _entitlement;
-  }
-}
-
-final _membershipDisclosure = DemoDisclosure(
-  isDemo: true,
-  observedAt: DateTime.utc(2026, 8, 25, 12),
-  sourceLabel: 'Ritual deterministic Demo',
-  limitations: [
-    'No money moves and no external financial provider is contacted.',
-  ],
-);
 
 class _FixtureRitualService implements DailyRitualService {
   _FixtureRitualService(this.tracker);
@@ -991,173 +791,6 @@ class _FixtureProfileService implements ProfileService {
     policyVersion: '2026-08',
     recordedAt: DateTime.utc(2026, 8, 25),
   );
-}
-
-class _FixturePortfolioService implements PortfolioService, FundingService {
-  static const assetId = '00000000-0000-4000-8000-000000000604';
-  static final portfolio = PortfolioSummary(
-    id: '00000000-0000-4000-8000-000000000601',
-    name: 'Demo Portfolio',
-    cashMinor: 100000,
-    valuationMinor: 100000,
-    currency: PortfolioCurrency.usd,
-    status: PortfolioStatus.active,
-    isDefault: true,
-    version: 1,
-    ledgerWatermark: 0,
-    asOfTransactionId: null,
-    demo: PortfolioDemoDisclosure(
-      isDemo: true,
-      observedAt: DateTime.utc(2026, 8, 25),
-      sourceLabel: 'Fixture Demo ledger',
-      limitations: const ['No real money moves.'],
-    ),
-    targetAllocation: const [],
-  );
-
-  static final fundingDemo = FundingDemoDisclosure(
-    isDemo: true,
-    observedAt: DateTime.utc(2026, 8, 25),
-    sourceLabel: 'Fixture Demo ledger',
-    limitations: const ['No real money moves.'],
-  );
-
-  @override
-  Future<PortfolioCollection> fetchList() async =>
-      PortfolioCollection(items: [portfolio]);
-  @override
-  Future<PortfolioSummary> fetchDetail(String portfolioId) async => portfolio;
-  @override
-  Future<List<PortfolioHolding>> fetchHoldings(String portfolioId) async =>
-      const [
-        PortfolioHolding(
-          assetId: assetId,
-          symbol: 'VIG',
-          quantityValue: '1.250000',
-          quantityScale: 6,
-          marketValueMinor: 2500,
-          currency: PortfolioCurrency.usd,
-          ledgerWatermark: 1,
-          asOfTransactionId: 'fixture-transaction-1',
-        ),
-      ];
-  @override
-  Future<List<PortfolioActivityEntry>> fetchActivity(
-    String portfolioId,
-  ) async => const [];
-  @override
-  Future<List<PortfolioSnapshotView>> fetchSnapshots(
-    String portfolioId,
-  ) async => const [];
-  @override
-  Future<PortfolioSummary> create({
-    required String name,
-    required String idempotencyKey,
-  }) async => portfolio;
-  @override
-  Future<PortfolioSummary> rename({
-    required String portfolioId,
-    required String name,
-    required int expectedVersion,
-  }) async => portfolio;
-  @override
-  Future<void> archive({
-    required String portfolioId,
-    required int expectedVersion,
-  }) async {}
-  @override
-  Future<List<FundingSource>> fetchSources() async => [
-    FundingSource(
-      id: '00000000-0000-4000-8000-000000000603',
-      fixture: FundingFixture.moonReserve,
-      displayLabel: 'Moon Reserve (fictional)',
-      fictionalLast4: '1108',
-      status: FundingSourceStatus.active,
-      demo: fundingDemo,
-    ),
-  ];
-  @override
-  Future<FundingSource> createSource({
-    required FundingFixture fixture,
-    required String idempotencyKey,
-  }) async => (await fetchSources()).single;
-  @override
-  Future<void> deleteSource(String sourceId) async {}
-  @override
-  Future<ContributionReceipt> contribute(ContributionCommand command) async =>
-      ContributionReceipt(
-        commandId: '00000000-0000-4000-8000-000000000602',
-        portfolioVersion: 2,
-        ledgerTransactionIds: const [],
-        demo: fundingDemo,
-      );
-}
-
-class _FixtureOrderService implements OrderService {
-  @override
-  Future<List<OrderView>> list(String portfolioId) async => const [];
-  @override
-  Future<OrderView> get(String orderId) => throw UnimplementedError();
-  @override
-  Future<OrderPreview> preview(OrderDraft draft) => throw UnimplementedError();
-  @override
-  Future<OrderReceipt> commit(OrderCommit command) =>
-      throw UnimplementedError();
-}
-
-class _FixtureRecurringService implements RecurringPlanService {
-  @override
-  Future<List<RecurringPlan>> list(String portfolioId) async => const [];
-  @override
-  Future<RecurringPlan> get(String planId) => throw UnimplementedError();
-  @override
-  Future<RecurringPlan> create(RecurringPlanCreate command) =>
-      throw UnimplementedError();
-  @override
-  Future<RecurringPlan> edit(RecurringPlanEdit command) =>
-      throw UnimplementedError();
-  @override
-  Future<RecurringPlan> pause(String planId, int expectedVersion) =>
-      throw UnimplementedError();
-  @override
-  Future<RecurringPlan> resume(String planId, int expectedVersion) =>
-      throw UnimplementedError();
-  @override
-  Future<void> cancel(String planId, int expectedVersion) =>
-      throw UnimplementedError();
-}
-
-class _FixtureRebalanceService implements RebalanceService {
-  @override
-  Future<RebalancePreview> preview(
-    String portfolioId,
-    List<RebalanceAllocation> allocations,
-  ) async => RebalancePreview(
-    id: 'fixture-rebalance-preview',
-    portfolioId: portfolioId,
-    portfolioVersion: 1,
-    targetAllocation: allocations,
-    trades: const [
-      RebalanceTrade(
-        assetId: _FixturePortfolioService.assetId,
-        side: RebalanceSide.buy,
-        quantityValue: '0.125',
-        quantityScale: 3,
-        notionalMinor: 2500,
-      ),
-    ],
-    expiresAt: DateTime.utc(2026, 8, 25, 12, 15),
-    status: RebalancePreviewStatus.active,
-    demo: RebalanceDemoDisclosure(
-      isDemo: true,
-      observedAt: DateTime.utc(2026, 8, 25, 12),
-      sourceLabel: 'Fixture Demo ledger',
-      limitations: const ['No brokerage or real money is connected.'],
-    ),
-  );
-  @override
-  Future<RebalanceReceipt> commit(RebalanceCommit command) =>
-      throw UnimplementedError();
 }
 
 class _FixtureBriefingService implements BriefingService {

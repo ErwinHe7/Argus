@@ -39,7 +39,7 @@ void main() {
     );
   });
 
-  test('unavailable entitlement gates an otherwise complete bootstrap', () {
+  test('onboarding completion alone gates the production member shell', () {
     final envelope = MemberBootstrap(
       accountId: 'account-a',
       resetGeneration: 1,
@@ -54,7 +54,7 @@ void main() {
       themePreference: MemberThemePreference.system,
     );
 
-    expect(envelope.canEnterMemberShell, isFalse);
+    expect(envelope.canEnterMemberShell, isTrue);
   });
 
   test(

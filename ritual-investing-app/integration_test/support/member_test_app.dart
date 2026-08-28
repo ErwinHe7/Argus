@@ -16,14 +16,9 @@ import 'package:ritual_investing_app/features/coven/application/controller.dart'
 import 'package:ritual_investing_app/features/coven/data/repository.dart';
 import 'package:ritual_investing_app/features/discover/application/controller.dart';
 import 'package:ritual_investing_app/features/discover/data/repository.dart';
-import 'package:ritual_investing_app/features/funding/application/contribution_controller.dart';
-import 'package:ritual_investing_app/features/funding/application/funding_source_controller.dart';
-import 'package:ritual_investing_app/features/funding/data/repository.dart';
 import 'package:ritual_investing_app/features/onboarding/application/onboarding_controller.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_draft_store.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_repository.dart';
-import 'package:ritual_investing_app/features/portfolio/application/controller.dart';
-import 'package:ritual_investing_app/features/portfolio/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/application/controller.dart';
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
@@ -229,19 +224,6 @@ class GuidedMemberTestHarness {
         now: () => DateTime.utc(2026, 8, 25, 12),
       ),
       featureScopeFactory: (scope, cache, bootstrap) {
-        final financeService = GeneratedPortfolioApiService(client);
-        final portfolioController = PortfolioController(
-          repository: CachedPortfolioRepository(
-            service: financeService,
-            cache: cache,
-          ),
-          bootstrapDefaultPortfolioId: bootstrap.defaultPortfolioId,
-          createKey: () => 'guided-portfolio-key',
-        );
-        final fundingRepository = CachedFundingRepository(
-          service: financeService,
-          cache: cache,
-        );
         final invalidationBus = InvalidationBus();
         return MemberFeatureScope(
           scope: scope,
@@ -269,21 +251,6 @@ class GuidedMemberTestHarness {
               service: GeneratedProfileApiService(client),
               cache: cache,
             ),
-          ),
-          portfolioController: portfolioController,
-          fundingSourceController: FundingSourceController(
-            repository: fundingRepository,
-            createKey: () => 'guided-source-key',
-          ),
-          contributionController: ContributionController(
-            repository: fundingRepository,
-            portfolioController: portfolioController,
-            pendingStore: PendingCommandStore(storage: storage),
-            invalidationBus: invalidationBus,
-            scope: scope,
-            createKey: () => 'guided-contribution-key',
-            now: () => DateTime.utc(2026, 8, 25),
-            rhythm: bootstrap.personalization.contributionRhythm,
           ),
           invalidationBus: invalidationBus,
         );

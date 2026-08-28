@@ -8,22 +8,13 @@ import '../../features/coven/application/controller.dart';
 import '../../features/coven/data/repository.dart';
 import '../../features/creators/data/repository.dart';
 import '../../features/discover/application/controller.dart';
-import '../../features/entitlements/application/entitlement_controller.dart';
-import '../../features/funding/application/contribution_controller.dart';
-import '../../features/funding/application/funding_source_controller.dart';
-import '../../features/future_mirror/application/future_mirror_controller.dart';
 import '../../features/grimoires/data/repository.dart';
 import '../../features/intentions/application/member_scenario_controller.dart';
-import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
-import '../../features/orders/application/order_controller.dart';
 import '../../features/orders/application/brokerage_order_controller.dart';
-import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/profile/application/controller.dart';
-import '../../features/rebalancing/application/rebalance_controller.dart';
-import '../../features/recurring/application/recurring_plan_controller.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
@@ -47,9 +38,6 @@ class MemberFeatureScope {
     required this.covenController,
     required this.profileController,
     required this.invalidationBus,
-    this.portfolioController,
-    this.fundingSourceController,
-    this.contributionController,
     this.brokerageConnectionController,
     this.brokeragePortfolioController,
     this.assetCodexRepository,
@@ -59,16 +47,10 @@ class MemberFeatureScope {
     this.grimoireRepository,
     this.circleRepository,
     this.creatorRepository,
-    this.orderController,
     this.brokerageOrderController,
-    this.recurringPlanController,
-    this.rebalanceController,
-    this.intentionController,
-    this.futureMirrorController,
     this.memberScenarioController,
     this.briefingController,
     this.notificationController,
-    this.entitlementController,
     this.privacyController,
   });
 
@@ -77,9 +59,6 @@ class MemberFeatureScope {
   final DiscoverController discoverController;
   final CovenController covenController;
   final ProfileController profileController;
-  final PortfolioController? portfolioController;
-  final FundingSourceController? fundingSourceController;
-  final ContributionController? contributionController;
   final BrokerageConnectionController? brokerageConnectionController;
   final BrokeragePortfolioController? brokeragePortfolioController;
   final InvalidationBus invalidationBus;
@@ -90,16 +69,10 @@ class MemberFeatureScope {
   final GrimoireRepository? grimoireRepository;
   final CircleRepository? circleRepository;
   final CreatorRepository? creatorRepository;
-  final OrderController? orderController;
   final BrokerageOrderController? brokerageOrderController;
-  final RecurringPlanController? recurringPlanController;
-  final RebalanceController? rebalanceController;
-  final IntentionController? intentionController;
-  final FutureMirrorController? futureMirrorController;
   final MemberScenarioController? memberScenarioController;
   final BriefingController? briefingController;
   final NotificationController? notificationController;
-  final EntitlementController? entitlementController;
   final PrivacyController? privacyController;
   final Map<MemberBranch, Future<void>> _loads = {};
   bool _isDisposed = false;
@@ -117,15 +90,9 @@ class MemberFeatureScope {
       );
     }
     discoverController.updatePersonalization(bootstrap.personalization);
-    recurringPlanController?.updateRhythm(
-      bootstrap.personalization.contributionRhythm,
-    );
-    futureMirrorController?.updatePersonalization(bootstrap.personalization);
     briefingController?.updatePersonalization(bootstrap.personalization);
     notificationController?.updatePersonalization(bootstrap.personalization);
-    entitlementController?.updatePersonalization(bootstrap.personalization);
     privacyController?.updatePersonalization(bootstrap.personalization);
-    intentionController?.updateProfile(profileController.state.value?.investor);
   }
 
   Future<void> load(MemberBranch branch) {
@@ -141,15 +108,9 @@ class MemberFeatureScope {
         case MemberBranch.you:
           await Future.wait(<Future<void>>[
             profileController.load(),
-            if (portfolioController case final controller?) controller.load(),
-            if (fundingSourceController case final controller?)
-              controller.load(),
             if (brokerageConnectionController case final controller?)
               controller.load(),
           ]);
-          intentionController?.updateProfile(
-            profileController.state.value?.investor,
-          );
       }
     });
   }
@@ -165,21 +126,12 @@ class MemberFeatureScope {
     discoverController.dispose();
     covenController.dispose();
     profileController.dispose();
-    portfolioController?.dispose();
-    fundingSourceController?.dispose();
-    contributionController?.dispose();
     brokerageConnectionController?.dispose();
     brokeragePortfolioController?.dispose();
-    orderController?.dispose();
     brokerageOrderController?.dispose();
-    recurringPlanController?.dispose();
-    rebalanceController?.dispose();
-    intentionController?.dispose();
-    futureMirrorController?.dispose();
     memberScenarioController?.dispose();
     briefingController?.dispose();
     notificationController?.dispose();
-    entitlementController?.dispose();
     privacyController?.dispose();
     unawaited(invalidationBus.dispose());
     searchController?.dispose();

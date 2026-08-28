@@ -3,15 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('demo-reachable shell graph excludes production providers', () async {
-    final result = await Process.run('/bin/sh', const [
-      '../scripts/check-demo-import-boundary.sh',
-    ], workingDirectory: Directory.current.path);
-
-    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
-    expect(result.stdout, contains('demo import boundary audit passed'));
-  });
-
   test('mobile provider construction stays in the production factory', () {
     final dependencyContainer = File(
       'lib/core/bootstrap/dependency_container.dart',

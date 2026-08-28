@@ -5,8 +5,6 @@ import '../../core/bootstrap/app_runtime.dart';
 import '../../core/bootstrap/member_bootstrap.dart';
 import '../../core/navigation/member_routes.dart';
 import '../briefings/presentation/briefing_screen.dart';
-import '../entitlements/domain/model.dart';
-import '../entitlements/presentation/demo_membership_screen.dart';
 import 'presentation/daily_ritual_screen.dart';
 
 StatefulShellBranch buildRitualBranch({
@@ -87,51 +85,33 @@ class _RitualBranchRootState extends State<_RitualBranchRoot> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final child = DailyRitualScreen(
-      controller: widget.container.dailyRitualController,
-      onOpenCoven: () => context.go(MemberRoutes.coven.path),
-      onToggleTheme: widget.container.presentationPolicy.allowsProfileEditing
-          ? () => context.go(MemberRoutes.youRitualPreferencesPath)
-          : null,
-      onOpenSearch: widget.container.optionalSearchController == null
-          ? null
-          : () => context.push(MemberRoutes.discoverSearchPath),
-      onOpenBriefings: widget.container.hasBriefingsAndNotifications
-          ? () => context.push(MemberRoutes.ritualBriefingsPath)
-          : null,
-      onOpenAsset: (id) {
-        final assignmentId =
-            widget.container.dailyRitualController.state.value?.assignmentId;
-        context.push(
-          MemberRoutes.assetLocation(
-            id,
-            sourceKind: 'ritual',
-            sourceId: assignmentId,
-          ),
-        );
-      },
-      rowanController: widget.container.optionalRowanController,
-      personalization:
-          widget.container.memberBootstrap?.personalization ??
-          const MemberPersonalization(),
-      assetPackage: widget.assetPackage,
-    );
-    if (!widget.container.hasDemoMembership) return child;
-    return DemoCapabilityGate(
-      key: const ValueKey('daily-ritual-capability-gate'),
-      controller: widget.container.entitlementController,
-      capability: DemoCapability.dailyRitual,
-      returnLocation: MemberRoutes.ritual.path,
-      onOpenMembership: () => context.push(
-        MemberRoutes.membershipLocation(
-          capabilityCode: DemoCapability.dailyRitual.code,
-          returnLocation: MemberRoutes.ritual.path,
+  Widget build(BuildContext context) => DailyRitualScreen(
+    controller: widget.container.dailyRitualController,
+    onOpenCoven: () => context.go(MemberRoutes.coven.path),
+    onToggleTheme: () => context.go(MemberRoutes.youRitualPreferencesPath),
+    onOpenSearch: widget.container.optionalSearchController == null
+        ? null
+        : () => context.push(MemberRoutes.discoverSearchPath),
+    onOpenBriefings: widget.container.hasBriefingsAndNotifications
+        ? () => context.push(MemberRoutes.ritualBriefingsPath)
+        : null,
+    onOpenAsset: (id) {
+      final assignmentId =
+          widget.container.dailyRitualController.state.value?.assignmentId;
+      context.push(
+        MemberRoutes.assetLocation(
+          id,
+          sourceKind: 'ritual',
+          sourceId: assignmentId,
         ),
-      ),
-      child: child,
-    );
-  }
+      );
+    },
+    rowanController: widget.container.optionalRowanController,
+    personalization:
+        widget.container.memberBootstrap?.personalization ??
+        const MemberPersonalization(),
+    assetPackage: widget.assetPackage,
+  );
 }
 
 class _RitualReadingScreen extends StatelessWidget {

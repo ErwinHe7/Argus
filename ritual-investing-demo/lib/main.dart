@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:ritual_investing_app/demo/demo_bootstrap.dart';
-import 'package:ritual_investing_app/demo/demo_services.dart';
+import 'demo_bootstrap.dart';
+import 'demo_services.dart';
 import 'web_frame_channel.dart';
 
 Future<void> main() async {
