@@ -50,7 +50,7 @@ void main() {
   );
 
   test(
-    'Auth0 cancellation returns to editable review with draft intact',
+    'Auth cancellation returns to editable review with draft intact',
     () async {
       final sessions = _SessionRepository(
         restoredSession: null,
@@ -390,7 +390,7 @@ class _SessionRepository implements SessionRepository {
 
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'member-client');
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
   @override

@@ -15,8 +15,8 @@ void main() {
       MemberAuthIntent.signUp(),
     ]);
     expect(
-      controller.memberClientExpectation.authorizedParty,
-      'member-mobile-client',
+      controller.memberClientExpectation.issuer,
+      'https://member-auth.test/auth/v1',
     );
   });
 
@@ -55,7 +55,7 @@ class _RecordingMemberAuthRepository implements SessionRepository {
 
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'member-mobile-client');
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
 
   @override
   Future<AuthSession> authenticate(MemberAuthIntent intent) async {

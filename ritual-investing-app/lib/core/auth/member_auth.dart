@@ -269,19 +269,12 @@ class MemberAuthIntent {
 @immutable
 class MemberClientExpectation {
   const MemberClientExpectation({
-    String? issuer,
-    String? audience,
-    @Deprecated('Use issuer; Supabase member tokens do not use Auth0 azp.')
-    String? authorizedParty,
-  }) : issuer = issuer ?? authorizedParty ?? '',
-       audience = audience ?? 'authenticated',
-       assert(issuer != '' || authorizedParty != '');
+    required this.issuer,
+    this.audience = 'authenticated',
+  }) : assert(issuer != '');
 
   final String issuer;
   final String audience;
-
-  @Deprecated('Use issuer; Supabase member tokens do not use Auth0 azp.')
-  String get authorizedParty => issuer;
 }
 
 @immutable

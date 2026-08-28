@@ -164,7 +164,7 @@ class _FakeSessionRepository implements SessionRepository {
 
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'member-client');
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
 
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
@@ -186,7 +186,7 @@ class _FakeSessionRepository implements SessionRepository {
 
   @override
   Future<void> logout() async {
-    if (failLogout) throw StateError('Auth0 logout failed');
+    if (failLogout) throw StateError('Auth logout failed');
   }
 }
 

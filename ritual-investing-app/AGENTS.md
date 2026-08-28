@@ -46,6 +46,5 @@
   recovery events, local logout, global logout, wrong-account return, and every
   malformed or cross-lifecycle link. Never print or preserve access, refresh,
   provider, callback, or step-up tokens in screenshots, logs, or test evidence.
-- Auth0 native entries remain rollback-only until the Supabase hosted smoke is
-  complete. Do not use the ignored Auth0 credentials for new member proof; U13
-  removes them after replacement evidence.
+- U13 removed the Auth0 native rollback path. Member authentication uses only
+  Supabase PKCE and the exact Argus callback allowlist above.

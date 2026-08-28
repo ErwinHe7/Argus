@@ -21,35 +21,8 @@ void main() {
     expect(gradle, isNot(contains('.invalid')));
     expect(manifest, contains('android:allowBackup="false"'));
     expect(manifest, contains('@xml/backup_rules'));
-    expect(
-      manifest,
-      contains('xmlns:tools="http://schemas.android.com/tools"'),
-    );
-    final redirectActivity = RegExp(
-      r'<activity\s+[^>]*android:name="com\.auth0\.android\.provider\.RedirectActivity"[\s\S]*?</activity>',
-    ).firstMatch(manifest)?.group(0);
-    expect(redirectActivity, isNotNull);
-    expect(redirectActivity, contains('tools:node="replace"'));
-    expect(redirectActivity, contains('android:exported="true"'));
-    expect(redirectActivity, contains('android:autoVerify="true"'));
-    expect(
-      redirectActivity,
-      contains('android:name="android.intent.action.VIEW"'),
-    );
-    expect(
-      redirectActivity,
-      contains('android:name="android.intent.category.DEFAULT"'),
-    );
-    expect(
-      redirectActivity,
-      contains('android:name="android.intent.category.BROWSABLE"'),
-    );
-    expect(redirectActivity, contains('android:scheme="\${auth0Scheme}"'));
-    expect(redirectActivity, contains('android:host="\${auth0Domain}"'));
-    expect(
-      redirectActivity,
-      contains('android:pathPrefix="/android/\${applicationId}/callback"'),
-    );
+    expect(manifest.toLowerCase(), isNot(contains('auth0')));
+    expect(gradle.toLowerCase(), isNot(contains('auth0')));
     expect(manifest, contains('android:path="/mobile/argus-auth/callback"'));
     expect(manifest, contains('android:path="/mobile/webull/complete"'));
     expect(
@@ -92,7 +65,7 @@ void main() {
     expect(backup, isNot(contains('path="FlutterSecureStorage"')));
   });
 
-  test('iOS has claimed links and distinct custom schemes while Auth0 remains rollback-only', () {
+  test('iOS has claimed links and distinct Supabase/Webull custom schemes', () {
     final entitlements = File('ios/Runner/Runner.entitlements')
         .readAsStringSync();
     final info = File('ios/Runner/Info.plist').readAsStringSync();
@@ -101,15 +74,12 @@ void main() {
     final debugConfig = File('ios/Flutter/Debug.xcconfig').readAsStringSync();
     final releaseConfig = File('ios/Flutter/Release.xcconfig')
         .readAsStringSync();
-    final exampleConfig = File('ios/Flutter/Auth0.xcconfig.example')
-        .readAsStringSync();
     final nativeLinksExample = File('ios/Flutter/NativeLinks.xcconfig.example')
         .readAsStringSync();
 
     expect(entitlements, contains('com.apple.developer.associated-domains'));
     expect(entitlements, contains(r'applinks:$(RITUAL_LINK_HOST)'));
-    // Retained until hosted simulator/device parity passes.
-    expect(entitlements, contains(r'webcredentials:$(AUTH0_DOMAIN)'));
+    expect(entitlements.toLowerCase(), isNot(contains('auth0')));
     expect(info, contains(r'$(PRODUCT_BUNDLE_IDENTIFIER)'));
     expect(info, contains('com.ritualinvesting.ritual-investing-app.auth'));
     expect(info, contains('com.ritualinvesting.ritual-investing-app.webull'));
@@ -117,12 +87,11 @@ void main() {
       project,
       contains('CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements'),
     );
-    expect(project, isNot(contains('AUTH0_DOMAIN = ""')));
-    expect(debugConfig, contains('#include? "Auth0.xcconfig"'));
-    expect(releaseConfig, contains('#include? "Auth0.xcconfig"'));
+    expect(project.toLowerCase(), isNot(contains('auth0')));
+    expect(debugConfig.toLowerCase(), isNot(contains('auth0')));
+    expect(releaseConfig.toLowerCase(), isNot(contains('auth0')));
     expect(debugConfig, contains('#include? "NativeLinks.xcconfig"'));
     expect(releaseConfig, contains('#include? "NativeLinks.xcconfig"'));
-    expect(exampleConfig, contains('AUTH0_DOMAIN = YOUR_AUTH0_DOMAIN'));
     expect(
       nativeLinksExample,
       contains('RITUAL_LINK_HOST = just-build-this.app'),

@@ -22,7 +22,7 @@ void main() {
     final mainSource = File('lib/main.dart').readAsStringSync();
 
     for (final provider in const [
-      'auth0_session_repository.dart',
+      'supabase_session_repository.dart',
       'flutter_protected_storage.dart',
       'path_provider',
       'ritual_investing_api_client/generated/api.dart',

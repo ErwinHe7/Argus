@@ -27,7 +27,7 @@ The standalone Demo is synthetic, memory-only, auth-free, provider-free, credent
 - Secure device storage may hold the Supabase session and short-lived local coordination state, never Webull credentials.
 - Screens depend on controllers and repository contracts rather than provider SDKs.
 
-The current source still contains migration-era Auth0, Neon, Cloudflare Worker/Queue/R2, and simulated-finance implementations. They are replacement inputs, not target authority, and are removed only after their Supabase or Webull replacements pass the cutover gates.
+The member app uses Supabase Auth and the Supabase Edge API. Webull remains the brokerage authority, while the standalone Demo remains synthetic and provider-free. The migration-era Auth0, Neon, Cloudflare backend, and simulated-finance authorities have been removed.
 
 ## Local checks
 

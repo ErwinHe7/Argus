@@ -303,7 +303,9 @@ class _FixtureSessionBootstrapService implements SessionBootstrapService {
 class _FixtureSessionRepository implements SessionRepository {
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'fixture-client');
+      const MemberClientExpectation(
+        issuer: 'https://fixture-auth.test/auth/v1',
+      );
 
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();

@@ -117,7 +117,7 @@ class _GateSessionRepository implements SessionRepository {
 
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'member-client');
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
 
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
@@ -126,7 +126,7 @@ class _GateSessionRepository implements SessionRepository {
 
   @override
   Future<AuthSession?> recover() async {
-    if (failRestore) throw StateError('Auth0 unavailable');
+    if (failRestore) throw StateError('Auth unavailable');
     return restore.future;
   }
 

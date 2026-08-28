@@ -575,7 +575,7 @@ class _RecoveringSessionRepository implements SessionRepository {
 
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'member-client');
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
 
   @override
   Stream<AuthSession> get recoveredSessions => _recoveries.stream;
@@ -605,7 +605,7 @@ class _SequencedRecoveryRepository implements SessionRepository {
 
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'member-client');
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
 
   @override
   Stream<AuthSession> get recoveredSessions => _stream.stream;
@@ -629,7 +629,7 @@ class _SignedInSessionRepository implements SessionRepository {
 
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'member-client');
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
 
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();

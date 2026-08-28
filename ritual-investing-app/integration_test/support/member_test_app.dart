@@ -405,7 +405,7 @@ class GuidedMemberTestHarness {
 class _LocalMemberSessionRepository implements SessionRepository {
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'local-member-client');
+      const MemberClientExpectation(issuer: 'https://local-auth.test/auth/v1');
 
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
@@ -441,7 +441,7 @@ class _GuidedSessionRepository implements SessionRepository {
 
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'guided-member-client');
+      const MemberClientExpectation(issuer: 'https://guided-auth.test/auth/v1');
 
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();

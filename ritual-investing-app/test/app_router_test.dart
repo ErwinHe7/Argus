@@ -664,7 +664,7 @@ class _SignedOutSessionRepository implements SessionRepository {
   final List<MemberAuthIntent> intents = [];
   @override
   MemberClientExpectation get memberClientExpectation =>
-      const MemberClientExpectation(authorizedParty: 'member-client');
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
   @override
