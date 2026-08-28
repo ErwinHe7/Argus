@@ -6,7 +6,6 @@ import '../../features/briefings/application/briefing_controller.dart';
 import '../../features/briefings/data/generated_briefing_api_service.dart';
 import '../../features/briefings/data/repository.dart';
 import '../../features/brokerage_connection/application/controller.dart';
-import '../../features/brokerage_connection/data/generated_brokerage_connection_api_service.dart';
 import '../../features/brokerage_connection/data/repository.dart';
 import '../../features/circles/data/generated_circle_api_service.dart';
 import '../../features/circles/data/repository.dart';
@@ -16,12 +15,6 @@ import '../../features/creators/data/generated_creator_api_service.dart';
 import '../../features/creators/data/repository.dart';
 import '../../features/discover/application/controller.dart';
 import '../../features/discover/data/repository.dart';
-import '../../features/entitlements/application/entitlement_controller.dart';
-import '../../features/entitlements/data/generated_entitlement_api_service.dart';
-import '../../features/entitlements/data/repository.dart';
-import '../../features/funding/application/contribution_controller.dart';
-import '../../features/funding/application/funding_source_controller.dart';
-import '../../features/funding/data/repository.dart';
 import '../../features/future_mirror/application/future_mirror_controller.dart';
 import '../../features/future_mirror/data/repository.dart';
 import '../../features/grimoires/data/generated_grimoire_api_service.dart';
@@ -31,8 +24,8 @@ import '../../features/intentions/data/repository.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/notifications/data/generated_notification_api_service.dart';
 import '../../features/notifications/data/repository.dart';
-import '../../features/orders/application/order_controller.dart';
-import '../../features/orders/data/repository.dart';
+import '../../features/orders/application/brokerage_order_controller.dart';
+import '../../features/orders/data/brokerage_repository.dart';
 import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/data/repository.dart';
@@ -44,10 +37,6 @@ import '../../features/privacy/data/repository.dart';
 import '../../features/privacy/domain/model.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/data/repository.dart';
-import '../../features/rebalancing/application/rebalance_controller.dart';
-import '../../features/rebalancing/data/repository.dart';
-import '../../features/recurring/application/recurring_plan_controller.dart';
-import '../../features/recurring/data/repository.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/ritual/data/daily_ritual_repository.dart';
 import '../../features/rowan/application/controller.dart';
@@ -105,48 +94,7 @@ class ProductionMemberFeatureScopeFactory {
       bootstrapDefaultPortfolioId: bootstrap.defaultPortfolioId,
       createKey: createCommandKey,
     );
-    final fundingRepository = CachedFundingRepository(
-      service: portfolioService,
-      cache: scopedCache,
-    );
     final invalidationBus = InvalidationBus();
-    final orderController = OrderController(
-      repository: OrderRepository(service: GeneratedOrderApiService(client)),
-      portfolioController: portfolioController,
-      pendingStore: pendingCommandStore,
-      invalidationBus: invalidationBus,
-      scope: scope,
-      createKey: createCommandKey,
-      now: now,
-    );
-    final recurringPlanController = RecurringPlanController(
-      repository: RecurringPlanRepository(
-        service: GeneratedRecurringPlanApiService(client),
-      ),
-      pendingStore: pendingCommandStore,
-      scope: scope,
-      createKey: createCommandKey,
-      now: now,
-      rhythm: bootstrap.personalization.contributionRhythm,
-      isFundingSourceActive: (sourceId) async {
-        final result = await fundingRepository.loadSources();
-        return !result.isStale &&
-            result.value.items.any(
-              (source) => source.id == sourceId && source.isActive,
-            );
-      },
-    );
-    final rebalanceController = RebalanceController(
-      repository: RebalanceRepository(
-        service: GeneratedRebalanceApiService(client),
-      ),
-      portfolioController: portfolioController,
-      pendingStore: pendingCommandStore,
-      invalidationBus: invalidationBus,
-      scope: scope,
-      createKey: createCommandKey,
-      now: now,
-    );
     final intentionController = IntentionController(
       repository: CachedIntentionRepository(
         service: GeneratedIntentionApiService(client),
@@ -176,6 +124,16 @@ class ProductionMemberFeatureScopeFactory {
       ),
       initialAccountId: bootstrap.brokerage.activeAccountId,
     );
+    final brokerageOrderController = BrokerageOrderController(
+      repository: BrokerageOrderRepository(
+        service: GeneratedBrokerageOrderApiService(client),
+      ),
+      portfolioController: brokeragePortfolioController,
+      pendingStore: pendingCommandStore,
+      scope: scope,
+      createKey: createCommandKey,
+      now: now,
+    );
     final brokerageConnectionController = BrokerageConnectionController(
       repository: BrokerageConnectionRepository(
         service: GeneratedBrokerageConnectionApiService(client),
@@ -200,17 +158,6 @@ class ProductionMemberFeatureScopeFactory {
       ),
       pendingStore: pendingCommandStore,
       invalidationBus: invalidationBus,
-      scope: scope,
-      createKey: createCommandKey,
-      now: now,
-      personalization: bootstrap.personalization,
-    );
-    final entitlementController = EntitlementController(
-      repository: CachedEntitlementRepository(
-        service: GeneratedEntitlementService(client),
-        cache: scopedCache,
-      ),
-      pendingStore: pendingCommandStore,
       scope: scope,
       createKey: createCommandKey,
       now: now,
@@ -260,30 +207,13 @@ class ProductionMemberFeatureScopeFactory {
         ),
       ),
       portfolioController: portfolioController,
-      fundingSourceController: FundingSourceController(
-        repository: fundingRepository,
-        createKey: createCommandKey,
-      ),
-      contributionController: ContributionController(
-        repository: fundingRepository,
-        portfolioController: portfolioController,
-        pendingStore: pendingCommandStore,
-        invalidationBus: invalidationBus,
-        scope: scope,
-        createKey: createCommandKey,
-        now: now,
-        rhythm: bootstrap.personalization.contributionRhythm,
-      ),
-      orderController: orderController,
-      recurringPlanController: recurringPlanController,
-      rebalanceController: rebalanceController,
+      brokerageOrderController: brokerageOrderController,
       intentionController: intentionController,
       futureMirrorController: futureMirrorController,
       brokerageConnectionController: brokerageConnectionController,
       brokeragePortfolioController: brokeragePortfolioController,
       briefingController: briefingController,
       notificationController: notificationController,
-      entitlementController: entitlementController,
       privacyController: privacyController,
       invalidationBus: invalidationBus,
       assetCodexRepository: AssetCodexRepository(

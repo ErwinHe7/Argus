@@ -21,6 +21,7 @@ import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/orders/application/order_controller.dart';
+import '../../features/orders/application/brokerage_order_controller.dart';
 import '../../features/onboarding/domain/onboarding_draft.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/domain/model.dart';
@@ -163,6 +164,10 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
     return value;
   }
 
+  BrokerageOrderController get brokerageOrderController =>
+      _requireScope().brokerageOrderController ??
+      (throw StateError('Webull orders are unavailable.'));
+
   RecurringPlanController get recurringPlanController {
     final value = _requireScope().recurringPlanController;
     if (value == null) throw StateError('Recurring plans are unavailable.');
@@ -244,9 +249,12 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
   bool get hasAssetCodex => featureScope?.assetCodexRepository != null;
 
   bool get hasSimulatedInvesting =>
+      presentationPolicy.isDemo &&
       featureScope?.orderController != null &&
       featureScope?.recurringPlanController != null &&
       featureScope?.rebalanceController != null;
+
+  bool get hasBrokerageOrders => featureScope?.brokerageOrderController != null;
 
   bool get hasBrokeragePortfolio =>
       featureScope?.brokerageConnectionController != null &&
@@ -260,7 +268,8 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       featureScope?.briefingController != null &&
       featureScope?.notificationController != null;
 
-  bool get hasDemoMembership => featureScope?.entitlementController != null;
+  bool get hasDemoMembership =>
+      presentationPolicy.isDemo && featureScope?.entitlementController != null;
 
   bool get hasPrivacyControls => featureScope?.privacyController != null;
 

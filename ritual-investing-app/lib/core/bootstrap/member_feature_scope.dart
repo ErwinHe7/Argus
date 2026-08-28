@@ -16,6 +16,7 @@ import '../../features/grimoires/data/repository.dart';
 import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/orders/application/order_controller.dart';
+import '../../features/orders/application/brokerage_order_controller.dart';
 import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
@@ -58,6 +59,7 @@ class MemberFeatureScope {
     this.circleRepository,
     this.creatorRepository,
     this.orderController,
+    this.brokerageOrderController,
     this.recurringPlanController,
     this.rebalanceController,
     this.intentionController,
@@ -87,6 +89,7 @@ class MemberFeatureScope {
   final CircleRepository? circleRepository;
   final CreatorRepository? creatorRepository;
   final OrderController? orderController;
+  final BrokerageOrderController? brokerageOrderController;
   final RecurringPlanController? recurringPlanController;
   final RebalanceController? rebalanceController;
   final IntentionController? intentionController;
@@ -165,6 +168,7 @@ class MemberFeatureScope {
     brokerageConnectionController?.dispose();
     brokeragePortfolioController?.dispose();
     orderController?.dispose();
+    brokerageOrderController?.dispose();
     recurringPlanController?.dispose();
     rebalanceController?.dispose();
     intentionController?.dispose();

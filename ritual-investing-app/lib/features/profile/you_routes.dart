@@ -9,6 +9,7 @@ import '../future_mirror/presentation/future_mirror_screen.dart';
 import '../intentions/presentation/intention_screen.dart';
 import '../notifications/presentation/notification_screen.dart';
 import '../orders/presentation/order_screen.dart';
+import '../orders/presentation/brokerage_order_screen.dart';
 import '../portfolio/presentation/portfolio_screen.dart';
 import '../portfolio/presentation/brokerage_portfolio_screen.dart';
 import '../privacy/presentation/privacy_screen.dart';
@@ -36,7 +37,10 @@ StatefulShellBranch buildYouBranch({
       routes: [
         _portfolioRoute(container),
         ..._intentionRoutes(container),
-        ..._simulatedInvestingRoutes(container),
+        if (container.presentationPolicy.isDemo)
+          ..._simulatedInvestingRoutes(container)
+        else
+          ..._brokerageOrderRoutes(container),
         ..._settingsRoutes(
           container,
           container.presentationPolicy.showsAccount ? onLogout : null,
@@ -65,6 +69,9 @@ GoRoute _portfolioRoute(AppRuntime container) => GoRoute(
         portfolioController: container.brokeragePortfolioController,
         onOpenAccount: (id) =>
             context.pushReplacement(MemberRoutes.portfolio.location(id)),
+        onOpenOrders: container.hasBrokerageOrders
+            ? () => context.push(MemberRoutes.portfolioOrdersLocation(stableId))
+            : null,
       );
     }
     final child = PortfolioScreen(
@@ -359,6 +366,60 @@ List<RouteBase> _simulatedInvestingRoutes(AppRuntime container) => [
   ),
 ];
 
+List<RouteBase> _brokerageOrderRoutes(AppRuntime container) => [
+  GoRoute(
+    path: 'portfolios/:portfolioId/orders',
+    redirect: (context, state) =>
+        _validBrokerageOrderRoute(
+          container,
+          state.pathParameters['portfolioId'],
+        )
+        ? null
+        : MemberRoutes.you.path,
+    builder: (context, state) {
+      final accountId = state.pathParameters['portfolioId']!;
+      final instrumentId = state.uri.queryParameters['asset_id'];
+      final symbol = state.uri.queryParameters['symbol'];
+      return BrokerageOrderScreen(
+        key: ValueKey(
+          'webull-orders-$accountId-${instrumentId ?? 'positions'}',
+        ),
+        accountId: accountId,
+        controller: container.brokerageOrderController,
+        portfolioController: container.brokeragePortfolioController,
+        preselectedInstrumentId:
+            instrumentId != null && MemberRoutes.isStableId(instrumentId)
+            ? instrumentId
+            : null,
+        preselectedSymbol: symbol?.trim().isNotEmpty == true ? symbol : null,
+        onOpenOrder: (orderId) => context.push(
+          MemberRoutes.portfolioOrderLocation(accountId, orderId),
+        ),
+      );
+    },
+  ),
+  GoRoute(
+    path: 'portfolios/:portfolioId/orders/:orderId',
+    redirect: (context, state) =>
+        _validBrokerageOrderRoute(
+              container,
+              state.pathParameters['portfolioId'],
+            ) &&
+            MemberRoutes.isStableId(state.pathParameters['orderId'] ?? '')
+        ? null
+        : MemberRoutes.you.path,
+    builder: (context, state) => BrokerageOrderDetailScreen(
+      key: ValueKey(
+        'webull-order-${state.pathParameters['portfolioId']}-'
+        '${state.pathParameters['orderId']}',
+      ),
+      accountId: state.pathParameters['portfolioId']!,
+      orderId: state.pathParameters['orderId']!,
+      controller: container.brokerageOrderController,
+    ),
+  ),
+];
+
 List<RouteBase> _settingsRoutes(
   AppRuntime container,
   Future<void> Function()? onLogout,
@@ -406,18 +467,21 @@ List<RouteBase> _settingsRoutes(
         container.hasPrivacyControls ? null : MemberRoutes.you.path,
     builder: (context, state) => PrivacySettingsScreen(
       controller: container.privacyController,
-      onOpenDemoReset: () => context.go(MemberRoutes.youDemoResetPath),
+      onOpenDemoReset: container.presentationPolicy.isDemo
+          ? () => context.go(MemberRoutes.youDemoResetPath)
+          : null,
     ),
   ),
-  GoRoute(
-    path: 'demo-reset',
-    redirect: (context, state) =>
-        container.hasPrivacyControls ? null : MemberRoutes.you.path,
-    builder: (context, state) => DemoResetScreen(
-      controller: container.privacyController,
-      onOpenPrivacy: () => context.go(MemberRoutes.youPrivacyPath),
+  if (container.presentationPolicy.isDemo)
+    GoRoute(
+      path: 'demo-reset',
+      redirect: (context, state) =>
+          container.hasPrivacyControls ? null : MemberRoutes.you.path,
+      builder: (context, state) => DemoResetScreen(
+        controller: container.privacyController,
+        onOpenPrivacy: () => context.go(MemberRoutes.youPrivacyPath),
+      ),
     ),
-  ),
   GoRoute(
     path: 'notifications',
     redirect: (context, state) =>
@@ -437,74 +501,77 @@ List<RouteBase> _settingsRoutes(
       controller: container.notificationController,
     ),
   ),
-  GoRoute(
-    path: 'membership',
-    redirect: (context, state) =>
-        container.hasDemoMembership ? null : MemberRoutes.you.path,
-    builder: (context, state) {
-      final capability = DemoCapability.fromCode(
-        state.uri.queryParameters['capability'] ?? '',
-      );
-      final returnLocation = state.uri.queryParameters['return_to'];
-      final validReturn =
-          capability != null &&
-          returnLocation != null &&
-          container.entitlementController.acceptsReturnContext(
-            capability,
-            returnLocation,
-          );
-      return MembershipPlansScreen(
-        controller: container.entitlementController,
-        requestedCapability: validReturn ? capability : null,
-        returnLocation: validReturn ? returnLocation : null,
-        onOpenCheckout: (checkoutId) =>
-            context.push(MemberRoutes.membershipCheckoutLocation(checkoutId)),
-      );
-    },
-    routes: [
-      GoRoute(
-        path: 'checkout/:checkoutId',
-        redirect: (context, state) =>
-            container.hasDemoMembership &&
-                MemberRoutes.isUuid(state.pathParameters['checkoutId'] ?? '')
-            ? null
-            : MemberRoutes.youMembershipPath,
-        builder: (context, state) => DemoCheckoutScreen(
-          key: ValueKey('demo-checkout-${state.pathParameters['checkoutId']}'),
-          sessionId: state.pathParameters['checkoutId']!,
+  if (container.presentationPolicy.isDemo)
+    GoRoute(
+      path: 'membership',
+      redirect: (context, state) =>
+          container.hasDemoMembership ? null : MemberRoutes.you.path,
+      builder: (context, state) {
+        final capability = DemoCapability.fromCode(
+          state.uri.queryParameters['capability'] ?? '',
+        );
+        final returnLocation = state.uri.queryParameters['return_to'];
+        final validReturn =
+            capability != null &&
+            returnLocation != null &&
+            container.entitlementController.acceptsReturnContext(
+              capability,
+              returnLocation,
+            );
+        return MembershipPlansScreen(
           controller: container.entitlementController,
-          onReceipt: () => context.pushReplacement(
-            MemberRoutes.membershipReceiptLocation(
-              state.pathParameters['checkoutId']!,
+          requestedCapability: validReturn ? capability : null,
+          returnLocation: validReturn ? returnLocation : null,
+          onOpenCheckout: (checkoutId) =>
+              context.push(MemberRoutes.membershipCheckoutLocation(checkoutId)),
+        );
+      },
+      routes: [
+        GoRoute(
+          path: 'checkout/:checkoutId',
+          redirect: (context, state) =>
+              container.hasDemoMembership &&
+                  MemberRoutes.isUuid(state.pathParameters['checkoutId'] ?? '')
+              ? null
+              : MemberRoutes.youMembershipPath,
+          builder: (context, state) => DemoCheckoutScreen(
+            key: ValueKey(
+              'demo-checkout-${state.pathParameters['checkoutId']}',
             ),
-          ),
-          onCancel: () => context.go(MemberRoutes.youMembershipPath),
-        ),
-        routes: [
-          GoRoute(
-            path: 'receipt',
-            redirect: (context, state) =>
-                container.hasDemoMembership &&
-                    MemberRoutes.isUuid(
-                      state.pathParameters['checkoutId'] ?? '',
-                    )
-                ? null
-                : MemberRoutes.youMembershipPath,
-            builder: (context, state) => DemoMembershipReceiptScreen(
-              key: ValueKey(
-                'demo-receipt-${state.pathParameters['checkoutId']}',
+            sessionId: state.pathParameters['checkoutId']!,
+            controller: container.entitlementController,
+            onReceipt: () => context.pushReplacement(
+              MemberRoutes.membershipReceiptLocation(
+                state.pathParameters['checkoutId']!,
               ),
-              sessionId: state.pathParameters['checkoutId']!,
-              controller: container.entitlementController,
-              onContinue: context.go,
-              onBackToMembership: () =>
-                  context.go(MemberRoutes.youMembershipPath),
             ),
+            onCancel: () => context.go(MemberRoutes.youMembershipPath),
           ),
-        ],
-      ),
-    ],
-  ),
+          routes: [
+            GoRoute(
+              path: 'receipt',
+              redirect: (context, state) =>
+                  container.hasDemoMembership &&
+                      MemberRoutes.isUuid(
+                        state.pathParameters['checkoutId'] ?? '',
+                      )
+                  ? null
+                  : MemberRoutes.youMembershipPath,
+              builder: (context, state) => DemoMembershipReceiptScreen(
+                key: ValueKey(
+                  'demo-receipt-${state.pathParameters['checkoutId']}',
+                ),
+                sessionId: state.pathParameters['checkoutId']!,
+                controller: container.entitlementController,
+                onContinue: context.go,
+                onBackToMembership: () =>
+                    context.go(MemberRoutes.youMembershipPath),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
 ];
 
 class _YouBranchRoot extends StatefulWidget {
@@ -562,7 +629,9 @@ class _YouBranchRootState extends State<_YouBranchRoot> {
     onOpenPrivacy: widget.container.hasPrivacyControls
         ? () => context.push(MemberRoutes.youPrivacyPath)
         : null,
-    onOpenDemoReset: widget.container.hasPrivacyControls
+    onOpenDemoReset:
+        widget.container.hasPrivacyControls &&
+            widget.container.presentationPolicy.isDemo
         ? () => context.push(MemberRoutes.youDemoResetPath)
         : null,
     onOpenPortfolio: (id) => context.push(MemberRoutes.portfolio.location(id)),
@@ -576,6 +645,13 @@ bool _validSimulatedInvestingPortfolioRoute(
     container.hasSimulatedInvesting &&
     portfolioId != null &&
     MemberRoutes.isStableId(portfolioId);
+
+bool _validBrokerageOrderRoute(AppRuntime container, String? accountId) =>
+    container.hasBrokerageOrders &&
+    accountId != null &&
+    MemberRoutes.isStableId(accountId) &&
+    container.brokerageConnectionController.snapshot.activeAccountId ==
+        accountId;
 
 bool _validIntentionsPortfolioRoute(
   AppRuntime container,

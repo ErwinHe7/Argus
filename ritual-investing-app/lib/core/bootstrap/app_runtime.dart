@@ -19,6 +19,7 @@ import '../../features/grimoires/application/controller.dart';
 import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/orders/application/order_controller.dart';
+import '../../features/orders/application/brokerage_order_controller.dart';
 import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
@@ -56,7 +57,7 @@ enum MemberPresentationPolicy {
   bool get isDemo => this == demo;
   bool get allowsProfileEditing => this == production;
   bool get showsAccount => this == production;
-  bool get showsFunding => this == production;
+  bool get showsFunding => this == demo;
 }
 
 /// The provider-neutral contract consumed by member navigation and screens.
@@ -107,6 +108,10 @@ extension AppRuntimeFeatureAccess on AppRuntime {
 
   OrderController get orderController =>
       _required(_requireScope().orderController, 'Orders are unavailable.');
+  BrokerageOrderController get brokerageOrderController => _required(
+    _requireScope().brokerageOrderController,
+    'Webull orders are unavailable.',
+  );
   RecurringPlanController get recurringPlanController => _required(
     _requireScope().recurringPlanController,
     'Recurring plans are unavailable.',
@@ -164,9 +169,13 @@ extension AppRuntimeFeatureAccess on AppRuntime {
 
   bool get hasAssetCodex => featureScope?.assetCodexRepository != null;
   bool get hasSimulatedInvesting =>
+      presentationPolicy.isDemo &&
       featureScope?.orderController != null &&
       featureScope?.recurringPlanController != null &&
       featureScope?.rebalanceController != null;
+  bool get hasBrokerageOrders =>
+      presentationPolicy == MemberPresentationPolicy.production &&
+      featureScope?.brokerageOrderController != null;
   bool get hasBrokeragePortfolio =>
       featureScope?.brokerageConnectionController != null &&
       featureScope?.brokeragePortfolioController != null;
@@ -176,7 +185,8 @@ extension AppRuntimeFeatureAccess on AppRuntime {
   bool get hasBriefingsAndNotifications =>
       featureScope?.briefingController != null &&
       featureScope?.notificationController != null;
-  bool get hasDemoMembership => featureScope?.entitlementController != null;
+  bool get hasDemoMembership =>
+      presentationPolicy.isDemo && featureScope?.entitlementController != null;
   bool get hasPrivacyControls => featureScope?.privacyController != null;
   bool get hasMemberResearch =>
       featureScope?.covenRepository != null &&

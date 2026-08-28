@@ -12,7 +12,7 @@ export '../../features/brokerage_connection/data/generated_brokerage_connection_
 export '../../features/discover/data/generated_discover_api_service.dart';
 export '../../features/future_mirror/data/generated_future_mirror_api_service.dart';
 export '../../features/intentions/data/generated_intention_api_service.dart';
-export '../../features/orders/data/generated_simulated_investing_api_service.dart';
+export '../../features/orders/data/generated_brokerage_order_api_service.dart';
 export '../../features/portfolio/data/generated_portfolio_api_service.dart';
 export '../../features/profile/data/generated_profile_api_service.dart';
 export '../../features/ritual/data/generated_ritual_api_service.dart';

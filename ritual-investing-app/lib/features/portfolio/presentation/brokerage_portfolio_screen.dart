@@ -16,12 +16,14 @@ class BrokeragePortfolioScreen extends StatefulWidget {
     required this.connectionController,
     required this.portfolioController,
     this.onOpenAccount,
+    this.onOpenOrders,
   });
 
   final String accountId;
   final BrokerageConnectionController connectionController;
   final BrokeragePortfolioController portfolioController;
   final ValueChanged<String>? onOpenAccount;
+  final VoidCallback? onOpenOrders;
 
   @override
   State<BrokeragePortfolioScreen> createState() =>
@@ -116,6 +118,17 @@ class _BrokeragePortfolioScreenState extends State<BrokeragePortfolioScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
+                FilledButton.icon(
+                  key: const Key('open-webull-orders'),
+                  onPressed: widget.onOpenOrders,
+                  icon: const Icon(Icons.receipt_long_outlined),
+                  label: Text(
+                    snapshot.mutationsAvailable
+                        ? 'View and place Webull orders'
+                        : 'View Webull order history',
+                  ),
+                ),
+                const SizedBox(height: 8),
                 FilledButton.icon(
                   key: const Key('brokerage-refresh'),
                   onPressed:
