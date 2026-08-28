@@ -37,7 +37,7 @@ done
 
 (cd "$app_root" && dart tool/check_demo_import_boundary.dart)
 
-source_pattern='auth0_flutter|flutter_secure_storage|path_provider|ritual_investing_api_client|@neondatabase/serverless|drizzle-orm|postgres(?:ql)?://|api(?:-beta)?\.just-build-this\.app|/v1/session/bootstrap|window\.(?:localStorage|sessionStorage|indexedDB)|globalThis\.(?:localStorage|sessionStorage|indexedDB)'
+source_pattern='auth0_flutter|supabase_flutter|Supabase\.initialize|webull\.(?:com|cn)|flutter_secure_storage|path_provider|ritual_investing_api_client|@neondatabase/serverless|drizzle-orm|postgres(?:ql)?://|supabase\.co|/functions/v1/|api(?:-beta)?\.just-build-this\.app|/v1/session/bootstrap|window\.(?:localStorage|sessionStorage|indexedDB)|globalThis\.(?:localStorage|sessionStorage|indexedDB)'
 if rg -n -i "$source_pattern" "$demo_root/lib" "$demo_root/web" "$demo_root/pubspec.yaml"; then
   fail "demo-owned sources contain a provider, member API, database, or persistent-state boundary violation"
 fi
@@ -59,9 +59,13 @@ rg -F '"useLocalCanvasKit":true' "$build_root/flutter_bootstrap.js" >/dev/null |
 rg -F 'serviceWorkerSettings: null' "$build_root/flutter_bootstrap.js" >/dev/null || \
   fail "Flutter service-worker registration is not disabled"
 
-artifact_pattern='auth0|api(?:-beta)?\.just-build-this\.app|/v1/session/bootstrap|@neondatabase/serverless|drizzle-orm|postgres(?:ql)?://|flutter_secure_storage|path_provider|ritual_investing_api_client'
+artifact_pattern='auth0|supabase|passport\.webull\.com|oauth-open-api[^[:space:]]*webull\.com|createWebullClient|WebullTokenVault|/functions/v1/|/api/waitlist|api(?:-beta)?\.just-build-this\.app|/v1/session/bootstrap|@neondatabase/serverless|drizzle-orm|postgres(?:ql)?://|flutter_secure_storage|path_provider|ritual_investing_api_client|challenges\.cloudflare\.com'
 if rg -a -n -i "$artifact_pattern" "$build_root" --glob '!*.symbols' --glob '!flutter_service_worker.js'; then
   fail "release artifacts contain a production provider, member API, or database identifier"
+fi
+
+if find "$build_root" \( -path '*/functions' -o -path '*/functions/*' -o -name '_worker.js' -o -name '_routes.json' \) -print | grep . >/dev/null; then
+  fail "release artifacts contain a Cloudflare compute entrypoint"
 fi
 
 find "$build_root" -type f -print | while IFS= read -r asset; do

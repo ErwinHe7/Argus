@@ -90,6 +90,16 @@ printf "https://tenant.us.auth0.com/authorize\n" \
 expect_failure "a provider identifier in the release artifact"
 
 write_allowed_fixture
+printf "https://project.supabase.co/functions/v1/waitlist\n" \
+  >>"$fixture/ritual-investing-demo/build/web/main.dart.js"
+expect_failure "a Supabase provider in the release artifact"
+
+write_allowed_fixture
+printf "final provider = Supabase.initialize();\n" \
+  >>"$fixture/ritual-investing-app/lib/core/navigation/member_app_router.dart"
+expect_failure "a production Supabase provider in the demo source graph"
+
+write_allowed_fixture
 printf '{}\n' >"$fixture/ritual-investing-demo/build/web/main.dart.js.map"
 expect_failure "a public source map"
 

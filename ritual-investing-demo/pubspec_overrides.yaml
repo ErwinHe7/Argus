@@ -14,3 +14,5 @@ dependency_overrides:
     path: tool/provider_stubs/ritual_investing_api_client
   share_plus:
     path: tool/provider_stubs/share_plus
+  supabase_flutter:
+    path: tool/provider_stubs/supabase_flutter

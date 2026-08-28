@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { DEMO_ORIGIN, installLocalProductionSurface, LANDING_ORIGIN } from "./support.ts";
+import {
+  DEMO_ORIGIN,
+  installLocalProductionSurface,
+  LANDING_ORIGIN,
+  WAITLIST_ORIGIN,
+} from "./support.ts";
 
 test("effective landing and demo headers enforce the exact pairwise frame policy", async ({ page }) => {
   await installLocalProductionSurface(page);
@@ -15,6 +20,8 @@ test("effective landing and demo headers enforce the exact pairwise frame policy
   expect(landingCsp).toContain("frame-ancestors 'none'");
   expect(landingCsp).toContain(`frame-src ${DEMO_ORIGIN.slice(0, -1)} https://challenges.cloudflare.com`);
   expect(landingCsp).toContain("base-uri 'none'");
+  expect(landingCsp).toContain(`form-action ${WAITLIST_ORIGIN.slice(0, -1)}`);
+  expect(landingCsp).toContain(`connect-src 'self' https://challenges.cloudflare.com ${WAITLIST_ORIGIN.slice(0, -1)}`);
   expect(landingCsp).not.toMatch(/(?:^|\s)\*(?:\s|;|$)|(?<!wasm-)unsafe-eval|unsafe-inline/);
   expect(landing!.headers()["x-frame-options"]).toBe("DENY");
   expect(landing!.headers()["permissions-policy"]).toContain("payment=()");

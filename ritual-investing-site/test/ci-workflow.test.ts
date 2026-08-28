@@ -18,14 +18,14 @@ function job(source: string, name: string): string {
 }
 
 describe("Ritual release workflow contract", () => {
-  it("makes provider, demo web, site, Postgres 17, and cross-browser proof required PR jobs", async () => {
+  it("makes provider, demo web, static site, waitlist Edge, and cross-browser proof required PR jobs", async () => {
     const source = await workflow();
 
     for (const name of [
       "demo-provider-boundary",
       "demo-web",
       "site",
-      "site-postgres-17",
+      "site-waitlist-edge",
       "site-browser",
     ]) {
       expect(job(source, name)).not.toContain("if: github.event_name == 'workflow_dispatch'");
@@ -33,8 +33,10 @@ describe("Ritual release workflow contract", () => {
 
     expect(job(source, "demo-provider-boundary")).toContain("test-check-demo-provider-boundaries.sh");
     expect(job(source, "demo-web")).toContain("flutter build web --release");
-    expect(job(source, "site")).toContain("npm run deploy:dry-run:all");
-    expect(job(source, "site-postgres-17")).toContain("postgres:17.11-alpine");
+    expect(job(source, "site")).toContain("npm run pages:config:check");
+    expect(job(source, "site")).not.toMatch(/types:check|resources:check|deploy:dry-run/);
+    expect(job(source, "site-waitlist-edge")).toContain("deno task check");
+    expect(job(source, "site-waitlist-edge")).toContain("deno task test");
     expect(job(source, "site-browser")).toContain("playwright install --with-deps chromium firefox webkit");
   });
 

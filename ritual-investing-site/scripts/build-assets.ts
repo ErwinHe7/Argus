@@ -17,6 +17,7 @@ import { pathToFileURL } from "node:url";
 export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
 
 type DeploymentEnvironment = "production" | "beta";
+type DeploymentSurface = "landing" | "demo";
 
 const HOSTS = {
   production: {
@@ -31,6 +32,8 @@ const HOSTS = {
 
 const NOINDEX = "X-Robots-Tag: noindex, nofollow, noarchive";
 const TURNSTILE_SITE_KEY_ATTRIBUTE = 'data-turnstile-site-key=""';
+const WAITLIST_CONFIGURATION_SEAM =
+  'action="" method="post" data-waitlist-form data-waitlist-enabled="false"';
 
 export function injectTurnstileSiteKey(html: string, siteKey: string): string {
   if (!/^[A-Za-z0-9_-]{20,128}$/.test(siteKey)) {
@@ -61,23 +64,90 @@ export function resolveTurnstileSiteKey(
   return siteKey;
 }
 
+export function resolveWaitlistFunctionUrl(
+  environment: DeploymentEnvironment,
+  variables: Record<string, string | undefined>,
+  required: boolean,
+): string | undefined {
+  const variable = environment === "production"
+    ? "WAITLIST_FUNCTION_URL_PRODUCTION"
+    : "WAITLIST_FUNCTION_URL_BETA";
+  const value = variables[variable]?.trim();
+  if (value === undefined || value === "") {
+    if (required) {
+      throw new Error(
+        `${environment} Supabase waitlist function URL is required for release assembly.`,
+      );
+    }
+    return undefined;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error(`${environment} Supabase waitlist function URL is invalid.`);
+  }
+  if (
+    parsed.protocol !== "https:" ||
+    !/^[a-z0-9-]+\.supabase\.co$/i.test(parsed.hostname) ||
+    parsed.port !== "" ||
+    parsed.username !== "" ||
+    parsed.password !== "" ||
+    parsed.pathname !== "/functions/v1/waitlist" ||
+    parsed.search !== "" ||
+    parsed.hash !== "" ||
+    parsed.href !== value
+  ) {
+    throw new Error(
+      `${environment} Supabase waitlist function URL must be an exact HTTPS /functions/v1/waitlist endpoint.`,
+    );
+  }
+  return value;
+}
+
+export function injectWaitlistConfiguration(
+  html: string,
+  functionUrl: string,
+): string {
+  if (html.split(WAITLIST_CONFIGURATION_SEAM).length !== 2) {
+    throw new Error("The landing must contain exactly one disabled waitlist seam.");
+  }
+  resolveWaitlistFunctionUrl("production", {
+    WAITLIST_FUNCTION_URL_PRODUCTION: functionUrl,
+  }, true);
+  return html.replace(
+    WAITLIST_CONFIGURATION_SEAM,
+    `action="${functionUrl}" method="post" data-waitlist-form data-waitlist-enabled="true"`,
+  );
+}
+
 function entryCacheRules(paths: readonly string[]): string {
   return paths.map((path) => `${path}\n  Cache-Control: no-cache, no-store, must-revalidate`).join("\n\n");
 }
 
-export function renderLandingHeaders(environment: DeploymentEnvironment): string {
+export function renderLandingHeaders(
+  environment: DeploymentEnvironment,
+  waitlistFunctionUrl?: string,
+): string {
   const peer = HOSTS[environment];
+  const waitlistOrigin = waitlistFunctionUrl === undefined
+    ? undefined
+    : new URL(waitlistFunctionUrl).origin;
   const csp = [
     "default-src 'none'",
     "base-uri 'none'",
-    "form-action 'self'",
+    waitlistOrigin === undefined
+      ? "form-action 'none'"
+      : `form-action ${waitlistOrigin}`,
     "frame-ancestors 'none'",
     `frame-src ${peer.demo} https://challenges.cloudflare.com`,
     "script-src 'self' https://challenges.cloudflare.com",
     "style-src 'self'",
     "font-src 'self'",
     "img-src 'self'",
-    "connect-src 'self' https://challenges.cloudflare.com",
+    `connect-src 'self' https://challenges.cloudflare.com${
+      waitlistOrigin === undefined ? "" : ` ${waitlistOrigin}`
+    }`,
     "object-src 'none'",
     "media-src 'none'",
     "manifest-src 'none'",
@@ -145,6 +215,21 @@ const FORBIDDEN_PROVIDER_PATTERNS = [
   /postgres(?:ql)?:\/\//i,
   /flutter_secure_storage/i,
   /path_provider/i,
+  /sb_secret_/i,
+  /service[_-]?role/i,
+  /SUPABASE_(?:SECRET|SERVICE)/i,
+  /TURNSTILE_SECRET/i,
+  /WAITLIST_SOURCE_HMAC_KEY/i,
+  /passport\.webull\.com/i,
+  /oauth-open-api[^\s"']*webull\.com/i,
+  /createWebullClient/i,
+  /WebullTokenVault/i,
+];
+const DEMO_ONLY_FORBIDDEN_PROVIDER_PATTERNS = [
+  /supabase/i,
+  /\/functions\/v1\//i,
+  /\/api\/waitlist/i,
+  /challenges\.cloudflare\.com/i,
 ];
 const UTF8 = new TextDecoder();
 
@@ -158,6 +243,7 @@ export type AssetManifest = {
 type AssembleOptions = {
   source: string;
   destination: string;
+  surface?: DeploymentSurface;
 };
 
 function posixPath(path: string): string {
@@ -250,11 +336,22 @@ function referenceExists(deployable: ReadonlySet<string>, reference: string): bo
   return deployable.has(normalized) || deployable.has(`${normalized.replace(/\/$/, "")}/index.html`);
 }
 
-function validateProviderBoundary(path: string, contents: Uint8Array): void {
+function validateProviderBoundary(
+  path: string,
+  contents: Uint8Array,
+  surface: DeploymentSurface,
+): void {
   if (!TEXT_EXTENSIONS.has(extension(path))) return;
   const text = UTF8.decode(contents);
   for (const pattern of FORBIDDEN_PROVIDER_PATTERNS) {
     if (pattern.test(text)) throw new Error(`provider boundary violation in ${path}.`);
+  }
+  if (surface === "demo") {
+    for (const pattern of DEMO_ONLY_FORBIDDEN_PROVIDER_PATTERNS) {
+      if (pattern.test(text)) {
+        throw new Error(`demo provider boundary violation in ${path}.`);
+      }
+    }
   }
 }
 
@@ -275,6 +372,7 @@ async function validateManifest(destination: string, manifest: AssetManifest): P
 export async function assembleAssets(options: AssembleOptions): Promise<AssetManifest> {
   const source = resolve(options.source);
   const destination = resolve(options.destination);
+  const surface = options.surface ?? "demo";
   if (source === destination || source.startsWith(`${destination}${sep}`)) {
     throw new Error("Asset source and destination must be separate directories.");
   }
@@ -283,6 +381,12 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
   const deployable: Array<{ path: string; contents: Uint8Array }> = [];
   for (const path of sourceFiles) {
     if (EXCLUDED_BUILD_MARKERS.has(path)) continue;
+    if (
+      path === "_worker.js" || path === "_routes.json" ||
+      path === "functions" || path.startsWith("functions/")
+    ) {
+      throw new Error(`Cloudflare compute artifact is forbidden: ${path}`);
+    }
     if (path.endsWith(".map")) throw new Error(`source map output is forbidden: ${path}`);
     if (path.endsWith(".symbols")) continue;
     const contents = await readFile(join(source, path));
@@ -293,7 +397,7 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
     if (contents.byteLength > MAX_ASSET_BYTES) {
       throw new Error(`Asset exceeds Cloudflare's 25 MiB per-file limit: ${path}`);
     }
-    validateProviderBoundary(path, contents);
+    validateProviderBoundary(path, contents, surface);
     deployable.push({ path, contents });
   }
 
@@ -374,13 +478,33 @@ async function prepareLandingStage(
   const publicSiteKey = resolveTurnstileSiteKey(
     environment,
     process.env,
-    process.env.REQUIRE_TURNSTILE_SITE_KEYS === "true",
+    process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
   );
-  if (publicSiteKey !== undefined) {
-    const indexPath = join(stage, "index.html");
-    await writeFile(indexPath, injectTurnstileSiteKey(await readFile(indexPath, "utf8"), publicSiteKey));
+  const waitlistFunctionUrl = resolveWaitlistFunctionUrl(
+    environment,
+    process.env,
+    process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
+  );
+  if ((publicSiteKey === undefined) !== (waitlistFunctionUrl === undefined)) {
+    throw new Error(
+      `${environment} waitlist activation requires both the public Turnstile key and function URL.`,
+    );
   }
-  await writeFile(join(stage, "_headers"), renderLandingHeaders(environment));
+  if (publicSiteKey !== undefined && waitlistFunctionUrl !== undefined) {
+    const indexPath = join(stage, "index.html");
+    const html = injectTurnstileSiteKey(
+      await readFile(indexPath, "utf8"),
+      publicSiteKey,
+    );
+    await writeFile(
+      indexPath,
+      injectWaitlistConfiguration(html, waitlistFunctionUrl),
+    );
+  }
+  await writeFile(
+    join(stage, "_headers"),
+    renderLandingHeaders(environment, waitlistFunctionUrl),
+  );
   if (environment === "beta") {
     for (const relativePath of ["index.html", "privacy/waitlist/index.html"]) {
       const path = join(stage, relativePath);
@@ -419,6 +543,7 @@ export async function buildDeploymentAssets(): Promise<void> {
         manifest: await assembleAssets({
           source: landingStage,
           destination: resolve(packageRoot, environment === "production" ? "dist/landing" : "dist/landing-beta"),
+          surface: "landing",
         }),
       });
 
@@ -429,6 +554,7 @@ export async function buildDeploymentAssets(): Promise<void> {
         manifest: await assembleAssets({
           source: demoStage,
           destination: resolve(packageRoot, environment === "production" ? "dist/demo" : "dist/demo-beta"),
+          surface: "demo",
         }),
       });
     }

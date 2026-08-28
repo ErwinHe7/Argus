@@ -2,7 +2,10 @@ import type { DatabasePool } from "../../../ritual-investing-api/src/db/database
 import { withDatabaseTransaction } from "../../../ritual-investing-api/src/db/database-port.ts";
 import type { RateLimitPort } from "../../../ritual-investing-api/src/ports/infrastructure.ts";
 
-export function createPostgresRateLimitPort(pool: DatabasePool): RateLimitPort {
+export function createPostgresRateLimitPort(
+  pool: DatabasePool,
+  role: "argus_runtime" | "argus_waitlist" = "argus_runtime",
+): RateLimitPort {
   return Object.freeze({
     async allow(
       key: string,
@@ -18,7 +21,7 @@ export function createPostgresRateLimitPort(pool: DatabasePool): RateLimitPort {
       ) {
         throw new Error("invalid_rate_policy");
       }
-      return withDatabaseTransaction(pool, "argus_runtime", async (database) => {
+      return withDatabaseTransaction(pool, role, async (database) => {
         const result = await database.query<{
           allowed: boolean;
           retry_after_seconds: number;

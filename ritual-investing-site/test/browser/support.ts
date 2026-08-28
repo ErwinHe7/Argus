@@ -7,6 +7,8 @@ import type { Page, Route } from "@playwright/test";
 export const LANDING_ORIGIN = "https://just-build-this.app/";
 export const DEMO_ORIGIN = "https://demo.just-build-this.app/";
 const TURNSTILE_ORIGIN = "https://challenges.cloudflare.com/";
+export const WAITLIST_ORIGIN = "https://project-ref.supabase.co/";
+export const WAITLIST_ENDPOINT = `${WAITLIST_ORIGIN}functions/v1/waitlist`;
 const SITE_ROOT = resolve(import.meta.dirname, "../..");
 const LANDING_ROOT = resolve(SITE_ROOT, "dist/landing");
 const DEMO_ROOT = resolve(SITE_ROOT, "dist/demo");
@@ -34,6 +36,7 @@ export type LocalSurface = {
 type LocalSurfaceOptions = {
   demo?: DemoMode;
   waitlist?: ApiResponse | ((body: unknown) => ApiResponse);
+  waitlistEnabled?: boolean;
 };
 
 async function globalHeaders(root: string): Promise<Record<string, string>> {
@@ -89,17 +92,33 @@ async function fulfillStatic(route: Route, root: string, injectSiteKey: boolean)
   }
   if (injectSiteKey && path === resolve(root, "index.html")) {
     body = Buffer.from(
-      new TextDecoder().decode(body).replace(
-        'data-turnstile-site-key=""',
-        `data-turnstile-site-key="${SITE_KEY}"`,
-      ),
+      new TextDecoder().decode(body)
+        .replace(
+          'data-turnstile-site-key=""',
+          `data-turnstile-site-key="${SITE_KEY}"`,
+        )
+        .replace(
+          'action="" method="post" data-waitlist-form data-waitlist-enabled="false"',
+          `action="${WAITLIST_ENDPOINT}" method="post" data-waitlist-form data-waitlist-enabled="true"`,
+        ),
       "utf8",
     );
+  }
+  const headers = await globalHeaders(root);
+  if (injectSiteKey) {
+    const csp = headers["content-security-policy"];
+    if (csp === undefined) throw new Error("landing CSP is missing");
+    headers["content-security-policy"] = csp
+      .replace("form-action 'none'", `form-action ${WAITLIST_ORIGIN.slice(0, -1)}`)
+      .replace(
+        "connect-src 'self' https://challenges.cloudflare.com",
+        `connect-src 'self' https://challenges.cloudflare.com ${WAITLIST_ORIGIN.slice(0, -1)}`,
+      );
   }
   await route.fulfill({
     status: 200,
     headers: {
-      ...(await globalHeaders(root)),
+      ...headers,
       "content-type": CONTENT_TYPES[extname(path).toLowerCase()] ?? "application/octet-stream",
     },
     body,
@@ -138,7 +157,8 @@ export async function installLocalProductionSurface(
   const surface: LocalSurface = { requests: [], waitlistBodies: [] };
   page.on("request", (request) => surface.requests.push(request.url()));
 
-  await page.route(`${LANDING_ORIGIN}**`, (route) => fulfillStatic(route, LANDING_ROOT, true));
+  await page.route(`${LANDING_ORIGIN}**`, (route) =>
+    fulfillStatic(route, LANDING_ROOT, options.waitlistEnabled !== false));
   await page.route(`${DEMO_ORIGIN}**`, async (route) => {
     const mode = options.demo ?? "mock-ready";
     if (mode === "real") {
@@ -167,7 +187,7 @@ export async function installLocalProductionSurface(
     headers: { "content-type": "text/javascript; charset=utf-8" },
     body: turnstileMock,
   }));
-  await page.route(`${LANDING_ORIGIN}api/waitlist`, async (route) => {
+  await page.route(WAITLIST_ENDPOINT, async (route) => {
     let body: unknown = null;
     try { body = route.request().postDataJSON(); } catch { /* browser request shape is asserted by the caller */ }
     surface.waitlistBodies.push(body);
@@ -176,7 +196,11 @@ export async function installLocalProductionSurface(
       : options.waitlist ?? { status: 202, body: { code: "accepted" } };
     await route.fulfill({
       status: configured.status,
-      headers: { "content-type": "application/json", "cache-control": "no-store" },
+      headers: {
+        "content-type": "application/json",
+        "cache-control": "no-store",
+        "access-control-allow-origin": LANDING_ORIGIN.slice(0, -1),
+      },
       body: JSON.stringify(configured.body),
     });
   });

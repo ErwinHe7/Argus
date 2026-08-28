@@ -7,7 +7,7 @@
     "allowJs": true,
     "checkJs": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["@cloudflare/workers-types", "node", "vitest/globals"],
+    "types": ["node", "vitest/globals"],
     "skipLibCheck": true,
     "allowImportingTsExtensions": true,
     "noEmit": true

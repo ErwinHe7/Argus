@@ -71,3 +71,17 @@ test("retryable waitlist failure preserves the local email and clears the one-ti
   await expect(email).toHaveValue("browser-fixture@example.invalid");
   await expect(page.locator("[data-turnstile-mount]")).toHaveAttribute("data-state", "verification-required");
 });
+
+test("a preview/default artifact keeps waitlist submission disabled without provider traffic", async ({ page }) => {
+  const surface = await installLocalProductionSurface(page, {
+    waitlistEnabled: false,
+  });
+  await page.goto(`${LANDING_ORIGIN}#waitlist`);
+
+  await expect(page.getByRole("button", { name: "Request a place" })).toBeDisabled();
+  await expect(page.locator("[data-waitlist-feedback]")).toContainText(
+    "unavailable in this preview",
+  );
+  expect(surface.waitlistBodies).toEqual([]);
+  expect(surface.requests.some((url) => url.includes("challenges.cloudflare.com"))).toBe(false);
+});

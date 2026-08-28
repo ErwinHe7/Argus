@@ -73,6 +73,16 @@ export function createSupabaseDatabasePool(databaseUrl: string): DatabasePool {
   return createDatabasePool(databaseUrl, /^argus_edge(?:\.[a-z0-9_-]+)?$/i);
 }
 
+/** Dedicated public waitlist login with no member, admin, or brokerage role. */
+export function createSupabaseWaitlistDatabasePool(
+  databaseUrl: string,
+): DatabasePool {
+  return createDatabasePool(
+    databaseUrl,
+    /^argus_waitlist_edge(?:\.[a-z]{20})?$/,
+  );
+}
+
 /** Dedicated non-inheriting login for the authenticated worker Edge function. */
 export function createSupabaseWorkerDatabasePool(databaseUrl: string): DatabasePool {
   return createDatabasePool(

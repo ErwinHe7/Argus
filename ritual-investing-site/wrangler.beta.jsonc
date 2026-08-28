@@ -1,50 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ritual-investing-site-beta",
-  "main": "src/index.ts",
   "compatibility_date": "2026-08-25",
-  "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": false,
-  "preview_urls": false,
-  "routes": [
-    { "pattern": "beta.just-build-this.app", "custom_domain": true }
-  ],
-  "assets": {
-    "directory": "./dist/landing-beta",
-    "binding": "ASSETS",
-    "run_worker_first": ["/api/*"],
-    "not_found_handling": "none"
-  },
-  "observability": {
-    "enabled": true,
-    "logs": { "enabled": false, "invocation_logs": false },
-    "traces": { "enabled": false }
-  },
-  "vars": {
-    "ENVIRONMENT": "beta",
-    "PUBLIC_ORIGIN": "https://beta.just-build-this.app",
-    "DEMO_ORIGIN": "https://demo-beta.just-build-this.app",
-    "DEMO_PROTOCOL_CURRENT": "2",
-    "DEMO_PROTOCOL_PREVIOUS": "1",
-    "WAITLIST_SUBMISSIONS": "off",
-    "WAITLIST_SOURCE_KEY_RESOURCE": "ritual-waitlist-beta-source-hmac-v1",
-    "TURNSTILE_EXPECTED_HOSTNAME": "beta.just-build-this.app",
-    "TURNSTILE_EXPECTED_ACTION": "waitlist",
-    "TURNSTILE_SITE_KEY_RESOURCE": "ritual-waitlist-beta-site-key-v1",
-    "TURNSTILE_SECRET_RESOURCE": "ritual-waitlist-beta-turnstile-secret-v1",
-    "WAITLIST_CREDENTIAL_RESOURCE": "ritual-waitlist-beta-runtime-url-v1",
-    "WAITLIST_WAF_BUDGET_RESOURCE": "ritual-waitlist-beta-budget-v1",
-    "WAITLIST_WAF_CEILING_RESOURCE": "ritual-waitlist-beta-budget-1m"
-  },
-  "ratelimits": [
-    { "name": "WAITLIST_SOURCE_RATE_LIMIT", "namespace_id": "4101", "simple": { "limit": 5, "period": 60 } },
-    { "name": "WAITLIST_ROUTE_RATE_LIMIT", "namespace_id": "4102", "simple": { "limit": 60, "period": 60 } }
-  ],
-  "kv_namespaces": [
-    { "binding": "RETENTION_CHECKPOINT", "id": "840400a6dd244116888da7c7467dce02" }
-  ],
-  "analytics_engine_datasets": [
-    { "binding": "WAITLIST_TELEMETRY", "dataset": "ritual_waitlist_beta_events_v1" }
-  ],
-  "triggers": { "crons": ["17 4 * * *"] }
+  "pages_build_output_dir": "./dist/landing-beta"
 }

@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { DEMO_ORIGIN, installLocalProductionSurface, LANDING_ORIGIN } from "./support.ts";
+import {
+  DEMO_ORIGIN,
+  installLocalProductionSurface,
+  LANDING_ORIGIN,
+  WAITLIST_ENDPOINT,
+} from "./support.ts";
 
 test("the packaged demo reaches ready with static-only traffic and empty browser state", async ({ page }) => {
   test.setTimeout(120_000);
@@ -62,10 +67,15 @@ test("the packaged demo reaches ready with static-only traffic and empty browser
       continue;
     }
     expect(url.protocol).toBe("https:");
-    expect(["just-build-this.app", "demo.just-build-this.app", "challenges.cloudflare.com"]).toContain(url.hostname);
-    expect(request).not.toMatch(/auth0|api(?:-beta)?\.just-build-this\.app|\/v1\/session\/bootstrap|neon|postgres|analytics/i);
+    expect([
+      "just-build-this.app",
+      "demo.just-build-this.app",
+      "challenges.cloudflare.com",
+    ]).toContain(url.hostname);
+    expect(request).not.toMatch(/auth0|api(?:-beta)?\.just-build-this\.app|\/v1\/session\/bootstrap|neon|postgres|analytics|webull/i);
     if (url.hostname === "demo.just-build-this.app") expect(url.pathname).not.toMatch(/^\/api\//);
   }
+  expect(observed).not.toContain(WAITLIST_ENDPOINT);
 });
 
 test("reload and BFCache history restoration create a fresh frame without restoration state", async ({ page }) => {
@@ -87,4 +97,13 @@ test("reload and BFCache history restoration create a fresh frame without restor
   const historyAttempt = await page.locator("iframe.demo-frame").getAttribute("src");
   expect(historyAttempt).not.toBe(reloadAttempt);
   expect(await page.context().cookies()).toEqual([]);
+});
+
+test("unknown landing routes are static 404s and never invoke backend compute", async ({ page }) => {
+  const surface = await installLocalProductionSurface(page, {
+    waitlistEnabled: false,
+  });
+  const response = await page.goto(`${LANDING_ORIGIN}missing-static-route`);
+  expect(response?.status()).toBe(404);
+  expect(surface.requests).toEqual([`${LANDING_ORIGIN}missing-static-route`]);
 });

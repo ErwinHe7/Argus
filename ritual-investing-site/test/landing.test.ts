@@ -23,6 +23,8 @@ describe("semantic landing and privacy contract", () => {
     expect(html).toContain('value="waitlist-v1-2026-08-25"');
     expect(html).toContain('href="/privacy/waitlist/"');
     expect(html).toContain('aria-live="polite"');
+    expect(html).toContain('action=""');
+    expect(html).toContain('data-waitlist-enabled="false"');
     expect(html).not.toMatch(/<script(?![^>]*src=)/i);
   });
 
@@ -40,7 +42,8 @@ describe("semantic landing and privacy contract", () => {
     expect(html).toMatch(/restore/i);
     expect(html).toMatch(/Cloudflare/);
     expect(html).toMatch(/Turnstile/);
-    expect(html).toMatch(/Neon/);
+    expect(html).toMatch(/Supabase/);
+    expect(html).not.toMatch(/Neon/);
   });
 
   it("uses the production canonical and crawl artifacts", async () => {

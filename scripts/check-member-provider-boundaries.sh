@@ -11,6 +11,32 @@ fail() {
 
 command -v rg >/dev/null 2>&1 || fail "ripgrep (rg) is required"
 
+# Browsers and portable domain code never contact Webull. The only reviewed
+# literal provider origins live in the server-side Edge contract module.
+webull_contract="$audit_root/supabase/functions/_shared/webull/contract.ts"
+test -f "$webull_contract" || fail "missing reviewed server-side Webull contract"
+if rg -n -i 'https?://[^"'"'"'[:space:]]*webull\.(?:com|cn)' \
+  "$audit_root/ritual-investing-app/lib" \
+  "$audit_root/ritual-investing-demo/lib" \
+  "$audit_root/ritual-investing-api/src"; then
+  fail "a browser or portable API module contains direct Webull egress"
+fi
+webull_literals=$(rg -o -N --no-filename 'https://[^"'"'"'[:space:]]*webull\.com' \
+  "$audit_root/supabase/functions" --glob '*.ts' --glob '!*.test.ts' || true)
+test "$(printf '%s\n' "$webull_literals" | sed '/^$/d' | sort -u | wc -l | tr -d ' ')" -eq 3 || \
+  fail "server Webull literal-host allowlist drifted"
+for required_webull_origin in \
+  'https://passport.webull.com' \
+  'https://oauth-open-api.sandbox.webull.com' \
+  'https://us-oauth-open-api.webull.com'; do
+  printf '%s\n' "$webull_literals" | grep -Fx "$required_webull_origin" >/dev/null || \
+    fail "missing reviewed Webull origin $required_webull_origin"
+done
+if rg -n 'createWebullClient\(' "$audit_root/supabase/functions" \
+  --glob '*.ts' --glob '!*.test.ts' --glob '!**/_shared/webull/client.ts'; then
+  fail "real Webull egress is initialized before the partner contract gate is opened"
+fi
+
 app_manifest="$audit_root/ritual-investing-app/pubspec.yaml"
 api_manifest="$audit_root/ritual-investing-api/package.json"
 queue_contract="$audit_root/ritual-investing-api/src/jobs/queue-consumer.ts"
@@ -85,7 +111,7 @@ printf '%s\n' "$literal_urls" | while IFS= read -r literal_url; do
   literal_host=${literal_url#*://}
   literal_host=${literal_host%%/*}
   case "$literal_host" in
-    YOUR_AUTH0_DOMAIN|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|media-processor.internal|media-scanner.internal|push-provider.internal)
+    YOUR_AUTH0_DOMAIN|PROJECT_REF.supabase.co|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|media-processor.internal|media-scanner.internal|push-provider.internal)
       ;;
     # Frame messages are reviewed as an exact production/beta pair. Do not
     # broaden this to a wildcard subdomain allowlist.
@@ -107,8 +133,8 @@ api_fetch_occurrences=$(
     --glob '*.ts' --glob '!**/generated/**' || true
 )
 api_fetch_count=$(printf '%s\n' "$api_fetch_occurrences" | sed '/^$/d' | wc -l | tr -d ' ')
-test "$api_fetch_count" -eq 5 || \
-  fail "expected 5 reviewed API fetch occurrences, found $api_fetch_count"
+test "$api_fetch_count" -eq 4 || \
+  fail "expected 4 reviewed API entrypoint/static-asset fetch occurrences, found $api_fetch_count"
 
 worker_handler_count=$(
   rg --count-matches '^  fetch\(request, environment, executionContext\) \{$' \
@@ -122,74 +148,35 @@ admin_assets_count=$(
   rg --count-matches '^[[:space:]]*return bindings\.ADMIN_ASSETS\.fetch\(request\)\.then\(\(response\) =>$' \
     "$api_entrypoint" || true
 )
-dependency_fetch_count=$(
-  rg --count-matches '^[[:space:]]*return await fetcher\.fetch\(input, \{$' \
-    "$job_handlers" || true
-)
 test "${worker_handler_count:-0}" -eq 1 || \
   fail "Worker fetch handler no longer matches its reviewed callsite"
 test "${app_dispatch_count:-0}" -eq 2 || \
   fail "Hono app dispatches no longer match their 2 reviewed callsites"
 test "${admin_assets_count:-0}" -eq 1 || \
   fail "ADMIN_ASSETS fetch no longer matches its reviewed callsite"
-test "${dependency_fetch_count:-0}" -eq 1 || \
-  fail "dependency fetch no longer matches its reviewed callsite"
+if rg -n 'dependencyFetch\(|PUSH_PROVIDER|MEDIA_SCANNER|MEDIA_PROCESSOR' \
+  "$job_handlers"; then
+  fail "portable API job handlers regained direct provider egress"
+fi
 
-dependency_fetch_occurrences=$(
-  rg --count-matches 'dependencyFetch\(' "$job_handlers" || true
-)
-test "${dependency_fetch_occurrences:-0}" -eq 4 || \
-  fail "expected the dependencyFetch definition and 3 reviewed calls"
+rg -q 'event_id: z\.string\(\)\.uuid\(\)' "$queue_contract" || \
+  fail "queue messages must remain opaque event identifiers"
+if rg -n 'consumer|email|token|provider' "$queue_contract"; then
+  fail "queue transport exposes a provider or consumer-selected effect"
+fi
 
-push_fetch_count=$(
-  rg -U --count-matches \
-    'dependencyFetch\(\n[[:space:]]*environment\.PUSH_PROVIDER,\n[[:space:]]*"https://push-provider\.internal/v1/send",' \
-    "$job_handlers" || true
-)
-scanner_fetch_count=$(
-  rg -U --count-matches \
-    'dependencyFetch\(\n[[:space:]]*environment\.MEDIA_SCANNER,\n[[:space:]]*"https://media-scanner\.internal/v1/scan",' \
-    "$job_handlers" || true
-)
-processor_fetch_count=$(
-  rg -U --count-matches \
-    'dependencyFetch\(\n[[:space:]]*environment\.MEDIA_PROCESSOR,\n[[:space:]]*"https://media-processor\.internal/v1/rasterize",' \
-    "$job_handlers" || true
-)
-test "${push_fetch_count:-0}" -eq 1 || \
-  fail "PUSH_PROVIDER fetch binding or URL is not reviewed"
-test "${scanner_fetch_count:-0}" -eq 1 || \
-  fail "MEDIA_SCANNER fetch binding or URL is not reviewed"
-test "${processor_fetch_count:-0}" -eq 1 || \
-  fail "MEDIA_PROCESSOR fetch binding or URL is not reviewed"
-
-allowed_consumers=' briefing-builder notification-writer notification-delivery privacy-export privacy-purge media-scan media-cleanup moderation-triage editorial-publisher recurring-plan-delivery privacy-export-retention '
-consumer_values=$(
-  sed -n '/queueConsumerSchema = z\.enum(/,/]);/p' "$queue_contract" |
-    rg -o '"[a-z][a-z0-9-]+"' |
-    tr -d '"'
-)
-test -n "$consumer_values" || fail "queue consumer schema parsed no worker effects"
-for consumer in $consumer_values; do
-  case "$allowed_consumers" in
-    *" $consumer "*) ;;
-    *) fail "unreviewed worker effect: $consumer" ;;
-  esac
+api_edge="$audit_root/supabase/functions/api/index.ts"
+worker_edge="$audit_root/supabase/functions/worker/index.ts"
+for required in "$api_edge" "$worker_edge"; do
+  test -f "$required" || fail "missing Edge provider gate ${required#"$audit_root"/}"
 done
-
-for worker_config in \
-  "$audit_root/ritual-investing-api/wrangler.jsonc" \
-  "$audit_root/ritual-investing-api/wrangler.beta.jsonc"; do
-  test -f "$worker_config" || continue
-  relative=${worker_config#"$audit_root"/}
-  rg -q '"KILL_SWITCH_NOTIFICATION_DELIVERY"[[:space:]]*:[[:space:]]*"on"' \
-    "$worker_config" || fail "$relative must keep external notification delivery disabled"
-  rg -q '"KILL_SWITCH_MEDIA"[[:space:]]*:[[:space:]]*"on"' \
-    "$worker_config" || fail "$relative must keep external media handlers disabled"
-  if rg -n '"(PUSH_PROVIDER|MEDIA_SCANNER|MEDIA_PROCESSOR)"[[:space:]]*:' \
-    "$worker_config"; then
-    fail "$relative configures an external provider service binding"
-  fi
-done
+rg -q 'createBlockedWebullProvider' "$api_edge" || \
+  fail "API Edge must keep Webull authorization egress fail-closed"
+rg -q 'createBlockedBrokerageProjectionProvider' "$api_edge" || \
+  fail "API Edge must keep Webull projection egress fail-closed"
+rg -q 'createBlockedBrokerageOrderProvider' "$api_edge" || \
+  fail "API Edge must keep Webull order egress fail-closed"
+rg -q 'createBlockedWebullRecoveryProvider' "$worker_edge" || \
+  fail "worker Edge must keep Webull recovery egress fail-closed"
 
 echo "provider boundary audit passed: member dependencies, hosts, runtime entrypoints, effects, and disabled provider bindings are allowlisted"

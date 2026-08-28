@@ -135,10 +135,6 @@ jobs:
       - working-directory: ritual-investing-site
         run: npm run typecheck
       - working-directory: ritual-investing-site
-        run: npm run types:check
-      - working-directory: ritual-investing-site
-        run: npm run resources:check
-      - working-directory: ritual-investing-site
         run: npm test
       - name: Review high-severity direct and transitive advisories
         working-directory: ritual-investing-site
@@ -146,7 +142,7 @@ jobs:
       - working-directory: ritual-investing-site
         run: npm run assets:build
       - working-directory: ritual-investing-site
-        run: npm run deploy:dry-run:all
+        run: npm run pages:config:check
       - uses: actions/upload-artifact@v4
         with:
           name: ritual-site-dist-${{ github.sha }}
@@ -154,43 +150,17 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  site-postgres-17:
+  site-waitlist-edge:
     runs-on: ubuntu-24.04
-    services:
-      postgres:
-        image: postgres:17.11-alpine
-        env:
-          POSTGRES_DB: waitlist_ci
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: waitlist_ci_ephemeral
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d waitlist_ci"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 20
-    env:
-      DATABASE_OWNER_URL: postgresql://postgres:waitlist_ci_ephemeral@127.0.0.1:5432/waitlist_ci
-      TEST_DATABASE_URL: postgresql://postgres:waitlist_ci_ephemeral@127.0.0.1:5432/waitlist_ci
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: denoland/setup-deno@v2
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: ritual-investing-site/package-lock.json
-      - working-directory: ritual-investing-site
-        run: npm ci
-      - working-directory: ritual-investing-site
-        run: npm run db:migrations:check
-      - working-directory: ritual-investing-site
-        run: npm run db:migrate
-      - name: Repeat waitlist migration is a no-op
-        working-directory: ritual-investing-site
-        run: npm run db:migrate
-      - working-directory: ritual-investing-site
-        run: npm run test:postgres
+          deno-version: v2.x
+      - working-directory: supabase/functions/waitlist
+        run: deno task check
+      - working-directory: supabase/functions/waitlist
+        run: deno task test
 
   site-browser:
     needs: [site, demo-provider-boundary]
@@ -485,7 +455,7 @@ jobs:
         demo-provider-boundary,
         demo-web,
         site,
-        site-postgres-17,
+        site-waitlist-edge,
         site-browser,
       ]
     runs-on: ubuntu-24.04

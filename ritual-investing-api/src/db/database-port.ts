@@ -16,9 +16,11 @@ export type DatabasePool = {
   end(): Promise<void>;
 };
 
+export type DatabaseCapabilityRole = "argus_runtime" | "argus_waitlist";
+
 export async function withDatabaseTransaction<T>(
   pool: DatabasePool,
-  role: "argus_runtime",
+  role: DatabaseCapabilityRole,
   callback: (client: DatabaseClient) => Promise<T>,
 ): Promise<T> {
   const client = await pool.connect();

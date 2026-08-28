@@ -1,51 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ritual-investing-site",
-  "main": "src/index.ts",
   "compatibility_date": "2026-08-25",
-  "compatibility_flags": ["nodejs_compat"],
-  "workers_dev": false,
-  "preview_urls": false,
-  "routes": [
-    { "pattern": "just-build-this.app", "custom_domain": true },
-    { "pattern": "www.just-build-this.app", "custom_domain": true }
-  ],
-  "assets": {
-    "directory": "./dist/landing",
-    "binding": "ASSETS",
-    "run_worker_first": true,
-    "not_found_handling": "none"
-  },
-  "observability": {
-    "enabled": true,
-    "logs": { "enabled": false, "invocation_logs": false },
-    "traces": { "enabled": false }
-  },
-  "vars": {
-    "ENVIRONMENT": "production",
-    "PUBLIC_ORIGIN": "https://just-build-this.app",
-    "DEMO_ORIGIN": "https://demo.just-build-this.app",
-    "DEMO_PROTOCOL_CURRENT": "2",
-    "DEMO_PROTOCOL_PREVIOUS": "1",
-    "WAITLIST_SUBMISSIONS": "off",
-    "WAITLIST_SOURCE_KEY_RESOURCE": "ritual-waitlist-prod-source-hmac-v1",
-    "TURNSTILE_EXPECTED_HOSTNAME": "just-build-this.app",
-    "TURNSTILE_EXPECTED_ACTION": "waitlist",
-    "TURNSTILE_SITE_KEY_RESOURCE": "ritual-waitlist-prod-site-key-v1",
-    "TURNSTILE_SECRET_RESOURCE": "ritual-waitlist-prod-turnstile-secret-v1",
-    "WAITLIST_CREDENTIAL_RESOURCE": "ritual-waitlist-prod-runtime-url-v1",
-    "WAITLIST_WAF_BUDGET_RESOURCE": "ritual-waitlist-prod-budget-v1",
-    "WAITLIST_WAF_CEILING_RESOURCE": "ritual-waitlist-prod-budget-1m"
-  },
-  "ratelimits": [
-    { "name": "WAITLIST_SOURCE_RATE_LIMIT", "namespace_id": "3101", "simple": { "limit": 5, "period": 60 } },
-    { "name": "WAITLIST_ROUTE_RATE_LIMIT", "namespace_id": "3102", "simple": { "limit": 60, "period": 60 } }
-  ],
-  "kv_namespaces": [
-    { "binding": "RETENTION_CHECKPOINT", "id": "fc10e9eaa5024cc6b3d79c59ecb6afad" }
-  ],
-  "analytics_engine_datasets": [
-    { "binding": "WAITLIST_TELEMETRY", "dataset": "ritual_waitlist_prod_events_v1" }
-  ],
-  "triggers": { "crons": ["17 4 * * *"] }
+  "pages_build_output_dir": "./dist/landing"
 }

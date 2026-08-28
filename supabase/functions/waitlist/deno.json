@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "postgres": "npm:postgres@3.4.7",
+    "jsr:@std/assert@1.0.15": "jsr:@std/assert@1.0.15"
+  },
+  "lock": "./deno.lock",
+  "tasks": {
+    "check": "deno check index.ts ../_shared/database.ts ../_shared/rate-limit.ts",
+    "test": "deno test --allow-env waitlist.test.ts"
+  }
+}

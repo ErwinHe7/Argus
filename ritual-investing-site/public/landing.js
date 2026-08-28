@@ -158,6 +158,7 @@ const WAITLIST_COPY = Object.freeze({
   "field-error": "Enter a valid email and confirm the launch-contact notice.",
   "reload-required": "This privacy notice has changed. Reload the page before trying again.",
   retryable: "We couldn’t receive the request just now. Your email is still here; please try again.",
+  disabled: "Waitlist requests are unavailable in this preview.",
 });
 
 const TURNSTILE_SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
@@ -396,6 +397,37 @@ function installWaitlist() {
   if (!(form instanceof HTMLFormElement) || !(email instanceof HTMLInputElement) ||
       !(consent instanceof HTMLInputElement) || !(feedback instanceof HTMLElement) ||
       !(submit instanceof HTMLButtonElement) || !(mount instanceof HTMLElement)) return;
+
+  if (form.dataset.waitlistEnabled !== "true") {
+    submit.disabled = true;
+    feedback.textContent = WAITLIST_COPY.disabled;
+    feedback.dataset.state = "disabled";
+    mount.dataset.state = "disabled";
+    const help = mount.querySelector("p");
+    if (help instanceof HTMLElement) help.textContent = WAITLIST_COPY.disabled;
+    form.addEventListener("submit", (event) => event.preventDefault());
+    return;
+  }
+  let endpoint;
+  try {
+    endpoint = new URL(form.action);
+  } catch {
+    submit.disabled = true;
+    feedback.textContent = WAITLIST_COPY.disabled;
+    feedback.dataset.state = "disabled";
+    return;
+  }
+  if (
+    endpoint.protocol !== "https:" ||
+    !endpoint.hostname.endsWith(".supabase.co") ||
+    endpoint.pathname !== "/functions/v1/waitlist" ||
+    endpoint.search !== "" || endpoint.hash !== ""
+  ) {
+    submit.disabled = true;
+    feedback.textContent = WAITLIST_COPY.disabled;
+    feedback.dataset.state = "disabled";
+    return;
+  }
 
   const turnstileLifecycle = createTurnstileLifecycle({
     target: mount,

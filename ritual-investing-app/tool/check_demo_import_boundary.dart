@@ -8,10 +8,12 @@ const _rootSources = <String>[
 
 const _forbiddenPackages = <String>[
   'auth0_flutter',
+  'supabase_flutter',
   'dio',
   'flutter_secure_storage',
   'path_provider',
   'ritual_investing_api_client',
+  'webull',
   'share_plus',
 ];
 
@@ -34,6 +36,11 @@ const _forbiddenSourceTokens = <String>[
   'globalThis.localStorage',
   'globalThis.sessionStorage',
   'globalThis.indexedDB',
+  'Supabase.initialize',
+  '.supabase.co',
+  '/functions/v1/',
+  'passport.webull.com',
+  'oauth-open-api.webull.com',
 ];
 
 void main(List<String> arguments) {

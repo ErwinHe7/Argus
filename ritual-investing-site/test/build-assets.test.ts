@@ -5,8 +5,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   assembleAssets,
+  injectWaitlistConfiguration,
   injectTurnstileSiteKey,
   MAX_ASSET_BYTES,
+  resolveWaitlistFunctionUrl,
   resolveTurnstileSiteKey,
 } from "../scripts/build-assets.ts";
 
@@ -37,6 +39,28 @@ describe("deterministic demo asset assembly", () => {
     }, true)).toBe("0x4AAAAAAAsyntheticProductionKey");
     expect(() => resolveTurnstileSiteKey("beta", {}, true)).toThrow(/beta.*site key/i);
     expect(resolveTurnstileSiteKey("beta", {}, false)).toBeUndefined();
+  });
+
+  it("accepts only an exact public Supabase waitlist endpoint and injects it once", () => {
+    const endpoint = "https://project-ref.supabase.co/functions/v1/waitlist";
+    expect(resolveWaitlistFunctionUrl("production", {
+      WAITLIST_FUNCTION_URL_PRODUCTION: endpoint,
+    }, true)).toBe(endpoint);
+    expect(resolveWaitlistFunctionUrl("beta", {}, false)).toBeUndefined();
+    for (const invalid of [
+      "http://project-ref.supabase.co/functions/v1/waitlist",
+      "https://project-ref.supabase.co/functions/v1/worker",
+      "https://evil.example/functions/v1/waitlist",
+      `${endpoint}?apikey=forbidden`,
+    ]) {
+      expect(() => resolveWaitlistFunctionUrl("production", {
+        WAITLIST_FUNCTION_URL_PRODUCTION: invalid,
+      }, true)).toThrow(/Supabase waitlist function URL/i);
+    }
+    const html = '<form action="" method="post" data-waitlist-form data-waitlist-enabled="false"></form>';
+    expect(injectWaitlistConfiguration(html, endpoint)).toContain(
+      `action="${endpoint}" method="post" data-waitlist-form data-waitlist-enabled="true"`,
+    );
   });
 
   it("copies validated assets, drops Flutter's zero-byte service-worker placeholder, and emits a hash manifest", async () => {
@@ -99,5 +123,19 @@ describe("deterministic demo asset assembly", () => {
       await writeFile(join(paths.source, name), contents);
       await expect(assembleAssets(paths)).rejects.toThrow(expected);
     }
+  });
+
+  it("rejects every Pages compute entrypoint and keeps Supabase out of demo artifacts", async () => {
+    for (const name of ["_worker.js", "_routes.json", "functions/index.js"]) {
+      const paths = await fixture();
+      await mkdir(join(paths.source, "functions"), { recursive: true });
+      await writeFile(join(paths.source, name), "export default {};");
+      await expect(assembleAssets(paths)).rejects.toThrow(/compute artifact/i);
+    }
+    const paths = await fixture();
+    await writeFile(join(paths.source, "main.dart.js"), "https://project.supabase.co");
+    await expect(assembleAssets({ ...paths, surface: "demo" })).rejects.toThrow(
+      /demo provider boundary/i,
+    );
   });
 });

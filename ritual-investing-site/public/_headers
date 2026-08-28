@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; frame-src https://demo.just-build-this.app https://challenges.cloudflare.com; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self' https://challenges.cloudflare.com; object-src 'none'; media-src 'none'; manifest-src 'none'; worker-src 'none'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; frame-src https://demo.just-build-this.app https://challenges.cloudflare.com; script-src 'self' https://challenges.cloudflare.com; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self' https://challenges.cloudflare.com; object-src 'none'; media-src 'none'; manifest-src 'none'; worker-src 'none'; upgrade-insecure-requests
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
   Referrer-Policy: strict-origin-when-cross-origin
   X-Content-Type-Options: nosniff

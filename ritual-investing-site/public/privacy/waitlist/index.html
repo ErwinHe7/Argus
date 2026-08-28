@@ -43,15 +43,15 @@
 
     <section aria-labelledby="processing-title">
       <h2 id="processing-title">Who processes the request</h2>
-      <p>Cloudflare serves the site and applies request security controls. Cloudflare Turnstile supplies an abuse signal for the waitlist request. A dedicated Neon Postgres project stores the minimal active row. These services process the technical request needed to provide and protect the waitlist.</p>
+      <p>Cloudflare Pages serves static site assets, and Cloudflare Turnstile supplies an abuse signal for the waitlist request. A dedicated Supabase Edge Function validates the request and stores the minimal active row in private Supabase Postgres. These services process the technical request needed to provide and protect the waitlist.</p>
       <p>Ritual Investing’s application events are designed around allowlisted outcome categories, not the submitted email, Turnstile token, request body, raw IP address, or user agent.</p>
     </section>
 
     <section aria-labelledby="retention-title">
       <h2 id="retention-title">Retention, removal, and restores</h2>
       <p>Each provisional row is scheduled for purge before 24 months in the active store. The operational cutoff is 23 months and 29 days so the active row does not cross the 24-month limit.</p>
-      <p>To request removal, write to <a href="mailto:privacy@just-build-this.app">privacy@just-build-this.app</a> from the address concerned. The verified-removal workflow first verifies mailbox possession, then performs an idempotent, non-enumerating removal. Waitlist activation is blocked until that privacy mailbox is operationally verified.</p>
-      <p>Provider restore history can temporarily contain older database states. Before a restored waitlist may receive traffic, retention rules and independently retained verified-removal records must be replayed. The restored row must not reactivate an address that was removed or expired.</p>
+      <p>To request removal, write to <a href="mailto:privacy@just-build-this.app">privacy@just-build-this.app</a> from the address concerned. The operator first verifies mailbox possession, then uses an owner-only, idempotent, non-enumerating Supabase deletion capability. Waitlist activation is blocked until that privacy mailbox and deletion procedure are operationally verified.</p>
+      <p>A restored database snapshot remains isolated while the retention cutoff is rerun. This release does not maintain a separate replay journal for prior removals, so a restore cannot be promoted if the privacy owner cannot prove that it would preserve every verified removal. Submissions remain off when that proof is unavailable.</p>
     </section>
 
     <section aria-labelledby="choices-title">
