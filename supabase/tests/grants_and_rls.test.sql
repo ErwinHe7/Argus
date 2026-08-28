@@ -50,7 +50,10 @@ select is(
      join pg_namespace n on n.oid = p.pronamespace
     where n.nspname in ('argus_app', 'argus_brokerage', 'argus_private')
       and p.prosecdef
-      and not coalesce(p.proconfig @> array['search_path=pg_catalog, auth, argus_private'], false)),
+      and not (
+        coalesce(p.proconfig @> array['search_path=pg_catalog, auth, argus_private'], false)
+        or coalesce(p.proconfig @> array['search_path=pg_catalog'], false)
+      )),
   0::bigint,
   'every security-definer helper has an immutable trusted search path'
 );

@@ -317,6 +317,61 @@ void main() {
   });
 
   group('step-up receipt contract', () {
+    test(
+      'generated API receipt is action, user, session, and expiry bound',
+      () async {
+        final repository = ApiStepUpReceiptRepository(
+          issue: (action) async => <String, Object?>{
+            'receipt': 'server-issued-receipt-token',
+            'action': 'webull_disconnect',
+            'user_id': _userId,
+            'session_id': _sessionId,
+            'expires_at': DateTime.now()
+                .toUtc()
+                .add(const Duration(minutes: 2))
+                .toIso8601String(),
+          },
+        );
+        final authorization = await repository.issue(
+          action: SensitiveMemberAction.webullDisconnect,
+          session: const AuthSession(
+            accessToken: 'access',
+            userId: _userId,
+            sessionId: _sessionId,
+          ),
+        );
+        expect(authorization.action, SensitiveMemberAction.webullDisconnect);
+        expect(authorization.userId, _userId);
+        expect(authorization.sessionId, _sessionId);
+      },
+    );
+
+    test('generated API receipt rejects an intercepted session', () async {
+      final repository = ApiStepUpReceiptRepository(
+        issue: (action) async => <String, Object?>{
+          'receipt': 'server-issued-receipt-token',
+          'action': 'argus_delete',
+          'user_id': _userId,
+          'session_id': '018f3c2a-4b67-7a89-8abc-123456789099',
+          'expires_at': DateTime.now()
+              .toUtc()
+              .add(const Duration(minutes: 2))
+              .toIso8601String(),
+        },
+      );
+      await expectLater(
+        repository.issue(
+          action: SensitiveMemberAction.argusDelete,
+          session: const AuthSession(
+            accessToken: 'access',
+            userId: _userId,
+            sessionId: _sessionId,
+          ),
+        ),
+        throwsA(isA<InvalidStepUpReceipt>()),
+      );
+    });
+
     test('unwired server issuance fails closed', () async {
       const repository = UnavailableStepUpReceiptRepository();
       await expectLater(

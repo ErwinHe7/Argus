@@ -1,3 +1,5 @@
+import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
+
 import 'member_auth.dart';
 
 enum SensitiveMemberAction { webullDisconnect, argusDelete }
@@ -59,6 +61,83 @@ abstract interface class StepUpReceiptRepository {
     required SensitiveMemberAction action,
     required AuthSession session,
   });
+}
+
+typedef StepUpIssueCall = Future<Object?> Function(
+  SensitiveMemberAction action,
+);
+
+/// Calls the generated Argus API and validates the opaque server capability
+/// before it reaches [AuthController]. No Supabase or Webull credential is
+/// accepted as a substitute for this action-bound receipt.
+class ApiStepUpReceiptRepository implements StepUpReceiptRepository {
+  // ignore: prefer_initializing_formals
+  const ApiStepUpReceiptRepository({required StepUpIssueCall issue})
+    : _issue = issue;
+
+  factory ApiStepUpReceiptRepository.fromClientProvider(
+    RitualInvestingApiClient Function() client,
+  ) => ApiStepUpReceiptRepository(
+    issue: (action) async {
+      final api = client().getMemberSecurityApi();
+      final response = await api.issueMemberStepUp(
+        issueMemberStepUpRequest: IssueMemberStepUpRequest(
+          action: switch (action) {
+            SensitiveMemberAction.webullDisconnect =>
+              IssueMemberStepUpRequestActionEnum.webullDisconnect,
+            SensitiveMemberAction.argusDelete =>
+              IssueMemberStepUpRequestActionEnum.argusDelete,
+          },
+        ),
+      );
+      return response.data?.data;
+    },
+  );
+
+  final StepUpIssueCall _issue;
+
+  @override
+  Future<SensitiveActionAuthorization> issue({
+    required SensitiveMemberAction action,
+    required AuthSession session,
+  }) async {
+    try {
+      final raw = await _issue(action);
+      if (raw is! Map) throw const InvalidStepUpReceipt();
+      final value = Map<String, Object?>.from(raw);
+      final expectedAction = switch (action) {
+        SensitiveMemberAction.webullDisconnect => 'webull_disconnect',
+        SensitiveMemberAction.argusDelete => 'argus_delete',
+      };
+      final receipt = value['receipt'];
+      final responseAction = value['action'];
+      final userId = value['user_id'];
+      final sessionId = value['session_id'];
+      final expiresAtValue = value['expires_at'];
+      final expiresAt = expiresAtValue is String
+          ? DateTime.tryParse(expiresAtValue)?.toUtc()
+          : null;
+      if (receipt is! String ||
+          responseAction != expectedAction ||
+          userId != session.userId ||
+          sessionId != session.sessionId ||
+          expiresAt == null ||
+          !expiresAt.isAfter(DateTime.now().toUtc())) {
+        throw const InvalidStepUpReceipt();
+      }
+      return SensitiveActionAuthorization(
+        receiptToken: receipt,
+        action: action,
+        userId: userId as String,
+        sessionId: sessionId as String,
+        expiresAt: expiresAt,
+      );
+    } on InvalidStepUpReceipt {
+      rethrow;
+    } on Object {
+      throw const StepUpUnavailable();
+    }
+  }
 }
 
 /// U5 supplies the generated API implementation. Until then sensitive actions

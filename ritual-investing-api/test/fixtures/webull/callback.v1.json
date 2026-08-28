@@ -1,0 +1,7 @@
+{
+  "fixture_version": "argus-webull-callback-synthetic-v1",
+  "success": "state=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code=synthetic-code-0001",
+  "denied": "state=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&error=access_denied&error_description=synthetic",
+  "contains_real_user_data": false,
+  "contains_credentials": false
+}

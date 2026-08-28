@@ -14,11 +14,13 @@ import 'package:ritual_investing_api_client/generated/api/admin_moderation_api.d
 import 'package:ritual_investing_api_client/generated/api/admin_operations_api.dart';
 import 'package:ritual_investing_api_client/generated/api/assets_api.dart';
 import 'package:ritual_investing_api_client/generated/api/briefings_api.dart';
+import 'package:ritual_investing_api_client/generated/api/brokerage_connections_api.dart';
 import 'package:ritual_investing_api_client/generated/api/circles_api.dart';
 import 'package:ritual_investing_api_client/generated/api/coven_api.dart';
 import 'package:ritual_investing_api_client/generated/api/discover_api.dart';
 import 'package:ritual_investing_api_client/generated/api/editorial_api.dart';
 import 'package:ritual_investing_api_client/generated/api/media_api.dart';
+import 'package:ritual_investing_api_client/generated/api/member_security_api.dart';
 import 'package:ritual_investing_api_client/generated/api/moderation_api.dart';
 import 'package:ritual_investing_api_client/generated/api/notifications_api.dart';
 import 'package:ritual_investing_api_client/generated/api/platform_api.dart';
@@ -196,6 +198,12 @@ class RitualInvestingApiClient {
     return BriefingsApi(dio);
   }
 
+  /// Get BrokerageConnectionsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  BrokerageConnectionsApi getBrokerageConnectionsApi() {
+    return BrokerageConnectionsApi(dio);
+  }
+
   /// Get CirclesApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   CirclesApi getCirclesApi() {
@@ -224,6 +232,12 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   MediaApi getMediaApi() {
     return MediaApi(dio);
+  }
+
+  /// Get MemberSecurityApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  MemberSecurityApi getMemberSecurityApi() {
+    return MemberSecurityApi(dio);
   }
 
   /// Get ModerationApi instance, base route and serializer can be overridden by a given but be careful,

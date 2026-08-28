@@ -1,9 +1,4 @@
-import {
-  createLocalJWKSet,
-  exportJWK,
-  generateKeyPair,
-  SignJWT,
-} from "jose";
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from "jose";
 import {
   assertEquals,
   assertRejects,
@@ -29,7 +24,8 @@ async function fixture() {
   });
   const sign = (
     overrides: Record<string, unknown> = {},
-    registered: { audience?: string; expiration?: number } = {},
+    registered: { audience?: string; expiration?: number; issuedAt?: number } =
+      {},
   ) => {
     const now = Math.floor(Date.now() / 1_000);
     return new SignJWT({
@@ -43,7 +39,7 @@ async function fixture() {
       .setIssuer(issuer)
       .setAudience(registered.audience ?? "authenticated")
       .setSubject(userId)
-      .setIssuedAt(now - 5)
+      .setIssuedAt(registered.issuedAt ?? now - 5)
       .setExpirationTime(registered.expiration ?? now + 300)
       .sign(privateKey);
   };
@@ -68,6 +64,36 @@ Deno.test("wrong audience, expiry, and malformed tokens fail closed", async () =
   await assertRejects(() => verify(wrongAudience));
   await assertRejects(() => verify(expired));
   await assertRejects(() => verify("not-a-jwt"));
+});
+
+Deno.test("signed AMR derives recent authentication and future AMR fails closed", async () => {
+  const { verify, sign } = await fixture();
+  const now = Math.floor(Date.now() / 1_000);
+  const principal = await verify(
+    await sign({
+      amr: [
+        { method: "oauth", timestamp: now - 120 },
+        { method: "oauth", timestamp: now - 5 },
+      ],
+    }),
+  );
+  assertEquals(principal.authenticatedAt, now - 5);
+  const future = await sign({
+    amr: [{ method: "oauth", timestamp: now + 120 }],
+  });
+  await assertRejects(() => verify(future));
+});
+
+Deno.test("valid tokens older than twenty minutes remain accepted until exp", async () => {
+  const { verify, sign } = await fixture();
+  const now = Math.floor(Date.now() / 1_000);
+  const principal = await verify(
+    await sign(
+      { amr: [{ method: "oauth", timestamp: now - 1_800 }] },
+      { issuedAt: now - 1_800, expiration: now + 1_800 },
+    ),
+  );
+  assertEquals(principal.userId, userId);
 });
 
 Deno.test("function prefix rewrite preserves zero-byte POST transport", async () => {

@@ -1,0 +1,24 @@
+{
+  "fixture_version": "webull-signature-official-worked-example-2026-08-28",
+  "path": "/trade/place_order",
+  "query": {
+    "a1": "webull",
+    "a2": "123",
+    "a3": "xxx",
+    "q1": "yyy"
+  },
+  "headers": {
+    "host": "api.webull.com",
+    "x-app-key": "776da210ab4a452795d74e726ebd74b6",
+    "x-signature-algorithm": "HMAC-SHA1",
+    "x-signature-nonce": "48ef5afed43d4d91ae514aaeafbc29ba",
+    "x-signature-version": "1.0",
+    "x-timestamp": "2022-01-04T03:55:31Z"
+  },
+  "body": "{\"k1\":123,\"k2\":\"this is the api request body\",\"k3\":true,\"k4\":{\"foo\":[1,2]}}",
+  "app_secret": "0f50a2e853334a9aae1a783bee120c1f",
+  "expected_body_md5": "E296C96787E1A309691CEF3692F5EEDD",
+  "expected_signature": "kvlS6opdZDhEBo5jq40nHYXaLvM=",
+  "source_kind": "official_published_example",
+  "contains_real_user_data": false
+}

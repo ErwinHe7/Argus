@@ -15,6 +15,7 @@ import '../api/pending_command_store.dart';
 import '../api/ritual_api.dart';
 import '../auth/auth_controller.dart';
 import '../auth/supabase_session_repository.dart';
+import '../auth/member_step_up.dart';
 import '../cache/read_cache.dart';
 import '../config/runtime_config.dart';
 import 'dependency_container.dart';
@@ -25,6 +26,7 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
   final cache = MemoryReadCache();
   final protectedStorage = FlutterProtectedStorage();
   final pendingCommandStore = PendingCommandStore(storage: protectedStorage);
+  late final RitualInvestingApiClient client;
   final auth = AuthController(
     repository: SupabaseSessionRepository.production(
       client: Supabase.instance.client,
@@ -32,8 +34,9 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
       nativeLinks: config.nativeLinks,
       supabaseUrl: config.supabaseUrl,
     ),
+    stepUpReceipts: ApiStepUpReceiptRepository.fromClientProvider(() => client),
   );
-  final client = RitualInvestingApiClient(
+  client = RitualInvestingApiClient(
     basePathOverride: config.apiBaseUrl,
     interceptors: [RitualAuthInterceptor(tokenProvider: auth)],
   );

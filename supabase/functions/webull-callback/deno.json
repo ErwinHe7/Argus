@@ -1,0 +1,11 @@
+{
+  "imports": {
+    "postgres": "npm:postgres@3.4.7",
+    "zod": "npm:zod@4.4.3"
+  },
+  "lock": "./deno.lock",
+  "tasks": {
+    "check": "deno check index.ts handler.ts ../_shared/database.ts ../_shared/webull/client.ts ../_shared/webull/contract.ts ../_shared/webull/signing.ts ../_shared/webull/tokens.ts",
+    "test": "deno test --allow-env callback_test.ts"
+  }
+}

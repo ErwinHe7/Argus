@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(18);
+select plan(26);
 
 select has_table('argus_brokerage', 'connections', 'normalized connection state exists');
 select has_table('argus_brokerage', 'accounts', 'local brokerage account projection root exists');
@@ -11,6 +11,7 @@ select has_table('argus_brokerage', 'projection_generations', 'immutable project
 select has_table('argus_private', 'oauth_states', 'OAuth state is private');
 select has_table('argus_private', 'webull_credentials', 'token ciphertext is private');
 select has_table('argus_private', 'webull_account_mappings', 'provider identifiers are private');
+select has_table('argus_private', 'webull_completion_handles', 'one-use completion handles are private');
 select has_table('argus_private', 'provider_commands', 'durable provider commands are private');
 select has_table('argus_private', 'provider_command_attempts', 'command attempts are private');
 
@@ -67,6 +68,74 @@ select throws_ok(
   '42501',
   'permission denied for table projection_generations',
   'runtime cannot mutate an immutable projection generation'
+);
+
+update argus_brokerage.connections set status='pending'
+ where id='aaaaaaaa-1000-4000-8000-000000000001';
+insert into argus_private.oauth_states (
+  id,user_id,session_id,deletion_epoch,connection_id,state_hash,
+  return_target,contract_version,expires_at
+) values (
+  'aaaaaaaa-5000-4000-8000-000000000010',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'aaaaaaaa-0000-4000-8000-000000000001',0,
+  'aaaaaaaa-1000-4000-8000-000000000001',repeat('b',64),
+  'webull_native','webull-connect-public-docs-2026-08-28',now()+interval '5 minutes'
+);
+select is(
+  (select count(*)::bigint from argus_private.consume_webull_oauth_state(repeat('b',64),now())),
+  1::bigint,
+  'valid unexpired state hash crosses the narrow definer boundary once'
+);
+select is(
+  (select count(*)::bigint from argus_private.consume_webull_oauth_state(repeat('b',64),now())),
+  0::bigint,
+  'consumed state hash cannot be replayed'
+);
+insert into argus_private.oauth_states (
+  id,user_id,session_id,deletion_epoch,connection_id,state_hash,
+  return_target,contract_version,expires_at,created_at
+) values (
+  'aaaaaaaa-5000-4000-8000-000000000011',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'aaaaaaaa-0000-4000-8000-000000000001',0,
+  'aaaaaaaa-1000-4000-8000-000000000001',repeat('c',64),
+  'webull_native','webull-connect-public-docs-2026-08-28',
+  now()-interval '5 minutes',now()-interval '10 minutes'
+);
+select is(
+  (select count(*)::bigint from argus_private.consume_webull_oauth_state(repeat('c',64),now())),
+  0::bigint,
+  'expired state hash cannot cross the callback boundary'
+);
+select is(
+  (select count(*)::bigint from argus_private.oauth_states
+    where state_hash=repeat('c',64) and consumed_at is null),
+  1::bigint,
+  'expired callback rejection does not mark the state consumed'
+);
+update argus_brokerage.connections set status='connected'
+ where id='aaaaaaaa-1000-4000-8000-000000000001';
+insert into argus_private.oauth_states (
+  id,user_id,session_id,deletion_epoch,connection_id,state_hash,
+  return_target,contract_version,expires_at
+) values (
+  'aaaaaaaa-5000-4000-8000-000000000012',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  'aaaaaaaa-0000-4000-8000-000000000001',0,
+  'aaaaaaaa-1000-4000-8000-000000000001',repeat('d',64),
+  'webull_native','webull-connect-public-docs-2026-08-28',now()+interval '5 minutes'
+);
+select is(
+  (select count(*)::bigint from argus_private.consume_webull_oauth_state(repeat('d',64),now())),
+  0::bigint,
+  'state cannot complete after its connection leaves pending status'
+);
+select is(
+  (select count(*)::bigint from argus_private.oauth_states
+    where state_hash=repeat('d',64) and consumed_at is null),
+  1::bigint,
+  'status-change callback rejection does not mark the state consumed'
 );
 
 select is(
@@ -133,12 +202,15 @@ do $$ begin
 end $$;
 select throws_ok(
   $$insert into argus_private.oauth_states (
-      id, user_id, session_id, deletion_epoch, state_hash, return_target, expires_at
+      id, user_id, session_id, deletion_epoch, connection_id, state_hash,
+      return_target, contract_version, expires_at
     ) values (
       'aaaaaaaa-5000-4000-8000-000000000001',
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       'aaaaaaaa-0000-4000-8000-000000000001', 0,
-      'late-state-hash', '/portfolio', now() + interval '5 minutes'
+      'aaaaaaaa-1000-4000-8000-000000000001', repeat('a',64),
+      'webull_native', 'webull-connect-public-docs-2026-08-28',
+      now() + interval '5 minutes'
     )$$,
   'P0001',
   'member_deletion_epoch_mismatch',
@@ -150,9 +222,14 @@ select is(
   (select count(*)::bigint from information_schema.role_table_grants
     where grantee in ('anon','authenticated')
       and table_schema = 'argus_private'
-      and table_name in ('oauth_states','webull_credentials','provider_commands','provider_command_attempts')),
+      and table_name in ('oauth_states','webull_credentials','webull_completion_handles','provider_commands','provider_command_attempts')),
   0::bigint,
   'client roles receive no credential or command table grants'
+);
+
+select ok(
+  not has_function_privilege('authenticated', 'argus_private.consume_webull_oauth_state(text,timestamptz)', 'execute'),
+  'authenticated cannot invoke the state capability directly'
 );
 
 select * from finish();

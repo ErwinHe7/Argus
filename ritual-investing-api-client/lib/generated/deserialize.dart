@@ -1,14 +1,19 @@
 import 'package:ritual_investing_api_client/generated/model/create_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/decide_moderation_request.dart';
+import 'package:ritual_investing_api_client/generated/model/disconnect_webull_connection_request.dart';
 import 'package:ritual_investing_api_client/generated/model/finalize_upload_request.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account200_response_meta.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response_error.dart';
+import 'package:ritual_investing_api_client/generated/model/issue_member_step_up_request.dart';
+import 'package:ritual_investing_api_client/generated/model/reconnect_webull_connection_request.dart';
 import 'package:ritual_investing_api_client/generated/model/record_consent_request.dart';
+import 'package:ritual_investing_api_client/generated/model/redeem_webull_completion_request.dart';
 import 'package:ritual_investing_api_client/generated/model/report_content_request.dart';
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request.dart';
+import 'package:ritual_investing_api_client/generated/model/select_webull_account_request.dart';
 import 'package:ritual_investing_api_client/generated/model/transition_ritual_request.dart';
 import 'package:ritual_investing_api_client/generated/model/update_circle_request.dart';
 import 'package:ritual_investing_api_client/generated/model/update_preferences_request.dart';
@@ -44,6 +49,11 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'DecideModerationRequest':
       return DecideModerationRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'DisconnectWebullConnectionRequest':
+      return DisconnectWebullConnectionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'FinalizeUploadRequest':
       return FinalizeUploadRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -59,14 +69,30 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'GetAccount401ResponseError':
       return GetAccount401ResponseError.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'IssueMemberStepUpRequest':
+      return IssueMemberStepUpRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'ReconnectWebullConnectionRequest':
+      return ReconnectWebullConnectionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'RecordConsentRequest':
       return RecordConsentRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'RedeemWebullCompletionRequest':
+      return RedeemWebullCompletionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'ReportContentRequest':
       return ReportContentRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'RequestPrivacyActionRequest':
       return RequestPrivacyActionRequest.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'SelectWebullAccountRequest':
+      return SelectWebullAccountRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'TransitionRitualRequest':
       return TransitionRitualRequest.fromJson(value as Map<String, dynamic>)

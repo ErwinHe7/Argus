@@ -171,6 +171,12 @@ minimum_password_length = 10
 # are: `letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`
 password_requirements = ""
 
+[functions.webull-callback]
+# Webull invokes this public HTTPS callback without a Supabase member JWT. The
+# function authenticates the request with a one-use, high-entropy state hash
+# and keeps all callback/query responses generic and non-cacheable.
+verify_jwt = false
+
 [auth.rate_limit]
 # Number of emails that can be sent per hour. Requires auth.email.smtp to be enabled.
 email_sent = 2

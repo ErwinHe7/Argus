@@ -155,6 +155,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `api-domain:admin-operations` | retained-argus | Argus staff operations in Supabase |
 | `api-domain:assets` | retained-argus | Argus evidence API |
 | `api-domain:briefings` | retained-argus | Argus briefing API |
+| `api-domain:brokerage-connections` | replaced-webull | Webull connection lifecycle and encrypted credential custody |
 | `api-domain:circles` | retained-argus | Argus community API |
 | `api-domain:coven` | retained-argus | Argus editorial API |
 | `api-domain:discover` | retained-argus | Argus discovery API |

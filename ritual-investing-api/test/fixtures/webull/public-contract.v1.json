@@ -1,0 +1,26 @@
+{
+  "fixture_version": "webull-connect-public-docs-2026-08-28",
+  "source_kind": "official_public_documentation",
+  "real_egress_enabled": false,
+  "confirmed": {
+    "authorization_code_lifetime_seconds": 60,
+    "access_token_lifetime_seconds": 1800,
+    "refresh_token_lifetime_seconds": 1296000,
+    "refresh_rotates": true,
+    "aggregate_requests_per_user_per_minute_strict_upper_bound": 89
+  },
+  "blocking_conflicts": [
+    "token_secret_transport",
+    "token_content_type",
+    "authorization_entrypoint",
+    "connect_account_list_path",
+    "registered_redirect_uri",
+    "approved_scopes",
+    "pkce_support",
+    "revocation_endpoint",
+    "sandbox_entitlement",
+    "endpoint_rate_limit_intersection"
+  ],
+  "contains_real_user_data": false,
+  "contains_credentials": false
+}

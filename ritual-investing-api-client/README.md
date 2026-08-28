@@ -80,6 +80,12 @@ Class | Method | HTTP request | Description
 [*AssetsApi*](doc/AssetsApi.md) | [**listAssets**](doc/AssetsApi.md#listassets) | **GET** /v1/assets | 
 [*BriefingsApi*](doc/BriefingsApi.md) | [**getBriefing**](doc/BriefingsApi.md#getbriefing) | **GET** /v1/briefings/{briefing_id} | 
 [*BriefingsApi*](doc/BriefingsApi.md) | [**listBriefings**](doc/BriefingsApi.md#listbriefings) | **GET** /v1/briefings | 
+[*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**disconnectWebullConnection**](doc/BrokerageConnectionsApi.md#disconnectwebullconnection) | **POST** /v1/brokerage/connections/disconnect | 
+[*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**getWebullConnection**](doc/BrokerageConnectionsApi.md#getwebullconnection) | **GET** /v1/brokerage/connection | 
+[*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**reconnectWebullConnection**](doc/BrokerageConnectionsApi.md#reconnectwebullconnection) | **POST** /v1/brokerage/connections/reconnect | 
+[*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**redeemWebullCompletion**](doc/BrokerageConnectionsApi.md#redeemwebullcompletion) | **POST** /v1/brokerage/connections/completions/redeem | 
+[*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**selectWebullAccount**](doc/BrokerageConnectionsApi.md#selectwebullaccount) | **PATCH** /v1/brokerage/accounts/selection | 
+[*BrokerageConnectionsApi*](doc/BrokerageConnectionsApi.md) | [**startWebullConnection**](doc/BrokerageConnectionsApi.md#startwebullconnection) | **POST** /v1/brokerage/connections/start | 
 [*CirclesApi*](doc/CirclesApi.md) | [**createCircle**](doc/CirclesApi.md#createcircle) | **POST** /v1/circles | 
 [*CirclesApi*](doc/CirclesApi.md) | [**getCircle**](doc/CirclesApi.md#getcircle) | **GET** /v1/circles/{circle_id} | 
 [*CirclesApi*](doc/CirclesApi.md) | [**listCircles**](doc/CirclesApi.md#listcircles) | **GET** /v1/circles | 
@@ -93,6 +99,7 @@ Class | Method | HTTP request | Description
 [*EditorialApi*](doc/EditorialApi.md) | [**listEditorial**](doc/EditorialApi.md#listeditorial) | **GET** /v1/editorial/{kind} | 
 [*MediaApi*](doc/MediaApi.md) | [**createUploadIntent**](doc/MediaApi.md#createuploadintent) | **POST** /v1/media/upload-intents | 
 [*MediaApi*](doc/MediaApi.md) | [**getUploadIntent**](doc/MediaApi.md#getuploadintent) | **GET** /v1/media/upload-intents/{intent_id} | 
+[*MemberSecurityApi*](doc/MemberSecurityApi.md) | [**issueMemberStepUp**](doc/MemberSecurityApi.md#issuememberstepup) | **POST** /v1/member/step-up | 
 [*ModerationApi*](doc/ModerationApi.md) | [**reportContent**](doc/ModerationApi.md#reportcontent) | **POST** /v1/moderation/reports | 
 [*NotificationsApi*](doc/NotificationsApi.md) | [**getNotificationPreferences**](doc/NotificationsApi.md#getnotificationpreferences) | **GET** /v1/notification-preferences | 
 [*NotificationsApi*](doc/NotificationsApi.md) | [**listNotifications**](doc/NotificationsApi.md#listnotifications) | **GET** /v1/notifications | 
@@ -119,14 +126,19 @@ Class | Method | HTTP request | Description
  - [CreateCircleRequest](doc/CreateCircleRequest.md)
  - [CreateUploadIntentRequest](doc/CreateUploadIntentRequest.md)
  - [DecideModerationRequest](doc/DecideModerationRequest.md)
+ - [DisconnectWebullConnectionRequest](doc/DisconnectWebullConnectionRequest.md)
  - [FinalizeUploadRequest](doc/FinalizeUploadRequest.md)
  - [GetAccount200Response](doc/GetAccount200Response.md)
  - [GetAccount200ResponseMeta](doc/GetAccount200ResponseMeta.md)
  - [GetAccount401Response](doc/GetAccount401Response.md)
  - [GetAccount401ResponseError](doc/GetAccount401ResponseError.md)
+ - [IssueMemberStepUpRequest](doc/IssueMemberStepUpRequest.md)
+ - [ReconnectWebullConnectionRequest](doc/ReconnectWebullConnectionRequest.md)
  - [RecordConsentRequest](doc/RecordConsentRequest.md)
+ - [RedeemWebullCompletionRequest](doc/RedeemWebullCompletionRequest.md)
  - [ReportContentRequest](doc/ReportContentRequest.md)
  - [RequestPrivacyActionRequest](doc/RequestPrivacyActionRequest.md)
+ - [SelectWebullAccountRequest](doc/SelectWebullAccountRequest.md)
  - [TransitionRitualRequest](doc/TransitionRitualRequest.md)
  - [UpdateCircleRequest](doc/UpdateCircleRequest.md)
  - [UpdatePreferencesRequest](doc/UpdatePreferencesRequest.md)

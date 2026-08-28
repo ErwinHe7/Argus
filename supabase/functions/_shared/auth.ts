@@ -44,6 +44,12 @@ const verifiedClaimsSchema = z
     iat: z.number().int().nonnegative(),
     exp: z.number().int().positive(),
     auth_time: z.number().int().nonnegative().optional(),
+    amr: z.array(
+      z.object({
+        method: z.string().min(1).max(64),
+        timestamp: z.number().int().nonnegative(),
+      }).passthrough(),
+    ).max(16).optional(),
     app_metadata: z
       .object({ permissions: z.array(permission).max(32).optional() })
       .passthrough()
@@ -85,19 +91,33 @@ export function createSupabaseAccessTokenVerifier(
       audience,
       algorithms: ["ES256", "RS256"],
       clockTolerance: 30,
-      maxTokenAge: "20m",
+      // Hosted projects may use Supabase's one-hour JWT lifetime. `exp` is
+      // still mandatory; this cap prevents unusually old signed tokens while
+      // allowing a valid token throughout its configured lifetime.
+      maxTokenAge: "65m",
     });
     const claims = verifiedClaimsSchema.parse(payload);
     const audiences = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
     if (!audiences.includes(audience)) throw new Error("wrong_audience");
+    const now = Math.floor(Date.now() / 1_000);
+    const authenticationTimes = [
+      ...(claims.auth_time === undefined ? [] : [claims.auth_time]),
+      ...(claims.amr ?? []).map((entry) => entry.timestamp),
+    ];
+    if (authenticationTimes.some((timestamp) => timestamp > now + 30)) {
+      throw new Error("future_authentication_time");
+    }
+    const authenticatedAt = authenticationTimes.length === 0
+      ? undefined
+      : Math.max(...authenticationTimes);
     return Object.freeze({
       userId: claims.sub,
       sessionId: claims.session_id,
       aal: claims.aal,
       issuedAt: claims.iat,
-      ...(claims.auth_time === undefined
+      ...(authenticatedAt === undefined
         ? {}
-        : { authenticatedAt: claims.auth_time }),
+        : { authenticatedAt }),
     });
   };
 }

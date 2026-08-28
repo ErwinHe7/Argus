@@ -13,6 +13,10 @@ import {
 } from "./db/supabase-repositories.ts";
 import { StaffAuthorizationError } from "./db/request-transaction.ts";
 import type { RateLimitPort } from "./ports/infrastructure.ts";
+import {
+  BrokerageConnectionError,
+  type BrokerageConnectionRepository,
+} from "./domains/brokerage-connections/repository.ts";
 
 type RepositoryModule = typeof import("./db/supabase-repositories.ts");
 
@@ -84,6 +88,9 @@ export type CreateRetainedAppOptions = Readonly<{
   createRepositories: (claims: VerifiedRequestClaims) => RetainedRepositorySet;
   publicPreviewRepository: PublicPreviewRepository;
   rateLimit: RateLimitPort;
+  createBrokerageConnections?: (
+    claims: VerifiedRequestClaims,
+  ) => BrokerageConnectionRepository;
   requestId?: () => string;
   telemetry?: (event: RetainedTelemetryEvent) => void | Promise<void>;
 }>;
@@ -344,6 +351,22 @@ function repositories(
   options: CreateRetainedAppOptions,
 ) {
   return options.createRepositories(context.get("claims"));
+}
+
+function brokerageConnections(
+  context: Context<RetainedAppEnvironment>,
+  options: CreateRetainedAppOptions,
+): BrokerageConnectionRepository {
+  const factory = options.createBrokerageConnections;
+  if (factory === undefined) {
+    throw new HttpBoundaryError(
+      503,
+      "webull_contract_unavailable",
+      "Webull connection is temporarily unavailable.",
+      true,
+    );
+  }
+  return factory(context.get("claims"));
 }
 
 export function buildRetainedOpenApiDocument(
@@ -608,6 +631,22 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
         ),
       );
     }
+    if (error instanceof BrokerageConnectionError) {
+      const stepUp = error.code === "step_up_required";
+      const conflict = error.code === "connection_already_connected";
+      return errorResponse(
+        context,
+        new HttpBoundaryError(
+          stepUp ? 403 : conflict ? 409 : 404,
+          error.code,
+          stepUp
+            ? "A current action-bound authorization is required."
+            : conflict
+            ? "The Webull connection already exists."
+            : "The requested brokerage resource was not found.",
+        ),
+      );
+    }
     return errorResponse(
       context,
       new HttpBoundaryError(
@@ -707,6 +746,142 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   register(bodylessBootstrap, async (context) => {
     await rejectBody(context);
     return dataResponse(context, await repositories(context, options).session.bootstrap());
+  });
+
+  const stepUpBody = z.object({
+    action: z.enum(["webull_disconnect", "argus_delete"]),
+  }).strict();
+  const issueStepUp = route(
+    "post",
+    "/v1/member/step-up",
+    "issueMemberStepUp",
+    "Member Security",
+    { body: stepUpBody },
+  );
+  register(issueStepUp, async (context) => {
+    const authenticatedAt = context.get("principal").authenticatedAt;
+    const currentSeconds = Math.floor(Date.now() / 1_000);
+    if (
+      authenticatedAt === undefined ||
+      authenticatedAt > currentSeconds + 30 ||
+      currentSeconds - authenticatedAt > 300
+    ) {
+      throw new HttpBoundaryError(
+        403,
+        "recent_auth_required",
+        "Recent authentication is required.",
+      );
+    }
+    const input = await parseBody(context, stepUpBody);
+    return dataResponse(
+      context,
+      await brokerageConnections(context, options).issueStepUp(input.action),
+    );
+  });
+
+  const connectionStartBody = z.object({
+    return_target: z.enum(["webull_https", "webull_native"]),
+  }).strict();
+  const startConnection = route(
+    "post",
+    "/v1/brokerage/connections/start",
+    "startWebullConnection",
+    "Brokerage Connections",
+    { body: connectionStartBody },
+  );
+  register(startConnection, async (context) => {
+    const input = await parseBody(context, connectionStartBody);
+    return dataResponse(
+      context,
+      await brokerageConnections(context, options).start(input.return_target),
+    );
+  });
+
+  const reconnect = route(
+    "post",
+    "/v1/brokerage/connections/reconnect",
+    "reconnectWebullConnection",
+    "Brokerage Connections",
+    { body: connectionStartBody },
+  );
+  register(reconnect, async (context) => {
+    const input = await parseBody(context, connectionStartBody);
+    return dataResponse(
+      context,
+      await brokerageConnections(context, options).reconnect(
+        input.return_target,
+      ),
+    );
+  });
+
+  const getConnection = route(
+    "get",
+    "/v1/brokerage/connection",
+    "getWebullConnection",
+    "Brokerage Connections",
+  );
+  register(getConnection, async (context) =>
+    dataResponse(
+      context,
+      await brokerageConnections(context, options).status(),
+    ));
+
+  const selectAccountBody = z.object({ account_id: uuid }).strict();
+  const selectBrokerageAccount = route(
+    "patch",
+    "/v1/brokerage/accounts/selection",
+    "selectWebullAccount",
+    "Brokerage Connections",
+    { body: selectAccountBody },
+  );
+  register(selectBrokerageAccount, async (context) => {
+    const input = await parseBody(context, selectAccountBody);
+    return dataResponse(
+      context,
+      await brokerageConnections(context, options).selectAccount(
+        input.account_id,
+      ),
+    );
+  });
+
+  const completionBody = z.object({
+    completion: z.string().min(43).max(128).regex(/^[A-Za-z0-9_-]+$/),
+  }).strict();
+  const redeemCompletion = route(
+    "post",
+    "/v1/brokerage/connections/completions/redeem",
+    "redeemWebullCompletion",
+    "Brokerage Connections",
+    { body: completionBody },
+  );
+  register(redeemCompletion, async (context) => {
+    const input = await parseBody(context, completionBody);
+    return dataResponse(
+      context,
+      await brokerageConnections(context, options).redeemCompletion(
+        input.completion,
+      ),
+    );
+  });
+
+  const disconnectBody = z.object({
+    step_up_receipt: z.string().min(32).max(512).regex(/^[A-Za-z0-9_-]+$/),
+  }).strict();
+  const disconnect = route(
+    "post",
+    "/v1/brokerage/connections/disconnect",
+    "disconnectWebullConnection",
+    "Brokerage Connections",
+    { body: disconnectBody },
+  );
+  register(disconnect, async (context) => {
+    const input = await parseBody(context, disconnectBody);
+    return dataResponse(
+      context,
+      await brokerageConnections(context, options).disconnect(
+        input.step_up_receipt,
+      ),
+    );
   });
 
   const account = route("get", "/v1/account", "getAccount", "Account");
