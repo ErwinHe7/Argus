@@ -22,7 +22,7 @@ class ApiFailureMapper {
 
   static Never terminalContract() => throw const LoadFailure(
     LoadPhase.terminalFailure,
-    message: 'The Demo data format is not supported by this app version.',
+    message: 'The server data format is not supported by this app version.',
   );
 
   static String? errorCode(Object? data) {

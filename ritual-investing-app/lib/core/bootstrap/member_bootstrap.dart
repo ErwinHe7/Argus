@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../../features/brokerage_connection/domain/model.dart';
+
 enum MemberThemePreference { system, light, dark }
 
 enum MemberEntitlementStatus { active, unavailable }
@@ -47,14 +49,13 @@ class MemberPersonalization {
       other.contributionRhythm == contributionRhythm;
 
   @override
-  int get hashCode =>
-      Object.hash(
-        explanationDepth,
-        ritualVoice,
-        riskFraming,
-        ritualMode,
-        contributionRhythm,
-      );
+  int get hashCode => Object.hash(
+    explanationDepth,
+    ritualVoice,
+    riskFraming,
+    ritualMode,
+    contributionRhythm,
+  );
 }
 
 @immutable
@@ -121,34 +122,50 @@ class MemberOnboardingGate {
 class MemberBootstrap {
   const MemberBootstrap({
     required this.accountId,
-    required this.resetGeneration,
     required this.onboarding,
-    required this.entitlement,
-    required this.defaultPortfolioId,
     required this.serverTime,
     required this.contractVersion,
     required this.themePreference,
+    this.brokerage = const BrokerageConnectionSnapshot.disconnected(),
+    this.authorityEpoch = 0,
+    this.resetGeneration = 0,
+    this.entitlement = const MemberEntitlement(
+      planCode: 'standalone-demo',
+      status: MemberEntitlementStatus.active,
+    ),
+    this.defaultPortfolioId = 'standalone-demo-portfolio',
     this.personalization = const MemberPersonalization(),
   });
 
   final String accountId;
+  final int authorityEpoch;
+  final BrokerageConnectionSnapshot brokerage;
+
+  /// Standalone Demo compatibility only. Production scope uses [authorityEpoch].
+  @Deprecated('Standalone Demo compatibility only')
   final int resetGeneration;
   final MemberOnboardingGate onboarding;
+
+  /// Standalone Demo compatibility only; not a production access gate.
+  @Deprecated('Standalone Demo compatibility only')
   final MemberEntitlement entitlement;
+
+  /// Standalone Demo compatibility only; Webull selection is in [brokerage].
+  @Deprecated('Standalone Demo compatibility only')
   final String defaultPortfolioId;
   final DateTime serverTime;
   final String contractVersion;
   final MemberThemePreference themePreference;
   final MemberPersonalization personalization;
 
-  bool get canEnterMemberShell =>
-      onboarding.isComplete &&
-      entitlement.status == MemberEntitlementStatus.active;
+  bool get canEnterMemberShell => onboarding.isComplete;
 
   @override
   bool operator ==(Object other) =>
       other is MemberBootstrap &&
       other.accountId == accountId &&
+      other.authorityEpoch == authorityEpoch &&
+      other.brokerage == brokerage &&
       other.resetGeneration == resetGeneration &&
       other.onboarding == onboarding &&
       other.entitlement == entitlement &&
@@ -161,6 +178,8 @@ class MemberBootstrap {
   @override
   int get hashCode => Object.hash(
     accountId,
+    authorityEpoch,
+    brokerage,
     resetGeneration,
     onboarding,
     entitlement,

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import '../../features/asset_codex/data/repository.dart';
 import '../../features/briefings/application/briefing_controller.dart';
+import '../../features/brokerage_connection/application/controller.dart';
 import '../../features/circles/data/repository.dart';
 import '../../features/coven/application/controller.dart';
 import '../../features/coven/data/repository.dart';
@@ -16,6 +17,7 @@ import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/orders/application/order_controller.dart';
 import '../../features/portfolio/application/controller.dart';
+import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/rebalancing/application/rebalance_controller.dart';
@@ -42,10 +44,12 @@ class MemberFeatureScope {
     required this.discoverController,
     required this.covenController,
     required this.profileController,
-    required this.portfolioController,
-    required this.fundingSourceController,
-    required this.contributionController,
     required this.invalidationBus,
+    this.portfolioController,
+    this.fundingSourceController,
+    this.contributionController,
+    this.brokerageConnectionController,
+    this.brokeragePortfolioController,
     this.assetCodexRepository,
     this.searchController,
     this.rowanController,
@@ -69,9 +73,11 @@ class MemberFeatureScope {
   final DiscoverController discoverController;
   final CovenController covenController;
   final ProfileController profileController;
-  final PortfolioController portfolioController;
-  final FundingSourceController fundingSourceController;
-  final ContributionController contributionController;
+  final PortfolioController? portfolioController;
+  final FundingSourceController? fundingSourceController;
+  final ContributionController? contributionController;
+  final BrokerageConnectionController? brokerageConnectionController;
+  final BrokeragePortfolioController? brokeragePortfolioController;
   final InvalidationBus invalidationBus;
   final AssetCodexRepository? assetCodexRepository;
   final SearchController? searchController;
@@ -96,6 +102,14 @@ class MemberFeatureScope {
 
   void updateBootstrap(MemberBootstrap bootstrap) {
     if (_isDisposed) return;
+    final priorAccount =
+        brokerageConnectionController?.snapshot.activeAccountId;
+    brokerageConnectionController?.updateBootstrap(bootstrap.brokerage);
+    if (priorAccount != bootstrap.brokerage.activeAccountId) {
+      brokeragePortfolioController?.clear(
+        accountId: bootstrap.brokerage.activeAccountId,
+      );
+    }
     discoverController.updatePersonalization(bootstrap.personalization);
     recurringPlanController?.updateRhythm(
       bootstrap.personalization.contributionRhythm,
@@ -119,10 +133,13 @@ class MemberFeatureScope {
         case MemberBranch.coven:
           await covenController.load();
         case MemberBranch.you:
-          await Future.wait([
+          await Future.wait(<Future<void>>[
             profileController.load(),
-            portfolioController.load(),
-            fundingSourceController.load(),
+            if (portfolioController case final controller?) controller.load(),
+            if (fundingSourceController case final controller?)
+              controller.load(),
+            if (brokerageConnectionController case final controller?)
+              controller.load(),
           ]);
           intentionController?.updateProfile(
             profileController.state.value?.investor,
@@ -142,9 +159,11 @@ class MemberFeatureScope {
     discoverController.dispose();
     covenController.dispose();
     profileController.dispose();
-    portfolioController.dispose();
-    fundingSourceController.dispose();
-    contributionController.dispose();
+    portfolioController?.dispose();
+    fundingSourceController?.dispose();
+    contributionController?.dispose();
+    brokerageConnectionController?.dispose();
+    brokeragePortfolioController?.dispose();
     orderController?.dispose();
     recurringPlanController?.dispose();
     rebalanceController?.dispose();

@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import '../../features/asset_codex/application/controller.dart';
 import '../../features/asset_codex/domain/model.dart';
 import '../../features/briefings/application/briefing_controller.dart';
+import '../../features/brokerage_connection/application/controller.dart';
 import '../../features/coven/application/controller.dart';
 import '../../features/circles/application/controller.dart';
 import '../../features/creators/application/controller.dart';
@@ -24,6 +25,7 @@ import '../../features/onboarding/domain/onboarding_draft.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/domain/model.dart';
 import '../../features/portfolio/application/controller.dart';
+import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/recurring/application/recurring_plan_controller.dart';
 import '../../features/rebalancing/application/rebalance_controller.dart';
@@ -141,11 +143,20 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
   CovenController get covenController => _requireScope().covenController;
   ProfileController get profileController => _requireScope().profileController;
   PortfolioController get portfolioController =>
-      _requireScope().portfolioController;
+      _requireScope().portfolioController ??
+      (throw StateError('Demo portfolio is unavailable.'));
   FundingSourceController get fundingSourceController =>
-      _requireScope().fundingSourceController;
+      _requireScope().fundingSourceController ??
+      (throw StateError('Demo funding is unavailable.'));
   ContributionController get contributionController =>
-      _requireScope().contributionController;
+      _requireScope().contributionController ??
+      (throw StateError('Demo contributions are unavailable.'));
+  BrokerageConnectionController get brokerageConnectionController =>
+      _requireScope().brokerageConnectionController ??
+      (throw StateError('Webull connection is unavailable.'));
+  BrokeragePortfolioController get brokeragePortfolioController =>
+      _requireScope().brokeragePortfolioController ??
+      (throw StateError('Webull portfolio is unavailable.'));
   OrderController get orderController {
     final value = _requireScope().orderController;
     if (value == null) throw StateError('Orders are unavailable.');
@@ -236,6 +247,10 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       featureScope?.orderController != null &&
       featureScope?.recurringPlanController != null &&
       featureScope?.rebalanceController != null;
+
+  bool get hasBrokeragePortfolio =>
+      featureScope?.brokerageConnectionController != null &&
+      featureScope?.brokeragePortfolioController != null;
 
   bool get hasIntentionsAndFutureMirror =>
       featureScope?.intentionController != null &&

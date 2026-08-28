@@ -5,6 +5,9 @@ import '../../features/asset_codex/data/repository.dart';
 import '../../features/briefings/application/briefing_controller.dart';
 import '../../features/briefings/data/generated_briefing_api_service.dart';
 import '../../features/briefings/data/repository.dart';
+import '../../features/brokerage_connection/application/controller.dart';
+import '../../features/brokerage_connection/data/generated_brokerage_connection_api_service.dart';
+import '../../features/brokerage_connection/data/repository.dart';
 import '../../features/circles/data/generated_circle_api_service.dart';
 import '../../features/circles/data/repository.dart';
 import '../../features/coven/application/controller.dart';
@@ -30,8 +33,11 @@ import '../../features/notifications/data/generated_notification_api_service.dar
 import '../../features/notifications/data/repository.dart';
 import '../../features/orders/application/order_controller.dart';
 import '../../features/orders/data/repository.dart';
+import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/portfolio/application/controller.dart';
 import '../../features/portfolio/data/repository.dart';
+import '../../features/portfolio/data/brokerage_repository.dart';
+import '../../features/portfolio/data/generated_brokerage_portfolio_api_service.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/privacy/data/generated_privacy_api_service.dart';
 import '../../features/privacy/data/repository.dart';
@@ -68,6 +74,7 @@ class ProductionMemberFeatureScopeFactory {
     required this.privateExportFiles,
     required this.createCommandKey,
     required this.now,
+    required this.openBrokerageAuthorization,
   });
 
   final RitualInvestingApiClient client;
@@ -77,6 +84,7 @@ class ProductionMemberFeatureScopeFactory {
   final PrivateExportFiles privateExportFiles;
   final String Function() createCommandKey;
   final DateTime Function() now;
+  final OpenBrokerageAuthorization openBrokerageAuthorization;
 
   MemberFeatureScope call(
     CacheScope scope,
@@ -161,6 +169,20 @@ class ProductionMemberFeatureScopeFactory {
       createKey: createCommandKey,
       now: now,
       personalization: bootstrap.personalization,
+    );
+    final brokeragePortfolioController = BrokeragePortfolioController(
+      repository: BrokeragePortfolioRepository(
+        service: GeneratedBrokeragePortfolioApiService(client),
+      ),
+      initialAccountId: bootstrap.brokerage.activeAccountId,
+    );
+    final brokerageConnectionController = BrokerageConnectionController(
+      repository: BrokerageConnectionRepository(
+        service: GeneratedBrokerageConnectionApiService(client),
+      ),
+      openAuthorization: openBrokerageAuthorization,
+      initial: bootstrap.brokerage,
+      onAccountChanging: () async => brokeragePortfolioController.clear(),
     );
     final briefingController = BriefingController(
       repository: CachedBriefingRepository(
@@ -257,6 +279,8 @@ class ProductionMemberFeatureScopeFactory {
       rebalanceController: rebalanceController,
       intentionController: intentionController,
       futureMirrorController: futureMirrorController,
+      brokerageConnectionController: brokerageConnectionController,
+      brokeragePortfolioController: brokeragePortfolioController,
       briefingController: briefingController,
       notificationController: notificationController,
       entitlementController: entitlementController,

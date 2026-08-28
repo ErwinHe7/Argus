@@ -1,5 +1,7 @@
 // ignore_for_file: prefer_initializing_formals
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../features/onboarding/data/onboarding_draft_store.dart';
@@ -7,6 +9,7 @@ import '../../features/onboarding/data/onboarding_repository.dart';
 import '../../features/onboarding/domain/onboarding_draft.dart';
 import '../api/ritual_api.dart';
 import '../auth/auth_controller.dart';
+import '../auth/member_auth.dart';
 import 'member_bootstrap.dart';
 
 enum EntryDestination {
@@ -46,6 +49,7 @@ class EntryCoordinatorState {
 }
 
 typedef ApplyMemberBootstrap = Future<void> Function(MemberBootstrap? value);
+typedef RedeemBrokerageCompletion = Future<void> Function(String completion);
 
 class EntryCoordinator extends ChangeNotifier {
   EntryCoordinator({
@@ -64,6 +68,11 @@ class EntryCoordinator extends ChangeNotifier {
   final OnboardingDraftStore _draftStore;
   final OnboardingRepository _onboardingRepository;
   ApplyMemberBootstrap? _applyBootstrap;
+  MemberNativeLinkPolicy? _nativeLinkPolicy;
+  Future<Uri?> Function()? _initialNativeLink;
+  Stream<Uri>? _nativeLinks;
+  RedeemBrokerageCompletion? _redeemBrokerageCompletion;
+  StreamSubscription<Uri>? _nativeLinkSubscription;
 
   EntryCoordinatorState _state = const EntryCoordinatorState(
     destination: EntryDestination.restoring,
@@ -79,6 +88,21 @@ class EntryCoordinator extends ChangeNotifier {
       throw StateError('The entry coordinator is already bound.');
     }
     _applyBootstrap = applyBootstrap;
+  }
+
+  void bindBrokerageNativeLinks({
+    required MemberNativeLinkPolicy policy,
+    required Future<Uri?> Function() initialLink,
+    required Stream<Uri> links,
+    required RedeemBrokerageCompletion redeemCompletion,
+  }) {
+    if (_nativeLinkPolicy != null) {
+      throw StateError('Brokerage native links are already bound.');
+    }
+    _nativeLinkPolicy = policy;
+    _initialNativeLink = initialLink;
+    _nativeLinks = links;
+    _redeemBrokerageCompletion = redeemCompletion;
   }
 
   Future<void> saveDraft(OnboardingDraft draft) async {
@@ -120,6 +144,7 @@ class EntryCoordinator extends ChangeNotifier {
     await authController.restore();
     if (authController.state.phase == AuthPhase.signedIn) {
       await _reconcileAuthenticated();
+      await _startBrokerageNativeLinks();
       return;
     }
     if (authController.state.phase == AuthPhase.failure) {
@@ -137,6 +162,7 @@ class EntryCoordinator extends ChangeNotifier {
   Future<void> resumeRecoveredSession() async {
     await _readDraft();
     await _reconcileAuthenticated();
+    await _startBrokerageNativeLinks();
   }
 
   Future<void> signIn() async {
@@ -146,6 +172,7 @@ class EntryCoordinator extends ChangeNotifier {
     switch (result) {
       case MemberAuthResult.authenticated:
         await _reconcileAuthenticated();
+        await _startBrokerageNativeLinks();
       case MemberAuthResult.cancelled:
         _routeSignedOutDraft();
       case MemberAuthResult.unavailable:
@@ -172,6 +199,7 @@ class EntryCoordinator extends ChangeNotifier {
     switch (result) {
       case MemberAuthResult.authenticated:
         await _reconcileAuthenticated();
+        await _startBrokerageNativeLinks();
       case MemberAuthResult.cancelled:
         _set(EntryDestination.review);
       case MemberAuthResult.unavailable:
@@ -272,6 +300,42 @@ class EntryCoordinator extends ChangeNotifier {
     }
     await authController.logout();
     _set(EntryDestination.welcome);
+  }
+
+  Future<void> handleBrokerageNativeLink(Uri uri) async {
+    final policy = _nativeLinkPolicy;
+    final redeem = _redeemBrokerageCompletion;
+    if (policy == null ||
+        redeem == null ||
+        authController.state.phase != AuthPhase.signedIn ||
+        !policy.acceptsWebullCompletion(uri)) {
+      return;
+    }
+    final values = uri.queryParametersAll['completion'];
+    if (values == null || values.length != 1) return;
+    try {
+      await redeem(values.single);
+      final refreshed = await _bootstrapService.bootstrap();
+      await _apply(refreshed);
+      _bootstrap = refreshed;
+      _set(
+        refreshed.canEnterMemberShell
+            ? EntryDestination.shell
+            : EntryDestination.authenticatedRecovery,
+      );
+    } on Object {
+      // Completion links contain no local authority. A normal connection
+      // status refresh recovers without retaining or reflecting the handle.
+    }
+  }
+
+  Future<void> _startBrokerageNativeLinks() async {
+    if (_nativeLinkSubscription != null || _nativeLinks == null) return;
+    _nativeLinkSubscription = _nativeLinks!.listen(
+      (uri) => unawaited(handleBrokerageNativeLink(uri)),
+    );
+    final initialLink = await _initialNativeLink?.call();
+    if (initialLink != null) await handleBrokerageNativeLink(initialLink);
   }
 
   Future<void> refreshCompletedBootstrap({int? expectedResetGeneration}) async {
@@ -404,6 +468,12 @@ class EntryCoordinator extends ChangeNotifier {
     } on Object {
       // Server/auth authority is not reversed by unavailable device cleanup.
     }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_nativeLinkSubscription?.cancel());
+    super.dispose();
   }
 }
 

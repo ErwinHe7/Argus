@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:app_links/app_links.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:ritual_investing_api_client/generated/api.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../features/brokerage_connection/data/generated_brokerage_connection_api_service.dart';
+import '../../features/brokerage_connection/data/repository.dart';
 import '../../features/onboarding/data/onboarding_draft_store.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
 import '../../features/privacy/data/private_export_files.dart';
@@ -57,6 +61,16 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
     draftStore: onboardingDraftStore,
     onboardingRepository: GeneratedOnboardingRepository(client),
   );
+  final brokerageConnections = BrokerageConnectionRepository(
+    service: GeneratedBrokerageConnectionApiService(client),
+  );
+  final appLinks = AppLinks();
+  entryCoordinator.bindBrokerageNativeLinks(
+    policy: config.nativeLinks,
+    initialLink: appLinks.getInitialLink,
+    links: appLinks.uriLinkStream,
+    redeemCompletion: brokerageConnections.redeemCompletion,
+  );
   return DependencyContainer(
     authController: auth,
     sessionBootstrapService: GeneratedSessionBootstrapService(client),
@@ -71,6 +85,8 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
       privateExportFiles: privateExportFiles,
       createCommandKey: _newCommandKey,
       now: DateTime.now,
+      openBrokerageAuthorization: (uri) =>
+          launchUrl(uri, mode: LaunchMode.externalApplication),
     ).call,
   );
 }

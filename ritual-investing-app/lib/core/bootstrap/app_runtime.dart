@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import '../../features/asset_codex/application/controller.dart';
 import '../../features/asset_codex/domain/model.dart';
 import '../../features/briefings/application/briefing_controller.dart';
+import '../../features/brokerage_connection/application/controller.dart';
 import '../../features/circles/application/controller.dart';
 import '../../features/coven/application/controller.dart';
 import '../../features/creators/application/controller.dart';
@@ -19,6 +20,7 @@ import '../../features/intentions/application/intention_controller.dart';
 import '../../features/notifications/application/notification_controller.dart';
 import '../../features/orders/application/order_controller.dart';
 import '../../features/portfolio/application/controller.dart';
+import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/domain/model.dart';
@@ -82,12 +84,26 @@ extension AppRuntimeFeatureAccess on AppRuntime {
       _requireScope().discoverController;
   CovenController get covenController => _requireScope().covenController;
   ProfileController get profileController => _requireScope().profileController;
-  PortfolioController get portfolioController =>
-      _requireScope().portfolioController;
-  FundingSourceController get fundingSourceController =>
-      _requireScope().fundingSourceController;
-  ContributionController get contributionController =>
-      _requireScope().contributionController;
+  PortfolioController get portfolioController => _required(
+    _requireScope().portfolioController,
+    'Demo portfolio is unavailable.',
+  );
+  FundingSourceController get fundingSourceController => _required(
+    _requireScope().fundingSourceController,
+    'Demo funding is unavailable.',
+  );
+  ContributionController get contributionController => _required(
+    _requireScope().contributionController,
+    'Demo contributions are unavailable.',
+  );
+  BrokerageConnectionController get brokerageConnectionController => _required(
+    _requireScope().brokerageConnectionController,
+    'Webull connection is unavailable.',
+  );
+  BrokeragePortfolioController get brokeragePortfolioController => _required(
+    _requireScope().brokeragePortfolioController,
+    'Webull portfolio is unavailable.',
+  );
 
   OrderController get orderController =>
       _required(_requireScope().orderController, 'Orders are unavailable.');
@@ -151,6 +167,9 @@ extension AppRuntimeFeatureAccess on AppRuntime {
       featureScope?.orderController != null &&
       featureScope?.recurringPlanController != null &&
       featureScope?.rebalanceController != null;
+  bool get hasBrokeragePortfolio =>
+      featureScope?.brokerageConnectionController != null &&
+      featureScope?.brokeragePortfolioController != null;
   bool get hasIntentionsAndFutureMirror =>
       featureScope?.intentionController != null &&
       featureScope?.futureMirrorController != null;

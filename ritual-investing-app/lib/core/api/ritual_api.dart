@@ -1,10 +1,14 @@
 import 'package:dio/dio.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 
+import '../../features/brokerage_connection/data/generated_brokerage_connection_api_service.dart';
+import '../../features/brokerage_connection/domain/model.dart';
+import '../bootstrap/generated_member_bootstrap_mapper.dart';
 import '../bootstrap/member_bootstrap.dart';
 import 'api_failure_mapper.dart';
 
 export '../../features/coven/data/generated_coven_api_service.dart';
+export '../../features/brokerage_connection/data/generated_brokerage_connection_api_service.dart';
 export '../../features/discover/data/generated_discover_api_service.dart';
 export '../../features/future_mirror/data/generated_future_mirror_api_service.dart';
 export '../../features/intentions/data/generated_intention_api_service.dart';
@@ -20,108 +24,37 @@ abstract interface class SessionBootstrapService {
 
 class GeneratedSessionBootstrapService implements SessionBootstrapService {
   GeneratedSessionBootstrapService(RitualInvestingApiClient client)
-    : _api = client.getSessionApi();
+    : _api = client.getSessionApi(),
+      _brokerage = GeneratedBrokerageConnectionApiService(client);
 
   final SessionApi _api;
+  final GeneratedBrokerageConnectionApiService _brokerage;
 
   @override
   Future<MemberBootstrap> bootstrap() async {
     try {
-      final response = await _api.bootstrapSession();
-      final data = response.data!.data;
-      if (data.contractVersion !=
-          SessionBootstrapContractVersionEnum.n1period0Period0) {
-        throw StateError('Unsupported API contract version.');
-      }
-      return mapSessionBootstrap(data);
+      final values = await Future.wait<Object>([
+        _api.bootstrapSession(),
+        _safeBrokerageBootstrap(),
+      ]);
+      final session = (values[0] as Response<GetAccount200Response>).data!.data;
+      return mapSupabaseSessionBootstrap(
+        session,
+        values[1] as BrokerageConnectionSnapshot,
+      );
     } on DioException catch (error) {
       ApiFailureMapper.throwFailure(error);
     }
   }
-}
 
-MemberBootstrap mapSessionBootstrap(SessionBootstrap data) => MemberBootstrap(
-  accountId: data.account.id,
-  resetGeneration: data.resetGeneration,
-  onboarding: MemberOnboardingGate.fromServer(
-    cohort: data.onboarding.cohort.value,
-    currentStep: data.onboarding.currentStep,
-    completedAt: data.onboarding.completedAt,
-    version: data.onboarding.version,
-  ),
-  entitlement: MemberEntitlement(
-    planCode: data.entitlement.planCode,
-    status: switch (data.entitlement.status) {
-      SessionBootstrapEntitlementStatusEnum.active =>
-        MemberEntitlementStatus.active,
-      SessionBootstrapEntitlementStatusEnum.unknownDefaultOpenApi =>
-        MemberEntitlementStatus.unavailable,
-    },
-  ),
-  defaultPortfolioId: data.defaultPortfolio.id,
-  serverTime: data.serverTime.toUtc(),
-  contractVersion: data.contractVersion.value,
-  themePreference: switch (data.preferences.themeMode) {
-    SessionBootstrapPreferencesThemeModeEnum.light =>
-      MemberThemePreference.light,
-    SessionBootstrapPreferencesThemeModeEnum.dark => MemberThemePreference.dark,
-    SessionBootstrapPreferencesThemeModeEnum.system ||
-    SessionBootstrapPreferencesThemeModeEnum.unknownDefaultOpenApi =>
-      MemberThemePreference.system,
-  },
-  personalization: MemberPersonalization(
-    contributionRhythm: switch (data.investorProfile?.contributionRhythm) {
-      SessionBootstrapInvestorProfileContributionRhythmEnum.weekly =>
-        MemberContributionRhythm.weekly,
-      SessionBootstrapInvestorProfileContributionRhythmEnum.biweekly =>
-        MemberContributionRhythm.biweekly,
-      SessionBootstrapInvestorProfileContributionRhythmEnum.monthly =>
-        MemberContributionRhythm.monthly,
-      SessionBootstrapInvestorProfileContributionRhythmEnum.irregular =>
-        MemberContributionRhythm.irregular,
-      SessionBootstrapInvestorProfileContributionRhythmEnum.notSure =>
-        MemberContributionRhythm.notSure,
-      SessionBootstrapInvestorProfileContributionRhythmEnum
-          .unknownDefaultOpenApi ||
-      null => MemberContributionRhythm.unavailable,
-    },
-    explanationDepth: switch (data.investorProfile?.experience) {
-      SessionBootstrapInvestorProfileExperienceEnum.new_ =>
-        MemberExplanationDepth.beginner,
-      SessionBootstrapInvestorProfileExperienceEnum.someExperience =>
-        MemberExplanationDepth.guided,
-      SessionBootstrapInvestorProfileExperienceEnum.experienced =>
-        MemberExplanationDepth.advanced,
-      SessionBootstrapInvestorProfileExperienceEnum.unknownDefaultOpenApi ||
-      null => MemberExplanationDepth.unavailable,
-    },
-    ritualVoice: switch (data.preferences.ritualLanguage) {
-      SessionBootstrapPreferencesRitualLanguageEnum.practical =>
-        MemberRitualVoice.practical,
-      SessionBootstrapPreferencesRitualLanguageEnum.mystical =>
-        MemberRitualVoice.mystical,
-      SessionBootstrapPreferencesRitualLanguageEnum.balanced ||
-      SessionBootstrapPreferencesRitualLanguageEnum.preferNotToSay =>
-        MemberRitualVoice.balanced,
-      SessionBootstrapPreferencesRitualLanguageEnum.unknownDefaultOpenApi ||
-      null => MemberRitualVoice.unavailable,
-    },
-    riskFraming: switch (data.investorProfile?.riskComfort) {
-      SessionBootstrapInvestorProfileRiskComfortEnum.low =>
-        MemberRiskFraming.low,
-      SessionBootstrapInvestorProfileRiskComfortEnum.moderate =>
-        MemberRiskFraming.moderate,
-      SessionBootstrapInvestorProfileRiskComfortEnum.high =>
-        MemberRiskFraming.high,
-      SessionBootstrapInvestorProfileRiskComfortEnum.unknownDefaultOpenApi ||
-      null => MemberRiskFraming.unavailable,
-    },
-    ritualMode: switch (data.preferences.ritualMode) {
-      SessionBootstrapPreferencesRitualModeEnum.tarot => MemberRitualMode.tarot,
-      SessionBootstrapPreferencesRitualModeEnum.astrology =>
-        MemberRitualMode.astrology,
-      SessionBootstrapPreferencesRitualModeEnum.unknownDefaultOpenApi =>
-        MemberRitualMode.unavailable,
-    },
-  ),
-);
+  Future<BrokerageConnectionSnapshot> _safeBrokerageBootstrap() async {
+    try {
+      return await _brokerage.fetch();
+    } on Object {
+      return const BrokerageConnectionSnapshot(
+        phase: BrokerageConnectionPhase.temporarilyUnavailable,
+        accounts: [],
+      );
+    }
+  }
+}

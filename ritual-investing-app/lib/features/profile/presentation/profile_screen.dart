@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/api/state_status.dart';
+import '../../brokerage_connection/application/controller.dart';
+import '../../brokerage_connection/domain/model.dart';
 import '../../onboarding/domain/onboarding_draft.dart';
+import '../../portfolio/application/brokerage_controller.dart';
 import '../../portfolio/application/controller.dart';
 import '../application/controller.dart';
 import '../domain/model.dart';
@@ -23,7 +26,10 @@ class ProfileScreen extends StatelessWidget {
   const ProfileScreen({
     super.key,
     required this.controller,
-    required this.portfolioController,
+    this.portfolioController,
+    this.brokerageConnectionController,
+    this.brokeragePortfolioController,
+    this.isDemo = true,
     this.onOpenInvesting,
     this.onOpenRitualPreferences,
     this.onOpenAstrology,
@@ -37,7 +43,10 @@ class ProfileScreen extends StatelessWidget {
   });
 
   final ProfileController controller;
-  final PortfolioController portfolioController;
+  final PortfolioController? portfolioController;
+  final BrokerageConnectionController? brokerageConnectionController;
+  final BrokeragePortfolioController? brokeragePortfolioController;
+  final bool isDemo;
   final VoidCallback? onOpenInvesting;
   final VoidCallback? onOpenRitualPreferences;
   final VoidCallback? onOpenAstrology;
@@ -51,7 +60,12 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: Listenable.merge([controller, portfolioController]),
+    listenable: Listenable.merge([
+      controller,
+      ?portfolioController,
+      ?brokerageConnectionController,
+      ?brokeragePortfolioController,
+    ]),
     builder: (context, _) => SafeArea(
       child: ListView(
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
@@ -71,18 +85,20 @@ class ProfileScreen extends StatelessWidget {
                   ),
                 ),
               ),
-              const Chip(label: Text('Demo')),
+              if (isDemo) const Chip(label: Text('Demo')),
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'Your saved answers, active personalization, and Demo account settings.',
+          Text(
+            isDemo
+                ? 'Your saved answers, active personalization, and Demo account settings.'
+                : 'Your saved answers, active personalization, and Webull connection.',
           ),
           StateStatus(phase: controller.state.phase, onRetry: controller.load),
-          StateStatus(
-            phase: portfolioController.state.phase,
-            onRetry: portfolioController.load,
-          ),
+          if (portfolioController case final value?)
+            StateStatus(phase: value.state.phase, onRetry: value.load),
+          if (brokerageConnectionController case final value?)
+            StateStatus(phase: value.phase, onRetry: value.load),
           if (controller.state.value case final profile?) ...[
             const SizedBox(height: 12),
             if (onOpenInvesting != null)
@@ -121,7 +137,7 @@ class ProfileScreen extends StatelessWidget {
                 subtitle: 'Onboarding consent status',
                 onTap: onOpenPolicies,
               ),
-            if (portfolioController.selected case final portfolio?)
+            if (portfolioController?.selected case final portfolio?)
               _MenuTile(
                 key: const Key('you-portfolio'),
                 icon: Icons.account_balance_wallet_outlined,
@@ -130,6 +146,34 @@ class ProfileScreen extends StatelessWidget {
                 onTap: onOpenPortfolio == null
                     ? null
                     : () => onOpenPortfolio!(portfolio.id),
+              ),
+            if (brokerageConnectionController case final brokerage?)
+              _MenuTile(
+                key: const Key('you-brokerage'),
+                icon: Icons.account_balance_outlined,
+                title: switch (brokerage.snapshot.phase) {
+                  BrokerageConnectionPhase.connected =>
+                    brokerage.snapshot.accounts
+                            .where((account) => account.selected)
+                            .firstOrNull
+                            ?.displayLabel ??
+                        'Choose a Webull account',
+                  BrokerageConnectionPhase.reauthorizationRequired =>
+                    'Reconnect Webull',
+                  BrokerageConnectionPhase.pending =>
+                    'Webull authorization pending',
+                  _ => 'Connect Webull',
+                },
+                subtitle: switch (brokerage.snapshot.phase) {
+                  BrokerageConnectionPhase.connected =>
+                    'View timestamped provider balances and positions',
+                  BrokerageConnectionPhase.reauthorizationRequired =>
+                    'Brokerage reads and actions are disabled',
+                  BrokerageConnectionPhase.pending =>
+                    'Finish in the secure browser',
+                  _ => 'Ritual and discovery work without a connection',
+                },
+                onTap: _brokerageAction(brokerage, onOpenPortfolio),
               ),
             if (onOpenNotifications != null)
               _MenuTile(
@@ -176,6 +220,19 @@ class ProfileScreen extends StatelessWidget {
       ),
     ),
   );
+}
+
+VoidCallback? _brokerageAction(
+  BrokerageConnectionController brokerage,
+  ValueChanged<String>? onOpenPortfolio,
+) {
+  final accountId = brokerage.snapshot.activeAccountId;
+  if (accountId != null) {
+    return onOpenPortfolio == null ? null : () => onOpenPortfolio(accountId);
+  }
+  return brokerage.snapshot.requiresReauthorization
+      ? brokerage.reconnect
+      : brokerage.connect;
 }
 
 class _MenuTile extends StatelessWidget {

@@ -10,6 +10,7 @@ import '../intentions/presentation/intention_screen.dart';
 import '../notifications/presentation/notification_screen.dart';
 import '../orders/presentation/order_screen.dart';
 import '../portfolio/presentation/portfolio_screen.dart';
+import '../portfolio/presentation/brokerage_portfolio_screen.dart';
 import '../privacy/presentation/privacy_screen.dart';
 import '../rebalancing/presentation/rebalance_screen.dart';
 import '../recurring/presentation/recurring_plan_screen.dart';
@@ -56,6 +57,16 @@ GoRoute _portfolioRoute(AppRuntime container) => GoRoute(
   },
   builder: (context, state) {
     final stableId = state.pathParameters['stableId']!;
+    if (container.hasBrokeragePortfolio) {
+      return BrokeragePortfolioScreen(
+        key: ValueKey('brokerage-portfolio-$stableId'),
+        accountId: stableId,
+        connectionController: container.brokerageConnectionController,
+        portfolioController: container.brokeragePortfolioController,
+        onOpenAccount: (id) =>
+            context.pushReplacement(MemberRoutes.portfolio.location(id)),
+      );
+    }
     final child = PortfolioScreen(
       key: ValueKey('portfolio-$stableId'),
       portfolioId: stableId,
@@ -516,7 +527,16 @@ class _YouBranchRootState extends State<_YouBranchRoot> {
   @override
   Widget build(BuildContext context) => ProfileScreen(
     controller: widget.container.profileController,
-    portfolioController: widget.container.portfolioController,
+    portfolioController: widget.container.hasBrokeragePortfolio
+        ? null
+        : widget.container.portfolioController,
+    brokerageConnectionController: widget.container.hasBrokeragePortfolio
+        ? widget.container.brokerageConnectionController
+        : null,
+    brokeragePortfolioController: widget.container.hasBrokeragePortfolio
+        ? widget.container.brokeragePortfolioController
+        : null,
+    isDemo: widget.container.presentationPolicy.isDemo,
     onOpenInvesting: widget.container.presentationPolicy.allowsProfileEditing
         ? () => context.push(MemberRoutes.youInvestingPath)
         : null,

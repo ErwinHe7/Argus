@@ -256,29 +256,80 @@ void main() {
     },
   );
 
-  test('settings refresh applies a new authoritative completed bootstrap', () async {
-    final fixture = await _fixture(
-      restoredSession: const AuthSession(accessToken: 'token'),
-      bootstraps: [
-        _bootstrap(complete: true, version: 2),
-        _bootstrap(
-          complete: true,
-          version: 2,
-          theme: MemberThemePreference.dark,
+  test(
+    'settings refresh applies a new authoritative completed bootstrap',
+    () async {
+      final fixture = await _fixture(
+        restoredSession: const AuthSession(accessToken: 'token'),
+        bootstraps: [
+          _bootstrap(complete: true, version: 2),
+          _bootstrap(
+            complete: true,
+            version: 2,
+            theme: MemberThemePreference.dark,
+          ),
+        ],
+      );
+      await fixture.coordinator.restore();
+
+      await fixture.coordinator.refreshCompletedBootstrap();
+
+      expect(fixture.coordinator.state.destination, EntryDestination.shell);
+      expect(
+        fixture.coordinator.state.bootstrap?.themePreference,
+        MemberThemePreference.dark,
+      );
+      expect(fixture.applied.last.themePreference, MemberThemePreference.dark);
+    },
+  );
+
+  test(
+    'cold and warm Webull links redeem then refetch without UI token state',
+    () async {
+      const cold = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQ';
+      const warm = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq';
+      final links = StreamController<Uri>();
+      addTearDown(links.close);
+      final fixture = await _fixture(
+        restoredSession: const AuthSession(accessToken: 'token'),
+        bootstraps: [
+          _bootstrap(complete: true, version: 2),
+          _bootstrap(complete: true, version: 2),
+          _bootstrap(complete: true, version: 2),
+        ],
+      );
+      final redeemed = <String>[];
+      fixture.coordinator.bindBrokerageNativeLinks(
+        policy: MemberNativeLinkPolicy.parse(
+          argusAuthAllowlist:
+              'https://just-build-this.app/mobile/argus-auth/callback',
+          webullCompletionAllowlist:
+              'https://just-build-this.app/mobile/webull/complete',
         ),
-      ],
-    );
-    await fixture.coordinator.restore();
+        initialLink: () async => Uri.https(
+          'just-build-this.app',
+          '/mobile/webull/complete',
+          {'completion': cold},
+        ),
+        links: links.stream,
+        redeemCompletion: (completion) async => redeemed.add(completion),
+      );
 
-    await fixture.coordinator.refreshCompletedBootstrap();
+      await fixture.coordinator.restore();
+      links.add(
+        Uri.https('just-build-this.app', '/mobile/webull/complete', {
+          'completion': warm,
+        }),
+      );
+      await pumpEventQueue();
 
-    expect(fixture.coordinator.state.destination, EntryDestination.shell);
-    expect(
-      fixture.coordinator.state.bootstrap?.themePreference,
-      MemberThemePreference.dark,
-    );
-    expect(fixture.applied.last.themePreference, MemberThemePreference.dark);
-  });
+      expect(redeemed, [cold, warm]);
+      expect(fixture.applied, hasLength(3));
+      expect(fixture.coordinator.state.destination, EntryDestination.shell);
+      expect(fixture.coordinator.state.message, isNot(contains(cold)));
+      expect(fixture.coordinator.state.message, isNot(contains(warm)));
+    },
+  );
 }
 
 Future<_Fixture> _fixture({
@@ -405,25 +456,21 @@ MemberBootstrap _bootstrap({
   required bool complete,
   required int version,
   MemberThemePreference theme = MemberThemePreference.system,
-}) =>
-    MemberBootstrap(
-      accountId: 'account-a',
-      resetGeneration: 0,
-      onboarding: complete
-          ? MemberOnboardingGate.complete(version: version)
-          : MemberOnboardingGate.incomplete(
-              nextStep: 'profile',
-              version: version,
-            ),
-      entitlement: const MemberEntitlement(
-        planCode: 'demo-free',
-        status: MemberEntitlementStatus.active,
-      ),
-      defaultPortfolioId: 'portfolio-a',
-      serverTime: DateTime.utc(2026, 8, 24, 12),
-      contractVersion: '1.0.0',
-      themePreference: theme,
-    );
+}) => MemberBootstrap(
+  accountId: 'account-a',
+  resetGeneration: 0,
+  onboarding: complete
+      ? MemberOnboardingGate.complete(version: version)
+      : MemberOnboardingGate.incomplete(nextStep: 'profile', version: version),
+  entitlement: const MemberEntitlement(
+    planCode: 'demo-free',
+    status: MemberEntitlementStatus.active,
+  ),
+  defaultPortfolioId: 'portfolio-a',
+  serverTime: DateTime.utc(2026, 8, 24, 12),
+  contractVersion: '1.0.0',
+  themePreference: theme,
+);
 
 OnboardingDraft _draft() => const OnboardingDraft(
   experience: InvestingExperience.newToInvesting,
