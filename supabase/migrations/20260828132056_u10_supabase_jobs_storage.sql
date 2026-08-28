@@ -1376,6 +1376,12 @@ declare
   nonce text;
   proof text;
 begin
+  if exists (
+    select 1 from argus_private.kill_switches
+     where name = 'background_workers' and enabled
+  ) then
+    return null;
+  end if;
   select * into config from argus_private.resolve_worker_invocation_config();
   issued_at_seconds := extract(epoch from clock_timestamp())::bigint;
   nonce := encode(extensions.gen_random_bytes(16), 'hex');

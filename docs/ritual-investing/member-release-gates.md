@@ -1,85 +1,80 @@
 # Ritual Investing member release gates
 
-Status date: 2026-08-25
+Status date: 2026-08-28
 
-This checklist separates repository proof from environment proof. Passing CI
-does not claim a deployed beta, a real-device Auth0 callback, an applied database
-migration, or an enabled background processor.
+Repository proof does not claim that a hosted Supabase migration, native OAuth
+callback, background worker, or Webull partner contract has passed. Record
+hosted evidence separately and keep every capability fail-closed until its gate
+is satisfied.
 
 ## Required repository proof
 
-Before producing a beta build:
+Before producing a member build:
 
-1. Run API typecheck, domain/security/Worker tests, OpenAPI generation and drift
-   checks, and generated Dart client analysis/tests.
-2. Run the full Flutter suite, the generated-Dio aggregate integration target,
-   the Android debug build, and the iOS no-codesign build.
-3. Run `scripts/test-check-member-provider-boundaries.sh` and
-   `scripts/check-member-provider-boundaries.sh`. New literal production hosts,
-   runtime fetch entry points, dependencies, or Queue effects must be explicitly
-   reviewed; dynamic API and Auth0 URLs remain governed by typed HTTPS runtime
-   configuration and deployment review.
+1. Run API typecheck and tests, OpenAPI/client drift checks, every Edge Function
+   Deno check/test, migration replay, and pgTAP against a disposable local
+   Supabase stack.
+2. Run the full Flutter suite, generated-Dio integration target, Android debug
+   build, iOS no-codesign build, and both provider-boundary scripts.
+3. Verify the app contains no direct Webull egress, provider credentials,
+   legacy Auth0 configuration, Neon dependency, or Cloudflare backend binding.
 4. Preserve accessibility proof at 2× text in both themes, reduced-motion and
-   accessible-navigation behavior, 44-point iOS and 48-dp Android tap targets,
-   labeled controls, focused confirmation routes, and platform back behavior.
-5. Preserve the approved ritual-first visual hierarchy and keep `Demo` plus
-   `No real money moves` adjacent to every financial or membership action.
+   accessible-navigation behavior, platform tap targets, labeled controls,
+   focused confirmation routes, and platform back behavior.
+5. Preserve the ritual-first hierarchy. Brokerage screens must display source
+   and freshness; stale or incoherent authority disables mutation.
 
-CI uses a run-scoped `RITUAL_MEMBER_TEST_ID` with loopback generated-Dio
-services. This proves serialization, routing, and account isolation in the test
-harness. It does not exercise Auth0's hosted browser or create a production
-tenant.
+PRs and forks use only local Supabase and non-secret fixtures. Hosted
+credentials, project tokens, database passwords, member tokens, and provider
+credentials are available only to the protected serialized deployment job.
 
-## Beta capability matrix
+## Hosted Supabase gates
 
-Every capability starts fail-closed. Change one switch at a time, record the
-operator, revision, sanitized evidence, and rollback condition, then observe
-receipts, backlog, DLQ, generation fences, and tenant isolation before enabling
-the next capability.
+The protected hosted-development promotion must pass the exact project/ref/DB
+target guard before mutation. It fences `background_workers`,
+`provider_egress`, and `order_mutations`, applies migrations, deploys the four
+Edge Functions, and then runs
+`scripts/check-supabase-hosted-acceptance.sh`. That hook proves:
 
-| Capability | Required proof before enablement | Fail-closed state / rollback |
+- hosted Auth health and the exact Edge build revision;
+- the linked pgTAP suite against the just-pushed hosted schema;
+- the `webull-supabase-v1` schema contract;
+- the exact PGMQ queue inventory;
+- private Storage buckets and their size limits;
+- runtime and worker statement timeouts; and
+- all three deployment/provider fences remain enabled during acceptance.
+
+Only `background_workers` may be resumed by that deployment. Provider egress
+and order mutations remain blocked.
+
+On real iOS and Android devices, separately record Supabase sign-up/sign-in,
+PKCE callback recovery, session restoration and refresh, recent-auth proof,
+local/global logout, wrong-account rejection, and malformed/cross-lifecycle
+link rejection. Never retain bearer, refresh, callback, or step-up tokens in
+logs or evidence.
+
+## Capability gates
+
+| Capability | Required proof | Fail-closed state |
 | --- | --- | --- |
-| Scheduled briefings, recurring Demo plans, and export retention | Target environment has the reviewed cron set, scheduler/runtime database roles, Queue/DLQ, and direct handler plus scheduled-event smoke proof | `KILL_SWITCH_SCHEDULED=on`; remove/pause beta crons if they were added |
-| Queue processing | Isolated Queue/DLQ bindings, durable receipts, retry/DLQ proof, and backlog alerting | `KILL_SWITCH_QUEUE=on` |
-| In-app notification writing | Queue and database proof plus valid member deep links; delivery remains independently disabled | `KILL_SWITCH_NOTIFICATION_WRITER=on` |
-| External notification delivery | An approved push provider, encrypted token binding, provider allowlist, retry/rate-limit proof, consent, and real-device validation | `KILL_SWITCH_NOTIFICATION_DELIVERY=on`; no push service binding |
-| Privacy export | Queue/DLQ, scheduler/runtime roles, export bucket, expiry/one-time-link, and staged archive-inventory proof | `KILL_SWITCH_EXPORTS=on`; requests return `503` before mutation |
-| Privacy purge | Queue/DLQ, scheduler/runtime/privacy roles, export/quarantine/deletion-journal buckets, restore-journal replay, deadline monitoring, and purge verification | `KILL_SWITCH_PURGE=on`; requests return `503` before mutation |
-| Media scan/process | Approved scanner and processor service bindings, quarantine/public buckets, validation, and rollback proof | `KILL_SWITCH_MEDIA=on`; no provider service bindings |
+| Background Argus work | Queue claim/receipt/retry/DLQ, Cron lease, revision, privacy and Storage lifecycle evidence | `background_workers=true` |
+| Webull connection and reads | Partner-confirmed protocol plus hosted sandbox authorization, refresh, disconnect, projection, rate-limit, and reauthorization evidence | `provider_egress=true` |
+| Manual Webull commands | Partner-confirmed signing/idempotency semantics plus preview/review/confirm, ambiguous-response reconciliation, and no-resubmission proof | `order_mutations=true` |
+| Privacy export/deletion | Private export lifecycle, deletion epoch, credential destruction, object receipts, Auth-last deletion, and crash-resume proof | Keep privacy route/worker gate closed |
+| External notifications or media processing | Approved provider, consent, allowlist, redaction, bounded retry, and rollback evidence | No provider secret or binding |
 
-In-app-only notifications require neither a push provider binding nor
-`PUSH_TOKEN_ENCRYPTION_KEY`. Keep notification delivery disabled and do not
-collect push tokens in that mode.
+Funding, account opening, recurring financial execution, autonomous trading,
+and rebalance execution have no enablement gate because they are outside the
+product.
 
-The current beta account has no cron capacity reserved for Ritual. Until the
-reviewed schedules are actually installed and observed, scheduled briefings,
-recurring execution, privacy retention, export, and purge are unavailable even
-if their repository handlers pass. Seeded/current recaps may keep the UI
-deterministic, but they are not evidence of a running schedule.
+## Roll forward and rollback
 
-## Identity and native gates
-
-Hosted Auth0 is a separate real-device gate on both iOS and Android. Record
-signup, returning sign-in, correct member `azp`, cancellation, process recovery,
-recent authentication, logout, verified HTTPS callback/app link, and the
-custom-scheme rollback. Simulator/emulator integration tests cannot satisfy this
-gate.
-
-The API must be configured with the exact member application client ID in
-`AUTH0_MEMBER_CLIENT_IDS`; admin IDs are never valid substitutes. Follow the
-[Auth0 migration and rollback procedure](auth0-setup.md) before changing client
-IDs or callback modes.
-
-## Rollback order
-
-1. Turn on the narrow affected capability switch; use the Queue-wide or
-   scheduled switch only when the scope is broader.
-2. Stop new schedules/producers and leave queued effects fenced. Do not bypass
-   authentication, authorization, recent-auth, idempotency, or deletion gates.
-3. Roll the mobile build back to the last verified callback mode/client, keeping
-   both client IDs allowlisted only for the documented compatibility window.
-4. Roll the Worker revision back without pointing beta at production resources.
-   Database rollback is forward-only: deploy a reviewed compensating migration
-   or restore only through the deletion-journal replay gate.
-5. Re-enable at low concurrency only after the original failure condition and
-   rollback condition are both verified.
+1. Turn on the narrow affected kill switch and stop new producers.
+2. Preserve receipts, leases, deletion fencing, idempotency, and ambiguous
+   provider outcomes; never bypass them to recover traffic.
+3. Fix forward with a reviewed migration/function revision, or use the approved
+   Supabase restore procedure. Do not point clients at Auth0, Neon, or a legacy
+   Cloudflare API as rollback.
+4. Resume background work only after the exact hosted acceptance hook passes.
+5. Open provider egress or order mutations only through the separate Webull
+   launch gate in `webull-operations-runbook.md`.

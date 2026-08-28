@@ -17,7 +17,12 @@ export type WorkerStorageObject = Readonly<{
 
 export interface WorkerStoragePort {
   get(bucket: string, path: string): Promise<WorkerStorageObject | null>;
-  put(bucket: string, path: string, body: BodyInit, contentType: string): Promise<void>;
+  put(
+    bucket: string,
+    path: string,
+    body: ReadableStream<Uint8Array>,
+    contentType: string,
+  ): Promise<void>;
   remove(bucket: string, paths: readonly string[]): Promise<void>;
 }
 

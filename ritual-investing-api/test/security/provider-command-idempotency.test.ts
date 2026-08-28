@@ -214,7 +214,11 @@ describe("provider command database security boundary", () => {
 
   it("requires current brokerage:read staff permission even for an AAL2 principal", async () => {
     const query = vi.fn(async (text: string) => ({
-      rows: text.includes("has_staff_permission") ? [{ allowed: false }] : [],
+      rows: text.includes("has_live_staff_session")
+        ? [{ live: true }]
+        : text.includes("has_staff_permission")
+        ? [{ allowed: false }]
+        : [],
       rowCount: 0,
     }));
     const pool: DatabasePool = {

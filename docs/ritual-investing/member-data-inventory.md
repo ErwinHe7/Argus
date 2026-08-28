@@ -37,7 +37,8 @@ Each surface below appears exactly once. The contract test derives current table
 <!-- authority-inventory:start -->
 | Surface | Classification | Target owner and disposition |
 | --- | --- | --- |
-| `database-table:accounts` | retained-argus | Supabase private identity/account mapping |
+| `database-table:accounts` | replaced-webull | Owner-scoped normalized Webull brokerage accounts |
+| `database-table:active_account_selections` | replaced-webull | Member-selected Webull account projection |
 | `database-table:admin_audit_checkpoints` | retained-argus | Supabase private admin audit state |
 | `database-table:admin_audit_events` | retained-argus | Supabase private admin audit state |
 | `database-table:admin_operation_receipts` | retained-argus | Supabase private idempotency state |
@@ -53,6 +54,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:briefing_template_revisions` | retained-argus | Argus editorial data in Supabase |
 | `database-table:briefing_templates` | retained-argus | Argus editorial data in Supabase |
 | `database-table:briefings` | retained-argus | Argus briefing data in Supabase |
+| `database-table:catalog_assets` | retained-argus | Argus catalog data in Supabase |
 | `database-table:cash_ledger_entries` | replaced-webull | Remove ledger; Webull balance/activity authority |
 | `database-table:circle_assets` | retained-argus | Argus community data in Supabase |
 | `database-table:circle_template_assets` | retained-argus | Argus editorial data in Supabase |
@@ -60,6 +62,8 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:circle_templates` | retained-argus | Argus editorial data in Supabase |
 | `database-table:circles` | retained-argus | Argus community data in Supabase |
 | `database-table:companies` | retained-argus | Argus editorial evidence in Supabase |
+| `database-table:community_templates` | retained-argus | Argus community templates in Supabase |
+| `database-table:connections` | replaced-webull | Fenced Webull connection lifecycle |
 | `database-table:consent_records` | retained-argus | Argus privacy state in Supabase |
 | `database-table:consumer_receipts` | retained-argus | Supabase private worker idempotency |
 | `database-table:content_reports` | retained-argus | Argus moderation state in Supabase |
@@ -68,6 +72,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:coven_qualifications` | retained-argus | Argus evidence data in Supabase |
 | `database-table:coven_verification_evidence` | retained-argus | Argus evidence data in Supabase |
 | `database-table:coven_verifications` | retained-argus | Argus evidence data in Supabase |
+| `database-table:cron_leases` | retained-argus | Supabase private scheduled-work fencing |
 | `database-table:daily_ritual_assignments` | retained-argus | Argus ritual state in Supabase |
 | `database-table:deletion_journal_confirmations` | retained-argus | Supabase private deletion fencing |
 | `database-table:deletion_object_receipts` | retained-argus | Supabase private deletion fencing |
@@ -79,6 +84,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:demo_portfolios` | replaced-webull | Remove simulated authority; Webull projections |
 | `database-table:demo_reset_events` | deleted | Reset exists only in standalone Demo memory |
 | `database-table:demo_seed_versions` | deleted | Seed exists only in standalone Demo build |
+| `database-table:dead_letter_events` | retained-argus | Supabase private bounded job failure evidence |
 | `database-table:device_installations` | retained-argus | Argus notification/privacy state in Supabase |
 | `database-table:editorial_items` | retained-argus | Argus editorial workflow in Supabase |
 | `database-table:editorial_review_decisions` | retained-argus | Argus editorial workflow in Supabase |
@@ -87,18 +93,24 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:entitlement_events` | deleted | Remove Demo membership authority |
 | `database-table:evidence_claims` | retained-argus | Argus evidence workflow in Supabase |
 | `database-table:evidence_sources` | retained-argus | Argus evidence workflow in Supabase |
+| `database-table:future_mirror_points` | retained-argus | Argus non-command scenario projections in Supabase |
+| `database-table:future_mirror_runs` | retained-argus | Argus non-command scenario runs in Supabase |
+| `database-table:gateway_rate_limits` | retained-argus | Supabase private Edge rate-limit state |
 | `database-table:grimoire_revision_assets` | retained-argus | Argus editorial data in Supabase |
 | `database-table:grimoire_revisions` | retained-argus | Argus editorial data in Supabase |
 | `database-table:grimoires` | retained-argus | Argus editorial data in Supabase |
 | `database-table:idempotency_records` | retained-argus | Supabase private API idempotency |
 | `database-table:intentions` | retained-argus | Argus scenario state in Supabase |
 | `database-table:investor_profiles` | retained-argus | Argus preference state in Supabase |
+| `database-table:job_attempts` | retained-argus | Supabase private bounded worker attempt evidence |
 | `database-table:job_runs` | retained-argus | Supabase private job operations |
+| `database-table:kill_switches` | retained-argus | Supabase private deployment and provider fences |
 | `database-table:ledger_transactions` | replaced-webull | Remove Argus brokerage ledger |
 | `database-table:media_assets` | retained-argus | Argus metadata plus private Supabase Storage |
 | `database-table:media_upload_intents` | retained-argus | Argus private upload state in Supabase |
 | `database-table:member_command_receipts` | retained-argus | Supabase private command idempotency |
 | `database-table:member_idempotency_records` | retained-argus | Supabase private API idempotency |
+| `database-table:members` | retained-argus | Supabase Auth member ownership root |
 | `database-table:moderation_case_decisions` | retained-argus | Argus moderation state in Supabase |
 | `database-table:moderation_cases` | retained-argus | Argus moderation state in Supabase |
 | `database-table:notification_deliveries` | retained-argus | Argus notification state in Supabase |
@@ -107,6 +119,8 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:onboarding_finalization_commands` | retained-argus | Argus onboarding state in Supabase |
 | `database-table:onboarding_states` | retained-argus | Argus onboarding state in Supabase |
 | `database-table:order_previews` | replaced-webull | Replace simulated preview with capability-bound provider preview |
+| `database-table:oauth_states` | replaced-webull | One-use Webull OAuth state fencing |
+| `database-table:order_projection_generations` | replaced-webull | Immutable Webull order projection generations |
 | `database-table:outbox_dispatch_failures` | retained-argus | Supabase private worker recovery |
 | `database-table:outbox_events` | retained-argus | Supabase private transactional work |
 | `database-table:portfolio_balance_snapshots` | replaced-webull | Webull balance projection authority |
@@ -117,16 +131,23 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:privacy_export_artifacts` | retained-argus | Private Supabase Storage export state |
 | `database-table:privacy_requests` | retained-argus | Argus privacy state in Supabase |
 | `database-table:profiles` | retained-argus | Argus profile state in Supabase |
+| `database-table:projection_generations` | replaced-webull | Immutable Webull read projection generations |
 | `database-table:projection_points` | retained-argus | Argus Future Mirror scenarios in Supabase |
+| `database-table:projection_refresh_leases` | replaced-webull | Fenced Webull projection refresh recovery |
 | `database-table:projection_runs` | retained-argus | Argus Future Mirror scenarios in Supabase |
+| `database-table:provider_command_attempts` | replaced-webull | Immutable attempts for already-reviewed Webull commands |
+| `database-table:provider_commands` | replaced-webull | Capability-bound manual Webull command state |
+| `database-table:provider_rate_limits` | replaced-webull | Bounded server-side Webull rate-limit state |
 | `database-table:publication_events` | retained-argus | Argus editorial workflow in Supabase |
 | `database-table:purge_receipts` | retained-argus | Supabase private deletion evidence |
 | `database-table:rebalance_preview_allocations` | deleted | Rebalance execution is outside product scope |
 | `database-table:rebalance_preview_trades` | deleted | Rebalance execution is outside product scope |
 | `database-table:rebalance_previews` | deleted | Rebalance execution is outside product scope |
+| `database-table:reconciliation_records` | replaced-webull | Bounded lookup-only recovery for submitted Webull commands |
 | `database-table:recurring_plan_allocations` | deleted | Recurring financial execution is outside scope |
 | `database-table:recurring_plan_runs` | deleted | Recurring financial execution is outside scope |
 | `database-table:recurring_plans` | deleted | Recurring financial execution is outside scope |
+| `database-table:refresh_leases` | replaced-webull | Fenced Webull credential refresh recovery |
 | `database-table:ritual_private.purge_guards` | retained-argus | Supabase private deletion fencing |
 | `database-table:ritual_private.schema_contract_versions` | retained-argus | Supabase private contract state |
 | `database-table:ritual_scenario_evidence` | retained-argus | Argus ritual evidence in Supabase |
@@ -141,15 +162,26 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:saved_circle_templates` | retained-argus | Argus member state in Supabase |
 | `database-table:saved_coven_entries` | retained-argus | Argus member state in Supabase |
 | `database-table:saved_grimoires` | retained-argus | Argus member state in Supabase |
+| `database-table:saved_items` | retained-argus | Argus member-saved content in Supabase |
+| `database-table:schema_contract_versions` | retained-argus | Supabase private contract version state |
 | `database-table:security_events` | retained-argus | Supabase private security operations |
 | `database-table:seeded_creators` | retained-argus | Argus editorial data in Supabase |
 | `database-table:simulated_order_fills` | replaced-webull | Webull order projection authority |
 | `database-table:simulated_orders` | replaced-webull | Webull order projection authority |
 | `database-table:simulation_commands` | replaced-webull | Replace with provider-bound commands |
 | `database-table:staff_principals` | retained-argus | Supabase Auth plus private staff authorization |
+| `database-table:staff_step_up_receipts` | retained-argus | Supabase staff AAL2 proof receipts |
+| `database-table:step_up_receipts` | retained-argus | Supabase member recent-auth proof receipts |
 | `database-table:tenant_demo_states` | deleted | Production Demo state is removed |
 | `database-table:tenant_entitlements` | deleted | Production Demo membership is removed |
 | `database-table:tenants` | retained-argus | Supabase private ownership mapping |
+| `database-table:waitlist_submissions` | retained-argus | Narrow Supabase waitlist intake state |
+| `database-table:webull_account_mappings` | replaced-webull | Private provider-to-Argus account identifiers |
+| `database-table:webull_asset_mappings` | replaced-webull | Private provider-to-Argus asset identifiers |
+| `database-table:webull_completion_handles` | replaced-webull | One-use Webull completion redemption handles |
+| `database-table:webull_credentials` | replaced-webull | Versioned encrypted Webull credential custody |
+| `database-table:webull_order_mappings` | replaced-webull | Private provider-to-Argus order identifiers |
+| `database-table:worker_invocation_nonces` | retained-argus | Supabase worker HMAC replay prevention |
 | `api-domain:accounts` | retained-argus | Argus account identity; brokerage accounts become separate Webull projections |
 | `api-domain:admin` | retained-argus | Argus staff operations in Supabase |
 | `api-domain:admin-operations` | retained-argus | Argus staff operations in Supabase |

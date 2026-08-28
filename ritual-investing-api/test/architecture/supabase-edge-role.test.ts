@@ -22,6 +22,10 @@ describe("Supabase Edge database login boundary", () => {
       resolve(repositoryRoot, "ritual-investing-api/src/db/database-port.ts"),
       "utf8",
     );
+    const waitlist = await readFile(
+      resolve(repositoryRoot, "supabase/functions/waitlist/index.ts"),
+      "utf8",
+    );
 
     expect(migration).toMatch(
       /create role argus_edge\s+login noinherit nosuperuser nocreatedb nocreaterole noreplication nobypassrls/i,
@@ -34,7 +38,15 @@ describe("Supabase Edge database login boundary", () => {
     );
     expect(adapter).toMatch(/argus_edge/);
     expect(adapter).toMatch(/invalid_supabase_database_role/);
-    expect(transaction).toMatch(/role: "argus_runtime"/);
+    expect(transaction).toContain(
+      'export type DatabaseCapabilityRole = "argus_runtime" | "argus_waitlist"',
+    );
     expect(transaction).toMatch(/set local role \$\{role\}/i);
+    expect(waitlist).toContain(
+      'withDatabaseTransaction(pool, "argus_waitlist"',
+    );
+    expect(adapter).toMatch(
+      /createSupabaseWaitlistDatabasePool[\s\S]*argus_waitlist_edge/,
+    );
   });
 });

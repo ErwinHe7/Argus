@@ -773,9 +773,9 @@ describe("Supabase transaction-pooler repository boundary", () => {
       expect(source, path).not.toMatch(/from\s*["']\.\/client(?:\.ts)?["']/i);
     }
 
-    const legacyNeon = await readFile(resolve(apiRoot, "src/db/client.ts"), "utf8");
-    expect(legacyNeon).toMatch(/@neondatabase\/serverless/);
-    expect(legacyNeon).toMatch(/withScopedRuntimeClient/);
+    await expect(
+      readFile(resolve(apiRoot, "src/db/client.ts"), "utf8"),
+    ).rejects.toMatchObject({ code: "ENOENT" });
     expect(acceptedSources.join("\n")).not.toMatch(/ritual_identity_resolver|ritual_runtime/);
   });
 });

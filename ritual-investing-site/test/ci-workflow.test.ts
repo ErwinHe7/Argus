@@ -40,25 +40,25 @@ describe("Ritual release workflow contract", () => {
     expect(job(source, "site-browser")).toContain("playwright install --with-deps chromium firefox webkit");
   });
 
-  it("keeps normal PR proof local and reserves deployed beta evidence for workflow dispatch", async () => {
+  it("keeps normal PR proof local and reserves hosted Supabase credentials for protected deployment", async () => {
     const source = await workflow();
     const browser = job(source, "site-browser");
-    const staging = job(source, "staging");
+    const hosted = job(source, "supabase-hosted-development");
 
     expect(browser).not.toMatch(/secrets\.|RITUAL_SITE_STAGING/);
-    expect(staging).toContain("if: github.event_name == 'workflow_dispatch' && inputs.run_staging");
-    expect(staging).toContain("site-browser");
-    expect(staging).toContain("SITE_STAGING_LANDING_URL");
-    expect(staging).toContain("SITE_STAGING_DEMO_URL");
-    expect(staging).toContain("SITE_STAGING_EVIDENCE");
+    expect(hosted).toContain("github.event_name == 'push'");
+    expect(hosted).toContain("github.ref == 'refs/heads/main'");
+    expect(hosted).toContain("environment: ritual-supabase-development");
+    expect(hosted).toContain("SUPABASE_ACCESS_TOKEN");
+    expect(hosted).toContain("cancel-in-progress: false");
   });
 
   it("preserves the established mobile, API, contract, member, and admin regression jobs", async () => {
     const source = await workflow();
     for (const name of [
       "api-security",
-      "postgres-17",
-      "worker",
+      "supabase-local",
+      "supabase-edge",
       "contract-client",
       "mobile-android",
       "mobile-ios",

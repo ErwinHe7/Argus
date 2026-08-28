@@ -3,7 +3,14 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(43);
+select plan(45);
+
+select ok(
+  (select enabled from argus_private.kill_switches where name='background_workers'),
+  'a clean deployment starts with background workers fenced'
+);
+update argus_private.kill_switches set enabled=false,reason=null
+ where name='background_workers';
 
 select has_extension('pgmq', 'Supabase Queues extension is enabled');
 select has_extension('pg_cron', 'Supabase Cron extension is enabled');
@@ -264,6 +271,17 @@ select vault.create_secret(
   'argus_worker_secret_current',
   'pgTAP current worker secret'
 );
+update argus_private.kill_switches
+   set enabled=true,reason='pgTAP deployment fence'
+ where name='background_workers';
+select argus_private.invoke_worker();
+select is(
+  (select count(*)::bigint from net.http_request_queue),
+  0::bigint,
+  'background fence prevents Cron worker egress on a clean deployment'
+);
+update argus_private.kill_switches set enabled=false,reason=null
+ where name='background_workers';
 select argus_private.invoke_worker();
 select is(
   (select count(*)::bigint from net.http_request_queue

@@ -1,38 +1,54 @@
-# Ritual Investing staging evidence template
+# Ritual Investing hosted-development evidence template
 
-Use one copy per release. Store it in the approved evidence system; never commit environment secrets or production data.
+Use one copy per release in the approved evidence system. Never commit secrets,
+member data, provider payloads, database URLs, signed links, or tokens.
 
 ## Release identity
 
 - Source revision:
 - OpenAPI digest / generated client version:
+- Supabase project ref and sanitized database target class (direct/pooler):
 - Migration range and checksums:
-- Mobile N-1 / N versions:
 - Operator / reviewer / UTC window:
 
-## External binding proof
+## Automated acceptance
 
-Record pass/fail, timestamp, sanitized request or job ID, and artifact link for Auth0 member/admin audience separation, Cloudflare Access, each rate-limit class, public cache miss/hit/304/purge, Queue retry/receipt/DLQ, scheduled delivery, R2 quarantine/public/export lifecycle, restricted Neon roles/RLS, deletion-deny journal restore cutover, push provider allowlisted response, and admin static hostname.
+- Exact deployment-target guard:
+- Clean local reset, pgTAP, and repeat-reset proof:
+- Hosted post-push `supabase test db --linked` proof:
+- API/type/security and Edge Function checks/tests:
+- OpenAPI/generated-client drift:
+- Flutter member/admin/Demo checks and native builds:
+- Static-only Cloudflare Pages inventory:
+- Hosted Auth health and exact Edge build revision:
+- `webull-supabase-v1` schema contract:
+- Exact PGMQ queue inventory and retry/DLQ evidence:
+- Private Storage buckets, size limits, export/delete lifecycle:
+- Runtime/worker statement timeouts and active kill switches:
 
-Do not record bearer/access assertions, raw subjects, database URLs, signed links, push tokens, provider/scanner bodies, member content, or tenant identifiers.
+## Hosted scenarios
 
-## Required gates
+- Supabase member sign-in, refresh, step-up, logout, and account isolation:
+- Supabase staff AAL2, live permission, revocation, and audit proof:
+- Queue/Cron lease, receipt, retry, dead-letter, and crash-resume proof:
+- Privacy export, credential/object destruction, Auth-last deletion, and resume:
+- Legacy Auth0/Neon/Cloudflare API/Queue/R2 negative probes and revocation record:
 
-- Locked install, source guard, typecheck, API/Worker/security/full PostgreSQL tests:
-- Empty/repeat/N-1→N/interrupted migration proof:
-- OpenAPI/generated Dart drift and mobile compatibility proof:
-- Dart client, mobile analyze/test/goldens, Android, no-codesign iOS:
-- Admin analyze/test/web build/real-browser workflow:
-- Wrangler dry run:
-- Capacity report: cache miss/hit, authenticated read, command p95 and zero-error threshold:
-- Alert fixture drill and immutable audit parity:
-- Privacy export/deletion/restore drill:
+## Webull gate
+
+- Partner protocol/version/signing decision:
+- Sanitized sandbox connection/read/recovery evidence:
+- Sanitized sandbox manual-order and ambiguous-response evidence:
+- `provider_egress` remains enabled (blocked) if either item is absent:
+- `order_mutations` remains enabled (blocked) if either item is absent:
+
+Do not substitute mocks for hosted Webull sandbox evidence. The current partner
+protocol decision is unresolved, so the launch decision remains NO-GO.
 
 ## Promotion decision
 
-- Canary percentage and observation window:
-- Queue initial/final concurrency:
 - Active kill switches:
-- N-1 traffic/adoption drain evidence:
-- Roll-forward owner and stop conditions:
+- Queue observation window and stop conditions:
+- Roll-forward/restore owner:
+- Legacy authority revocation owner:
 - Two-person approval:

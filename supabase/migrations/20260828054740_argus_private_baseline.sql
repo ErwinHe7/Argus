@@ -972,7 +972,7 @@ values ('webull-supabase-v1');
 insert into argus_private.kill_switches(name, enabled, reason) values
   ('provider_egress', true, 'disabled until Webull U5 contract gate passes'),
   ('order_mutations', true, 'disabled until Webull sandbox order gate passes'),
-  ('background_workers', false, null);
+  ('background_workers', true, 'disabled until hosted acceptance passes');
 
 create or replace function argus_private.request_user_id()
 returns uuid

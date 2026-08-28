@@ -40,14 +40,12 @@ fi
 app_manifest="$audit_root/ritual-investing-app/pubspec.yaml"
 api_manifest="$audit_root/ritual-investing-api/package.json"
 queue_contract="$audit_root/ritual-investing-api/src/jobs/queue-consumer.ts"
-api_entrypoint="$audit_root/ritual-investing-api/src/index.ts"
 job_handlers="$audit_root/ritual-investing-api/src/jobs/handlers.ts"
 
 for required in \
   "$app_manifest" \
   "$api_manifest" \
   "$queue_contract" \
-  "$api_entrypoint" \
   "$job_handlers"; do
   test -f "$required" || fail "missing required audit input ${required#"$audit_root"/}"
 done
@@ -73,12 +71,12 @@ for native_manifest_or_lock in \
   fi
 done
 
-prohibited_dependencies='flutter_stripe|stripe_sdk|stripe|plaid_flutter|plaid|braintree|paypal|square_in_app_payments|alpaca|snaptrade|coinmarketcap|firebase_messaging|onesignal_flutter|onesignal|braze_plugin|braze|purchases_flutter|revenuecat|in_app_purchase'
+prohibited_dependencies='auth0_flutter|auth0\.swift|com\.auth0|flutter_stripe|stripe_sdk|stripe|plaid_flutter|plaid|braintree|paypal|square_in_app_payments|alpaca|snaptrade|coinmarketcap|firebase_messaging|onesignal_flutter|onesignal|braze_plugin|braze|purchases_flutter|revenuecat|in_app_purchase'
 # The delimiters cover Dart/npm names plus native coordinates and manifests,
 # such as `com.stripe:stripe-android`, `pod 'Plaid'`, and PBX product names.
 # shellcheck disable=SC2086
 if rg -n -i "(^|[\"'[:space:]/_.-])($prohibited_dependencies)([\"'[:space:]/_.:;(),-]|$)" $dependency_inputs; then
-  fail "a bank, broker, payment, market-data, purchase, or push SDK is present"
+  fail "a retired auth, bank, broker, payment, market-data, purchase, or push SDK is present"
 fi
 
 production_inputs=""
@@ -100,9 +98,9 @@ if test -n "$production_inputs" && \
   fail "a prohibited provider egress host is present in production code"
 fi
 
-# Literal production URLs are fail-closed. Runtime-supplied API/Auth0/Access
-# values are validated by their typed configuration seams and do not appear in
-# this list; a new literal must be reviewed here before it can ship.
+# Literal production URLs are fail-closed. Runtime-supplied Supabase values are
+# validated by typed configuration seams and do not appear in this list; a new
+# literal must be reviewed here before it can ship.
 # shellcheck disable=SC2086
 literal_urls=$(rg -o -N --no-filename "https?://[^\"'[:space:]<>),;\x60]+" \
   $production_inputs --glob '!**/generated/**' --glob '!**/*.g.dart' || true)
@@ -111,49 +109,26 @@ printf '%s\n' "$literal_urls" | while IFS= read -r literal_url; do
   literal_host=${literal_url#*://}
   literal_host=${literal_host%%/*}
   case "$literal_host" in
-    YOUR_AUTH0_DOMAIN|PROJECT_REF.supabase.co|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|media-processor.internal|media-scanner.internal|push-provider.internal)
+    PROJECT_REF.supabase.co|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|media-processor.internal|media-scanner.internal|push-provider.internal)
       ;;
     # Frame messages are reviewed as an exact production/beta pair. Do not
     # broaden this to a wildcard subdomain allowlist.
     just-build-this.app|beta.just-build-this.app)
       ;;
-    *.auth0.com)
-      ;;
     *) fail "unreviewed literal production host: $literal_host" ;;
   esac
 done
 
-# Runtime egress is allowlisted by exact callsite shape, service binding, and
-# internal URL. A whole-file exemption would let an unrelated or dynamically
-# addressed provider call inherit approval merely by being placed in one of
-# these files.
+# Portable API code is imported by Edge entrypoints and must remain incapable
+# of direct network egress. Supabase Edge owns every reviewed fetch callsite.
 api_fetch_occurrences=$(
   rg -o -N '\.fetch\(|(^|[^[:alnum:]_])fetch\(' \
     "$audit_root/ritual-investing-api/src" \
     --glob '*.ts' --glob '!**/generated/**' || true
 )
 api_fetch_count=$(printf '%s\n' "$api_fetch_occurrences" | sed '/^$/d' | wc -l | tr -d ' ')
-test "$api_fetch_count" -eq 4 || \
-  fail "expected 4 reviewed API entrypoint/static-asset fetch occurrences, found $api_fetch_count"
-
-worker_handler_count=$(
-  rg --count-matches '^  fetch\(request, environment, executionContext\) \{$' \
-    "$api_entrypoint" || true
-)
-app_dispatch_count=$(
-  rg --count-matches '^[[:space:]]*return app\.fetch\(request, bindings, executionContext\);$' \
-    "$api_entrypoint" || true
-)
-admin_assets_count=$(
-  rg --count-matches '^[[:space:]]*return bindings\.ADMIN_ASSETS\.fetch\(request\)\.then\(\(response\) =>$' \
-    "$api_entrypoint" || true
-)
-test "${worker_handler_count:-0}" -eq 1 || \
-  fail "Worker fetch handler no longer matches its reviewed callsite"
-test "${app_dispatch_count:-0}" -eq 2 || \
-  fail "Hono app dispatches no longer match their 2 reviewed callsites"
-test "${admin_assets_count:-0}" -eq 1 || \
-  fail "ADMIN_ASSETS fetch no longer matches its reviewed callsite"
+test "$api_fetch_count" -eq 0 || \
+  fail "portable API source contains $api_fetch_count direct fetch call(s)"
 if rg -n 'dependencyFetch\(|PUSH_PROVIDER|MEDIA_SCANNER|MEDIA_PROCESSOR' \
   "$job_handlers"; then
   fail "portable API job handlers regained direct provider egress"

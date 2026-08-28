@@ -60,7 +60,9 @@ describe("R2 media quarantine completion", () => {
   ])("reads %s WebP dimensions", async (chunk, width, height) => {
     const bytes = webpHeader(chunk, width, height);
     const expectedChecksum = [
-      ...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)),
+      ...new Uint8Array(
+        await crypto.subtle.digest("SHA-256", Uint8Array.from(bytes).buffer),
+      ),
     ]
       .map((byte) => byte.toString(16).padStart(2, "0"))
       .join("");

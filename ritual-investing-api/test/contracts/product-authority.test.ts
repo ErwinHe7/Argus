@@ -69,12 +69,12 @@ function expectExactlyOnce(actual: string[], expected: string[], label: string) 
 }
 
 function currentTables(): string[] {
-  const migrations = readdirSync(join(repoRoot, "ritual-investing-api/drizzle"))
+  const migrations = readdirSync(join(repoRoot, "supabase/migrations"))
     .filter((path) => path.endsWith(".sql"))
-    .map((path) => readRepo(`ritual-investing-api/drizzle/${path}`))
+    .map((path) => readRepo(`supabase/migrations/${path}`))
     .join("\n");
   return [...migrations.matchAll(/create table(?: if not exists)?\s+([\w.\"]+)/gi)]
-    .map((match) => match[1]!.replaceAll('"', ""))
+    .map((match) => match[1]!.replaceAll('"', "").split(".").at(-1)!)
     .filter((table, index, all) => all.indexOf(table) === index);
 }
 
@@ -116,20 +116,47 @@ describe("product authority contract", () => {
     );
   });
 
-  it("classifies every current table, API domain, and queue handler exactly once", () => {
+  it("classifies every current Supabase table, API domain, and queue handler without reviving deleted authority", () => {
     const entries = inventoryEntries();
-    expectExactlyOnce(
-      entries.filter(({ surface }) => surface.startsWith("database-table:"))
-        .map(({ surface }) => surface.slice("database-table:".length)),
-      currentTables(),
-      "database table",
+    const tableEntries = entries.filter(({ surface }) =>
+      surface.startsWith("database-table:")
     );
-    expectExactlyOnce(
-      entries.filter(({ surface }) => surface.startsWith("api-domain:"))
-        .map(({ surface }) => surface.slice("api-domain:".length)),
-      currentApiDomains(),
-      "API domain",
+    const currentTableSet = new Set(currentTables());
+    for (const table of currentTableSet) {
+      expect(
+        tableEntries.filter(({ surface, classification }) =>
+          surface === `database-table:${table}` && classification !== "deleted"
+        ),
+        `${table} must have one live authority entry`,
+      ).toHaveLength(1);
+    }
+    for (const { surface, classification } of tableEntries) {
+      if (classification === "deleted") {
+        expect(currentTableSet, `${surface} must be absent from Supabase`).not.toContain(
+          surface.slice("database-table:".length),
+        );
+      }
+    }
+
+    const currentDomainSet = new Set(currentApiDomains());
+    const domainEntries = entries.filter(({ surface }) =>
+      surface.startsWith("api-domain:")
     );
+    for (const domain of currentDomainSet) {
+      expect(
+        domainEntries.filter(({ surface, classification }) =>
+          surface === `api-domain:${domain}` && classification !== "deleted"
+        ),
+        `${domain} must have one live authority entry`,
+      ).toHaveLength(1);
+    }
+    for (const { surface, classification } of domainEntries) {
+      if (classification === "deleted") {
+        expect(currentDomainSet, `${surface} must be absent from the API`).not.toContain(
+          surface.slice("api-domain:".length),
+        );
+      }
+    }
     for (const handler of currentQueueConsumers()) {
       expect(
         entries.filter(({ surface }) => surface === `background-handler:${handler}`),

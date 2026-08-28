@@ -19,7 +19,7 @@ write_allowed_fixture() {
 dependencies:
   flutter:
     sdk: flutter
-  auth0_flutter: ^2.6.0
+  supabase_flutter: 2.17.2
   dio: ^5.9.2
 EOF
   cat >"$fixture/ritual-investing-api/package.json" <<'EOF'
@@ -27,23 +27,10 @@ EOF
 EOF
   cat >"$fixture/ritual-investing-app/lib/runtime.dart" <<'EOF'
 const apiOrigin = 'https://api.just-build-this.app';
-const authOrigin = 'https://tenant.us.auth0.com';
+const authOrigin = 'https://PROJECT_REF.supabase.co';
 EOF
   cat >"$fixture/ritual-investing-demo/lib/main.dart" <<'EOF'
 const mode = 'memory-only';
-EOF
-  cat >"$fixture/ritual-investing-api/src/index.ts" <<'EOF'
-const worker = {
-  fetch(request, environment, executionContext) {
-    if (new URL(request.url).pathname.startsWith("/v1/"))
-      return app.fetch(request, bindings, executionContext);
-    if (bindings.ADMIN_ASSETS !== undefined)
-      return bindings.ADMIN_ASSETS.fetch(request).then((response) =>
-        secureAdminAsset(response),
-      );
-    return app.fetch(request, bindings, executionContext);
-  },
-};
 EOF
   cat >"$fixture/ritual-investing-api/src/jobs/handlers.ts" <<'EOF'
 export const handlers = Object.freeze({});
@@ -86,6 +73,10 @@ grep -F "provider boundary audit passed" "$fixture-output" >/dev/null
 
 printf '\n  stripe_sdk: ^1.0.0\n' >>"$fixture/ritual-investing-app/pubspec.yaml"
 expect_failure "a prohibited production SDK"
+
+write_allowed_fixture
+printf '\n  auth0_flutter: ^2.6.0\n' >>"$fixture/ritual-investing-app/pubspec.yaml"
+expect_failure "retired Auth0 authority"
 
 write_allowed_fixture
 printf "const provider = 'https://passport.webull.com/connect';\n" \

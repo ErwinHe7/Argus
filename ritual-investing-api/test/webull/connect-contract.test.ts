@@ -91,7 +91,7 @@ describe("Webull Connect promotion gate", () => {
       },
       rateLimit: { consume },
       parseAccounts: () => [],
-      fetch: vi.fn(async (url: URL | RequestInfo, init?: RequestInit) => {
+      fetch: vi.fn(async (url: URL | string | Request, init?: RequestInit) => {
         calls.push({ url: new URL(String(url)), init: init! });
         return new Response(
           JSON.stringify({
