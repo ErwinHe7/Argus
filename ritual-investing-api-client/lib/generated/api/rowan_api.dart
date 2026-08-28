@@ -9,21 +9,20 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/error_response.dart';
-import 'package:ritual_investing_api_client/generated/model/rowan_counsel_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 
 class RowanApi {
   final Dio _dio;
 
   const RowanApi(this._dio);
 
-  /// getRowanCounsel
+  /// resolveRowan
   ///
   ///
   /// Parameters:
   /// * [surface]
-  /// * [contextCode]
-  /// * [resourceId]
+  /// * [contextKey]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -31,12 +30,11 @@ class RowanApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [RowanCounselResponse] as data
+  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<RowanCounselResponse>> getRowanCounsel({
+  Future<Response<GetAccount200Response>> resolveRowan({
     required String surface,
-    required String contextCode,
-    String? resourceId,
+    required String contextKey,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -44,43 +42,48 @@ class RowanApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/rowan/counsel';
+    final _path = r'/v1/rowan/{surface}/{context_key}'
+        .replaceAll(
+          '{'
+          r'surface'
+          '}',
+          surface.toString(),
+        )
+        .replaceAll(
+          '{'
+          r'context_key'
+          '}',
+          contextKey.toString(),
+        );
     final _options = Options(
       method: r'GET',
       headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {'type': 'oauth2', 'name': 'Auth0OAuth'},
+          {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
         ],
         ...?extra,
       },
       validateStatus: validateStatus,
     );
 
-    final _queryParameters = <String, dynamic>{
-      r'surface': surface,
-      r'context_code': contextCode,
-      if (resourceId != null) r'resource_id': resourceId,
-    };
-
     final _response = await _dio.request<Object>(
       _path,
       options: _options,
-      queryParameters: _queryParameters,
       cancelToken: cancelToken,
       onSendProgress: onSendProgress,
       onReceiveProgress: onReceiveProgress,
     );
 
-    RowanCounselResponse? _responseData;
+    GetAccount200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<RowanCounselResponse, RowanCounselResponse>(
+          : deserialize<GetAccount200Response, GetAccount200Response>(
               rawData,
-              'RowanCounselResponse',
+              'GetAccount200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -93,7 +96,7 @@ class RowanApi {
       );
     }
 
-    return Response<RowanCounselResponse>(
+    return Response<GetAccount200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

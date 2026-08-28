@@ -1,0 +1,16 @@
+{
+  "imports": {
+    "@hono/zod-openapi": "npm:@hono/zod-openapi@1.6.1",
+    "hono": "npm:hono@4.13.3",
+    "hono/": "npm:/hono@4.13.3/",
+    "jose": "npm:jose@6.2.10",
+    "postgres": "npm:postgres@3.4.7",
+    "jsr:@std/assert@1.0.15": "jsr:@std/assert@1.0.15",
+    "zod": "npm:zod@4.4.3"
+  },
+  "lock": "./deno.lock",
+  "tasks": {
+    "check": "deno check index.ts ../_shared/auth.ts ../_shared/database.ts ../_shared/http.ts ../_shared/rate-limit.ts",
+    "test": "deno test --allow-env api_test.ts"
+  }
+}

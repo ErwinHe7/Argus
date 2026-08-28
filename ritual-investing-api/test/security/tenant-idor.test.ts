@@ -71,7 +71,7 @@ describe("request-local tenant context", () => {
     expect(portSource).not.toMatch(/@neondatabase|drizzle-orm\/neon/i);
     expect(transactionSource).toMatch(/"argus_runtime"/i);
     expect(transactionSource).toMatch(/argus_private\.set_request_context/i);
-    expect(transactionSource).toMatch(/from "\.\/database-port"/i);
+    expect(transactionSource).toMatch(/from "\.\/database-port(?:\.ts)?"/i);
     expect(transactionSource).not.toMatch(/from "\.\/client(?:\.ts)?"/i);
     expect(transactionSource).not.toMatch(/identityDatabaseUrl|runtimeDatabaseUrl|verifiedSubject/i);
   });

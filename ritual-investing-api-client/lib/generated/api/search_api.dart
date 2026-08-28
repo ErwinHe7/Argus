@@ -9,21 +9,19 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
-import 'package:ritual_investing_api_client/generated/model/error_response.dart';
-import 'package:ritual_investing_api_client/generated/model/search_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_account200_response.dart';
+import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
 
 class SearchApi {
   final Dio _dio;
 
   const SearchApi(this._dio);
 
-  /// searchPublishedCatalog
+  /// search
   ///
   ///
   /// Parameters:
   /// * [q]
-  /// * [kinds]
-  /// * [cursor]
   /// * [limit]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
@@ -32,13 +30,11 @@ class SearchApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [SearchResponse] as data
+  /// Returns a [Future] containing a [Response] with a [GetAccount200Response] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<SearchResponse>> searchPublishedCatalog({
+  Future<Response<GetAccount200Response>> search({
     required String q,
-    required String kinds,
-    String? cursor,
-    int? limit = 20,
+    int? limit = 25,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -52,7 +48,7 @@ class SearchApi {
       headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {'type': 'oauth2', 'name': 'Auth0OAuth'},
+          {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
         ],
         ...?extra,
       },
@@ -61,8 +57,6 @@ class SearchApi {
 
     final _queryParameters = <String, dynamic>{
       r'q': q,
-      r'kinds': kinds,
-      if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
     };
 
@@ -75,15 +69,15 @@ class SearchApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    SearchResponse? _responseData;
+    GetAccount200Response? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<SearchResponse, SearchResponse>(
+          : deserialize<GetAccount200Response, GetAccount200Response>(
               rawData,
-              'SearchResponse',
+              'GetAccount200Response',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -96,7 +90,7 @@ class SearchApi {
       );
     }
 
-    return Response<SearchResponse>(
+    return Response<GetAccount200Response>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

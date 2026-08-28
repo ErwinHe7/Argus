@@ -5,38 +5,74 @@
 import 'package:ritual_investing_api_client/api.dart';
 ```
 
-All URIs are relative to *https://api.ritual-investing.example*
+All URIs are relative to *https://PROJECT_REF.supabase.co/functions/v1/api*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**completeRitual**](RitualsApi.md#completeritual) | **POST** /v1/rituals/{assignment_id}/complete | 
-[**getDailyRitual**](RitualsApi.md#getdailyritual) | **GET** /v1/rituals/daily | 
-[**getRitualAssignment**](RitualsApi.md#getritualassignment) | **GET** /v1/rituals/{assignment_id} | 
-[**getRitualEvidence**](RitualsApi.md#getritualevidence) | **GET** /v1/rituals/{assignment_id}/evidence | 
-[**listRitualHistory**](RitualsApi.md#listritualhistory) | **GET** /v1/rituals/history | 
-[**revealRitual**](RitualsApi.md#revealritual) | **POST** /v1/rituals/{assignment_id}/reveal | 
+[**getRitual**](RitualsApi.md#getritual) | **GET** /v1/rituals/{assignment_id} | 
+[**transitionRitual**](RitualsApi.md#transitionritual) | **POST** /v1/rituals/{assignment_id}/transition | 
 
 
-# **completeRitual**
-> GetRitualAssignment200Response completeRitual(assignmentId, ifMatch)
+# **getRitual**
+> GetAccount200Response getRitual(assignmentId)
 
 
 
 ### Example
 ```dart
 import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
+
+final api = RitualInvestingApiClient().getRitualsApi();
+final String assignmentId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+
+try {
+    final response = api.getRitual(assignmentId);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling RitualsApi->getRitual: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **assignmentId** | **String**|  | 
+
+### Return type
+
+[**GetAccount200Response**](GetAccount200Response.md)
+
+### Authorization
+
+[SupabaseBearer](../README.md#SupabaseBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **transitionRitual**
+> GetAccount200Response transitionRitual(assignmentId, ifMatch, transitionRitualRequest)
+
+
+
+### Example
+```dart
+import 'package:ritual_investing_api_client/api.dart';
 
 final api = RitualInvestingApiClient().getRitualsApi();
 final String assignmentId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
 final String ifMatch = ifMatch_example; // String | 
+final TransitionRitualRequest transitionRitualRequest = ; // TransitionRitualRequest | 
 
 try {
-    final response = api.completeRitual(assignmentId, ifMatch);
+    final response = api.transitionRitual(assignmentId, ifMatch, transitionRitualRequest);
     print(response);
 } on DioException catch (e) {
-    print('Exception when calling RitualsApi->completeRitual: $e\n');
+    print('Exception when calling RitualsApi->transitionRitual: $e\n');
 }
 ```
 
@@ -46,245 +82,19 @@ Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **assignmentId** | **String**|  | 
  **ifMatch** | **String**|  | 
+ **transitionRitualRequest** | [**TransitionRitualRequest**](TransitionRitualRequest.md)|  | 
 
 ### Return type
 
-[**GetRitualAssignment200Response**](GetRitualAssignment200Response.md)
+[**GetAccount200Response**](GetAccount200Response.md)
 
 ### Authorization
 
-[Auth0OAuth](../README.md#Auth0OAuth)
+[SupabaseBearer](../README.md#SupabaseBearer)
 
 ### HTTP request headers
 
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **getDailyRitual**
-> DailyRitualResponse getDailyRitual(date, mode)
-
-
-
-### Example
-```dart
-import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
-
-final api = RitualInvestingApiClient().getRitualsApi();
-final DateTime date = 2013-10-20; // DateTime | 
-final String mode = mode_example; // String | 
-
-try {
-    final response = api.getDailyRitual(date, mode);
-    print(response);
-} on DioException catch (e) {
-    print('Exception when calling RitualsApi->getDailyRitual: $e\n');
-}
-```
-
-### Parameters
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **date** | **DateTime**|  | [optional] 
- **mode** | **String**|  | [optional] [default to 'tarot']
-
-### Return type
-
-[**DailyRitualResponse**](DailyRitualResponse.md)
-
-### Authorization
-
-[Auth0OAuth](../README.md#Auth0OAuth)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **getRitualAssignment**
-> GetRitualAssignment200Response getRitualAssignment(assignmentId)
-
-
-
-### Example
-```dart
-import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
-
-final api = RitualInvestingApiClient().getRitualsApi();
-final String assignmentId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
-
-try {
-    final response = api.getRitualAssignment(assignmentId);
-    print(response);
-} on DioException catch (e) {
-    print('Exception when calling RitualsApi->getRitualAssignment: $e\n');
-}
-```
-
-### Parameters
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **assignmentId** | **String**|  | 
-
-### Return type
-
-[**GetRitualAssignment200Response**](GetRitualAssignment200Response.md)
-
-### Authorization
-
-[Auth0OAuth](../README.md#Auth0OAuth)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **getRitualEvidence**
-> RitualEvidenceResponse getRitualEvidence(assignmentId)
-
-
-
-### Example
-```dart
-import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
-
-final api = RitualInvestingApiClient().getRitualsApi();
-final String assignmentId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
-
-try {
-    final response = api.getRitualEvidence(assignmentId);
-    print(response);
-} on DioException catch (e) {
-    print('Exception when calling RitualsApi->getRitualEvidence: $e\n');
-}
-```
-
-### Parameters
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **assignmentId** | **String**|  | 
-
-### Return type
-
-[**RitualEvidenceResponse**](RitualEvidenceResponse.md)
-
-### Authorization
-
-[Auth0OAuth](../README.md#Auth0OAuth)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **listRitualHistory**
-> RitualHistoryResponse listRitualHistory(mode, from, to, cursor, limit)
-
-
-
-### Example
-```dart
-import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
-
-final api = RitualInvestingApiClient().getRitualsApi();
-final String mode = mode_example; // String | 
-final DateTime from = 2013-10-20; // DateTime | 
-final DateTime to = 2013-10-20; // DateTime | 
-final String cursor = cursor_example; // String | 
-final int limit = 56; // int | 
-
-try {
-    final response = api.listRitualHistory(mode, from, to, cursor, limit);
-    print(response);
-} on DioException catch (e) {
-    print('Exception when calling RitualsApi->listRitualHistory: $e\n');
-}
-```
-
-### Parameters
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **mode** | **String**|  | [optional] 
- **from** | **DateTime**|  | [optional] 
- **to** | **DateTime**|  | [optional] 
- **cursor** | **String**|  | [optional] 
- **limit** | **int**|  | [optional] [default to 20]
-
-### Return type
-
-[**RitualHistoryResponse**](RitualHistoryResponse.md)
-
-### Authorization
-
-[Auth0OAuth](../README.md#Auth0OAuth)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
-# **revealRitual**
-> GetRitualAssignment200Response revealRitual(assignmentId, ifMatch)
-
-
-
-### Example
-```dart
-import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
-
-final api = RitualInvestingApiClient().getRitualsApi();
-final String assignmentId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
-final String ifMatch = ifMatch_example; // String | 
-
-try {
-    final response = api.revealRitual(assignmentId, ifMatch);
-    print(response);
-} on DioException catch (e) {
-    print('Exception when calling RitualsApi->revealRitual: $e\n');
-}
-```
-
-### Parameters
-
-Name | Type | Description  | Notes
-------------- | ------------- | ------------- | -------------
- **assignmentId** | **String**|  | 
- **ifMatch** | **String**|  | 
-
-### Return type
-
-[**GetRitualAssignment200Response**](GetRitualAssignment200Response.md)
-
-### Authorization
-
-[Auth0OAuth](../README.md#Auth0OAuth)
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
+ - **Content-Type**: application/json
  - **Accept**: application/json
 
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)

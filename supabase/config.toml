@@ -359,6 +359,15 @@ inspector_port = 8083
 # The Deno major version to use.
 deno_version = 2
 
+[functions.api]
+enabled = true
+# Supabase's legacy gateway verifier does not support every current asymmetric
+# signing-key flow. The function performs explicit issuer, audience, signature,
+# expiry, session, role, and AAL verification against Auth JWKS instead.
+verify_jwt = false
+import_map = "./functions/api/deno.json"
+entrypoint = "./functions/api/index.ts"
+
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 

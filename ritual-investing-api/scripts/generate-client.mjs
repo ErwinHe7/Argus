@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -18,6 +18,14 @@ function run(command, arguments_, cwd) {
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
+
+// The re-architecture intentionally removes obsolete Demo operations. Clean
+// only generator-owned outputs so stale APIs/models cannot survive a breaking
+// contract regeneration and masquerade as supported client surface.
+await Promise.all([
+  rm(resolve(clientRoot, "lib/generated"), { recursive: true, force: true }),
+  rm(resolve(clientRoot, "doc"), { recursive: true, force: true }),
+]);
 
 run(
   process.execPath,
@@ -44,28 +52,29 @@ const adminMediaApi = await readFile(adminMediaApiPath, "utf8");
 const uploadMethod = adminMediaApi.indexOf(
   "Future<Response<void>> uploadMediaQuarantineContent",
 );
-const encodedBodyStart = adminMediaApi.indexOf(
-  "    dynamic _bodyData;",
-  uploadMethod,
-);
-const requestStart = adminMediaApi.indexOf(
-  "    final _response",
-  encodedBodyStart,
-);
-const encodedBody = adminMediaApi.slice(encodedBodyStart, requestStart);
-if (
-  uploadMethod < 0 ||
-  encodedBodyStart < 0 ||
-  requestStart < 0 ||
-  !encodedBody.includes("jsonEncode(body)")
-) {
-  throw new Error("generated binary upload shape changed; review the workaround");
+if (uploadMethod >= 0) {
+  const encodedBodyStart = adminMediaApi.indexOf(
+    "    dynamic _bodyData;",
+    uploadMethod,
+  );
+  const requestStart = adminMediaApi.indexOf(
+    "    final _response",
+    encodedBodyStart,
+  );
+  const encodedBody = adminMediaApi.slice(encodedBodyStart, requestStart);
+  if (
+    encodedBodyStart < 0 ||
+    requestStart < 0 ||
+    !encodedBody.includes("jsonEncode(body)")
+  ) {
+    throw new Error("generated binary upload shape changed; review the workaround");
+  }
+  await writeFile(
+    adminMediaApiPath,
+    `${adminMediaApi.slice(0, encodedBodyStart)}    final _bodyData = body;\n\n${adminMediaApi.slice(requestStart)}`,
+    "utf8",
+  );
 }
-await writeFile(
-  adminMediaApiPath,
-  `${adminMediaApi.slice(0, encodedBodyStart)}    final _bodyData = body;\n\n${adminMediaApi.slice(requestStart)}`,
-  "utf8",
-);
 run(dart, ["pub", "get"], clientRoot);
 run(
   dart,

@@ -5,34 +5,31 @@
 import 'package:ritual_investing_api_client/api.dart';
 ```
 
-All URIs are relative to *https://api.ritual-investing.example*
+All URIs are relative to *https://PROJECT_REF.supabase.co/functions/v1/api*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**getRowanCounsel**](RowanApi.md#getrowancounsel) | **GET** /v1/rowan/counsel | 
+[**resolveRowan**](RowanApi.md#resolverowan) | **GET** /v1/rowan/{surface}/{context_key} | 
 
 
-# **getRowanCounsel**
-> RowanCounselResponse getRowanCounsel(surface, contextCode, resourceId)
+# **resolveRowan**
+> GetAccount200Response resolveRowan(surface, contextKey)
 
 
 
 ### Example
 ```dart
 import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
 
 final api = RitualInvestingApiClient().getRowanApi();
 final String surface = surface_example; // String | 
-final String contextCode = contextCode_example; // String | 
-final String resourceId = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+final String contextKey = contextKey_example; // String | 
 
 try {
-    final response = api.getRowanCounsel(surface, contextCode, resourceId);
+    final response = api.resolveRowan(surface, contextKey);
     print(response);
 } on DioException catch (e) {
-    print('Exception when calling RowanApi->getRowanCounsel: $e\n');
+    print('Exception when calling RowanApi->resolveRowan: $e\n');
 }
 ```
 
@@ -41,16 +38,15 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **surface** | **String**|  | 
- **contextCode** | **String**|  | 
- **resourceId** | **String**|  | [optional] 
+ **contextKey** | **String**|  | 
 
 ### Return type
 
-[**RowanCounselResponse**](RowanCounselResponse.md)
+[**GetAccount200Response**](GetAccount200Response.md)
 
 ### Authorization
 
-[Auth0OAuth](../README.md#Auth0OAuth)
+[SupabaseBearer](../README.md#SupabaseBearer)
 
 ### HTTP request headers
 

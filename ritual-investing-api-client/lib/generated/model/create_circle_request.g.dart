@@ -7,9 +7,7 @@ part of 'create_circle_request.dart';
 // **************************************************************************
 
 abstract class _$CreateCircleRequestCWProxy {
-  CreateCircleRequest assets(List<CreateCircleRequestAssetsInner>? assets);
-
-  CreateCircleRequest description(String? description);
+  CreateCircleRequest description(String description);
 
   CreateCircleRequest title(String title);
 
@@ -19,11 +17,7 @@ abstract class _$CreateCircleRequestCWProxy {
   /// ```dart
   /// CreateCircleRequest(...).copyWith(id: 12, name: "My name")
   /// ````
-  CreateCircleRequest call({
-    List<CreateCircleRequestAssetsInner>? assets,
-    String? description,
-    String title,
-  });
+  CreateCircleRequest call({String description, String title});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfCreateCircleRequest.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfCreateCircleRequest.copyWith.fieldName(...)`
@@ -33,11 +27,7 @@ class _$CreateCircleRequestCWProxyImpl implements _$CreateCircleRequestCWProxy {
   final CreateCircleRequest _value;
 
   @override
-  CreateCircleRequest assets(List<CreateCircleRequestAssetsInner>? assets) =>
-      this(assets: assets);
-
-  @override
-  CreateCircleRequest description(String? description) =>
+  CreateCircleRequest description(String description) =>
       this(description: description);
 
   @override
@@ -51,19 +41,14 @@ class _$CreateCircleRequestCWProxyImpl implements _$CreateCircleRequestCWProxy {
   /// CreateCircleRequest(...).copyWith(id: 12, name: "My name")
   /// ````
   CreateCircleRequest call({
-    Object? assets = const $CopyWithPlaceholder(),
     Object? description = const $CopyWithPlaceholder(),
     Object? title = const $CopyWithPlaceholder(),
   }) {
     return CreateCircleRequest(
-      assets: assets == const $CopyWithPlaceholder()
-          ? _value.assets
-          // ignore: cast_nullable_to_non_nullable
-          : assets as List<CreateCircleRequestAssetsInner>?,
       description: description == const $CopyWithPlaceholder()
           ? _value.description
           // ignore: cast_nullable_to_non_nullable
-          : description as String?,
+          : description as String,
       title: title == const $CopyWithPlaceholder()
           ? _value.title
           // ignore: cast_nullable_to_non_nullable
@@ -85,19 +70,9 @@ extension $CreateCircleRequestCopyWith on CreateCircleRequest {
 
 CreateCircleRequest _$CreateCircleRequestFromJson(Map<String, dynamic> json) =>
     $checkedCreate('CreateCircleRequest', json, ($checkedConvert) {
-      $checkKeys(json, requiredKeys: const ['title']);
+      $checkKeys(json, requiredKeys: const ['description', 'title']);
       final val = CreateCircleRequest(
-        assets: $checkedConvert(
-          'assets',
-          (v) => (v as List<dynamic>?)
-              ?.map(
-                (e) => CreateCircleRequestAssetsInner.fromJson(
-                  e as Map<String, dynamic>,
-                ),
-              )
-              .toList(),
-        ),
-        description: $checkedConvert('description', (v) => v as String?),
+        description: $checkedConvert('description', (v) => v as String),
         title: $checkedConvert('title', (v) => v as String),
       );
       return val;
@@ -106,7 +81,6 @@ CreateCircleRequest _$CreateCircleRequestFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$CreateCircleRequestToJson(
   CreateCircleRequest instance,
 ) => <String, dynamic>{
-  'assets': ?instance.assets?.map((e) => e.toJson()).toList(),
-  'description': ?instance.description,
+  'description': instance.description,
   'title': instance.title,
 };

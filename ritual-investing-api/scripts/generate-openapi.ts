@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import { stringify } from "yaml";
 
-import { createApp } from "../src/app.ts";
-import { buildOpenApiDocument } from "../src/contracts/openapi.ts";
+import {
+  buildRetainedOpenApiDocument,
+  createRetainedApp,
+} from "../src/retained-app.ts";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
 const outputPath = resolve(scriptDirectory, "../openapi/ritual-investing-v1.yaml");
@@ -22,7 +24,29 @@ function sortValue(value: unknown): unknown {
   return value;
 }
 
-const document = sortValue(buildOpenApiDocument(createApp()));
+// Generation deliberately targets the clean Supabase contract. The legacy
+// Worker factory remains executable until U13, but is not a source for new
+// client artifacts and therefore cannot reintroduce Demo financial routes.
+const contractApp = createRetainedApp({
+  verifyAccessToken: async () => {
+    throw new Error("contract_generation_does_not_verify_tokens");
+  },
+  createRepositories: () => {
+    throw new Error("contract_generation_does_not_access_repositories");
+  },
+  publicPreviewRepository: {
+    listPublished: async () => {
+      throw new Error("contract_generation_does_not_access_repositories");
+    },
+    getPublished: async () => {
+      throw new Error("contract_generation_does_not_access_repositories");
+    },
+  },
+  rateLimit: {
+    allow: async () => ({ allowed: true }),
+  },
+});
+const document = sortValue(buildRetainedOpenApiDocument(contractApp));
 const output = stringify(document, { lineWidth: 0 });
 const checkOnly = process.argv.includes("--check");
 

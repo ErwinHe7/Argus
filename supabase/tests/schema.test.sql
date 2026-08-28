@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(23);
+select plan(32);
 
 select has_schema('argus_app', 'Argus-owned state has a private schema');
 select has_schema('argus_brokerage', 'brokerage projections have a private schema');
@@ -53,6 +53,72 @@ select is(
 select ok(
   exists (select 1 from pg_roles where rolname = 'argus_runtime' and not rolcanlogin),
   'runtime capability role is non-login until a separately rotated credential is provisioned'
+);
+
+select ok(
+  exists (select 1 from pg_roles where rolname = 'argus_edge' and rolcanlogin),
+  'Edge pooler identity is a LOGIN role'
+);
+
+select ok(
+  exists (
+    select 1 from pg_roles
+     where rolname = 'argus_edge'
+       and not rolsuper and not rolcreaterole and not rolcreatedb
+       and not rolreplication and not rolbypassrls
+  ),
+  'Edge pooler identity cannot bypass RLS or administer PostgreSQL'
+);
+
+select ok(
+  exists (select 1 from pg_roles where rolname = 'argus_edge' and not rolinherit),
+  'Edge pooler identity cannot inherit application privileges outside SET ROLE'
+);
+
+select ok(
+  pg_has_role('argus_edge', 'argus_runtime', 'member'),
+  'Edge pooler identity may SET ROLE to the runtime capability role'
+);
+
+select is(
+  (select count(*)::bigint
+     from pg_auth_members membership
+     join pg_roles member on member.oid = membership.member
+     join pg_roles parent on parent.oid = membership.roleid
+    where member.rolname = 'argus_edge' and parent.rolname <> 'argus_runtime'),
+  0::bigint,
+  'Edge pooler identity has no role membership except argus_runtime'
+);
+
+select ok(
+  not has_schema_privilege('argus_edge', 'argus_app', 'usage')
+    and not has_schema_privilege('argus_edge', 'argus_brokerage', 'usage')
+    and not has_schema_privilege('argus_edge', 'argus_private', 'usage'),
+  'Edge pooler identity has no direct application schema privileges'
+);
+
+select is(
+  (select count(*)::bigint
+     from information_schema.role_table_grants
+    where grantee = 'argus_edge'
+      and table_schema in ('argus_app', 'argus_brokerage', 'argus_private')),
+  0::bigint,
+  'Edge pooler identity has no direct application table privileges'
+);
+
+select ok(
+  (select rolpassword is null from pg_authid where rolname = 'argus_edge'),
+  'Edge pooler password is provisioned out-of-band, not by migrations'
+);
+
+select ok(
+  (select rolconfig @> array[
+    'statement_timeout=15s',
+    'lock_timeout=3s',
+    'idle_in_transaction_session_timeout=15s',
+    'idle_session_timeout=5min'
+  ] from pg_roles where rolname = 'argus_edge'),
+  'Edge pooler identity has bounded query and idle timeouts'
 );
 
 select is(

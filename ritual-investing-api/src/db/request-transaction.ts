@@ -2,11 +2,11 @@ import {
   type DatabaseClient,
   type DatabasePool,
   withDatabaseTransaction,
-} from "./database-port";
+} from "./database-port.ts";
 import {
   createVerifiedRequestClaims,
   type VerifiedRequestClaims,
-} from "./request-context";
+} from "./request-context.ts";
 
 export type RequestDatabase = DatabaseClient;
 

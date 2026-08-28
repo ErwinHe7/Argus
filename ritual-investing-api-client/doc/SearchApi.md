@@ -5,35 +5,31 @@
 import 'package:ritual_investing_api_client/api.dart';
 ```
 
-All URIs are relative to *https://api.ritual-investing.example*
+All URIs are relative to *https://PROJECT_REF.supabase.co/functions/v1/api*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**searchPublishedCatalog**](SearchApi.md#searchpublishedcatalog) | **GET** /v1/search | 
+[**search**](SearchApi.md#search) | **GET** /v1/search | 
 
 
-# **searchPublishedCatalog**
-> SearchResponse searchPublishedCatalog(q, kinds, cursor, limit)
+# **search**
+> GetAccount200Response search(q, limit)
 
 
 
 ### Example
 ```dart
 import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
 
 final api = RitualInvestingApiClient().getSearchApi();
 final String q = q_example; // String | 
-final String kinds = kinds_example; // String | 
-final String cursor = cursor_example; // String | 
 final int limit = 56; // int | 
 
 try {
-    final response = api.searchPublishedCatalog(q, kinds, cursor, limit);
+    final response = api.search(q, limit);
     print(response);
 } on DioException catch (e) {
-    print('Exception when calling SearchApi->searchPublishedCatalog: $e\n');
+    print('Exception when calling SearchApi->search: $e\n');
 }
 ```
 
@@ -42,17 +38,15 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **q** | **String**|  | 
- **kinds** | **String**|  | 
- **cursor** | **String**|  | [optional] 
- **limit** | **int**|  | [optional] [default to 20]
+ **limit** | **int**|  | [optional] [default to 25]
 
 ### Return type
 
-[**SearchResponse**](SearchResponse.md)
+[**GetAccount200Response**](GetAccount200Response.md)
 
 ### Authorization
 
-[Auth0OAuth](../README.md#Auth0OAuth)
+[SupabaseBearer](../README.md#SupabaseBearer)
 
 ### HTTP request headers
 

@@ -5,54 +5,16 @@
 import 'package:ritual_investing_api_client/api.dart';
 ```
 
-All URIs are relative to *https://api.ritual-investing.example*
+All URIs are relative to *https://PROJECT_REF.supabase.co/functions/v1/api*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**getHealth**](PlatformApi.md#gethealth) | **GET** /health | 
 [**getLiveHealth**](PlatformApi.md#getlivehealth) | **GET** /v1/health/live | 
 [**getOpenApiDocument**](PlatformApi.md#getopenapidocument) | **GET** /v1/openapi.json | 
 
 
-# **getHealth**
-> HealthResponse getHealth()
-
-
-
-### Example
-```dart
-import 'package:ritual_investing_api_client/api.dart';
-
-final api = RitualInvestingApiClient().getPlatformApi();
-
-try {
-    final response = api.getHealth();
-    print(response);
-} on DioException catch (e) {
-    print('Exception when calling PlatformApi->getHealth: $e\n');
-}
-```
-
-### Parameters
-This endpoint does not need any parameter.
-
-### Return type
-
-[**HealthResponse**](HealthResponse.md)
-
-### Authorization
-
-No authorization required
-
-### HTTP request headers
-
- - **Content-Type**: Not defined
- - **Accept**: application/json
-
-[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
-
 # **getLiveHealth**
-> HealthResponse getLiveHealth()
+> GetAccount200Response getLiveHealth()
 
 
 
@@ -75,7 +37,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**HealthResponse**](HealthResponse.md)
+[**GetAccount200Response**](GetAccount200Response.md)
 
 ### Authorization
 
@@ -89,7 +51,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **getOpenApiDocument**
-> OpenApiDocument getOpenApiDocument()
+> GetAccount200Response getOpenApiDocument()
 
 
 
@@ -112,7 +74,7 @@ This endpoint does not need any parameter.
 
 ### Return type
 
-[**OpenApiDocument**](OpenApiDocument.md)
+[**GetAccount200Response**](GetAccount200Response.md)
 
 ### Authorization
 

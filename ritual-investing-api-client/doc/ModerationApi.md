@@ -5,33 +5,30 @@
 import 'package:ritual_investing_api_client/api.dart';
 ```
 
-All URIs are relative to *https://api.ritual-investing.example*
+All URIs are relative to *https://PROJECT_REF.supabase.co/functions/v1/api*
 
 Method | HTTP request | Description
 ------------- | ------------- | -------------
-[**createContentReport**](ModerationApi.md#createcontentreport) | **POST** /v1/content-reports | 
+[**reportContent**](ModerationApi.md#reportcontent) | **POST** /v1/moderation/reports | 
 
 
-# **createContentReport**
-> CreateContentReport201Response createContentReport(idempotencyKey, createContentReportRequest)
+# **reportContent**
+> GetAccount200Response reportContent(reportContentRequest)
 
 
 
 ### Example
 ```dart
 import 'package:ritual_investing_api_client/api.dart';
-// TODO Configure OAuth2 access token for authorization: Auth0OAuth
-//defaultApiClient.getAuthentication<OAuth>('Auth0OAuth').accessToken = 'YOUR_ACCESS_TOKEN';
 
 final api = RitualInvestingApiClient().getModerationApi();
-final String idempotencyKey = order-01JY7W4M5GYJ2E47KCEPD88N2K; // String | A retry-stable, tenant-and-operation-scoped command key.
-final CreateContentReportRequest createContentReportRequest = ; // CreateContentReportRequest | 
+final ReportContentRequest reportContentRequest = ; // ReportContentRequest | 
 
 try {
-    final response = api.createContentReport(idempotencyKey, createContentReportRequest);
+    final response = api.reportContent(reportContentRequest);
     print(response);
 } on DioException catch (e) {
-    print('Exception when calling ModerationApi->createContentReport: $e\n');
+    print('Exception when calling ModerationApi->reportContent: $e\n');
 }
 ```
 
@@ -39,16 +36,15 @@ try {
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
- **idempotencyKey** | **String**| A retry-stable, tenant-and-operation-scoped command key. | 
- **createContentReportRequest** | [**CreateContentReportRequest**](CreateContentReportRequest.md)|  | 
+ **reportContentRequest** | [**ReportContentRequest**](ReportContentRequest.md)|  | 
 
 ### Return type
 
-[**CreateContentReport201Response**](CreateContentReport201Response.md)
+[**GetAccount200Response**](GetAccount200Response.md)
 
 ### Authorization
 
-[Auth0OAuth](../README.md#Auth0OAuth)
+[SupabaseBearer](../README.md#SupabaseBearer)
 
 ### HTTP request headers
 
