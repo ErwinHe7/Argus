@@ -77,7 +77,8 @@ insert into auth.users (
 
 insert into argus_app.members (user_id) values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
-  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
+on conflict (user_id) do nothing;
 insert into argus_private.staff_principals (user_id, permissions, display_label)
 values ('cccccccc-cccc-4ccc-8ccc-cccccccccccc', array['editorial:read'], 'Test staff');
 insert into argus_app.editorial_items (id, kind, slug, status)
@@ -92,7 +93,8 @@ do $$ begin
   );
 end $$;
 insert into argus_app.profiles (user_id, deletion_epoch, display_name)
-values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0, 'User A');
+values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0, 'User A')
+on conflict (user_id) do update set display_name = excluded.display_name;
 
 select is(
   (select count(*)::bigint from argus_app.profiles),

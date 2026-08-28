@@ -153,3 +153,5 @@ export function createPostgresAdminModerationRepository(
       }),
   };
 }
+
+export { createSupabaseModerationRepository } from "../../db/supabase-repositories.ts";

@@ -911,3 +911,8 @@ async function loadAssignment(
         : new Date(row.completed_at).toISOString(),
   });
 }
+
+export {
+  createSupabaseEditorialRepository,
+  createSupabasePublicPreviewRepository,
+} from "../../db/supabase-repositories.ts";

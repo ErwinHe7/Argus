@@ -205,3 +205,5 @@ export function createPostgresAdminOperationsRepository(
     },
   };
 }
+
+export { createSupabaseAdminOperationsRepository } from "../../db/supabase-repositories.ts";

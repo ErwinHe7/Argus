@@ -28,7 +28,8 @@ insert into auth.users (
 ) values (
   '00000000-0000-0000-0000-000000000000', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'authenticated', 'authenticated', 'queue@example.test', '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now()
 );
-insert into argus_app.members (user_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+insert into argus_app.members (user_id) values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+on conflict (user_id) do nothing;
 
 savepoint domain_tx;
 insert into argus_app.notifications (id, user_id, deletion_epoch, kind, title, body)

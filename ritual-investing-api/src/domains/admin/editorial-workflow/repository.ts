@@ -392,3 +392,5 @@ export function createPostgresAdminEditorialRepository(
       ),
   };
 }
+
+export { createSupabaseAdminRepository as createSupabaseAdminEditorialRepository } from "../../../db/supabase-repositories.ts";

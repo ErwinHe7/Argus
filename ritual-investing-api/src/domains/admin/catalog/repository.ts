@@ -170,3 +170,5 @@ export function createPostgresAdminCatalogRepository(
     },
   };
 }
+
+export { createSupabaseAdminRepository as createSupabaseAdminCatalogRepository } from "../../../db/supabase-repositories.ts";

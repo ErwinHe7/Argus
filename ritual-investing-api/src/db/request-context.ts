@@ -1,5 +1,28 @@
 import { z } from "zod";
 
+const verifiedRequestClaimsSchema = z
+  .object({
+    userId: z.string().uuid(),
+    sessionId: z.string().uuid(),
+    aal: z.enum(["aal1", "aal2"]),
+  })
+  .strict();
+
+/**
+ * Authorization claims accepted by the portable database boundary. These
+ * values must come from the already-verified Supabase access token; request
+ * bodies and route parameters are deliberately not part of this type.
+ */
+export type VerifiedRequestClaims = Readonly<
+  z.infer<typeof verifiedRequestClaimsSchema>
+>;
+
+export function createVerifiedRequestClaims(
+  input: z.input<typeof verifiedRequestClaimsSchema>,
+): VerifiedRequestClaims {
+  return Object.freeze(verifiedRequestClaimsSchema.parse(input));
+}
+
 const resolverContextSchema = z
   .object({
     accountId: z.string().uuid(),

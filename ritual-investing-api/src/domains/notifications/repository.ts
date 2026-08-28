@@ -290,3 +290,5 @@ export function createPostgresNotificationRepository(
       }),
   };
 }
+
+export { createSupabaseNotificationRepository } from "../../db/supabase-repositories.ts";

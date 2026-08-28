@@ -159,3 +159,5 @@ export function createPostgresBriefingRepository(
       }),
   };
 }
+
+export { createSupabaseBriefingRepository } from "../../db/supabase-repositories.ts";

@@ -43,6 +43,9 @@ function inventoryEntries(): InventoryEntry[] {
 
   return [...block!.matchAll(/^\| `([^`]+)` \| ([a-z-]+) \| ([^|]+) \|/gm)].map(
     ([, surface, classification, owner]) => {
+      if (surface === undefined || classification === undefined || owner === undefined) {
+        throw new Error("invalid_authority_inventory_row");
+      }
       expect(classifications.has(classification as Classification), surface).toBe(true);
       return {
         surface,

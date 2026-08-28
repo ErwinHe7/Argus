@@ -672,3 +672,5 @@ export function createPostgresMemberRepository(url: string): MemberRepository {
       }),
   };
 }
+
+export { createSupabaseAccountRepository } from "../../db/supabase-repositories.ts";

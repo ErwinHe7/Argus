@@ -281,3 +281,5 @@ export function createPostgresPrivacyRepository(
       }),
   };
 }
+
+export { createSupabasePrivacyRepository } from "../../db/supabase-repositories.ts";

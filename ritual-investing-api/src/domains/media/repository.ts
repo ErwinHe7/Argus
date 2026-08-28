@@ -283,3 +283,5 @@ export function createPostgresMediaRepository(
     },
   };
 }
+
+export { createSupabaseMediaRepository } from "../../db/supabase-repositories.ts";

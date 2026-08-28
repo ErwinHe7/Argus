@@ -22,7 +22,8 @@ insert into auth.users (
   ('00000000-0000-0000-0000-000000000000', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', 'authenticated', 'authenticated', 'b@example.test', '', now(), '{"provider":"email","providers":["email"]}', '{}', now(), now());
 insert into argus_app.members (user_id) values
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
-  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb')
+on conflict (user_id) do nothing;
 
 insert into argus_brokerage.connections (id, user_id, deletion_epoch, status)
 values ('aaaaaaaa-1000-4000-8000-000000000001', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0, 'connected');

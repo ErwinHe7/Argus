@@ -2,6 +2,9 @@ import { Pool, type PoolClient } from "@neondatabase/serverless";
 
 import type { RequestDatabaseContext } from "./request-context";
 
+// Legacy Neon continuity seam. Retained Supabase repositories must import
+// database-port.ts instead; this remains wired only until U3/U13 cutover.
+
 export type ResolvedAccountContext = Pick<
   RequestDatabaseContext,
   | "accountId"

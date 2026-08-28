@@ -268,3 +268,5 @@ export function createPostgresSessionRepository(
     },
   };
 }
+
+export { createSupabaseSessionRepository } from "../../db/supabase-repositories.ts";

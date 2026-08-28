@@ -48,8 +48,16 @@ describe("request-local tenant context", () => {
     ).toThrow();
   });
 
-  it("does not export an unscoped runtime connection", async () => {
+  it("keeps the working Neon seam scoped while isolating the portable Supabase transaction", async () => {
     const clientSource = await readFile(`${apiRoot}/src/db/client.ts`, "utf8");
+    const portSource = await readFile(
+      `${apiRoot}/src/db/database-port.ts`,
+      "utf8",
+    );
+    const transactionSource = await readFile(
+      `${apiRoot}/src/db/request-transaction.ts`,
+      "utf8",
+    );
     expect(clientSource).not.toMatch(/export\s+(?:async\s+)?function\s+openRequestConnection/i);
     expect(clientSource).toMatch(/withScopedRuntimeClient/i);
     expect(clientSource).toMatch(/set local role \$\{role\}/i);
@@ -57,5 +65,14 @@ describe("request-local tenant context", () => {
     expect(clientSource).toMatch(/"ritual_runtime"/i);
     expect(clientSource).toMatch(/set_config\('ritual\.tenant_id'/i);
     expect(clientSource).toMatch(/client\?\.release\(\)[\s\S]*pool\.end\(\)/i);
+    expect(clientSource).toMatch(/@neondatabase\/serverless/i);
+    expect(portSource).toMatch(/withDatabaseTransaction/i);
+    expect(portSource).toMatch(/client\.release\(\)/i);
+    expect(portSource).not.toMatch(/@neondatabase|drizzle-orm\/neon/i);
+    expect(transactionSource).toMatch(/"argus_runtime"/i);
+    expect(transactionSource).toMatch(/argus_private\.set_request_context/i);
+    expect(transactionSource).toMatch(/from "\.\/database-port"/i);
+    expect(transactionSource).not.toMatch(/from "\.\/client(?:\.ts)?"/i);
+    expect(transactionSource).not.toMatch(/identityDatabaseUrl|runtimeDatabaseUrl|verifiedSubject/i);
   });
 });

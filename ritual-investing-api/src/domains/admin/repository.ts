@@ -62,3 +62,5 @@ export function createPostgresAdminRepository(
     },
   };
 }
+
+export { createSupabaseAdminRepository } from "../../db/supabase-repositories.ts";
