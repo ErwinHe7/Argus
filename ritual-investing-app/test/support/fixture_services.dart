@@ -34,6 +34,9 @@ import 'package:ritual_investing_app/features/profile/domain/model.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
+import 'package:ritual_investing_app/features/search/application/controller.dart';
+import 'package:ritual_investing_app/features/search/data/repository.dart';
+import 'package:ritual_investing_app/features/search/domain/model.dart';
 
 class FeatureLoadTracker {
   final Map<MemberBranch, int> _counts = {};
@@ -54,6 +57,7 @@ DependencyContainer fixtureContainer({
   EntryCoordinator? entryCoordinator,
   bool includeU9 = false,
   bool includeU11 = false,
+  bool includeSearch = false,
   PrivacyRepository? privacyRepository,
 }) {
   final storage = cache ?? MemoryReadCache();
@@ -148,6 +152,12 @@ DependencyContainer fixtureContainer({
         briefingController: briefingController,
         notificationController: notificationController,
         privacyController: privacyController,
+        searchController: includeSearch
+            ? SearchController(
+                repository: SearchRepository(service: _FixtureSearchService()),
+                debounce: Duration.zero,
+              )
+            : null,
         assetCodexRepository: AssetCodexRepository(
           service: _FixtureAssetCodexService(),
           cache: scopedCache,
@@ -168,6 +178,12 @@ DependencyContainer fixtureContainer({
       );
     },
   );
+}
+
+class _FixtureSearchService implements SearchService {
+  @override
+  Future<SearchPage> search(SearchRequest request) async =>
+      SearchPage(items: const [], nextCursor: null, hasMore: false);
 }
 
 class _FixtureMemberState {

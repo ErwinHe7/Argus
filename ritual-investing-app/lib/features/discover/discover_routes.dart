@@ -105,21 +105,18 @@ StatefulShellBranch buildDiscoverBranch({
           container.hasCircles ? null : MemberRoutes.discover.path,
       builder: (context, state) => _PrivateCirclesRoute(container: container),
     ),
-  ];
-  final searchController = container.optionalSearchController;
-  if (searchController != null) {
-    childRoutes.add(
-      GoRoute(
-        path: 'search',
-        builder: (context, state) => SearchScreen(
-          controller: searchController,
-          onOpenAsset: (id) => context.push(
-            MemberRoutes.assetLocation(id, sourceKind: 'search'),
-          ),
-        ),
+    GoRoute(
+      path: 'search',
+      redirect: (context, state) => container.optionalSearchController == null
+          ? MemberRoutes.discover.path
+          : null,
+      builder: (context, state) => SearchScreen(
+        controller: container.searchController,
+        onOpenAsset: (id) =>
+            context.push(MemberRoutes.assetLocation(id, sourceKind: 'search')),
       ),
-    );
-  }
+    ),
+  ];
 
   return StatefulShellBranch(
     restorationScopeId: restorationEnabled
