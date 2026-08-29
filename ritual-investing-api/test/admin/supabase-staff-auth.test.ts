@@ -30,14 +30,18 @@ function fixture(input: {
       listEditorial: vi.fn(async () => []),
       createEditorial: vi.fn(),
       commandEditorial: vi.fn(),
-      issueStepUp: vi.fn(async () => "staff-step-up-receipt-000000000000000000000001"),
+      issueStepUp: vi.fn(async () =>
+        "staff-step-up-receipt-000000000000000000000001"
+      ),
     },
     adminOperations: {
       listJobs: vi.fn(async () => []),
       listPrivacy: vi.fn(async () => []),
       listAudit: vi.fn(async () => []),
       listBrokerageDiagnostics: vi.fn(async () => []),
-      requestJobRetry: vi.fn(async () => "018f3c2a-4b67-7a89-8abc-123456789099"),
+      requestJobRetry: vi.fn(async () =>
+        "018f3c2a-4b67-7a89-8abc-123456789099"
+      ),
       requestPrivacyRetry: vi.fn(),
     },
     ...input.repositories,
@@ -49,11 +53,15 @@ function fixture(input: {
       aal: input.aal ?? "aal2",
       issuedAt: 1,
     })),
-    createRepositories: vi.fn(() => repositories),
-    publicPreviewRepository: {
-      listPublished: vi.fn(async () => []),
-      getPublished: vi.fn(async () => null),
-    },
+    withRepositories: async (_claims, _transaction, callback) =>
+      await callback(repositories),
+    withPublicPreview: async (callback) =>
+      await callback({
+        listPublishedPage: vi.fn(async () => []),
+        listPublished: vi.fn(async () => []),
+        getPublished: vi.fn(async () => null),
+      }),
+    createPrivacyService: () => ({} as never),
     rateLimit: { allow: vi.fn(async () => ({ allowed: true })) },
   });
   const bindings = {
@@ -72,7 +80,10 @@ const headers = {
 
 describe("U11 Supabase staff authorization", () => {
   it("retries only final retained event types with concrete worker handlers", async () => {
-    const workspaceRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+    const workspaceRoot = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../..",
+    );
     const [u11, u15] = await Promise.all([
       readFile(
         resolve(
@@ -98,7 +109,9 @@ describe("U11 Supabase staff authorization", () => {
     expect(eventTypes.size).toBeGreaterThan(0);
     expect(u11).not.toMatch(/admin\.(?:job|privacy)\.retry_requested/);
     expect(u11).toContain("job.status='dead_lettered'");
-    expect(u11).toContain("retained_job_handler(event.event_type)=requested_job.handler_name");
+    expect(u11).toContain(
+      "retained_job_handler(event.event_type)=requested_job.handler_name",
+    );
     for (const eventType of eventTypes) {
       expect(u15).toContain(`'${eventType}'`);
       expect(u15).toContain(`when '${eventType}' then`);
@@ -107,7 +120,11 @@ describe("U11 Supabase staff authorization", () => {
 
   it("rejects AAL1 before any current-role repository call", async () => {
     const { app, bindings, repositories } = fixture({ aal: "aal1" });
-    const response = await app.request("/v1/admin/session", { headers }, bindings);
+    const response = await app.request(
+      "/v1/admin/session",
+      { headers },
+      bindings,
+    );
     expect(response.status).toBe(403);
     expect(repositories.admin.getStaffPrincipal).not.toHaveBeenCalled();
   });
@@ -117,7 +134,11 @@ describe("U11 Supabase staff authorization", () => {
     const { app, bindings } = fixture({
       repositories: { admin: { getStaffPrincipal } as never },
     });
-    const response = await app.request("/v1/admin/session", { headers }, bindings);
+    const response = await app.request(
+      "/v1/admin/session",
+      { headers },
+      bindings,
+    );
     expect(response.status).toBe(403);
   });
 
@@ -128,9 +149,15 @@ describe("U11 Supabase staff authorization", () => {
     const { app, bindings } = fixture({
       repositories: { admin: { getStaffPrincipal } as never },
     });
-    const response = await app.request("/v1/admin/session", { headers }, bindings);
+    const response = await app.request(
+      "/v1/admin/session",
+      { headers },
+      bindings,
+    );
     expect(response.status).toBe(403);
-    expect(await response.json()).toMatchObject({ error: { code: "forbidden" } });
+    expect(await response.json()).toMatchObject({
+      error: { code: "forbidden" },
+    });
   });
 
   it("returns 403 for a stale JWT after session deletion on staff writes", async () => {
@@ -182,8 +209,14 @@ describe("U11 Supabase staff authorization", () => {
       `/v1/admin/operations/jobs/${jobId}/retry`,
       {
         method: "POST",
-        headers: { ...headers, "content-type": "application/json", "idempotency-key": "admin-job-retry-0001" },
-        body: JSON.stringify({ step_up_receipt: "staff-step-up-receipt-000000000000000000000001" }),
+        headers: {
+          ...headers,
+          "content-type": "application/json",
+          "idempotency-key": "admin-job-retry-0001",
+        },
+        body: JSON.stringify({
+          step_up_receipt: "staff-step-up-receipt-000000000000000000000001",
+        }),
       },
       bindings,
     );
@@ -215,6 +248,8 @@ describe("U11 Supabase staff authorization", () => {
     expect(response.status).toBe(200);
     const body = await response.text();
     expect(body).toContain("diag_387a61b64d67");
-    expect(body).not.toMatch(/provider_account|client_order|balance|position|payload|credential/i);
+    expect(body).not.toMatch(
+      /provider_account|client_order|balance|position|payload|credential/i,
+    );
   });
 });

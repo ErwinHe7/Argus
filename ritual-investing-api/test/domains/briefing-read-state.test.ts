@@ -35,6 +35,7 @@ function fixture() {
     read_at: persistedReadAt,
   });
   const briefings = {
+    listPage: vi.fn(async () => [summary()]),
     list: vi.fn(async () => [summary()]),
     setRead: vi.fn(async (_id: string, read: boolean) => {
       persistedReadAt = read ? new Date(readAt) : null;
@@ -42,6 +43,17 @@ function fixture() {
     }),
   };
   const assets = {
+    listPage: vi.fn(async () => [{
+      id: assetId,
+      slug: "argus-test",
+      symbol: "ARGX",
+      name: "Argus Test Asset",
+      asset_type: "equity",
+      currency: "USD",
+      revision_id: "018f3c2a-4b67-7a89-8abc-123456789063",
+      revision_created_at: "2026-08-28 12:00:00+00",
+      payload: { appearance_reason: "Timestamp regression fixture." },
+    }]),
     list: vi.fn(async () => [{
       id: assetId,
       slug: "argus-test",
@@ -61,12 +73,15 @@ function fixture() {
       aal: "aal1" as const,
       issuedAt: Math.floor(Date.now() / 1_000),
     })),
-    createRepositories:
-      () => ({ assets, briefings } as unknown as RetainedRepositorySet),
-    publicPreviewRepository: {
-      listPublished: vi.fn(async () => []),
-      getPublished: vi.fn(async () => null),
-    },
+    withRepositories: async (_claims, _transaction, callback) =>
+      await callback({ assets, briefings } as unknown as RetainedRepositorySet),
+    withPublicPreview: async (callback) =>
+      await callback({
+        listPublishedPage: vi.fn(async () => []),
+        listPublished: vi.fn(async () => []),
+        getPublished: vi.fn(async () => null),
+      }),
+    createPrivacyService: () => ({} as never),
     rateLimit: { allow: vi.fn(async () => ({ allowed: true })) },
     requestId: () => "018f3c2a-4b67-7a89-8abc-123456789077",
   });

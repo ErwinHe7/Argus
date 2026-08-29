@@ -75,6 +75,7 @@ import 'package:ritual_investing_api_client/generated/model/create_hypothetical_
 import 'package:ritual_investing_api_client/generated/model/create_member_intention.dart';
 import 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
 import 'package:ritual_investing_api_client/generated/model/creator_collection_response.dart';
+import 'package:ritual_investing_api_client/generated/model/creator_response.dart';
 import 'package:ritual_investing_api_client/generated/model/daily_ritual_assignment.dart';
 import 'package:ritual_investing_api_client/generated/model/daily_ritual_response.dart';
 import 'package:ritual_investing_api_client/generated/model/decide_moderation_request.dart';
@@ -84,6 +85,8 @@ import 'package:ritual_investing_api_client/generated/model/disconnect_webull_co
 import 'package:ritual_investing_api_client/generated/model/discover_asset_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/discover_item.dart';
 import 'package:ritual_investing_api_client/generated/model/discover_response.dart';
+import 'package:ritual_investing_api_client/generated/model/editorial_collection_response.dart';
+import 'package:ritual_investing_api_client/generated/model/editorial_item_response.dart';
 import 'package:ritual_investing_api_client/generated/model/evidence_claim.dart';
 import 'package:ritual_investing_api_client/generated/model/evidence_detail.dart';
 import 'package:ritual_investing_api_client/generated/model/evidence_detail_source.dart';
@@ -139,6 +142,7 @@ import 'package:ritual_investing_api_client/generated/model/privacy_download_url
 import 'package:ritual_investing_api_client/generated/model/privacy_request.dart';
 import 'package:ritual_investing_api_client/generated/model/privacy_request_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/privacy_request_response.dart';
+import 'package:ritual_investing_api_client/generated/model/published_editorial.dart';
 import 'package:ritual_investing_api_client/generated/model/put_circle_asset_request.dart';
 import 'package:ritual_investing_api_client/generated/model/read_all_notifications_request.dart';
 import 'package:ritual_investing_api_client/generated/model/read_all_notifications_response.dart';
@@ -460,6 +464,9 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'CreatorCollectionResponse':
       return CreatorCollectionResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'CreatorResponse':
+      return CreatorResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'DailyRitualAssignment':
       return DailyRitualAssignment.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -493,6 +500,12 @@ ReturnType deserialize<ReturnType, BaseType>(
       return DiscoverItem.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'DiscoverResponse':
       return DiscoverResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'EditorialCollectionResponse':
+      return EditorialCollectionResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'EditorialItemResponse':
+      return EditorialItemResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'EvidenceClaim':
       return EvidenceClaim.fromJson(value as Map<String, dynamic>)
@@ -683,6 +696,9 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'PrivacyRequestResponse':
       return PrivacyRequestResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PublishedEditorial':
+      return PublishedEditorial.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'PutCircleAssetRequest':
       return PutCircleAssetRequest.fromJson(value as Map<String, dynamic>)

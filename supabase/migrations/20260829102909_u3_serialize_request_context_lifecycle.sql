@@ -8,8 +8,14 @@ begin;
 -- PostgreSQL 17 requires SET authority to replace an identity-owned routine.
 -- Attribute this temporary, non-inheriting membership to the migration role
 -- so the matching grantor-scoped revoke preserves Supabase's admin-only row.
-grant argus_identity_owner to current_user
-  with inherit false,set true,admin false granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_identity_owner to %1$I with inherit false,set true,admin false granted by %1$I',
+    current_user
+  );
+end
+$membership$;
 grant create on schema argus_private to argus_identity_owner;
 set local role argus_identity_owner;
 
@@ -109,6 +115,12 @@ comment on function argus_private.install_request_context(uuid,uuid,text) is
 
 reset role;
 revoke create on schema argus_private from argus_identity_owner;
-revoke argus_identity_owner from current_user granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_identity_owner from %1$I granted by %1$I',current_user
+  );
+end
+$membership$;
 
 commit;

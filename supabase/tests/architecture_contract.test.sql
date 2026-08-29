@@ -1,6 +1,10 @@
 begin;
 
-grant argus_worker to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_worker to %I with set true',current_user
+  );
+end $membership$;
 grant usage on schema extensions to argus_worker;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
@@ -10,7 +14,7 @@ select plan(18);
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_app' and relation.relkind in ('r','p')),
-  58::bigint,'the reviewed application relation inventory is complete');
+  59::bigint,'the reviewed application relation inventory is complete');
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_brokerage' and relation.relkind in ('r','p')),
@@ -74,7 +78,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  201::bigint,'the reviewed routine-name inventory is complete');
+  215::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
@@ -168,7 +172,6 @@ select is((select count(*)::bigint
     )),0::bigint,
   'every U4 foreign key has a leading referencing-side index');
 
-select todo_start('U4-U6 must add every missing referencing-side index after representative plan measurement');
 select is((select count(*)::bigint from pg_constraint foreign_key
   join pg_class relation on relation.oid=foreign_key.conrelid
   join pg_namespace namespace on namespace.oid=relation.relnamespace
@@ -180,8 +183,7 @@ select is((select count(*)::bigint from pg_constraint foreign_key
          and candidate.indisvalid and candidate.indisready
          and candidate.indpred is null
          and candidate.indkey::smallint[] @> foreign_key.conkey
-    )),0::bigint,'every foreign key has a referencing-side index');
-select todo_end();
+  )),0::bigint,'every foreign key has a referencing-side index');
 
 select is((select count(*)::bigint from pg_policies
   where schemaname in ('argus_app','argus_brokerage','argus_private')

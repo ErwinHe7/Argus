@@ -92,7 +92,7 @@ export async function withAnonymousRequestTransaction<T>(
   pool: DatabasePool,
   callback: (database: RequestDatabase) => Promise<T>,
 ): Promise<T> {
-  return withDatabaseTransaction(pool, "argus_runtime", callback);
+  return withDatabaseTransaction(pool, "argus_public_preview", callback);
 }
 
 export class StaffAuthorizationError extends Error {

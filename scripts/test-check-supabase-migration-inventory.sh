@@ -6,6 +6,27 @@ checker="$repository_root/scripts/check-supabase-migration-inventory.sh"
 fixture=$(mktemp -d "${TMPDIR:-/tmp}/argus-migration-inventory.XXXXXX")
 trap 'rm -rf "$fixture"' EXIT HUP INT TERM
 
+u8_migration="$repository_root/supabase/migrations/20260829170000_u8_normalized_query_contracts.sql"
+test -f "$u8_migration"
+first_u8_statement=$(sed -e '/^[[:space:]]*--/d' -e '/^[[:space:]]*$/d' "$u8_migration" | sed -n '1p')
+last_u8_statement=$(sed -e '/^[[:space:]]*--/d' -e '/^[[:space:]]*$/d' "$u8_migration" | tail -n 1)
+test "$first_u8_statement" = 'begin;' || {
+  printf '%s\n' 'expected U8 migration to begin an explicit outer transaction' >&2
+  exit 1
+}
+test "$last_u8_statement" = 'commit;' || {
+  printf '%s\n' 'expected U8 migration to commit its explicit outer transaction' >&2
+  exit 1
+}
+
+if rg -n -U \
+  '(?is)^[ \t]*(grant|revoke)\b[^;]*(current_user|session_user)[^;]*;' \
+  "$repository_root/supabase/migrations" "$repository_root/supabase/tests"; then
+  printf '%s\n' \
+    'role membership must resolve the executor to an explicit quoted role before GRANT or REVOKE' >&2
+  exit 1
+fi
+
 write_fixture() {
   rm -rf "$fixture"
   mkdir -p \

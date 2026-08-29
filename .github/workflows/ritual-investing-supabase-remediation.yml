@@ -1,0 +1,245 @@
+name: Ritual Investing Supabase Remediation
+
+on:
+  workflow_dispatch:
+    inputs:
+      promotion_manifest:
+        description: Canonical argus-supabase-promotion/v1 JSON approved for this exact run
+        required: true
+        type: string
+      promotion_manifest_sha256:
+        description: SHA-256 of the sorted compact promotion manifest JSON
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ritual-supabase-remediation
+  cancel-in-progress: false
+
+env:
+  SUPABASE_CLI_VERSION: 2.115.0
+
+jobs:
+  promote:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: ritual-supabase-remediation
+    concurrency:
+      group: ritual-supabase-remediation
+      cancel-in-progress: false
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+      SUPABASE_PROJECT_URL: ${{ vars.SUPABASE_PROJECT_URL }}
+      RITUAL_EXPECTED_REPOSITORY: ErwinHe7/Argus
+      RITUAL_EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.EXPECTED_SUPABASE_PROJECT_ID }}
+      RITUAL_EXPECTED_SUPABASE_DB_HOST: ${{ vars.EXPECTED_SUPABASE_DB_HOST }}
+      RITUAL_HOSTED_API_URL: ${{ vars.RITUAL_HOSTED_API_URL }}
+      RITUAL_APPROVED_MANIFEST_SHA256: ${{ vars.APPROVED_MANIFEST_SHA256 }}
+      RITUAL_APPROVED_MIGRATION_CHECKSUM: ${{ vars.APPROVED_MIGRATION_CHECKSUM }}
+      RITUAL_APPROVED_SOURCE_FINGERPRINT: ${{ vars.APPROVED_SOURCE_FINGERPRINT }}
+      RITUAL_APPROVED_TARGET_FINGERPRINT: ${{ vars.APPROVED_TARGET_FINGERPRINT }}
+      RITUAL_APPROVED_INVENTORY_SHA256: ${{ vars.APPROVED_INVENTORY_SHA256 }}
+      RITUAL_APPROVED_RECOVERY_COVERAGE_SHA256: ${{ vars.APPROVED_RECOVERY_COVERAGE_SHA256 }}
+      RITUAL_APPROVED_BACKUP_ID: ${{ vars.APPROVED_BACKUP_ID }}
+      RITUAL_APPROVED_RESTORE_DRILL_ID: ${{ vars.APPROVED_RESTORE_DRILL_ID }}
+      RITUAL_APPROVED_RELEASE_APPROVAL: ${{ vars.APPROVED_RELEASE_APPROVAL }}
+      RITUAL_APPROVED_RECOVERY_APPROVAL: ${{ vars.APPROVED_RECOVERY_APPROVAL }}
+      RITUAL_APPROVED_SECURITY_APPROVAL: ${{ vars.APPROVED_SECURITY_APPROVAL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Materialize the immutable Supabase promotion manifest
+        env:
+          PROMOTION_MANIFEST_INPUT: ${{ inputs.promotion_manifest }}
+          PROMOTION_MANIFEST_SHA256_INPUT: ${{ inputs.promotion_manifest_sha256 }}
+        run: |
+          set -eu
+          raw="$RUNNER_TEMP/supabase-promotion-manifest.raw.json"
+          canonical="$RUNNER_TEMP/supabase-promotion-manifest.json"
+          printf '%s' "$PROMOTION_MANIFEST_INPUT" >"$raw"
+          jq -S -c . "$raw" >"$canonical"
+          test "$(sha256sum "$canonical" | cut -d' ' -f1)" = "$PROMOTION_MANIFEST_SHA256_INPUT"
+          test "$(jq -r '.contract_version' "$canonical")" = "argus-supabase-promotion/v1"
+          test "$(jq -r '.project_ref' "$canonical")" = "$SUPABASE_PROJECT_ID"
+          test "$(jq -r '.branch_ref' "$canonical")" = "$GITHUB_REF"
+          test "$(jq -r '.git_revision' "$canonical")" = "$GITHUB_SHA"
+          jq -e '
+            keys == [
+              "background_workers", "backup_id", "branch_ref", "captured_at",
+              "contract_version", "fixture_namespace", "git_revision",
+              "inventory_sha256", "migration_checksum", "old_edge_revision",
+              "order_mutations", "project_ref", "provider_egress",
+              "recovery_approval", "recovery_coverage_sha256", "release_approval",
+              "restore_drill_id", "security_approval", "source_target_fingerprint",
+              "target_fingerprint", "traffic_admission"
+            ] and
+            (.git_revision | test("^[a-f0-9]{40}$")) and
+            (.old_edge_revision | test("^[a-f0-9]{40}$")) and
+            ([.migration_checksum, .source_target_fingerprint,
+              .target_fingerprint, .inventory_sha256,
+              .recovery_coverage_sha256] |
+              all(test("^[a-f0-9]{64}$"))) and
+            ([.backup_id, .restore_drill_id, .release_approval,
+              .recovery_approval, .security_approval] |
+              all(test("^[A-Za-z0-9][A-Za-z0-9._:@/-]{2,127}$"))) and
+            (.fixture_namespace | test("^u9-[a-z0-9][a-z0-9-]{4,59}$")) and
+            .old_edge_revision != .git_revision and
+            (.captured_at | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")) and
+            .traffic_admission == "maintenance" and
+            .background_workers == true and .provider_egress == true and
+            .order_mutations == true
+          ' "$canonical" >/dev/null
+          {
+            echo "RITUAL_PROMOTION_MODE=remediation"
+            echo "RITUAL_PROMOTION_MANIFEST_PATH=$canonical"
+            echo "RITUAL_PROMOTION_MANIFEST_SHA256=$PROMOTION_MANIFEST_SHA256_INPUT"
+            jq -r '
+              "RITUAL_PROMOTION_CONTRACT_VERSION=" + .contract_version,
+              "RITUAL_PROMOTION_PROJECT_ID=" + .project_ref,
+              "RITUAL_PROMOTION_BRANCH_REF=" + .branch_ref,
+              "RITUAL_PROMOTION_GIT_REVISION=" + .git_revision,
+              "RITUAL_MIGRATION_CHECKSUM=" + .migration_checksum,
+              "RITUAL_SOURCE_TARGET_FINGERPRINT=" + .source_target_fingerprint,
+              "RITUAL_TARGET_FINGERPRINT=" + .target_fingerprint,
+              "RITUAL_INVENTORY_SHA256=" + .inventory_sha256,
+              "RITUAL_RECOVERY_COVERAGE_SHA256=" + .recovery_coverage_sha256,
+              "RITUAL_CAPTURED_AT=" + .captured_at,
+              "RITUAL_BACKUP_ID=" + .backup_id,
+              "RITUAL_RESTORE_DRILL_ID=" + .restore_drill_id,
+              "RITUAL_RELEASE_APPROVAL=" + .release_approval,
+              "RITUAL_RECOVERY_APPROVAL=" + .recovery_approval,
+              "RITUAL_SECURITY_APPROVAL=" + .security_approval,
+              "RITUAL_TRAFFIC_ADMISSION=" + .traffic_admission,
+              "RITUAL_FIXTURE_NAMESPACE=" + .fixture_namespace,
+              "RITUAL_OLD_EDGE_REVISION=" + .old_edge_revision,
+              "RITUAL_FENCE_BACKGROUND_WORKERS=" + (.background_workers | tostring),
+              "RITUAL_FENCE_PROVIDER_EGRESS=" + (.provider_egress | tostring),
+              "RITUAL_FENCE_ORDER_MUTATIONS=" + (.order_mutations | tostring)
+            ' "$canonical"
+          } >>"$GITHUB_ENV"
+
+      - name: Rebind exact target, Git revision, migration checksum, target fingerprint, inventory, recovery, and approvals
+        run: |
+          set -eu
+          ./scripts/check-supabase-migration-inventory.sh --check-cli
+          test "$(sha256sum docs/ritual-investing/supabase-migration-inventory-v1.txt | cut -d' ' -f1)" = "$RITUAL_MIGRATION_CHECKSUM"
+          test "$(sha256sum docs/ritual-investing/supabase-boundary-manifest-v1.txt | cut -d' ' -f1)" = "$RITUAL_INVENTORY_SHA256"
+          test "$(sha256sum docs/ritual-investing/supabase-recovery-coverage.md | cut -d' ' -f1)" = "$RITUAL_RECOVERY_COVERAGE_SHA256"
+          node --experimental-strip-types scripts/check-supabase-deploy-target.ts
+          ./scripts/check-supabase-migration-inventory.sh \
+            --database-url "$SUPABASE_DB_URL" \
+            --print-target-manifest \
+            >"$RUNNER_TEMP/supabase-hosted-target-before.txt"
+          test "$(sha256sum "$RUNNER_TEMP/supabase-hosted-target-before.txt" | cut -d' ' -f1)" = "$RITUAL_SOURCE_TARGET_FINGERPRINT"
+
+      - name: Fence external effects - background_workers, provider_egress, order_mutations
+        run: psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -f scripts/fence-supabase-deployment.sql
+
+      - name: Link only the verified remediation target
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply the reviewed forward-only schema
+        run: supabase db push --include-all --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Reassert all three independent fences after schema application
+        run: psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -f scripts/fence-supabase-deployment.sql
+
+      - name: Verify the approved new-schema target fingerprint
+        run: |
+          ./scripts/check-supabase-migration-inventory.sh \
+            --database-url "$SUPABASE_DB_URL" \
+            --print-target-manifest \
+            >"$RUNNER_TEMP/supabase-hosted-target-after.txt"
+          test "$(sha256sum "$RUNNER_TEMP/supabase-hosted-target-after.txt" | cut -d' ' -f1)" = "$RITUAL_TARGET_FINGERPRINT"
+
+      - name: Prove old Edge/new schema hosted acceptance
+        run: ./scripts/check-supabase-hosted-acceptance.sh --old-edge-new-schema
+
+      - name: Capture isolated synthetic fixture inventory before hosted tests - identities, objects, queues, schedules, roles, rows, configuration
+        run: >-
+          ./scripts/check-supabase-hosted-acceptance.sh
+          --capture-fixture-inventory
+          >"$RUNNER_TEMP/supabase-fixture-inventory-before.txt"
+
+      - name: Run hosted tests while every external-effect fence remains enabled
+        run: supabase test db --linked
+
+      - name: Run hosted acceptance, lint, and advisors while fenced
+        run: |
+          ./scripts/check-supabase-hosted-acceptance.sh --old-edge-new-schema
+          supabase db lint --linked --level error --fail-on error
+          supabase db advisors --linked --type security --fail-on error
+          supabase db advisors --linked --type performance --fail-on error
+
+      - name: Bind the new Edge revision and deploy new Edge functions
+        run: |
+          supabase secrets set --project-ref "$SUPABASE_PROJECT_ID" ARGUS_BUILD_REVISION="$GITHUB_SHA"
+          supabase functions deploy webull-callback --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+          supabase functions deploy worker --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+          supabase functions deploy waitlist --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+          supabase functions deploy api --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+
+      - name: Prove new Edge/new schema hosted acceptance
+        run: ./scripts/check-supabase-hosted-acceptance.sh --new-edge-new-schema
+
+      - name: Capture fixture inventory after cleanup - no-go and leave fenced on parity failure
+        run: |
+          ./scripts/check-supabase-hosted-acceptance.sh \
+            --capture-fixture-inventory \
+            >"$RUNNER_TEMP/supabase-fixture-inventory-after.txt"
+          ./scripts/check-supabase-hosted-acceptance.sh \
+            --assert-fixture-parity \
+            "$RUNNER_TEMP/supabase-fixture-inventory-before.txt" \
+            "$RUNNER_TEMP/supabase-fixture-inventory-after.txt"
+
+      - name: Record immediate observation evidence; +1h, +4h, and +24h remain required
+        run: |
+          {
+            echo "contract_version=argus-supabase-observation/v1"
+            echo "promotion_manifest_sha256=$RITUAL_PROMOTION_MANIFEST_SHA256"
+            echo "git_revision=$GITHUB_SHA"
+            echo "immediate=$(date -u +%Y-%m-%dT%H:%M:%SZ):passed"
+            echo "+1h=pending:must be attached before checkpoint deadline"
+            echo "+4h=pending:must be attached before checkpoint deadline"
+            echo "+24h=pending:must be attached before checkpoint deadline"
+          } >"$RUNNER_TEMP/supabase-observation-evidence.txt"
+
+      - name: Upload immutable manifest, inventory, recovery, and observation evidence artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-remediation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/supabase-promotion-manifest.json
+            ${{ runner.temp }}/supabase-hosted-target-before.txt
+            ${{ runner.temp }}/supabase-hosted-target-after.txt
+            ${{ runner.temp }}/supabase-fixture-inventory-before.txt
+            ${{ runner.temp }}/supabase-fixture-inventory-after.txt
+            ${{ runner.temp }}/supabase-observation-evidence.txt
+            docs/ritual-investing/supabase-recovery-coverage.md
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Resume background_workers only after every promotion gate and evidence upload passes
+        run: |
+          resumed=$(psql "$SUPABASE_DB_URL" -X -A -t -v ON_ERROR_STOP=1 -c \
+            "with changed as (
+              update argus_private.kill_switches
+                 set enabled=false,reason=null,updated_at=clock_timestamp()
+               where name='background_workers' and enabled
+               returning name
+            ) select count(*) from changed")
+          test "$resumed" = "1"

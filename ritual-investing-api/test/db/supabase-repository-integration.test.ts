@@ -9,6 +9,7 @@ import type {
   DatabaseClient,
   DatabasePool,
   DatabaseQueryResult,
+  DatabaseTransaction,
 } from "../../src/db/database-port.ts";
 import {
   createVerifiedRequestClaims,
@@ -16,7 +17,10 @@ import {
 } from "../../src/db/request-context.ts";
 import {
   StaffAuthorizationError,
+  withActiveCapabilityStaffRequestTransaction,
   withActiveStaffRequestTransaction,
+  withAnonymousRequestTransaction,
+  withMemberRequestTransaction,
   withRequestTransaction,
   withStaffRequestTransaction,
 } from "../../src/db/request-transaction.ts";
@@ -42,6 +46,10 @@ import {
   createSupabaseSessionRepository,
 } from "../../src/db/supabase-repositories.ts";
 import { createSupabaseScenarioRepository } from "../../src/domains/intentions/repository.ts";
+import {
+  createPrivacyRequestService,
+  type PrivacySignedStorage,
+} from "../../src/domains/privacy/service.ts";
 
 const apiRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const userA = "018f3c2a-4b67-7a89-8abc-123456789001";
@@ -86,7 +94,31 @@ function recordingPool(
     connect: vi.fn(async () => client),
     end: vi.fn(async () => undefined),
   };
-  return { pool, queries, query, release };
+  const database: DatabaseTransaction = { query: client.query };
+  return { pool, database, queries, query, release };
+}
+
+function privacyService(
+  pool: DatabasePool,
+  verifiedClaims: VerifiedRequestClaims,
+  signedStorage: PrivacySignedStorage = {
+    createSignedUrl: async () => {
+      throw new Error("storage_not_configured");
+    },
+  },
+  now?: () => number,
+) {
+  return createPrivacyRequestService({
+    claims: verifiedClaims,
+    withMemberTransaction: (callback) =>
+      withMemberRequestTransaction(
+        { pool, verifiedClaims },
+        callback,
+      ),
+    repository: createSupabasePrivacyRepository,
+    signedStorage,
+    ...(now === undefined ? {} : { now }),
+  });
 }
 
 describe("Supabase transaction-pooler repository boundary", () => {
@@ -283,21 +315,19 @@ describe("Supabase transaction-pooler repository boundary", () => {
       }
       return { rows: [], rowCount: 1 };
     });
-    const admin = createSupabaseAdminRepository({
-      pool: recorded.pool,
-      claims: claims(),
-    });
-
-    await expect(
-      admin.commandEditorial(
-        "approve",
-        itemId,
-        revisionId,
-        "Author cannot approve this high-trust revision.",
-        true,
-        "018f3c2a-4b67-7a89-8abc-123456789092",
-      ),
-    ).rejects.toBeInstanceOf(StaffAuthorizationError);
+    const result = await withActiveCapabilityStaffRequestTransaction(
+      { pool: recorded.pool, verifiedClaims: claims() },
+      async (database, actor) =>
+        createSupabaseAdminRepository(database, actor).commandEditorial(
+          "approve",
+          itemId,
+          revisionId,
+          "Author cannot approve this high-trust revision.",
+          true,
+          "018f3c2a-4b67-7a89-8abc-123456789092",
+        ),
+    );
+    expect(result).toEqual({ _denied: "self_approval" });
 
     const statements = recorded.queries.map(({ text }) => text);
     expect(statements.some((text) => text.includes("admin_audit_events"))).toBe(true);
@@ -346,12 +376,9 @@ describe("Supabase transaction-pooler repository boundary", () => {
       }
       return { rows: [], rowCount: 0 };
     });
-    const repository = createSupabasePrivacyRepository({
-      pool: recorded.pool,
-      claims: claims(),
-    });
+    const service = privacyService(recorded.pool, claims());
 
-    await expect(repository.request("export", "privacy-export-u14")).resolves.toEqual({
+    await expect(service.request("export", "privacy-export-u14")).resolves.toEqual({
       id: requestId,
     });
     const statements = recorded.queries.map(({ text }) => text);
@@ -373,11 +400,8 @@ describe("Supabase transaction-pooler repository boundary", () => {
       }
       return { rows: [], rowCount: 0 };
     });
-    const repository = createSupabasePrivacyRepository({
-      pool: recorded.pool,
-      claims: claims(),
-    });
-    await expect(repository.request("export", "privacy-export-replay")).resolves
+    const service = privacyService(recorded.pool, claims());
+    await expect(service.request("export", "privacy-export-replay")).resolves
       .toEqual({ id: requestId });
     expect(recorded.queries.filter(({ text }) =>
       text.includes("request_privacy_export")
@@ -408,9 +432,9 @@ describe("Supabase transaction-pooler repository boundary", () => {
       }
       return { rows: [], rowCount: 0 };
     });
-    await createSupabasePrivacyRepository({ pool: recorded.pool, claims: claims(userA) })
+    await privacyService(recorded.pool, claims(userA))
       .request("export", "same-client-key-across-users");
-    await createSupabasePrivacyRepository({ pool: recorded.pool, claims: claims(userB, sessionB) })
+    await privacyService(recorded.pool, claims(userB, sessionB))
       .request("export", "same-client-key-across-users");
     expect([...keys]).toHaveLength(2);
     expect([...keys].every((key) => /^privacy-export:[a-f0-9]{64}$/.test(key))).toBe(true);
@@ -441,12 +465,13 @@ describe("Supabase transaction-pooler repository boundary", () => {
       }
       return { rows: [], rowCount: 0 };
     });
-    const repository = createSupabasePrivacyRepository({
-      pool: recorded.pool,
-      claims: claims(),
-      signedStorage: { createSignedUrl: signed },
-    });
-    const result = await repository.createDownloadUrl(
+    const service = privacyService(
+      recorded.pool,
+      claims(),
+      { createSignedUrl: signed },
+      () => 1_000,
+    );
+    const result = await service.createDownloadUrl(
       "018f3c2a-4b67-7a89-8abc-123456789041",
     );
     expect(signed).toHaveBeenCalledWith("privacy-exports", `${userA}/export.zip`, 30);
@@ -481,17 +506,18 @@ describe("Supabase transaction-pooler repository boundary", () => {
       }
       return { rows: [], rowCount: 0 };
     });
-    const repository = createSupabaseBriefingRepository({
-      pool: recorded.pool,
-      claims: claims(),
-    });
-
-    await expect(repository.setRead(briefingId, true)).resolves.toMatchObject({
-      id: briefingId,
-      read_at: "2026-08-28T16:30:00.000Z",
-    });
-    await repository.list(20);
-    await repository.get(briefingId);
+    await withMemberRequestTransaction(
+      { pool: recorded.pool, verifiedClaims: claims() },
+      async (database) => {
+        const repository = createSupabaseBriefingRepository(database);
+        await expect(repository.setRead(briefingId, true)).resolves.toMatchObject({
+          id: briefingId,
+          read_at: "2026-08-28T16:30:00.000Z",
+        });
+        await repository.list(20);
+        await repository.get(briefingId);
+      },
+    );
 
     const mutation = recorded.queries.find(({ text }) =>
       text.includes("insert into argus_app.briefing_read_states")
@@ -499,18 +525,21 @@ describe("Supabase transaction-pooler repository boundary", () => {
     expect(mutation?.text).toContain("on conflict (user_id,briefing_id) do update");
     expect(mutation?.text).toContain("delete from argus_app.briefing_read_states");
     expect(mutation?.values).toEqual([briefingId, true]);
-    const reads = recorded.queries.filter(({ text }) =>
+    const directReads = recorded.queries.filter(({ text }) =>
       text.includes("left join argus_app.briefing_read_states")
     );
-    expect(reads).toHaveLength(2);
-    expect(reads.every(({ text }) =>
+    expect(directReads).toHaveLength(1);
+    expect(directReads.every(({ text }) =>
       text.includes("read_state.deletion_epoch=briefing.deletion_epoch")
     )).toBe(true);
-    expect(reads.every(({ text }) =>
+    expect(directReads.every(({ text }) =>
       text.includes("briefing.status='ready'")
     )).toBe(true);
-    expect(reads.every(({ text }) =>
+    expect(directReads.every(({ text }) =>
       text.includes("argus_private.trusted_request_user_id()")
+    )).toBe(true);
+    expect(recorded.queries.some(({ text }) =>
+      text.includes("argus_private.list_member_briefings_page")
     )).toBe(true);
     expect(recorded.queries.map(({ text }) => text)).toContain(
       "set local role argus_member",
@@ -526,11 +555,8 @@ describe("Supabase transaction-pooler repository boundary", () => {
         ? { rows: [{ id: requestId }], rowCount: 1 }
         : { rows: [], rowCount: 0 }
     );
-    const repository = createSupabasePrivacyRepository({
-      pool: recorded.pool,
-      claims: claims(),
-    });
-    await expect(repository.request(
+    const service = privacyService(recorded.pool, claims());
+    await expect(service.request(
       "deletion",
       "privacy-delete-idempotency",
       receipt,
@@ -545,12 +571,16 @@ describe("Supabase transaction-pooler repository boundary", () => {
 
   it("runs public preview without inventing a user claim", async () => {
     const recorded = recordingPool();
-    const repository = createSupabasePublicPreviewRepository(recorded.pool);
-
-    await expect(repository.listPublished("ritual", 10)).resolves.toEqual([]);
+    await expect(
+      withAnonymousRequestTransaction(recorded.pool, (database) =>
+        createSupabasePublicPreviewRepository(database).listPublished(
+          "ritual",
+          10,
+        )),
+    ).resolves.toEqual([]);
     expect(recorded.queries.map(({ text }) => text)).toEqual([
       "begin",
-      "set local role argus_runtime",
+      "set local role argus_public_preview",
       expect.stringContaining("argus_private.list_current_published_editorial"),
       "commit",
     ]);
@@ -723,32 +753,35 @@ describe("Supabase transaction-pooler repository boundary", () => {
         rowCount: 1,
       };
     });
-    const binding = { pool: recorded.pool, claims: claims() };
     const capture = async (run: () => Promise<unknown>) => {
       const start = recorded.queries.length;
       await run();
       return recorded.queries.slice(start).map(({ text }) => text).join("\n");
     };
     const evidenceIds = [genericId];
-    const session = createSupabaseSessionRepository(binding);
-    const accounts = createSupabaseAccountRepository(binding);
-    const assets = createSupabaseAssetRepository(binding);
-    const editorial = createSupabaseEditorialRepository(binding);
-    const briefings = createSupabaseBriefingRepository(binding);
-    const circles = createSupabaseCircleRepository(binding);
-    const coven = createSupabaseCovenRepository(binding);
-    const discover = createSupabaseDiscoverRepository(binding);
-    const media = createSupabaseMediaRepository(binding);
-    const moderation = createSupabaseModerationRepository(binding);
-    const notifications = createSupabaseNotificationRepository(binding);
-    const privacy = createSupabasePrivacyRepository(binding);
-    const rituals = createSupabaseRitualRepository(binding);
-    const rowan = createSupabaseRowanRepository(binding);
-    const search = createSupabaseSearchRepository(binding);
-    const admin = createSupabaseAdminRepository(binding);
-    const adminOperations = createSupabaseAdminOperationsRepository(binding);
-    const scenarios = createSupabaseScenarioRepository(binding);
-    const preview = createSupabasePublicPreviewRepository(recorded.pool);
+    const database = recorded.database;
+    const session = createSupabaseSessionRepository(database, userA);
+    const accounts = createSupabaseAccountRepository(database);
+    const assets = createSupabaseAssetRepository(database);
+    const editorial = createSupabaseEditorialRepository(database);
+    const briefings = createSupabaseBriefingRepository(database);
+    const circles = createSupabaseCircleRepository(database);
+    const coven = createSupabaseCovenRepository(database);
+    const discover = createSupabaseDiscoverRepository(database);
+    const media = createSupabaseMediaRepository(database);
+    const moderation = createSupabaseModerationRepository(database);
+    const notifications = createSupabaseNotificationRepository(database);
+    const privacy = createSupabasePrivacyRepository(database);
+    const rituals = createSupabaseRitualRepository(database);
+    const rowan = createSupabaseRowanRepository(database);
+    const search = createSupabaseSearchRepository(database);
+    const admin = createSupabaseAdminRepository(database, claims());
+    const adminOperations = createSupabaseAdminOperationsRepository(
+      database,
+      sessionA,
+    );
+    const scenarios = createSupabaseScenarioRepository(database);
+    const preview = createSupabasePublicPreviewRepository(database);
 
     const executedByDomain: Record<string, string> = {
       session: await capture(() => session.bootstrap()),
@@ -775,7 +808,6 @@ describe("Supabase transaction-pooler repository boundary", () => {
       }),
       coven: await capture(() => coven.list(10)),
       discover: await capture(async () => {
-        await discover.listAssets(10);
         await discover.listGrimoires(10);
         await discover.listCircleTemplates(10);
       }),
@@ -801,7 +833,7 @@ describe("Supabase transaction-pooler repository boundary", () => {
         await notifications.getPreferences();
       }),
       privacy: await capture(async () => {
-        await privacy.request("export", "u14-coverage-export");
+        await privacy.requestExport("u14-coverage-export");
         await privacy.getDeletionTombstone();
       }),
       scenarios: await capture(async () => {
@@ -822,7 +854,13 @@ describe("Supabase transaction-pooler repository boundary", () => {
         await rituals.getScenario(genericId);
       }),
       rowan: await capture(() => rowan.resolve("daily_ritual", "daily")),
-      search: await capture(() => search.search("argus", 10)),
+      search: await capture(() =>
+        search.searchPage({
+          query: "argus",
+          kinds: ["asset", "coven", "grimoire", "circle_template"],
+          limit: 10,
+          after: null,
+        })),
       admin: await capture(async () => {
         await admin.getStaffPrincipal();
         await admin.listAudit(10);
@@ -853,6 +891,27 @@ describe("Supabase transaction-pooler repository boundary", () => {
       expect(executedSql, `${domain} has executable repository evidence`).toBeDefined();
       for (const relation of relations) {
         const composedCapabilities: Record<string, Record<string, string>> = {
+          assets: {
+            "argus_app.catalog_assets": "argus_private.list_published_assets_page",
+            "argus_app.asset_codex_revisions": "argus_private.list_published_assets_page",
+            "argus_app.editorial_render_documents": "argus_private.list_published_assets_page",
+          },
+          briefings: {
+            "argus_app.briefing_sections": "argus_private.list_member_briefing_sections",
+          },
+          coven: {
+            "argus_app.coven_entries": "argus_private.list_published_coven_page",
+            "argus_app.companies": "argus_private.list_published_coven_page",
+            "argus_app.coven_qualifications": "argus_private.list_published_coven_page",
+            "argus_app.member_saved_items": "argus_private.list_published_coven_page",
+            "argus_app.editorial_render_documents": "argus_private.list_published_coven_page",
+          },
+          discover: {
+            "argus_app.grimoires": "argus_private.list_published_grimoires_page",
+            "argus_app.community_templates": "argus_private.list_published_circle_templates_page",
+            "argus_app.member_saved_items": "argus_private.list_published_grimoires_page",
+            "argus_app.editorial_render_documents": "argus_private.list_published_grimoires_page",
+          },
           media: {
             "argus_private.media_upload_intents": "argus_private.get_member_media_upload_intent",
             "argus_app.media_assets": "argus_private.finalize_media_upload",
@@ -861,6 +920,10 @@ describe("Supabase transaction-pooler repository boundary", () => {
             "argus_app.privacy_requests": "argus_private.list_member_privacy_requests",
             "argus_private.outbox_events": "argus_private.request_privacy_export",
             "argus_private.deletion_tombstones": "argus_private.get_member_deletion_tombstone",
+          },
+          search: {
+            "argus_app.catalog_assets": "argus_private.search_published_content_page",
+            "argus_app.editorial_items": "argus_private.search_published_content_page",
           },
         };
         const capability = composedCapabilities[domain]?.[relation];
@@ -892,6 +955,20 @@ describe("Supabase transaction-pooler repository boundary", () => {
     );
     expect(executedByDomain.adminOperations).not.toMatch(
       /from\s+argus_private\.job_runs|from\s+argus_app\.privacy_requests/i,
+    );
+    const brokerageDiagnostics = recorded.queries.find(({ text }) =>
+      text.includes("'connection_health'::text")
+    );
+    expect(brokerageDiagnostics?.values).toEqual([10]);
+    expect(brokerageDiagnostics?.text.match(/limit \$1/g)).toHaveLength(4);
+    expect(brokerageDiagnostics?.text).toMatch(
+      /from \(\s+select id,status,last_error_code,updated_at\s+from argus_brokerage\.connections\s+order by updated_at desc,id desc\s+limit \$1/s,
+    );
+    expect(brokerageDiagnostics?.text).toMatch(
+      /from \(\s+select id,state,updated_at\s+from argus_private\.provider_commands\s+order by updated_at desc,id desc\s+limit \$1/s,
+    );
+    expect(brokerageDiagnostics?.text).toMatch(
+      /from \(\s+select id,status,last_error_code,updated_at\s+from argus_private\.reconciliation_records\s+order by updated_at desc,id desc\s+limit \$1/s,
     );
   });
 

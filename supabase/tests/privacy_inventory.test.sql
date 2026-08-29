@@ -1,8 +1,12 @@
 begin;
 set transaction isolation level repeatable read;
 
-grant argus_edge,argus_member,argus_worker,argus_jobs_owner
-  to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_edge,argus_member,argus_worker,argus_jobs_owner to %I with set true',
+    current_user
+  );
+end $membership$;
 grant usage on schema extensions
   to argus_edge,argus_member,argus_worker,argus_jobs_owner;
 create extension if not exists pgtap with schema extensions;

@@ -47,7 +47,12 @@ select is(
   'every normalized editorial relation forces RLS'
 );
 
-grant argus_app_owner,argus_edge,argus_runtime,argus_staff to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_app_owner,argus_edge,argus_runtime,argus_staff to %I with set true',
+    current_user
+  );
+end $membership$;
 grant usage on schema extensions to argus_edge,argus_runtime,argus_staff;
 
 insert into auth.users(

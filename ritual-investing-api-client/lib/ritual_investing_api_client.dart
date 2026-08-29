@@ -113,6 +113,7 @@ export 'package:ritual_investing_api_client/generated/model/create_hypothetical_
 export 'package:ritual_investing_api_client/generated/model/create_member_intention.dart';
 export 'package:ritual_investing_api_client/generated/model/create_upload_intent_request.dart';
 export 'package:ritual_investing_api_client/generated/model/creator_collection_response.dart';
+export 'package:ritual_investing_api_client/generated/model/creator_response.dart';
 export 'package:ritual_investing_api_client/generated/model/daily_ritual_assignment.dart';
 export 'package:ritual_investing_api_client/generated/model/daily_ritual_response.dart';
 export 'package:ritual_investing_api_client/generated/model/decide_moderation_request.dart';
@@ -122,6 +123,8 @@ export 'package:ritual_investing_api_client/generated/model/disconnect_webull_co
 export 'package:ritual_investing_api_client/generated/model/discover_asset_collection_response.dart';
 export 'package:ritual_investing_api_client/generated/model/discover_item.dart';
 export 'package:ritual_investing_api_client/generated/model/discover_response.dart';
+export 'package:ritual_investing_api_client/generated/model/editorial_collection_response.dart';
+export 'package:ritual_investing_api_client/generated/model/editorial_item_response.dart';
 export 'package:ritual_investing_api_client/generated/model/evidence_claim.dart';
 export 'package:ritual_investing_api_client/generated/model/evidence_detail.dart';
 export 'package:ritual_investing_api_client/generated/model/evidence_detail_source.dart';
@@ -177,6 +180,7 @@ export 'package:ritual_investing_api_client/generated/model/privacy_download_url
 export 'package:ritual_investing_api_client/generated/model/privacy_request.dart';
 export 'package:ritual_investing_api_client/generated/model/privacy_request_collection_response.dart';
 export 'package:ritual_investing_api_client/generated/model/privacy_request_response.dart';
+export 'package:ritual_investing_api_client/generated/model/published_editorial.dart';
 export 'package:ritual_investing_api_client/generated/model/put_circle_asset_request.dart';
 export 'package:ritual_investing_api_client/generated/model/read_all_notifications_request.dart';
 export 'package:ritual_investing_api_client/generated/model/read_all_notifications_response.dart';

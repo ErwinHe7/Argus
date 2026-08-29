@@ -3,8 +3,11 @@ begin;
 -- U5 transfers brokerage relation ownership to a NOLOGIN capability owner.
 -- This rollback-only membership is fixture authority, never a production
 -- runtime grant.
-grant argus_brokerage_owner to current_user with set true;
-grant argus_worker to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_brokerage_owner,argus_worker to %I with set true',current_user
+  );
+end $membership$;
 grant usage on schema extensions to argus_worker;
 
 create extension if not exists pgtap with schema extensions;

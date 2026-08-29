@@ -120,6 +120,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:dead_letter_events` | retained-argus | Supabase private bounded job failure evidence |
 | `database-table:device_installations` | retained-argus | Argus notification/privacy state in Supabase |
 | `database-table:editorial_items` | retained-argus | Argus editorial workflow in Supabase |
+| `database-table:editorial_creators` | retained-argus | Normalized fictional editorial creator identity and attribution |
 | `database-table:editorial_render_documents` | retained-argus | Immutable versioned historical rendering documents |
 | `database-table:editorial_revision_assets` | retained-argus | Ordered editorial revision asset relationships |
 | `database-table:editorial_review_decisions` | retained-argus | Argus editorial workflow in Supabase |
@@ -248,15 +249,18 @@ Each surface below appears exactly once. The contract test derives current table
 | `api-domain:admin-operations` | retained-argus | Argus staff operations in Supabase |
 | `api-domain:assets` | retained-argus | Argus evidence API |
 | `api-domain:briefings` | retained-argus | Argus briefing API |
+| `api-domain:brokerage` | replaced-webull | Webull-backed brokerage route composition and error mapping; no Argus brokerage ledger |
 | `api-domain:brokerage-accounts` | replaced-webull | Owner-scoped Webull accounts, capabilities, and restrictions |
 | `api-domain:brokerage-assets` | replaced-webull | Normalized Webull balances, positions, and private provider mappings |
 | `api-domain:brokerage-connections` | replaced-webull | Webull connection lifecycle and encrypted credential custody |
 | `api-domain:brokerage-orders` | replaced-webull | Capability-gated manual Webull commands and immutable order projections |
 | `api-domain:brokerage-projections` | replaced-webull | Immutable timestamped provider-authoritative read generations |
 | `api-domain:circles` | retained-argus | Argus community API |
+| `api-domain:content` | retained-argus | Shared typed Argus content projections and pagination contracts |
 | `api-domain:coven` | retained-argus | Argus editorial API |
 | `api-domain:discover` | retained-argus | Argus discovery API |
 | `api-domain:editorial` | retained-argus | Argus editorial core |
+| `api-domain:engagement` | retained-argus | Shared Argus member-engagement repository ports |
 | `api-domain:entitlements` | deleted | Remove Demo membership routes |
 | `api-domain:intentions` | retained-argus | Argus scenario API |
 | `api-domain:media` | retained-argus | Argus metadata and private Supabase Storage |
@@ -265,11 +269,13 @@ Each surface below appears exactly once. The contract test derives current table
 | `api-domain:orders` | replaced-webull | Provider order projections and commands |
 | `api-domain:portfolios` | replaced-webull | Webull account, balance, and position projections |
 | `api-domain:privacy` | retained-argus | Argus privacy API |
+| `api-domain:platform` | retained-argus | Shared Argus platform and database composition contracts |
 | `api-domain:public-preview` | retained-argus | Approved Argus editorial projection |
 | `api-domain:rebalancing` | deleted | Rebalance execution is outside scope |
 | `api-domain:recurring-plans` | deleted | Recurring financial execution is outside scope |
 | `api-domain:rituals` | retained-argus | Argus ritual API |
 | `api-domain:rowan` | retained-argus | Redacted non-command counsel API |
+| `api-domain:retained-http` | retained-argus | Retained Argus HTTP boundary and request-scoped composition |
 | `api-domain:saves` | retained-argus | Argus member organization API |
 | `api-domain:search` | retained-argus | Argus search API |
 | `api-domain:session` | retained-argus | Supabase Auth-backed Argus bootstrap |

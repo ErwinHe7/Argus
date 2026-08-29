@@ -1,4 +1,4 @@
-import type { BrokerageProjectionRepository } from "./repository.ts";
+import type { WithBrokerageProjectionRepository } from "./ports.ts";
 import {
   type BrokerageAccountContext,
   BrokerageProjectionError,
@@ -115,7 +115,7 @@ function assertProjectionPayloadSafe(value: unknown): void {
 
 export function createBrokerageProjectionService(
   input: Readonly<{
-    repository: BrokerageProjectionRepository;
+    withRepository: WithBrokerageProjectionRepository;
     provider: BrokerageProjectionProvider;
     now?: () => Date;
     leaseMilliseconds?: number;
@@ -125,17 +125,23 @@ export function createBrokerageProjectionService(
   const now = input.now ?? (() => new Date());
   const leaseMilliseconds = input.leaseMilliseconds ?? 15_000;
   const retentionMilliseconds = input.retentionMilliseconds ?? 30 * 86_400_000;
+  const withRepository = input.withRepository;
 
   return Object.freeze({
-    listAccounts: () => input.repository.listAccounts(),
+    listAccounts: () =>
+      withRepository((repository) => repository.listAccounts()),
     read: async (
       accountId: string,
       resource: BrokerageProjectionResource,
       forceRefresh = false,
     ): Promise<BrokerageProjectionResponse> => {
-      const context = await input.repository.account(accountId);
+      const context = await withRepository((repository) =>
+        repository.account(accountId)
+      );
       const currentTime = now();
-      const cached = await input.repository.latest(accountId, resource);
+      const cached = await withRepository((repository) =>
+        repository.latest(accountId, resource)
+      );
       if (context.connectionStatus === "disconnected") {
         return response(
           accountId,
@@ -177,12 +183,14 @@ export function createBrokerageProjectionService(
       }
 
       const leaseToken = crypto.randomUUID();
-      const acquired = await input.repository.acquireRefreshLease({
-        context,
-        resource,
-        leaseToken,
-        leasedUntil: new Date(currentTime.getTime() + leaseMilliseconds),
-      });
+      const acquired = await withRepository((repository) =>
+        repository.acquireRefreshLease({
+          context,
+          resource,
+          leaseToken,
+          leasedUntil: new Date(currentTime.getTime() + leaseMilliseconds),
+        })
+      );
       if (!acquired) {
         return response(
           accountId,
@@ -214,15 +222,17 @@ export function createBrokerageProjectionService(
           throw new BrokerageProjectionError("provider_contract_unavailable");
         }
         assertProjectionPayloadSafe(projection.payload);
-        const stored = await input.repository.appendGeneration({
-          context,
-          resource,
-          leaseToken,
-          projection,
-          purgeAfter: new Date(
-            projection.fetchedAt.getTime() + retentionMilliseconds,
-          ),
-        });
+        const stored = await withRepository((repository) =>
+          repository.appendGeneration({
+            context,
+            resource,
+            leaseToken,
+            projection,
+            purgeAfter: new Date(
+              projection.fetchedAt.getTime() + retentionMilliseconds,
+            ),
+          })
+        );
         return response(
           accountId,
           resource,
@@ -235,12 +245,16 @@ export function createBrokerageProjectionService(
           error instanceof BrokerageProjectionError &&
           error.code === "account_removed"
         ) {
-          await input.repository.invalidateAccount(accountId);
+          await withRepository((repository) =>
+            repository.invalidateAccount(accountId)
+          );
         } else if (
           error instanceof BrokerageProjectionError &&
           error.code === "reauthorization_required"
         ) {
-          await input.repository.requireReauthorization(context.connectionId);
+          await withRepository((repository) =>
+            repository.requireReauthorization(context.connectionId)
+          );
         } else if (
           error instanceof BrokerageProjectionError &&
           error.code === "refresh_fenced"
@@ -266,11 +280,13 @@ export function createBrokerageProjectionService(
         );
       } finally {
         try {
-          await input.repository.releaseRefreshLease({
-            accountId,
-            resource,
-            leaseToken,
-          });
+          await withRepository((repository) =>
+            repository.releaseRefreshLease({
+              accountId,
+              resource,
+              leaseToken,
+            })
+          );
         } catch {
           // Lease expiry is the recovery path. A release outage cannot replace
           // a successfully fenced/stored response or disclose provider data.

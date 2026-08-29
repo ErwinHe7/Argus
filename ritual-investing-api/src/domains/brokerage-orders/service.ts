@@ -1,9 +1,13 @@
-import type { BrokerageOrderRepository } from "./repository.ts";
+import type {
+  BrokerageOrderRepository,
+  WithBrokerageOrderRepository,
+} from "./ports.ts";
 import {
   normalizeCancelOrderIntent,
   normalizeModifyOrderIntent,
   normalizePlaceOrderIntent,
 } from "./normalization.ts";
+import { normalizeBrokerageReasonCode } from "./reason-codes.ts";
 import {
   BROKERAGE_ORDER_POLICY_VERSION,
   type BrokerageOrderAuthority,
@@ -87,7 +91,8 @@ function assertMutableTarget(target: OwnedOrderTarget): void {
 
 export function createBrokerageOrderService(
   input: Readonly<{
-    repository: BrokerageOrderRepository;
+    withRepository: WithBrokerageOrderRepository;
+    withStaffRepository: WithBrokerageOrderRepository;
     provider: BrokerageOrderProvider;
     now?: () => Date;
     id?: () => string;
@@ -153,6 +158,7 @@ export function createBrokerageOrderService(
 }> {
   const now = input.now ?? (() => new Date());
   const id = input.id ?? (() => crypto.randomUUID());
+  const withRepository = input.withRepository;
 
   const preview = async (
     accountId: string,
@@ -160,13 +166,14 @@ export function createBrokerageOrderService(
     intent: NormalizedOrderIntent,
     target: OwnedOrderTarget | null,
   ): Promise<BrokerageOrderPreview> => {
-    const authority = await input.repository.authority(accountId);
+    const authority = await withRepository((repository) =>
+      repository.authority(accountId)
+    );
     const currentTime = now();
     assertFreshAuthority(authority, currentTime);
     if ("instrument_id" in intent) {
-      await input.repository.assertInstrumentOwned(
-        accountId,
-        intent.instrument_id,
+      await withRepository((repository) =>
+        repository.assertInstrumentOwned(accountId, intent.instrument_id)
       );
     }
     if (target !== null) assertMutableTarget(target);
@@ -187,16 +194,18 @@ export function createBrokerageOrderService(
       throw new BrokerageOrderError("provider_contract_unavailable", true);
     }
     const normalizedPayloadHash = await sha256Hex(JSON.stringify(intent));
-    return input.repository.savePreview({
-      authority,
-      id: id(),
-      operation,
-      targetOrderId: target?.orderId ?? null,
-      normalizedPayload: intent,
-      normalizedPayloadHash,
-      provider: providerPreview,
-      policyVersion: BROKERAGE_ORDER_POLICY_VERSION,
-    });
+    return withRepository((repository) =>
+      repository.savePreview({
+        authority,
+        id: id(),
+        operation,
+        targetOrderId: target?.orderId ?? null,
+        normalizedPayload: intent,
+        normalizedPayloadHash,
+        provider: providerPreview,
+        policyVersion: BROKERAGE_ORDER_POLICY_VERSION,
+      })
+    );
   };
 
   const confirm = async (
@@ -208,7 +217,9 @@ export function createBrokerageOrderService(
     intent: NormalizedOrderIntent,
   ): Promise<BrokerageOrderCommand> => {
     const payloadHash = await sha256Hex(JSON.stringify(intent));
-    const authority = await input.repository.authority(accountId);
+    const authority = await withRepository((repository) =>
+      repository.authority(accountId)
+    );
     // This identifier is deterministic for the exact owner/account/operation/
     // idempotency/payload binding, so duplicate devices cannot manufacture a
     // conflicting provider identifier before the database returns the winner.
@@ -220,47 +231,75 @@ export function createBrokerageOrderService(
       idempotencyKey,
       payloadHash,
     ].join("\u001f"));
-    const prepared = await input.repository.prepareCommand({
-      authority,
-      previewId,
-      commandId: id(),
-      operation,
-      targetOrderId,
-      idempotencyKey,
-      clientOrderId: `argus_${stableDigest.slice(0, 48)}`,
-      normalizedPayload: intent,
-      normalizedPayloadHash: payloadHash,
-      policyVersion: BROKERAGE_ORDER_POLICY_VERSION,
-      now: now(),
-    });
-    if (prepared.duplicate) return input.repository.command(prepared.id);
+    const prepared = await withRepository((repository) =>
+      repository.prepareCommand({
+        authority,
+        previewId,
+        commandId: id(),
+        operation,
+        targetOrderId,
+        idempotencyKey,
+        clientOrderId: `argus_${stableDigest.slice(0, 48)}`,
+        normalizedPayload: intent,
+        normalizedPayloadHash: payloadHash,
+        policyVersion: BROKERAGE_ORDER_POLICY_VERSION,
+        now: now(),
+      })
+    );
+    if (prepared.duplicate) {
+      return withRepository((repository) => repository.command(prepared.id));
+    }
 
     let result: ProviderCommandResult;
     try {
       result = await input.provider.execute(prepared);
     } catch (error) {
       if (error instanceof BrokerageOrderError && error.beforeEgress) {
-        return input.repository.recordBeforeEgressFailure(prepared, error.code);
+        return withRepository((repository) =>
+          repository.recordBeforeEgressFailure(
+            prepared,
+            normalizeBrokerageReasonCode(
+              error.code,
+              "provider_contract_unavailable",
+            ),
+          )
+        );
       }
-      return input.repository.recordAmbiguous(
-        prepared,
-        "provider_outcome_unknown",
+      return withRepository((repository) =>
+        repository.recordAmbiguous(prepared, "provider_outcome_unknown")
       );
     }
     if (result.kind === "acknowledged") {
-      return input.repository.recordAccepted(prepared, result);
+      return withRepository((repository) =>
+        repository.recordAccepted(prepared, result)
+      );
     }
     if (result.kind === "rejected") {
-      return input.repository.recordRejected(prepared, result.providerCode);
+      return withRepository((repository) =>
+        repository.recordRejected(
+          prepared,
+          normalizeBrokerageReasonCode(result.providerCode, "provider_rejected"),
+        )
+      );
     }
-    return input.repository.recordAmbiguous(prepared, result.reasonCode);
+    return withRepository((repository) =>
+      repository.recordAmbiguous(
+        prepared,
+        normalizeBrokerageReasonCode(
+          result.reasonCode,
+          "provider_outcome_unknown",
+        ),
+      )
+    );
   };
 
   return Object.freeze({
     previewPlace: async (accountId, intent) =>
       preview(accountId, "place", normalizePlaceOrderIntent(intent), null),
     previewModify: async (accountId, orderId, intent) => {
-      const target = await input.repository.targetOrder(accountId, orderId);
+      const target = await withRepository((repository) =>
+        repository.targetOrder(accountId, orderId)
+      );
       return preview(
         accountId,
         "modify",
@@ -269,7 +308,9 @@ export function createBrokerageOrderService(
       );
     },
     previewCancel: async (accountId, orderId) => {
-      const target = await input.repository.targetOrder(accountId, orderId);
+      const target = await withRepository((repository) =>
+        repository.targetOrder(accountId, orderId)
+      );
       return preview(
         accountId,
         "cancel",
@@ -304,14 +345,22 @@ export function createBrokerageOrderService(
         request.idempotencyKey,
         normalizeCancelOrderIntent(request.orderId),
       ),
-    command: input.repository.command,
-    staffReconciliation: input.repository.staffReconciliation,
+    command: (commandId) =>
+      withRepository((repository) => repository.command(commandId)),
+    staffReconciliation: (commandId) =>
+      input.withStaffRepository((repository) =>
+        repository.staffReconciliation(commandId)
+      ),
     listOrders: async (accountId, forceRefresh = false) => {
-      const cached = await input.repository.listOrders(accountId);
+      const cached = await withRepository((repository) =>
+        repository.listOrders(accountId)
+      );
       if (
         !forceRefresh && ["fresh", "empty", "partial"].includes(cached.state)
       ) return cached;
-      const authority = await input.repository.authority(accountId);
+      const authority = await withRepository((repository) =>
+        repository.authority(accountId)
+      );
       if (authority.context.connectionStatus !== "connected") return cached;
       try {
         const projection = await input.provider.list(authority);
@@ -335,42 +384,60 @@ export function createBrokerageOrderService(
         ) {
           throw new BrokerageOrderError("provider_contract_unavailable");
         }
-        return await input.repository.saveOrderList(authority, projection);
+        return await withRepository((repository) =>
+          repository.saveOrderList(authority, projection)
+        );
       } catch {
         return cached;
       }
     },
-    order: input.repository.order,
+    order: (accountId, orderId) =>
+      withRepository((repository) => repository.order(accountId, orderId)),
     reconcile: async (commandId) => {
-      const prepared = await input.repository.claimReconciliation(commandId);
-      if (prepared === null) return input.repository.command(commandId);
+      const prepared = await withRepository((repository) =>
+        repository.claimReconciliation(commandId)
+      );
+      if (prepared === null) {
+        return withRepository((repository) => repository.command(commandId));
+      }
       let detail: ProviderDetailResult;
       try {
         detail = await input.provider.detail(prepared);
       } catch {
         // The command remains reconciling. The recovery worker may perform a
         // later detail lookup, but this path can never call execute again.
-        return input.repository.recordReconciliationAmbiguous(
-          prepared,
-          "provider_lookup_unavailable",
+        return withRepository((repository) =>
+          repository.recordReconciliationAmbiguous(
+            prepared,
+            "provider_lookup_unavailable",
+          )
         );
       }
       if (detail.kind === "resolved") {
-        return input.repository.recordReconciled(
-          prepared,
-          detail.resolution,
-          detail.orderReference,
-          detail.order,
+        return withRepository((repository) =>
+          repository.recordReconciled(
+            prepared,
+            detail.resolution,
+            detail.orderReference,
+            detail.order,
+          )
         );
       }
       if (detail.kind === "not_found") {
         // Not-found is weak evidence for an eventually-consistent listing and
         // can never terminalize a write whose response was lost.
-        return input.repository.recordReconciliationNotFound(prepared);
+        return withRepository((repository) =>
+          repository.recordReconciliationNotFound(prepared)
+        );
       }
-      return input.repository.recordReconciliationAmbiguous(
-        prepared,
-        detail.reasonCode,
+      return withRepository((repository) =>
+        repository.recordReconciliationAmbiguous(
+          prepared,
+          normalizeBrokerageReasonCode(
+            detail.reasonCode,
+            "provider_lookup_unavailable",
+          ),
+        )
       );
     },
   });

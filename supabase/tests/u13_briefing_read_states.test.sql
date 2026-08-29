@@ -3,9 +3,12 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_edge, argus_identity_owner, argus_member, argus_runtime,
-  argus_worker, argus_waitlist
-  to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_edge,argus_identity_owner,argus_member,argus_runtime,argus_worker,argus_waitlist to %I with set true',
+    current_user
+  );
+end $membership$;
 grant usage on schema extensions
   to argus_edge, argus_identity_owner, argus_member, argus_runtime,
      argus_worker, argus_waitlist;

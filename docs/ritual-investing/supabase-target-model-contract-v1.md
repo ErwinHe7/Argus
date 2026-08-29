@@ -69,8 +69,10 @@ reconciliation work, never prepare or resubmit financial commands.
 All state-changing brokerage routines acquire lifecycle, connection, account,
 then command or lease locks in that order. Preparing a command commits the
 command and immutable started attempt before provider egress. Once the command
-is `dispatching`, any crash is recovered only by recording a definitive
-response or provider lookup/reconciliation; absence never grants permission to
+is `dispatching`, the bounded coordinator schedules lookup-only recovery after
+30 seconds even when the request path committed no reconciliation row. Any
+crash is recovered only by recording a definitive response or provider
+lookup/reconciliation; absence never grants permission to
 submit a second write.
 
 ## Relationship-bearing arrays and JSON

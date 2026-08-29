@@ -1,4 +1,165 @@
+import type { DatabaseTransaction } from "../../db/database-port.ts";
+import type { VerifiedRequestClaims } from "../../db/request-claims.ts";
+import { RepositoryStepUpRequiredError } from "../../db/repository-errors.ts";
 import { sha256TextHex as sha256 } from "../../security/sha256.ts";
+
+const maxSignedUrlLength = 4_096;
+
+function requireSafeSignedUrl(value: string): string {
+  if (
+    value.length === 0 ||
+    value.length > maxSignedUrlLength ||
+    value.trim() !== value
+  ) {
+    throw new Error("storage_unavailable");
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("storage_unavailable");
+  }
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username.length !== 0 ||
+    parsed.password.length !== 0 ||
+    parsed.href.length === 0 ||
+    parsed.href.length > maxSignedUrlLength
+  ) {
+    throw new Error("storage_unavailable");
+  }
+  return value;
+}
+
+export type PrivacyRequestRepository = Readonly<{
+  list(): Promise<unknown[]>;
+  requestExport(scopedDedupeKey: string): Promise<unknown>;
+  requestDeletion(
+    receiptHash: string,
+    sessionId: string,
+    dedupeKey: string,
+  ): Promise<unknown>;
+  getDeletionTombstone(): Promise<unknown>;
+  prepareDownload(requestId: string): Promise<
+    Readonly<{
+      access_lease_id: string;
+      bucket_id: string;
+      object_path: string;
+      expires_in_seconds: number;
+    }>
+  >;
+  confirmDownload(accessLeaseId: string): Promise<void>;
+}>;
+
+export type PrivacySignedStorage = Readonly<{
+  createSignedUrl(
+    bucket: string,
+    path: string,
+    expiresInSeconds: number,
+  ): Promise<string>;
+}>;
+
+export type PrivacyRequestService = Readonly<{
+  list(): Promise<unknown[]>;
+  request(
+    requestType: "export" | "deletion",
+    dedupeKey: string,
+    stepUpReceipt?: string,
+  ): Promise<unknown>;
+  getDeletionTombstone(): Promise<unknown>;
+  createDownloadUrl(requestId: string): Promise<
+    Readonly<{
+      url: string;
+      expires_at: string;
+    }>
+  >;
+}>;
+
+export type CreatePrivacyRequestServiceInput = Readonly<{
+  claims: VerifiedRequestClaims;
+  withMemberTransaction<T>(
+    callback: (database: DatabaseTransaction) => Promise<T>,
+  ): Promise<T>;
+  repository(database: DatabaseTransaction): PrivacyRequestRepository;
+  signedStorage: PrivacySignedStorage;
+  now?: () => number;
+}>;
+
+/**
+ * Composes the privacy request and signed-download saga. Database checkpoints
+ * are short and committed before Storage I/O; the external port never receives
+ * a transaction-bound database handle.
+ */
+export function createPrivacyRequestService(
+  input: CreatePrivacyRequestServiceInput,
+): PrivacyRequestService {
+  const withRepository = <T>(
+    callback: (repository: PrivacyRequestRepository) => Promise<T>,
+  ) =>
+    input.withMemberTransaction((database) =>
+      callback(input.repository(database))
+    );
+
+  return Object.freeze({
+    list: () => withRepository((repository) => repository.list()),
+    request: async (
+      requestType: "export" | "deletion",
+      dedupeKey: string,
+      stepUpReceipt?: string,
+    ) => {
+      if (requestType === "deletion") {
+        if (stepUpReceipt === undefined) {
+          throw new RepositoryStepUpRequiredError();
+        }
+        const receiptHash = await sha256(stepUpReceipt);
+        return withRepository((repository) =>
+          repository.requestDeletion(
+            receiptHash,
+            input.claims.sessionId,
+            dedupeKey,
+          )
+        );
+      }
+      const scopedDedupeKey = `privacy-export:${await sha256(
+        `${input.claims.userId}\u0000${dedupeKey}`,
+      )}`;
+      return withRepository((repository) =>
+        repository.requestExport(scopedDedupeKey)
+      );
+    },
+    getDeletionTombstone: () =>
+      withRepository((repository) => repository.getDeletionTombstone()),
+    createDownloadUrl: async (requestId: string) => {
+      const artifact = await withRepository((repository) =>
+        repository.prepareDownload(requestId)
+      );
+      if (
+        !Number.isInteger(artifact.expires_in_seconds) ||
+        artifact.expires_in_seconds < 1 ||
+        artifact.expires_in_seconds > 30
+      ) {
+        throw new Error("storage_unavailable");
+      }
+      const issuedAt = (input.now ?? Date.now)();
+      const url = requireSafeSignedUrl(
+        await input.signedStorage.createSignedUrl(
+          artifact.bucket_id,
+          artifact.object_path,
+          artifact.expires_in_seconds,
+        ),
+      );
+      await withRepository((repository) =>
+        repository.confirmDownload(artifact.access_lease_id)
+      );
+      return {
+        url,
+        expires_at: new Date(
+          issuedAt + artifact.expires_in_seconds * 1_000,
+        ).toISOString(),
+      };
+    },
+  });
+}
 
 const secretKeyPattern =
   /(?:auth0.?subject|ciphertext|idempotency|password|provider.body|push.token|raw.token|request.?hash|secret)/i;

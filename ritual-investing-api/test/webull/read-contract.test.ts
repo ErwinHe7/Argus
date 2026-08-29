@@ -1,8 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { BrokerageProjectionRepository } from "../../src/domains/brokerage-projections/repository.ts";
+import type { BrokerageProjectionRepository } from "../../src/domains/brokerage-projections/ports.ts";
 import {
-  createBrokerageProjectionService,
+  createBrokerageProjectionService
+    as createProductionBrokerageProjectionService,
 } from "../../src/domains/brokerage-projections/service.ts";
 import {
   type BrokerageAccountContext,
@@ -25,6 +26,21 @@ const context: BrokerageAccountContext = Object.freeze({
   accountStatus: "available",
   capabilityVersion: 7,
 });
+
+function createBrokerageProjectionService(
+  input:
+    & Omit<
+      Parameters<typeof createProductionBrokerageProjectionService>[0],
+      "withRepository"
+    >
+    & { repository: BrokerageProjectionRepository },
+) {
+  const { repository, ...serviceInput } = input;
+  return createProductionBrokerageProjectionService({
+    ...serviceInput,
+    withRepository: (callback) => callback(repository),
+  });
+}
 
 function generation(
   overrides: Partial<StoredProjection> = {},
@@ -381,6 +397,40 @@ describe("versioned Webull read projection contract", () => {
         reason: "refresh_fenced",
       }),
     );
+  });
+
+  it("runs provider reads strictly between committed projection checkpoints", async () => {
+    const test = repositoryFixture(generation({
+      expiresAt: new Date("2026-08-28T11:59:00Z"),
+    }));
+    const events: string[] = [];
+    const service = createProductionBrokerageProjectionService({
+      withRepository: async (callback) => {
+        events.push("transaction-begin");
+        const result = await callback(test.repository);
+        events.push("transaction-commit");
+        return result;
+      },
+      provider: {
+        read: vi.fn(async () => {
+          events.push("provider-read");
+          return {
+            payload: [],
+            providerObservedAt: now,
+            fetchedAt: now,
+            expiresAt: new Date("2026-08-28T12:01:00Z"),
+            availability: "available" as const,
+          };
+        }),
+      },
+      now: () => now,
+    });
+
+    await service.read(accountId, "positions");
+
+    const providerIndex = events.indexOf("provider-read");
+    expect(events[providerIndex - 1]).toBe("transaction-commit");
+    expect(events[providerIndex + 1]).toBe("transaction-begin");
   });
 
   it("decrypts provider account identifiers only for the bound owner and resource", async () => {

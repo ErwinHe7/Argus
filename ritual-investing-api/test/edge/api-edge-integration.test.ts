@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   createRetainedApp,
+  type CreateRetainedAppOptions,
   type RetainedRepositorySet,
   type RetainedTelemetryEvent,
   type RetainedTokenVerifier,
@@ -77,17 +78,25 @@ function fixture(options: FixtureOptions = {}) {
     },
     admin: { getStaffPrincipal, listAudit },
   } as unknown as RetainedRepositorySet;
-  const createRepositories = vi.fn(() => repositories);
+  const withRepositories = vi.fn();
+  const runWithRepositories: CreateRetainedAppOptions["withRepositories"] =
+    async (claims, transaction, callback) => {
+      withRepositories(claims, transaction, callback);
+      return await callback(repositories);
+    };
   const rateLimit = options.rateLimit ?? {
     allow: vi.fn(async () => ({ allowed: true })),
   };
   const app = createRetainedApp({
     verifyAccessToken,
-    createRepositories,
-    publicPreviewRepository: {
-      listPublished: vi.fn(async () => []),
-      getPublished: vi.fn(async () => null),
-    },
+    withRepositories: runWithRepositories,
+    withPublicPreview: async (callback) =>
+      await callback({
+        listPublishedPage: vi.fn(async () => []),
+        listPublished: vi.fn(async () => []),
+        getPublished: vi.fn(async () => null),
+      }),
+    createPrivacyService: () => ({} as never),
     rateLimit,
     requestId: () => "018f3c2a-4b67-7a89-8abc-123456789077",
     ...(options.telemetry === undefined
@@ -100,7 +109,7 @@ function fixture(options: FixtureOptions = {}) {
   return {
     app,
     bootstrap,
-    createRepositories,
+    withRepositories,
     getStaffPrincipal,
     getAccount,
     getCircle,
@@ -139,11 +148,11 @@ describe("Supabase Edge retained API adapter", () => {
       bindings.consumerOrigin,
     );
     expect(test.bootstrap).toHaveBeenCalledOnce();
-    expect(test.createRepositories).toHaveBeenCalledWith({
-      userId,
-      sessionId,
-      aal: "aal1",
-    });
+    expect(test.withRepositories).toHaveBeenCalledWith(
+      { userId, sessionId, aal: "aal1" },
+      "member",
+      expect.any(Function),
+    );
     expect(await response.json()).toMatchObject({
       data: { member: { user_id: userId } },
     });
@@ -177,7 +186,7 @@ describe("Supabase Edge retained API adapter", () => {
       bindings,
     );
     expect(wrongOrigin.status).toBe(403);
-    expect(test.createRepositories).not.toHaveBeenCalled();
+    expect(test.withRepositories).not.toHaveBeenCalled();
     expect(JSON.stringify(await invalidToken.json())).not.toContain(
       "malformed",
     );

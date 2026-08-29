@@ -10,7 +10,10 @@ import {
 } from "../src/retained-app.ts";
 
 const scriptDirectory = dirname(fileURLToPath(import.meta.url));
-const outputPath = resolve(scriptDirectory, "../openapi/ritual-investing-v1.yaml");
+const outputPath = resolve(
+  scriptDirectory,
+  "../openapi/ritual-investing-v1.yaml",
+);
 
 function sortValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(sortValue);
@@ -31,16 +34,14 @@ const contractApp = createRetainedApp({
   verifyAccessToken: async () => {
     throw new Error("contract_generation_does_not_verify_tokens");
   },
-  createRepositories: () => {
+  withRepositories: () => {
     throw new Error("contract_generation_does_not_access_repositories");
   },
-  publicPreviewRepository: {
-    listPublished: async () => {
-      throw new Error("contract_generation_does_not_access_repositories");
-    },
-    getPublished: async () => {
-      throw new Error("contract_generation_does_not_access_repositories");
-    },
+  withPublicPreview: () => {
+    throw new Error("contract_generation_does_not_access_repositories");
+  },
+  createPrivacyService: () => {
+    throw new Error("contract_generation_does_not_access_repositories");
   },
   rateLimit: {
     allow: async () => ({ allowed: true }),

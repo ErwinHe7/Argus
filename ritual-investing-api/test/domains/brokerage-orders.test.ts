@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  type BrokerageOrderRepository,
   parseNormalizedOrderProjection,
 } from "../../src/domains/brokerage-orders/repository.ts";
+import type { BrokerageOrderRepository } from "../../src/domains/brokerage-orders/ports.ts";
 import {
   type BrokerageOrderProvider,
   createBrokerageOrderService,
@@ -102,6 +102,7 @@ function response(command: PreparedOrderCommand): BrokerageOrderCommand {
 
 function fixture() {
   const events: string[] = [];
+  const transactionEvents: string[] = [];
   const authorities = new Map([[accountA, authority()], [
     accountB,
     authority(accountB),
@@ -379,6 +380,7 @@ function fixture() {
     execute: vi.fn(async (command) => {
       expect(events.at(-1)).toBe("durable-command-and-egress-attempt");
       events.push("provider-bytes-sent-once");
+      transactionEvents.push("provider-execute");
       return {
         kind: "rejected" as const,
         providerCode: "SYNTHETIC_REJECTED",
@@ -406,9 +408,21 @@ function fixture() {
     authorities,
     assetKinds,
     events,
+    transactionEvents,
     blockedAccounts,
     service: createBrokerageOrderService({
-      repository,
+      withRepository: async (callback) => {
+        transactionEvents.push("member-begin");
+        const result = await callback(repository);
+        transactionEvents.push("member-commit");
+        return result;
+      },
+      withStaffRepository: async (callback) => {
+        transactionEvents.push("staff-begin");
+        const result = await callback(repository);
+        transactionEvents.push("staff-commit");
+        return result;
+      },
       provider,
       now: () => now,
       id: () => ids[nextId++]!,
@@ -484,6 +498,7 @@ describe("manual brokerage order commands", () => {
   it("persists the command and immutable started attempt before exactly one provider submission", async () => {
     const test = fixture();
     const preview = await test.service.previewPlace(accountA, placeIntent);
+    test.transactionEvents.length = 0;
     const command = await test.service.confirmPlace({
       accountId: accountA,
       previewId: preview.id,
@@ -497,6 +512,9 @@ describe("manual brokerage order commands", () => {
       "provider-bytes-sent-once",
       "egress-attempt-terminal-before-or-at-provider",
     ]);
+    const providerIndex = test.transactionEvents.indexOf("provider-execute");
+    expect(test.transactionEvents[providerIndex - 1]).toBe("member-commit");
+    expect(test.transactionEvents[providerIndex + 1]).toBe("member-begin");
   });
 
   it("returns the SQL idempotency winner across duplicate taps without a second submit", async () => {
@@ -656,6 +674,84 @@ describe("manual brokerage order commands", () => {
     expect(uncertain.events).toContain(
       "egress-attempt-ambiguous-after-boundary",
     );
+  });
+
+  it("normalizes provider outcome reasons before durable command completion", async () => {
+    const rejected = fixture();
+    const rejectedPreview = await rejected.service.previewPlace(
+      accountA,
+      placeIntent,
+    );
+    const rejectedCommand = await rejected.service.confirmPlace({
+      accountId: accountA,
+      previewId: rejectedPreview.id,
+      idempotencyKey: "member-reason-rejected-0001",
+      intent: placeIntent,
+    });
+    expect(rejectedCommand).toMatchObject({ state: "failed", ambiguous: false });
+    expect(rejected.repository.recordRejected).toHaveBeenCalledWith(
+      expect.anything(),
+      "provider_rejected",
+    );
+
+    const ambiguous = fixture();
+    vi.mocked(ambiguous.provider.execute).mockResolvedValueOnce({
+      kind: "ambiguous",
+      reasonCode: "provider/error!",
+    });
+    const ambiguousPreview = await ambiguous.service.previewPlace(
+      accountA,
+      placeIntent,
+    );
+    await ambiguous.service.confirmPlace({
+      accountId: accountA,
+      previewId: ambiguousPreview.id,
+      idempotencyKey: "member-reason-ambiguous-0001",
+      intent: placeIntent,
+    });
+    expect(ambiguous.repository.recordAmbiguous).toHaveBeenCalledWith(
+      expect.anything(),
+      "provider_outcome_unknown",
+    );
+
+    const beforeEgress = fixture();
+    vi.mocked(beforeEgress.provider.execute).mockRejectedValueOnce(
+      new BrokerageOrderError("SYNTHETIC_REJECTED" as never, true),
+    );
+    const beforeEgressPreview = await beforeEgress.service.previewPlace(
+      accountA,
+      placeIntent,
+    );
+    await beforeEgress.service.confirmPlace({
+      accountId: accountA,
+      previewId: beforeEgressPreview.id,
+      idempotencyKey: "member-reason-before-egress-0001",
+      intent: placeIntent,
+    });
+    expect(beforeEgress.repository.recordBeforeEgressFailure)
+      .toHaveBeenCalledWith(expect.anything(), "provider_contract_unavailable");
+
+    const reconciliation = fixture();
+    vi.mocked(reconciliation.provider.execute).mockRejectedValueOnce(
+      new Error("lost response"),
+    );
+    const reconciliationPreview = await reconciliation.service.previewPlace(
+      accountA,
+      placeIntent,
+    );
+    const reconciliationCommand = await reconciliation.service.confirmPlace({
+      accountId: accountA,
+      previewId: reconciliationPreview.id,
+      idempotencyKey: "member-reason-reconciliation-0001",
+      intent: placeIntent,
+    });
+    vi.mocked(reconciliation.provider.detail).mockResolvedValueOnce({
+      kind: "ambiguous",
+      reasonCode: "SYNTHETIC_LOOKUP_TIMEOUT",
+    });
+    await reconciliation.service.reconcile(reconciliationCommand.id);
+    expect(reconciliation.repository.recordReconciliationAmbiguous)
+      .toHaveBeenCalledWith(expect.anything(), "provider_lookup_unavailable");
   });
 
   it("blocks only the ambiguous account and reconciles by detail without calling execute", async () => {

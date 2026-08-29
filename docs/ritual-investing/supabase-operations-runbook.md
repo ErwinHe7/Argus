@@ -17,46 +17,76 @@ stack. A PR must never receive
 `SUPABASE_ACCESS_TOKEN`, a database password, a secret key, or a hosted member
 token.
 
-Pull requests continue to use fresh local stacks so untrusted code never
-receives hosted credentials. Approved hosted-development promotions target the
-persistent Supabase `beta` branch under the Ritual Investment project. That
-branch has its own database, Auth, API credentials, Edge secrets, Cron, Queues,
-and Storage boundary; it is not a Git-only environment label.
+Pull requests, pushes, and ordinary manual CI runs continue to use fresh local
+stacks so untrusted or unapproved code never receives hosted credentials. The
+ordinary `.github/workflows/ritual-investing.yml` workflow has no hosted schema,
+Edge, secret, fence, or deployment mutation authority. Approved remediation
+promotions use only the separate
+`.github/workflows/ritual-investing-supabase-remediation.yml` workflow and
+target the persistent Supabase `beta` branch under the Ritual Investment
+project. That branch has its own database, Auth, API credentials, Edge secrets,
+Cron, Queues, and Storage boundary; it is not a Git-only environment label.
 
 ## Hosted-development promotion
 
-Only a protected `main` push or an approved manual run may enter the
-`ritual-supabase-development` GitHub environment. Its project variables and
-database credentials must resolve to the persistent Supabase `beta` branch,
-never the parent production branch. Promotions are serialized and never cancel
-an in-flight deployment.
+Only an explicit `workflow_dispatch` run may enter the protected
+`ritual-supabase-remediation` GitHub environment. Pushes never promote. Its
+project variables and database credentials must resolve to the persistent
+Supabase `beta` branch, never the parent production branch. Promotions are
+serialized and never cancel an in-flight deployment. Environment reviewers
+approve exact manifest-bound values; approval of a prior run or similarly named
+target does not carry forward.
 
-Before any remote mutation, `scripts/check-supabase-deploy-target.ts` verifies:
+Before any fence or remote mutation, the operator prepares the canonical JSON
+specified by `supabase-promotion-manifest.md`. The workflow recomputes its
+SHA-256, requires the exact key set, and compares every approved value with the
+protected environment. `scripts/check-supabase-deploy-target.ts` then verifies:
 
 - the exact repository and `refs/heads/main` ref;
+- a manual event and exact checked-out Git revision;
 - the exact hosted project ref;
 - a direct database hostname derived from that ref, or an explicitly
   allowlisted transaction-pooler hostname; and
 - a matching `postgres` / `postgres.<project-ref>` owner username, direct port
-  `5432` or transaction-pooler port `6543`, and required TLS mode.
+  `5432` or transaction-pooler port `6543`, and required TLS mode;
+- the migration-inventory checksum, source and target fingerprints, boundary
+  inventory checksum, backup and restore-drill records, recovery-coverage
+  checksum, release/recovery/security approvals, maintenance admission, and
+  three independent fence states.
 
-The deployment then enables `background_workers`, `provider_egress`, and
-`order_mutations` kill switches, applies migrations plus the idempotent
-non-brokerage synthetic seed, records the Git revision,
-reasserts every fence, runs `supabase test db --linked` against the newly
-applied hosted schema, and deploys callback, worker, waitlist, then API
-functions. The executable hosted acceptance hook then verifies Auth health,
-exact queue and private Storage inventory, schema contract, role limits,
-deployment fences, and the Edge revision. Background work is resumed only
-after every check passes.
+The workflow first captures and verifies the existing normalized hosted target,
+then independently enables `background_workers`, `provider_egress`, and
+`order_mutations`. It applies forward-only migrations without the repository
+seed and reasserts every fence. The executable hosted acceptance hook proves
+the old Edge/new schema state before any function deploy. All linked pgTAP,
+lint, advisor, and hosted acceptance work runs while the three fences remain
+enabled. The workflow then binds the Git revision and deploys callback, worker,
+waitlist, and API functions before proving the new Edge/new schema state.
+
+Hosted suites use the manifest's run-unique isolated synthetic namespace for
+identities, objects, queues, schedules, roles, rows, and configuration. Capture
+the fixture inventory before the suite. After suite-owned cleanup, capture it
+again and require both zero namespaced residue and byte-for-byte before/after
+parity. Cleanup or parity failure is a no-go and leaves every fence enabled.
+Only `background_workers` is resumed after every check passes.
 Provider egress and order mutations remain enabled (blocked) until the Webull
 launch gate is separately satisfied.
 
-If the target guard, kill-switch write, migration, function deployment, or
-revision handshake fails, stop. Keep all fences enabled. Do not point clients at
-an older backend, a second auth system, or a legacy database as rollback. Fix
-forward from the last reviewed migration or restore the Supabase project using
-the approved backup/recovery procedure.
+The uploaded evidence artifact contains the canonical manifest, before/after
+target fingerprints, fixture inventories, recovery coverage, and an immediate
+observation record. Append the +1h, +4h, and +24h observations to the same
+manifest-keyed release record. Each checkpoint records queue depth/age, expired
+leases, unknown external effects, cleanup residue, Auth/Storage health, Edge
+revision, schema fingerprint, and all fence states. A pending or failed
+checkpoint is visible release evidence and never authorizes financial fences.
+
+If manifest binding, target guard, kill-switch write, migration, mixed-version
+check, function deployment, fixture cleanup/parity, or revision handshake
+fails, stop. Keep all fences enabled. Do not point clients at an older backend,
+a second auth system, or a legacy database as rollback. Fix forward from the
+last reviewed migration or restore the Supabase project using the exact backup,
+restore drill, and recovery approval bound in
+`supabase-recovery-coverage.md`.
 
 ## U2 toolchain and forward-only history gate
 
@@ -198,11 +228,13 @@ substitute for serialization of a named brokerage command.
 Before any financial provider request, the prepare transaction commits one
 durable command and one immutable `egress/started` attempt and marks the command
 `dispatching`. A crash before the actual send may sacrifice liveness. It must
-not restore submit authority. After a possible send, recovery may only record a
-definitive response or perform provider lookup/reconciliation against the same
-command identity. Provider not-found stays ambiguous until the configured
-visibility window and then moves to manual review; it never permits a second
-submit.
+not restore submit authority. The bounded recovery coordinator schedules every
+`dispatching` checkpoint older than 30 seconds into the same lookup-only saga,
+even when no reconciliation row was committed by the request path. Recovery may
+only record a definitive response or perform provider lookup/reconciliation
+against the same command identity. Provider not-found stays ambiguous until the
+configured visibility window and then moves to manual review; it never permits
+a second submit.
 
 Reconnect, failure, disconnect, lifecycle close, or deletion must call the
 scoped materialization cleanup boundary. Cleanup refuses a connection with a

@@ -371,6 +371,7 @@ class AssetsApi {
   ///
   ///
   /// Parameters:
+  /// * [cursor]
   /// * [limit]
   /// * [assetType]
   /// * [symbolPrefix]
@@ -384,6 +385,7 @@ class AssetsApi {
   /// Returns a [Future] containing a [Response] with a [AssetCollectionResponse] as data
   /// Throws [DioException] if API call or serialization fails
   Future<Response<AssetCollectionResponse>> listAssets({
+    String? cursor,
     int? limit = 25,
     String? assetType,
     String? symbolPrefix,
@@ -408,6 +410,7 @@ class AssetsApi {
     );
 
     final _queryParameters = <String, dynamic>{
+      if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
       if (assetType != null) r'asset_type': assetType,
       if (symbolPrefix != null) r'symbol_prefix': symbolPrefix,

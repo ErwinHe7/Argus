@@ -1,4 +1,5 @@
 import { createSupabaseWorkerDatabasePool } from "../_shared/database.ts";
+import { withBuildRevisionHeader } from "../_shared/build-revision.ts";
 import {
   requiredEnvironment,
   supabaseSecretKey,
@@ -212,4 +213,4 @@ function productionHandler(): (request: Request) => Promise<Response> {
   });
 }
 
-if (import.meta.main) Deno.serve(productionHandler());
+if (import.meta.main) Deno.serve(withBuildRevisionHeader(productionHandler()));

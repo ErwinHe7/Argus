@@ -2309,6 +2309,26 @@ components:
         - data
         - meta
       type: object
+    CreatorResponse:
+      additionalProperties: false
+      properties:
+        data:
+          allOf:
+            - $ref: "#/components/schemas/SeededCreator"
+            - nullable: true
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
+      type: object
     DailyRitualAssignment:
       additionalProperties:
         nullable: true
@@ -2489,6 +2509,40 @@ components:
           type: array
         meta:
           $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    EditorialCollectionResponse:
+      additionalProperties: false
+      properties:
+        data:
+          items:
+            $ref: "#/components/schemas/PublishedEditorial"
+          maxItems: 100
+          type: array
+        meta:
+          $ref: "#/components/schemas/CollectionMeta"
+      required:
+        - data
+        - meta
+      type: object
+    EditorialItemResponse:
+      additionalProperties: false
+      properties:
+        data:
+          allOf:
+            - $ref: "#/components/schemas/PublishedEditorial"
+            - nullable: true
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
       required:
         - data
         - meta
@@ -3822,6 +3876,39 @@ components:
       required:
         - data
         - meta
+      type: object
+    PublishedEditorial:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          type: string
+        kind:
+          maxLength: 80
+          minLength: 1
+          type: string
+        payload:
+          additionalProperties:
+            nullable: true
+          type: object
+        revision_id:
+          format: uuid
+          type: string
+        revision_number:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        slug:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - id
+        - kind
+        - slug
+        - revision_id
+        - revision_number
+        - payload
       type: object
     PutCircleAssetRequest:
       additionalProperties: false
@@ -8416,6 +8503,13 @@ paths:
       operationId: listAssets
       parameters:
         - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 1
+            type: string
+        - in: query
           name: limit
           required: false
           schema:
@@ -8437,6 +8531,8 @@ paths:
           name: symbol_prefix
           required: false
           schema:
+            maxLength: 32
+            minLength: 1
             type: string
       responses:
         "200":
@@ -19550,6 +19646,225 @@ paths:
         - SupabaseBearer: []
       tags:
         - Discover
+  /v1/discover/creators/{id}:
+    get:
+      operationId: getSeededCreator
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreatorResponse"
+          description: Argus response.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Discover
   /v1/discover/grimoires:
     get:
       operationId: listGrimoires
@@ -20017,6 +20332,13 @@ paths:
             minLength: 1
             type: string
         - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 1
+            type: string
+        - in: query
           name: limit
           required: false
           schema:
@@ -20029,22 +20351,7 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties: false
-                properties:
-                  data:
-                    nullable: true
-                  meta:
-                    additionalProperties: false
-                    properties:
-                      request_id:
-                        format: uuid
-                        type: string
-                    required:
-                      - request_id
-                    type: object
-                required:
-                  - meta
-                type: object
+                $ref: "#/components/schemas/EditorialCollectionResponse"
           description: Argus response.
         "401":
           content:
@@ -20264,22 +20571,7 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties: false
-                properties:
-                  data:
-                    nullable: true
-                  meta:
-                    additionalProperties: false
-                    properties:
-                      request_id:
-                        format: uuid
-                        type: string
-                    required:
-                      - request_id
-                    type: object
-                required:
-                  - meta
-                type: object
+                $ref: "#/components/schemas/EditorialItemResponse"
           description: Argus response.
         "401":
           content:
@@ -25992,7 +26284,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PrivacyDownloadUrlResponse"
-          description: Mint an owner-scoped privacy export URL that expires in five minutes.
+          description: Mint an owner-scoped privacy export URL with at most 30 seconds of residual lifetime.
         "401":
           content:
             application/json:
@@ -26207,6 +26499,13 @@ paths:
             minLength: 1
             type: string
         - in: query
+          name: cursor
+          required: false
+          schema:
+            maxLength: 2048
+            minLength: 1
+            type: string
+        - in: query
           name: limit
           required: false
           schema:
@@ -26219,22 +26518,7 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties: false
-                properties:
-                  data:
-                    nullable: true
-                  meta:
-                    additionalProperties: false
-                    properties:
-                      request_id:
-                        format: uuid
-                        type: string
-                    required:
-                      - request_id
-                    type: object
-                required:
-                  - meta
-                type: object
+                $ref: "#/components/schemas/EditorialCollectionResponse"
           description: Argus response.
         "401":
           content:
@@ -26453,22 +26737,7 @@ paths:
           content:
             application/json:
               schema:
-                additionalProperties: false
-                properties:
-                  data:
-                    nullable: true
-                  meta:
-                    additionalProperties: false
-                    properties:
-                      request_id:
-                        format: uuid
-                        type: string
-                    required:
-                      - request_id
-                    type: object
-                required:
-                  - meta
-                type: object
+                $ref: "#/components/schemas/EditorialItemResponse"
           description: Argus response.
         "401":
           content:

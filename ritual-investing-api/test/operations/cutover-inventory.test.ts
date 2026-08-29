@@ -118,29 +118,20 @@ describe("U13 cutover inventory", () => {
     }
   });
 
-  it("keeps pull requests secret-free and deploys hosted development serially", () => {
+  it("keeps ordinary CI secret-free and without hosted mutation authority", () => {
     const source = workflow();
     const local = workflowJob(source, "supabase-local");
-    const hosted = workflowJob(source, "supabase-hosted-development");
 
     expect(local).toContain("supabase db reset");
     expect(local).toContain("supabase test db");
-    expect(local).not.toMatch(/secrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD/);
-    expect(hosted).toContain("environment: ritual-supabase-development");
-    expect(hosted).toContain("check-supabase-deploy-target.ts");
-    expect(hosted).toContain("check-supabase-hosted-acceptance.sh");
-    expect(hosted).toContain("supabase db push");
-    expect(hosted).toContain("supabase test db --linked");
-    expect(hosted).toContain("ARGUS_BUILD_REVISION");
-    expect(hosted).toContain("background_workers");
-    expect(hosted).toContain("cancel-in-progress: false");
-    expect(hosted).toMatch(/github\.event_name == 'push'[\s\S]*refs\/heads\/main/);
-    expect(hosted.match(/fence-supabase-deployment\.sql/g)).toHaveLength(2);
-    expect(hosted.indexOf("supabase db push")).toBeLessThan(
-      hosted.indexOf("supabase test db --linked"),
+    expect(local).not.toMatch(
+      /secrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD/,
     );
-    expect(hosted.indexOf("supabase test db --linked")).toBeLessThan(
-      hosted.indexOf("functions deploy webull-callback"),
+    expect(source).not.toMatch(
+      /supabase-hosted-development|supabase\s+(?:link|db\s+(?:push|repair)|functions\s+deploy)|psql[^\n]*SUPABASE_DB_URL|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD/,
+    );
+    expect(source).not.toMatch(
+      /github\.event_name\s*==\s*['"]push['"][\s\S]{0,500}(?:db\s+push|functions\s+deploy|fence-supabase-deployment)/,
     );
 
     const baseline = readFileSync(
@@ -232,7 +223,7 @@ describe("U13 cutover inventory", () => {
         "aws-0-us-east-1.pooler.supabase.com",
     });
     expect(pooler.status, pooler.stderr).toBe(0);
-  });
+  }, 15_000);
 
   it("proves every Cloudflare Pages project is static-only", () => {
     const configs = [

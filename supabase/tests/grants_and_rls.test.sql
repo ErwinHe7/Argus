@@ -15,19 +15,28 @@ select ok(
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_edge, argus_runtime, argus_worker, argus_waitlist,
-  argus_member, argus_staff, argus_identity_owner
-  to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_edge,argus_runtime,argus_worker,argus_waitlist,argus_member,argus_staff,argus_identity_owner,argus_public_preview to %I with set true',
+    current_user
+  );
+end $membership$;
 grant usage on schema extensions
   to argus_edge,argus_runtime,argus_worker,argus_waitlist,
-     argus_member,argus_staff,argus_identity_owner;
+     argus_member,argus_staff,argus_identity_owner,argus_public_preview;
 
 select ok(
   (select bool_and(not rolcanlogin and not rolsuper and not rolbypassrls)
      from pg_roles
-    where rolname in ('argus_member','argus_staff','argus_callback','argus_migration'))
+    where rolname in (
+      'argus_member','argus_staff','argus_callback','argus_migration',
+      'argus_public_preview'
+    ))
   and (select count(*) from pg_roles
-    where rolname in ('argus_member','argus_staff','argus_callback','argus_migration'))=4
+    where rolname in (
+      'argus_member','argus_staff','argus_callback','argus_migration',
+      'argus_public_preview'
+    ))=5
   and (select not rolcanlogin and not rolsuper and not rolbypassrls
          from pg_roles where rolname='argus_publication_owner'),
   'use-case capability roles are NOLOGIN, non-owner, and non-BYPASSRLS'
@@ -39,7 +48,7 @@ select is(
      join pg_roles member on member.oid=membership.member
      join pg_roles parent on parent.oid=membership.roleid
     where member.rolname='argus_edge'),
-  array['argus_callback','argus_member','argus_runtime','argus_staff'],
+  array['argus_callback','argus_member','argus_public_preview','argus_runtime','argus_staff'],
   'API login has the exact reviewed request capability memberships'
 );
 
@@ -320,13 +329,15 @@ select is(
   'client roles have no application table grants'
 );
 
-select is(
-  (select count(*)::bigint
-     from information_schema.role_routine_grants
-    where grantee in ('anon', 'authenticated')
-      and specific_schema in ('argus_app', 'argus_brokerage', 'argus_private')),
-  0::bigint,
-  'client roles have no application function grants'
+select set_eq(
+  $$select grantee||':'||specific_schema||'.'||routine_name||':'||privilege_type
+      from information_schema.role_routine_grants
+     where grantee in ('anon','authenticated')
+       and specific_schema in ('argus_app','argus_brokerage','argus_private')$$,
+  $$values
+    ('authenticated:argus_private.can_insert_managed_storage_object:EXECUTE'),
+    ('authenticated:argus_private.can_read_managed_storage_object:EXECUTE')$$,
+  'client function grants are limited to the two managed Storage policy helpers'
 );
 
 select is(
@@ -362,7 +373,7 @@ select is(
              and (trusted_path.schemas)[1] = 'pg_catalog'
              and trusted_path.schemas <@ array[
                'pg_catalog', 'argus_private', 'argus_app', 'argus_brokerage',
-               'auth', 'extensions', 'net', 'pgmq', 'storage', 'vault'
+               'auth', 'cron', 'extensions', 'net', 'pgmq', 'storage', 'vault'
              ]::text[]
         )
       )),

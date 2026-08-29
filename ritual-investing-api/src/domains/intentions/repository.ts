@@ -1,26 +1,21 @@
 import type { DatabaseTransaction } from "../../db/database-port.ts";
-import type { VerifiedRequestClaims } from "../../db/request-context.ts";
 import {
   RepositoryNotFoundError,
   RepositoryRevisionConflictError,
-  type SupabaseRepositoryBinding,
-} from "../../db/supabase-repositories.ts";
-import {
-  withMemberRequestTransaction,
-  withRequestTransaction,
-} from "../../db/request-transaction.ts";
+} from "../../db/repository-support.ts";
+import { ScenarioConflictError } from "./ports.ts";
 import {
   type FutureMirror,
   type FutureMirrorInput,
-  type FutureMirrorPoint,
-  type IntentionCreateInput,
-  type IntentionPatchInput,
-  type MemberIntention,
   futureMirrorInputSchema,
+  type FutureMirrorPoint,
   futureMirrorSchema,
+  type IntentionCreateInput,
   intentionCreateSchema,
+  type IntentionPatchInput,
   intentionPatchSchema,
   intentionSchema,
+  type MemberIntention,
 } from "./schemas.ts";
 
 const MODEL_VERSION = "argus-hypothetical-v1";
@@ -30,24 +25,16 @@ const UNCERTAINTY_DISCLOSURE =
 const MONTHLY_BPS_DENOMINATOR = 120_000n;
 const POSTGRES_BIGINT_MAX = 9_223_372_036_854_775_807n;
 
-export class ScenarioConflictError extends Error {
-  readonly code: "idempotency_conflict" | "invalid_scenario_input" |
-    "invalid_scenario_horizon" |
-    "scenario_value_too_large";
-
-  constructor(code: ScenarioConflictError["code"]) {
-    super(code);
-    this.name = "ScenarioConflictError";
-    this.code = code;
-  }
-}
-
 type ProjectionInput = FutureMirrorInput & Readonly<{ targetDate: string }>;
 
 function parseDateOnly(value: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (match === null) throw new ScenarioConflictError("invalid_scenario_horizon");
-  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  if (match === null) {
+    throw new ScenarioConflictError("invalid_scenario_horizon");
+  }
+  const date = new Date(
+    Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])),
+  );
   if (date.toISOString().slice(0, 10) !== value) {
     throw new ScenarioConflictError("invalid_scenario_horizon");
   }
@@ -76,7 +63,11 @@ function addMonthClamped(value: Date, count: number): Date {
   ));
 }
 
-function compoundMonth(value: bigint, contribution: bigint, bps: number): bigint {
+function compoundMonth(
+  value: bigint,
+  contribution: bigint,
+  bps: number,
+): bigint {
   const numerator = MONTHLY_BPS_DENOMINATOR + BigInt(bps);
   const result = ((value + contribution) * numerator) /
     MONTHLY_BPS_DENOMINATOR;
@@ -147,7 +138,10 @@ function canonicalIntentionCreate(input: IntentionCreateInput): string {
   });
 }
 
-function canonicalFutureMirror(intentionId: string, input: FutureMirrorInput): string {
+function canonicalFutureMirror(
+  intentionId: string,
+  input: FutureMirrorInput,
+): string {
   return JSON.stringify({
     intention_id: intentionId,
     name: input.name,
@@ -158,27 +152,9 @@ function canonicalFutureMirror(intentionId: string, input: FutureMirrorInput): s
   });
 }
 
-function transaction<T>(
-  binding: SupabaseRepositoryBinding,
-  callback: (database: DatabaseTransaction, claims: VerifiedRequestClaims) => Promise<T>,
-): Promise<T> {
-  return withMemberRequestTransaction(
-    { pool: binding.pool, verifiedClaims: binding.claims },
-    callback,
-  );
-}
-
-function legacyIdempotentTransaction<T>(
-  binding: SupabaseRepositoryBinding,
-  callback: (database: DatabaseTransaction, claims: VerifiedRequestClaims) => Promise<T>,
-): Promise<T> {
-  return withRequestTransaction(
-    { pool: binding.pool, verifiedClaims: binding.claims },
-    callback,
-  );
-}
-
-async function currentDeletionEpoch(database: DatabaseTransaction): Promise<string> {
+async function currentDeletionEpoch(
+  database: DatabaseTransaction,
+): Promise<string> {
   const result = await database.query<{ deletion_epoch: string }>(
     `select deletion_epoch::text
        from argus_app.members
@@ -346,16 +322,15 @@ async function futureMirrorView(
   });
 }
 
-export type ScenarioRepository = ReturnType<typeof createSupabaseScenarioRepository>;
+export type { ScenarioRepository } from "./ports.ts";
 
 export function createSupabaseScenarioRepository(
-  binding: SupabaseRepositoryBinding,
+  database: DatabaseTransaction,
 ) {
   return Object.freeze({
-    listIntentions: (status?: "active" | "archived", limit = 20) =>
-      transaction(binding, async (database) => {
-        const result = await database.query<{ id: string }>(
-          `select id from argus_app.intentions
+    listIntentions: async (status?: "active" | "archived", limit = 20) => {
+      const result = await database.query<{ id: string }>(
+        `select id from argus_app.intentions
             where user_id = argus_private.trusted_request_user_id()
               and deletion_epoch = (
                 select deletion_epoch from argus_app.members
@@ -366,24 +341,26 @@ export function createSupabaseScenarioRepository(
               and target_date is not null
             order by created_at desc, id
             limit $2`,
-          [status ?? null, limit],
-        );
-        const items = await Promise.all(
-          result.rows.map(({ id }) => intentionView(database, id)),
-        );
-        return { items: items.filter((item): item is MemberIntention => item !== null), next_cursor: null };
-      }),
+        [status ?? null, limit],
+      );
+      const items = await Promise.all(
+        result.rows.map(({ id }) => intentionView(database, id)),
+      );
+      return {
+        items: items.filter((item): item is MemberIntention => item !== null),
+        next_cursor: null,
+      };
+    },
 
-    getIntention: (id: string) =>
-      transaction(binding, async (database) => {
-        const item = await intentionView(database, id);
-        if (item === null) throw new RepositoryNotFoundError();
-        return item;
-      }),
+    getIntention: async (id: string) => {
+      const item = await intentionView(database, id);
+      if (item === null) throw new RepositoryNotFoundError();
+      return item;
+    },
 
     createIntention: (raw: IntentionCreateInput, idempotencyKey: string) => {
       const input = intentionCreateSchema.parse(raw);
-      return legacyIdempotentTransaction(binding, async (database) => {
+      return (async () => {
         const deletionEpoch = await currentDeletionEpoch(database);
         const requestHash = await sha256(canonicalIntentionCreate(input));
         const existingId = await claimIdempotency(
@@ -395,7 +372,9 @@ export function createSupabaseScenarioRepository(
         );
         if (existingId !== null) {
           const existing = await intentionView(database, existingId);
-          if (existing === null) throw new ScenarioConflictError("idempotency_conflict");
+          if (existing === null) {
+            throw new ScenarioConflictError("idempotency_conflict");
+          }
           return existing;
         }
         await assertFutureDate(database, input.target_date);
@@ -428,7 +407,7 @@ export function createSupabaseScenarioRepository(
         const created = await intentionView(database, id);
         if (created === null) throw new RepositoryNotFoundError();
         return created;
-      });
+      })();
     },
 
     patchIntention: (
@@ -437,7 +416,7 @@ export function createSupabaseScenarioRepository(
       expectedVersion: number,
     ) => {
       const input = intentionPatchSchema.parse(raw);
-      return transaction(binding, async (database) => {
+      return (async () => {
         if (input.target_date !== undefined) {
           await assertFutureDate(database, input.target_date);
         }
@@ -470,13 +449,12 @@ export function createSupabaseScenarioRepository(
           throw new RepositoryRevisionConflictError();
         }
         return (await intentionView(database, id))!;
-      });
+      })();
     },
 
-    archiveIntention: (id: string, expectedVersion: number) =>
-      transaction(binding, async (database) => {
-        const result = await database.query<{ id: string }>(
-          `update argus_app.intentions
+    archiveIntention: async (id: string, expectedVersion: number) => {
+      const result = await database.query<{ id: string }>(
+        `update argus_app.intentions
               set status = 'archived', version = version + 1
             where user_id = argus_private.trusted_request_user_id() and id = $1
               and deletion_epoch = (
@@ -485,15 +463,15 @@ export function createSupabaseScenarioRepository(
               )
               and status = 'active' and version = $2
           returning id`,
-          [id, expectedVersion],
-        );
-        if (result.rows.length !== 1) {
-          const existing = await intentionView(database, id);
-          if (existing === null) throw new RepositoryNotFoundError();
-          throw new RepositoryRevisionConflictError();
-        }
-        return (await intentionView(database, id))!;
-      }),
+        [id, expectedVersion],
+      );
+      if (result.rows.length !== 1) {
+        const existing = await intentionView(database, id);
+        if (existing === null) throw new RepositoryNotFoundError();
+        throw new RepositoryRevisionConflictError();
+      }
+      return (await intentionView(database, id))!;
+    },
 
     createFutureMirror: (
       intentionId: string,
@@ -501,9 +479,11 @@ export function createSupabaseScenarioRepository(
       idempotencyKey: string,
     ) => {
       const input = futureMirrorInputSchema.parse(raw);
-      return legacyIdempotentTransaction(binding, async (database) => {
+      return (async () => {
         const deletionEpoch = await currentDeletionEpoch(database);
-        const requestHash = await sha256(canonicalFutureMirror(intentionId, input));
+        const requestHash = await sha256(
+          canonicalFutureMirror(intentionId, input),
+        );
         const existingId = await claimIdempotency(
           database,
           "future-mirror.create",
@@ -512,8 +492,14 @@ export function createSupabaseScenarioRepository(
           deletionEpoch,
         );
         if (existingId !== null) {
-          const existing = await futureMirrorView(database, intentionId, existingId);
-          if (existing === null) throw new ScenarioConflictError("idempotency_conflict");
+          const existing = await futureMirrorView(
+            database,
+            intentionId,
+            existingId,
+          );
+          if (existing === null) {
+            throw new ScenarioConflictError("idempotency_conflict");
+          }
           return existing;
         }
         const locked = await database.query<Record<string, unknown>>(
@@ -610,13 +596,12 @@ export function createSupabaseScenarioRepository(
         const created = await futureMirrorView(database, intentionId, runId);
         if (created === null) throw new RepositoryNotFoundError();
         return created;
-      });
+      })();
     },
 
-    getLatestFutureMirror: (intentionId: string) =>
-      transaction(binding, async (database) => {
-        const result = await database.query<{ id: string }>(
-          `select id from argus_app.future_mirror_runs
+    getLatestFutureMirror: async (intentionId: string) => {
+      const result = await database.query<{ id: string }>(
+        `select id from argus_app.future_mirror_runs
             where user_id = argus_private.trusted_request_user_id()
               and deletion_epoch = (
                 select deletion_epoch from argus_app.members
@@ -624,19 +609,18 @@ export function createSupabaseScenarioRepository(
               )
               and intention_id = $1 and status = 'completed'
             order by created_at desc, id desc limit 1`,
-          [intentionId],
-        );
-        const id = result.rows[0]?.id;
-        if (id === undefined) throw new RepositoryNotFoundError();
-        return (await futureMirrorView(database, intentionId, id))!;
-      }),
+        [intentionId],
+      );
+      const id = result.rows[0]?.id;
+      if (id === undefined) throw new RepositoryNotFoundError();
+      return (await futureMirrorView(database, intentionId, id))!;
+    },
 
-    getFutureMirror: (intentionId: string, runId: string) =>
-      transaction(binding, async (database) => {
-        const item = await futureMirrorView(database, intentionId, runId);
-        if (item === null) throw new RepositoryNotFoundError();
-        return item;
-      }),
+    getFutureMirror: async (intentionId: string, runId: string) => {
+      const item = await futureMirrorView(database, intentionId, runId);
+      if (item === null) throw new RepositoryNotFoundError();
+      return item;
+    },
   });
 }
 

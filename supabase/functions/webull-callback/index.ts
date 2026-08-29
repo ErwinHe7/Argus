@@ -1,5 +1,8 @@
 import { createWebullCallbackRepository } from "../../../ritual-investing-api/src/domains/brokerage-connections/repository.ts";
+import { withDatabaseTransaction } from "../../../ritual-investing-api/src/db/database-port.ts";
+import { withCallbackRequestTransaction } from "../../../ritual-investing-api/src/db/request-transaction.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
+import { withBuildRevisionHeader } from "../_shared/build-revision.ts";
 import { requiredEnvironment } from "../_shared/environment.ts";
 import { createBlockedWebullProvider } from "../_shared/webull/client.ts";
 import {
@@ -30,11 +33,21 @@ const tokenVault = new WebullTokenVault(
 );
 
 const handler = createWebullCallbackHandler({
-  repository: createWebullCallbackRepository(databasePool),
+  withRepository: (claims, callback) =>
+    claims === null
+      ? withDatabaseTransaction(
+        databasePool,
+        "argus_callback",
+        (database) => callback(createWebullCallbackRepository(database)),
+      )
+      : withCallbackRequestTransaction(
+        { pool: databasePool, verifiedClaims: claims },
+        (database) => callback(createWebullCallbackRepository(database)),
+      ),
   provider,
   providerEnvironment: configuredContract.environment,
   tokenVault,
   accountIdPepper: requiredEnvironment("WEBULL_ACCOUNT_ID_PEPPER"),
 });
 
-Deno.serve(handler);
+Deno.serve(withBuildRevisionHeader(handler));

@@ -18,10 +18,7 @@ class GeneratedCreatorService implements CreatorService {
   @override
   Future<SeededCreatorView> fetchById(String creatorId) async {
     try {
-      final values = (await _api.listSeededCreators(limit: 50)).data!.data;
-      final value = values
-          .where((creator) => creator.id == creatorId)
-          .firstOrNull;
+      final value = (await _api.getSeededCreator(id: creatorId)).data?.data;
       if (value == null || !value.isFictional) {
         throw const LoadFailure(LoadPhase.terminalFailure);
       }

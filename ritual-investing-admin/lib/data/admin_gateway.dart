@@ -58,6 +58,7 @@ class AdminCommandKeyFactory {
 abstract interface class AdminGateway {
   Future<AdminStaffSession> loadSession();
   Future<List<AdminRecord>> list(AdminDestination destination);
+  Future<AdminRecord> getEditorial(AdminRecord record);
   Future<void> createDraft(
     AdminDestination destination,
     String slug,
@@ -171,6 +172,29 @@ class OpenApiAdminGateway implements AdminGateway {
       throw const FormatException('Invalid admin collection envelope');
     }
     return values.map(_decodeRecord).toList(growable: false);
+  }
+
+  @override
+  Future<AdminRecord> getEditorial(AdminRecord record) async {
+    final response = await _client.dio.get<Object?>(
+      '/v1/admin/editorial/${record.id}',
+      options: Options(extra: _secure),
+    );
+    final detail = _data(response.data);
+    final revision = detail['revision'];
+    if (revision is! Map) {
+      throw const FormatException('Editorial revision is missing');
+    }
+    final revisionData = Map<String, Object?>.from(revision);
+    return _decodeRecord({
+      ...detail,
+      'revision_id': revisionData['id'] ?? detail['revision_id'],
+      'revision_number': revisionData['revision_number'],
+      'version': revisionData['version'],
+      'revision_state': revisionData['state'],
+      'etag': revisionData['etag'],
+      'payload': revisionData['payload'],
+    });
   }
 
   @override
@@ -337,6 +361,9 @@ class OpenApiAdminGateway implements AdminGateway {
       version: version,
       revisionId: item['revision_id'] as String?,
       etag: item['etag'] is String ? item['etag']! as String : '"v$version"',
+      payload: item['payload'] is Map
+          ? Map<String, Object?>.from(item['payload']! as Map)
+          : null,
     );
   }
 
@@ -404,6 +431,8 @@ class FixtureAdminGateway implements AdminGateway {
     : records = List.of(records);
   final List<AdminRecord> records;
   final List<String> transitions = [];
+  Map<String, Object?>? lastPatchedPayload;
+  Map<String, Object?>? lastDraftPayload;
   @override
   Future<AdminStaffSession> loadSession() async => const AdminStaffSession(
     staffId: 'fixture-staff',
@@ -414,11 +443,17 @@ class FixtureAdminGateway implements AdminGateway {
   @override
   Future<List<AdminRecord>> list(AdminDestination destination) async => records;
   @override
+  Future<AdminRecord> getEditorial(AdminRecord record) async => record;
+  @override
   Future<void> createDraft(
     AdminDestination destination,
     String slug,
     Map<String, Object?> payload,
-  ) async => transitions.add('draft:$slug');
+  ) async {
+    lastDraftPayload = payload;
+    transitions.add('draft:$slug');
+  }
+
   @override
   Future<void> createRevision(
     AdminDestination destination,
@@ -430,7 +465,11 @@ class FixtureAdminGateway implements AdminGateway {
     AdminDestination destination,
     AdminRecord record,
     Map<String, Object?> payload,
-  ) async => transitions.add('edit:${record.id}');
+  ) async {
+    lastPatchedPayload = payload;
+    transitions.add('edit:${record.id}');
+  }
+
   @override
   Future<void> preview(
     AdminDestination destination,
@@ -541,6 +580,7 @@ class FixtureAdminGateway implements AdminGateway {
       version: record.version + 1,
       revisionId: record.revisionId,
       etag: '"v${record.version + 1}"',
+      payload: record.payload,
     );
   }
 }

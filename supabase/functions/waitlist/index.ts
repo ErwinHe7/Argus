@@ -1,5 +1,6 @@
 import { withDatabaseTransaction } from "../../../ritual-investing-api/src/db/database-port.ts";
 import { createSupabaseWaitlistDatabasePool } from "../_shared/database.ts";
+import { withBuildRevisionHeader } from "../_shared/build-revision.ts";
 import { createPostgresRateLimitPort } from "../_shared/rate-limit.ts";
 
 export const WAITLIST_NOTICE_VERSION = "waitlist-v1-2026-08-25";
@@ -455,7 +456,7 @@ function requiredEnvironment(name: string): string {
 }
 
 if (import.meta.main) {
-  Deno.serve(createWaitlistHandler({
+  Deno.serve(withBuildRevisionHeader(createWaitlistHandler({
     WAITLIST_SUBMISSIONS: Deno.env.get("WAITLIST_SUBMISSIONS"),
     WAITLIST_ALLOWED_ORIGIN: requiredEnvironment("WAITLIST_ALLOWED_ORIGIN"),
     WAITLIST_SOURCE_HMAC_KEY: requiredEnvironment(
@@ -466,5 +467,5 @@ if (import.meta.main) {
       "TURNSTILE_EXPECTED_HOSTNAME",
     ),
     SUPABASE_DB_URL: requiredEnvironment("EDGE_WAITLIST_DATABASE_URL"),
-  }));
+  })));
 }

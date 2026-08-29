@@ -9,12 +9,13 @@ import {
 } from "../../src/domains/brokerage-accounts/normalization.ts";
 import {
   type BrokerageProjectionProvider,
-  createBrokerageProjectionService,
+  createBrokerageProjectionService
+    as createProductionBrokerageProjectionService,
 } from "../../src/domains/brokerage-projections/service.ts";
 import {
-  type BrokerageProjectionRepository,
   parseBrokerageSafeInteger,
 } from "../../src/domains/brokerage-projections/repository.ts";
+import type { BrokerageProjectionRepository } from "../../src/domains/brokerage-projections/ports.ts";
 import { BrokerageProjectionError } from "../../src/domains/brokerage-projections/types.ts";
 
 const fixture = JSON.parse(
@@ -27,6 +28,21 @@ const fixture = JSON.parse(
   ),
 ) as Record<string, unknown>;
 const accountId = "018f3c2a-4b67-7a89-8abc-123456789010";
+
+function createBrokerageProjectionService(
+  input:
+    & Omit<
+      Parameters<typeof createProductionBrokerageProjectionService>[0],
+      "withRepository"
+    >
+    & { repository: BrokerageProjectionRepository },
+) {
+  const { repository, ...serviceInput } = input;
+  return createProductionBrokerageProjectionService({
+    ...serviceInput,
+    withRepository: (callback) => callback(repository),
+  });
+}
 
 describe("brokerage account authority", () => {
   it("preserves multiple accounts and one active selection", async () => {

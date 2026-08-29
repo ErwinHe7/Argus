@@ -9,8 +9,9 @@ import 'dart:convert';
 import 'package:ritual_investing_api_client/generated/deserialize.dart';
 import 'package:dio/dio.dart';
 
+import 'package:ritual_investing_api_client/generated/model/editorial_collection_response.dart';
+import 'package:ritual_investing_api_client/generated/model/editorial_item_response.dart';
 import 'package:ritual_investing_api_client/generated/model/get_account401_response.dart';
-import 'package:ritual_investing_api_client/generated/model/list_admin_audit200_response.dart';
 
 class PublicApi {
   final Dio _dio;
@@ -29,9 +30,9 @@ class PublicApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
+  /// Returns a [Future] containing a [Response] with a [EditorialItemResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<ListAdminAudit200Response>> getPublicEditorial({
+  Future<Response<EditorialItemResponse>> getPublicEditorial({
     required String slug,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -61,15 +62,15 @@ class PublicApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    ListAdminAudit200Response? _responseData;
+    EditorialItemResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
+          : deserialize<EditorialItemResponse, EditorialItemResponse>(
               rawData,
-              'ListAdminAudit200Response',
+              'EditorialItemResponse',
               growable: true,
             );
     } catch (error, stackTrace) {
@@ -82,7 +83,7 @@ class PublicApi {
       );
     }
 
-    return Response<ListAdminAudit200Response>(
+    return Response<EditorialItemResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,
@@ -99,6 +100,7 @@ class PublicApi {
   ///
   /// Parameters:
   /// * [kind]
+  /// * [cursor]
   /// * [limit]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
@@ -107,10 +109,11 @@ class PublicApi {
   /// * [onSendProgress] - A [ProgressCallback] that can be used to get the send progress
   /// * [onReceiveProgress] - A [ProgressCallback] that can be used to get the receive progress
   ///
-  /// Returns a [Future] containing a [Response] with a [ListAdminAudit200Response] as data
+  /// Returns a [Future] containing a [Response] with a [EditorialCollectionResponse] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<ListAdminAudit200Response>> listPublicEditorial({
+  Future<Response<EditorialCollectionResponse>> listPublicEditorial({
     required String kind,
+    String? cursor,
     int? limit = 25,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -133,6 +136,7 @@ class PublicApi {
     );
 
     final _queryParameters = <String, dynamic>{
+      if (cursor != null) r'cursor': cursor,
       if (limit != null) r'limit': limit,
     };
 
@@ -145,17 +149,16 @@ class PublicApi {
       onReceiveProgress: onReceiveProgress,
     );
 
-    ListAdminAudit200Response? _responseData;
+    EditorialCollectionResponse? _responseData;
 
     try {
       final rawData = _response.data;
       _responseData = rawData == null
           ? null
-          : deserialize<ListAdminAudit200Response, ListAdminAudit200Response>(
-              rawData,
-              'ListAdminAudit200Response',
-              growable: true,
-            );
+          : deserialize<
+              EditorialCollectionResponse,
+              EditorialCollectionResponse
+            >(rawData, 'EditorialCollectionResponse', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -166,7 +169,7 @@ class PublicApi {
       );
     }
 
-    return Response<ListAdminAudit200Response>(
+    return Response<EditorialCollectionResponse>(
       data: _responseData,
       headers: _response.headers,
       isRedirect: _response.isRedirect,

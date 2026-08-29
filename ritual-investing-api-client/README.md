@@ -130,6 +130,7 @@ Class | Method | HTTP request | Description
 [*CovenApi*](doc/CovenApi.md) | [**listCoven**](doc/CovenApi.md#listcoven) | **GET** /v1/coven | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**getCircleTemplate**](doc/DiscoverApi.md#getcircletemplate) | **GET** /v1/discover/circle-templates/{template_id} | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**getGrimoire**](doc/DiscoverApi.md#getgrimoire) | **GET** /v1/discover/grimoires/{id} | 
+[*DiscoverApi*](doc/DiscoverApi.md) | [**getSeededCreator**](doc/DiscoverApi.md#getseededcreator) | **GET** /v1/discover/creators/{id} | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listCircleTemplates**](doc/DiscoverApi.md#listcircletemplates) | **GET** /v1/discover/circle-templates | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listDiscover**](doc/DiscoverApi.md#listdiscover) | **GET** /v1/discover | 
 [*DiscoverApi*](doc/DiscoverApi.md) | [**listDiscoverAssets**](doc/DiscoverApi.md#listdiscoverassets) | **GET** /v1/discover/assets | 
@@ -255,6 +256,7 @@ Class | Method | HTTP request | Description
  - [CreateMemberIntention](doc/CreateMemberIntention.md)
  - [CreateUploadIntentRequest](doc/CreateUploadIntentRequest.md)
  - [CreatorCollectionResponse](doc/CreatorCollectionResponse.md)
+ - [CreatorResponse](doc/CreatorResponse.md)
  - [DailyRitualAssignment](doc/DailyRitualAssignment.md)
  - [DailyRitualResponse](doc/DailyRitualResponse.md)
  - [DecideModerationRequest](doc/DecideModerationRequest.md)
@@ -264,6 +266,8 @@ Class | Method | HTTP request | Description
  - [DiscoverAssetCollectionResponse](doc/DiscoverAssetCollectionResponse.md)
  - [DiscoverItem](doc/DiscoverItem.md)
  - [DiscoverResponse](doc/DiscoverResponse.md)
+ - [EditorialCollectionResponse](doc/EditorialCollectionResponse.md)
+ - [EditorialItemResponse](doc/EditorialItemResponse.md)
  - [EvidenceClaim](doc/EvidenceClaim.md)
  - [EvidenceDetail](doc/EvidenceDetail.md)
  - [EvidenceDetailSource](doc/EvidenceDetailSource.md)
@@ -319,6 +323,7 @@ Class | Method | HTTP request | Description
  - [PrivacyRequest](doc/PrivacyRequest.md)
  - [PrivacyRequestCollectionResponse](doc/PrivacyRequestCollectionResponse.md)
  - [PrivacyRequestResponse](doc/PrivacyRequestResponse.md)
+ - [PublishedEditorial](doc/PublishedEditorial.md)
  - [PutCircleAssetRequest](doc/PutCircleAssetRequest.md)
  - [ReadAllNotificationsRequest](doc/ReadAllNotificationsRequest.md)
  - [ReadAllNotificationsResponse](doc/ReadAllNotificationsResponse.md)

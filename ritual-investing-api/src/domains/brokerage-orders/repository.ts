@@ -1,14 +1,11 @@
-import type { DatabasePool } from "../../db/database-port.ts";
-import type { VerifiedRequestClaims } from "../../db/request-context.ts";
-import {
-  withCapabilityStaffRequestTransaction,
-  withMemberRequestTransaction,
-} from "../../db/request-transaction.ts";
+import type { DatabaseTransaction } from "../../db/database-port.ts";
+import type { BrokerageOrderRepository } from "./ports.ts";
 import type {
   NormalizedCapability,
   NormalizedRestriction,
 } from "../brokerage-accounts/normalization.ts";
 import type { BrokerageProjectionAvailability } from "../brokerage-projections/types.ts";
+import { normalizeBrokerageReasonCode } from "./reason-codes.ts";
 import {
   type BrokerageOrderAuthority,
   type BrokerageOrderCommand,
@@ -274,111 +271,20 @@ function translateOrderDatabaseError(error: unknown): never {
   throw new BrokerageOrderError("provider_contract_unavailable");
 }
 
-export interface BrokerageOrderRepository {
-  authority(accountId: string): Promise<BrokerageOrderAuthority>;
-  assertInstrumentOwned(accountId: string, instrumentId: string): Promise<void>;
-  targetOrder(accountId: string, orderId: string): Promise<OwnedOrderTarget>;
-  savePreview(
-    input: Readonly<{
-      authority: BrokerageOrderAuthority;
-      id: string;
-      operation: BrokerageOrderOperation;
-      targetOrderId: string | null;
-      normalizedPayload: NormalizedOrderIntent;
-      normalizedPayloadHash: string;
-      provider: ProviderOrderPreview;
-      policyVersion: string;
-    }>,
-  ): Promise<BrokerageOrderPreview>;
-  prepareCommand(
-    input: Readonly<{
-      authority: BrokerageOrderAuthority;
-      previewId: string;
-      commandId: string;
-      operation: BrokerageOrderOperation;
-      targetOrderId: string | null;
-      idempotencyKey: string;
-      clientOrderId: string;
-      normalizedPayload: NormalizedOrderIntent;
-      normalizedPayloadHash: string;
-      policyVersion: string;
-      now: Date;
-    }>,
-  ): Promise<PreparedOrderCommand>;
-  command(commandId: string): Promise<BrokerageOrderCommand>;
-  staffReconciliation(commandId: string): Promise<BrokerageOrderReconciliation>;
-  recordAccepted(
-    prepared: PreparedOrderCommand,
-    result: Extract<ProviderCommandResult, { kind: "acknowledged" }>,
-  ): Promise<BrokerageOrderCommand>;
-  recordRejected(
-    prepared: PreparedOrderCommand,
-    providerCode: string,
-  ): Promise<BrokerageOrderCommand>;
-  recordAmbiguous(
-    prepared: PreparedOrderCommand,
-    reasonCode: string,
-  ): Promise<BrokerageOrderCommand>;
-  recordBeforeEgressFailure(
-    prepared: PreparedOrderCommand,
-    reasonCode: string,
-  ): Promise<BrokerageOrderCommand>;
-  claimReconciliation(commandId: string): Promise<PreparedOrderCommand | null>;
-  recordReconciliationNotFound(
-    prepared: PreparedOrderCommand,
-  ): Promise<BrokerageOrderCommand>;
-  recordReconciliationAmbiguous(
-    prepared: PreparedOrderCommand,
-    reasonCode: string,
-  ): Promise<BrokerageOrderCommand>;
-  recordReconciled(
-    prepared: PreparedOrderCommand,
-    resolution: Extract<
-      import("./types.ts").ProviderDetailResult,
-      { kind: "resolved" }
-    >["resolution"],
-    orderReference: import("./types.ts").SealedProviderReference,
-    order: BrokerageOrderDetail,
-  ): Promise<BrokerageOrderCommand>;
-  listOrders(accountId: string): Promise<BrokerageOrderList>;
-  saveOrderList(
-    authority: BrokerageOrderAuthority,
-    projection: ProviderOrderListProjection,
-  ): Promise<BrokerageOrderList>;
-  order(accountId: string, orderId: string): Promise<BrokerageOrderDetail>;
-}
+export type { BrokerageOrderRepository } from "./ports.ts";
 
 export function createBrokerageOrderRepository(
-  input: Readonly<{
-    pool: DatabasePool;
-    claims: VerifiedRequestClaims;
-  }>,
+  database: DatabaseTransaction,
+  verifiedUserId: string,
 ): BrokerageOrderRepository {
-  const transaction = <T>(
-    callback: Parameters<typeof withMemberRequestTransaction<T>>[1],
-  ) =>
-    withMemberRequestTransaction(
-      { pool: input.pool, verifiedClaims: input.claims },
-      callback,
-    );
-  const staffTransaction = <T>(
-    callback: Parameters<typeof withCapabilityStaffRequestTransaction<T>>[2],
-  ) =>
-    withCapabilityStaffRequestTransaction(
-      { pool: input.pool, verifiedClaims: input.claims },
-      "brokerage:read",
-      callback,
-    );
-
   const authority = async (
     accountId: string,
   ): Promise<BrokerageOrderAuthority> => {
     if (!uuidPattern.test(accountId)) {
       throw new BrokerageOrderError("account_not_found");
     }
-    return transaction(async (database) => {
-      const result = await database.query<Record<string, unknown>>(
-        `select account.user_id,account.deletion_epoch,account.connection_id,
+    const result = await database.query<Record<string, unknown>>(
+      `select account.user_id,account.deletion_epoch,account.connection_id,
                 connection.status connection_status,account.id account_id,
                 account.status account_status,account.capability_version,
                 coalesce((
@@ -424,94 +330,90 @@ export function createBrokerageOrderRepository(
               order by generation.generation desc limit 1
            ) restriction on true
           where account.id=$1 and account.user_id=argus_private.trusted_request_user_id()`,
-        [accountId],
-      );
-      const row = result.rows[0];
-      if (row === undefined) throw new BrokerageOrderError("account_not_found");
-      return Object.freeze({
-        context: Object.freeze({
-          userId: String(row.user_id),
-          deletionEpoch: integer(row.deletion_epoch, "deletion_epoch"),
-          connectionId: String(row.connection_id),
-          connectionStatus: row
-            .connection_status as BrokerageOrderAuthority["context"][
-              "connectionStatus"
-            ],
-          accountId: String(row.account_id),
-          accountStatus: row
-            .account_status as BrokerageOrderAuthority["context"][
-              "accountStatus"
-            ],
-          capabilityVersion: integer(
-            row.capability_version,
-            "capability_version",
-          ),
-        }),
-        accountExpiresAt: row.account_expires_at === null
-          ? null
-          : date(row.account_expires_at, "account_expires_at"),
-        capabilities: capabilities(row.capabilities),
-        restrictionGeneration: row.restriction_generation === null
-          ? null
-          : integer(row.restriction_generation, "restriction_generation", 1),
-        restrictionExpiresAt: row.restriction_expires_at === null
-          ? null
-          : date(row.restriction_expires_at, "restriction_expires_at"),
-        restrictionAvailability: (row.restriction_availability ??
-          "unavailable") as BrokerageProjectionAvailability,
-        restrictions: restrictions(row.restrictions ?? []),
-      });
+      [accountId],
+    );
+    const row = result.rows[0];
+    if (row === undefined) throw new BrokerageOrderError("account_not_found");
+    return Object.freeze({
+      context: Object.freeze({
+        userId: String(row.user_id),
+        deletionEpoch: integer(row.deletion_epoch, "deletion_epoch"),
+        connectionId: String(row.connection_id),
+        connectionStatus: row
+          .connection_status as BrokerageOrderAuthority["context"][
+            "connectionStatus"
+          ],
+        accountId: String(row.account_id),
+        accountStatus: row
+          .account_status as BrokerageOrderAuthority["context"][
+            "accountStatus"
+          ],
+        capabilityVersion: integer(
+          row.capability_version,
+          "capability_version",
+        ),
+      }),
+      accountExpiresAt: row.account_expires_at === null
+        ? null
+        : date(row.account_expires_at, "account_expires_at"),
+      capabilities: capabilities(row.capabilities),
+      restrictionGeneration: row.restriction_generation === null
+        ? null
+        : integer(row.restriction_generation, "restriction_generation", 1),
+      restrictionExpiresAt: row.restriction_expires_at === null
+        ? null
+        : date(row.restriction_expires_at, "restriction_expires_at"),
+      restrictionAvailability: (row.restriction_availability ??
+        "unavailable") as BrokerageProjectionAvailability,
+      restrictions: restrictions(row.restrictions ?? []),
     });
   };
 
-  const currentCommand = (commandId: string) =>
-    transaction(async (database) => {
-      if (!uuidPattern.test(commandId)) {
-        throw new BrokerageOrderError("command_not_found");
-      }
-      const result = await database.query<Record<string, unknown>>(
-        `select id,account_id,operation,target_order_id,order_id,state,
+  const currentCommand = async (commandId: string) => {
+    if (!uuidPattern.test(commandId)) {
+      throw new BrokerageOrderError("command_not_found");
+    }
+    const result = await database.query<Record<string, unknown>>(
+      `select id,account_id,operation,target_order_id,order_id,state,
               created_at,updated_at
          from argus_private.provider_commands
         where id=$1 and user_id=argus_private.trusted_request_user_id()`,
-        [commandId],
-      );
-      if (result.rows[0] === undefined) {
-        throw new BrokerageOrderError("command_not_found");
-      }
-      return command(result.rows[0]);
-    });
+      [commandId],
+    );
+    if (result.rows[0] === undefined) {
+      throw new BrokerageOrderError("command_not_found");
+    }
+    return command(result.rows[0]);
+  };
 
   const finishDispatch = async (
     prepared: PreparedOrderCommand,
     state: "failed" | "ambiguous",
     outcome: "terminal_failure" | "ambiguous",
     reasonCode: string,
-  ): Promise<BrokerageOrderCommand> =>
-    transaction(async (database) => {
-      const updated = await database.query<Record<string, unknown>>(
-        `select command_id id,account_id,operation,target_order_id,order_id,
+  ): Promise<BrokerageOrderCommand> => {
+    const updated = await database.query<Record<string, unknown>>(
+      `select command_id id,account_id,operation,target_order_id,order_id,
                 state,created_at,updated_at
            from argus_private.record_provider_command_dispatch_outcome(
              $1,$2,$3,$4
            )`,
-        [prepared.id, state, outcome, reasonCode],
-      );
-      if (updated.rows[0] === undefined) {
-        throw new BrokerageOrderError("command_not_found");
-      }
-      return command(updated.rows[0]);
-    });
+      [prepared.id, state, outcome, reasonCode],
+    );
+    if (updated.rows[0] === undefined) {
+      throw new BrokerageOrderError("command_not_found");
+    }
+    return command(updated.rows[0]);
+  };
 
   const repository: BrokerageOrderRepository = {
     authority,
-    assertInstrumentOwned: (accountId, instrumentId) =>
-      transaction(async (database) => {
-        if (!uuidPattern.test(accountId) || !uuidPattern.test(instrumentId)) {
-          throw new BrokerageOrderError("unsupported_order");
-        }
-        const result = await database.query(
-          `select 1
+    assertInstrumentOwned: async (accountId, instrumentId) => {
+      if (!uuidPattern.test(accountId) || !uuidPattern.test(instrumentId)) {
+        throw new BrokerageOrderError("unsupported_order");
+      }
+      const result = await database.query(
+        `select 1
            from argus_private.webull_asset_mappings mapping
            join argus_brokerage.accounts account
              on account.id=mapping.account_id and account.user_id=mapping.user_id
@@ -520,19 +422,18 @@ export function createBrokerageOrderRepository(
           where mapping.account_id=$1 and mapping.instrument_id=$2
             and mapping.user_id=argus_private.trusted_request_user_id()
             and mapping.asset_kind in ('equity','etf')`,
-          [accountId, instrumentId],
-        );
-        if (result.rows.length !== 1) {
-          throw new BrokerageOrderError("unsupported_order");
-        }
-      }),
-    targetOrder: (accountId, orderId) =>
-      transaction(async (database) => {
-        if (!uuidPattern.test(accountId) || !uuidPattern.test(orderId)) {
-          throw new BrokerageOrderError("order_not_found");
-        }
-        const result = await database.query<Record<string, unknown>>(
-          `select mapping.order_id,mapping.account_id,projection.state,
+        [accountId, instrumentId],
+      );
+      if (result.rows.length !== 1) {
+        throw new BrokerageOrderError("unsupported_order");
+      }
+    },
+    targetOrder: async (accountId, orderId) => {
+      if (!uuidPattern.test(accountId) || !uuidPattern.test(orderId)) {
+        throw new BrokerageOrderError("order_not_found");
+      }
+      const result = await database.query<Record<string, unknown>>(
+        `select mapping.order_id,mapping.account_id,projection.state,
                   projection.instrument_id,asset.asset_kind
            from argus_private.webull_order_mappings mapping
            join lateral (
@@ -556,24 +457,23 @@ export function createBrokerageOrderRepository(
             and asset.instrument_id=projection.instrument_id
           where mapping.order_id=$2 and mapping.account_id=$1
             and mapping.user_id=argus_private.trusted_request_user_id()`,
-          [accountId, orderId],
-        );
-        const row = result.rows[0];
-        if (row === undefined) throw new BrokerageOrderError("order_not_found");
-        if (!["equity", "etf"].includes(String(row.asset_kind))) {
-          throw new BrokerageOrderError("unsupported_order");
-        }
-        return Object.freeze({
-          orderId: String(row.order_id),
-          accountId: String(row.account_id),
-          instrumentId: String(row.instrument_id),
-          state: row.state as OwnedOrderTarget["state"],
-        });
-      }),
-    savePreview: (preview) =>
-      transaction(async (database) => {
-        const result = await database.query<Record<string, unknown>>(
-          `insert into argus_private.order_previews(
+        [accountId, orderId],
+      );
+      const row = result.rows[0];
+      if (row === undefined) throw new BrokerageOrderError("order_not_found");
+      if (!["equity", "etf"].includes(String(row.asset_kind))) {
+        throw new BrokerageOrderError("unsupported_order");
+      }
+      return Object.freeze({
+        orderId: String(row.order_id),
+        accountId: String(row.account_id),
+        instrumentId: String(row.instrument_id),
+        state: row.state as OwnedOrderTarget["state"],
+      });
+    },
+    savePreview: async (preview) => {
+      const result = await database.query<Record<string, unknown>>(
+        `insert into argus_private.order_previews(
            id,user_id,deletion_epoch,connection_id,account_id,operation,
            target_order_id,capability_version,restriction_generation,
            policy_version,reviewed_payload_hash,normalized_payload,
@@ -585,223 +485,79 @@ export function createBrokerageOrderRepository(
          ) returning id,account_id,operation,target_order_id,policy_version,
                      capability_version,restriction_generation,
                      reviewed_payload_hash,estimated_total,currency,expires_at`,
-          [
-            preview.id,
-            preview.authority.context.userId,
-            preview.authority.context.deletionEpoch,
-            preview.authority.context.connectionId,
-            preview.authority.context.accountId,
-            preview.operation,
-            preview.targetOrderId,
-            preview.authority.context.capabilityVersion,
-            preview.authority.restrictionGeneration,
-            preview.policyVersion,
-            preview.normalizedPayloadHash,
-            JSON.stringify(preview.normalizedPayload),
-            preview.provider.reference.ciphertext,
-            preview.provider.reference.hash,
-            preview.provider.reference.keyVersion,
-            preview.provider.estimatedTotal,
-            preview.provider.currency,
-            preview.provider.expiresAt,
-          ],
-        );
-        const row = result.rows[0]!;
-        return Object.freeze({
-          id: String(row.id),
-          account_id: String(row.account_id),
-          operation: row.operation as BrokerageOrderOperation,
-          target_order_id: row.target_order_id === null
-            ? null
-            : String(row.target_order_id),
-          policy_version: row
-            .policy_version as BrokerageOrderPreview["policy_version"],
-          capability_version: integer(
-            row.capability_version,
-            "capability_version",
-          ),
-          restriction_generation: integer(
-            row.restriction_generation,
-            "restriction_generation",
-            1,
-          ),
-          reviewed_payload_hash: String(row.reviewed_payload_hash),
-          estimated_total: row.estimated_total === null
-            ? null
-            : String(row.estimated_total),
-          currency: row.currency === null ? null : String(row.currency),
-          expires_at: date(row.expires_at, "preview_expires_at").toISOString(),
-        });
-      }),
+        [
+          preview.id,
+          preview.authority.context.userId,
+          preview.authority.context.deletionEpoch,
+          preview.authority.context.connectionId,
+          preview.authority.context.accountId,
+          preview.operation,
+          preview.targetOrderId,
+          preview.authority.context.capabilityVersion,
+          preview.authority.restrictionGeneration,
+          preview.policyVersion,
+          preview.normalizedPayloadHash,
+          JSON.stringify(preview.normalizedPayload),
+          preview.provider.reference.ciphertext,
+          preview.provider.reference.hash,
+          preview.provider.reference.keyVersion,
+          preview.provider.estimatedTotal,
+          preview.provider.currency,
+          preview.provider.expiresAt,
+        ],
+      );
+      const row = result.rows[0]!;
+      return Object.freeze({
+        id: String(row.id),
+        account_id: String(row.account_id),
+        operation: row.operation as BrokerageOrderOperation,
+        target_order_id: row.target_order_id === null
+          ? null
+          : String(row.target_order_id),
+        policy_version: row
+          .policy_version as BrokerageOrderPreview["policy_version"],
+        capability_version: integer(
+          row.capability_version,
+          "capability_version",
+        ),
+        restriction_generation: integer(
+          row.restriction_generation,
+          "restriction_generation",
+          1,
+        ),
+        reviewed_payload_hash: String(row.reviewed_payload_hash),
+        estimated_total: row.estimated_total === null
+          ? null
+          : String(row.estimated_total),
+        currency: row.currency === null ? null : String(row.currency),
+        expires_at: date(row.expires_at, "preview_expires_at").toISOString(),
+      });
+    },
     prepareCommand: async (prepared) => {
       try {
-        return await transaction(async (database) => {
-          const result = await database.query<Record<string, unknown>>(
-            `select * from argus_private.prepare_provider_order_command(
+        const result = await database.query<Record<string, unknown>>(
+          `select * from argus_private.prepare_provider_order_command(
            $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12,$13
          )`,
-            [
-              prepared.previewId,
-              prepared.commandId,
-              prepared.authority.context.userId,
-              prepared.authority.context.deletionEpoch,
-              prepared.authority.context.connectionId,
-              prepared.authority.context.accountId,
-              prepared.operation,
-              prepared.targetOrderId,
-              prepared.clientOrderId,
-              prepared.idempotencyKey,
-              JSON.stringify(prepared.normalizedPayload),
-              prepared.normalizedPayloadHash,
-              prepared.policyVersion,
-            ],
-          );
-          const row = result.rows[0];
-          if (row === undefined) {
-            throw new BrokerageOrderError("preview_mismatch");
-          }
-          return Object.freeze({
-            id: String(row.command_id),
-            userId: String(row.user_id),
-            deletionEpoch: integer(row.deletion_epoch, "deletion_epoch"),
-            connectionId: String(row.connection_id),
-            accountId: String(row.account_id),
-            operation: row.operation as BrokerageOrderOperation,
-            targetOrderId: row.target_order_id === null
-              ? null
-              : String(row.target_order_id),
-            clientOrderId: String(row.client_order_id),
-            normalizedPayload: row.normalized_payload as NormalizedOrderIntent,
-            normalizedPayloadHash: String(row.normalized_payload_hash),
-            previewReference: Object.freeze({
-              ciphertext: row.provider_preview_ref_ciphertext as Uint8Array,
-              hash: String(row.provider_preview_ref_hash),
-              keyVersion: integer(
-                row.provider_preview_key_version,
-                "preview_key_version",
-                1,
-              ),
-            }),
-            state: row.state as PreparedOrderCommand["state"],
-            duplicate: row.is_duplicate === true,
-            egressStartedAt: date(row.egress_started_at, "egress_started_at"),
-          });
-        });
-      } catch (error) {
-        if (error instanceof BrokerageOrderError) throw error;
-        return translateOrderDatabaseError(error);
-      }
-    },
-    command: currentCommand,
-    staffReconciliation: (commandId) =>
-      staffTransaction(async (database) => {
-        if (!uuidPattern.test(commandId)) {
-          throw new BrokerageOrderError("command_not_found");
-        }
-        const result = await database.query<Record<string, unknown>>(
-          `select command.id,command.account_id,command.operation,
-                command.target_order_id,command.order_id,command.state,
-                command.created_at,command.updated_at,command.egress_started_at,
-                reconciliation.status reconciliation_status,
-                reconciliation.attempts reconciliation_attempts,
-                reconciliation.next_attempt_at,reconciliation.last_error_code,
-                count(attempt.id)::bigint attempt_count
-           from argus_private.provider_commands command
-           left join argus_private.reconciliation_records reconciliation
-             on reconciliation.command_id=command.id
-            and reconciliation.user_id=command.user_id
-           left join argus_private.provider_command_attempts attempt
-             on attempt.command_id=command.id and attempt.user_id=command.user_id
-          where command.id=$1
-          group by command.id,reconciliation.status,reconciliation.attempts,
-                   reconciliation.next_attempt_at,reconciliation.last_error_code`,
-          [commandId],
-        );
-        const row = result.rows[0];
-        if (row === undefined) {
-          throw new BrokerageOrderError("command_not_found");
-        }
-        const lastError = row.last_error_code === null
-          ? null
-          : String(row.last_error_code);
-        return Object.freeze({
-          command: command(row),
-          status: row.reconciliation_status === null ? null : row
-            .reconciliation_status as BrokerageOrderReconciliation["status"],
-          attempts: integer(row.attempt_count, "attempt_count"),
-          next_attempt_at: row.next_attempt_at === null
-            ? null
-            : date(row.next_attempt_at, "next_attempt_at").toISOString(),
-          last_error_code:
-            lastError !== null && /^[a-z][a-z0-9_]{0,63}$/.test(lastError)
-              ? lastError
-              : lastError === null
-              ? null
-              : "provider_error_redacted",
-          egress_started_at: date(row.egress_started_at, "egress_started_at")
-            .toISOString(),
-        });
-      }),
-    recordAccepted: (prepared, result) =>
-      transaction(async (database) => {
-        const order = result.order;
-        const normalized = parseNormalizedOrderProjection(
-          publicListOrder(order),
-        );
-        const recorded = await database.query<Record<string, unknown>>(
-          `select argus_private.record_provider_order_acknowledgement(
-           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13
-         )`,
           [
-            prepared.id,
-            order.id,
-            result.orderReference.ciphertext,
-            result.orderReference.hash,
-            result.orderReference.keyVersion,
-            normalized.instrument_id,
-            normalized.state,
-            normalized.filled_quantity,
-            order.source,
-            JSON.stringify(normalized),
-            order.provider_observed_at,
-            order.fetched_at,
+            prepared.previewId,
+            prepared.commandId,
+            prepared.authority.context.userId,
+            prepared.authority.context.deletionEpoch,
+            prepared.authority.context.connectionId,
+            prepared.authority.context.accountId,
+            prepared.operation,
+            prepared.targetOrderId,
+            prepared.clientOrderId,
+            prepared.idempotencyKey,
+            JSON.stringify(prepared.normalizedPayload),
             prepared.normalizedPayloadHash,
+            prepared.policyVersion,
           ],
         );
-        if (recorded.rows.length !== 1) {
-          throw new BrokerageOrderError("provider_contract_unavailable");
-        }
-        const updated = await database.query<Record<string, unknown>>(
-          `select id,account_id,operation,target_order_id,order_id,state,
-                created_at,updated_at
-           from argus_private.provider_commands
-          where id=$1 and user_id=argus_private.trusted_request_user_id()`,
-          [prepared.id],
-        );
-        if (updated.rows[0] === undefined) {
-          throw new BrokerageOrderError("command_not_found");
-        }
-        return command(updated.rows[0]);
-      }),
-    recordRejected: (prepared, providerCode) =>
-      finishDispatch(prepared, "failed", "terminal_failure", providerCode),
-    recordAmbiguous: (prepared, reasonCode) =>
-      finishDispatch(prepared, "ambiguous", "ambiguous", reasonCode),
-    recordBeforeEgressFailure: (prepared, reasonCode) =>
-      finishDispatch(prepared, "failed", "terminal_failure", reasonCode),
-    claimReconciliation: (commandId) =>
-      transaction(async (database) => {
-        const result = await database.query<Record<string, unknown>>(
-          `select * from argus_private.claim_provider_command_reconciliation($1)`,
-          [commandId],
-        );
         const row = result.rows[0];
         if (row === undefined) {
-          throw new BrokerageOrderError("command_not_found");
-        }
-        if (row.claim_outcome === "manual_review") return null;
-        if (row.claim_outcome !== "claimed") {
-          throw new BrokerageOrderError("provider_contract_unavailable");
+          throw new BrokerageOrderError("preview_mismatch");
         }
         return Object.freeze({
           id: String(row.command_id),
@@ -825,90 +581,249 @@ export function createBrokerageOrderRepository(
               1,
             ),
           }),
-          state: "reconciling" as const,
-          duplicate: true,
+          state: row.state as PreparedOrderCommand["state"],
+          duplicate: row.is_duplicate === true,
           egressStartedAt: date(row.egress_started_at, "egress_started_at"),
         });
-      }),
-    recordReconciliationNotFound: (prepared) =>
-      transaction(async (database) => {
-        await database.query(
-          `select argus_private.record_provider_command_not_found($1)`,
-          [prepared.id],
-        );
-        const updated = await database.query<Record<string, unknown>>(
-          `select id,account_id,operation,target_order_id,order_id,state,
+      } catch (error) {
+        if (error instanceof BrokerageOrderError) throw error;
+        return translateOrderDatabaseError(error);
+      }
+    },
+    command: currentCommand,
+    staffReconciliation: async (commandId) => {
+      if (!uuidPattern.test(commandId)) {
+        throw new BrokerageOrderError("command_not_found");
+      }
+      const result = await database.query<Record<string, unknown>>(
+        `select command.id,command.account_id,command.operation,
+                command.target_order_id,command.order_id,command.state,
+                command.created_at,command.updated_at,command.egress_started_at,
+                reconciliation.status reconciliation_status,
+                reconciliation.attempts reconciliation_attempts,
+                reconciliation.next_attempt_at,reconciliation.last_error_code,
+                count(attempt.id)::bigint attempt_count
+           from argus_private.provider_commands command
+           left join argus_private.reconciliation_records reconciliation
+             on reconciliation.command_id=command.id
+            and reconciliation.user_id=command.user_id
+           left join argus_private.provider_command_attempts attempt
+             on attempt.command_id=command.id and attempt.user_id=command.user_id
+          where command.id=$1
+          group by command.id,reconciliation.status,reconciliation.attempts,
+                   reconciliation.next_attempt_at,reconciliation.last_error_code`,
+        [commandId],
+      );
+      const row = result.rows[0];
+      if (row === undefined) {
+        throw new BrokerageOrderError("command_not_found");
+      }
+      const lastError = row.last_error_code === null
+        ? null
+        : String(row.last_error_code);
+      return Object.freeze({
+        command: command(row),
+        status: row.reconciliation_status === null ? null : row
+          .reconciliation_status as BrokerageOrderReconciliation["status"],
+        attempts: integer(row.attempt_count, "attempt_count"),
+        next_attempt_at: row.next_attempt_at === null
+          ? null
+          : date(row.next_attempt_at, "next_attempt_at").toISOString(),
+        last_error_code:
+          lastError !== null && /^[a-z][a-z0-9_]{0,63}$/.test(lastError)
+            ? lastError
+            : lastError === null
+            ? null
+            : "provider_error_redacted",
+        egress_started_at: date(row.egress_started_at, "egress_started_at")
+          .toISOString(),
+      });
+    },
+    recordAccepted: async (prepared, result) => {
+      const order = result.order;
+      const normalized = parseNormalizedOrderProjection(
+        publicListOrder(order),
+      );
+      const recorded = await database.query<Record<string, unknown>>(
+        `select argus_private.record_provider_order_acknowledgement(
+           $1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13
+         )`,
+        [
+          prepared.id,
+          order.id,
+          result.orderReference.ciphertext,
+          result.orderReference.hash,
+          result.orderReference.keyVersion,
+          normalized.instrument_id,
+          normalized.state,
+          normalized.filled_quantity,
+          order.source,
+          JSON.stringify(normalized),
+          order.provider_observed_at,
+          order.fetched_at,
+          prepared.normalizedPayloadHash,
+        ],
+      );
+      if (recorded.rows.length !== 1) {
+        throw new BrokerageOrderError("provider_contract_unavailable");
+      }
+      const updated = await database.query<Record<string, unknown>>(
+        `select id,account_id,operation,target_order_id,order_id,state,
                 created_at,updated_at
            from argus_private.provider_commands
           where id=$1 and user_id=argus_private.trusted_request_user_id()`,
-          [prepared.id],
-        );
-        if (updated.rows[0] === undefined) {
-          throw new BrokerageOrderError("command_not_found");
-        }
-        return command(updated.rows[0]);
-      }),
-    recordReconciliationAmbiguous: (prepared, reasonCode) =>
-      transaction(async (database) => {
-        await database.query(
-          `select argus_private.record_provider_command_lookup_ambiguous($1,$2)`,
-          [prepared.id, reasonCode],
-        );
-        const updated = await database.query<Record<string, unknown>>(
-          `select id,account_id,operation,target_order_id,order_id,state,
+        [prepared.id],
+      );
+      if (updated.rows[0] === undefined) {
+        throw new BrokerageOrderError("command_not_found");
+      }
+      return command(updated.rows[0]);
+    },
+    recordRejected: (prepared, providerCode) =>
+      finishDispatch(
+        prepared,
+        "failed",
+        "terminal_failure",
+        normalizeBrokerageReasonCode(providerCode, "provider_rejected"),
+      ),
+    recordAmbiguous: (prepared, reasonCode) =>
+      finishDispatch(
+        prepared,
+        "ambiguous",
+        "ambiguous",
+        normalizeBrokerageReasonCode(reasonCode, "provider_outcome_unknown"),
+      ),
+    recordBeforeEgressFailure: (prepared, reasonCode) =>
+      finishDispatch(
+        prepared,
+        "failed",
+        "terminal_failure",
+        normalizeBrokerageReasonCode(
+          reasonCode,
+          "provider_contract_unavailable",
+        ),
+      ),
+    claimReconciliation: async (commandId) => {
+      const result = await database.query<Record<string, unknown>>(
+        `select * from argus_private.claim_provider_command_reconciliation($1)`,
+        [commandId],
+      );
+      const row = result.rows[0];
+      if (row === undefined) {
+        throw new BrokerageOrderError("command_not_found");
+      }
+      if (row.claim_outcome === "manual_review") return null;
+      if (row.claim_outcome !== "claimed") {
+        throw new BrokerageOrderError("provider_contract_unavailable");
+      }
+      return Object.freeze({
+        id: String(row.command_id),
+        userId: String(row.user_id),
+        deletionEpoch: integer(row.deletion_epoch, "deletion_epoch"),
+        connectionId: String(row.connection_id),
+        accountId: String(row.account_id),
+        operation: row.operation as BrokerageOrderOperation,
+        targetOrderId: row.target_order_id === null
+          ? null
+          : String(row.target_order_id),
+        clientOrderId: String(row.client_order_id),
+        normalizedPayload: row.normalized_payload as NormalizedOrderIntent,
+        normalizedPayloadHash: String(row.normalized_payload_hash),
+        previewReference: Object.freeze({
+          ciphertext: row.provider_preview_ref_ciphertext as Uint8Array,
+          hash: String(row.provider_preview_ref_hash),
+          keyVersion: integer(
+            row.provider_preview_key_version,
+            "preview_key_version",
+            1,
+          ),
+        }),
+        state: "reconciling" as const,
+        duplicate: true,
+        egressStartedAt: date(row.egress_started_at, "egress_started_at"),
+      });
+    },
+    recordReconciliationNotFound: async (prepared) => {
+      await database.query(
+        `select argus_private.record_provider_command_not_found($1)`,
+        [prepared.id],
+      );
+      const updated = await database.query<Record<string, unknown>>(
+        `select id,account_id,operation,target_order_id,order_id,state,
+                created_at,updated_at
+           from argus_private.provider_commands
+          where id=$1 and user_id=argus_private.trusted_request_user_id()`,
+        [prepared.id],
+      );
+      if (updated.rows[0] === undefined) {
+        throw new BrokerageOrderError("command_not_found");
+      }
+      return command(updated.rows[0]);
+    },
+    recordReconciliationAmbiguous: async (prepared, reasonCode) => {
+      await database.query(
+        `select argus_private.record_provider_command_lookup_ambiguous($1,$2)`,
+        [
+          prepared.id,
+          normalizeBrokerageReasonCode(
+            reasonCode,
+            "provider_lookup_unavailable",
+          ),
+        ],
+      );
+      const updated = await database.query<Record<string, unknown>>(
+        `select id,account_id,operation,target_order_id,order_id,state,
                   created_at,updated_at
              from argus_private.provider_commands
             where id=$1 and user_id=argus_private.trusted_request_user_id()`,
-          [prepared.id],
-        );
-        if (updated.rows[0] === undefined) {
-          throw new BrokerageOrderError("command_not_found");
-        }
-        return command(updated.rows[0]);
-      }),
-    recordReconciled: (prepared, resolution, orderReference, order) =>
-      transaction(async (database) => {
-        const normalized = parseNormalizedOrderProjection(
-          publicListOrder(order),
-        );
-        await database.query(
-          `select argus_private.record_provider_order_reconciliation(
+        [prepared.id],
+      );
+      if (updated.rows[0] === undefined) {
+        throw new BrokerageOrderError("command_not_found");
+      }
+      return command(updated.rows[0]);
+    },
+    recordReconciled: async (prepared, resolution, orderReference, order) => {
+      const normalized = parseNormalizedOrderProjection(
+        publicListOrder(order),
+      );
+      await database.query(
+        `select argus_private.record_provider_order_reconciliation(
            $1,$2,$3,$4,$5,$6::jsonb,$7,$8,$9,$10,$11,$12
          )`,
-          [
-            prepared.id,
-            resolution,
-            order.id,
-            normalized.state,
-            normalized.filled_quantity,
-            JSON.stringify(normalized),
-            order.provider_observed_at,
-            order.fetched_at,
-            orderReference.ciphertext,
-            orderReference.hash,
-            orderReference.keyVersion,
-            normalized.instrument_id,
-          ],
-        );
-        const updated = await database.query<Record<string, unknown>>(
-          `select id,account_id,operation,target_order_id,order_id,state,
+        [
+          prepared.id,
+          resolution,
+          order.id,
+          normalized.state,
+          normalized.filled_quantity,
+          JSON.stringify(normalized),
+          order.provider_observed_at,
+          order.fetched_at,
+          orderReference.ciphertext,
+          orderReference.hash,
+          orderReference.keyVersion,
+          normalized.instrument_id,
+        ],
+      );
+      const updated = await database.query<Record<string, unknown>>(
+        `select id,account_id,operation,target_order_id,order_id,state,
                 created_at,updated_at
            from argus_private.provider_commands
           where id=$1 and user_id=argus_private.trusted_request_user_id()`,
-          [prepared.id],
-        );
-        if (updated.rows[0] === undefined) {
-          throw new BrokerageOrderError("command_not_found");
-        }
-        return command(updated.rows[0]);
-      }),
-    listOrders: (accountId) =>
-      transaction(async (database) => {
-        if (!uuidPattern.test(accountId)) {
-          throw new BrokerageOrderError("account_not_found");
-        }
-        const result = await database.query<Record<string, unknown>>(
-          `select generation.orders,generation.provider_observed_at,
+        [prepared.id],
+      );
+      if (updated.rows[0] === undefined) {
+        throw new BrokerageOrderError("command_not_found");
+      }
+      return command(updated.rows[0]);
+    },
+    listOrders: async (accountId) => {
+      if (!uuidPattern.test(accountId)) {
+        throw new BrokerageOrderError("account_not_found");
+      }
+      const result = await database.query<Record<string, unknown>>(
+        `select generation.orders,generation.provider_observed_at,
                 generation.fetched_at,generation.expires_at,
                 generation.availability,
                 connection.status connection_status
@@ -943,154 +858,152 @@ export function createBrokerageOrderRepository(
               order by header.generation desc limit 1
            ) generation on true
           where account.id=$1 and account.user_id=argus_private.trusted_request_user_id()`,
-          [accountId],
-        );
-        const row = result.rows[0];
-        if (row === undefined) {
-          throw new BrokerageOrderError("account_not_found");
-        }
-        const payload = row.orders;
-        if (payload !== null && !Array.isArray(payload)) {
-          throw new BrokerageOrderError("provider_contract_unavailable");
-        }
-        const orders = Object.freeze(
-          (payload ?? []).map(parseNormalizedOrderProjection),
-        );
-        const expiresAt = row.expires_at === null
+        [accountId],
+      );
+      const row = result.rows[0];
+      if (row === undefined) {
+        throw new BrokerageOrderError("account_not_found");
+      }
+      const payload = row.orders;
+      if (payload !== null && !Array.isArray(payload)) {
+        throw new BrokerageOrderError("provider_contract_unavailable");
+      }
+      const orders = Object.freeze(
+        (payload ?? []).map(parseNormalizedOrderProjection),
+      );
+      const expiresAt = row.expires_at === null
+        ? null
+        : date(row.expires_at, "orders_expires_at");
+      const state: BrokerageOrderList["state"] =
+        row.connection_status === "disconnected"
+          ? "disconnected"
+          : row.connection_status === "reauthorization_required"
+          ? "reauthorization_required"
+          : row.orders === null
+          ? "unavailable"
+          : expiresAt !== null && expiresAt <= new Date()
+          ? "stale"
+          : row.availability === "partial"
+          ? "partial"
+          : orders.length === 0
+          ? "empty"
+          : "fresh";
+      return Object.freeze({
+        account_id: accountId,
+        state,
+        provider_observed_at: row.provider_observed_at === null
           ? null
-          : date(row.expires_at, "orders_expires_at");
-        const state: BrokerageOrderList["state"] =
-          row.connection_status === "disconnected"
-            ? "disconnected"
-            : row.connection_status === "reauthorization_required"
-            ? "reauthorization_required"
-            : row.orders === null
-            ? "unavailable"
-            : expiresAt !== null && expiresAt <= new Date()
-            ? "stale"
-            : row.availability === "partial"
-            ? "partial"
-            : orders.length === 0
-            ? "empty"
-            : "fresh";
-        return Object.freeze({
-          account_id: accountId,
-          state,
-          provider_observed_at: row.provider_observed_at === null
-            ? null
-            : date(row.provider_observed_at, "orders_observed_at")
-              .toISOString(),
-          fetched_at: row.fetched_at === null
-            ? null
-            : date(row.fetched_at, "orders_fetched_at").toISOString(),
-          expires_at: expiresAt?.toISOString() ?? null,
-          orders,
-        });
-      }),
-    saveOrderList: (savedAuthority, projection) =>
-      transaction(async (database) => {
-        const context = savedAuthority.context;
+          : date(row.provider_observed_at, "orders_observed_at")
+            .toISOString(),
+        fetched_at: row.fetched_at === null
+          ? null
+          : date(row.fetched_at, "orders_fetched_at").toISOString(),
+        expires_at: expiresAt?.toISOString() ?? null,
+        orders,
+      });
+    },
+    saveOrderList: async (savedAuthority, projection) => {
+      const context = savedAuthority.context;
+      if (
+        context.userId !== verifiedUserId ||
+        !uuidPattern.test(context.accountId) ||
+        projection.observations.length > 10_000
+      ) {
+        throw new BrokerageOrderError("provider_contract_unavailable");
+      }
+      const generationResult = await database.query<{
+        result_list_generation: unknown;
+      }>(
+        `select * from argus_private.begin_brokerage_order_list_ingestion(
+             $1,$2,$3
+           )`,
+        [context.accountId, context.connectionId, context.deletionEpoch],
+      );
+      const listGeneration = integer(
+        generationResult.rows[0]?.result_list_generation,
+        "order_list_generation",
+        1,
+      );
+      for (const observation of projection.observations) {
+        const order = observation.order;
+        const normalized = parseNormalizedOrderProjection(
+          publicListOrder(order),
+        );
+        const reference = observation.orderReference;
         if (
-          context.userId !== input.claims.userId ||
-          !uuidPattern.test(context.accountId) ||
-          projection.observations.length > 10_000
+          !uuidPattern.test(order.id) ||
+          !uuidPattern.test(order.instrument_id) ||
+          order.source !== "list" ||
+          !/^[a-f0-9]{64}$/.test(reference.hash) ||
+          !Number.isSafeInteger(reference.keyVersion) ||
+          reference.keyVersion < 1 ||
+          reference.ciphertext.length < 32 ||
+          reference.ciphertext.length > 4096
         ) {
           throw new BrokerageOrderError("provider_contract_unavailable");
         }
-        const generationResult = await database.query<{
-          result_list_generation: unknown;
-        }>(
-          `select * from argus_private.begin_brokerage_order_list_ingestion(
-             $1,$2,$3
-           )`,
-          [context.accountId, context.connectionId, context.deletionEpoch],
-        );
-        const listGeneration = integer(
-          generationResult.rows[0]?.result_list_generation,
-          "order_list_generation",
-          1,
-        );
-        for (const observation of projection.observations) {
-          const order = observation.order;
-          const normalized = parseNormalizedOrderProjection(
-            publicListOrder(order),
-          );
-          const reference = observation.orderReference;
-          if (
-            !uuidPattern.test(order.id) ||
-            !uuidPattern.test(order.instrument_id) ||
-            order.source !== "list" ||
-            !/^[a-f0-9]{64}$/.test(reference.hash) ||
-            !Number.isSafeInteger(reference.keyVersion) ||
-            reference.keyVersion < 1 ||
-            reference.ciphertext.length < 32 ||
-            reference.ciphertext.length > 4096
-          ) {
-            throw new BrokerageOrderError("provider_contract_unavailable");
-          }
-          await database.query(
-            `select argus_private.append_brokerage_order_list_observation(
+        await database.query(
+          `select argus_private.append_brokerage_order_list_observation(
                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14
              )`,
-            [
-              context.accountId,
-              context.connectionId,
-              context.deletionEpoch,
-              listGeneration,
-              order.id,
-              reference.ciphertext,
-              reference.hash,
-              reference.keyVersion,
-              normalized.instrument_id,
-              normalized.state,
-              normalized.filled_quantity,
-              JSON.stringify(normalized),
-              order.provider_observed_at,
-              order.fetched_at,
-            ],
-          );
-        }
-        const orders = Object.freeze(
-          projection.observations.map((entry) => publicListOrder(entry.order)),
-        );
-        await database.query(
-          `select argus_private.complete_brokerage_order_list_ingestion(
-             $1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10
-           )`,
           [
             context.accountId,
             context.connectionId,
             context.deletionEpoch,
             listGeneration,
-            JSON.stringify(orders),
-            projection.providerObservedAt,
-            projection.fetchedAt,
-            projection.expiresAt,
-            projection.availability,
-            projection.reasonCode ?? null,
+            order.id,
+            reference.ciphertext,
+            reference.hash,
+            reference.keyVersion,
+            normalized.instrument_id,
+            normalized.state,
+            normalized.filled_quantity,
+            JSON.stringify(normalized),
+            order.provider_observed_at,
+            order.fetched_at,
           ],
         );
-        return Object.freeze({
-          account_id: context.accountId,
-          state: projection.availability === "partial"
-            ? "partial" as const
-            : orders.length === 0
-            ? "empty" as const
-            : "fresh" as const,
-          provider_observed_at: projection.providerObservedAt?.toISOString() ??
-            null,
-          fetched_at: projection.fetchedAt.toISOString(),
-          expires_at: projection.expiresAt.toISOString(),
-          orders,
-        });
-      }),
-    order: (accountId, orderId) =>
-      transaction(async (database) => {
-        if (!uuidPattern.test(accountId) || !uuidPattern.test(orderId)) {
-          throw new BrokerageOrderError("order_not_found");
-        }
-        const result = await database.query<Record<string, unknown>>(
-          `select generation.generation,generation.source,
+      }
+      const orders = Object.freeze(
+        projection.observations.map((entry) => publicListOrder(entry.order)),
+      );
+      await database.query(
+        `select argus_private.complete_brokerage_order_list_ingestion(
+             $1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10
+           )`,
+        [
+          context.accountId,
+          context.connectionId,
+          context.deletionEpoch,
+          listGeneration,
+          JSON.stringify(orders),
+          projection.providerObservedAt,
+          projection.fetchedAt,
+          projection.expiresAt,
+          projection.availability,
+          projection.reasonCode ?? null,
+        ],
+      );
+      return Object.freeze({
+        account_id: context.accountId,
+        state: projection.availability === "partial"
+          ? "partial" as const
+          : orders.length === 0
+          ? "empty" as const
+          : "fresh" as const,
+        provider_observed_at: projection.providerObservedAt?.toISOString() ??
+          null,
+        fetched_at: projection.fetchedAt.toISOString(),
+        expires_at: projection.expiresAt.toISOString(),
+        orders,
+      });
+    },
+    order: async (accountId, orderId) => {
+      if (!uuidPattern.test(accountId) || !uuidPattern.test(orderId)) {
+        throw new BrokerageOrderError("order_not_found");
+      }
+      const result = await database.query<Record<string, unknown>>(
+        `select generation.generation,generation.source,
                 argus_private.read_brokerage_order_payload(
                   generation.id
                 ) payload,
@@ -1100,21 +1013,21 @@ export function createBrokerageOrderRepository(
             and generation.user_id=argus_private.trusted_request_user_id()
             and generation.normalization_state='ready'
           order by generation.generation desc limit 1`,
-          [accountId, orderId],
-        );
-        const row = result.rows[0];
-        if (row === undefined) throw new BrokerageOrderError("order_not_found");
-        return Object.freeze({
-          ...parseNormalizedOrderProjection(row.payload),
-          generation: integer(row.generation, "order_generation", 1),
-          source: row.source as "list" | "detail",
-          provider_observed_at: date(
-            row.provider_observed_at,
-            "order_observed_at",
-          ).toISOString(),
-          fetched_at: date(row.fetched_at, "order_fetched_at").toISOString(),
-        });
-      }),
+        [accountId, orderId],
+      );
+      const row = result.rows[0];
+      if (row === undefined) throw new BrokerageOrderError("order_not_found");
+      return Object.freeze({
+        ...parseNormalizedOrderProjection(row.payload),
+        generation: integer(row.generation, "order_generation", 1),
+        source: row.source as "list" | "detail",
+        provider_observed_at: date(
+          row.provider_observed_at,
+          "order_observed_at",
+        ).toISOString(),
+        fetched_at: date(row.fetched_at, "order_fetched_at").toISOString(),
+      });
+    },
   };
   return Object.freeze(repository);
 }

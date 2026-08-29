@@ -191,6 +191,7 @@ class AdminRecord {
     required this.version,
     this.revisionId,
     this.etag = '"v1"',
+    this.payload,
   });
   final String id;
   final String title;
@@ -198,6 +199,7 @@ class AdminRecord {
   final int version;
   final String? revisionId;
   final String etag;
+  final Map<String, Object?>? payload;
 }
 
 @immutable

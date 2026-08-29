@@ -1,27 +1,37 @@
+import type { DatabaseTransaction } from "../../../ritual-investing-api/src/db/database-port.ts";
 import {
-  createSupabaseAccountRepository,
-  createSupabaseAdminOperationsRepository,
-  createSupabaseAdminRepository,
-  createSupabaseAssetRepository,
-  createSupabaseBriefingRepository,
-  createSupabaseCircleRepository,
-  createSupabaseCovenRepository,
-  createSupabaseDiscoverRepository,
-  createSupabaseEditorialRepository,
-  createSupabaseMediaRepository,
-  createSupabaseModerationRepository,
-  createSupabaseNotificationRepository,
-  createSupabasePrivacyRepository,
-  createSupabasePublicPreviewRepository,
-  createSupabaseRitualRepository,
-  createSupabaseRowanRepository,
-  createSupabaseSearchRepository,
-  createSupabaseSessionRepository,
-} from "../../../ritual-investing-api/src/db/supabase-repositories.ts";
+  withActiveCapabilityStaffRequestTransaction,
+  withActiveStaffRequestTransaction,
+  withAnonymousRequestTransaction,
+  withCapabilityStaffRequestTransaction,
+  withMemberRequestTransaction,
+  withRequestTransaction,
+  withStaffRequestTransaction,
+} from "../../../ritual-investing-api/src/db/request-transaction.ts";
 import {
   createRetainedApp,
   type RetainedRepositorySet,
 } from "../../../ritual-investing-api/src/retained-app.ts";
+import type { RetainedTransactionPolicy } from "../../../ritual-investing-api/src/domains/retained-http/boundary.ts";
+import { createSupabaseAccountRepository } from "../../../ritual-investing-api/src/domains/accounts/repository.ts";
+import { createSupabaseAdminOperationsRepository } from "../../../ritual-investing-api/src/domains/admin-operations/repository.ts";
+import { createSupabaseAdminRepository } from "../../../ritual-investing-api/src/domains/admin/repository.ts";
+import { createSupabaseAssetRepository } from "../../../ritual-investing-api/src/domains/assets/repository.ts";
+import { createSupabaseBriefingRepository } from "../../../ritual-investing-api/src/domains/briefings/repository.ts";
+import { createSupabaseCircleRepository } from "../../../ritual-investing-api/src/domains/circles/repository.ts";
+import { createSupabaseCovenRepository } from "../../../ritual-investing-api/src/domains/coven/repository.ts";
+import { createSupabaseDiscoverRepository } from "../../../ritual-investing-api/src/domains/discover/repository.ts";
+import { createSupabaseEditorialRepository } from "../../../ritual-investing-api/src/domains/editorial/repository.ts";
+import { createSupabaseMediaRepository } from "../../../ritual-investing-api/src/domains/media/repository.ts";
+import { createSupabaseModerationRepository } from "../../../ritual-investing-api/src/domains/moderation/repository.ts";
+import { createSupabaseNotificationRepository } from "../../../ritual-investing-api/src/domains/notifications/repository.ts";
+import { createSupabasePrivacyRepository } from "../../../ritual-investing-api/src/domains/privacy/repository.ts";
+import { createPrivacyRequestService } from "../../../ritual-investing-api/src/domains/privacy/service.ts";
+import { createSupabasePublicPreviewRepository } from "../../../ritual-investing-api/src/domains/public-preview/repository.ts";
+import { createSupabaseRitualRepository } from "../../../ritual-investing-api/src/domains/rituals/repository.ts";
+import { createSupabaseRowanRepository } from "../../../ritual-investing-api/src/domains/rowan/repository.ts";
+import { createSupabaseSearchRepository } from "../../../ritual-investing-api/src/domains/search/repository.ts";
+import { createSupabaseSessionRepository } from "../../../ritual-investing-api/src/domains/session/repository.ts";
 import { createSupabaseScenarioRepository } from "../../../ritual-investing-api/src/domains/intentions/repository.ts";
 
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
@@ -31,9 +41,11 @@ import {
   supabaseSecretKey,
 } from "../_shared/environment.ts";
 import { rewriteSupabaseFunctionRequest } from "../_shared/http.ts";
+import { withBuildRevisionHeader } from "../_shared/build-revision.ts";
 import { createPostgresRateLimitPort } from "../_shared/rate-limit.ts";
 import { createPrivateSupabaseStorage } from "../_shared/jobs/storage.ts";
 import { createBrokerageConnectionRepository } from "../../../ritual-investing-api/src/domains/brokerage-connections/repository.ts";
+import { createBrokerageConnectionService } from "../../../ritual-investing-api/src/domains/brokerage-connections/service.ts";
 import { createBlockedWebullProvider } from "../_shared/webull/client.ts";
 import { parsePartnerConfirmedContractFromEnvironment } from "../_shared/webull/contract.ts";
 import { createBrokerageProjectionRepository } from "../../../ritual-investing-api/src/domains/brokerage-projections/repository.ts";
@@ -80,53 +92,103 @@ const blockedWebullContract =
     ? configuredWebullContract.publicContract
     : configuredWebullContract;
 
-const createRepositories: Parameters<
-  typeof createRetainedApp
->[0]["createRepositories"] = (claims): RetainedRepositorySet => {
-  const binding = { pool: databasePool, claims, signedStorage: privateStorage };
+function createRepositories(
+  database: DatabaseTransaction,
+  claims: Parameters<typeof withMemberRequestTransaction>[0]["verifiedClaims"],
+): RetainedRepositorySet {
   return Object.freeze({
-    session: createSupabaseSessionRepository(binding),
-    accounts: createSupabaseAccountRepository(binding),
-    assets: createSupabaseAssetRepository(binding),
-    editorial: createSupabaseEditorialRepository(binding),
-    briefings: createSupabaseBriefingRepository(binding),
-    circles: createSupabaseCircleRepository(binding),
-    coven: createSupabaseCovenRepository(binding),
-    discover: createSupabaseDiscoverRepository(binding),
-    media: createSupabaseMediaRepository(binding),
-    moderation: createSupabaseModerationRepository(binding),
-    notifications: createSupabaseNotificationRepository(binding),
-    privacy: createSupabasePrivacyRepository(binding),
-    rituals: createSupabaseRitualRepository(binding),
-    rowan: createSupabaseRowanRepository(binding),
-    search: createSupabaseSearchRepository(binding),
-    admin: createSupabaseAdminRepository(binding),
-    adminOperations: createSupabaseAdminOperationsRepository(binding),
-    scenarios: createSupabaseScenarioRepository(binding),
+    session: createSupabaseSessionRepository(database, claims.userId),
+    accounts: createSupabaseAccountRepository(database),
+    assets: createSupabaseAssetRepository(database),
+    editorial: createSupabaseEditorialRepository(database),
+    briefings: createSupabaseBriefingRepository(database),
+    circles: createSupabaseCircleRepository(database),
+    coven: createSupabaseCovenRepository(database),
+    discover: createSupabaseDiscoverRepository(database),
+    media: createSupabaseMediaRepository(database),
+    moderation: createSupabaseModerationRepository(database),
+    notifications: createSupabaseNotificationRepository(database),
+    rituals: createSupabaseRitualRepository(database),
+    rowan: createSupabaseRowanRepository(database),
+    search: createSupabaseSearchRepository(database),
+    admin: createSupabaseAdminRepository(database, claims),
+    adminOperations: createSupabaseAdminOperationsRepository(
+      database,
+      claims.sessionId,
+    ),
+    scenarios: createSupabaseScenarioRepository(database),
   });
-};
+}
+
+function withRepositories<T>(
+  claims: Parameters<typeof withMemberRequestTransaction>[0]["verifiedClaims"],
+  transaction: Exclude<RetainedTransactionPolicy, "none" | "public-preview">,
+  callback: (repositories: RetainedRepositorySet) => Promise<T>,
+): Promise<T> {
+  const config = { pool: databasePool, verifiedClaims: claims };
+  const run = (database: DatabaseTransaction) =>
+    callback(createRepositories(database, claims));
+  if (transaction === "member") {
+    return withMemberRequestTransaction(config, run);
+  }
+  if (transaction === "runtime") {
+    return withRequestTransaction(config, run);
+  }
+  if (transaction.mode === "runtime-staff") {
+    return transaction.permission === undefined
+      ? withActiveStaffRequestTransaction(config, run)
+      : withStaffRequestTransaction(config, transaction.permission, run);
+  }
+  return transaction.permission === undefined
+    ? withActiveCapabilityStaffRequestTransaction(config, run)
+    : withCapabilityStaffRequestTransaction(
+      config,
+      transaction.permission,
+      run,
+    );
+}
 
 const app = createRetainedApp({
   verifyAccessToken: createSupabaseAccessTokenVerifier({ supabaseUrl }),
-  createRepositories,
-  publicPreviewRepository: createSupabasePublicPreviewRepository(databasePool),
+  withRepositories,
+  withPublicPreview: (callback) =>
+    withAnonymousRequestTransaction(
+      databasePool,
+      (database) => callback(createSupabasePublicPreviewRepository(database)),
+    ),
+  createPrivacyService: (claims) =>
+    createPrivacyRequestService({
+      claims,
+      withMemberTransaction: (callback) =>
+        withMemberRequestTransaction(
+          { pool: databasePool, verifiedClaims: claims },
+          callback,
+        ),
+      repository: createSupabasePrivacyRepository,
+      signedStorage: privateStorage,
+    }),
   rateLimit: createPostgresRateLimitPort(databasePool),
   createBrokerageConnections: (claims) =>
-    createBrokerageConnectionRepository({
-      pool: databasePool,
+    createBrokerageConnectionService({
       claims,
       authorization: {
         contractVersion: blockedWebullContract.version,
         environment: blockedWebullContract.environment,
         authorizationUrl: blockedWebull.authorizationUrl,
       },
+      withRepository: (callback) =>
+        withMemberRequestTransaction(
+          { pool: databasePool, verifiedClaims: claims },
+          (database) => callback(createBrokerageConnectionRepository(database)),
+        ),
     }),
   createBrokerageProjections: (claims) =>
     createBrokerageProjectionService({
-      repository: createBrokerageProjectionRepository({
-        pool: databasePool,
-        claims,
-      }),
+      withRepository: (callback) =>
+        withMemberRequestTransaction(
+          { pool: databasePool, verifiedClaims: claims },
+          (database) => callback(createBrokerageProjectionRepository(database)),
+        ),
       // The U5 public-contract conflicts remain unresolved. Cached synthetic
       // generations can be served, but provider egress stays fail-closed until
       // a versioned partner read fixture and approval gate are configured.
@@ -134,10 +196,19 @@ const app = createRetainedApp({
     }),
   createBrokerageOrders: (claims) =>
     createBrokerageOrderService({
-      repository: createBrokerageOrderRepository({
-        pool: databasePool,
-        claims,
-      }),
+      withRepository: (callback) =>
+        withMemberRequestTransaction(
+          { pool: databasePool, verifiedClaims: claims },
+          (database) =>
+            callback(createBrokerageOrderRepository(database, claims.userId)),
+        ),
+      withStaffRepository: (callback) =>
+        withCapabilityStaffRequestTransaction(
+          { pool: databasePool, verifiedClaims: claims },
+          "brokerage:read",
+          (database) =>
+            callback(createBrokerageOrderRepository(database, claims.userId)),
+        ),
       // Preview, mutation, and reconciliation egress remain closed until an
       // exact versioned partner order contract is confirmed and sandboxed.
       provider: createBlockedBrokerageOrderProvider(),
@@ -152,6 +223,6 @@ const bindings = Object.freeze({
   adminOrigin: requiredEnvironment("ARGUS_ADMIN_ORIGIN"),
 });
 
-Deno.serve((request) =>
+Deno.serve(withBuildRevisionHeader((request) =>
   app.fetch(rewriteSupabaseFunctionRequest(request, "api"), bindings)
-);
+));

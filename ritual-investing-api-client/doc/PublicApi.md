@@ -14,7 +14,7 @@ Method | HTTP request | Description
 
 
 # **getPublicEditorial**
-> ListAdminAudit200Response getPublicEditorial(slug)
+> EditorialItemResponse getPublicEditorial(slug)
 
 
 
@@ -41,7 +41,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
+[**EditorialItemResponse**](EditorialItemResponse.md)
 
 ### Authorization
 
@@ -55,7 +55,7 @@ No authorization required
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listPublicEditorial**
-> ListAdminAudit200Response listPublicEditorial(kind, limit)
+> EditorialCollectionResponse listPublicEditorial(kind, cursor, limit)
 
 
 
@@ -65,10 +65,11 @@ import 'package:ritual_investing_api_client/api.dart';
 
 final api = RitualInvestingApiClient().getPublicApi();
 final String kind = kind_example; // String | 
+final String cursor = cursor_example; // String | 
 final int limit = 56; // int | 
 
 try {
-    final response = api.listPublicEditorial(kind, limit);
+    final response = api.listPublicEditorial(kind, cursor, limit);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling PublicApi->listPublicEditorial: $e\n');
@@ -80,11 +81,12 @@ try {
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
  **kind** | **String**|  | 
+ **cursor** | **String**|  | [optional] 
  **limit** | **int**|  | [optional] [default to 25]
 
 ### Return type
 
-[**ListAdminAudit200Response**](ListAdminAudit200Response.md)
+[**EditorialCollectionResponse**](EditorialCollectionResponse.md)
 
 ### Authorization
 

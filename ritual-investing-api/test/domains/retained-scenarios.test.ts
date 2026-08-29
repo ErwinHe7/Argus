@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  ScenarioConflictError,
   createFutureMirrorProjectionHash,
   createHypotheticalProjection,
 } from "../../src/domains/intentions/repository.ts";
+import {
+  ScenarioConflictError,
+  type ScenarioRepository,
+} from "../../src/domains/intentions/ports.ts";
 import {
   createRetainedApp,
   type RetainedRepositorySet,
@@ -21,7 +24,9 @@ const bindings = {
   adminOrigin: "https://admin.ritual-investing.test",
 };
 
-function fixture(scenarios: Record<string, unknown>) {
+function fixture(
+  scenarios: Partial<ScenarioRepository> | Record<string, unknown>,
+) {
   return createRetainedApp({
     verifyAccessToken: vi.fn(async () => ({
       userId,
@@ -29,14 +34,36 @@ function fixture(scenarios: Record<string, unknown>) {
       aal: "aal1" as const,
       issuedAt: 1,
     })),
-    createRepositories: vi.fn(() => ({ scenarios }) as unknown as RetainedRepositorySet),
-    publicPreviewRepository: {
-      listPublished: vi.fn(async () => []),
-      getPublished: vi.fn(async () => null),
-    },
+    withRepositories: async (_claims, _transaction, callback) =>
+      await callback({ scenarios } as unknown as RetainedRepositorySet),
+    withPublicPreview: async (callback) =>
+      await callback({
+        listPublishedPage: vi.fn(async () => []),
+        listPublished: vi.fn(async () => []),
+        getPublished: vi.fn(async () => null),
+      }),
+    createPrivacyService: () => ({} as never),
     rateLimit: { allow: vi.fn(async () => ({ allowed: true })) },
     requestId: () => "018f3c2a-4b67-7a89-8abc-123456789077",
   });
+}
+
+function nonSupabaseScenarioRepository(
+  createIntention: ScenarioRepository["createIntention"],
+): ScenarioRepository {
+  const unexpected = async (): Promise<never> => {
+    throw new Error("Unexpected ScenarioRepository method call");
+  };
+  return {
+    listIntentions: unexpected,
+    getIntention: unexpected,
+    createIntention,
+    patchIntention: unexpected,
+    archiveIntention: unexpected,
+    createFutureMirror: unexpected,
+    getLatestFutureMirror: unexpected,
+    getFutureMirror: unexpected,
+  };
 }
 
 const reviewedInput = {
@@ -156,6 +183,39 @@ describe("retained Intentions and hypothetical Future Mirror", () => {
     expect(await response.text()).not.toContain("A private intention");
   });
 
+  it.each([
+    ["idempotency_conflict", 409],
+    ["invalid_scenario_input", 422],
+  ] as const)(
+    "maps shared ScenarioRepository %s errors to %i without a Supabase adapter",
+    async (code, status) => {
+      const app = fixture(nonSupabaseScenarioRepository(async () => {
+        throw new ScenarioConflictError(code);
+      }));
+      const response = await app.request(
+        "/v1/intentions",
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer valid-token",
+            "content-type": "application/json",
+            "idempotency-key": "intention-port-error-000001",
+            origin: bindings.consumerOrigin,
+          },
+          body: JSON.stringify({
+            title: "A private intention",
+            target: { minor_units: "250000", currency: "USD" },
+            target_date: "2028-08-28",
+          }),
+        },
+        bindings,
+      );
+
+      expect(response.status).toBe(status);
+      expect(await response.json()).toMatchObject({ error: { code } });
+    },
+  );
+
   it("maps an intention-currency mismatch as invalid scenario input", async () => {
     const app = fixture({
       createFutureMirror: vi.fn(async () => {
@@ -207,42 +267,47 @@ describe("retained Intentions and hypothetical Future Mirror", () => {
 
   it("contains no brokerage or command vocabulary in the scenario contract", () => {
     const paths = createRetainedApp({
-        verifyAccessToken: vi.fn(),
-        createRepositories: vi.fn(),
-        publicPreviewRepository: {} as never,
-        rateLimit: {} as never,
-      }).getOpenAPIDocument({
-        openapi: "3.0.3",
-        info: { title: "test", version: "1" },
-      }).paths;
+      verifyAccessToken: vi.fn(),
+      withRepositories: vi.fn(),
+      withPublicPreview: vi.fn(),
+      createPrivacyService: vi.fn(),
+      rateLimit: {} as never,
+    }).getOpenAPIDocument({
+      openapi: "3.0.3",
+      info: { title: "test", version: "1" },
+    }).paths;
     expect(paths?.["/v1/intentions"]).toMatchObject({ get: {}, post: {} });
     expect(paths?.["/v1/intentions/{intention_id}"]).toMatchObject({
-      get: {}, patch: {}, delete: {},
-    });
-    expect(paths?.["/v1/intentions/{intention_id}/future-mirror"]).toMatchObject({
-      post: {},
-    });
-    expect(paths?.["/v1/intentions/{intention_id}/future-mirror/latest"]).toMatchObject({
       get: {},
+      patch: {},
+      delete: {},
     });
-    expect(paths?.["/v1/intentions/{intention_id}/future-mirror/{run_id}"]).toMatchObject({
-      get: {},
-    });
+    expect(paths?.["/v1/intentions/{intention_id}/future-mirror"])
+      .toMatchObject({
+        post: {},
+      });
+    expect(paths?.["/v1/intentions/{intention_id}/future-mirror/latest"])
+      .toMatchObject({
+        get: {},
+      });
+    expect(paths?.["/v1/intentions/{intention_id}/future-mirror/{run_id}"])
+      .toMatchObject({
+        get: {},
+      });
     expect({
       list: paths?.["/v1/intentions"]?.get?.operationId,
       create: paths?.["/v1/intentions"]?.post?.operationId,
       get: paths?.["/v1/intentions/{intention_id}"]?.get?.operationId,
       patch: paths?.["/v1/intentions/{intention_id}"]?.patch?.operationId,
       archive: paths?.["/v1/intentions/{intention_id}"]?.delete?.operationId,
-      createMirror:
-        paths?.["/v1/intentions/{intention_id}/future-mirror"]?.post
-          ?.operationId,
-      latestMirror:
-        paths?.["/v1/intentions/{intention_id}/future-mirror/latest"]?.get
-          ?.operationId,
-      getMirror:
-        paths?.["/v1/intentions/{intention_id}/future-mirror/{run_id}"]?.get
-          ?.operationId,
+      createMirror: paths?.["/v1/intentions/{intention_id}/future-mirror"]?.post
+        ?.operationId,
+      latestMirror: paths
+        ?.["/v1/intentions/{intention_id}/future-mirror/latest"]?.get
+        ?.operationId,
+      getMirror: paths?.["/v1/intentions/{intention_id}/future-mirror/{run_id}"]
+        ?.get
+        ?.operationId,
     }).toEqual({
       list: "listIntentions",
       create: "createIntention",

@@ -64,6 +64,7 @@ void main() {
         '/v1/discover/circle-templates/$_templateId',
         '/v1/coven/$_covenId',
         '/v1/coven/$_covenId/evidence',
+        '/v1/discover/creators/$_creatorId',
         '/v1/discover/creators',
         '/v1/discover',
         '/v1/discover/grimoires/$_grimoireId',
@@ -75,6 +76,16 @@ void main() {
       searchRequest.query['kinds'],
       'asset,circle_template,coven,grimoire',
     );
+  });
+
+  test('creator lookup uses the typed point endpoint', () async {
+    final adapter = _ContentAdapter();
+    final creator = await GeneratedCreatorService(_client(adapter))
+        .fetchById(_creatorId);
+
+    expect(creator.id, _creatorId);
+    final request = adapter.single('GET', '/v1/discover/creators/$_creatorId');
+    expect(request.query, isEmpty);
   });
 
   test('retained saves and copy use the current generated commands', () async {
@@ -250,6 +261,7 @@ class _ContentAdapter implements HttpClientAdapter {
         'data': [_evidence],
         'meta': _meta,
       },
+      '/v1/discover/creators/$_creatorId' => {'data': _creator, 'meta': _meta},
       '/v1/discover/creators' => {
         'data': [_creator],
         'meta': _collectionMeta,

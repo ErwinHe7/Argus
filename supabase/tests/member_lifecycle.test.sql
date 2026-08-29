@@ -3,8 +3,12 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
-grant argus_edge,argus_member,argus_identity_owner
-  to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_edge,argus_member,argus_identity_owner to %I with set true',
+    current_user
+  );
+end $membership$;
 grant usage on schema extensions
   to argus_edge,argus_member,argus_identity_owner;
 

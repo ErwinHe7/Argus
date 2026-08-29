@@ -11,6 +11,7 @@ Method | HTTP request | Description
 ------------- | ------------- | -------------
 [**getCircleTemplate**](DiscoverApi.md#getcircletemplate) | **GET** /v1/discover/circle-templates/{template_id} | 
 [**getGrimoire**](DiscoverApi.md#getgrimoire) | **GET** /v1/discover/grimoires/{id} | 
+[**getSeededCreator**](DiscoverApi.md#getseededcreator) | **GET** /v1/discover/creators/{id} | 
 [**listCircleTemplates**](DiscoverApi.md#listcircletemplates) | **GET** /v1/discover/circle-templates | 
 [**listDiscover**](DiscoverApi.md#listdiscover) | **GET** /v1/discover | 
 [**listDiscoverAssets**](DiscoverApi.md#listdiscoverassets) | **GET** /v1/discover/assets | 
@@ -88,6 +89,47 @@ Name | Type | Description  | Notes
 ### Return type
 
 [**GrimoireDetailResponse**](GrimoireDetailResponse.md)
+
+### Authorization
+
+[SupabaseBearer](../README.md#SupabaseBearer)
+
+### HTTP request headers
+
+ - **Content-Type**: Not defined
+ - **Accept**: application/json
+
+[[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
+
+# **getSeededCreator**
+> CreatorResponse getSeededCreator(id)
+
+
+
+### Example
+```dart
+import 'package:ritual_investing_api_client/api.dart';
+
+final api = RitualInvestingApiClient().getDiscoverApi();
+final String id = 38400000-8cf0-11bd-b23e-10b96e4ef00d; // String | 
+
+try {
+    final response = api.getSeededCreator(id);
+    print(response);
+} on DioException catch (e) {
+    print('Exception when calling DiscoverApi->getSeededCreator: $e\n');
+}
+```
+
+### Parameters
+
+Name | Type | Description  | Notes
+------------- | ------------- | ------------- | -------------
+ **id** | **String**|  | 
+
+### Return type
+
+[**CreatorResponse**](CreatorResponse.md)
 
 ### Authorization
 

@@ -20,7 +20,13 @@ grant usage on schema argus_app,argus_brokerage,argus_private,extensions
 
 -- Author the lifecycle FKs without transferring or broadening the U3 identity
 -- owner's authority. Both lifecycle identity proofs are retained at the root.
-grant argus_identity_owner to current_user with set true;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_identity_owner to %I with set true',current_user
+  );
+end
+$membership$;
 set local role argus_identity_owner;
 grant select on table argus_app.member_lifecycles to argus_brokerage_owner;
 create policy u5_brokerage_owner_open_lifecycle
@@ -5864,7 +5870,13 @@ grant execute on function
   )
 to argus_brokerage_owner;
 
-grant argus_brokerage_owner to current_user with set true;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_brokerage_owner to %I with set true',current_user
+  );
+end
+$membership$;
 grant create on schema argus_brokerage,argus_private to argus_brokerage_owner;
 do $$
 declare relation_record record;
@@ -6123,6 +6135,12 @@ reset role;
 
 revoke create on schema argus_brokerage,argus_private
   from argus_brokerage_owner;
-revoke argus_brokerage_owner,argus_identity_owner from current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_brokerage_owner,argus_identity_owner from %I',current_user
+  );
+end
+$membership$;
 
 commit;

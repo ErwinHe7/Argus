@@ -28,11 +28,14 @@ eaf80efcc1602dc5b698486f9593d7ad53306aa1099253765cfc0c242b7221d1  supabase/migra
 5596cb169277513a9f106ba4a3690ec939da58e50d17de85edb2a41d4f24ba59  supabase/migrations/20260828181500_u21_deletion_retry_transition.sql
 cb239ca1bb49bae7a5abb8edf1faa830e26ae586e48119e5b2400402a3160720  supabase/migrations/20260828183000_u22_hosted_security_advisor_hardening.sql
 3b19d75b915e51bb6ce60293f416459f56b561304283ce4b74982308e71d1c1e  supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
-5173ba43c5d7348bc4dd2da07b3cd96ca55cc225e75d3cdd1707ce33ad20143f  supabase/migrations/20260829043359_u3_identity_security_foundation.sql
-75db53a7b0c7b806d00c315cf5607a132a28da7d6de5994ae66b716c9d0ec9b6  supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
-496833df482f2ca5f21a0c70282af3d704ad585f931e962b36922d9765e551f6  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
-ee8ec79518f4d2417bff5d96a84917b2f21c027583309a765fe04aa90d5c6f39  supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
-234a23485eca5f9a441bd26264f3f8e8501b8f48101d3693903582ed85d03ffd  supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
+5804702200889492c115d0690227015c2df6736c4d8921430afe1c8ff4863696  supabase/migrations/20260829043359_u3_identity_security_foundation.sql
+ed0f90a92fc8f5c42d73d1258abb272c5fd08af0bf6a4db1f7aeabe04c17f36b  supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
+1507abee32710bdcb0313a2f058a3311a65855d650c375e841927efe3ed94379  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
+d9f264b47f761a9af226919b2278f28fc1677af74ec11477f7a3cd79d5057114  supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
+4d941c494dfc4fe40e7e049d1f9098ec473a522c5dd4ba5442bc1d3e1a086370  supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
+347d2dd76b6ff1e6aeb712872114470787f8ebe8f0a3bf70dbbf324d58bc1141  supabase/migrations/20260829150000_u6_application_purge_owner.sql
+d5445f403171ce83782be75aa68a06f64a6311c3b5eea3afd30907bb73ce9a07  supabase/migrations/20260829160000_u7_member_event_scope.sql
+3fd8a9b72a6f73b4615bc949e4b2064c653c4773106c4c5f91c816bcdd4d221f  supabase/migrations/20260829170000_u8_normalized_query_contracts.sql
 
 [managed-resources]
 auth|project-auth|identity|supabase-managed|20|supported-configuration-and-admin-api
@@ -41,6 +44,7 @@ storage|media-quarantine|media|migration-supported-api|90|create-or-verify-priva
 storage|privacy-exports|privacy|migration-supported-api|90|create-or-verify-private-bucket
 realtime|no-argus-publication|platform|supabase-managed|90|deny-unreviewed-publication
 extension|pgcrypto|platform|migration-supported-api|01|create-or-verify
+extension|pg_trgm|search|migration-supported-api|80|create-or-verify
 extension|pgmq|jobs|migration-supported-api|01|create-or-verify
 extension|pg_cron|jobs|migration-supported-api|01|create-or-verify
 extension|pg_net|jobs|migration-supported-api|01|create-or-verify
@@ -69,18 +73,20 @@ edge|waitlist|waitlist|out-of-band|90|deploy-exact-revision
 roles|argus-capability-and-login-roles|platform|migration-supported-api|01|create-with-null-password-then-provision-login-out-of-band
 
 [roles]
+argus_application_purge_owner|non-login-owner|application-privacy|nologin|none|owned=purge-member-application-data,grants=exact-tombstone-and-application-purge-actions|none
 argus_app_owner|non-login-owner|application|nologin|none|owned=u4-normalized-argus-relations-and-domain-commands,grants=exact-dependent-actions|none
 argus_brokerage_owner|non-login-owner|brokerage|nologin|none|owned=u5-brokerage-relations-and-scoped-domain-commands,grants=exact-dependent-actions-and-composite-request-context|none
 argus_identity_owner|non-login-owner|identity|nologin|none|owned=member-lifecycle-table-and-foundation-routines,grants=identity-provision-only|none
 argus_jobs_owner|non-login-owner|jobs|nologin|none|owned=u6-registries-sagas-and-job-capabilities,grants=exact-dependent-actions-and-eight-reviewed-cross-domain-helpers|statement=30s,lock=3s,idle_tx=15s
 argus_publication_owner|non-login-owner|publication|nologin|none|owned=two-bounded-current-publication-functions,grants=select-item-revision-render-only|none
+argus_public_preview|capability|publication|nologin|none|owned=none,grants=current-published-preview-read-and-page-execute|statement=15s,lock=3s,idle_tx=15s
 argus_member|capability|identity|nologin|none|owned=none,grants=current-lifecycle-read-foundation|statement=15s,lock=3s,idle_tx=15s
 argus_staff|capability|staff|nologin|none|owned=none,grants=current-lifecycle-read-foundation|statement=15s,lock=3s,idle_tx=15s
 argus_callback|capability|brokerage|nologin|none|owned=none,grants=none-until-u5-binding|statement=15s,lock=3s,idle_tx=15s
 argus_migration|capability|platform|nologin|none|owned=none,grants=none-runtime-verifier-reserved|none
 argus_runtime|legacy|platform|nologin|none|owned=none,grants=target-acl|statement=15s,lock=3s,idle_tx=15s
 argus_worker|legacy|jobs|nologin|none|owned=none,grants=target-acl|statement=45s,lock=3s,idle_tx=15s
-argus_edge|runtime-login|platform|login|argus_runtime,argus_member,argus_staff,argus_callback|owned=none,grants=context-installer-and-membership-only|statement=15s,lock=3s,idle_tx=15s,idle=5m
+argus_edge|runtime-login|platform|login|argus_runtime,argus_member,argus_staff,argus_callback,argus_public_preview|owned=none,grants=context-installer-and-membership-only|statement=15s,lock=3s,idle_tx=15s,idle=5m
 argus_worker_edge|runtime-login|jobs|login|argus_worker|owned=none,grants=membership-only|statement=45s,lock=3s,idle_tx=15s,idle=5m
 argus_waitlist|legacy|waitlist|nologin|none|owned=none,grants=target-acl|statement=10s,lock=2s,idle_tx=10s
 argus_waitlist_edge|runtime-login|waitlist|login|argus_waitlist|owned=none,grants=membership-only|statement=10s,lock=2s,idle_tx=10s,idle=5m

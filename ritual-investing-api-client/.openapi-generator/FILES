@@ -90,6 +90,7 @@ doc/CreateHypotheticalFutureMirrorAnnualReturnBps.md
 doc/CreateMemberIntention.md
 doc/CreateUploadIntentRequest.md
 doc/CreatorCollectionResponse.md
+doc/CreatorResponse.md
 doc/DailyRitualAssignment.md
 doc/DailyRitualResponse.md
 doc/DecideModerationRequest.md
@@ -101,6 +102,8 @@ doc/DiscoverAssetCollectionResponse.md
 doc/DiscoverItem.md
 doc/DiscoverResponse.md
 doc/EditorialApi.md
+doc/EditorialCollectionResponse.md
+doc/EditorialItemResponse.md
 doc/EvidenceClaim.md
 doc/EvidenceDetail.md
 doc/EvidenceDetailSource.md
@@ -165,6 +168,7 @@ doc/PrivacyRequest.md
 doc/PrivacyRequestCollectionResponse.md
 doc/PrivacyRequestResponse.md
 doc/PublicApi.md
+doc/PublishedEditorial.md
 doc/PutCircleAssetRequest.md
 doc/ReadAllNotificationsRequest.md
 doc/ReadAllNotificationsResponse.md
@@ -324,6 +328,7 @@ lib/generated/model/create_hypothetical_future_mirror_annual_return_bps.dart
 lib/generated/model/create_member_intention.dart
 lib/generated/model/create_upload_intent_request.dart
 lib/generated/model/creator_collection_response.dart
+lib/generated/model/creator_response.dart
 lib/generated/model/daily_ritual_assignment.dart
 lib/generated/model/daily_ritual_response.dart
 lib/generated/model/decide_moderation_request.dart
@@ -333,6 +338,8 @@ lib/generated/model/disconnect_webull_connection_request.dart
 lib/generated/model/discover_asset_collection_response.dart
 lib/generated/model/discover_item.dart
 lib/generated/model/discover_response.dart
+lib/generated/model/editorial_collection_response.dart
+lib/generated/model/editorial_item_response.dart
 lib/generated/model/evidence_claim.dart
 lib/generated/model/evidence_detail.dart
 lib/generated/model/evidence_detail_source.dart
@@ -388,6 +395,7 @@ lib/generated/model/privacy_download_url_response.dart
 lib/generated/model/privacy_request.dart
 lib/generated/model/privacy_request_collection_response.dart
 lib/generated/model/privacy_request_response.dart
+lib/generated/model/published_editorial.dart
 lib/generated/model/put_circle_asset_request.dart
 lib/generated/model/read_all_notifications_request.dart
 lib/generated/model/read_all_notifications_response.dart

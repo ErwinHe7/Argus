@@ -1,6 +1,4 @@
-import type { DatabasePool } from "../../db/database-port.ts";
-import type { VerifiedRequestClaims } from "../../db/request-context.ts";
-import { withMemberRequestTransaction } from "../../db/request-transaction.ts";
+import type { DatabaseTransaction } from "../../db/database-port.ts";
 import {
   type BrokerageAccountContext,
   BrokerageProjectionError,
@@ -31,32 +29,27 @@ function safeInteger(value: unknown, field: string, minimum = 0): number {
 }
 
 export function createWebullAccountMappingStore(
-  input: Readonly<{
-    pool: DatabasePool;
-    claims: VerifiedRequestClaims;
-  }>,
+  database: DatabaseTransaction,
+  verifiedUserId: string,
 ): WebullAccountMappingStore {
   const store: WebullAccountMappingStore = {
-    get: (context) =>
-      withMemberRequestTransaction(
-        { pool: input.pool, verifiedClaims: input.claims },
-        async (database) => {
-          if (
-            context.userId !== input.claims.userId ||
-            context.connectionStatus !== "connected"
-          ) {
-            throw new BrokerageProjectionError("account_not_found");
-          }
-          const result = await database.query<{
-            account_id: string;
-            connection_id: string;
-            user_id: string;
-            deletion_epoch: number | string;
-            provider_environment: "sandbox" | "production";
-            provider_account_id_ciphertext: Uint8Array;
-            key_version: number | string;
-          }>(
-            `select mapping.account_id,mapping.connection_id,mapping.user_id,
+    get: async (context) => {
+      if (
+        context.userId !== verifiedUserId ||
+        context.connectionStatus !== "connected"
+      ) {
+        throw new BrokerageProjectionError("account_not_found");
+      }
+      const result = await database.query<{
+        account_id: string;
+        connection_id: string;
+        user_id: string;
+        deletion_epoch: number | string;
+        provider_environment: "sandbox" | "production";
+        provider_account_id_ciphertext: Uint8Array;
+        key_version: number | string;
+      }>(
+        `select mapping.account_id,mapping.connection_id,mapping.user_id,
                     mapping.deletion_epoch,mapping.provider_environment,
                     mapping.provider_account_id_ciphertext,mapping.key_version
                from argus_private.webull_account_mappings mapping
@@ -72,27 +65,26 @@ export function createWebullAccountMappingStore(
               where mapping.account_id=$1 and mapping.user_id=argus_private.trusted_request_user_id()
                 and mapping.connection_id=$2 and mapping.deletion_epoch=$3
                 and connection.status='connected'`,
-            [context.accountId, context.connectionId, context.deletionEpoch],
-          );
-          const row = result.rows[0];
-          if (
-            row === undefined ||
-            !(row.provider_account_id_ciphertext instanceof Uint8Array) ||
-            !["sandbox", "production"].includes(row.provider_environment)
-          ) {
-            throw new BrokerageProjectionError("account_not_found");
-          }
-          return Object.freeze({
-            accountId: row.account_id,
-            connectionId: row.connection_id,
-            userId: row.user_id,
-            deletionEpoch: safeInteger(row.deletion_epoch, "deletion_epoch"),
-            environment: row.provider_environment,
-            providerAccountIdCiphertext: row.provider_account_id_ciphertext,
-            keyVersion: safeInteger(row.key_version, "key_version", 1),
-          });
-        },
-      ),
+        [context.accountId, context.connectionId, context.deletionEpoch],
+      );
+      const row = result.rows[0];
+      if (
+        row === undefined ||
+        !(row.provider_account_id_ciphertext instanceof Uint8Array) ||
+        !["sandbox", "production"].includes(row.provider_environment)
+      ) {
+        throw new BrokerageProjectionError("account_not_found");
+      }
+      return Object.freeze({
+        accountId: row.account_id,
+        connectionId: row.connection_id,
+        userId: row.user_id,
+        deletionEpoch: safeInteger(row.deletion_epoch, "deletion_epoch"),
+        environment: row.provider_environment,
+        providerAccountIdCiphertext: row.provider_account_id_ciphertext,
+        keyVersion: safeInteger(row.key_version, "key_version", 1),
+      });
+    },
   };
   return Object.freeze(store);
 }

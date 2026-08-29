@@ -51,8 +51,11 @@ select is(
 );
 
 select ok(
-  exists (select 1 from pg_roles where rolname = 'argus_runtime' and not rolcanlogin),
-  'runtime capability role is non-login until a separately rotated credential is provisioned'
+  exists (select 1 from pg_roles where rolname = 'argus_runtime' and not rolcanlogin)
+  and exists (select 1 from pg_roles
+    where rolname='argus_public_preview' and not rolcanlogin
+      and not rolbypassrls and not rolinherit),
+  'runtime and public-preview capabilities are non-login and non-bypass'
 );
 
 select ok(
@@ -86,7 +89,7 @@ select is(
      join pg_roles member on member.oid = membership.member
      join pg_roles parent on parent.oid = membership.roleid
     where member.rolname = 'argus_edge'),
-  array['argus_callback','argus_member','argus_runtime','argus_staff'],
+  array['argus_callback','argus_member','argus_public_preview','argus_runtime','argus_staff'],
   'Edge pooler identity has only the reviewed request capability memberships'
 );
 
@@ -173,7 +176,7 @@ select is(
      join pg_namespace namespace on namespace.oid=relation.relnamespace
     where namespace.nspname in ('argus_app','argus_brokerage','argus_private')
       and relation.relkind in ('r','p')),
-  124::bigint,
+  125::bigint,
   'the current application relation baseline has one reviewed inventory'
 );
 

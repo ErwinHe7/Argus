@@ -27,6 +27,7 @@ export type DatabaseCapabilityRole =
   | "argus_runtime"
   | "argus_member"
   | "argus_callback"
+  | "argus_public_preview"
   | "argus_staff"
   | "argus_waitlist";
 

@@ -1,6 +1,10 @@
 begin;
 
-grant argus_jobs_owner to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_jobs_owner to %I with set true',current_user
+  );
+end $membership$;
 grant usage on schema extensions to argus_jobs_owner;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -223,6 +221,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
             'checksum',
             'SHA-256 checksum',
             helper: 'Exactly 64 lowercase hexadecimal characters.',
+            kind: _FieldKind.checksum,
           ),
         ], widget.gateway.createMediaUpload),
         icon: const Icon(Icons.upload_file),
@@ -232,14 +231,24 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     if (widget.destination.route == '/catalog/schedules') {
       return FilledButton.icon(
         onPressed: () => _fieldAction('Create ritual schedule', const [
-          _FieldSpec('local_date', 'Local date', helper: 'YYYY-MM-DD'),
+          _FieldSpec(
+            'local_date',
+            'Local date',
+            helper: 'YYYY-MM-DD',
+            kind: _FieldKind.date,
+          ),
           _FieldSpec('mode', 'Ritual mode', options: ['tarot', 'astrology']),
-          _FieldSpec('revision_id', 'Approved revision ID'),
+          _FieldSpec(
+            'revision_id',
+            'Approved revision ID',
+            kind: _FieldKind.uuid,
+          ),
           _FieldSpec('audience', 'Audience', options: ['member', 'public']),
           _FieldSpec(
             'effective_at',
             'Effective timestamp',
             helper: 'ISO-8601 timestamp with timezone.',
+            kind: _FieldKind.timestamp,
           ),
         ], widget.gateway.createSchedule),
         icon: const Icon(Icons.event_available),
@@ -277,8 +286,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       add(
         'New revision',
         Icons.copy_all_outlined,
-        () => _payloadAction(
+        () => _editorialPayloadAction(
           'Create revision payload',
+          record,
           (payload) => widget.gateway.createRevision(
             widget.destination,
             record,
@@ -289,8 +299,9 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       add(
         'Edit draft',
         Icons.edit_outlined,
-        () => _payloadAction(
+        () => _editorialPayloadAction(
           'Edit typed draft payload',
+          record,
           (payload) =>
               widget.gateway.patchRevision(widget.destination, record, payload),
         ),
@@ -348,11 +359,16 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         'Edit schedule',
         Icons.edit_calendar_outlined,
         () => _fieldPayloadAction('Edit schedule', const [
-          _FieldSpec('revision_id', 'Approved revision ID'),
+          _FieldSpec(
+            'revision_id',
+            'Approved revision ID',
+            kind: _FieldKind.uuid,
+          ),
           _FieldSpec(
             'effective_at',
             'Effective timestamp',
             helper: 'ISO-8601 timestamp with timezone.',
+            kind: _FieldKind.timestamp,
           ),
         ], (payload) => widget.gateway.patchSchedule(record, payload)),
       );
@@ -377,7 +393,11 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           'Add metric snapshot',
           Icons.query_stats,
           () => _fieldPayloadAction('Add immutable metric snapshot', const [
-            _FieldSpec('observed_at', 'Observed timestamp'),
+            _FieldSpec(
+              'observed_at',
+              'Observed timestamp',
+              kind: _FieldKind.timestamp,
+            ),
             _FieldSpec(
               'price_minor',
               'Demo price (minor units)',
@@ -406,6 +426,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
             'checksum',
             'SHA-256 checksum',
             helper: 'Must match the quarantined upload request.',
+            kind: _FieldKind.checksum,
           ),
         ], (payload) => widget.gateway.completeMedia(record, payload)),
       );
@@ -472,6 +493,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           'canonical_url',
           'Canonical HTTPS URL',
           helper: 'HTTPS links only.',
+          kind: _FieldKind.httpsUrl,
         ),
         _FieldSpec('title', 'Source title'),
         _FieldSpec('publisher', 'Publisher'),
@@ -479,9 +501,13 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           'published_at',
           'Published timestamp',
           required: false,
-          kind: _FieldKind.nullableText,
+          kind: _FieldKind.nullableTimestamp,
         ),
-        _FieldSpec('retrieved_at', 'Retrieved timestamp'),
+        _FieldSpec(
+          'retrieved_at',
+          'Retrieved timestamp',
+          kind: _FieldKind.timestamp,
+        ),
         _FieldSpec(
           'source_kind',
           'Source kind',
@@ -497,14 +523,14 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         _FieldSpec('status', 'Evidence status', options: ['active', 'retired']),
       ],
       '/catalog/evidence-claims' => const [
-        _FieldSpec('source_id', 'Evidence source ID'),
+        _FieldSpec('source_id', 'Evidence source ID', kind: _FieldKind.uuid),
         _FieldSpec('claim_type', 'Claim type'),
         _FieldSpec('summary', 'Dated claim summary'),
         _FieldSpec(
           'observed_at',
           'Observed timestamp',
           required: false,
-          kind: _FieldKind.nullableText,
+          kind: _FieldKind.nullableTimestamp,
         ),
         _FieldSpec('uncertainty', 'Uncertainty statement'),
         _FieldSpec(
@@ -521,7 +547,7 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
           'avatar_media_id',
           'Avatar media ID',
           required: false,
-          kind: _FieldKind.nullableText,
+          kind: _FieldKind.uuid,
         ),
         _FieldSpec('status', 'Creator status', options: ['active', 'retired']),
       ],
@@ -531,13 +557,272 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     return fields.where((field) => field.key != 'slug').toList(growable: false);
   }
 
-  Future<void> _payloadAction(
+  Future<void> _editorialPayloadAction(
     String title,
+    AdminRecord record,
     Future<void> Function(Map<String, Object?> payload) action,
   ) async {
-    final payload = await _promptJson(title, '{}');
-    if (payload != null) await action(payload);
+    final current =
+        (await widget.gateway.getEditorial(record)).payload ??
+        const <String, Object?>{};
+    final payload = await _promptFields(
+      title,
+      _editorialFields(),
+      initialValues: current,
+    );
+    if (payload != null) {
+      await action(_editorialPayload({...current, ...payload}));
+    }
   }
+
+  Map<String, Object?> _editorialPayload(Map<String, Object?> fields) {
+    final payload = Map<String, Object?>.from(fields);
+    if (_editorialKind == _EditorialKind.assetCodex) {
+      final risk = <String, Object?>{};
+      for (final key in ['risk_title', 'risk_detail', 'risk_severity']) {
+        final value = payload.remove(key);
+        if (value != null) risk[key.substring(5)] = value;
+      }
+      if (risk.isNotEmpty) {
+        payload['risks'] = [...(payload['risks'] as List? ?? const []), risk];
+      }
+      final metric = <String, Object?>{};
+      for (final key in [
+        'metric_observed_at',
+        'metric_price_minor',
+        'metric_change_bps',
+        'metric_expense_ratio_bps',
+        'metric_source_label',
+      ]) {
+        final value = payload.remove(key);
+        if (value != null) metric[key.substring(7)] = value;
+      }
+      if (metric.isNotEmpty) {
+        payload['metrics'] = [
+          ...(payload['metrics'] as List? ?? const []),
+          metric,
+        ];
+      }
+      return payload;
+    }
+    if (_editorialKind != _EditorialKind.coven) return payload;
+    final qualification = <String, Object?>{};
+    for (final key in [
+      'criterion_code',
+      'person_name',
+      'claim',
+      'evidence_claim_id',
+      'valid_to',
+    ]) {
+      final value = payload.remove(key);
+      if (value != null) qualification[key] = value;
+    }
+    payload['qualifications'] = [qualification];
+    return payload;
+  }
+
+  List<_FieldSpec> _editorialFields() => switch (_editorialKind) {
+    _EditorialKind.ritual => const [
+      _FieldSpec('scenario_key', 'Scenario key'),
+      _FieldSpec('mode', 'Mode', options: ['tarot', 'astrology']),
+      _FieldSpec('cadence', 'Cadence'),
+      _FieldSpec('title', 'Title'),
+      _FieldSpec('interpretation', 'Interpretation', multiline: true),
+      _FieldSpec('guidance', 'Guidance', multiline: true),
+      _FieldSpec('market_label', 'Market label'),
+      _FieldSpec(
+        'observation_at',
+        'Observation timestamp',
+        kind: _FieldKind.timestamp,
+      ),
+      _FieldSpec('uncertainty', 'Uncertainty statement', multiline: true),
+      _FieldSpec(
+        'idea_asset_ids',
+        'Idea asset IDs',
+        helper: 'Enter 3–5 UUIDs separated by commas.',
+        kind: _FieldKind.uuidList,
+        minItems: 3,
+        maxItems: 5,
+      ),
+      _FieldSpec(
+        'evidence_claim_ids',
+        'Evidence claim IDs',
+        helper: 'Enter one or more UUIDs separated by commas.',
+        kind: _FieldKind.uuidList,
+        minItems: 1,
+        maxItems: 100,
+      ),
+    ],
+    _EditorialKind.assetCodex => const [
+      _FieldSpec(
+        'asset_id',
+        'Asset ID',
+        required: false,
+        kind: _FieldKind.uuid,
+      ),
+      _FieldSpec('appearance_reason', 'Appearance reason', multiline: true),
+      _FieldSpec('thesis', 'Editorial thesis', multiline: true),
+      _FieldSpec('limitations', 'Limitations', multiline: true),
+      _FieldSpec(
+        'metrics_as_of',
+        'Metrics timestamp',
+        kind: _FieldKind.timestamp,
+      ),
+      _FieldSpec(
+        'evidence_claim_ids',
+        'Evidence claim IDs',
+        helper: 'Enter UUIDs separated by commas.',
+        kind: _FieldKind.uuidList,
+        required: false,
+        maxItems: 100,
+      ),
+      _FieldSpec('risk_title', 'Add risk title', required: false),
+      _FieldSpec(
+        'risk_detail',
+        'Add risk detail',
+        required: false,
+        multiline: true,
+      ),
+      _FieldSpec(
+        'risk_severity',
+        'Add risk severity',
+        required: false,
+        helper: 'low, medium, or high',
+      ),
+      _FieldSpec(
+        'metric_observed_at',
+        'Add metric observed timestamp',
+        required: false,
+        kind: _FieldKind.nullableTimestamp,
+      ),
+      _FieldSpec(
+        'metric_price_minor',
+        'Add metric price (minor units)',
+        required: false,
+        kind: _FieldKind.nullableInteger,
+      ),
+      _FieldSpec(
+        'metric_change_bps',
+        'Add metric change (basis points)',
+        required: false,
+        kind: _FieldKind.nullableInteger,
+      ),
+      _FieldSpec(
+        'metric_expense_ratio_bps',
+        'Add metric expense ratio (basis points)',
+        required: false,
+        kind: _FieldKind.nullableInteger,
+      ),
+      _FieldSpec(
+        'metric_source_label',
+        'Add metric source label',
+        required: false,
+      ),
+    ],
+    _EditorialKind.coven => const [
+      _FieldSpec('company_id', 'Company ID', kind: _FieldKind.uuid),
+      _FieldSpec(
+        'category',
+        'Category',
+        options: ['founder', 'owner', 'chief_executive'],
+      ),
+      _FieldSpec('focus', 'Research focus', multiline: true),
+      _FieldSpec('teaser', 'Teaser', multiline: true),
+      _FieldSpec('summary', 'Summary', multiline: true),
+      _FieldSpec('inclusion_rationale', 'Inclusion rationale', multiline: true),
+      _FieldSpec('limitations', 'Limitations', multiline: true),
+      _FieldSpec(
+        'effective_date',
+        'Effective date',
+        helper: 'YYYY-MM-DD',
+        kind: _FieldKind.date,
+      ),
+      _FieldSpec(
+        'verified_as_of',
+        'Verified as of',
+        helper: 'YYYY-MM-DD',
+        kind: _FieldKind.date,
+      ),
+      _FieldSpec('criterion_code', 'Qualification criterion code'),
+      _FieldSpec('person_name', 'Qualified person name'),
+      _FieldSpec('claim', 'Qualification claim', multiline: true),
+      _FieldSpec(
+        'evidence_claim_id',
+        'Qualification evidence claim ID',
+        required: false,
+        kind: _FieldKind.uuid,
+      ),
+      _FieldSpec(
+        'valid_to',
+        'Qualification valid to',
+        helper: 'YYYY-MM-DD, or leave blank when current.',
+        required: false,
+        kind: _FieldKind.nullableDate,
+      ),
+    ],
+    _EditorialKind.grimoire => const [
+      _FieldSpec('theme_code', 'Theme code'),
+      _FieldSpec('title', 'Title'),
+      _FieldSpec('description', 'Description', multiline: true),
+      _FieldSpec('theme', 'Display theme'),
+      _FieldSpec('curator_label', 'Curator label'),
+      _FieldSpec(
+        'asset_ids',
+        'Asset IDs',
+        helper: 'Enter UUIDs separated by commas.',
+        kind: _FieldKind.uuidList,
+        required: false,
+        maxItems: 100,
+      ),
+    ],
+    _EditorialKind.circleTemplate => const [
+      _FieldSpec('creator_label', 'Creator label'),
+      _FieldSpec('title', 'Title'),
+      _FieldSpec('description', 'Description', multiline: true),
+      _FieldSpec('theme', 'Theme'),
+      _FieldSpec('creator_slug', 'Creator slug'),
+      _FieldSpec('creator_bio', 'Creator biography', multiline: true),
+      _FieldSpec(
+        'asset_ids',
+        'Asset IDs',
+        helper: 'Enter UUIDs separated by commas.',
+        kind: _FieldKind.uuidList,
+        required: false,
+        maxItems: 50,
+      ),
+    ],
+    _EditorialKind.rowan => const [
+      _FieldSpec('script_key', 'Script key'),
+      _FieldSpec('surface', 'Surface'),
+      _FieldSpec('body_template', 'Body template', multiline: true),
+      _FieldSpec('risk_footer', 'Risk footer', multiline: true),
+      _FieldSpec(
+        'allowed_tokens',
+        'Allowed tokens',
+        helper: 'Enter tokens separated by commas.',
+        kind: _FieldKind.stringList,
+        minItems: 1,
+      ),
+    ],
+    _EditorialKind.briefingTemplate => const [
+      _FieldSpec('title', 'Title'),
+      _FieldSpec('summary', 'Summary', multiline: true),
+      _FieldSpec('disclosure', 'Disclosure', multiline: true),
+    ],
+    null => const <_FieldSpec>[],
+  };
+
+  _EditorialKind? get _editorialKind =>
+      switch (widget.destination.editorialKind) {
+        'ritual' => _EditorialKind.ritual,
+        'asset_codex' => _EditorialKind.assetCodex,
+        'coven' => _EditorialKind.coven,
+        'grimoire' => _EditorialKind.grimoire,
+        'circle_template' => _EditorialKind.circleTemplate,
+        'rowan' => _EditorialKind.rowan,
+        'briefing_template' => _EditorialKind.briefingTemplate,
+        _ => null,
+      };
 
   Future<void> _fieldPayloadAction(
     String title,
@@ -561,12 +846,13 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
 
   Future<Map<String, Object?>?> _promptFields(
     String title,
-    List<_FieldSpec> fields,
-  ) async {
+    List<_FieldSpec> fields, {
+    Map<String, Object?> initialValues = const {},
+  }) async {
     final formKey = GlobalKey<FormState>();
     final values = <String, String>{
       for (final field in fields)
-        field.key: field.initial ?? field.options?.first ?? '',
+        field.key: _initialText(field, initialValues[field.key]),
     };
     final submitted = await showDialog<bool>(
       context: context,
@@ -606,8 +892,8 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
                           helperText: field.helper,
                           border: const OutlineInputBorder(),
                         ),
-                        minLines: field.label.contains('summary') ? 3 : 1,
-                        maxLines: field.label.contains('summary') ? 6 : 1,
+                        minLines: field.multiline ? 3 : 1,
+                        maxLines: field.multiline ? 8 : 1,
                         onChanged: (value) => values[field.key] = value,
                         validator: (value) => _fieldError(field, value ?? ''),
                       ),
@@ -639,10 +925,16 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
       for (final field in fields)
         if (values[field.key]!.trim().isNotEmpty ||
             field.kind == _FieldKind.nullableText ||
-            field.kind == _FieldKind.nullableInteger)
+            field.kind == _FieldKind.nullableInteger ||
+            field.kind == _FieldKind.nullableTimestamp ||
+            field.kind == _FieldKind.nullableDate)
           field.key: _fieldValue(field, values[field.key]!.trim()),
     };
   }
+
+  String _initialText(_FieldSpec field, Object? value) => value is List
+      ? value.join(', ')
+      : value?.toString() ?? field.initial ?? field.options?.first ?? '';
 
   String? _fieldError(_FieldSpec field, String raw) {
     final value = raw.trim();
@@ -651,71 +943,98 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     if (value.contains(RegExp(r'[<>\u0000]'))) {
       return 'Active markup is not allowed.';
     }
-    if (field.key.contains('url') && !value.startsWith('https://')) {
+    if (field.kind == _FieldKind.httpsUrl && !value.startsWith('https://')) {
       return 'Use an HTTPS URL.';
     }
-    if (field.key == 'checksum' && !RegExp(r'^[a-f0-9]{64}$').hasMatch(value)) {
+    if (field.kind == _FieldKind.checksum &&
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(value)) {
       return 'Enter a 64-character lowercase SHA-256 checksum.';
+    }
+    if (field.kind == _FieldKind.uuid && !_uuidPattern.hasMatch(value)) {
+      return 'Enter a valid UUID.';
     }
     if ((field.kind == _FieldKind.integer ||
             field.kind == _FieldKind.nullableInteger) &&
         int.tryParse(value) == null) {
       return 'Enter a whole number.';
     }
+    if (field.kind == _FieldKind.stringList ||
+        field.kind == _FieldKind.uuidList) {
+      final items = _stringList(value);
+      if (field.minItems case final minimum? when items.length < minimum) {
+        return 'Enter at least $minimum values.';
+      }
+      if (field.maxItems case final maximum? when items.length > maximum) {
+        return 'Enter no more than $maximum values.';
+      }
+      if (field.kind == _FieldKind.uuidList &&
+          items.any((item) => !_uuidPattern.hasMatch(item))) {
+        return 'Enter valid UUIDs separated by commas.';
+      }
+    }
+    if ((field.kind == _FieldKind.date ||
+            field.kind == _FieldKind.nullableDate) &&
+        !_isIsoDate(value)) {
+      return 'Use YYYY-MM-DD.';
+    }
+    if ((field.kind == _FieldKind.timestamp ||
+            field.kind == _FieldKind.nullableTimestamp) &&
+        (!RegExp(r'(?:Z|[+-]\d{2}:\d{2})$').hasMatch(value) ||
+            DateTime.tryParse(value) == null)) {
+      return 'Use an ISO-8601 timestamp with timezone.';
+    }
     return null;
+  }
+
+  List<String> _stringList(String value) => value
+      .split(',')
+      .map((item) => item.trim())
+      .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+
+  bool _isIsoDate(String value) {
+    if (!RegExp(r'^\d{4}-\d{2}-\d{2}$').hasMatch(value)) return false;
+    final parsed = DateTime.tryParse(value);
+    return parsed != null &&
+        parsed.year == int.parse(value.substring(0, 4)) &&
+        parsed.month == int.parse(value.substring(5, 7)) &&
+        parsed.day == int.parse(value.substring(8, 10));
   }
 
   Object? _fieldValue(_FieldSpec field, String value) => switch (field.kind) {
     _FieldKind.integer => int.parse(value),
     _FieldKind.nullableInteger => value.isEmpty ? null : int.parse(value),
     _FieldKind.nullableText => value.isEmpty ? null : value,
-    _FieldKind.text => value,
+    _FieldKind.nullableTimestamp => value.isEmpty ? null : value,
+    _FieldKind.nullableDate => value.isEmpty ? null : value,
+    _FieldKind.stringList || _FieldKind.uuidList => _stringList(value),
+    _FieldKind.text ||
+    _FieldKind.uuid ||
+    _FieldKind.httpsUrl ||
+    _FieldKind.checksum ||
+    _FieldKind.date ||
+    _FieldKind.timestamp => value,
   };
 
-  Future<Map<String, Object?>?> _promptJson(
-    String title,
-    String template,
-  ) async {
-    final controller = TextEditingController(text: template);
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: SizedBox(
-          width: 620,
-          child: TextField(
-            controller: controller,
-            minLines: 10,
-            maxLines: 16,
-            decoration: const InputDecoration(
-              labelText: 'Schema-bound payload',
-              helperText: 'The API applies strict domain validation and rejects unknown fields.',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Continue'),
-          ),
-        ],
-      ),
-    );
-    if (submitted != true) return null;
-    final decoded = jsonDecode(controller.text);
-    return decoded is Map<String, Object?> ? decoded : null;
-  }
-
   Future<void> _verifyCoven() async {
-    final payload = await _promptJson(
-      'Verify a Coven qualification',
-      '{"qualification_id":"00000000-0000-4000-8000-000000000000","evidence_claim_ids":["00000000-0000-4000-8000-000000000000"],"effective_as_of":"2026-08-24","decision":"verified","reason":"Independent evidence review completed."}',
-    );
+    final payload = await _promptFields('Verify a Coven qualification', const [
+      _FieldSpec('qualification_id', 'Qualification ID', kind: _FieldKind.uuid),
+      _FieldSpec(
+        'evidence_claim_ids',
+        'Evidence claim IDs',
+        helper: 'Enter one or more UUIDs separated by commas.',
+        kind: _FieldKind.uuidList,
+        minItems: 1,
+      ),
+      _FieldSpec(
+        'effective_as_of',
+        'Effective as of',
+        helper: 'YYYY-MM-DD',
+        kind: _FieldKind.date,
+      ),
+      _FieldSpec('decision', 'Decision', options: ['verified', 'rejected']),
+      _FieldSpec('reason', 'Reason', multiline: true),
+    ]);
     if (payload == null) return;
     final qualificationId = payload.remove('qualification_id');
     if (qualificationId is! String) return;
@@ -752,50 +1071,14 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   }
 
   Future<void> _showDraftEditor() async {
-    final slug = TextEditingController();
-    final payload = TextEditingController(text: '{\n  "title": ""\n}');
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('New ${widget.destination.title} draft'),
-        content: SizedBox(
-          width: 620,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: slug,
-                decoration: const InputDecoration(labelText: 'Stable slug'),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: payload,
-                minLines: 10,
-                maxLines: 16,
-                decoration: const InputDecoration(
-                  labelText: 'Typed JSON payload',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Create draft'),
-          ),
-        ],
-      ),
+    final payload = await _promptFields(
+      'New ${widget.destination.title} draft',
+      [const _FieldSpec('slug', 'Stable slug'), ..._editorialFields()],
     );
-    if (submitted != true) return;
-    final value = jsonDecode(payload.text);
-    if (value is Map<String, Object?>) {
-      await _controller.createDraft(slug.text, value);
+    if (payload == null) return;
+    final slug = payload.remove('slug');
+    if (slug is String) {
+      await _controller.createDraft(slug, _editorialPayload(payload));
     }
   }
 }
@@ -804,7 +1087,36 @@ class _FocusSearchIntent extends Intent {
   const _FocusSearchIntent();
 }
 
-enum _FieldKind { text, integer, nullableInteger, nullableText }
+final _uuidPattern = RegExp(
+  r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$',
+  caseSensitive: false,
+);
+
+enum _EditorialKind {
+  ritual,
+  assetCodex,
+  coven,
+  grimoire,
+  circleTemplate,
+  rowan,
+  briefingTemplate,
+}
+
+enum _FieldKind {
+  text,
+  integer,
+  nullableInteger,
+  nullableText,
+  stringList,
+  uuid,
+  uuidList,
+  httpsUrl,
+  checksum,
+  date,
+  timestamp,
+  nullableTimestamp,
+  nullableDate,
+}
 
 class _FieldSpec {
   const _FieldSpec(
@@ -815,6 +1127,9 @@ class _FieldSpec {
     this.options,
     this.required = true,
     this.kind = _FieldKind.text,
+    this.multiline = false,
+    this.minItems,
+    this.maxItems,
   });
 
   final String key;
@@ -824,4 +1139,7 @@ class _FieldSpec {
   final List<String>? options;
   final bool required;
   final _FieldKind kind;
+  final bool multiline;
+  final int? minItems;
+  final int? maxItems;
 }

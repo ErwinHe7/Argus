@@ -1,4 +1,7 @@
 import { z } from "zod";
+import type { VerifiedRequestClaims } from "./request-claims.ts";
+
+export type { VerifiedRequestClaims } from "./request-claims.ts";
 
 const verifiedRequestClaimsSchema = z
   .object({
@@ -13,10 +16,6 @@ const verifiedRequestClaimsSchema = z
  * values must come from the already-verified Supabase access token; request
  * bodies and route parameters are deliberately not part of this type.
  */
-export type VerifiedRequestClaims = Readonly<
-  z.infer<typeof verifiedRequestClaimsSchema>
->;
-
 export function createVerifiedRequestClaims(
   input: z.input<typeof verifiedRequestClaimsSchema>,
 ): VerifiedRequestClaims {

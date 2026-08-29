@@ -1,8 +1,11 @@
 begin;
 
-grant argus_edge,argus_member,argus_callback,argus_staff,argus_worker,
-  argus_brokerage_owner,argus_identity_owner
-  to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_edge,argus_member,argus_callback,argus_staff,argus_worker,argus_brokerage_owner,argus_identity_owner to %I with set true',
+    current_user
+  );
+end $membership$;
 grant usage on schema extensions to argus_edge,argus_member,argus_staff;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
@@ -225,8 +228,8 @@ select set_eq(
       join pg_roles grantee on grantee.oid=privilege.grantee
      where function_row.oid=
        'argus_private.purge_member_brokerage_data(uuid)'::regprocedure$$,
-  $$values ('postgres:EXECUTE')$$,
-  'retained privacy orchestration receives only the brokerage purge capability'
+  $$values ('argus_jobs_owner:EXECUTE')$$,
+  'durable jobs orchestration receives only the brokerage purge capability'
 );
 select ok(
   not exists (

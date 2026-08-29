@@ -57,14 +57,34 @@ those modules still changes the exact path manifest and fails closed.
 <!-- transitive:supabase/tests -->
 <!-- transitive:ritual-investing-api/src/db -->
 <!-- transitive:ritual-investing-api/src/jobs -->
+<!-- transitive:ritual-investing-api/src/domains/accounts -->
+<!-- transitive:ritual-investing-api/src/domains/admin -->
+<!-- transitive:ritual-investing-api/src/domains/admin-operations -->
+<!-- transitive:ritual-investing-api/src/domains/assets -->
+<!-- transitive:ritual-investing-api/src/domains/briefings -->
 <!-- transitive:ritual-investing-api/src/domains/brokerage-accounts -->
 <!-- transitive:ritual-investing-api/src/domains/brokerage-assets -->
 <!-- transitive:ritual-investing-api/src/domains/brokerage-connections -->
 <!-- transitive:ritual-investing-api/src/domains/brokerage-orders -->
 <!-- transitive:ritual-investing-api/src/domains/brokerage-projections -->
+<!-- transitive:ritual-investing-api/src/domains/brokerage -->
+<!-- transitive:ritual-investing-api/src/domains/circles -->
+<!-- transitive:ritual-investing-api/src/domains/content -->
+<!-- transitive:ritual-investing-api/src/domains/coven -->
+<!-- transitive:ritual-investing-api/src/domains/discover -->
+<!-- transitive:ritual-investing-api/src/domains/editorial -->
+<!-- transitive:ritual-investing-api/src/domains/engagement -->
 <!-- transitive:ritual-investing-api/src/domains/intentions -->
 <!-- transitive:ritual-investing-api/src/domains/media -->
+<!-- transitive:ritual-investing-api/src/domains/moderation -->
+<!-- transitive:ritual-investing-api/src/domains/notifications -->
+<!-- transitive:ritual-investing-api/src/domains/platform -->
 <!-- transitive:ritual-investing-api/src/domains/privacy -->
+<!-- transitive:ritual-investing-api/src/domains/public-preview -->
+<!-- transitive:ritual-investing-api/src/domains/retained-http -->
+<!-- transitive:ritual-investing-api/src/domains/rituals -->
+<!-- transitive:ritual-investing-api/src/domains/rowan -->
+<!-- transitive:ritual-investing-api/src/domains/search -->
 <!-- transitive:ritual-investing-api/src/domains/session -->
 <!-- transitive:ritual-investing-api/openapi -->
 <!-- transitive:ritual-investing-api/scripts -->
@@ -102,7 +122,7 @@ those modules still changes the exact path manifest and fails closed.
 | Transitive classification | Reviewed module roots |
 |---|---|
 | Supabase definitions and runtime | `supabase/functions`, `supabase/migrations`, `supabase/tests` |
-| API composition | `ritual-investing-api/src/db`, `src/jobs`, the listed brokerage/intentions/media/privacy/session domain directories, `openapi`, and API scripts |
+| API composition | `ritual-investing-api/src/db`, `src/jobs`, every explicitly listed bounded-context directory, `openapi`, and API scripts |
 | Generated contract | `ritual-investing-api-client/doc`, `lib/generated`, and its contract test |
 | Member consumer | `core/api`, `core/auth`, `core/bootstrap`, Auth presentation, and each listed feature `data` adapter module |
 | Admin consumer | `ritual-investing-admin/lib` and its integration contract |
@@ -110,6 +130,7 @@ those modules still changes the exact path manifest and fails closed.
 
 <!-- scope:CONCEPTS.md -->
 <!-- scope:MODEL_SOURCE_MAP.zh-CN.md -->
+<!-- scope:.github/workflows/ritual-investing-supabase-remediation.yml -->
 <!-- scope:.github/workflows/ritual-investing.yml -->
 <!-- scope:docs/ritual-investing/* -->
 <!-- scope:docs/solutions/architecture-patterns/* -->
@@ -190,6 +211,9 @@ independent authorities.
 | `20260829073116_u5_strengthen_brokerage_relations.sql` | Dual-identity connection root; lifecycle/user/connection/account-qualified brokerage children; typed capabilities/projection facts; bounded provider snapshots; ordered command/recovery guards; exact brokerage capabilities | Brokerage connection, reads, orders and recovery | Member API, callback, staff diagnostics and lookup-only worker recovery; Webull; forced RLS and narrow definer commands | U5 target model. Webull remains authoritative; a dispatching command is never resubmitted, and only U6 durable-work composition remains compatible. |
 | `20260829140000_u6_compose_durable_external_work.sql` | Versioned job/schedule registry; private PGMQ adapter; lifecycle-bound work; queue claims/attempts/DLQ; sealed export generations; immutable Storage/effect identities; media, privacy and purge sagas; bounded diagnostics | Jobs, privacy, media, retained brokerage recovery coordination | Member/staff API, worker and Cron; Auth admin, Storage, PGMQ, Vault-name contract and `pg_net`; NOLOGIN jobs owner, FORCE RLS and exact capabilities | U6 target model. Cron coordinates/enqueues only, external calls occur between committed checkpoints, and structural validation makes no malware claim. |
 | `20260829102909_u3_serialize_request_context_lifecycle.sql` | Forward replacement of trusted context installation through the identity-owned shared lifecycle-lock primitive | Identity and platform security | API/Edge reserved request transaction; PostgreSQL row locking; security definer with empty search path and exact login-only execution | U3 correction. An installed request holds the lifecycle `FOR SHARE` lock to commit; a close that locks first makes installation wait and fail closed. |
+| `20260829150000_u6_application_purge_owner.sql` | Dedicated application-purge owner; exact tombstone/read/delete purge matrix; scalar-initPlan legacy staff step-up policy | Privacy application purge and retained staff step-up | Jobs orchestration and legacy staff runtime; NOLOGIN/NOBYPASSRLS owner, fixed SECURITY DEFINER port and exact RLS/ACLs | Removes the U6 application-owner purge shortcut without changing U10 compatibility surfaces. |
+| `20260829160000_u7_member_event_scope.sql` | Lifecycle-scoped member event producers; normalized internal provider reason codes; composed stale-dispatch reconciliation scheduler | Application events and brokerage recovery | Member API, Cron, outbox and lookup-only worker; exact domain owners, bounded batch and no provider-submit capability | U7 closes event identity gaps and ensures a committed `dispatching` checkpoint cannot be stranded after the request process exits. |
+| `20260829170000_u8_normalized_query_contracts.sql` | Typed content authorities; deterministic keyset query ports; creator registry; public-preview capability; complete foreign-key and diagnostics indexes; command-composed compatibility RLS | Content/search and operational reads | Member/public/staff API and admin diagnostics; forced RLS, bounded projections and exact query indexes | U8 removes JSON predicate/ranking authority, unbounded list merges, every remaining unindexed foreign-key scan, and overlapping permissive runtime policies. |
 
 0975bf24b33bbe92871737b3f9753fa47cfda327144594893ce3e504abb9fd91  supabase/migrations/20260828054740_argus_private_baseline.sql
 420520cb742ee93fc818fc3ddccc529ae2ca050054cb4500ace2b1cc1b3258f2  supabase/migrations/20260828062806_u14_retained_repository_primitives.sql
@@ -212,9 +236,14 @@ eaf80efcc1602dc5b698486f9593d7ad53306aa1099253765cfc0c242b7221d1  supabase/migra
 5596cb169277513a9f106ba4a3690ec939da58e50d17de85edb2a41d4f24ba59  supabase/migrations/20260828181500_u21_deletion_retry_transition.sql
 cb239ca1bb49bae7a5abb8edf1faa830e26ae586e48119e5b2400402a3160720  supabase/migrations/20260828183000_u22_hosted_security_advisor_hardening.sql
 3b19d75b915e51bb6ce60293f416459f56b561304283ce4b74982308e71d1c1e  supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
-496833df482f2ca5f21a0c70282af3d704ad585f931e962b36922d9765e551f6  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
-ee8ec79518f4d2417bff5d96a84917b2f21c027583309a765fe04aa90d5c6f39  supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
-234a23485eca5f9a441bd26264f3f8e8501b8f48101d3693903582ed85d03ffd  supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
+5804702200889492c115d0690227015c2df6736c4d8921430afe1c8ff4863696  supabase/migrations/20260829043359_u3_identity_security_foundation.sql
+ed0f90a92fc8f5c42d73d1258abb272c5fd08af0bf6a4db1f7aeabe04c17f36b  supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
+1507abee32710bdcb0313a2f058a3311a65855d650c375e841927efe3ed94379  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
+d9f264b47f761a9af226919b2278f28fc1677af74ec11477f7a3cd79d5057114  supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
+4d941c494dfc4fe40e7e049d1f9098ec473a522c5dd4ba5442bc1d3e1a086370  supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
+347d2dd76b6ff1e6aeb712872114470787f8ebe8f0a3bf70dbbf324d58bc1141  supabase/migrations/20260829150000_u6_application_purge_owner.sql
+d5445f403171ce83782be75aa68a06f64a6311c3b5eea3afd30907bb73ce9a07  supabase/migrations/20260829160000_u7_member_event_scope.sql
+3fd8a9b72a6f73b4615bc949e4b2064c653c4773106c4c5f91c816bcdd4d221f  supabase/migrations/20260829170000_u8_normalized_query_contracts.sql
 
 ## Installed object register
 
@@ -230,7 +259,7 @@ groupings assign one target owner and disposition to every returned row.
 | `argus_private`: 56 operational, credential, command, mapping, job, privacy, export-generation, Storage-authority, audit, waitlist and rate-limit relations | API/worker/waitlist capabilities only | U5 owns brokerage credentials/mappings/commands; U6 owns the job registry, queue adapter, sealed exports and external-effect sagas behind exact capabilities. |
 | 201 distinct routine names across the three Argus schemas and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | U3-U6 foundation, domain, brokerage and durable-work routines are exact-signature, pinned-search-path and narrowly owned. |
 | Application policies and triggers | New lifecycle policies plus compatibility `argus_runtime`, `argus_worker`, `argus_waitlist` policies/triggers | U3 foundation is command-specific and fail-closed; U4-U6 remove generic owner policies and the universal epoch trigger as their relations cut over. |
-| Roles | `argus_identity_owner`, `argus_app_owner`, `argus_publication_owner`, `argus_brokerage_owner`, `argus_jobs_owner`; `argus_member`, `argus_staff`, `argus_callback`, `argus_migration`; compatibility runtime/worker/waitlist roles and login shells | U3 owns identity; U4 owns application/publication; U5 owns brokerage; U6's NOLOGIN jobs owner is constrained by FORCE RLS, exact relation/action policies and eight reviewed cross-domain helpers while member/staff/worker receive routines rather than durable-work table DML. |
+| Roles | `argus_identity_owner`, `argus_app_owner`, `argus_application_purge_owner`, `argus_publication_owner`, `argus_brokerage_owner`, `argus_jobs_owner`; `argus_member`, `argus_staff`, `argus_callback`, `argus_migration`; compatibility runtime/worker/waitlist roles and login shells | U3 owns identity; U4 owns application/publication; U5 owns brokerage; U6's NOLOGIN jobs owner is constrained by FORCE RLS and exact durable-work capabilities, while the separate NOLOGIN/NOBYPASSRLS application-purge owner holds only the fixed tombstone-scoped purge port and its exact relation actions. |
 | Extensions | `pgcrypto`, `pgmq`, `pg_cron`, `pg_net`, `supabase_vault`, test-only `pgtap` | Preserve supported APIs. Do not pin extension versions; 2026-08 changelog says explicit version clauses are ignored. |
 | Queues | `argus_jobs`, `brokerage_refresh`, `brokerage_reconcile` | Preserve opaque event-id transport; U6 single-sources registry. |
 | Cron | outbox relay, expired-work recovery, retained scheduling, Webull recovery, worker invoke, waitlist retention | Preserve bounded schedules; U6 owns parity and failure handling. |
@@ -377,13 +406,13 @@ command recovery completed without deadlock, list ingestion serialized before
 reauthorization, and a post-fence write was rejected. Hosted plans, the
 100-read/8-refresh mix, and provider lookup latency remain U9 gates.
 
-The U5 local security advisor is empty and error-level lint reports no U5
-function error. The remaining performance advisor inventory is six
-later-unit compatibility warnings: one `auth_rls_initplan` warning on
-`argus_private.staff_step_up_receipts` and five legacy
-multiple-permissive-policy warnings. They remain explicitly owned by their
-later remediation units rather than being hidden or broadened in U5. U4 and
-U5 introduce no advisor exception for their normalized relations.
+Local security advisors, performance advisors, and error-level database lint
+are empty. U6 removes the `auth_rls_initplan` warning on
+`argus_private.staff_step_up_receipts` and the application-purge-owner policy
+overlap. U8 then composes the five remaining owner/staff compatibility-policy
+overlaps into one predicate per command without broadening member or staff
+authority. A catalog pgTAP assertion prevents an `argus_runtime` overlap from
+being reintroduced.
 
 ## Open remediation items
 
@@ -395,11 +424,11 @@ U5 introduce no advisor exception for their normalized relations.
 | U1-G04 | Provider projection JSON is both convenient output and weakly bounded storage. | Resolved U5: typed facts serve reads and feature gates; opaque provider snapshots are private, bounded, versioned, hashed, quarantinable diagnostic evidence only. |
 | U1-G05 | SQL and TypeScript event/handler registries are independently maintained. | Resolved U6 with one versioned SQL registry and exact TypeScript parity tests for event, handler, topic, owner, effect and retry metadata. |
 | U1-G06 | Privacy export currently relies on runtime snapshot behavior rather than immutable generation manifests. | Resolved U6 with one repeatable-read preparation transaction, ordered normalized rows, collection fingerprints, immutable object hashes, a cutoff and a sealed manifest checksum; a failed retry creates a new generation. |
-| U1-G07 | Retained repository SQL remains centralized in one large adapter. | Compose by bounded context in U7. |
-| U1-G08 | Discovery/search uses retained compatibility behavior without final indexed keyset contract. | Replace U8. |
+| U1-G07 | Retained repository SQL remains centralized in one large adapter. | Resolved U7: the compatibility facade only re-exports bounded-context repositories, and cross-domain behavior composes through ports and services. |
+| U1-G08 | Discovery/search uses retained compatibility behavior without final indexed keyset contract. | Resolved U8: typed predicates, deterministic keyset functions, one-row overfetch guards, source-bounded diagnostics, and complete supporting indexes are enforced. |
 | U1-G09 | CLI pin 2.65.5 was below the reviewed 2.115.0 gate. | Resolved U2: CI, inventory and developer operations pin exact 2.115.0 without changing the machine-wide install. |
 | U1-G10 | Hosted identity, counts, advisors, recovery drill and disposability are unknown. | Forward-only selected U2 without hosted inspection; U9 owns fresh hosted evidence before promotion and destructive action remains forbidden. |
-| U1-G11 | Existing tests still include some migration-source assertions where catalog behavior is observable. | U3-U6 critical privileges, registries, lifecycle relationships, queue/storage states and sagas now have catalog or black-box coverage. Remaining source assertions are downstream U7/U8/U10 inventory seams. |
+| U1-G11 | Existing tests still include some migration-source assertions where catalog behavior is observable. | Resolved for U3-U9 local scope: critical privileges, registries, lifecycle relationships, queue/storage states, keyset contracts, stale-command recovery, and all foreign-key indexes have catalog or black-box coverage. Promotion-file structure remains source-tested because it is not a database object. |
 | U1-G12 | Current `media_assets.quarantine_status = clear` vocabulary can overstate structural validation. | Resolved U6: new state uses `structurally_verified`, publish is checksum/version-bound, and neither code nor event vocabulary claims malware clearance without a real attestation. |
 
 Run `scripts/check-supabase-architecture-contract.sh --offline` on every

@@ -579,7 +579,13 @@ comment on function argus_private.enforce_live_member_epoch() is
 
 -- PostgreSQL 17 requires transient SET authority to transfer ownership. Keep
 -- it only for these explicit objects and remove it before the migration ends.
-grant argus_identity_owner to current_user with set true;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_identity_owner to %I with set true',current_user
+  );
+end
+$membership$;
 grant create on schema argus_app,argus_private to argus_identity_owner;
 
 alter table argus_app.member_lifecycles owner to argus_identity_owner;
@@ -607,6 +613,12 @@ alter function argus_private.provision_argus_member()
   owner to argus_identity_owner;
 
 revoke create on schema argus_app,argus_private from argus_identity_owner;
-revoke argus_identity_owner from current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_identity_owner from %I',current_user
+  );
+end
+$membership$;
 
 commit;

@@ -183,7 +183,7 @@ Name | Type | Description  | Notes
 [[Back to top]](#) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to Model list]](../README.md#documentation-for-models) [[Back to README]](../README.md)
 
 # **listAssets**
-> AssetCollectionResponse listAssets(limit, assetType, symbolPrefix)
+> AssetCollectionResponse listAssets(cursor, limit, assetType, symbolPrefix)
 
 
 
@@ -192,12 +192,13 @@ Name | Type | Description  | Notes
 import 'package:ritual_investing_api_client/api.dart';
 
 final api = RitualInvestingApiClient().getAssetsApi();
+final String cursor = cursor_example; // String | 
 final int limit = 56; // int | 
 final String assetType = assetType_example; // String | 
 final String symbolPrefix = symbolPrefix_example; // String | 
 
 try {
-    final response = api.listAssets(limit, assetType, symbolPrefix);
+    final response = api.listAssets(cursor, limit, assetType, symbolPrefix);
     print(response);
 } on DioException catch (e) {
     print('Exception when calling AssetsApi->listAssets: $e\n');
@@ -208,6 +209,7 @@ try {
 
 Name | Type | Description  | Notes
 ------------- | ------------- | ------------- | -------------
+ **cursor** | **String**|  | [optional] 
  **limit** | **int**|  | [optional] [default to 25]
  **assetType** | **String**|  | [optional] 
  **symbolPrefix** | **String**|  | [optional] 

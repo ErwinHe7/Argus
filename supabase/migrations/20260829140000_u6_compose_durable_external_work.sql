@@ -25,8 +25,14 @@ $$;
 -- three owners for this transaction. Attribute each temporary membership to
 -- this migration role so the grantor-scoped revokes below cannot remove any
 -- Supabase-managed membership.
-grant argus_jobs_owner,argus_identity_owner,argus_app_owner to current_user
-  with inherit true,set true,admin false granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_jobs_owner,argus_identity_owner,argus_app_owner to %1$I with inherit true,set true,admin false granted by %1$I',
+    current_user
+  );
+end
+$membership$;
 
 alter role argus_jobs_owner set statement_timeout='30s';
 alter role argus_jobs_owner set lock_timeout='3s';
@@ -2375,8 +2381,14 @@ language sql stable security definer set search_path='' as $$
   ) row
   order by row.collection_ordinal,row.ordinal
 $$;
-grant argus_brokerage_owner to current_user
-  with inherit true,set true,admin false granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_brokerage_owner to %1$I with inherit true,set true,admin false granted by %1$I',
+    current_user
+  );
+end
+$membership$;
 grant create on schema argus_private to argus_brokerage_owner;
 alter function argus_private.read_brokerage_privacy_export_rows(uuid,uuid,uuid)
   owner to argus_brokerage_owner;
@@ -2386,7 +2398,13 @@ from public,anon,authenticated,argus_runtime,argus_member,argus_staff,
   argus_callback,argus_worker,postgres;
 grant execute on function argus_private.read_brokerage_privacy_export_rows(uuid,uuid,uuid)
 to argus_jobs_owner;
-revoke argus_brokerage_owner from current_user granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_brokerage_owner from %1$I granted by %1$I',current_user
+  );
+end
+$membership$;
 
 do $$
 declare relation_name text;
@@ -3881,8 +3899,14 @@ to postgres;
 
 -- The Webull coordinator executes with the already-reviewed U5 owner and has
 -- no queue or provider-effect capability.
-grant argus_brokerage_owner to current_user
-  with inherit true,set true,admin false granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_brokerage_owner to %1$I with inherit true,set true,admin false granted by %1$I',
+    current_user
+  );
+end
+$membership$;
 grant create on schema argus_private to argus_brokerage_owner;
 alter function argus_private.coordinate_webull_recovery(integer)
   owner to argus_brokerage_owner;
@@ -3890,7 +3914,13 @@ revoke create on schema argus_private from argus_brokerage_owner;
 revoke all on function argus_private.coordinate_webull_recovery(integer)
 from public,anon,authenticated,argus_runtime,argus_member,argus_staff,argus_callback,argus_worker;
 grant execute on function argus_private.coordinate_webull_recovery(integer) to postgres;
-revoke argus_brokerage_owner from current_user granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_brokerage_owner from %1$I granted by %1$I',current_user
+  );
+end
+$membership$;
 
 -- Only the dispatch adapter can see Vault/pg_net.  The worker sees neither.
 grant usage on schema vault,net to argus_jobs_owner;
@@ -4532,13 +4562,25 @@ revoke all on function argus_private.purge_member_argus_data(uuid)
 from public,anon,authenticated,argus_runtime,argus_member,argus_staff,argus_callback,postgres;
 grant execute on function argus_private.purge_member_argus_data(uuid) to argus_worker;
 
-grant argus_brokerage_owner to current_user
-  with inherit true,set true,admin false granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_brokerage_owner to %1$I with inherit true,set true,admin false granted by %1$I',
+    current_user
+  );
+end
+$membership$;
 set local role argus_brokerage_owner;
 revoke execute on function argus_private.purge_member_brokerage_data(uuid) from postgres;
 grant execute on function argus_private.purge_member_brokerage_data(uuid) to argus_jobs_owner;
 reset role;
-revoke argus_brokerage_owner from current_user granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_brokerage_owner from %1$I granted by %1$I',current_user
+  );
+end
+$membership$;
 
 create or replace function argus_private.close_purged_member_lifecycle(
   p_tenant_id uuid,p_lifecycle_id uuid,p_user_id uuid
@@ -4948,7 +4990,13 @@ comment on table argus_private.privacy_export_generations is
   'One deterministic sealed source snapshot per export generation; retries after failure create a new generation.';
 
 revoke create on schema argus_private from argus_jobs_owner;
-revoke argus_jobs_owner,argus_identity_owner,argus_app_owner
-  from current_user granted by current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_jobs_owner,argus_identity_owner,argus_app_owner from %1$I granted by %1$I',
+    current_user
+  );
+end
+$membership$;
 
 commit;

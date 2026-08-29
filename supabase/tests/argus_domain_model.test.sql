@@ -71,8 +71,12 @@ select is(
   'U4 application children use parent-qualified composite foreign keys'
 );
 
-grant argus_edge,argus_member,argus_identity_owner
-  to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_edge,argus_member,argus_identity_owner to %I with set true',
+    current_user
+  );
+end $membership$;
 grant usage on schema extensions
   to argus_edge,argus_member,argus_identity_owner;
 
@@ -240,9 +244,13 @@ reset role;
 select is(
   (select count(*)::bigint from argus_private.outbox_events
     where event_type='content-report.created'
+      and event_version=1
+      and tenant_id='a4000000-0000-4000-8000-000000000001'
+      and lifecycle_id=(select lifecycle_id from argus_app.members
+        where user_id='a4000000-0000-4000-8000-000000000001')
       and user_id='a4000000-0000-4000-8000-000000000001'),
   1::bigint,
-  'content reporting emits one deduplicated durable-work handoff'
+  'content reporting emits one lifecycle-scoped registered durable-work handoff'
 );
 
 set local role argus_identity_owner;

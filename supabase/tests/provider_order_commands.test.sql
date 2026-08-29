@@ -3,9 +3,12 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_runtime,argus_worker,argus_waitlist,argus_edge,argus_member,
-  argus_brokerage_owner,argus_identity_owner
-  to current_user with set true;
+do $membership$ begin
+  execute pg_catalog.format(
+    'grant argus_runtime,argus_worker,argus_waitlist,argus_edge,argus_member,argus_brokerage_owner,argus_identity_owner to %I with set true',
+    current_user
+  );
+end $membership$;
 grant usage on schema extensions
   to argus_runtime, argus_worker, argus_waitlist;
 
@@ -13,7 +16,7 @@ create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to argus_runtime,argus_member;
 set local search_path=extensions,pg_catalog,public;
 
-select plan(41);
+select plan(44);
 
 select has_table('argus_private','order_previews','order previews are private');
 select has_table('argus_private','provider_commands','provider commands are private');
@@ -119,7 +122,7 @@ insert into argus_private.order_previews(
   ('aaaaaaaa-7000-4000-8000-000000000003','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,'aaaaaaaa-1000-4000-8000-000000000001','aaaaaaaa-2000-4000-8000-000000000002',7,1,repeat('1',64),'{"instrument_id":"aaaaaaaa-6000-4000-8000-000000000002","side":"sell","order_type":"market","time_in_force":"day","quantity":"1","limit_price":null}',now()+interval '1 minute','place','webull-sandbox-manual-v1',decode(repeat('12',32),'hex'),repeat('2',64),1);
 
 update argus_private.kill_switches set enabled=false
- where name in ('provider_egress','order_mutations');
+ where name in ('provider_egress','order_mutations','background_workers');
 
 set local role argus_edge;
 select argus_private.install_request_context(
@@ -172,6 +175,34 @@ select is(
       and attempt_kind='egress' and outcome='started'),
   1::bigint,
   'duplicate confirmation does not create a second egress attempt'
+);
+set local role argus_brokerage_owner;
+alter table argus_private.provider_commands
+  disable trigger provider_commands_monotonic;
+update argus_private.provider_commands
+   set egress_started_at=clock_timestamp()-interval '31 seconds'
+ where id='aaaaaaaa-8000-4000-8000-000000000001';
+alter table argus_private.provider_commands
+  enable trigger provider_commands_monotonic;
+reset role;
+select is(
+  argus_private.coordinate_webull_recovery(1),
+  1,
+  'a stale durable dispatch checkpoint is scheduled for lookup-only recovery'
+);
+select ok(
+  exists (
+    select 1 from argus_private.outbox_events event
+     where event.topic='brokerage_reconcile'
+       and event.event_type='webull.command.reconciliation.requested'
+       and event.aggregate_id='aaaaaaaa-8000-4000-8000-000000000001'
+       and event.dedupe_key='webull-reconcile:aaaaaaaa-8000-4000-8000-000000000001'
+  )
+  and not exists (
+    select 1 from argus_private.reconciliation_records record
+     where record.command_id='aaaaaaaa-8000-4000-8000-000000000001'
+  ),
+  'the scheduler emits one command-bound event and leaves lookup claiming transactional'
 );
 set local role argus_member;
 select throws_ok(
@@ -232,6 +263,23 @@ select is(
   'ambiguous'::text,
   'possible provider send transitions to lookup-only ambiguity'
 );
+reset role;
+select is(
+  (select count(*)::bigint
+     from argus_private.outbox_events event
+     join argus_private.provider_commands command
+       on command.id=event.aggregate_id
+      and command.tenant_id=event.tenant_id
+      and command.lifecycle_id=event.lifecycle_id
+      and command.user_id=event.user_id
+    where event.event_type='webull.command.reconciliation.requested'
+      and event.event_version=1
+      and event.topic='brokerage_reconcile'
+      and command.id='aaaaaaaa-8000-4000-8000-000000000001'),
+  1::bigint,
+  'ambiguous dispatch emits one command-bound lifecycle-scoped reconciliation event'
+);
+set local role argus_member;
 select is(
   (select claim_outcome
      from argus_private.claim_provider_command_reconciliation(

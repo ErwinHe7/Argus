@@ -20,9 +20,17 @@ const consumedState = Object.freeze({
 });
 
 function fixture(overrides: Record<string, unknown> = {}) {
-  const complete = vi.fn(async (..._arguments: unknown[]) => undefined);
-  const fail = vi.fn(async (..._arguments: unknown[]) => undefined);
-  const consumeState = vi.fn(async () => consumedState);
+  const events: string[] = [];
+  const complete = vi.fn(async (..._arguments: unknown[]) => {
+    events.push("complete");
+  });
+  const fail = vi.fn(async (..._arguments: unknown[]) => {
+    events.push("fail");
+  });
+  const consumeState = vi.fn(async () => {
+    events.push("consume-state");
+    return consumedState;
+  });
   const repository = {
     consumeState,
     complete,
@@ -31,25 +39,31 @@ function fixture(overrides: Record<string, unknown> = {}) {
   };
   const provider = {
     authorizationUrl: vi.fn(),
-    exchangeAuthorizationCode: vi.fn(async () => ({
-      accessToken: "synthetic-access-token",
-      refreshToken: "synthetic-refresh-token",
-      accessExpiresAt: new Date(now.getTime() + 30 * 60_000),
-      refreshExpiresAt: new Date(now.getTime() + 15 * 86_400_000),
-    })),
+    exchangeAuthorizationCode: vi.fn(async () => {
+      events.push("provider-exchange");
+      return {
+        accessToken: "synthetic-access-token",
+        refreshToken: "synthetic-refresh-token",
+        accessExpiresAt: new Date(now.getTime() + 30 * 60_000),
+        refreshExpiresAt: new Date(now.getTime() + 15 * 86_400_000),
+      };
+    }),
     refresh: vi.fn(),
-    listAccounts: vi.fn(async () => [{
-      providerAccountId: "synthetic-provider-account-1",
-      displayLabel: "Webull •••• 0001",
-      baseCurrency: "USD",
-      status: "available" as const,
-      capabilityVersion: 1,
-      marketTimezone: "America/New_York",
-      capabilities: [
-        { code: "BALANCES_READ", available: true },
-        { code: "POSITIONS_READ", available: true },
-      ],
-    }]),
+    listAccounts: vi.fn(async () => {
+      events.push("provider-list");
+      return [{
+        providerAccountId: "synthetic-provider-account-1",
+        displayLabel: "Webull •••• 0001",
+        baseCurrency: "USD",
+        status: "available" as const,
+        capabilityVersion: 1,
+        marketTimezone: "America/New_York",
+        capabilities: [
+          { code: "BALANCES_READ", available: true },
+          { code: "POSITIONS_READ", available: true },
+        ],
+      }];
+    }),
     ...overrides,
   };
   const tokenVault = new WebullTokenVault("sandbox", {
@@ -59,10 +73,16 @@ function fixture(overrides: Record<string, unknown> = {}) {
   return {
     complete,
     consumeState,
+    events,
     fail,
     provider,
     handler: createWebullCallbackHandler({
-      repository: repository as never,
+      withRepository: async (claims, callback) => {
+        events.push(claims === null ? "consume-begin" : "callback-begin");
+        const result = await callback(repository as never);
+        events.push(claims === null ? "consume-commit" : "callback-commit");
+        return result;
+      },
       provider,
       providerEnvironment: "sandbox",
       tokenVault,
@@ -99,6 +119,16 @@ describe("Webull callback boundary", () => {
     };
     expect(credentials.accessCiphertext).toBeInstanceOf(Uint8Array);
     expect(JSON.stringify(credentials)).not.toContain("synthetic-access-token");
+    expect(test.events).toEqual([
+      "consume-begin",
+      "consume-state",
+      "consume-commit",
+      "provider-exchange",
+      "provider-list",
+      "callback-begin",
+      "complete",
+      "callback-commit",
+    ]);
   });
 
   it("consumes denied state without reflecting provider errors", async () => {

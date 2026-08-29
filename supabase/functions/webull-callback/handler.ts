@@ -1,12 +1,13 @@
 import type {
   ConsumedWebullState,
-  createWebullCallbackRepository,
   ProtectedCallbackAccount,
-} from "../../../ritual-investing-api/src/domains/brokerage-connections/repository.ts";
+  WithWebullCallbackRepository,
+} from "../../../ritual-investing-api/src/domains/brokerage-connections/ports.ts";
 import {
   hashWebullOpaqueValue,
   newWebullOpaqueValue,
-} from "../../../ritual-investing-api/src/domains/brokerage-connections/repository.ts";
+  webullCompletionLifetimeMilliseconds,
+} from "../../../ritual-investing-api/src/domains/brokerage-connections/service.ts";
 import type {
   WebullAuthorizationProvider,
   WebullAuthorizedAccount,
@@ -21,8 +22,6 @@ import {
   WebullProtocolGateError,
 } from "../_shared/webull/contract.ts";
 import type { WebullTokenVault } from "../_shared/webull/tokens.ts";
-
-type CallbackRepository = ReturnType<typeof createWebullCallbackRepository>;
 
 const callbackHeaders = Object.freeze({
   "cache-control": "no-store, max-age=0",
@@ -179,7 +178,7 @@ function generic(status: 400 | 404 | 503): Response {
 
 export function createWebullCallbackHandler(
   input: Readonly<{
-    repository: CallbackRepository;
+    withRepository: WithWebullCallbackRepository;
     provider: WebullAuthorizationProvider;
     providerEnvironment: ConsumedWebullState["environment"];
     tokenVault: WebullTokenVault;
@@ -198,9 +197,10 @@ export function createWebullCallbackHandler(
     }
     let state: ConsumedWebullState | null;
     try {
-      state = await input.repository.consumeState(
-        await hashWebullOpaqueValue(parsed.state),
-        now(),
+      const stateHash = await hashWebullOpaqueValue(parsed.state);
+      state = await input.withRepository(
+        null,
+        (repository) => repository.consumeState(stateHash, now()),
       );
     } catch {
       return generic(503);
@@ -216,11 +216,20 @@ export function createWebullCallbackHandler(
     const handle = newWebullOpaqueValue();
     const handleHash = await hashWebullOpaqueValue(handle);
     const expiresAt = new Date(
-      now().getTime() + input.repository.completionLifetimeMilliseconds,
+      now().getTime() + webullCompletionLifetimeMilliseconds,
     );
+    const callbackClaims = Object.freeze({
+      userId: state.userId,
+      sessionId: state.sessionId,
+      aal: "aal1" as const,
+    });
     if (parsed.providerError === true) {
       try {
-        await input.repository.fail(state, "denied", handleHash, expiresAt);
+        await input.withRepository(
+          callbackClaims,
+          (repository) =>
+            repository.fail(state, "denied", handleHash, expiresAt),
+        );
       } catch {
         return generic(503);
       }
@@ -295,12 +304,16 @@ export function createWebullCallbackHandler(
           deletionEpoch: state.deletionEpoch,
         }));
       }
-      await input.repository.complete(
-        state,
-        protectedCredentials,
-        accounts,
-        handleHash,
-        expiresAt,
+      await input.withRepository(
+        callbackClaims,
+        (repository) =>
+          repository.complete(
+            state,
+            protectedCredentials,
+            accounts,
+            handleHash,
+            expiresAt,
+          ),
       );
     } catch (error) {
       const outcome = error instanceof WebullProtocolGateError ||
@@ -308,7 +321,11 @@ export function createWebullCallbackHandler(
         ? "temporarily_unavailable"
         : "failed";
       try {
-        await input.repository.fail(state, outcome, handleHash, expiresAt);
+        await input.withRepository(
+          callbackClaims,
+          (repository) =>
+            repository.fail(state, outcome, handleHash, expiresAt),
+        );
       } catch {
         return generic(503);
       }

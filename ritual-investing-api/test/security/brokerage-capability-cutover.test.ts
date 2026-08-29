@@ -16,6 +16,14 @@ const brokerageRepositories = [
   ), "utf8")
 ).join("\n");
 
+const brokerageComposition = [
+  resolve(import.meta.dirname, "../../../supabase/functions/api/index.ts"),
+  resolve(
+    import.meta.dirname,
+    "../../../supabase/functions/webull-callback/index.ts",
+  ),
+].map((path) => readFileSync(path, "utf8")).join("\n");
+
 describe("brokerage capability-role cutover", () => {
   it("uses only the trusted request identity in U5 repositories", () => {
     expect(brokerageRepositories).toContain(
@@ -26,13 +34,14 @@ describe("brokerage capability-role cutover", () => {
     );
   });
 
-  it("does not route brokerage requests through the legacy runtime role", () => {
-    expect(brokerageRepositories).toContain("withMemberRequestTransaction");
-    expect(brokerageRepositories).toContain("withCallbackRequestTransaction");
-    expect(brokerageRepositories).toContain(
+  it("keeps capability selection in composition roots, outside adapters", () => {
+    expect(brokerageRepositories).toContain("DatabaseTransaction");
+    expect(brokerageRepositories).not.toMatch(/DatabasePool|pool\.connect/);
+    expect(brokerageRepositories).not.toMatch(/with\w+RequestTransaction/);
+    expect(brokerageComposition).toContain("withMemberRequestTransaction");
+    expect(brokerageComposition).toContain("withCallbackRequestTransaction");
+    expect(brokerageComposition).toContain(
       "withCapabilityStaffRequestTransaction",
     );
-    expect(brokerageRepositories).not.toContain("withRequestTransaction");
-    expect(brokerageRepositories).not.toContain("withStaffRequestTransaction");
   });
 });

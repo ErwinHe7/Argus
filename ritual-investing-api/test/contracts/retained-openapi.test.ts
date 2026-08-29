@@ -18,11 +18,15 @@ function contractApp() {
       aal: "aal1" as const,
       issuedAt: 1,
     })),
-    createRepositories: vi.fn(() => ({} as RetainedRepositorySet)),
-    publicPreviewRepository: {
-      listPublished: vi.fn(async () => []),
-      getPublished: vi.fn(async () => null),
-    },
+    withRepositories: async (_claims, _transaction, callback) =>
+      await callback({} as RetainedRepositorySet),
+    withPublicPreview: async (callback) =>
+      await callback({
+        listPublishedPage: vi.fn(async () => []),
+        listPublished: vi.fn(async () => []),
+        getPublished: vi.fn(async () => null),
+      }),
+    createPrivacyService: () => ({} as never),
     rateLimit: { allow: vi.fn(async () => ({ allowed: true })) },
     requestId: () => "018f3c2a-4b67-7a89-8abc-123456789077",
   });
@@ -125,21 +129,23 @@ describe("Supabase retained OpenAPI contract", () => {
     const responseSchema = (path: string, method = "get") =>
       JSON.stringify(paths[path]?.[method]?.responses?.["200"] ?? {});
 
-    for (const [path, expectedSchema] of [
-      ["/v1/account", "MemberAccountResponse"],
-      ["/v1/assets", "AssetCollectionResponse"],
-      ["/v1/briefings", "BriefingCollectionResponse"],
-      ["/v1/circles", "CircleCollectionResponse"],
-      ["/v1/coven", "CovenCollectionResponse"],
-      ["/v1/coven/{entry_id}/evidence", "CovenEvidenceResponse"],
-      ["/v1/discover", "DiscoverResponse"],
-      ["/v1/discover/assets", "DiscoverAssetCollectionResponse"],
-      ["/v1/discover/grimoires/{id}", "GrimoireDetailResponse"],
-      ["/v1/discover/creators", "CreatorCollectionResponse"],
-      ["/v1/notifications", "NotificationCollectionResponse"],
-      ["/v1/privacy/requests", "PrivacyRequestCollectionResponse"],
-      ["/v1/search", "SearchResponse"],
-    ] as const) {
+    for (
+      const [path, expectedSchema] of [
+        ["/v1/account", "MemberAccountResponse"],
+        ["/v1/assets", "AssetCollectionResponse"],
+        ["/v1/briefings", "BriefingCollectionResponse"],
+        ["/v1/circles", "CircleCollectionResponse"],
+        ["/v1/coven", "CovenCollectionResponse"],
+        ["/v1/coven/{entry_id}/evidence", "CovenEvidenceResponse"],
+        ["/v1/discover", "DiscoverResponse"],
+        ["/v1/discover/assets", "DiscoverAssetCollectionResponse"],
+        ["/v1/discover/grimoires/{id}", "GrimoireDetailResponse"],
+        ["/v1/discover/creators", "CreatorCollectionResponse"],
+        ["/v1/notifications", "NotificationCollectionResponse"],
+        ["/v1/privacy/requests", "PrivacyRequestCollectionResponse"],
+        ["/v1/search", "SearchResponse"],
+      ] as const
+    ) {
       expect(responseSchema(path), path).toContain(expectedSchema);
       expect(responseSchema(path), path).not.toContain("GetAccount200Response");
     }
@@ -148,17 +154,19 @@ describe("Supabase retained OpenAPI contract", () => {
   it("keeps retained content precise and member-safe across generated boundaries", () => {
     const document = buildRetainedOpenApiDocument(contractApp());
     const serialized = JSON.stringify(document);
-    for (const schema of [
-      "AssetCodexDetail",
-      "BriefingDetail",
-      "CircleTemplateDetail",
-      "CovenEntryDetail",
-      "GrimoireDetail",
-      "DiscoverItem",
-      "SearchResult",
-      "SeededCreator",
-      "SaveItemRequest",
-    ]) {
+    for (
+      const schema of [
+        "AssetCodexDetail",
+        "BriefingDetail",
+        "CircleTemplateDetail",
+        "CovenEntryDetail",
+        "GrimoireDetail",
+        "DiscoverItem",
+        "SearchResult",
+        "SeededCreator",
+        "SaveItemRequest",
+      ]
+    ) {
       expect(document.components?.schemas, schema).toHaveProperty(schema);
     }
     expect(serialized).toContain("source_kind");
@@ -171,18 +179,44 @@ describe("Supabase retained OpenAPI contract", () => {
       string,
       Record<string, { responses?: Record<string, unknown> }>
     >;
-    for (const [path, method, schema] of [
-      ["/v1/brokerage/connections/start", "post", "WebullAuthorizationSessionResponse"],
-      ["/v1/brokerage/connections/reconnect", "post", "WebullAuthorizationSessionResponse"],
-      ["/v1/brokerage/connection", "get", "WebullConnectionResponse"],
-      ["/v1/brokerage/accounts/selection", "patch", "WebullAccountSelectionResponse"],
-      ["/v1/brokerage/connections/completions/redeem", "post", "WebullCompletionResponse"],
-      ["/v1/brokerage/connections/disconnect", "post", "WebullDisconnectResponse"],
-      ["/v1/member/step-up", "post", "MemberStepUpReceiptResponse"],
-    ] as const) {
-      const response = JSON.stringify(paths[path]?.[method]?.responses?.["200"] ?? {});
+    for (
+      const [path, method, schema] of [
+        [
+          "/v1/brokerage/connections/start",
+          "post",
+          "WebullAuthorizationSessionResponse",
+        ],
+        [
+          "/v1/brokerage/connections/reconnect",
+          "post",
+          "WebullAuthorizationSessionResponse",
+        ],
+        ["/v1/brokerage/connection", "get", "WebullConnectionResponse"],
+        [
+          "/v1/brokerage/accounts/selection",
+          "patch",
+          "WebullAccountSelectionResponse",
+        ],
+        [
+          "/v1/brokerage/connections/completions/redeem",
+          "post",
+          "WebullCompletionResponse",
+        ],
+        [
+          "/v1/brokerage/connections/disconnect",
+          "post",
+          "WebullDisconnectResponse",
+        ],
+        ["/v1/member/step-up", "post", "MemberStepUpReceiptResponse"],
+      ] as const
+    ) {
+      const response = JSON.stringify(
+        paths[path]?.[method]?.responses?.["200"] ?? {},
+      );
       expect(response, `${method} ${path}`).toContain(schema);
-      expect(response, `${method} ${path}`).not.toContain("ListAdminAudit200Response");
+      expect(response, `${method} ${path}`).not.toContain(
+        "ListAdminAudit200Response",
+      );
     }
   });
 

@@ -22,7 +22,13 @@ grant usage on schema argus_app,argus_private to argus_publication_owner;
 -- The U3 lifecycle parent is intentionally owned by the NOLOGIN identity
 -- owner. Temporarily hand only REFERENCES to this migration session while U4
 -- authors its child FKs, then revoke both the object privilege and role handoff.
-grant argus_identity_owner to current_user with set true;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_identity_owner to %I with set true',current_user
+  );
+end
+$membership$;
 set local role argus_identity_owner;
 grant select on table argus_app.member_lifecycles to argus_app_owner;
 -- U6's retained worker writers invoke the U4 lifecycle-binding trigger for
@@ -373,7 +379,13 @@ begin
 end
 $$;
 reset role;
-revoke argus_identity_owner from current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_identity_owner from %I',current_user
+  );
+end
+$membership$;
 
 create table argus_app.content_report_targets (
   report_id uuid primary key,
@@ -3160,7 +3172,14 @@ comment on function argus_private.list_current_published_editorial(text,integer)
 comment on function argus_private.get_current_published_editorial(text) is
   'U4 exact current-publication lookup; unpublished slugs return no row without existence detail.';
 
-grant argus_app_owner,argus_publication_owner to current_user with set true;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'grant argus_app_owner,argus_publication_owner to %I with set true',
+    current_user
+  );
+end
+$membership$;
 grant create on schema argus_app,argus_private to argus_app_owner;
 grant create on schema argus_private to argus_publication_owner;
 
@@ -3215,8 +3234,13 @@ alter function argus_private.get_current_published_editorial(text)
 
 revoke create on schema argus_app,argus_private from argus_app_owner;
 revoke create on schema argus_private from argus_publication_owner;
-revoke argus_app_owner from current_user;
-revoke argus_publication_owner from current_user;
+do $membership$
+begin
+  execute pg_catalog.format(
+    'revoke argus_app_owner,argus_publication_owner from %I',current_user
+  );
+end
+$membership$;
 
 comment on column argus_app.onboarding_states.completed_steps is
   'U4 read-only compatibility projection; onboarding_step_completions is editable authority through the synchronization trigger.';
