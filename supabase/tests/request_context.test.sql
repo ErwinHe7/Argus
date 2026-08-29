@@ -7,7 +7,7 @@ grant argus_edge,argus_runtime,argus_identity_owner
   to current_user with set true;
 grant usage on schema extensions to argus_edge,argus_runtime,argus_identity_owner;
 
-select plan(18);
+select plan(20);
 
 insert into auth.users(
   instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
@@ -27,6 +27,30 @@ select has_function(
 select has_function(
   'argus_private','trusted_request_lifecycle_id',array[]::text[],
   'policies can read a validated lifecycle identifier'
+);
+select ok(
+  (select routine.prosrc like '%argus_private.lock_open_member_lifecycle(%'
+       and routine.prosrc !~* 'for[[:space:]]+key[[:space:]]+share'
+     from pg_proc routine
+    where routine.oid=
+      'argus_private.install_request_context(uuid,uuid,text)'::regprocedure),
+  'context installation delegates lifecycle serialization to the shared lock helper'
+);
+select ok(
+  (select routine.prosecdef
+       and owner.rolname='argus_identity_owner'
+       and 'search_path=""'=any(coalesce(routine.proconfig,array[]::text[]))
+       and routine.prosrc ~* 'for[[:space:]]+share'
+     from pg_proc routine
+     join pg_roles owner on owner.oid=routine.proowner
+    where routine.oid=
+      'argus_private.lock_open_member_lifecycle(uuid,uuid,uuid)'::regprocedure)
+  and not has_function_privilege(
+    'argus_edge',
+    'argus_private.lock_open_member_lifecycle(uuid,uuid,uuid)',
+    'execute'
+  ),
+  'identity-owned helper holds a FOR SHARE lock without exposing it to the login'
 );
 
 set local role argus_runtime;

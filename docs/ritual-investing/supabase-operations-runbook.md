@@ -107,10 +107,12 @@ Authenticated API work uses one checked-out transaction-pooler connection for
 the complete sequence: `BEGIN`, `install_request_context`, `SET LOCAL ROLE`,
 all repository statements, and `COMMIT` or `ROLLBACK`. The installer is granted
 only to the `argus_edge` login and runs before it assumes a capability. It
-derives tenant and lifecycle from the active member root, takes a transaction
-key-share lock on that lifecycle, and stores context in a random temporary
-relation owned by `argus_identity_owner` with `ON COMMIT DROP`. Policy helpers
-reject a missing, malformed, caller-owned, wrong-backend, wrong-transaction,
+derives tenant and lifecycle from the active member root, then delegates to the
+identity-owned lifecycle-lock primitive. That primitive rechecks the open
+lifecycle under `FOR SHARE`, held until request transaction completion, before
+the installer stores context in a random temporary relation owned by
+`argus_identity_owner` with `ON COMMIT DROP`. Policy helpers reject a missing,
+malformed, caller-owned, wrong-backend, wrong-transaction,
 older-than-one-minute, or closed-lifecycle context. Repositories cannot issue
 transaction/role control or release the reserved connection.
 
@@ -126,8 +128,23 @@ removes only the compatibility it replaces.
 
 Run `request_context.test.sql`, `function_security.test.sql`,
 `member_lifecycle.test.sql`, and `grants_and_rls.test.sql` together after every
-foundation change. Full AE4 stale job/callback/object/receipt/provider proof is
-not complete until U4-U6 bind those artifacts.
+foundation change. Then run the local two-session serialization proof:
+
+```sh
+ARGUS_LOCAL_DB_CONTAINER=supabase_db_argus \
+  sh supabase/tests/request_context_concurrency.test.sh
+```
+
+The harness refuses a non-loopback URL or non-`postgres` session, temporarily
+adds only postgres-grantor `SET` rows for the Edge and identity roles, and
+preserves Supabase's admin-only membership rows. It signals only after the
+owning session has acquired its row lock and verifies both orders: lifecycle
+close waits while a context transaction is open, and context installation
+waits then fails closed when lifecycle close owns the row first. Startup and
+final cleanup are fixed-subject, dependency ordered, and fail unless all role,
+policy, and fixture residue is gone. Full AE4 stale
+job/callback/object/receipt/provider proof is not complete until U4-U6 bind
+those artifacts.
 
 ## U4 application and publication boundary
 

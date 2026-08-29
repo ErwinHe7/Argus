@@ -220,6 +220,7 @@ supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
 supabase/migrations/20260829043359_u3_identity_security_foundation.sql
 supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
 supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
+supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
 supabase/seed.sql
 supabase/tests/architecture_contract.test.sql
 supabase/tests/argus_domain_model.test.sql
@@ -232,6 +233,7 @@ supabase/tests/member_lifecycle.test.sql
 supabase/tests/provider_order_commands.test.sql
 supabase/tests/queues_and_cron.test.sql
 supabase/tests/request_context.test.sql
+supabase/tests/request_context_concurrency.test.sh
 supabase/tests/schema.test.sql
 supabase/tests/storage_policies.test.sql
 supabase/tests/u10_privacy_jobs.test.sql

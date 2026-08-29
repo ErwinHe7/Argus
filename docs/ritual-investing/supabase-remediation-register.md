@@ -188,6 +188,7 @@ independent authorities.
 | `20260829043359_u3_identity_security_foundation.sql` | Immutable member lifecycle parent, derived temporary request context, narrow identity owner, use-case capability shells, exact foundation grants/RLS/functions | Identity and platform security | API reserved transaction connection; Auth provisioning trigger; no managed-schema mutation or external I/O | U3 target foundation. U4-U6 own every dependent relation binding and compatibility removal. |
 | `20260829051338_u4_normalize_argus_domains.sql` | Lifecycle-bound Argus application children; typed saved/report targets; ordered ritual, Grimoire, Circle-template, Coven and Asset Codex relations; immutable render documents; atomic domain synchronization/publication | Argus application and editorial domains | Member/editorial/public API; U3 trusted context; forced RLS; no external I/O | U4 target model. Legacy relationship columns remain fenced compatibility-only through U9; U5/U6 bridges remain explicitly owned by those units. |
 | `20260829073116_u5_strengthen_brokerage_relations.sql` | Dual-identity connection root; lifecycle/user/connection/account-qualified brokerage children; typed capabilities/projection facts; bounded provider snapshots; ordered command/recovery guards; exact brokerage capabilities | Brokerage connection, reads, orders and recovery | Member API, callback, staff diagnostics and lookup-only worker recovery; Webull; forced RLS and narrow definer commands | U5 target model. Webull remains authoritative; a dispatching command is never resubmitted, and only U6 durable-work composition remains compatible. |
+| `20260829102909_u3_serialize_request_context_lifecycle.sql` | Forward replacement of trusted context installation through the identity-owned shared lifecycle-lock primitive | Identity and platform security | API/Edge reserved request transaction; PostgreSQL row locking; security definer with empty search path and exact login-only execution | U3 correction. An installed request holds the lifecycle `FOR SHARE` lock to commit; a close that locks first makes installation wait and fail closed. |
 
 0975bf24b33bbe92871737b3f9753fa47cfda327144594893ce3e504abb9fd91  supabase/migrations/20260828054740_argus_private_baseline.sql
 420520cb742ee93fc818fc3ddccc529ae2ca050054cb4500ace2b1cc1b3258f2  supabase/migrations/20260828062806_u14_retained_repository_primitives.sql
@@ -211,6 +212,7 @@ eaf80efcc1602dc5b698486f9593d7ad53306aa1099253765cfc0c242b7221d1  supabase/migra
 cb239ca1bb49bae7a5abb8edf1faa830e26ae586e48119e5b2400402a3160720  supabase/migrations/20260828183000_u22_hosted_security_advisor_hardening.sql
 3b19d75b915e51bb6ce60293f416459f56b561304283ce4b74982308e71d1c1e  supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
 496833df482f2ca5f21a0c70282af3d704ad585f931e962b36922d9765e551f6  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
+ee8ec79518f4d2417bff5d96a84917b2f21c027583309a765fe04aa90d5c6f39  supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
 
 ## Installed object register
 

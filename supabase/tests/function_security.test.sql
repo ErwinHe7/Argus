@@ -3,12 +3,30 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
-select plan(15);
+select plan(16);
 
 select ok(
   exists(select 1 from pg_roles where rolname='argus_identity_owner'
     and not rolcanlogin and not rolsuper and not rolbypassrls),
   'identity routines have a narrow non-login, non-BYPASSRLS owner'
+);
+
+select ok(
+  not pg_has_role('postgres','argus_identity_owner','set')
+  and not has_schema_privilege('argus_identity_owner','argus_app','create')
+  and not has_schema_privilege('argus_identity_owner','argus_private','create')
+  and not exists (
+    select 1
+      from pg_auth_members membership
+      join pg_roles granted_role on granted_role.oid=membership.roleid
+      join pg_roles member_role on member_role.oid=membership.member
+      join pg_roles grantor_role on grantor_role.oid=membership.grantor
+     where granted_role.rolname='argus_identity_owner'
+       and member_role.rolname='postgres'
+       and grantor_role.rolname='postgres'
+       and (membership.set_option or membership.inherit_option)
+  ),
+  'identity owner handoff leaves no SET capability or schema-create grant'
 );
 
 select is(
@@ -127,10 +145,11 @@ select ok(
 );
 
 select ok(
-  (select prosrc like '%for key share%'
+  (select prosrc like '%argus_private.lock_open_member_lifecycle(%'
+       and prosrc !~* 'for[[:space:]]+key[[:space:]]+share'
      from pg_proc
     where oid='argus_private.install_request_context(uuid,uuid,text)'::regprocedure),
-  'context installation locks the open lifecycle through transaction completion'
+  'context installation uses the shared lifecycle lock instead of a weaker direct lock'
 );
 
 select is(
