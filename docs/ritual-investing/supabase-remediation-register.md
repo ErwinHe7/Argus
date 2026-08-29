@@ -3,10 +3,12 @@
 contract_version: supabase-remediation-register-v1
 
 This is the U1 characterization register for the Supabase-backed Ritual
-Investing product. It is evidence, not migration authority. The applied
-migrations remain immutable until U2 selects one reviewed history strategy.
-Every `redesign` or `replace` entry is therefore a later-unit obligation, not
-authorization to change production behavior in U1.
+Investing product. It remains evidence, not migration authority. U2 selected
+the forward-only strategy after U1 recorded `destructive_reset_eligible =
+false`; `supabase-migration-inventory-v1.txt` is now the sole active
+path/order/checksum authority. Every applied migration in this snapshot remains
+immutable. Every `redesign` or `replace` entry is a later-unit obligation, not
+authorization to rewrite applied history.
 
 ## Snapshot and destructive eligibility
 
@@ -23,11 +25,13 @@ authorization to change production behavior in U1.
 | Approval | No reviewed disposal approval | KTD1 safe default is forward-only remediation. |
 
 **Eligibility result: `destructive_reset_eligible = false`.** U1 does not
-mutate or inspect hosted state. U2 may replace this unknown record only with a
-dated, non-secret evidence bundle proving project identity, branch identity,
-data classification, migration checksums, recovery coverage, synthetic-only
-dependencies, and explicit approval. Any real-user activity or non-synthetic
-dependency routes to the separate retention and zero-downtime plan.
+mutate or inspect hosted state. U2 therefore locked the forward-only branch and
+did not replace this record. The clean branch remains decision logic only and
+would require a separate dated, non-secret evidence bundle proving project
+identity, branch identity, data classification, migration checksums, recovery
+coverage, synthetic-only dependencies, and explicit approval. Any real-user
+activity or non-synthetic dependency routes to the separate retention and
+zero-downtime plan.
 
 ## Exact boundary closure and owner-group metadata
 
@@ -149,12 +153,14 @@ those modules still changes the exact path manifest and fails closed.
 
 ## Migration evidence and disposition
 
-The SHA-256 lines are consumed by
-`scripts/check-supabase-architecture-contract.sh`. “Preserve evidence” means
-the file is not rewritten. The live object inventory is produced from the
-catalog by `scripts/audit-supabase-architecture.sql`, so altered, replaced, and
-overloaded objects appear in their final installed form rather than being
-mistaken for independent authorities.
+The SHA-256 lines below preserve U1's discovery snapshot. They are no longer
+consumed as an active schema authority; U2 moved that responsibility to the
+single forward-only `supabase-migration-inventory-v1.txt` manifest and its
+fail-closed checker. “Preserve evidence” means the file is not rewritten. The
+live object inventory is produced from the catalog by
+`scripts/audit-supabase-architecture.sql`, so altered, replaced, and overloaded
+objects appear in their final installed form rather than being mistaken for
+independent authorities.
 
 | Migration | Object families / replacement history | Domain owner | Downstream consumers, managed dependency and security mode | Disposition |
 |---|---|---|---|---|
@@ -352,8 +358,8 @@ owned TBDs rather than invented measurements.
 | U1-G06 | Privacy export currently relies on runtime snapshot behavior rather than immutable generation manifests. | Replace U6 per KTD12. |
 | U1-G07 | Retained repository SQL remains centralized in one large adapter. | Compose by bounded context in U7. |
 | U1-G08 | Discovery/search uses retained compatibility behavior without final indexed keyset contract. | Replace U8. |
-| U1-G09 | CLI pin 2.65.5 is below the reviewed 2.115.0 gate. | Upgrade and isolate in U2. |
-| U1-G10 | Hosted identity, counts, advisors, recovery drill and disposability are unknown. | No destructive action; U2 discovery and U9 promotion gate. |
+| U1-G09 | CLI pin 2.65.5 was below the reviewed 2.115.0 gate. | Resolved U2: CI, inventory and developer operations pin exact 2.115.0 without changing the machine-wide install. |
+| U1-G10 | Hosted identity, counts, advisors, recovery drill and disposability are unknown. | Forward-only selected U2 without hosted inspection; U9 owns fresh hosted evidence before promotion and destructive action remains forbidden. |
 | U1-G11 | Existing tests still include some migration-source assertions where catalog behavior is observable. | Keep as evidence for now; migrate to catalog/black-box coverage in U2-U6. |
 | U1-G12 | Current `media_assets.quarantine_status = clear` vocabulary can overstate structural validation. | Truthful state replacement U6; no malware-clear claim before approved scanner attestation. |
 

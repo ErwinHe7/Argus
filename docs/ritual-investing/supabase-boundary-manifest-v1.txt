@@ -12,7 +12,9 @@ docs/ritual-investing/privacy-runbook.md
 docs/ritual-investing/production-launch-gates.md
 docs/ritual-investing/site-demo-runbook.md
 docs/ritual-investing/staging-evidence-template.md
+docs/ritual-investing/supabase-migration-inventory-v1.txt
 docs/ritual-investing/supabase-operations-runbook.md
+docs/ritual-investing/supabase-schema-authoring.md
 docs/ritual-investing/webull-connect-contract.md
 docs/ritual-investing/webull-operations-runbook.md
 docs/solutions/architecture-patterns/ritual-investing-app-current-intent-and-architecture.md
@@ -165,10 +167,13 @@ scripts/check-member-provider-boundaries.sh
 scripts/check-supabase-architecture-contract.sh
 scripts/check-supabase-deploy-target.ts
 scripts/check-supabase-hosted-acceptance.sh
+scripts/check-supabase-migration-inventory.sh
 scripts/fence-supabase-deployment.sql
+scripts/render-supabase-target-manifest.sql
 scripts/test-check-demo-provider-boundaries.sh
 scripts/test-check-member-provider-boundaries.sh
 scripts/test-check-supabase-architecture-contract.sh
+scripts/test-check-supabase-migration-inventory.sh
 supabase/.gitignore
 supabase/config.toml
 supabase/functions/_shared/auth.ts

@@ -9,14 +9,20 @@ trap 'rm -rf "$fixture"' EXIT HUP INT TERM
 write_fixture() {
   rm -rf "$fixture"
   mkdir -p \
+    "$fixture/.github/workflows" \
     "$fixture/docs/ritual-investing" \
     "$fixture/scripts" \
     "$fixture/supabase/migrations" \
     "$fixture/supabase/functions/api" \
     "$fixture/supabase/tests"
 
-  printf '%s\n' 'select 1;' >"$fixture/supabase/migrations/0001_baseline.sql"
-  checksum=$(shasum -a 256 "$fixture/supabase/migrations/0001_baseline.sql" | awk '{print $1}')
+  printf '%s\n' \
+    'create extension if not exists pgcrypto with schema extensions;' \
+    'create role argus_runtime nologin;' \
+    'select 1;' \
+    >"$fixture/supabase/migrations/20260828000000_baseline.sql"
+  checksum=$(shasum -a 256 \
+    "$fixture/supabase/migrations/20260828000000_baseline.sql" | awk '{print $1}')
 
   cat >"$fixture/docs/ritual-investing/supabase-remediation-register.md" <<EOF
 # Fixture remediation register
@@ -29,9 +35,8 @@ contract_version: supabase-remediation-register-v1
 <!-- scope:supabase/tests/* -->
 <!-- scope:scripts/* -->
 <!-- scope:docs/ritual-investing/* -->
+<!-- scope:.github/workflows/ritual-investing.yml -->
 <!-- transitive:supabase/functions/api -->
-
-$checksum  supabase/migrations/0001_baseline.sql
 
 ### api ingress
 ### worker ingress
@@ -51,6 +56,38 @@ $checksum  supabase/migrations/0001_baseline.sql
 | webull-command-submit |
 | webull-command-lookup |
 EOF
+  cat >"$fixture/docs/ritual-investing/supabase-migration-inventory-v1.txt" <<EOF
+contract_version: supabase-migration-inventory-v1
+history_strategy: forward-only
+destructive_reset_eligible: false
+supabase_cli_version: 2.115.0
+schema_authority: supabase/migrations
+declarative_schema_authority: disabled
+forward_only_anchor: 20260828000000
+
+[migrations]
+$checksum  supabase/migrations/20260828000000_baseline.sql
+
+[managed-resources]
+auth|project-auth|identity|supabase-managed|00|supported configuration
+storage|private-buckets|media-privacy|migration-supported-api|10|create-or-verify
+realtime|no-argus-publication|platform|supabase-managed|10|deny-unreviewed
+extension|pgcrypto|platform|migration-supported-api|01|create-or-verify
+pgmq|argus-jobs|jobs|migration-supported-api|90|create-or-verify
+cron|argus-jobs|jobs|migration-supported-api|90|replace-by-name
+pg_net|worker-invocation|jobs|migration-supported-api|90|create-or-verify
+vault|worker-secret-names|operations|out-of-band|90|name-only
+edge|api|platform|out-of-band|90|deploy-exact-revision
+roles|argus-runtime|platform|migration-supported-api|01|create-or-verify
+
+[roles]
+argus_runtime|legacy|platform|nologin|none|none|statement=15s,idle_tx=15s
+EOF
+  cat >"$fixture/docs/ritual-investing/supabase-schema-authoring.md" <<'EOF'
+# Fixture schema-authoring contract
+
+Forward-only migrations are the sole schema authority.
+EOF
   cat >"$fixture/docs/ritual-investing/supabase-target-model-contract-v1.md" <<'EOF'
 # Fixture target model
 
@@ -67,14 +104,28 @@ EOF
 The remediation register, target model, and operations budget are promotion inputs.
 EOF
   cat >"$fixture/supabase/config.toml" <<'EOF'
+[db.migrations]
+enabled = true
+schema_paths = []
+
 [functions.api]
 verify_jwt = false
 EOF
   cat >"$fixture/supabase/functions/api/index.ts" <<'EOF'
 // Supabase-facing fixture entrypoint.
 EOF
+  cat >"$fixture/.github/workflows/ritual-investing.yml" <<'EOF'
+env:
+  SUPABASE_CLI_VERSION: 2.115.0
+EOF
+  cp "$repository_root/scripts/check-supabase-migration-inventory.sh" \
+    "$fixture/scripts/check-supabase-migration-inventory.sh"
+  cp "$repository_root/scripts/render-supabase-target-manifest.sql" \
+    "$fixture/scripts/render-supabase-target-manifest.sql"
+  chmod +x "$fixture/scripts/check-supabase-migration-inventory.sh"
   : >"$fixture/scripts/audit-supabase-architecture.sql"
-  : >"$fixture/supabase/tests/architecture_contract.test.sql"
+  printf '%s\n' 'select plan(1);' 'select ok(true);' 'select * from finish();' \
+    >"$fixture/supabase/tests/architecture_contract.test.sql"
   : >"$fixture/supabase/tests/member_lifecycle.test.sql"
   ARGUS_ARCHITECTURE_ROOT="$fixture" "$checker" --print-boundary-manifest \
     >"$fixture/docs/ritual-investing/supabase-boundary-manifest-v1.txt"

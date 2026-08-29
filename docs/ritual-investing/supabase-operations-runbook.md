@@ -9,9 +9,11 @@ database, queue, object-storage, or scheduled-compute authority.
 
 Pull requests and forks use no hosted credentials. CI starts a disposable local
 Supabase stack, runs `supabase db reset`, executes `supabase test db`, repeats
-the reset to prove replay safety, and checks/tests every Edge Function with
-Deno. Flutter, generated-client, API, admin, Demo, and static Pages checks run
-against local fixtures or the local stack. A PR must never receive
+the reset, and compares normalized replay manifests to prove exact replay
+safety. It also runs error-level lint, local security and performance advisors,
+and checks/tests every Edge Function with Deno. Flutter, generated-client, API,
+admin, Demo, and static Pages checks run against local fixtures or the local
+stack. A PR must never receive
 `SUPABASE_ACCESS_TOKEN`, a database password, a secret key, or a hosted member
 token.
 
@@ -56,6 +58,48 @@ an older backend, a second auth system, or a legacy database as rollback. Fix
 forward from the last reviewed migration or restore the Supabase project using
 the approved backup/recovery procedure.
 
+## U2 toolchain and forward-only history gate
+
+Supabase CLI `2.115.0` is pinned exactly in CI and in the migration inventory.
+Do not replace or depend on a machine-wide installation. Use an isolated binary
+or project tool cache at the exact version, then verify it before database work:
+
+```sh
+supabase --version
+scripts/check-supabase-migration-inventory.sh --check-cli
+```
+
+U1 recorded `destructive_reset_eligible = false`; forward-only history is now
+the sole selected artifact. Every applied migration through
+`20260828220113` is checksum-locked in
+`supabase-migration-inventory-v1.txt`. No clean-history SQL artifact is retained.
+The clean option is documented only as rejected decision logic in
+`supabase-schema-authoring.md` and cannot execute without a new complete
+eligibility record and separate approval.
+
+Before authoring or reviewing a migration, run:
+
+```sh
+scripts/test-check-supabase-migration-inventory.sh
+scripts/check-supabase-migration-inventory.sh --offline
+```
+
+The checker refuses an edited, missing, renamed, reordered, duplicated,
+backdated or unregistered migration; a nonempty declarative `schema_paths`; a
+second SQL schema/history directory; the wrong CI or executable CLI; a zero-plan
+pgTAP suite; or an unclassified managed-resource family, extension or custom
+role. It does not inspect a database unless an explicit URL and target-manifest
+mode are supplied. Database mode is read-only and never prints the URL or Vault
+values.
+
+CI records the normalized target after the first disposable reset and compares
+it byte-for-byte after the second. The target includes definitions, ACLs,
+function properties, roles/settings, deterministic reference data, extension
+behavior, the migration ledger, queues, schedules, buckets and Vault names.
+The temporary target is replay evidence only, not a committed schema authority.
+See `supabase-schema-authoring.md` for dependency order, role classification,
+managed-resource ownership and the append-only workflow.
+
 ## U1 architecture evidence gate
 
 Before selecting migration history or requesting hosted credentials, run:
@@ -65,13 +109,14 @@ scripts/check-supabase-architecture-contract.sh --offline
 scripts/test-check-supabase-architecture-contract.sh
 ```
 
-The remediation register binds every migration checksum. The versioned
-boundary manifest binds the exact path set of every directly detected
-Supabase-facing source surface; broad register patterns assign owner groups but
-never approve a direct file. Narrow reviewed module roots classify generated
-contracts and consumers reached through local adapters without hashing all of
-their unrelated source. The target-model contract classifies every current
-array, JSON and polymorphic relationship, and the versioned
+The U1 remediation register retains the discovery-time checksum snapshot as
+evidence; the U2 migration inventory is the sole active migration checksum
+authority. The versioned boundary manifest binds the exact path set of every
+directly detected Supabase-facing source surface; broad register patterns assign
+owner groups but never approve a direct file. Narrow reviewed module roots
+classify generated contracts and consumers reached through local adapters
+without hashing all of their unrelated source. The target-model contract
+classifies every current array, JSON and polymorphic relationship, and the versioned
 performance/operations budget owns every unmeasured release gate. Adding,
 removing, or renaming a direct boundary must make the checker fail, including a
 new Supabase-facing file inside an already-owned source tree.

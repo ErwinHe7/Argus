@@ -9,13 +9,18 @@ on:
       - "docs/ritual-investing/**"
       - "scripts/check-legacy-backend-removal.sh"
       - "scripts/check-supabase-deploy-target.ts"
+      - "scripts/check-supabase-architecture-contract.sh"
       - "scripts/check-supabase-hosted-acceptance.sh"
+      - "scripts/check-supabase-migration-inventory.sh"
       - "scripts/fence-supabase-deployment.sql"
+      - "scripts/render-supabase-target-manifest.sql"
       - "scripts/check-no-ignored-sources.sh"
       - "scripts/check-member-provider-boundaries.sh"
       - "scripts/test-check-member-provider-boundaries.sh"
       - "scripts/check-demo-provider-boundaries.sh"
       - "scripts/test-check-demo-provider-boundaries.sh"
+      - "scripts/test-check-supabase-architecture-contract.sh"
+      - "scripts/test-check-supabase-migration-inventory.sh"
   push:
     branches: [main]
     paths:
@@ -25,13 +30,18 @@ on:
       - "docs/ritual-investing/**"
       - "scripts/check-legacy-backend-removal.sh"
       - "scripts/check-supabase-deploy-target.ts"
+      - "scripts/check-supabase-architecture-contract.sh"
       - "scripts/check-supabase-hosted-acceptance.sh"
+      - "scripts/check-supabase-migration-inventory.sh"
       - "scripts/fence-supabase-deployment.sql"
+      - "scripts/render-supabase-target-manifest.sql"
       - "scripts/check-no-ignored-sources.sh"
       - "scripts/check-member-provider-boundaries.sh"
       - "scripts/test-check-member-provider-boundaries.sh"
       - "scripts/check-demo-provider-boundaries.sh"
       - "scripts/test-check-demo-provider-boundaries.sh"
+      - "scripts/test-check-supabase-architecture-contract.sh"
+      - "scripts/test-check-supabase-migration-inventory.sh"
   workflow_dispatch:
     inputs:
       run_staging:
@@ -50,7 +60,7 @@ concurrency:
 env:
   NODE_VERSION: 22.22.0
   FLUTTER_VERSION: 3.47.1
-  SUPABASE_CLI_VERSION: 2.65.5
+  SUPABASE_CLI_VERSION: 2.115.0
 
 jobs:
   source-guard:
@@ -222,17 +232,43 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Exercise fail-closed Supabase architecture and history fixtures
+        run: |
+          ./scripts/test-check-supabase-architecture-contract.sh
+          ./scripts/test-check-supabase-migration-inventory.sh
+      - name: Verify exact boundary, history, and managed-resource inventories
+        run: ./scripts/check-supabase-architecture-contract.sh --offline
       - uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Require the exact reviewed Supabase CLI
+        run: ./scripts/check-supabase-migration-inventory.sh --check-cli
       - name: Start the disposable local Supabase stack
         run: supabase start
       - name: Rebuild from the committed migration baseline
         run: supabase db reset
+      - name: Record the first normalized replay target
+        run: >-
+          ./scripts/check-supabase-migration-inventory.sh
+          --database-url postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          --print-target-manifest
+          >"$RUNNER_TEMP/supabase-replay-target-first.txt"
       - name: Prove database contracts with pgTAP
         run: supabase test db
+      - name: Fail on database lint errors
+        run: supabase db lint --local --level error --fail-on error
+      - name: Review local security advisors
+        run: supabase db advisors --local --type security --fail-on error
+      - name: Review local performance advisors
+        run: supabase db advisors --local --type performance --fail-on error
       - name: Prove a second reset is identical and replay-safe
         run: supabase db reset
+      - name: Compare the second normalized replay target exactly
+        run: >-
+          ./scripts/check-supabase-migration-inventory.sh
+          --database-url postgresql://postgres:postgres@127.0.0.1:54322/postgres
+          --compare-target-manifest
+          "$RUNNER_TEMP/supabase-replay-target-first.txt"
 
   supabase-edge:
     runs-on: ubuntu-24.04
@@ -458,6 +494,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Require the selected forward-only history and exact CLI
+        run: ./scripts/check-supabase-migration-inventory.sh --check-cli
       - name: Reject every non-exact deployment target before mutation
         run: node --experimental-strip-types scripts/check-supabase-deploy-target.ts
       - name: Fence background and provider egress before schema mutation
@@ -470,6 +508,18 @@ jobs:
         run: psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -f scripts/fence-supabase-deployment.sql
       - name: Prove hosted migration state with pgTAP
         run: supabase test db --linked
+      - name: Fail on hosted database lint errors
+        run: supabase db lint --linked --level error --fail-on error
+      - name: Fail on hosted security advisor errors
+        run: supabase db advisors --linked --type security --fail-on error
+      - name: Fail on hosted performance advisor errors
+        run: supabase db advisors --linked --type performance --fail-on error
+      - name: Record the normalized hosted target without secrets
+        run: >-
+          ./scripts/check-supabase-migration-inventory.sh
+          --database-url "$SUPABASE_DB_URL"
+          --print-target-manifest
+          >"$RUNNER_TEMP/supabase-hosted-target.txt"
       - name: Record the immutable deployment revision
         run: supabase secrets set --project-ref "$SUPABASE_PROJECT_ID" ARGUS_BUILD_REVISION="$GITHUB_SHA"
       - name: Deploy callback, worker, waitlist, then API

@@ -46,7 +46,6 @@ while test "$#" -gt 0; do
 done
 
 command -v rg >/dev/null 2>&1 || fail "ripgrep (rg) is required"
-command -v shasum >/dev/null 2>&1 || fail "shasum is required"
 command -v cmp >/dev/null 2>&1 || fail "cmp is required"
 command -v diff >/dev/null 2>&1 || fail "diff is required"
 
@@ -58,6 +57,7 @@ runbook="$architecture_root/docs/ritual-investing/supabase-operations-runbook.md
 audit_sql="$architecture_root/scripts/audit-supabase-architecture.sql"
 architecture_test="$architecture_root/supabase/tests/architecture_contract.test.sql"
 lifecycle_test="$architecture_root/supabase/tests/member_lifecycle.test.sql"
+migration_checker="$architecture_root/scripts/check-supabase-migration-inventory.sh"
 
 discover_supabase_surfaces() {
   (
@@ -103,7 +103,8 @@ for required_file in \
   "$runbook" \
   "$audit_sql" \
   "$architecture_test" \
-  "$lifecycle_test"
+  "$lifecycle_test" \
+  "$migration_checker"
 do
   test -f "$required_file" || fail "missing ${required_file#"$architecture_root"/}"
 done
@@ -120,14 +121,12 @@ rg -q '^contract_version: supabase-target-model-v1$' "$target_model" ||
 rg -q '^contract_version: supabase-performance-operations-budget-v1$' "$operations_budget" ||
   fail "performance/operations budget version is absent or changed"
 
+"$migration_checker" --offline >/dev/null
+
 migration_count=0
 for migration in "$architecture_root"/supabase/migrations/*.sql; do
   test -f "$migration" || fail "no Supabase migrations found"
   migration_count=$((migration_count + 1))
-  relative=${migration#"$architecture_root"/}
-  checksum=$(shasum -a 256 "$migration" | awk '{print $1}')
-  grep -F "$checksum  $relative" "$register" >/dev/null ||
-    fail "migration checksum or disposition missing for $relative"
 done
 test "$migration_count" -gt 0 || fail "no Supabase migrations found"
 
