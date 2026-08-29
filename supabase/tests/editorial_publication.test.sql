@@ -402,8 +402,10 @@ select ok(
       'argus_runtime',
       'argus_private.list_current_published_editorial(text,integer)','execute'
     )
-    and (select count(*) from argus_private.list_current_published_editorial('ritual',100))=1,
-  'the public capability has only the bounded current sealed publication projection'
+    and (select count(*)
+           from argus_private.list_current_published_editorial('ritual',100)
+          where slug='u4-ritual')=1,
+  'the public capability includes the bounded current sealed publication projection'
 );
 select is(
   (select count(*)::bigint

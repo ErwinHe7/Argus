@@ -98,6 +98,69 @@ function recordingPool(
   return { pool, database, queries, query, release };
 }
 
+function accountProjection(deletionEpoch: number | string = 0) {
+  return {
+    status: "active",
+    deletion_epoch: deletionEpoch,
+    profile: {
+      user_id: userA,
+      deletion_epoch: 0,
+      display_name: "Ritual Member",
+      avatar_media_id: null,
+      locale: "en-US",
+      updated_at: "2026-08-29T12:00:00.000Z",
+    },
+    preferences: {
+      user_id: userA,
+      deletion_epoch: 0,
+      theme_mode: "system",
+      ritual_mode: "tarot",
+      timezone: "America/New_York",
+      locale: "en-US",
+      version: 1,
+    },
+    onboarding: {
+      user_id: userA,
+      deletion_epoch: 0,
+      current_step: "complete",
+      completed_steps: ["profile"],
+      completed_at: "2026-08-29T12:00:00.000Z",
+      version: 1,
+    },
+    investor_profile: null,
+    astrology_profile: null,
+  };
+}
+
+function ritualProjection(
+  id = "018f3c2a-4b67-7a89-8abc-123456789021",
+) {
+  return {
+    id,
+    user_id: userA,
+    deletion_epoch: "0",
+    local_date: "2026-08-29",
+    mode: "tarot",
+    schedule_id: "018f3c2a-4b67-7a89-8abc-123456789022",
+    revision_id: "018f3c2a-4b67-7a89-8abc-123456789023",
+    rowan_revision_id: null,
+    state: "assigned",
+    revealed_at: null,
+    completed_at: null,
+    version: 1,
+    payload: {
+      title: "The Compass",
+      interpretation: "Direction, not urgency.",
+      guidance: "Compare the evidence.",
+      market_label: "Market-informed",
+      uncertainty: "Markets can change.",
+    },
+    body_template: null,
+    allowed_tokens: null,
+    risk_footer: null,
+  };
+}
+
 function privacyService(
   pool: DatabasePool,
   verifiedClaims: VerifiedRequestClaims,
@@ -122,6 +185,62 @@ function privacyService(
 }
 
 describe("Supabase transaction-pooler repository boundary", () => {
+  it("normalizes the account deletion epoch before returning the API projection", async () => {
+    const recorded = recordingPool((text) => {
+      if (
+        !text.includes("from argus_app.members member") ||
+        !text.includes("left join argus_app.profiles profile")
+      ) {
+        return { rows: [], rowCount: 0 };
+      }
+      return {
+        rows: [accountProjection("0")],
+        rowCount: 1,
+      };
+    });
+
+    const account = await createSupabaseAccountRepository(recorded.database)
+      .get();
+
+    expect(account.deletion_epoch).toBe(0);
+  });
+
+  it("creates one local-day ritual assignment on first read and reuses it", async () => {
+    const assignmentId = "018f3c2a-4b67-7a89-8abc-123456789021";
+    let assignment: Record<string, unknown> | undefined;
+    const recorded = recordingPool((text) => {
+      if (text.includes("insert into argus_app.daily_ritual_assignments")) {
+        if (assignment !== undefined) {
+          if (!text.includes("on conflict (user_id,local_date,mode) do nothing")) {
+            throw new Error("duplicate key value violates unique constraint");
+          }
+          return { rows: [], rowCount: 0 };
+        }
+        assignment = ritualProjection(assignmentId);
+        return { rows: [], rowCount: 1 };
+      }
+      if (text.includes("from argus_app.daily_ritual_assignments assignment")) {
+        return {
+          rows: assignment === undefined
+            ? []
+            : text.includes("as projection")
+              ? [{ projection: assignment }]
+              : [assignment],
+          rowCount: assignment === undefined ? 0 : 1,
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+    const rituals = createSupabaseRitualRepository(recorded.database);
+
+    const first = await rituals.getDaily("tarot");
+    const repeated = await rituals.getDaily("tarot");
+
+    expect(first?.id).toBe(assignmentId);
+    expect(first?.deletion_epoch).toBe(0);
+    expect(repeated?.id).toBe(assignmentId);
+  });
+
   it("installs only verified JWT claims inside the owning transaction", async () => {
     const recorded = recordingPool();
     const verified = claims();
@@ -667,6 +786,21 @@ describe("Supabase transaction-pooler repository boundary", () => {
           rowCount: 1,
         };
       }
+      if (
+        text.includes("from argus_app.members member") &&
+        text.includes("left join argus_app.profiles profile")
+      ) {
+        return { rows: [accountProjection()], rowCount: 1 };
+      }
+      if (
+        text.includes("from argus_app.daily_ritual_assignments assignment") &&
+        text.includes("as projection")
+      ) {
+        return {
+          rows: [{ projection: ritualProjection(genericId) }],
+          rowCount: 1,
+        };
+      }
       if (text.includes("update argus_private.media_upload_intents")) {
         return {
           rows: [
@@ -1013,6 +1147,75 @@ const supabaseDatabaseUrl = process.env.SUPABASE_DB_URL;
 describe.skipIf(supabaseDatabaseUrl === undefined)(
   "live Supabase transaction-pooler claims",
   () => {
+    it("returns numeric account data and creates one real daily assignment", async () => {
+      const integrationUser = "018f3c2a-4b67-7a89-8abc-123456789031";
+      const integrationSession = "018f3c2a-4b67-7a89-8abc-123456789032";
+      const nodePool = new pg.Pool({
+        connectionString: supabaseDatabaseUrl,
+        max: 1,
+      });
+      const client = await nodePool.connect();
+      const database: DatabaseTransaction = {
+        query: ((text: string, values?: readonly unknown[]) =>
+          client.query(text, values as unknown[] | undefined)) as DatabaseTransaction["query"],
+      };
+      try {
+        await client.query("begin");
+        await client.query(
+          `do $membership$ begin
+             execute pg_catalog.format(
+               'grant argus_edge,argus_member to %I with set true',current_user
+             );
+           end $membership$`,
+        );
+        await client.query(
+          `insert into auth.users(
+             instance_id,id,aud,role,email,raw_app_meta_data,
+             raw_user_meta_data,created_at,updated_at,is_sso_user,is_anonymous
+           ) values (
+             '00000000-0000-0000-0000-000000000000',$1,
+             'authenticated','authenticated','daily-ritual@example.test',
+             '{"provider":"email","providers":["email"]}'::jsonb,
+             '{}'::jsonb,current_timestamp,current_timestamp,false,false
+           )`,
+          [integrationUser],
+        );
+        await client.query(
+          `update argus_app.preferences
+              set timezone='America/New_York',ritual_mode='tarot'
+            where user_id=$1`,
+          [integrationUser],
+        );
+        await client.query("set local role argus_edge");
+        await client.query(
+          "select argus_private.install_request_context($1::uuid,$2::uuid,'aal1')",
+          [integrationUser, integrationSession],
+        );
+        await client.query("reset role");
+        await client.query("set local role argus_member");
+
+        const account = await createSupabaseAccountRepository(database).get();
+        const rituals = createSupabaseRitualRepository(database);
+        const first = await rituals.getDaily("tarot");
+        const repeated = await rituals.getDaily("tarot");
+
+        expect(account.deletion_epoch).toBe(0);
+        expect(first?.id).toBe(repeated?.id);
+        expect(first?.deletion_epoch).toBe(0);
+        const count = await database.query<{ total: number }>(
+          `select count(*)::integer as total
+             from argus_app.daily_ritual_assignments
+            where user_id=argus_private.trusted_request_user_id()`,
+        );
+        expect(count.rows[0]?.total).toBe(1);
+      } finally {
+        await client.query("reset role").catch(() => undefined);
+        await client.query("rollback").catch(() => undefined);
+        client.release();
+        await nodePool.end();
+      }
+    });
+
     it("scopes the request user helper to one transaction and recovers the pooled client after rollback", async () => {
       const nodePool = new pg.Pool({
         connectionString: supabaseDatabaseUrl,

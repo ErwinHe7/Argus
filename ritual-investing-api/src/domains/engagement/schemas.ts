@@ -69,7 +69,7 @@ export const privacyRequestResponseSchema = retainedEnvelope(
   "PrivacyRequestResponse",
   privacyRequestSchema,
 );
-const ritualAssignmentSchema = z.object({
+export const ritualAssignmentSchema = z.object({
   id: uuidSchema,
   user_id: uuidSchema,
   deletion_epoch: z.coerce.number().int().nonnegative(),

@@ -52,7 +52,7 @@ export const astrologyProfileSchema = z.object({
   enabled_at: z.string().datetime(),
   version: z.number().int().min(1).max(1),
 }).strict().openapi("AstrologyProfile");
-const memberAccountSchema = z.object({
+export const memberAccountSchema = z.object({
   status: z.enum([
     "active",
     "suspended",

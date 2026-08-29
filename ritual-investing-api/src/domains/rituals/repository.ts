@@ -3,12 +3,23 @@ import {
   type JsonObject,
   RepositoryRevisionConflictError,
 } from "../../db/repository-support.ts";
+import { ritualAssignmentSchema } from "../engagement/schemas.ts";
+
+type RitualProjectionRow = Readonly<{ projection: unknown }>;
+
+function assignmentProjection(row: RitualProjectionRow | undefined) {
+  return row === undefined ? null : ritualAssignmentSchema.parse(row.projection);
+}
 
 export function createSupabaseRitualRepository(
   database: DatabaseTransaction,
 ) {
-  const selectAssignment = `select assignment.*, document.document as payload,
-                  rowan.body_template, rowan.allowed_tokens, rowan.risk_footer
+  const selectAssignment = `select to_jsonb(assignment) || jsonb_build_object(
+                    'payload',document.document,
+                    'body_template',rowan.body_template,
+                    'allowed_tokens',rowan.allowed_tokens,
+                    'risk_footer',rowan.risk_footer
+                  ) as projection
              from argus_app.daily_ritual_assignments assignment
              join argus_app.editorial_revisions revision
                on revision.id = assignment.revision_id
@@ -19,31 +30,68 @@ export function createSupabaseRitualRepository(
             where assignment.user_id = (select argus_private.trusted_request_user_id())`;
   return Object.freeze({
     getDaily: async (mode?: "tarot" | "astrology") => {
-      const result = await database.query<JsonObject>(
+      await database.query(
+        `insert into argus_app.daily_ritual_assignments(
+           user_id,deletion_epoch,local_date,mode,schedule_id,revision_id,
+           rowan_revision_id,state
+         )
+         select member.user_id,member.deletion_epoch,
+                (current_timestamp at time zone preferences.timezone)::date,
+                coalesce($1::text,preferences.ritual_mode),
+                schedule.id,schedule.revision_id,null::uuid,'assigned'
+           from argus_app.members member
+           join argus_app.preferences preferences
+             on preferences.user_id=member.user_id
+           join lateral (
+             select candidate.id,candidate.revision_id
+               from argus_app.ritual_schedules candidate
+              where candidate.mode=coalesce($1::text,preferences.ritual_mode)
+                and candidate.audience='member' and candidate.state='active'
+                and candidate.local_date <=
+                  (current_timestamp at time zone preferences.timezone)::date
+                and candidate.effective_at <= current_timestamp
+              order by candidate.local_date desc,candidate.effective_at desc,
+                       candidate.id desc
+              limit 1
+           ) schedule on true
+          where member.user_id=argus_private.trusted_request_user_id()
+            and member.status='active'
+         on conflict (user_id,local_date,mode) do nothing`,
+        [mode ?? null],
+      );
+      const result = await database.query<RitualProjectionRow>(
         `${selectAssignment}
-             and ($1::text is null or assignment.mode = $1)
-            order by assignment.local_date desc, assignment.id desc
+             and assignment.local_date=(
+               select (current_timestamp at time zone preferences.timezone)::date
+                 from argus_app.preferences preferences
+                where preferences.user_id=argus_private.trusted_request_user_id()
+             )
+             and assignment.mode=coalesce($1::text,(
+               select preferences.ritual_mode
+                 from argus_app.preferences preferences
+                where preferences.user_id=argus_private.trusted_request_user_id()
+             ))
             limit 1`,
         [mode ?? null],
       );
-      return result.rows[0] ?? null;
+      return assignmentProjection(result.rows[0]);
     },
     get: async (assignmentId: string) => {
-      const result = await database.query<JsonObject>(
+      const result = await database.query<RitualProjectionRow>(
         `${selectAssignment} and assignment.id = $1`,
         [assignmentId],
       );
-      return result.rows[0] ?? null;
+      return assignmentProjection(result.rows[0]);
     },
     history: async (limit: number) =>
       (
-        await database.query<JsonObject>(
+        await database.query<RitualProjectionRow>(
           `${selectAssignment}
               order by assignment.local_date desc, assignment.id desc
               limit $1`,
           [limit],
         )
-      ).rows,
+      ).rows.map((row) => ritualAssignmentSchema.parse(row.projection)),
     evidence: async (assignmentId: string) => {
       const result = await database.query<JsonObject>(
         `select claim.*, to_jsonb(source) as source

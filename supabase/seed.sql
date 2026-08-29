@@ -72,5 +72,6 @@ insert into argus_app.editorial_items (
 )
 on conflict (id) do update set
   kind = excluded.kind,
-  slug = excluded.slug,
-  status = excluded.status;
+  slug = excluded.slug
+where editorial_items.kind is distinct from excluded.kind
+   or editorial_items.slug is distinct from excluded.slug;
