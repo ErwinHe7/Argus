@@ -294,9 +294,16 @@ create index job_runs_subject_lifecycle_idx
 alter table argus_private.consumer_receipts
   add column tenant_id uuid,
   add column lifecycle_id uuid;
+-- The retained validator requires a worker-event GUC for ordinary writes.
+-- This migration-only scope backfill is derived from the referenced event and
+-- is revalidated by the composite foreign key immediately below.
+alter table argus_private.consumer_receipts
+  disable trigger consumer_receipts_validate;
 update argus_private.consumer_receipts receipt
    set tenant_id=event.tenant_id,lifecycle_id=event.lifecycle_id
   from argus_private.outbox_events event where event.id=receipt.outbox_event_id;
+alter table argus_private.consumer_receipts
+  enable trigger consumer_receipts_validate;
 alter table argus_private.consumer_receipts
   add constraint consumer_receipts_scope_check check (
     (user_id is null and tenant_id is null and lifecycle_id is null and deletion_epoch is null)
