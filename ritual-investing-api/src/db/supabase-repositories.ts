@@ -852,6 +852,7 @@ export function createSupabaseBriefingRepository(
                 and read_state.deletion_epoch=briefing.deletion_epoch
                 and read_state.briefing_id=briefing.id
               where briefing.user_id = argus_private.request_user_id()
+                and briefing.status='ready'
                 and ($2::text is null or briefing_type=$2)
                 and ($3::date is null or period_start >= $3)
                 and ($4::date is null or period_end <= $4)
@@ -865,6 +866,7 @@ export function createSupabaseBriefingRepository(
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `${selectBriefing} and briefing.id = $1
+            and briefing.status='ready'
             group by briefing.id, read_state.read_at`,
           [id],
         );

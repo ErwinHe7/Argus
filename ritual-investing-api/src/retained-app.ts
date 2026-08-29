@@ -1193,6 +1193,32 @@ function contentNullableString(
     : null;
 }
 
+function timestampString(value: unknown): string | null {
+  if (value instanceof Date) {
+    return value.toJSON();
+  }
+  return typeof value === "string" &&
+      value.trim().length > 0 &&
+      !Number.isNaN(Date.parse(value))
+    ? value
+    : null;
+}
+
+function contentTimestamp(
+  value: Record<string, unknown>,
+  key: string,
+  fallback: string,
+): string {
+  return contentNullableTimestamp(value, key) ?? fallback;
+}
+
+function contentNullableTimestamp(
+  value: Record<string, unknown>,
+  key: string,
+): string | null {
+  return timestampString(value[key]);
+}
+
 function contentArray(value: Record<string, unknown>, key: string): unknown[] {
   const candidate = value[key];
   return Array.isArray(candidate) ? candidate : [];
@@ -1209,16 +1235,17 @@ function contentInteger(
     : fallback;
 }
 
+const EPOCH_ISO = new Date(0).toISOString();
+
 function researchDisclosure(
   observedAt: unknown,
 ): Record<string, unknown> {
-  const timestamp = typeof observedAt === "string" &&
-      !Number.isNaN(Date.parse(observedAt))
-    ? new Date(observedAt).toISOString()
-    : new Date(0).toISOString();
+  const timestamp = timestampString(observedAt);
   return {
     is_demo: false,
-    observed_at: timestamp,
+    observed_at: timestamp === null
+      ? EPOCH_ISO
+      : new Date(timestamp).toISOString(),
     source_label: "Argus editorial",
     limitations: [
       "Editorial research is informational and is not brokerage authority.",
@@ -1232,7 +1259,7 @@ function presentEvidenceSummary(value: unknown): Record<string, unknown> {
     claim_id: contentString(claim, "claim_id", contentString(claim, "id", "")),
     factor_label: contentString(claim, "factor_label", contentString(claim, "claim_type", "Research evidence")),
     summary: contentString(claim, "summary", "Evidence summary unavailable."),
-    observed_at: contentString(claim, "observed_at", new Date(0).toISOString()),
+    observed_at: contentTimestamp(claim, "observed_at", EPOCH_ISO),
     uncertainty: contentString(claim, "uncertainty", "Uncertainty not specified."),
   };
 }
@@ -1250,7 +1277,7 @@ function presentEvidenceDetail(value: unknown): Record<string, unknown> {
       title: contentString(source, "title", "Source"),
       publisher: contentString(source, "publisher", "Unknown publisher"),
       url,
-      published_at: contentNullableString(source, "published_at"),
+      published_at: contentNullableTimestamp(source, "published_at"),
     },
   };
 }
@@ -1286,11 +1313,8 @@ function presentAssetDetail(value: unknown): Record<string, unknown> {
       "limitations",
       "Review the cited evidence and current brokerage information.",
     ),
-    metrics_as_of: contentString(
-      payload,
-      "metrics_as_of",
-      contentString(asset, "revision_created_at", new Date(0).toISOString()),
-    ),
+    metrics_as_of: timestampString(payload.metrics_as_of) ??
+      timestampString(asset.revision_created_at) ?? EPOCH_ISO,
     evidence: contentArray(payload, "evidence").map(presentEvidenceSummary),
     risks: contentArray(payload, "risks").map((entry) => {
       const risk = contentRecord(entry);
@@ -1310,7 +1334,7 @@ function presentAssetMetric(value: unknown): Record<string, unknown> {
   const row = contentRecord(value);
   const metric = contentRecord(row.metric ?? value);
   return {
-    observed_at: contentString(metric, "observed_at", new Date(0).toISOString()),
+    observed_at: contentTimestamp(metric, "observed_at", EPOCH_ISO),
     price_minor: Math.max(0, contentInteger(metric, "price_minor", 0)),
     change_bps: metric.change_bps === null
       ? null
@@ -1330,17 +1354,17 @@ function presentBriefingSummary(value: unknown): Record<string, unknown> {
     briefing_type: briefing.briefing_type,
     period_start: briefing.period_start,
     period_end: briefing.period_end,
-    generated_at: contentString(
+    generated_at: contentTimestamp(
       briefing,
       "generated_at",
-      new Date(0).toISOString(),
+      EPOCH_ISO,
     ),
     generation: Math.max(1, contentInteger(briefing, "generation", 1)),
     source_sequence: Math.max(
       1,
       contentInteger(briefing, "source_sequence", 1),
     ),
-    read_at: contentNullableString(briefing, "read_at"),
+    read_at: contentNullableTimestamp(briefing, "read_at"),
   };
 }
 

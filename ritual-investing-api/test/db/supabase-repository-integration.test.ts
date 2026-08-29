@@ -473,6 +473,9 @@ describe("Supabase transaction-pooler repository boundary", () => {
     expect(reads.every(({ text }) =>
       text.includes("read_state.deletion_epoch=briefing.deletion_epoch")
     )).toBe(true);
+    expect(reads.every(({ text }) =>
+      text.includes("briefing.status='ready'")
+    )).toBe(true);
   });
 
   it("routes deletion through the action-bound Supabase definer function", async () => {

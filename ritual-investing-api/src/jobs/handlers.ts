@@ -66,13 +66,15 @@ function briefingBuilder(): JobEffect {
     await database.query(
       `insert into argus_app.briefing_sections(
          user_id,deletion_epoch,briefing_id,section_type,ordinal,payload
-       ) values ($1,$2,$3,'summary',1,$4::jsonb)
+       ) values (
+         $1,$2,$3,'summary',1,jsonb_build_object('disclosure',$4::text)
+       )
        on conflict (briefing_id,ordinal) do nothing`,
       [
         event.userId,
         event.deletionEpoch,
         event.aggregateId,
-        JSON.stringify({ disclosure: "A reflective Argus briefing, not financial advice." }),
+        "A reflective Argus briefing, not financial advice.",
       ],
     );
     const generatedType = event.eventType.replace(".requested", ".generated");

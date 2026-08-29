@@ -5,13 +5,11 @@ begin;
 -- the final rollback restores the hosted membership options.
 grant argus_runtime, argus_worker, argus_waitlist
   to current_user with set true;
-grant usage on schema extensions
-  to argus_runtime, argus_worker, argus_waitlist;
 
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(43);
+select plan(46);
 
 select ok(
   (select enabled from argus_private.kill_switches where name='background_workers'),
@@ -87,6 +85,56 @@ insert into auth.users (
 );
 insert into argus_app.members(user_id)
 values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') on conflict do nothing;
+
+insert into argus_app.briefings(
+  id,user_id,deletion_epoch,briefing_type,period_start,period_end,status
+) values (
+  'aaaaaaaa-6100-4000-8000-000000000001',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,'daily',
+  date '2098-01-01',date '2098-01-01','queued'
+);
+insert into argus_private.outbox_events(
+  id,user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
+) values (
+  'aaaaaaaa-7100-4000-8000-000000000001',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,'argus_jobs',
+  'briefing.daily.requested','aaaaaaaa-6100-4000-8000-000000000001',
+  'briefing-builder-extension-default'
+);
+set local role argus_worker;
+select is(
+  argus_private.relay_outbox(10),
+  1,
+  'briefing-builder fixture relays under the worker capability role'
+);
+select is(
+  (select count(*)::bigint from argus_private.claim_next_argus_job(45)),
+  1::bigint,
+  'briefing-builder fixture is claimed under the worker capability role'
+);
+do $$
+declare
+  run argus_private.job_runs%rowtype;
+begin
+  select * into strict run
+    from argus_private.job_runs
+   where source_event_id='aaaaaaaa-7100-4000-8000-000000000001';
+  perform argus_private.set_worker_event_context(
+    run.source_event_id,run.id,run.lease_token
+  );
+end
+$$;
+select lives_ok(
+  $$insert into argus_app.briefing_sections(
+      user_id,deletion_epoch,briefing_id,section_type,ordinal,payload
+    ) values (
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,
+      'aaaaaaaa-6100-4000-8000-000000000001','summary',1,
+      '{"disclosure":"Worker default UUID regression."}'::jsonb
+    )$$,
+  'worker can insert a briefing section through its extension-backed UUID default'
+);
+reset role;
 
 savepoint domain_tx;
 insert into argus_app.notifications(id,user_id,deletion_epoch,kind,title,body)
