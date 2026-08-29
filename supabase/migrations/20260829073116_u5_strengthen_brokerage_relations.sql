@@ -37,11 +37,11 @@ do $$
 begin
   execute pg_catalog.format(
     'grant references on table argus_app.member_lifecycles to %I',
-    session_user
+    'postgres'
   );
 end
 $$;
-reset role;
+set local role postgres;
 
 -- Row-lock authority stays with the identity capability owner.  Brokerage
 -- routines can serialize with lifecycle closure without receiving UPDATE on
@@ -5974,7 +5974,7 @@ from public,anon,authenticated,argus_runtime,argus_member,argus_callback,
      argus_staff,argus_worker,argus_brokerage_owner,postgres;
 grant execute on function argus_private.purge_member_brokerage_data(uuid)
   to postgres;
-reset role;
+set local role postgres;
 alter function argus_private.append_order_projection_scoped(
   uuid,uuid,uuid,bigint,uuid,uuid,uuid,text,numeric,text,jsonb,
   timestamptz,timestamptz,bigint
@@ -6131,7 +6131,7 @@ from argus_brokerage_owner;
 grant execute on function
   argus_private.read_trusted_request_context()
 to argus_brokerage_owner;
-reset role;
+set local role postgres;
 
 revoke create on schema argus_brokerage,argus_private
   from argus_brokerage_owner;

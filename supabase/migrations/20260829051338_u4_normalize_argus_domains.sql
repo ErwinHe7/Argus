@@ -50,7 +50,7 @@ do $$
 begin
   execute pg_catalog.format(
     'grant execute on function argus_private.read_trusted_request_context(), argus_private.trusted_request_user_id() to %I',
-    session_user
+    'postgres'
   );
 end
 $$;
@@ -71,11 +71,11 @@ do $$
 begin
   execute pg_catalog.format(
     'grant references on table argus_app.member_lifecycles to %I',
-    session_user
+    'postgres'
   );
 end
 $$;
-reset role;
+set local role postgres;
 
 create table argus_app.legacy_normalization_quarantine (
   id uuid primary key default extensions.gen_random_uuid(),
@@ -374,11 +374,11 @@ do $$
 begin
   execute pg_catalog.format(
     'revoke references on table argus_app.member_lifecycles from %I',
-    session_user
+    'postgres'
   );
 end
 $$;
-reset role;
+set local role postgres;
 do $membership$
 begin
   execute pg_catalog.format(
@@ -3151,7 +3151,7 @@ begin
       join pg_catalog.pg_roles owner on owner.oid=function_row.proowner
      where namespace.nspname='argus_private'
        and function_row.proname in ('has_staff_permission','has_live_staff_session')
-       and owner.rolname<>session_user
+       and owner.rolname<>'postgres'
   ) then
     raise exception 'u4_staff_helper_owner_mismatch' using errcode='42501';
   end if;
@@ -3204,7 +3204,7 @@ $$;
 -- exact U6 purge ACL only after the normalized relation has its final owner.
 set local role argus_app_owner;
 grant delete on argus_app.member_saved_items to postgres;
-reset role;
+set local role postgres;
 
 alter function argus_private.bind_argus_app_member_lifecycle() owner to argus_app_owner;
 alter function argus_private.sync_onboarding_step_completions() owner to argus_app_owner;

@@ -216,7 +216,7 @@ select argus_private.install_request_context(
   '10000000-0000-4000-8000-000000000098',
   '10000000-0000-4000-8000-000000000097','aal2'
 );
-reset role;
+set local role postgres;
 
 set local role argus_app_owner;
 
@@ -260,7 +260,7 @@ insert into argus_app.ritual_scenario_revision_evidence(
   )
 on conflict do nothing;
 
-reset role;
+set local role postgres;
 
 set local role argus_staff;
 select argus_private.publish_editorial_revision(
@@ -283,7 +283,7 @@ select argus_private.publish_editorial_revision(
     where revision.id='10000000-0000-4000-8000-000000000011'
       and revision.state='approved'
  );
-reset role;
+set local role postgres;
 
 do $membership$
 begin

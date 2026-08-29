@@ -41,23 +41,23 @@ do $$
 begin
   execute pg_catalog.format(
     'create policy u8_migration_quarantine_select on argus_app.legacy_normalization_quarantine for select to %I using (cohort like ''u8-%%'')',
-    session_user
+    'postgres'
   );
   execute pg_catalog.format(
     'create policy u8_migration_quarantine_insert on argus_app.legacy_normalization_quarantine for insert to %I with check (cohort like ''u8-%%'')',
-    session_user
+    'postgres'
   );
   execute pg_catalog.format(
     'create policy u8_migration_quarantine_update on argus_app.legacy_normalization_quarantine for update to %I using (cohort like ''u8-%%'') with check (cohort like ''u8-%%'')',
-    session_user
+    'postgres'
   );
   execute pg_catalog.format(
     'grant select,insert,update on table argus_app.legacy_normalization_quarantine to %I',
-    session_user
+    'postgres'
   );
 end
 $$;
-reset role;
+set local role postgres;
 
 alter table argus_app.briefings
   add column generation integer,
@@ -462,7 +462,7 @@ create index provider_commands_u8_admin_diagnostics_idx
   on argus_private.provider_commands(updated_at desc,id desc);
 create index reconciliation_records_u8_admin_diagnostics_idx
   on argus_private.reconciliation_records(updated_at desc,id desc);
-reset role;
+set local role postgres;
 revoke create on schema argus_brokerage,argus_private
   from argus_brokerage_owner;
 do $membership$
@@ -1655,11 +1655,11 @@ do $$
 begin
   execute pg_catalog.format(
     'revoke select,insert,update on table argus_app.legacy_normalization_quarantine from %I',
-    session_user
+    'postgres'
   );
 end
 $$;
-reset role;
+set local role postgres;
 revoke create on schema argus_private,argus_app from argus_app_owner;
 do $membership$
 begin

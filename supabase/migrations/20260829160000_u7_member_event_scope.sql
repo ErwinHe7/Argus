@@ -103,7 +103,7 @@ begin
 end
 $$;
 
-reset role;
+set local role postgres;
 set local role argus_brokerage_owner;
 
 create or replace function argus_private.record_provider_command_dispatch_outcome(
@@ -199,7 +199,7 @@ begin
 end
 $$;
 
-reset role;
+set local role postgres;
 
 comment on function argus_private.create_content_report(text,uuid,text,text) is
   'Creates one typed content report and atomically emits its lifecycle-scoped registered event.';
@@ -299,7 +299,7 @@ from public,anon,authenticated,argus_runtime,argus_member,argus_staff,
   argus_callback,argus_worker,postgres;
 grant execute on function argus_private.coordinate_webull_recovery(integer)
   to postgres;
-reset role;
+set local role postgres;
 
 revoke create on schema argus_private
   from argus_app_owner,argus_brokerage_owner;

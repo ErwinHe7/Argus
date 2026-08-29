@@ -113,7 +113,7 @@ grant execute on function argus_private.install_request_context(uuid,uuid,text)
 comment on function argus_private.install_request_context(uuid,uuid,text) is
   'Trusted login-only context installer; derives lifecycle and holds the shared lifecycle lock until transaction completion.';
 
-reset role;
+set local role postgres;
 revoke create on schema argus_private from argus_identity_owner;
 do $membership$
 begin

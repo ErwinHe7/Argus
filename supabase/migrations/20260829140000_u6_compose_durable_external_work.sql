@@ -4573,7 +4573,7 @@ $membership$;
 set local role argus_brokerage_owner;
 revoke execute on function argus_private.purge_member_brokerage_data(uuid) from postgres;
 grant execute on function argus_private.purge_member_brokerage_data(uuid) to argus_jobs_owner;
-reset role;
+set local role postgres;
 do $membership$
 begin
   execute pg_catalog.format(
