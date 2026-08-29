@@ -3,13 +3,13 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_runtime, argus_worker, argus_waitlist
+grant argus_edge, argus_member, argus_runtime, argus_worker, argus_waitlist
   to current_user with set true;
 grant usage on schema extensions
-  to argus_runtime, argus_worker, argus_waitlist;
+  to argus_edge, argus_member, argus_runtime, argus_worker, argus_waitlist;
 
 create extension if not exists pgtap with schema extensions;
-grant usage on schema extensions to argus_runtime;
+grant usage on schema extensions to argus_member,argus_runtime;
 set local search_path = extensions, pg_catalog, public;
 
 select plan(30);
@@ -79,29 +79,37 @@ select is(
 
 insert into argus_private.staff_principals (
   user_id, permissions, display_label
-) values (
-  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  array['editorial:read','privacy:read','privacy:write','operations:read','operations:write'],
-  'U14 operator'
-);
-insert into auth.sessions(id,user_id,created_at,updated_at) values (
-  'eeeeeeee-0000-4000-8000-000000000001',
-  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',now(),now()
-);
+) values
+  ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+   array['editorial:read','privacy:read','privacy:write','operations:read','operations:write'],
+   'U14 operator'),
+  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+   array['editorial:read'],'U14 fixture author');
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+  ('dddddddd-0000-4000-8000-000000000001',
+   'dddddddd-dddd-4ddd-8ddd-dddddddddddd',now(),now()),
+  ('eeeeeeee-0000-4000-8000-000000000001',
+   'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',now(),now());
 insert into argus_app.editorial_items (id, kind, slug, status) values
   ('dddddddd-1000-4000-8000-000000000001', 'ritual', 'u14-published', 'published'),
   ('dddddddd-1000-4000-8000-000000000002', 'ritual', 'u14-draft', 'draft');
 
 set local role argus_runtime;
-select is(
-  (select count(*)::bigint from argus_app.editorial_items where slug = 'u14-published'),
-  1::bigint,
-  'anonymous runtime transaction can read published editorial state'
+select ok(
+  has_function_privilege(
+    'argus_runtime',
+    'argus_private.get_current_published_editorial(text)',
+    'execute'
+  ),
+  'anonymous runtime transaction can execute the bounded publication lookup'
 );
-select is(
-  (select count(*)::bigint from argus_app.editorial_items where slug = 'u14-draft'),
-  0::bigint,
-  'anonymous runtime transaction cannot read draft editorial state'
+select ok(
+  not has_table_privilege(
+    'argus_runtime',
+    'argus_app.editorial_items',
+    'select'
+  ),
+  'anonymous runtime transaction cannot bypass the publication lookup with direct table reads'
 );
 reset role;
 
@@ -162,11 +170,11 @@ insert into argus_app.ritual_scenarios (
   ('dddddddd-5800-4000-8000-000000000001', 'dddddddd-5200-4000-8000-000000000007', 'u14_published', 'tarot', 'daily'),
   ('dddddddd-5800-4000-8000-000000000002', 'dddddddd-5200-4000-8000-000000000008', 'u14_draft', 'tarot', 'daily');
 insert into argus_app.ritual_scenario_revisions (
-  revision_id, title, interpretation, guidance, market_label,
+  editorial_item_id, revision_id, title, interpretation, guidance, market_label,
   observation_at, uncertainty
 ) values
-  ('dddddddd-5300-4000-8000-000000000007', 'Published', 'Published', 'Published', 'Published', now(), 'low'),
-  ('dddddddd-5300-4000-8000-000000000008', 'Draft', 'Draft', 'Draft', 'Draft', now(), 'low');
+  ('dddddddd-5200-4000-8000-000000000007', 'dddddddd-5300-4000-8000-000000000007', 'Published', 'Published', 'Published', 'Published', now(), 'low'),
+  ('dddddddd-5200-4000-8000-000000000008', 'dddddddd-5300-4000-8000-000000000008', 'Draft', 'Draft', 'Draft', 'Draft', now(), 'low');
 insert into argus_app.rowan_scripts (
   id, editorial_item_id, script_key, surface
 ) values
@@ -183,14 +191,13 @@ insert into argus_app.rowan_context_bindings (
   ('dddddddd-5a00-4000-8000-000000000001', 'daily_ritual', 'daily', 'dddddddd-5900-4000-8000-000000000001', 1),
   ('dddddddd-5a00-4000-8000-000000000002', 'daily_ritual', 'draft', 'dddddddd-5900-4000-8000-000000000002', 1);
 
-set local role argus_runtime;
-do $$ begin
-  perform argus_private.set_request_context(
+set local role argus_edge;
+select argus_private.install_request_context(
     'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
     'dddddddd-0000-4000-8000-000000000001',
     'aal1'
-  );
-end $$;
+);
+set local role argus_member;
 select is(
   (select count(*)::bigint from argus_app.evidence_sources where id::text like 'dddddddd-5000-%'),
   1::bigint,
@@ -279,20 +286,17 @@ insert into argus_private.job_runs (
 insert into argus_private.staff_step_up_receipts(
   user_id,session_id,action,target_id,receipt_hash,expires_at
 ) values (
-  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  'eeeeeeee-0000-4000-8000-000000000001','admin_job_retry',
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  'dddddddd-0000-4000-8000-000000000001','admin_job_retry',
   'dddddddd-3000-4000-8000-000000000001',repeat('9',64),
   now()+interval '5 minutes'
 );
 
 set local role argus_runtime;
-do $$ begin
-  perform argus_private.set_request_context(
-    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-    'eeeeeeee-0000-4000-8000-000000000001',
-    'aal2'
-  );
-end $$;
+select argus_private.set_request_context(
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  'dddddddd-0000-4000-8000-000000000001','aal2'
+);
 select is(
   (select count(*)::bigint from argus_app.privacy_requests where id = 'dddddddd-2000-4000-8000-000000000001'),
   1::bigint,
@@ -307,7 +311,7 @@ select ok(
   argus_private.request_admin_job_retry(
     'dddddddd-3000-4000-8000-000000000001',
     'u14-job-retry-01',repeat('9',64),
-    'eeeeeeee-0000-4000-8000-000000000001'
+    'dddddddd-0000-4000-8000-000000000001'
   ) is not null,
   'operations write permission atomically creates a retry request'
 );
@@ -320,16 +324,14 @@ reset role;
 
 update argus_private.staff_principals
    set status = 'revoked', revoked_at = now(), revocation_epoch = revocation_epoch + 1
- where user_id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
+ where user_id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 
+reset role;
 set local role argus_runtime;
-do $$ begin
-  perform argus_private.set_request_context(
-    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-    'eeeeeeee-0000-4000-8000-000000000001',
-    'aal2'
-  );
-end $$;
+select argus_private.set_request_context(
+  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+  'dddddddd-0000-4000-8000-000000000001','aal2'
+);
 select is(
   (select count(*)::bigint from argus_private.job_runs where id = 'dddddddd-3000-4000-8000-000000000001'),
   0::bigint,
@@ -339,7 +341,7 @@ select throws_ok(
   $$select argus_private.request_admin_job_retry(
       'dddddddd-3000-4000-8000-000000000001',
       'u14-job-retry-revoked',repeat('8',64),
-      'eeeeeeee-0000-4000-8000-000000000001'
+      'dddddddd-0000-4000-8000-000000000001'
     )$$,
   '42501',
   'step_up_required',
@@ -389,14 +391,7 @@ insert into argus_app.daily_ritual_assignments (
   'assigned'
 );
 
-set local role argus_runtime;
-do $$ begin
-  perform argus_private.set_request_context(
-    'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-    'dddddddd-0000-4000-8000-000000000001',
-    'aal1'
-  );
-end $$;
+set local role argus_member;
 with changed as (
   update argus_app.daily_ritual_assignments
      set state = 'revealed', version = version + 1

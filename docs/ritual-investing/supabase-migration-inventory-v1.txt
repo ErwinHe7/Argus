@@ -29,6 +29,7 @@ eaf80efcc1602dc5b698486f9593d7ad53306aa1099253765cfc0c242b7221d1  supabase/migra
 cb239ca1bb49bae7a5abb8edf1faa830e26ae586e48119e5b2400402a3160720  supabase/migrations/20260828183000_u22_hosted_security_advisor_hardening.sql
 3b19d75b915e51bb6ce60293f416459f56b561304283ce4b74982308e71d1c1e  supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
 5173ba43c5d7348bc4dd2da07b3cd96ca55cc225e75d3cdd1707ce33ad20143f  supabase/migrations/20260829043359_u3_identity_security_foundation.sql
+75db53a7b0c7b806d00c315cf5607a132a28da7d6de5994ae66b716c9d0ec9b6  supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
 
 [managed-resources]
 auth|project-auth|identity|supabase-managed|20|supported-configuration-and-admin-api
@@ -62,7 +63,9 @@ edge|waitlist|waitlist|out-of-band|90|deploy-exact-revision
 roles|argus-capability-and-login-roles|platform|migration-supported-api|01|create-with-null-password-then-provision-login-out-of-band
 
 [roles]
+argus_app_owner|non-login-owner|application|nologin|none|owned=u4-normalized-argus-relations-and-domain-commands,grants=exact-dependent-actions|none
 argus_identity_owner|non-login-owner|identity|nologin|none|owned=member-lifecycle-table-and-foundation-routines,grants=identity-provision-only|none
+argus_publication_owner|non-login-owner|publication|nologin|none|owned=two-bounded-current-publication-functions,grants=select-item-revision-render-only|none
 argus_member|capability|identity|nologin|none|owned=none,grants=current-lifecycle-read-foundation|statement=15s,lock=3s,idle_tx=15s
 argus_staff|capability|staff|nologin|none|owned=none,grants=current-lifecycle-read-foundation|statement=15s,lock=3s,idle_tx=15s
 argus_callback|capability|brokerage|nologin|none|owned=none,grants=none-until-u5-binding|statement=15s,lock=3s,idle_tx=15s

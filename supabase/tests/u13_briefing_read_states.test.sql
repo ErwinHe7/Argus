@@ -3,10 +3,12 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_runtime, argus_worker, argus_waitlist
+grant argus_edge, argus_identity_owner, argus_member, argus_runtime,
+  argus_worker, argus_waitlist
   to current_user with set true;
 grant usage on schema extensions
-  to argus_runtime, argus_worker, argus_waitlist;
+  to argus_edge, argus_identity_owner, argus_member, argus_runtime,
+     argus_worker, argus_waitlist;
 
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
@@ -36,11 +38,15 @@ select ok(
   'briefing read state forces RLS for its owner'
 );
 select ok(
-  has_table_privilege('argus_runtime','argus_app.briefing_read_states','select')
-  and has_table_privilege('argus_runtime','argus_app.briefing_read_states','insert')
-  and has_table_privilege('argus_runtime','argus_app.briefing_read_states','update')
-  and has_table_privilege('argus_runtime','argus_app.briefing_read_states','delete'),
-  'only the Edge runtime receives the required read-state mutations'
+  has_table_privilege('argus_member','argus_app.briefing_read_states','select')
+  and has_table_privilege('argus_member','argus_app.briefing_read_states','insert')
+  and has_table_privilege('argus_member','argus_app.briefing_read_states','update')
+  and has_table_privilege('argus_member','argus_app.briefing_read_states','delete')
+  and not has_table_privilege('argus_runtime','argus_app.briefing_read_states','select')
+  and not has_table_privilege('argus_runtime','argus_app.briefing_read_states','insert')
+  and not has_table_privilege('argus_runtime','argus_app.briefing_read_states','update')
+  and not has_table_privilege('argus_runtime','argus_app.briefing_read_states','delete'),
+  'only the lifecycle-bound member capability receives read-state mutations'
 );
 select is(
   (select count(*)::bigint from information_schema.role_table_grants
@@ -57,20 +63,32 @@ insert into auth.users (
 ) values
   ('00000000-0000-0000-0000-000000000000','13131313-1313-4313-8313-131313131313','authenticated','authenticated','briefing-a@example.test','',now(),'{}','{}',now(),now()),
   ('00000000-0000-0000-0000-000000000000','23232323-2323-4232-8232-232323232323','authenticated','authenticated','briefing-b@example.test','',now(),'{}','{}',now(),now());
+insert into auth.sessions(id,user_id,created_at,updated_at) values
+  ('13131313-0000-4000-8000-000000000001','13131313-1313-4313-8313-131313131313',now(),now()),
+  ('23232323-0000-4000-8000-000000000001','23232323-2323-4232-8232-232323232323',now(),now());
 
 insert into argus_app.briefings (
   id,user_id,deletion_epoch,briefing_type,period_start,period_end,status,generated_at
+) values
+  ('13131313-1000-4000-8000-000000000001',
+   '13131313-1313-4313-8313-131313131313',0,
+   'daily','2026-08-28','2026-08-28','ready',now()),
+  ('23232323-1000-4000-8000-000000000001',
+   '23232323-2323-4232-8232-232323232323',0,
+   'daily','2026-08-28','2026-08-28','ready',now());
+insert into argus_app.briefing_read_states(
+  user_id,deletion_epoch,briefing_id,read_at
 ) values (
-  '13131313-1000-4000-8000-000000000001',
-  '13131313-1313-4313-8313-131313131313',0,
-  'daily','2026-08-28','2026-08-28','ready',now()
+  '23232323-2323-4232-8232-232323232323',0,
+  '23232323-1000-4000-8000-000000000001',clock_timestamp()
 );
 
-set local role argus_runtime;
-select argus_private.set_request_context(
+set local role argus_edge;
+select argus_private.install_request_context(
   '13131313-1313-4313-8313-131313131313',
   '13131313-0000-4000-8000-000000000001','aal1'
 );
+set local role argus_member;
 select lives_ok(
   $$insert into argus_app.briefing_read_states(
       user_id,deletion_epoch,briefing_id,read_at
@@ -85,23 +103,20 @@ select is(
   'the owner can read their persisted marker'
 );
 
-select argus_private.set_request_context(
-  '23232323-2323-4232-8232-232323232323',
-  '23232323-0000-4000-8000-000000000001','aal1'
-);
 select is(
-  (select count(*)::bigint from argus_app.briefing_read_states),0::bigint,
-  'another member cannot enumerate briefing read state'
+  (select count(*)::bigint from argus_app.briefing_read_states
+    where user_id='23232323-2323-4232-8232-232323232323'),0::bigint,
+  'the owner cannot enumerate another member briefing read state'
 );
 select throws_ok(
   $$insert into argus_app.briefing_read_states(
       user_id,deletion_epoch,briefing_id,read_at
     ) values (
-      '13131313-1313-4313-8313-131313131313',0,
-      '13131313-1000-4000-8000-000000000001',clock_timestamp()
+      '23232323-2323-4232-8232-232323232323',0,
+      '23232323-1000-4000-8000-000000000001',clock_timestamp()
     ) on conflict (user_id,briefing_id) do update set read_at=excluded.read_at$$,
-  'P0001','member_deletion_epoch_mismatch',
-  'another member cannot overwrite the owner read marker'
+  '28000','inactive_member_lifecycle',
+  'the owner cannot overwrite another member read marker'
 );
 reset role;
 
@@ -109,20 +124,26 @@ update argus_app.members
    set status='deletion_pending',deletion_epoch=1,deletion_requested_at=now()
  where user_id='13131313-1313-4313-8313-131313131313';
 
-set local role argus_runtime;
-select argus_private.set_request_context(
-  '13131313-1313-4313-8313-131313131313',
-  '13131313-0000-4000-8000-000000000001','aal1'
-);
-select is(
-  (select count(*)::bigint from argus_app.briefing_read_states),0::bigint,
-  'deletion fencing hides the stale read marker'
-);
-select is(
-  (select count(*)::bigint from argus_app.briefings),0::bigint,
-  'deletion fencing also hides the stale generated briefing'
+set local role argus_identity_owner;
+select argus_private.close_member_lifecycle(
+  (select lifecycle_id from argus_app.members
+    where user_id='13131313-1313-4313-8313-131313131313'),
+  'u13-briefing-close'
 );
 reset role;
+set local role argus_member;
+select is(
+  (select count(*)::bigint from argus_app.briefing_read_states),
+  0::bigint,
+  'a closed lifecycle invalidates the already-issued briefing context'
+);
+reset role;
+select is(
+  (select state from argus_app.member_lifecycles
+    where identity_subject_id='13131313-1313-4313-8313-131313131313'),
+  'closed',
+  'the deletion transition closes the immutable lifecycle parent'
+);
 
 select is(
   (select count(*)::bigint from argus_app.briefing_read_states

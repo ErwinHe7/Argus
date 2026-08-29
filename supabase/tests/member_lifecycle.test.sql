@@ -3,8 +3,10 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
-grant argus_runtime to current_user with set true;
-grant usage on schema extensions to argus_runtime;
+grant argus_edge,argus_member,argus_identity_owner
+  to current_user with set true;
+grant usage on schema extensions
+  to argus_edge,argus_member,argus_identity_owner;
 
 select plan(17);
 
@@ -67,49 +69,65 @@ select is((select count(*)::bigint from pg_class relation
     and (not relation.relrowsecurity or not relation.relforcerowsecurity)),
   0::bigint,'every current member/epoch relation forces RLS');
 
-set local role argus_runtime;
-select argus_private.set_request_context(
+set local role argus_edge;
+select argus_private.install_request_context(
   'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   'dddddddd-0000-4000-8000-000000000001','aal1');
+reset role;
+set local role argus_member;
 select is((select count(*)::bigint from argus_app.profiles),1::bigint,
   'the current owner can read current-epoch state');
 reset role;
 
-update argus_app.members set deletion_epoch=1
- where user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+set local role argus_identity_owner;
+select argus_private.close_member_lifecycle(
+  (select id from argus_app.member_lifecycles
+    where identity_subject_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  'u4-lifecycle-test');
+reset role;
 
 select is(
   (select lifecycle_id from argus_app.members
     where user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
   (select id from argus_app.member_lifecycles
     where identity_subject_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
-  'legacy epoch transitions cannot replace the immutable lifecycle identity'
+  'closing a lifecycle cannot replace its immutable identity'
 );
 
-set local role argus_runtime;
-select argus_private.set_request_context(
-  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-  'dddddddd-0000-4000-8000-000000000001','aal1');
-select todo_start('U3 must make old-lifecycle reads invisible, not only reject writes');
+set local role argus_member;
 select is((select count(*)::bigint from argus_app.profiles),0::bigint,
-  'an old lifecycle cannot read rows from its closed epoch');
-select todo_end();
+  'a closed lifecycle cannot read its U4 application rows');
+update argus_app.profiles set display_name='stale write';
+reset role;
+select isnt(
+  (select display_name from argus_app.profiles
+    where user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  'stale write',
+  'a closed lifecycle cannot update its U4 application rows'
+);
+set local role argus_member;
 select throws_ok(
-  $$update argus_app.profiles set display_name='stale write'$$,
-  'P0001','member_deletion_epoch_mismatch',
-  'the current trigger rejects a stale-epoch write');
-select lives_ok(
   $$insert into argus_app.preferences(user_id,deletion_epoch)
-    values ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',1)
-    on conflict (user_id) do update
-      set deletion_epoch=excluded.deletion_epoch$$,
-  'the current epoch can create new state');
+    values ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',0)
+    on conflict (user_id) do update set deletion_epoch=excluded.deletion_epoch$$,
+  '28000','inactive_member_lifecycle',
+  'a closed lifecycle cannot insert or upsert U4 application rows');
 reset role;
 
-set local role argus_runtime;
-select argus_private.set_request_context(
-  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
-  'eeeeeeee-0000-4000-8000-000000000001','aal1');
+set local role argus_identity_owner;
+do $$
+declare context_relation text:=current_setting('argus.request_context_relation');
+begin
+  execute format(
+    'update pg_temp.%I set user_id=$1,tenant_id=$1,lifecycle_id=$2,installed_at=clock_timestamp()',
+    context_relation
+  ) using
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'::uuid,
+    (select lifecycle_id from argus_app.members
+      where user_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee');
+end $$;
+reset role;
+set local role argus_member;
 select is((select count(*)::bigint from argus_app.preferences
   where user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),0::bigint,
   'another member cannot observe current-lifecycle state');

@@ -23,7 +23,11 @@ export type DatabasePool = {
   end(): Promise<void>;
 };
 
-export type DatabaseCapabilityRole = "argus_runtime" | "argus_waitlist";
+export type DatabaseCapabilityRole =
+  | "argus_runtime"
+  | "argus_member"
+  | "argus_staff"
+  | "argus_waitlist";
 
 function executableSql(text: string): string {
   let sql = text.trimStart();

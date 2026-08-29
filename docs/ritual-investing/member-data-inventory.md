@@ -1,6 +1,6 @@
 # Argus member data and authority inventory
 
-Status date: 2026-08-28
+Status date: 2026-08-29
 
 This is the U1 migration authority for the member app, admin app, API, background work, site, and standalone Demo. It classifies the synthetic migration baseline; it is not evidence that the later Supabase or Webull implementation units are complete.
 
@@ -30,6 +30,31 @@ Brokerage projections contain normalized facts plus provider-observation availab
 
 Supabase Auth and Webull authorization are independent lifecycles. Account deletion revokes the current Supabase session, generation-fences callbacks and jobs, destroys local provider credentials, purges Argus-owned data and private Storage, and deletes the Auth identity last. It never claims to close a Webull account or cancel a Webull order.
 
+## U4 application-data cutover
+
+Argus profiles, preferences, onboarding, consent, notification preferences,
+ritual assignments, Circles, intentions/Future Mirror, briefings, saved items,
+notifications, and content reports now carry `(tenant_id,lifecycle_id)` keys
+bound to the U3 lifecycle parent. Member and editorial requests use the narrow
+`argus_member` and `argus_staff` capabilities; owner and lifecycle values come
+only from trusted request context.
+
+The editable relationship authorities are the U4 typed/ordered relations
+listed below. Published presentation bytes live only in immutable, versioned,
+hashed `editorial_render_documents`. Legacy arrays and polymorphic columns are
+compatibility projections retained through U9 and fenced from independent
+mutation. Retained runtime publication access is limited to two bounded
+current-publication functions owned by the exact NOLOGIN
+`argus_publication_owner`; the runtime has no direct publication-table grant.
+The explicit U6 member-idempotency transaction seam remains for onboarding
+finalization and creation of intentions/Future Mirror runs. Brokerage/callback
+compatibility remains U5; queues, jobs, receipts,
+Storage, privacy artifacts, and private durable work remain U6.
+The U6 bridge additionally grants the worker read-only resolution of open
+lifecycle parents for the U4 binding trigger and grants the existing private
+purge definer DELETE-only access to `member_saved_items`; neither bridge grants
+member-facing reads or writes.
+
 ## Machine-checkable current-surface inventory
 
 Each surface below appears exactly once. The contract test derives current tables, API domains, queue handlers, and generated API routes from the repository and rejects missing or duplicate classifications.
@@ -45,6 +70,8 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:aggregate_consumer_watermarks` | retained-argus | Supabase private worker state |
 | `database-table:asset_codex_entries` | retained-argus | Argus editorial data in Supabase |
 | `database-table:asset_codex_evidence` | retained-argus | Argus editorial data in Supabase |
+| `database-table:asset_codex_revision_evidence` | retained-argus | Ordered, revision-qualified Asset Codex evidence authority |
+| `database-table:asset_codex_revision_metrics` | retained-argus | Typed, ordered Asset Codex metric authority |
 | `database-table:asset_codex_revisions` | retained-argus | Argus editorial data in Supabase |
 | `database-table:asset_codex_risks` | retained-argus | Argus editorial data in Supabase |
 | `database-table:asset_metric_snapshots` | retained-argus | Argus evidence data in Supabase |
@@ -63,10 +90,12 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:circle_templates` | retained-argus | Argus editorial data in Supabase |
 | `database-table:circles` | retained-argus | Argus community data in Supabase |
 | `database-table:companies` | retained-argus | Argus editorial evidence in Supabase |
+| `database-table:community_template_revision_assets` | retained-argus | Ordered, revision-qualified Circle-template asset authority |
 | `database-table:community_templates` | retained-argus | Argus community templates in Supabase |
 | `database-table:connections` | replaced-webull | Fenced Webull connection lifecycle |
 | `database-table:consent_records` | retained-argus | Argus privacy state in Supabase |
 | `database-table:consumer_receipts` | retained-argus | Supabase private worker idempotency |
+| `database-table:content_report_targets` | retained-argus | Typed published-content targets for member reports |
 | `database-table:content_reports` | retained-argus | Argus moderation state in Supabase |
 | `database-table:coven_entries` | retained-argus | Argus editorial data in Supabase |
 | `database-table:coven_entry_revisions` | retained-argus | Argus editorial data in Supabase |
@@ -88,6 +117,8 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:dead_letter_events` | retained-argus | Supabase private bounded job failure evidence |
 | `database-table:device_installations` | retained-argus | Argus notification/privacy state in Supabase |
 | `database-table:editorial_items` | retained-argus | Argus editorial workflow in Supabase |
+| `database-table:editorial_render_documents` | retained-argus | Immutable versioned historical rendering documents |
+| `database-table:editorial_revision_assets` | retained-argus | Ordered editorial revision asset relationships |
 | `database-table:editorial_review_decisions` | retained-argus | Argus editorial workflow in Supabase |
 | `database-table:editorial_review_requests` | retained-argus | Argus editorial workflow in Supabase |
 | `database-table:editorial_revisions` | retained-argus | Argus editorial workflow in Supabase |
@@ -107,18 +138,23 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:job_runs` | retained-argus | Supabase private job operations |
 | `database-table:kill_switches` | retained-argus | Supabase private deployment and provider fences |
 | `database-table:ledger_transactions` | replaced-webull | Remove Argus brokerage ledger |
+| `database-table:legacy_normalization_identity_map` | retained-argus | U4 source-to-target parity and bijection evidence |
+| `database-table:legacy_normalization_quarantine` | retained-argus | U4 malformed legacy cohort quarantine |
 | `database-table:media_assets` | retained-argus | Argus metadata plus private Supabase Storage |
 | `database-table:media_upload_intents` | retained-argus | Argus private upload state in Supabase |
 | `database-table:member_command_receipts` | retained-argus | Supabase private command idempotency |
 | `database-table:member_idempotency_records` | retained-argus | Supabase private API idempotency |
 | `database-table:member_lifecycles` | retained-argus | Immutable Supabase identity lifecycle and deletion-recreation fence |
+| `database-table:member_saved_items` | retained-argus | Lifecycle-bound typed saved-content authority |
 | `database-table:members` | retained-argus | Supabase Auth member ownership root |
 | `database-table:moderation_case_decisions` | retained-argus | Argus moderation state in Supabase |
 | `database-table:moderation_cases` | retained-argus | Argus moderation state in Supabase |
 | `database-table:notification_deliveries` | retained-argus | Argus notification state in Supabase |
 | `database-table:notification_preferences` | retained-argus | Argus preference state in Supabase |
+| `database-table:notification_quiet_hours` | retained-argus | Typed member quiet-hours authority |
 | `database-table:notifications` | retained-argus | Argus notification state in Supabase |
 | `database-table:onboarding_finalization_commands` | retained-argus | Argus onboarding state in Supabase |
+| `database-table:onboarding_step_completions` | retained-argus | Ordered lifecycle-bound onboarding completion authority |
 | `database-table:onboarding_states` | retained-argus | Argus onboarding state in Supabase |
 | `database-table:order_previews` | replaced-webull | Replace simulated preview with capability-bound provider preview |
 | `database-table:oauth_states` | replaced-webull | One-use Webull OAuth state fencing |
@@ -154,6 +190,8 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:ritual_private.schema_contract_versions` | retained-argus | Supabase private contract state |
 | `database-table:ritual_scenario_evidence` | retained-argus | Argus ritual evidence in Supabase |
 | `database-table:ritual_scenario_ideas` | retained-argus | Argus ritual editorial data in Supabase |
+| `database-table:ritual_scenario_revision_assets` | retained-argus | Ordered, revision-qualified ritual asset authority |
+| `database-table:ritual_scenario_revision_evidence` | retained-argus | Ordered, revision-qualified ritual evidence authority |
 | `database-table:ritual_scenario_revisions` | retained-argus | Argus ritual editorial data in Supabase |
 | `database-table:ritual_scenarios` | retained-argus | Argus ritual editorial data in Supabase |
 | `database-table:ritual_schedules` | retained-argus | Argus editorial schedule in Supabase |

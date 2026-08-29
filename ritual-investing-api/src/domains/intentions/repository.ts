@@ -5,7 +5,10 @@ import {
   RepositoryRevisionConflictError,
   type SupabaseRepositoryBinding,
 } from "../../db/supabase-repositories.ts";
-import { withRequestTransaction } from "../../db/request-transaction.ts";
+import {
+  withMemberRequestTransaction,
+  withRequestTransaction,
+} from "../../db/request-transaction.ts";
 import {
   type FutureMirror,
   type FutureMirrorInput,
@@ -159,6 +162,16 @@ function transaction<T>(
   binding: SupabaseRepositoryBinding,
   callback: (database: DatabaseTransaction, claims: VerifiedRequestClaims) => Promise<T>,
 ): Promise<T> {
+  return withMemberRequestTransaction(
+    { pool: binding.pool, verifiedClaims: binding.claims },
+    callback,
+  );
+}
+
+function legacyIdempotentTransaction<T>(
+  binding: SupabaseRepositoryBinding,
+  callback: (database: DatabaseTransaction, claims: VerifiedRequestClaims) => Promise<T>,
+): Promise<T> {
   return withRequestTransaction(
     { pool: binding.pool, verifiedClaims: binding.claims },
     callback,
@@ -169,7 +182,7 @@ async function currentDeletionEpoch(database: DatabaseTransaction): Promise<stri
   const result = await database.query<{ deletion_epoch: string }>(
     `select deletion_epoch::text
        from argus_app.members
-      where user_id = argus_private.request_user_id() and status = 'active'
+      where user_id = argus_private.trusted_request_user_id() and status = 'active'
       for share`,
   );
   const value = result.rows[0]?.deletion_epoch;
@@ -188,7 +201,7 @@ async function claimIdempotency(
     `insert into argus_private.member_idempotency_records(
        user_id, deletion_epoch, operation, idempotency_key, request_hash
      ) values (
-       argus_private.request_user_id(), $1::bigint, $2, $3, $4
+       argus_private.trusted_request_user_id(), $1::bigint, $2, $3, $4
      ) on conflict (user_id, operation, idempotency_key) do nothing`,
     [deletionEpoch, operation, key, requestHash],
   );
@@ -199,7 +212,7 @@ async function claimIdempotency(
   }>(
     `select deletion_epoch::text, request_hash, resource_id
        from argus_private.member_idempotency_records
-      where user_id = argus_private.request_user_id()
+      where user_id = argus_private.trusted_request_user_id()
         and operation = $1 and idempotency_key = $2
       for update`,
     [operation, key],
@@ -224,7 +237,7 @@ async function completeIdempotency(
   await database.query(
     `update argus_private.member_idempotency_records
         set resource_id = $3, response_status = $4
-      where user_id = argus_private.request_user_id()
+      where user_id = argus_private.trusted_request_user_id()
         and operation = $1 and idempotency_key = $2`,
     [operation, key, resourceId, responseStatus],
   );
@@ -255,10 +268,10 @@ async function intentionView(
             ) as target,
             target_date::text, status, version, created_at
       from argus_app.intentions
-      where user_id = argus_private.request_user_id() and id = $1
+      where user_id = argus_private.trusted_request_user_id() and id = $1
         and deletion_epoch = (
           select deletion_epoch from argus_app.members
-           where user_id = argus_private.request_user_id() and status = 'active'
+           where user_id = argus_private.trusted_request_user_id() and status = 'active'
         )
         and target_amount_minor is not null and currency is not null
         and target_date is not null`,
@@ -289,10 +302,10 @@ async function futureMirrorView(
        from argus_app.future_mirror_runs run
        join argus_app.intentions intention
          on intention.user_id = run.user_id and intention.id = run.intention_id
-      where run.user_id = argus_private.request_user_id()
+      where run.user_id = argus_private.trusted_request_user_id()
         and run.deletion_epoch = (
           select deletion_epoch from argus_app.members
-           where user_id = argus_private.request_user_id() and status = 'active'
+           where user_id = argus_private.trusted_request_user_id() and status = 'active'
         )
         and intention.deletion_epoch = run.deletion_epoch
         and run.intention_id = $1 and run.id = $2 and run.status = 'completed'`,
@@ -306,10 +319,10 @@ async function futureMirrorView(
               low_amount_minor::text, mid_amount_minor::text,
               high_amount_minor::text
          from argus_app.future_mirror_points
-        where user_id = argus_private.request_user_id() and run_id = $1
+        where user_id = argus_private.trusted_request_user_id() and run_id = $1
           and deletion_epoch = (
             select deletion_epoch from argus_app.members
-             where user_id = argus_private.request_user_id() and status = 'active'
+             where user_id = argus_private.trusted_request_user_id() and status = 'active'
           )
         order by ordinal`,
       [runId],
@@ -343,10 +356,10 @@ export function createSupabaseScenarioRepository(
       transaction(binding, async (database) => {
         const result = await database.query<{ id: string }>(
           `select id from argus_app.intentions
-            where user_id = argus_private.request_user_id()
+            where user_id = argus_private.trusted_request_user_id()
               and deletion_epoch = (
                 select deletion_epoch from argus_app.members
-                 where user_id = argus_private.request_user_id() and status = 'active'
+                 where user_id = argus_private.trusted_request_user_id() and status = 'active'
               )
               and ($1::text is null or status = $1)
               and target_amount_minor is not null and currency is not null
@@ -370,7 +383,7 @@ export function createSupabaseScenarioRepository(
 
     createIntention: (raw: IntentionCreateInput, idempotencyKey: string) => {
       const input = intentionCreateSchema.parse(raw);
-      return transaction(binding, async (database) => {
+      return legacyIdempotentTransaction(binding, async (database) => {
         const deletionEpoch = await currentDeletionEpoch(database);
         const requestHash = await sha256(canonicalIntentionCreate(input));
         const existingId = await claimIdempotency(
@@ -392,7 +405,7 @@ export function createSupabaseScenarioRepository(
              id, user_id, deletion_epoch, title, target_amount_minor,
              currency, target_date, status
            ) values (
-             $1, argus_private.request_user_id(), $2::bigint, $3,
+             $1, argus_private.trusted_request_user_id(), $2::bigint, $3,
              $4::bigint, $5, $6::date, 'active'
            ) returning id`,
           [
@@ -435,10 +448,10 @@ export function createSupabaseScenarioRepository(
                   currency = coalesce($4, currency),
                   target_date = coalesce($5::date, target_date),
                   version = version + 1
-            where user_id = argus_private.request_user_id() and id = $1
+            where user_id = argus_private.trusted_request_user_id() and id = $1
               and deletion_epoch = (
                 select deletion_epoch from argus_app.members
-                 where user_id = argus_private.request_user_id() and status = 'active'
+                 where user_id = argus_private.trusted_request_user_id() and status = 'active'
               )
               and status = 'active' and version = $6
           returning id`,
@@ -465,10 +478,10 @@ export function createSupabaseScenarioRepository(
         const result = await database.query<{ id: string }>(
           `update argus_app.intentions
               set status = 'archived', version = version + 1
-            where user_id = argus_private.request_user_id() and id = $1
+            where user_id = argus_private.trusted_request_user_id() and id = $1
               and deletion_epoch = (
                 select deletion_epoch from argus_app.members
-                 where user_id = argus_private.request_user_id() and status = 'active'
+                 where user_id = argus_private.trusted_request_user_id() and status = 'active'
               )
               and status = 'active' and version = $2
           returning id`,
@@ -488,7 +501,7 @@ export function createSupabaseScenarioRepository(
       idempotencyKey: string,
     ) => {
       const input = futureMirrorInputSchema.parse(raw);
-      return transaction(binding, async (database) => {
+      return legacyIdempotentTransaction(binding, async (database) => {
         const deletionEpoch = await currentDeletionEpoch(database);
         const requestHash = await sha256(canonicalFutureMirror(intentionId, input));
         const existingId = await claimIdempotency(
@@ -507,7 +520,7 @@ export function createSupabaseScenarioRepository(
           `select id, title, target_amount_minor::text as target_amount_minor,
                   currency, target_date::text, version
              from argus_app.intentions
-            where user_id = argus_private.request_user_id() and id = $1
+            where user_id = argus_private.trusted_request_user_id() and id = $1
               and deletion_epoch = $2::bigint
               and status = 'active' and target_amount_minor is not null
               and currency is not null and target_date is not null
@@ -539,7 +552,7 @@ export function createSupabaseScenarioRepository(
              model_version, assumption_version, assumptions, status,
              completed_at, uncertainty_disclosure
            ) values (
-             $1, argus_private.request_user_id(), $2::bigint, $3, $4,
+             $1, argus_private.trusted_request_user_id(), $2::bigint, $3, $4,
              $5, $6, $7::jsonb, 'completed', clock_timestamp(), $8
            ) on conflict (
              user_id, deletion_epoch, intention_id, input_hash, model_version
@@ -558,7 +571,7 @@ export function createSupabaseScenarioRepository(
         const runId = inserted.rows[0]?.id ?? (
           await database.query<{ id: string }>(
             `select id from argus_app.future_mirror_runs
-              where user_id = argus_private.request_user_id()
+              where user_id = argus_private.trusted_request_user_id()
                 and deletion_epoch = $1::bigint and intention_id = $2
                 and input_hash = $3 and model_version = $4`,
             [deletionEpoch, intentionId, exactInputHash, MODEL_VERSION],
@@ -572,7 +585,7 @@ export function createSupabaseScenarioRepository(
                  run_id, user_id, deletion_epoch, ordinal, projected_date,
                  low_amount_minor, mid_amount_minor, high_amount_minor
                ) values (
-                 $1, argus_private.request_user_id(), $2::bigint, $3, $4::date,
+                 $1, argus_private.trusted_request_user_id(), $2::bigint, $3, $4::date,
                  $5::bigint, $6::bigint, $7::bigint
                )`,
               [
@@ -604,10 +617,10 @@ export function createSupabaseScenarioRepository(
       transaction(binding, async (database) => {
         const result = await database.query<{ id: string }>(
           `select id from argus_app.future_mirror_runs
-            where user_id = argus_private.request_user_id()
+            where user_id = argus_private.trusted_request_user_id()
               and deletion_epoch = (
                 select deletion_epoch from argus_app.members
-                 where user_id = argus_private.request_user_id() and status = 'active'
+                 where user_id = argus_private.trusted_request_user_id() and status = 'active'
               )
               and intention_id = $1 and status = 'completed'
             order by created_at desc, id desc limit 1`,

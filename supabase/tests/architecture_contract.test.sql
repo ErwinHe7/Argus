@@ -3,12 +3,12 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
-select plan(17);
+select plan(18);
 
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_app' and relation.relkind in ('r','p')),
-  42::bigint,'the reviewed application relation inventory is complete');
+  58::bigint,'the reviewed application relation inventory is complete');
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_brokerage' and relation.relkind in ('r','p')),
@@ -29,6 +29,7 @@ select is(
     ('argus_app.briefing_sections.payload'),
     ('argus_app.community_templates.asset_ids'),
     ('argus_app.coven_entries.qualification_payload'),
+    ('argus_app.editorial_render_documents.document'),
     ('argus_app.editorial_revisions.payload'),
     ('argus_app.future_mirror_runs.assumptions'),
     ('argus_app.grimoires.asset_ids'),
@@ -68,7 +69,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  89::bigint,'the reviewed routine-name inventory is complete');
+  110::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
@@ -133,6 +134,32 @@ select is((select array_agg(id order by id) from storage.buckets
   where id in ('member-media','media-quarantine','privacy-exports')),
   array['media-quarantine','member-media','privacy-exports'],
   'the managed private Storage bucket inventory is exact');
+
+select is((select count(*)::bigint
+  from pg_constraint foreign_key
+  join pg_class relation on relation.oid=foreign_key.conrelid
+  join pg_namespace namespace on namespace.oid=relation.relnamespace
+  where foreign_key.contype='f' and namespace.nspname='argus_app'
+    and (
+      foreign_key.conname like '%_u4_%'
+      or relation.relname in (
+        'onboarding_step_completions','notification_quiet_hours',
+        'member_saved_items','content_report_targets',
+        'editorial_render_documents','editorial_revision_assets',
+        'ritual_scenario_revision_assets','ritual_scenario_revision_evidence',
+        'grimoire_revision_assets','community_template_revision_assets',
+        'coven_qualifications','asset_codex_revisions',
+        'asset_codex_revision_evidence','asset_codex_revision_metrics'
+      )
+    )
+    and not exists (
+      select 1 from pg_index candidate
+       where candidate.indrelid=foreign_key.conrelid
+         and candidate.indisvalid and candidate.indisready
+         and (candidate.indkey::smallint[])
+               [0:cardinality(foreign_key.conkey)-1]=foreign_key.conkey
+    )),0::bigint,
+  'every U4 foreign key has a leading referencing-side index');
 
 select todo_start('U4-U6 must add every missing referencing-side index after representative plan measurement');
 select is((select count(*)::bigint from pg_constraint foreign_key

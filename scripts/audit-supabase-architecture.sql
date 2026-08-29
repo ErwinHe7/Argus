@@ -197,6 +197,8 @@ select 'roles' as inventory_section,
   from pg_roles role_row
  where role_row.rolname in (
    'anon','authenticated','service_role','supabase_auth_admin','supabase_storage_admin',
+   'argus_identity_owner','argus_app_owner','argus_publication_owner',
+   'argus_member','argus_staff','argus_callback','argus_migration',
    'argus_runtime','argus_worker','argus_waitlist',
    'argus_edge','argus_worker_edge','argus_waitlist_edge'
  );

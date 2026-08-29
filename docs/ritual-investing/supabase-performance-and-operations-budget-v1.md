@@ -2,17 +2,19 @@
 
 contract_version: supabase-performance-operations-budget-v1
 
-These are release gates, not U1 measurements. U1 had no disposable local stack
-or hosted authorization, so every unmeasured threshold is an explicitly owned
-TBD gate. U4-U8 must seed representative data, capture `EXPLAIN (ANALYZE,
-BUFFERS)`, and replace TBDs before the affected capability can pass U9.
+These are release gates. U1 had no disposable local stack or hosted
+authorization, so every initially unmeasured threshold was recorded as an
+explicitly owned TBD gate. U4 now supplies the local, single-session evidence
+below for its owner-list and publication-read slices. U4-U8 must still complete
+the stated concurrency and hosted measurements before each capability can pass
+U9.
 
 ## Representative workload v1
 
 | Family | Fixture volume and concurrency | Latency / plan budget | Owner and unresolved gate |
 |---|---|---|---|
-| Owner lists | 100k members; heavy member has 10k notifications, 2k saved items, 1k briefings; 100 concurrent API requests | p95 <= 250 ms, p99 <= 750 ms; keyset page <= 100; no sequential scan over tenant table; shared reads TBD after seed | U4/U8 database owner must approve buffers and row-estimate error <= 10x. |
-| Editorial publication/render | 25k items, 10 revisions/item, 50 ordered children/revision; 10 concurrent publishers and 200 readers | publication transaction p95 <= 500 ms and <= 2 s hard; public render p95 <= 200 ms; no cross-revision nested loop explosion | U4 editorial owner sets buffer ceiling after normalized schema. |
+| Owner lists | 100k members; heavy member has 10k notifications, 2k saved items, 1k briefings, 1k ritual assignments and 1k Circles; 100 concurrent API requests | p95 <= 250 ms, p99 <= 750 ms; keyset page <= 100; no sequential scan over tenant table; local index/buffer baseline below | U4 local plan gate is measured; U8/U9 still own concurrent API p95 and hosted-plan confirmation. |
+| Editorial publication/render | 25k items, 10 revisions/item, 50 ordered children/revision; 10 concurrent publishers and 200 readers | publication transaction p95 <= 500 ms and <= 2 s hard; public render p95 <= 200 ms; no cross-revision nested loop explosion; local read baseline below | U4 local current-publication read gate is measured; concurrent publish/read and 50-child transaction volume remain U9 gates. |
 | Discovery/search | 250k searchable entities across categories, 1m relationship rows; 100 concurrent readers | p95 <= 300 ms, p99 <= 900 ms; stable keyset page <= 50; no application concatenation/offset scan | U8 search owner selects index and approves buffer ceiling. |
 | Outbox relay | 1m total, 100k due, batch 25; 8 concurrent relays | claim transaction p95 <= 100 ms, hard <= 1 s; `SKIP LOCKED`; <= 500 shared buffers TBD | U6 jobs owner measures duplicate relay and lock wait. |
 | Job claims/retries | 1m runs/5m attempts, 100k queued/retry; 16 worker deliveries | claim/complete p95 <= 150 ms, hard <= 1 s; one row lock order; no table scan | U6 jobs owner replaces buffer TBD. |
@@ -20,6 +22,30 @@ BUFFERS)`, and replace TBDs before the affected capability can pass U9.
 | Brokerage projections | 100 accounts/member max fixture, 1m general and 2m order generations; 100 read requests, 8 refreshes | latest projection p95 <= 200 ms; append transaction <= 500 ms; no stale-provider timestamp substitution | U5 brokerage owner approves buffer ceiling. |
 | Webull recovery | 100k commands, 10k ambiguous, 16 concurrent reconcilers | claim/transition p95 <= 150 ms, hard <= 1 s; account lock wait <= 3 s; lookup age gate below | U5 owner measures ambiguity contention and lookup provider budget. |
 | Waitlist | 1m retained submissions; 100 requests/s burst | DB submit p95 <= 150 ms; Edge p95 <= 1 s excluding Turnstile, hard dependency deadline 3 s | Platform owner validates advisory-lock contention. |
+
+## U4 local representative plan evidence
+
+On 2026-08-29, PostgreSQL 17 on the disposable local Supabase stack was reset
+with pinned CLI `2.115.0` and U4 migration SHA-256
+`75db53a7b0c7b806d00c315cf5607a132a28da7d6de5994ae66b716c9d0ec9b6`.
+A rollback-only fixture loaded 100k lifecycle/member roots, the heavy-owner
+volumes above, 25k editorial items, 250k revisions, and 25k current sealed
+render documents. Every query returned a page of 100; all critical returned
+nodes estimated 100 rows, all owner paths used the named lifecycle-leading
+index, and no plan spilled to temporary storage.
+
+| U4 query slice | Index / boundary | Execution | Shared hit + read blocks | Remaining gate |
+|---|---|---:|---:|---|
+| Notifications owner page | `notifications_u4_owner_order_idx` | 33.633 ms cold | 369 + 36 | Concurrent/API p95 and warm hosted plan in U9. |
+| Ready briefings owner page | `briefings_u4_owner_ready_order_idx` | 0.792 ms | 40 + 1 | Concurrent/API p95 in U9. |
+| Typed saved-items owner page | `member_saved_items_owner_order_idx` | 0.461 ms | 75 + 1 | Concurrent/API p95 in U9. |
+| Ritual-assignment owner page | `daily_ritual_assignments_u4_owner_order_idx` | 0.337 ms | 40 + 1 | Concurrent/API p95 in U9. |
+| Circle owner page | `circles_u4_owner_order_idx` | 0.558 ms | 127 + 0 | Concurrent/API p95 in U9. |
+| Current published editorial page | bounded `list_current_published_editorial(text,integer)` function | 6.320 ms | 1229 + 14 | Concurrent readers/publishers and 50 ordered children per revision in U9. |
+
+These values are approved as the U4 local regression baseline, not as hosted
+p95 evidence. The general 2x buffer-regression gate below applies to these
+baselines; the concurrency rows remain blocking until U9 records them.
 
 ## Database, pool and transaction budgets
 

@@ -3,10 +3,10 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_runtime, argus_worker, argus_waitlist
+grant argus_edge, argus_runtime, argus_staff, argus_worker, argus_waitlist
   to current_user with set true;
 grant usage on schema extensions
-  to argus_runtime, argus_worker, argus_waitlist;
+  to argus_edge, argus_runtime, argus_staff, argus_worker, argus_waitlist;
 
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
@@ -63,6 +63,21 @@ insert into argus_private.staff_principals(
         'brokerage:read','audit:read'],
   'U11 staff'
 );
+insert into auth.users(
+  instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
+  raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+) values (
+  '00000000-0000-0000-0000-000000000000',
+  '66666666-6666-4666-8666-666666666666',
+  'authenticated','authenticated','u11-author@example.test','',now(),
+  '{"provider":"email","providers":["email"]}','{}',now(),now()
+);
+insert into argus_private.staff_principals(
+  user_id,status,permissions,display_label
+) values (
+  '66666666-6666-4666-8666-666666666666','active',
+  array['editorial:write'],'Independent U11 author'
+);
 
 insert into argus_private.staff_step_up_receipts(
   user_id,session_id,action,target_id,receipt_hash,expires_at,created_at
@@ -84,6 +99,11 @@ insert into argus_private.staff_step_up_receipts(
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
    'admin_job_retry','11111111-1000-4000-8000-000000000008',repeat('2',64),now()+interval '5 minutes',now());
 
+set local role argus_edge;
+select argus_private.install_request_context(
+  '11111111-1111-4111-8111-111111111111',
+  '11111111-0000-4000-8000-000000000001','aal2'
+);
 set local role argus_runtime;
 select argus_private.set_request_context(
   '11111111-1111-4111-8111-111111111111',
@@ -200,14 +220,14 @@ update argus_private.staff_principals
    set status='active',revoked_at=null,permissions=array['editorial:write']
  where user_id='11111111-1111-4111-8111-111111111111';
 insert into argus_app.editorial_items(id,kind,slug,status) values (
-  '11111111-2000-4000-8000-000000000001','ritual','u11-editorial','draft'
+  '11111111-2000-4000-8000-000000000001','briefing_template','u11-editorial','draft'
 );
 insert into argus_app.editorial_revisions(
   id,item_id,revision_number,state,author_staff_id,content_hash,payload
 ) values (
   '11111111-3000-4000-8000-000000000001',
   '11111111-2000-4000-8000-000000000001',1,'draft',
-  '11111111-1111-4111-8111-111111111111',repeat('3',64),'{"title":"draft"}'
+  '66666666-6666-4666-8666-666666666666',repeat('3',64),'{"title":"draft"}'
 );
 select lives_ok(
   $$update argus_app.editorial_revisions
@@ -270,17 +290,16 @@ insert into argus_app.editorial_review_requests(
   '11111111-1111-4111-8111-111111111111',true,'open'
 );
 
-set local role argus_runtime;
-select argus_private.set_request_context(
-  '22222222-2222-4222-8222-222222222222',
-  '22222222-0000-4000-8000-000000000001','aal2'
-);
+update argus_private.staff_principals
+   set permissions=array['editorial:review']
+ where user_id='11111111-1111-4111-8111-111111111111';
+set local role argus_staff;
 select lives_ok(
   $$insert into argus_app.editorial_review_decisions(
       request_id,reviewer_id,decision,reason
     ) values (
       '11111111-3100-4000-8000-000000000001',
-      '22222222-2222-4222-8222-222222222222','approved','Independent evidence review.'
+      '11111111-1111-4111-8111-111111111111','approved','Independent evidence review.'
     )$$,
   'standalone editorial:review can record an independent high-trust decision'
 );
@@ -308,37 +327,35 @@ select is(
 );
 reset role;
 
-set local role argus_runtime;
-select argus_private.set_request_context(
-  '33333333-3333-4333-8333-333333333333',
-  '33333333-0000-4000-8000-000000000001','aal2'
-);
+update argus_private.staff_principals
+   set permissions=array['editorial:publish']
+ where user_id='11111111-1111-4111-8111-111111111111';
+set local role argus_staff;
 select lives_ok(
-  $$update argus_app.editorial_revisions set state='published'
-     where id='11111111-3000-4000-8000-000000000001'$$,
-  'standalone editorial:publish can publish an approved revision'
-);
-select lives_ok(
-  $$update argus_app.editorial_items set status='published',
-       current_published_revision_id='11111111-3000-4000-8000-000000000001'
-     where id='11111111-2000-4000-8000-000000000001'$$,
-  'standalone editorial:publish can advance the owning item'
-);
-select lives_ok(
-  $$insert into argus_app.publication_events(
-      item_id,revision_id,action,effective_at,actor_id,reason
-    ) values (
+  $$select argus_private.publish_editorial_revision(
       '11111111-2000-4000-8000-000000000001',
-      '11111111-3000-4000-8000-000000000001','publish',now(),
-      '33333333-3333-4333-8333-333333333333','Approved publication.'
+      '11111111-3000-4000-8000-000000000001','Approved publication.'
     )$$,
-  'standalone editorial:publish appends immutable publication evidence'
+  'standalone editorial:publish atomically seals an approved revision'
+);
+select is(
+  (select current_published_revision_id from argus_app.editorial_items
+    where id='11111111-2000-4000-8000-000000000001'),
+  '11111111-3000-4000-8000-000000000001'::uuid,
+  'standalone editorial:publish advances the owning item pointer'
+);
+select is(
+  (select count(*)::bigint from argus_app.publication_events
+    where item_id='11111111-2000-4000-8000-000000000001'
+      and revision_id='11111111-3000-4000-8000-000000000001'),
+  1::bigint,
+  'standalone editorial:publish appends one immutable publication event'
 );
 reset role;
 select is(
   (select actor_id from argus_app.publication_events
     where item_id='11111111-2000-4000-8000-000000000001'),
-  '33333333-3333-4333-8333-333333333333'::uuid,
+  '11111111-1111-4111-8111-111111111111'::uuid,
   'publication evidence is bound to the current publisher'
 );
 reset role;
@@ -350,9 +367,9 @@ insert into argus_app.editorial_revisions(
   id,item_id,revision_number,state,author_staff_id,content_hash,payload
 ) values
   ('22222222-3000-4000-8000-000000000001','22222222-2000-4000-8000-000000000001',1,'submitted',
-   '22222222-2222-4222-8222-222222222222',repeat('a',64),'{"title":"high"}'),
+   '11111111-1111-4111-8111-111111111111',repeat('a',64),'{"title":"high"}'),
   ('22222222-3000-4000-8000-000000000002','22222222-2000-4000-8000-000000000002',1,'submitted',
-   '22222222-2222-4222-8222-222222222222',repeat('b',64),'{"title":"normal"}');
+   '11111111-1111-4111-8111-111111111111',repeat('b',64),'{"title":"normal"}');
 insert into argus_app.editorial_review_requests(
   id,revision_id,requested_by,high_trust,status
 ) values
@@ -360,17 +377,16 @@ insert into argus_app.editorial_review_requests(
    '22222222-2222-4222-8222-222222222222',true,'open'),
   ('22222222-3100-4000-8000-000000000002','22222222-3000-4000-8000-000000000002',
    '22222222-2222-4222-8222-222222222222',false,'open');
-set local role argus_runtime;
-select argus_private.set_request_context(
-  '22222222-2222-4222-8222-222222222222',
-  '22222222-0000-4000-8000-000000000001','aal2'
-);
+update argus_private.staff_principals
+   set permissions=array['editorial:review']
+ where user_id='11111111-1111-4111-8111-111111111111';
+set local role argus_staff;
 select throws_ok(
   $$insert into argus_app.editorial_review_decisions(
       request_id,reviewer_id,decision,reason
     ) values (
       '22222222-3100-4000-8000-000000000001',
-      '22222222-2222-4222-8222-222222222222','approved','Self approval denied.'
+      '11111111-1111-4111-8111-111111111111','approved','Self approval denied.'
     )$$,
   '42501','self_approval',
   'high-trust review preserves the distinct-actor requirement'
@@ -380,7 +396,7 @@ select lives_ok(
       request_id,reviewer_id,decision,reason
     ) values (
       '22222222-3100-4000-8000-000000000002',
-      '22222222-2222-4222-8222-222222222222','approved','Ordinary editorial review.'
+      '11111111-1111-4111-8111-111111111111','approved','Ordinary editorial review.'
     )$$,
   'non-high-trust editorial preserves prior self-review semantics'
 );
@@ -420,40 +436,44 @@ insert into argus_app.editorial_revisions(
 update argus_private.staff_principals
    set permissions=array['editorial:write']
  where user_id='11111111-1111-4111-8111-111111111111';
-set local role argus_runtime;
-select argus_private.set_request_context(
-  '11111111-1111-4111-8111-111111111111',
-  '11111111-0000-4000-8000-000000000002','aal2'
-);
+set local role argus_staff;
 select lives_ok(
-  $$select argus_private.create_editorial_kind_link(
-      'ritual','11111111-5300-4000-8000-000000000001',
+  $$select argus_private.create_ritual_editorial_item(
+      '11111111-5300-4000-8000-000000000001',
       '{"scenario_key":"u11","mode":"tarot","cadence":"daily"}')$$,
   'ritual creation writes its member-domain linkage row'
 );
 select lives_ok(
-  $$select argus_private.materialize_editorial_revision(
-      'ritual','11111111-5400-4000-8000-000000000001',
+  $$select argus_private.sync_ritual_revision(
+      '11111111-5400-4000-8000-000000000001',
       '{"title":"Ritual","interpretation":"Synthetic","guidance":"Review", "market_label":"Demo", "observation_at":"2026-08-28T00:00:00Z", "uncertainty":"Synthetic", "idea_asset_ids":["11111111-5000-4000-8000-000000000001","11111111-5000-4000-8000-000000000002","11111111-5000-4000-8000-000000000003"], "evidence_claim_ids":["11111111-5200-4000-8000-000000000001"]}')$$,
   'ritual review materializes a validated domain projection'
 );
 select lives_ok(
-  $$select argus_private.create_editorial_kind_link(
-      'rowan','11111111-5300-4000-8000-000000000002',
+  $$select argus_private.create_rowan_editorial_item(
+      '11111111-5300-4000-8000-000000000002',
       '{"script_key":"u11-rowan","surface":"daily_ritual"}')$$,
   'Rowan creation writes its member-domain linkage row'
 );
 select lives_ok(
-  $$select argus_private.materialize_editorial_revision(
-      'rowan','11111111-5400-4000-8000-000000000002',
+  $$select argus_private.sync_rowan_revision(
+      '11111111-5400-4000-8000-000000000002',
       '{"body_template":"Reflect on {{ritual}}.","allowed_tokens":["ritual"],"risk_footer":"Educational only."}')$$,
   'Rowan review materializes a constrained script projection'
 );
 select lives_ok(
-  $$select argus_private.create_editorial_kind_link(
-      'grimoire','11111111-5300-4000-8000-000000000003',
-      '{"theme_code":"u11","asset_ids":["11111111-5000-4000-8000-000000000001"]}')$$,
-  'a generic grimoire creation writes its discovery linkage row'
+  $sql$do $u4$
+    begin
+      perform argus_private.create_grimoire_editorial_item(
+        '11111111-5300-4000-8000-000000000003','{"theme_code":"u11"}'
+      );
+      perform argus_private.sync_grimoire_revision(
+        '11111111-5400-4000-8000-000000000003',
+        '{"asset_ids":["11111111-5000-4000-8000-000000000001"]}'
+      );
+    end
+  $u4$$sql$,
+  'the Grimoire domain commands write linkage and normalized discovery assets'
 );
 select is(
   (select scenario_key from argus_app.ritual_scenarios

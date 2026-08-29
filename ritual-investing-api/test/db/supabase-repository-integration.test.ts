@@ -302,6 +302,14 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const statements = recorded.queries.map(({ text }) => text);
     expect(statements.some((text) => text.includes("admin_audit_events"))).toBe(true);
     expect(statements.some((text) => text.includes("editorial_review_decisions"))).toBe(false);
+    expect(statements).toContain("set local role argus_staff");
+    const editorialAudit = statements.find((text) =>
+      text.includes("admin_audit_events")
+    );
+    expect(editorialAudit).toContain("argus_private.trusted_request_user_id()");
+    expect(editorialAudit).not.toMatch(
+      /argus_private\.(?!trusted_)request_user_id\(\)/,
+    );
     expect(statements).toContain("commit");
     expect(statements).not.toContain("rollback");
   });
@@ -508,6 +516,12 @@ describe("Supabase transaction-pooler repository boundary", () => {
     expect(reads.every(({ text }) =>
       text.includes("briefing.status='ready'")
     )).toBe(true);
+    expect(reads.every(({ text }) =>
+      text.includes("argus_private.trusted_request_user_id()")
+    )).toBe(true);
+    expect(recorded.queries.map(({ text }) => text)).toContain(
+      "set local role argus_member",
+    );
   });
 
   it("routes deletion through the action-bound Supabase definer function", async () => {
@@ -544,7 +558,7 @@ describe("Supabase transaction-pooler repository boundary", () => {
     expect(recorded.queries.map(({ text }) => text)).toEqual([
       "begin",
       "set local role argus_runtime",
-      expect.stringContaining("argus_app.editorial_items"),
+      expect.stringContaining("argus_private.list_current_published_editorial"),
       "commit",
     ]);
     expect(recorded.queries.every(({ text }) => !text.includes("set_request_context"))).toBe(true);
@@ -578,6 +592,15 @@ describe("Supabase transaction-pooler repository boundary", () => {
       /\britual_(?:private|public|catalog)\b|\b(?:from|join|update|into)\s+ritual\./i,
     );
     expect(acceptedSource).not.toMatch(/@neondatabase|cloudflare|Auth0|\bDeno\b/);
+
+    const scenarioSource = await readFile(
+      resolve(apiRoot, "src/domains/intentions/repository.ts"),
+      "utf8",
+    );
+    expect(scenarioSource).toContain("argus_private.trusted_request_user_id()");
+    expect(scenarioSource).not.toMatch(
+      /argus_private\.(?!trusted_)request_user_id\(\)/,
+    );
   });
 
   it("executes every relation declared for each retained domain", async () => {
@@ -836,6 +859,18 @@ describe("Supabase transaction-pooler repository boundary", () => {
       const executedSql = executedByDomain[domain];
       expect(executedSql, `${domain} has executable repository evidence`).toBeDefined();
       for (const relation of relations) {
+        if (
+          (domain === "editorial" || domain === "publicPreview") &&
+          [
+            "argus_app.editorial_items",
+            "argus_app.editorial_revisions",
+            "argus_app.editorial_render_documents",
+          ].includes(relation)
+        ) {
+          expect(executedSql, `${domain} executes the publication projection`)
+            .toContain("argus_private.list_current_published_editorial");
+          continue;
+        }
         expect(executedSql, `${domain} executes ${relation}`).toContain(relation);
       }
     }

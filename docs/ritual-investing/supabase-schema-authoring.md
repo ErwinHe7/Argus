@@ -91,13 +91,25 @@ reviewed public contracts. Vault inventory contains names only. Edge Functions
 and secrets are deployed out of band from an exact Git revision.
 
 The `argus_runtime`, `argus_worker`, and `argus_waitlist` NOLOGIN roles remain
-legacy compatibility containers because U4-U6 still own their relation
-cutovers. U3 adds empty-by-default `argus_member`, `argus_staff`,
+legacy compatibility containers for U5/U6-owned brokerage, callbacks, durable
+work, queues, privacy/Storage and private operational state. U4 application
+relations use `argus_member`/`argus_staff`; the runtime has no direct U4
+publication-table grant and can execute only the two bounded current-publication
+projection functions. Their dedicated `argus_publication_owner` is NOLOGIN,
+owns only those definers, and has SELECT-only access to item, revision, and
+sealed-render inputs. The exact onboarding/scenario relations sharing U6's
+private member-idempotency transaction seam remain the compatibility exception. U3 adds
+empty-by-default `argus_member`, `argus_staff`,
 `argus_callback`, and `argus_migration` capability roles plus the narrow
 `argus_identity_owner`. Only the lifecycle foundation is granted to the new
 member/staff roles; callback and migration capabilities stay unbound until
 their owning units add exact signatures and relation grants. No capability role
 owns objects.
+U6 also retains two explicit cross-unit dependencies: `argus_worker` may SELECT
+open lifecycle parents solely so the lifecycle-binding trigger can derive
+worker-written member projections, and the existing private purge definer may
+DELETE `member_saved_items`. Both are command-specific catalog-tested bridges,
+not general application capabilities.
 `argus_edge`, `argus_worker_edge`, and `argus_waitlist_edge` are runtime logins
 with null migration-time passwords, exact membership, connection limits and
 timeouts. A narrow non-login owner may own one domain module but may not be
@@ -107,6 +119,17 @@ Role rows are ordered as name, classification, domain owner, login state,
 membership, owned-object/grant disposition, and connection settings. The replay
 target fingerprints the normalized object/function/default ACLs that implement
 each `target-acl` disposition.
+
+Queryable collections and known polymorphic targets are authored as typed,
+lowercase relations with parent-qualified composite FKs, explicit delete
+actions, per-parent ordering/uniqueness checks, referencing-side indexes and
+RLS-leading lifecycle indexes. JSONB is permitted only for bounded versioned
+provider/variable envelopes or immutable historical rendering/calculation
+documents with schema version, hash and byte-size checks. During an expand/
+contract window, a legacy array or polymorphic field is a read-only
+compatibility projection: only the owning atomic command may synchronize it,
+and every backfill records quarantine plus source-to-target cardinality and
+identity parity before readers cut over.
 
 ## Authoring and replay gates
 

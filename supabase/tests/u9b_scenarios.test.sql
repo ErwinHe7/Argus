@@ -145,8 +145,8 @@ select throws_ok(
       '91919191-9191-4191-8191-919191919191',0,
       'Late write',100,'USD','2028-08-28'
     )$$,
-  'P0001',
-  'member_deletion_epoch_mismatch',
+  '28000',
+  'inactive_member_lifecycle',
   'deletion fencing rejects a late scenario write'
 );
 reset role;

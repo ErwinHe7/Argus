@@ -8,22 +8,47 @@ must either implement the named model or version this contract with review.
 Every target key is parent-qualified so a child cannot cross editorial,
 member-lifecycle, brokerage-account, or immutable-generation boundaries.
 
-U3 now supplies `argus_app.member_lifecycles` as the immutable, tenant-qualified
-identity parent and binds only `argus_app.members` to it. That foundation does
-not claim the U4-U6 child bindings below: their legacy `deletion_epoch`
-relations, callbacks, jobs, receipts, credentials, object manifests, and
-Storage authority remain compatibility surfaces until their owning unit adds
-the reviewed composite lifecycle FK and command-specific policy.
+U3 supplies `argus_app.member_lifecycles` as the immutable, tenant-qualified
+identity parent. U4 now binds the Argus application children to that parent and
+implements the typed editorial/member relations in this contract. U5 still
+owns brokerage/callback state and U6 still owns queues, jobs, receipts,
+Storage, privacy artifacts, durable work, and private operational relations;
+their `deletion_epoch` bridge remains explicit until those units add their own
+composite lifecycle keys and command-specific policies.
+
+## U4 implemented model
+
+The U4 forward-only migration makes `member_saved_items` and
+`content_report_targets` the typed target authorities; adds ordered,
+parent-qualified ritual, Grimoire, Circle-template, Coven, and Asset Codex
+relations; and seals published rendering bytes in
+`editorial_render_documents`. Draft synchronization is domain-specific and
+publication is one atomic command. Legacy arrays, payload relationships,
+`saved_items`, and report target pairs remain compatibility-only through the
+U9 observation window, with mutation fenced to the owning synchronization
+commands. Invalid legacy cohorts are recorded in
+`legacy_normalization_quarantine`; successful mappings and cardinality parity
+are recorded in `legacy_normalization_identity_map`.
+
+Member and staff transactions assume only `argus_member` or `argus_staff` and
+derive ownership from U3 trusted context. Anonymous and member publication
+reads share the bounded `list_current_published_editorial(text,integer)` and
+`get_current_published_editorial(text)` projections. Their dedicated NOLOGIN
+`argus_publication_owner` owns only those two SECURITY DEFINER functions, has
+SELECT on exactly the item, revision, and sealed-document inputs, and is the
+only role with the three unconditional read policies. Runtime callers have no
+direct publication-table privilege, so draft state cannot be inferred through
+an alternate table path.
 
 ## Relationship-bearing arrays and JSON
 
 | Current field | Target and cardinality | Parent-qualified key / lifecycle owner | Order, nullability, uniqueness, deletion | Retained document, backfill and consuming API |
 |---|---|---|---|---|
-| `editorial_revisions.payload.asset_ids` for materialized kinds | `editorial_revision_assets`; 0..N per revision | `(item_id, revision_id, asset_id)`; editorial revision | `ordinal` required and unique per revision; asset required; restrict published revision deletion, cascade draft revision | Sealed `payload` remains historical rendering authority only. Backfill validated UUIDs in source order and quarantine malformed/cross-kind entries. Editorial/public/member APIs read normalized relations for addressing and sealed document for historical rendering. |
-| `ritual_scenario_revisions.idea_asset_ids` | `ritual_scenario_revision_assets`; 0..N | `(revision_id, asset_id)`; editorial revision | `ordinal` non-null; unique revision+asset and revision+ordinal; cascade draft, retain published evidence | Backfill array order exactly; reject missing assets. Ritual/public/member APIs. |
-| `ritual_scenario_revisions.evidence_claim_ids` | `ritual_scenario_revision_evidence`; 0..N | `(revision_id, evidence_claim_id)`; editorial revision | `ordinal` non-null; two per-parent unique constraints; restrict published evidence deletion | Backfill array order; quarantine missing/withdrawn mapping by reviewed policy. Ritual/editorial/public APIs. |
-| `grimoires.asset_ids` | `grimoire_assets`; 0..N | `(grimoire_id, asset_id)` plus owning editorial item/revision where versioned; editorial | Deterministic `ordinal`; non-null; unique parent+asset/order; cascade draft parent, retain sealed published revision | Backfill current order and bind to the publishing revision. Grimoire/discovery/search/public APIs. |
-| `community_templates.asset_ids` | `community_template_assets`; 0..N | `(template_id, asset_id)` plus owning editorial revision; editorial | Same ordered uniqueness as grimoires; published revision retained | Backfill current order; template/circle/discovery APIs consume normalized rows. |
+| `editorial_revisions.payload.asset_ids` for materialized kinds | `editorial_revision_assets`; derived 0..N projection per revision, with the kind-specific junction as editable authority | `(item_id, revision_id, asset_id)`; editorial revision | `ordinal` required and unique per revision; asset required; restrict published revision deletion, cascade draft revision | The owning Grimoire/Circle command replaces the kind junction, generic projection, and fenced compatibility array atomically. Sealed `payload` remains historical rendering authority only. |
+| `ritual_scenario_revisions.idea_asset_ids` | `ritual_scenario_revision_assets`; 3..5 | `(revision_id, asset_id)`; editorial revision | `ordinal` non-null; unique revision+asset and revision+ordinal; cascade draft, retain published evidence | Backfill array order exactly; reject missing assets. Ritual/public/member APIs. |
+| `ritual_scenario_revisions.evidence_claim_ids` | `ritual_scenario_revision_evidence`; 1..100 | `(revision_id, evidence_claim_id)`; editorial revision | `ordinal` non-null; two per-parent unique constraints; restrict published evidence deletion | Backfill array order; quarantine missing/withdrawn mapping by reviewed policy. Ritual/editorial/public APIs. |
+| `grimoires.asset_ids` | `grimoire_revision_assets`; 0..N | `(grimoire_id, editorial_item_id, revision_id, asset_id)`; editorial | Deterministic `ordinal`; non-null; unique parent+asset/order; cascade draft parent, retain sealed published revision | Backfill current order and bind to the publishing revision. Grimoire/discovery/search/public APIs. |
+| `community_templates.asset_ids` | `community_template_revision_assets`; 0..N | `(template_id, editorial_item_id, revision_id, asset_id)`; editorial | Same ordered uniqueness as grimoires; published revision retained | Backfill current order; template/circle/discovery APIs consume normalized rows. |
 | `coven_entries.qualification_payload` | `coven_qualifications`; 0..N typed criterion/evidence rows | `(coven_entry_id, qualification_id)` and any evidence FK also includes parent/revision; editorial | `ordinal` non-null; typed required columns by criterion version; unique parent+ordinal; retain published revision | Preserve sealed payload for historical display. Backfill by payload schema version; malformed rows quarantined. Coven/editorial/admin/public APIs. |
 
 ## Polymorphic relationships
@@ -52,8 +77,8 @@ consumer semantics from classification alone.
 | `argus_app.onboarding_states.completed_steps` | `onboarding_step_completions`, 0..N; `(member_lifecycle_id,onboarding_state_id,step_code)`; member lifecycle | Order by completion time then step code; non-null step; unique parent+step; cascade lifecycle close | Array remains compatibility-only during cutover. Map allowlisted step codes and quarantine unknowns. Onboarding/member API reads rows. |
 | `argus_app.notification_preferences.quiet_hours` | Typed quiet-hours value, 0..1; `(member_lifecycle_id,preference_id)`; member lifecycle | No order; whole value nullable but timezone/start/end jointly required; one per preference; cascade lifecycle close | No retained-document authority. Parse exact current keys/time format; quarantine invalid values. Notification API and delivery policy consume typed fields. |
 | `argus_app.editorial_revisions.payload` | One sealed rendering document per `(editorial_item_id,revision_id)` plus normalized typed relations; editorial revision owner | Required and immutable after publication; unique revision; draft cascades, published revision/document restricts deletion | Canonical only for historical rendering, derived in the same publication transaction. Version/hash/size existing payloads and quarantine invalid revisions. Editorial/admin/public/member rendering APIs. |
-| `argus_app.ritual_scenario_revisions.idea_asset_ids` | `ritual_scenario_revision_assets`, 0..N; `(revision_id,asset_id)`; editorial revision | Required ordinal; unique revision+asset and revision+ordinal; cascade draft, retain published revision | Array is not retained authority. Preserve source order, reject missing/cross-revision assets. Ritual/editorial/public/member APIs. |
-| `argus_app.ritual_scenario_revisions.evidence_claim_ids` | `ritual_scenario_revision_evidence`, 0..N; `(revision_id,evidence_claim_id)`; editorial revision | Required ordinal; unique revision+claim and revision+ordinal; restrict published evidence deletion | Array is not retained authority. Preserve source order and quarantine unresolved/withdrawn mappings. Ritual/editorial/public/member APIs. |
+| `argus_app.ritual_scenario_revisions.idea_asset_ids` | `ritual_scenario_revision_assets`, 3..5; `(revision_id,asset_id)`; editorial revision | Required ordinal; unique revision+asset and revision+ordinal; cascade draft, retain published revision | Array is not retained authority. Preserve source order, reject missing/cross-revision assets. Ritual/editorial/public/member APIs. |
+| `argus_app.ritual_scenario_revisions.evidence_claim_ids` | `ritual_scenario_revision_evidence`, 1..100; `(revision_id,evidence_claim_id)`; editorial revision | Required ordinal; unique revision+claim and revision+ordinal; restrict published evidence deletion | Array is not retained authority. Preserve source order and quarantine unresolved/withdrawn mappings. Ritual/editorial/public/member APIs. |
 | `argus_app.rowan_script_revisions.allowed_tokens` | One versioned token-set document containing 0..N tokens at `(script_id,revision_id)`; editorial revision | Canonical token order is defined by grammar; non-null set, unique token, immutable revision; draft cascades and published revision is retained | Sealed token document remains validation authority, not a relationship. Validate grammar, deduplicate only with an explicit collision report. Rowan/editorial/public APIs. |
 | `argus_app.coven_entries.qualification_payload` | `coven_qualifications`, 0..N; `(coven_entry_id,qualification_id)` plus parent-qualified evidence FK; editorial owner | Required ordinal and typed fields by criterion version; unique parent+ordinal; draft cascades, published revision retained | Sealed payload is historical display only. Parse by schema version and quarantine malformed/unresolved criteria. Coven/editorial/admin/public APIs. |
 | `argus_app.grimoires.asset_ids` | `grimoire_assets`, 0..N; `(editorial_item_id,revision_id,asset_id)`; editorial revision | Required deterministic ordinal; unique revision+asset/order; draft cascades, published revision retained | Array is not retained authority. Preserve source order and bind every asset to publishing revision. Grimoire/discovery/search/public APIs. |

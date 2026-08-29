@@ -2,6 +2,8 @@ import type { DatabasePool, DatabaseTransaction } from "./database-port.ts";
 import {
   type RequestTransactionConfig,
   StaffAuthorizationError,
+  withEditorialStaffRequestTransaction,
+  withMemberRequestTransaction,
   withActiveStaffRequestTransaction,
   withAnonymousRequestTransaction,
   withRequestTransaction,
@@ -61,10 +63,13 @@ export const RETAINED_SUPABASE_RELATIONS = Object.freeze({
     "argus_app.catalog_assets",
     "argus_app.evidence_sources",
     "argus_app.evidence_claims",
+    "argus_app.asset_codex_revisions",
+    "argus_app.editorial_render_documents",
   ],
   editorial: [
     "argus_app.editorial_items",
     "argus_app.editorial_revisions",
+    "argus_app.editorial_render_documents",
     "argus_app.evidence_sources",
     "argus_app.evidence_claims",
   ],
@@ -76,13 +81,21 @@ export const RETAINED_SUPABASE_RELATIONS = Object.freeze({
   circles: [
     "argus_app.circles",
     "argus_app.circle_assets",
-    "argus_app.saved_items",
+    "argus_app.member_saved_items",
   ],
-  coven: ["argus_app.coven_entries", "argus_app.companies"],
+  coven: [
+    "argus_app.coven_entries",
+    "argus_app.companies",
+    "argus_app.coven_qualifications",
+    "argus_app.member_saved_items",
+    "argus_app.editorial_render_documents",
+  ],
   discover: [
     "argus_app.grimoires",
     "argus_app.community_templates",
     "argus_app.catalog_assets",
+    "argus_app.member_saved_items",
+    "argus_app.editorial_render_documents",
   ],
   media: ["argus_private.media_upload_intents", "argus_app.media_assets"],
   moderation: ["argus_app.content_reports", "argus_app.moderation_cases"],
@@ -104,11 +117,13 @@ export const RETAINED_SUPABASE_RELATIONS = Object.freeze({
   publicPreview: [
     "argus_app.editorial_items",
     "argus_app.editorial_revisions",
+    "argus_app.editorial_render_documents",
   ],
   rituals: [
     "argus_app.daily_ritual_assignments",
     "argus_app.ritual_schedules",
     "argus_app.ritual_scenario_revisions",
+    "argus_app.editorial_render_documents",
   ],
   rowan: [
     "argus_app.rowan_scripts",
@@ -124,7 +139,6 @@ export const RETAINED_SUPABASE_RELATIONS = Object.freeze({
     "argus_app.editorial_revisions",
     "argus_app.editorial_review_requests",
     "argus_app.editorial_review_decisions",
-    "argus_app.publication_events",
   ],
   adminOperations: [
     "argus_private.job_runs",
@@ -150,8 +164,27 @@ function ownerTransaction<T>(
   binding: SupabaseRepositoryBinding,
   callback: (database: DatabaseTransaction) => Promise<T>,
 ): Promise<T> {
-  return withRequestTransaction(config(binding), (database) =>
+  return withMemberRequestTransaction(config(binding), (database) =>
     callback(database),
+  );
+}
+
+function legacyOwnerTransaction<T>(
+  binding: SupabaseRepositoryBinding,
+  callback: (database: DatabaseTransaction) => Promise<T>,
+): Promise<T> {
+  return withRequestTransaction(config(binding), (database) => callback(database));
+}
+
+function editorialStaffTransaction<T>(
+  binding: SupabaseRepositoryBinding,
+  permission: string,
+  callback: (database: DatabaseTransaction) => Promise<T>,
+): Promise<T> {
+  return withEditorialStaffRequestTransaction(
+    config(binding),
+    permission,
+    (database) => callback(database),
   );
 }
 
@@ -217,7 +250,7 @@ export function createSupabaseSessionRepository(
        left join argus_app.onboarding_states onboarding on onboarding.user_id = member.user_id
        left join argus_app.investor_profiles investor on investor.user_id = member.user_id
        left join argus_app.astrology_profiles astrology on astrology.user_id = member.user_id
-       where member.user_id = argus_private.request_user_id() and member.status = 'active'`,
+       where member.user_id = argus_private.trusted_request_user_id() and member.status = 'active'`,
     );
     return supabaseSessionSnapshotSchema.parse(first(result.rows).snapshot);
   };
@@ -237,7 +270,7 @@ export function createSupabaseSessionRepository(
         decision: "accepted" | "declined";
       }>>>;
     }>, idempotencyKey: string) =>
-      ownerTransaction(binding, async (database) => {
+      legacyOwnerTransaction(binding, async (database) => {
         const operation = "onboarding.finalize";
         const requestHash = await sha256TextHex(JSON.stringify(input));
         await database.query(
@@ -363,7 +396,7 @@ export function createSupabaseAccountRepository(
              left join argus_app.onboarding_states onboarding on onboarding.user_id = member.user_id
              left join argus_app.investor_profiles investor on investor.user_id = member.user_id
              left join argus_app.astrology_profiles astrology on astrology.user_id = member.user_id
-            where member.user_id = argus_private.request_user_id()`,
+            where member.user_id = argus_private.trusted_request_user_id()`,
         );
         return first(result.rows);
       }),
@@ -384,7 +417,7 @@ export function createSupabaseAccountRepository(
                   timezone = coalesce($3, timezone),
                   locale = coalesce($4, locale),
                   version = version + 1
-            where user_id = argus_private.request_user_id() and version = $5
+            where user_id = argus_private.trusted_request_user_id() and version = $5
           returning *`,
           [
             patch.themeMode ?? null,
@@ -411,9 +444,9 @@ export function createSupabaseAccountRepository(
           `insert into argus_app.consent_records(
              user_id, deletion_epoch, policy_code, policy_version, decision
            )
-           select argus_private.request_user_id(), member.deletion_epoch, $1, $2, $3
+           select argus_private.trusted_request_user_id(), member.deletion_epoch, $1, $2, $3
              from argus_app.members member
-            where member.user_id = argus_private.request_user_id() and member.status = 'active'
+            where member.user_id = argus_private.trusted_request_user_id() and member.status = 'active'
           returning *`,
           [input.policyCode, input.policyVersion, input.decision],
         );
@@ -429,7 +462,7 @@ export function createSupabaseAccountRepository(
     ) => ownerTransaction(binding, async (database) => {
       const current = await database.query<{ version: number }>(
         `select version from argus_app.investor_profiles
-          where user_id=argus_private.request_user_id() for update`,
+          where user_id=argus_private.trusted_request_user_id() for update`,
       );
       if (current.rows[0] === undefined) {
         if (expectedVersion !== undefined) throw new RepositoryRevisionConflictError();
@@ -438,7 +471,7 @@ export function createSupabaseAccountRepository(
              user_id,deletion_epoch,goal_type,time_horizon,risk_comfort
            ) select member.user_id,member.deletion_epoch,$1,$2,$3
                from argus_app.members member
-              where member.user_id=argus_private.request_user_id() and member.status='active'
+              where member.user_id=argus_private.trusted_request_user_id() and member.status='active'
           returning *`,
           [input.goalType, input.timeHorizon, input.riskComfort],
         );
@@ -450,7 +483,7 @@ export function createSupabaseAccountRepository(
       const updated = await database.query<JsonObject>(
         `update argus_app.investor_profiles
             set goal_type=$1,time_horizon=$2,risk_comfort=$3,version=version+1
-          where user_id=argus_private.request_user_id()
+          where user_id=argus_private.trusted_request_user_id()
         returning *`,
         [input.goalType, input.timeHorizon, input.riskComfort],
       );
@@ -460,7 +493,7 @@ export function createSupabaseAccountRepository(
       ownerTransaction(binding, async (database) => {
         const current = await database.query<{ present: boolean }>(
           `select true as present from argus_app.astrology_profiles
-            where user_id=argus_private.request_user_id() for update`,
+            where user_id=argus_private.trusted_request_user_id() for update`,
         );
         if (current.rows[0] === undefined && expectedVersion !== undefined) {
           throw new RepositoryRevisionConflictError();
@@ -478,7 +511,7 @@ export function createSupabaseAccountRepository(
                       else 'rising_explorer'
                     end
                from argus_app.members member
-              where member.user_id=argus_private.request_user_id() and member.status='active'
+              where member.user_id=argus_private.trusted_request_user_id() and member.status='active'
            on conflict (user_id) do update
              set birth_date=excluded.birth_date,
                  derived_profile_code=excluded.derived_profile_code,
@@ -493,7 +526,7 @@ export function createSupabaseAccountRepository(
         if (expectedVersion !== 1) throw new RepositoryRevisionConflictError();
         await database.query(
           `delete from argus_app.astrology_profiles
-            where user_id=argus_private.request_user_id()`,
+            where user_id=argus_private.trusted_request_user_id()`,
         );
         return { removed: true };
       }),
@@ -515,7 +548,7 @@ export function createSupabaseCircleRepository(
          from argus_app.circles circle
          left join argus_app.circle_assets asset
            on asset.user_id = circle.user_id and asset.circle_id = circle.id
-        where circle.user_id = argus_private.request_user_id() and circle.id = $1
+        where circle.user_id = (select argus_private.trusted_request_user_id()) and circle.id = $1
         group by circle.id`,
       [id],
     );
@@ -536,7 +569,7 @@ export function createSupabaseCircleRepository(
                                where asset.user_id=circle.user_id and asset.circle_id=circle.id),
                              '[]'::jsonb) as assets
                from argus_app.circles circle
-              where user_id = argus_private.request_user_id()
+              where user_id = (select argus_private.trusted_request_user_id())
               order by archived_at nulls first, id
               limit $1`,
             [limit],
@@ -561,9 +594,9 @@ export function createSupabaseCircleRepository(
           `insert into argus_app.circles(
              user_id, deletion_epoch, title, description,source_template_id
            )
-           select argus_private.request_user_id(), member.deletion_epoch, $1, $2,$3
+           select argus_private.trusted_request_user_id(), member.deletion_epoch, $1, $2,$3
              from argus_app.members member
-            where member.user_id = argus_private.request_user_id() and member.status = 'active'
+            where member.user_id = argus_private.trusted_request_user_id() and member.status = 'active'
           returning *`,
           [input.title, input.description, input.sourceTemplateId ?? null],
         );
@@ -572,7 +605,7 @@ export function createSupabaseCircleRepository(
           await database.query(
             `insert into argus_app.circle_assets(
                user_id,deletion_epoch,circle_id,asset_id,ordinal,weight_bps,note
-             ) values(argus_private.request_user_id(),$1,$2,$3,$4,$5,$6)`,
+             ) values(argus_private.trusted_request_user_id(),$1,$2,$3,$4,$5,$6)`,
             [
               circle.deletion_epoch,
               circle.id,
@@ -596,7 +629,7 @@ export function createSupabaseCircleRepository(
               set title = coalesce($2, title),
                   description = coalesce($3, description),
                   version = version + 1
-            where user_id = argus_private.request_user_id() and id = $1 and version = $4
+            where user_id = argus_private.trusted_request_user_id() and id = $1 and version = $4
           returning id`,
           [
             id,
@@ -622,21 +655,21 @@ export function createSupabaseCircleRepository(
     ) => ownerTransaction(binding, async (database) => {
       const updated = await database.query<{ deletion_epoch: number }>(
         `update argus_app.circles set version=version+1
-          where user_id=argus_private.request_user_id() and id=$1 and version=$2
+          where user_id=argus_private.trusted_request_user_id() and id=$1 and version=$2
         returning deletion_epoch`,
         [id, expectedVersion],
       );
       const circle = first(updated.rows);
       await database.query(
         `delete from argus_app.circle_assets
-          where user_id=argus_private.request_user_id() and circle_id=$1`,
+          where user_id=argus_private.trusted_request_user_id() and circle_id=$1`,
         [id],
       );
       for (const asset of assets) {
         await database.query(
           `insert into argus_app.circle_assets(
              user_id,deletion_epoch,circle_id,asset_id,ordinal,weight_bps,note
-           ) values(argus_private.request_user_id(),$1,$2,$3,$4,$5,$6)`,
+           ) values(argus_private.trusted_request_user_id(),$1,$2,$3,$4,$5,$6)`,
           [circle.deletion_epoch,id,asset.assetId,asset.ordinal,asset.weightBps ?? null,asset.note ?? null],
         );
       }
@@ -654,7 +687,7 @@ export function createSupabaseCircleRepository(
     ) => ownerTransaction(binding, async (database) => {
       const updated = await database.query<{ deletion_epoch: number }>(
         `update argus_app.circles set version=version+1
-          where user_id=argus_private.request_user_id() and id=$1 and version=$2
+          where user_id=argus_private.trusted_request_user_id() and id=$1 and version=$2
         returning deletion_epoch`,
         [id,expectedVersion],
       );
@@ -662,7 +695,7 @@ export function createSupabaseCircleRepository(
       await database.query(
         `insert into argus_app.circle_assets(
            user_id,deletion_epoch,circle_id,asset_id,ordinal,weight_bps,note
-         ) values(argus_private.request_user_id(),$1,$2,$3,$4,$5,$6)
+         ) values(argus_private.trusted_request_user_id(),$1,$2,$3,$4,$5,$6)
          on conflict(user_id,circle_id,asset_id) do update
            set ordinal=excluded.ordinal,weight_bps=excluded.weight_bps,note=excluded.note`,
         [circle.deletion_epoch,id,assetId,asset.ordinal,asset.weightBps ?? null,asset.note ?? null],
@@ -673,14 +706,14 @@ export function createSupabaseCircleRepository(
       ownerTransaction(binding, async (database) => {
         const updated = await database.query(
           `update argus_app.circles set version=version+1
-            where user_id=argus_private.request_user_id() and id=$1 and version=$2
+            where user_id=argus_private.trusted_request_user_id() and id=$1 and version=$2
           returning id`,
           [id,expectedVersion],
         );
         first(updated.rows);
         await database.query(
           `delete from argus_app.circle_assets
-            where user_id=argus_private.request_user_id() and circle_id=$1 and asset_id=$2`,
+            where user_id=argus_private.trusted_request_user_id() and circle_id=$1 and asset_id=$2`,
           [id,assetId],
         );
         return selectCircle(database,id);
@@ -690,7 +723,7 @@ export function createSupabaseCircleRepository(
         const updated = await database.query(
           `update argus_app.circles
               set archived_at=coalesce(archived_at,clock_timestamp()),version=version+1
-            where user_id=argus_private.request_user_id() and id=$1 and version=$2
+            where user_id=argus_private.trusted_request_user_id() and id=$1 and version=$2
           returning id`,
           [id,expectedVersion],
         );
@@ -700,27 +733,38 @@ export function createSupabaseCircleRepository(
     getTemplate: (id: string) => ownerTransaction(binding, async (database) => {
       const result = await database.query<JsonObject>(
         `select template.*,item.slug,revision.id as revision_id,revision.created_at as revision_created_at,
-                revision.payload,
-                exists(select 1 from argus_app.saved_items saved
-                        where saved.user_id=argus_private.request_user_id()
-                          and saved.item_kind='circle_template' and saved.item_id=template.id) as saved,
+                document.document as payload,
+                exists(select 1 from argus_app.member_saved_items saved
+                        where saved.tenant_id=argus_private.trusted_request_tenant_id()
+                          and saved.lifecycle_id=argus_private.trusted_request_lifecycle_id()
+                          and saved.circle_template_id=template.id) as saved,
                 coalesce((select jsonb_agg(jsonb_build_object(
                   'id',asset.id,'slug',asset.slug,'symbol',asset.symbol,'name',asset.name,
                   'asset_type',asset.asset_type,'currency',asset.currency,
                   'ordinal',entry.ordinal,'weight_bps',null,'note',null,
                   'revision_id',asset_revision.id,'payload',asset_revision.payload
                 ) order by entry.ordinal)
-                  from unnest(template.asset_ids) with ordinality entry(asset_id,ordinal)
+                  from argus_app.community_template_revision_assets entry
                   join argus_app.catalog_assets asset on asset.id=entry.asset_id
                   left join lateral (
-                    select r.id,r.payload from argus_app.editorial_items i
+                    select r.id,asset_document.document as payload from argus_app.editorial_items i
                     join argus_app.editorial_revisions r on r.id=i.current_published_revision_id
-                    where i.kind='asset_codex' and (i.slug=asset.slug or r.payload->>'asset_id'=asset.id::text)
+                    join argus_app.editorial_render_documents asset_document
+                      on asset_document.item_id=i.id and asset_document.revision_id=r.id
+                    join argus_app.asset_codex_revisions codex
+                      on codex.editorial_item_id=i.id and codex.revision_id=r.id
+                     and codex.asset_id=asset.id
+                    where i.kind='asset_codex' and i.status='published' and r.state='published'
                     limit 1
-                  ) asset_revision on true),'[]'::jsonb) as assets
+                  ) asset_revision on true
+                 where entry.template_id=template.id
+                   and entry.editorial_item_id=item.id
+                   and entry.revision_id=revision.id),'[]'::jsonb) as assets
            from argus_app.community_templates template
            join argus_app.editorial_items item on item.id=template.editorial_item_id
            join argus_app.editorial_revisions revision on revision.id=item.current_published_revision_id
+           join argus_app.editorial_render_documents document
+             on document.item_id=item.id and document.revision_id=revision.id
           where template.id=$1 and item.status='published' and revision.state='published'`,
         [id],
       );
@@ -730,9 +774,19 @@ export function createSupabaseCircleRepository(
       ownerTransaction(binding, async (database) =>
         (
           await database.query<JsonObject>(
-            `select * from argus_app.saved_items
-              where user_id = argus_private.request_user_id()
-              order by saved_at desc, item_kind, item_id
+            `select saved.user_id,member.deletion_epoch,saved.item_kind,
+                    coalesce(saved.asset_id,saved.grimoire_id,saved.circle_template_id,
+                             saved.coven_entry_id) as item_id,
+                    saved.source_kind,
+                    coalesce(saved.source_ritual_assignment_id,saved.source_circle_id,
+                             saved.source_editorial_item_id,saved.source_catalog_asset_id) as source_id,
+                    saved.saved_at
+               from argus_app.member_saved_items saved
+               join argus_app.members member
+                 on member.user_id=saved.user_id and member.lifecycle_id=saved.lifecycle_id
+              where saved.tenant_id=argus_private.trusted_request_tenant_id()
+                and saved.lifecycle_id=argus_private.trusted_request_lifecycle_id()
+              order by saved.saved_at desc,saved.item_kind,item_id
               limit $1`,
             [limit],
           )
@@ -746,15 +800,7 @@ export function createSupabaseCircleRepository(
     ) =>
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `insert into argus_app.saved_items(
-             user_id, deletion_epoch, item_kind, item_id, source_kind, source_id
-           )
-           select argus_private.request_user_id(), member.deletion_epoch, $1, $2, $3, $4
-             from argus_app.members member
-            where member.user_id = argus_private.request_user_id() and member.status = 'active'
-           on conflict (user_id, item_kind, item_id) do update
-             set source_kind = excluded.source_kind, source_id = excluded.source_id
-          returning *`,
+          `select * from argus_private.save_member_item($1,$2,$3,$4)`,
           [itemKind, itemId, sourceKind, sourceId ?? null],
         );
         return first(result.rows);
@@ -765,12 +811,10 @@ export function createSupabaseCircleRepository(
     ) =>
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `delete from argus_app.saved_items
-            where user_id = argus_private.request_user_id() and item_kind = $1 and item_id = $2
-          returning *`,
+          `select argus_private.unsave_member_item($1,$2) as removed`,
           [itemKind, itemId],
         );
-        return result.rows[0] ?? null;
+        return first(result.rows);
       }),
   });
 }
@@ -783,16 +827,8 @@ export function createSupabaseEditorialRepository(
       ownerTransaction(binding, async (database) =>
         (
           await database.query<JsonObject>(
-            `select item.id, item.kind, item.slug, revision.id as revision_id,
-                    revision.revision_number, revision.payload
-               from argus_app.editorial_items item
-               join argus_app.editorial_revisions revision
-                 on revision.id = item.current_published_revision_id
-              where item.status = 'published'
-                and revision.state = 'published'
-                and item.kind = $1
-              order by item.slug, item.id
-              limit $2`,
+            `select id,kind,slug,revision_id,revision_number,document as payload
+               from argus_private.list_current_published_editorial($1,$2)`,
             [kind, limit],
           )
         ).rows,
@@ -800,14 +836,8 @@ export function createSupabaseEditorialRepository(
     getPublished: (slug: string) =>
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `select item.id, item.kind, item.slug, revision.id as revision_id,
-                  revision.revision_number, revision.payload
-             from argus_app.editorial_items item
-             join argus_app.editorial_revisions revision
-               on revision.id = item.current_published_revision_id
-            where item.status = 'published'
-              and revision.state = 'published'
-              and item.slug = $1`,
+          `select id,kind,slug,revision_id,revision_number,document as payload
+             from argus_private.get_current_published_editorial($1)`,
           [slug],
         );
         return result.rows[0] ?? null;
@@ -833,7 +863,7 @@ export function createSupabaseBriefingRepository(
       on read_state.user_id=briefing.user_id
      and read_state.deletion_epoch=briefing.deletion_epoch
      and read_state.briefing_id=briefing.id
-   where briefing.user_id=argus_private.request_user_id()`;
+   where briefing.user_id=(select argus_private.trusted_request_user_id())`;
   return Object.freeze({
     list: (
       limit: number,
@@ -851,7 +881,7 @@ export function createSupabaseBriefingRepository(
                  on read_state.user_id=briefing.user_id
                 and read_state.deletion_epoch=briefing.deletion_epoch
                 and read_state.briefing_id=briefing.id
-              where briefing.user_id = argus_private.request_user_id()
+              where briefing.user_id = (select argus_private.trusted_request_user_id())
                 and briefing.status='ready'
                 and ($2::text is null or briefing_type=$2)
                 and ($3::date is null or period_start >= $3)
@@ -891,7 +921,7 @@ export function createSupabaseBriefingRepository(
           `with target as materialized (
              select briefing.*
                from argus_app.briefings briefing
-              where briefing.user_id=argus_private.request_user_id()
+              where briefing.user_id=(select argus_private.trusted_request_user_id())
                 and briefing.id=$1
            ), marked as (
              insert into argus_app.briefing_read_states (
@@ -936,7 +966,7 @@ export function createSupabaseNotificationRepository(
             `select notification.*, null::text as deep_link,
                     notification.created_at as scheduled_at
                from argus_app.notifications notification
-              where user_id = argus_private.request_user_id()
+              where user_id = (select argus_private.trusted_request_user_id())
               order by created_at desc, id desc
               limit $1`,
             [limit],
@@ -948,7 +978,7 @@ export function createSupabaseNotificationRepository(
         const result = await database.query<JsonObject>(
           `update argus_app.notifications
               set read_at = case when $2 then coalesce(read_at, clock_timestamp()) else null end
-            where user_id = argus_private.request_user_id() and id = $1
+            where user_id = argus_private.trusted_request_user_id() and id = $1
           returning *, null::text as deep_link, created_at as scheduled_at`,
           [id, read],
         );
@@ -960,7 +990,7 @@ export function createSupabaseNotificationRepository(
           `with updated as (
              update argus_app.notifications
                 set read_at=coalesce(read_at,clock_timestamp())
-              where user_id=argus_private.request_user_id()
+              where user_id=argus_private.trusted_request_user_id()
                 and created_at <= $1 and read_at is null
               returning id
            ) select count(*)::int as updated_count from updated`,
@@ -972,7 +1002,7 @@ export function createSupabaseNotificationRepository(
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `select * from argus_app.notification_preferences
-            where user_id = argus_private.request_user_id()`,
+            where user_id = argus_private.trusted_request_user_id()`,
         );
         return first(result.rows);
       }),
@@ -985,7 +1015,7 @@ export function createSupabaseNotificationRepository(
                   moon_cycle = coalesce(($1::jsonb->>'moon_cycle')::boolean, moon_cycle),
                   quiet_hours = coalesce($1::jsonb->'quiet_hours', quiet_hours),
                   version = version + 1
-            where user_id = argus_private.request_user_id() and version = $2
+            where user_id = argus_private.trusted_request_user_id() and version = $2
           returning *`,
           [patch, expectedVersion],
         );
@@ -1010,7 +1040,7 @@ export function createSupabaseMediaRepository(
         expiresAt: Date;
       }>,
     ) =>
-      ownerTransaction(binding, async (database) => {
+      legacyOwnerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `insert into argus_private.media_upload_intents(
              user_id, deletion_epoch, bucket_id, object_path, mime_type,
@@ -1031,7 +1061,7 @@ export function createSupabaseMediaRepository(
         return first(result.rows);
       }),
     getUploadIntent: (id: string) =>
-      ownerTransaction(binding, async (database) => {
+      legacyOwnerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `select * from argus_private.media_upload_intents
             where user_id = argus_private.request_user_id() and id = $1`,
@@ -1103,15 +1133,8 @@ export function createSupabaseModerationRepository(
       }>,
     ) =>
       ownerTransaction(binding, async (database) => {
-        const result = await database.query<JsonObject>(
-          `insert into argus_app.content_reports(
-             user_id, deletion_epoch, target_kind, target_id, reason_code,
-             details
-           )
-           select argus_private.request_user_id(), member.deletion_epoch, $1, $2, $3, $4
-             from argus_app.members member
-            where member.user_id = argus_private.request_user_id() and member.status = 'active'
-          returning *`,
+        const created = await database.query<{ id: string }>(
+          `select argus_private.create_content_report($1,$2,$3,$4) as id`,
           [
             input.targetKind,
             input.targetId,
@@ -1119,18 +1142,14 @@ export function createSupabaseModerationRepository(
             input.details ?? null,
           ],
         );
-        const report = first(result.rows) as JsonObject & { id: string };
-        await database.query(
-          `insert into argus_private.outbox_events(
-             user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
-           )
-           select report.user_id,report.deletion_epoch,'argus_jobs',
-                  'content-report.created',report.id,$2
-             from argus_app.content_reports report where report.id=$1
-           on conflict (topic,dedupe_key) do nothing`,
-          [report.id, `content-report:${report.id}`],
+        const result = await database.query<JsonObject>(
+          `select * from argus_app.content_reports
+            where tenant_id=argus_private.trusted_request_tenant_id()
+              and lifecycle_id=argus_private.trusted_request_lifecycle_id()
+              and id=$1`,
+          [first(created.rows).id],
         );
-        return report;
+        return first(result.rows);
       }),
     decide: (
       caseId: string,
@@ -1170,7 +1189,7 @@ export function createSupabasePrivacyRepository(
 ) {
   return Object.freeze({
     list: () =>
-      ownerTransaction(binding, async (database) =>
+      legacyOwnerTransaction(binding, async (database) =>
         (
           await database.query<JsonObject>(
             `select * from argus_app.privacy_requests
@@ -1184,7 +1203,7 @@ export function createSupabasePrivacyRepository(
       dedupeKey: string,
       stepUpReceipt?: string,
     ) =>
-      ownerTransaction(binding, async (database) => {
+      legacyOwnerTransaction(binding, async (database) => {
         if (requestType === "deletion") {
           if (stepUpReceipt === undefined) throw new RepositoryStepUpRequiredError();
           try {
@@ -1275,7 +1294,7 @@ export function createSupabasePrivacyRepository(
         return first(createdRequest.rows);
       }),
     getDeletionTombstone: () =>
-      ownerTransaction(binding, async (database) => {
+      legacyOwnerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
           `select * from argus_private.deletion_tombstones
             where user_id = argus_private.request_user_id()
@@ -1286,7 +1305,7 @@ export function createSupabasePrivacyRepository(
       }),
     createDownloadUrl: async (requestId: string) => {
       if (binding.signedStorage === undefined) throw new Error("storage_unavailable");
-      const artifact = await ownerTransaction(binding, async (database) => {
+      const artifact = await legacyOwnerTransaction(binding, async (database) => {
         const result = await database.query<{
           bucket_id: string;
           object_path: string;
@@ -1313,7 +1332,7 @@ export function createSupabasePrivacyRepository(
         artifact.object_path,
         300,
       );
-      await ownerTransaction(binding, async (database) => {
+      await legacyOwnerTransaction(binding, async (database) => {
         const current = await database.query<{ current: boolean }>(
           `select exists(
              select 1 from argus_private.privacy_export_artifacts artifact
@@ -1342,14 +1361,16 @@ export function createSupabasePrivacyRepository(
 export function createSupabaseRitualRepository(
   binding: SupabaseRepositoryBinding,
 ) {
-  const selectAssignment = `select assignment.*, revision.payload,
+  const selectAssignment = `select assignment.*, document.document as payload,
                   rowan.body_template, rowan.allowed_tokens, rowan.risk_footer
              from argus_app.daily_ritual_assignments assignment
              join argus_app.editorial_revisions revision
                on revision.id = assignment.revision_id
+             join argus_app.editorial_render_documents document
+               on document.item_id=revision.item_id and document.revision_id=revision.id
              left join argus_app.rowan_script_revisions rowan
                on rowan.revision_id = assignment.rowan_revision_id
-            where assignment.user_id = argus_private.request_user_id()`;
+            where assignment.user_id = (select argus_private.trusted_request_user_id())`;
   return Object.freeze({
     getDaily: (mode?: "tarot" | "astrology") =>
       ownerTransaction(binding, async (database) => {
@@ -1388,13 +1409,16 @@ export function createSupabaseRitualRepository(
              from argus_app.daily_ritual_assignments assignment
              join argus_app.ritual_scenario_revisions scenario
                on scenario.revision_id = assignment.revision_id
+             join argus_app.ritual_scenario_revision_evidence evidence
+               on evidence.editorial_item_id=scenario.editorial_item_id
+              and evidence.revision_id=scenario.revision_id
              join argus_app.evidence_claims claim
-               on claim.id = any(scenario.evidence_claim_ids)
+               on claim.id=evidence.evidence_claim_id
              join argus_app.evidence_sources source on source.id = claim.source_id
-            where assignment.user_id = argus_private.request_user_id()
+            where assignment.user_id = (select argus_private.trusted_request_user_id())
               and assignment.id = $1
               and claim.status = 'active' and source.status = 'active'
-            order by claim.observed_at desc nulls last, claim.id`,
+            order by evidence.ordinal`,
           [assignmentId],
         );
         return result.rows;
@@ -1414,7 +1438,7 @@ export function createSupabaseRitualRepository(
                   completed_at = case when $3 = 'completed'
                     then coalesce(completed_at, clock_timestamp()) else completed_at end,
                   version = version + 1
-            where user_id = argus_private.request_user_id() and id = $1 and state = $2
+            where user_id = argus_private.trusted_request_user_id() and id = $1 and state = $2
               and version = $4
           returning *`,
           [assignmentId, from, to, expectedVersion],
@@ -1427,10 +1451,12 @@ export function createSupabaseRitualRepository(
     getSchedule: (localDate: string, mode: "tarot" | "astrology") =>
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `select schedule.*, revision.payload
+          `select schedule.*, document.document as payload
              from argus_app.ritual_schedules schedule
              join argus_app.editorial_revisions revision
                on revision.id = schedule.revision_id
+             join argus_app.editorial_render_documents document
+               on document.item_id=revision.item_id and document.revision_id=revision.id
             where schedule.local_date = $1 and schedule.mode = $2
               and schedule.audience = 'member' and schedule.state = 'active'`,
           [localDate, mode],
@@ -1478,6 +1504,54 @@ export function createSupabaseSearchRepository(
 export function createSupabaseAdminRepository(
   binding: SupabaseRepositoryBinding,
 ) {
+  type EditorialKind = "ritual" | "asset_codex" | "coven" | "grimoire" |
+    "circle_template" | "rowan" | "briefing_template";
+
+  const createEditorialKindRecord = async (
+    database: DatabaseTransaction,
+    kind: EditorialKind,
+    itemId: string,
+    payload: JsonObject,
+  ): Promise<void> => {
+    const functions: Partial<Record<EditorialKind, string>> = {
+      ritual: "argus_private.create_ritual_editorial_item",
+      coven: "argus_private.create_coven_editorial_item",
+      grimoire: "argus_private.create_grimoire_editorial_item",
+      circle_template: "argus_private.create_circle_template_editorial_item",
+      rowan: "argus_private.create_rowan_editorial_item",
+    };
+    const functionName = functions[kind];
+    if (functionName !== undefined) {
+      await database.query(
+        `select ${functionName}($1,$2::jsonb)`,
+        [itemId, JSON.stringify(payload)],
+      );
+    }
+  };
+
+  const syncEditorialRevision = async (
+    database: DatabaseTransaction,
+    kind: EditorialKind,
+    revisionId: string,
+    payload: JsonObject,
+  ): Promise<void> => {
+    const functions: Partial<Record<EditorialKind, string>> = {
+      ritual: "argus_private.sync_ritual_revision",
+      asset_codex: "argus_private.sync_asset_codex_revision",
+      coven: "argus_private.sync_coven_revision",
+      grimoire: "argus_private.sync_grimoire_revision",
+      circle_template: "argus_private.sync_circle_template_revision",
+      rowan: "argus_private.sync_rowan_revision",
+    };
+    const functionName = functions[kind];
+    if (functionName !== undefined) {
+      await database.query(
+        `select ${functionName}($1,$2::jsonb)`,
+        [revisionId, JSON.stringify(payload)],
+      );
+    }
+  };
+
   const viewEditorialItem = async (
     database: DatabaseTransaction,
     itemId: string,
@@ -1514,7 +1588,7 @@ export function createSupabaseAdminRepository(
          actor_user_id,action,target_kind,target_id,outcome,reason_code,
          correlation_id,details
        ) values (
-         argus_private.request_user_id(),$1,'editorial_item',$2,$3,$4,$5,'{}'::jsonb
+         argus_private.trusted_request_user_id(),$1,'editorial_item',$2,$3,$4,$5,'{}'::jsonb
        )`,
       [action, itemId, outcome, reasonCode, requestId],
     );
@@ -1567,7 +1641,7 @@ export function createSupabaseAdminRepository(
         ).rows,
       ),
     listEditorial: (limit: number, kind?: string) =>
-      staffTransaction(binding, "editorial:read", async (database) =>
+      editorialStaffTransaction(binding, "editorial:read", async (database) =>
         (
           await database.query<JsonObject>(
             `select item.id,item.kind,item.slug,item.status,
@@ -1590,7 +1664,7 @@ export function createSupabaseAdminRepository(
         ).rows,
       ),
     getEditorial: (itemId: string) =>
-      staffTransaction(binding, "editorial:read", async (database) => {
+      editorialStaffTransaction(binding, "editorial:read", async (database) => {
         const item = await viewEditorialItem(database, itemId);
         const revision = first(
           (
@@ -1614,7 +1688,7 @@ export function createSupabaseAdminRepository(
       payload: JsonObject,
       requestId: string,
     ) =>
-      staffTransaction(binding, "editorial:write", async (database) => {
+      editorialStaffTransaction(binding, "editorial:write", async (database) => {
         const item = first(
           (
             await database.query<{ id: string }>(
@@ -1624,16 +1698,15 @@ export function createSupabaseAdminRepository(
             )
           ).rows,
         );
-        await database.query(
+        const revision = first((await database.query<{ id: string }>(
           `insert into argus_app.editorial_revisions(
              item_id,revision_number,state,author_staff_id,content_hash,payload
-           ) values ($1,1,'draft',argus_private.request_user_id(),$2,$3::jsonb)`,
+           ) values ($1,1,'draft',argus_private.trusted_request_user_id(),$2,$3::jsonb)
+           returning id`,
           [item.id, await sha256TextHex(JSON.stringify(payload)), JSON.stringify(payload)],
-        );
-        await database.query(
-          `select argus_private.create_editorial_kind_link($1,$2,$3::jsonb)`,
-          [kind, item.id, JSON.stringify(payload)],
-        );
+        )).rows);
+        await createEditorialKindRecord(database, kind, item.id, payload);
+        await syncEditorialRevision(database, kind, revision.id, payload);
         await auditEditorial(database, "editorial.create", item.id, "allowed", requestId);
         return viewEditorialItem(database, item.id);
       }),
@@ -1642,23 +1715,25 @@ export function createSupabaseAdminRepository(
       payload: JsonObject,
       requestId: string,
     ) =>
-      staffTransaction(binding, "editorial:write", async (database) => {
+      editorialStaffTransaction(binding, "editorial:write", async (database) => {
         const item = first(
           (
-            await database.query<{ id: string }>(
-              `select id from argus_app.editorial_items where id=$1 for update`,
+            await database.query<{ id: string; kind: EditorialKind }>(
+              `select id,kind from argus_app.editorial_items where id=$1 for update`,
               [itemId],
             )
           ).rows,
         );
-        await database.query(
+        const revision = first((await database.query<{ id: string }>(
           `insert into argus_app.editorial_revisions(
              item_id,revision_number,state,author_staff_id,content_hash,payload
            ) select $1,coalesce(max(revision_number),0)+1,'draft',
-                    argus_private.request_user_id(),$2,$3::jsonb
-               from argus_app.editorial_revisions where item_id=$1`,
+                    argus_private.trusted_request_user_id(),$2,$3::jsonb
+               from argus_app.editorial_revisions where item_id=$1
+           returning id`,
           [item.id, await sha256TextHex(JSON.stringify(payload)), JSON.stringify(payload)],
-        );
+        )).rows);
+        await syncEditorialRevision(database, item.kind, revision.id, payload);
         await auditEditorial(database, "editorial.revision.create", item.id, "allowed", requestId);
         return viewEditorialItem(database, item.id);
       }),
@@ -1669,7 +1744,11 @@ export function createSupabaseAdminRepository(
       payload: JsonObject,
       requestId: string,
     ) =>
-      staffTransaction(binding, "editorial:write", async (database) => {
+      editorialStaffTransaction(binding, "editorial:write", async (database) => {
+        const item = first((await database.query<{ kind: EditorialKind }>(
+          `select kind from argus_app.editorial_items where id=$1 for update`,
+          [itemId],
+        )).rows);
         const result = await database.query<{ id: string }>(
           `update argus_app.editorial_revisions
               set payload=$1::jsonb,content_hash=$2,edit_version=edit_version+1
@@ -1684,6 +1763,7 @@ export function createSupabaseAdminRepository(
           ],
         );
         if (result.rows.length === 0) throw new RepositoryRevisionConflictError();
+        await syncEditorialRevision(database, item.kind, revisionId, payload);
         await auditEditorial(database, "editorial.revision.patch", itemId, "allowed", requestId);
         return viewEditorialItem(database, itemId);
       }),
@@ -1700,7 +1780,7 @@ export function createSupabaseAdminRepository(
         : action === "approve" || action === "changes_requested"
         ? "editorial:review"
         : "editorial:write";
-      return staffTransaction(binding, permission, async (database) => {
+      return editorialStaffTransaction(binding, permission, async (database) => {
         if (action === "request_review") {
           const revision = first(
             (
@@ -1715,9 +1795,11 @@ export function createSupabaseAdminRepository(
               )
             ).rows,
           );
-          await database.query(
-            `select argus_private.materialize_editorial_revision($1,$2,$3::jsonb)`,
-            [revision.kind, revision.id, JSON.stringify(revision.payload)],
+          await syncEditorialRevision(
+            database,
+            revision.kind as EditorialKind,
+            revision.id,
+            revision.payload,
           );
           await database.query(
             `update argus_app.editorial_revisions set state='submitted'
@@ -1728,7 +1810,7 @@ export function createSupabaseAdminRepository(
             `insert into argus_app.editorial_review_requests(
                revision_id,requested_by,high_trust,status
              ) values (
-               $1,argus_private.request_user_id(),
+               $1,argus_private.trusted_request_user_id(),
                ($2 or $3 in ('ritual','rowan')),'open'
              )`,
             [revision.id, highTrust, revision.kind],
@@ -1762,7 +1844,7 @@ export function createSupabaseAdminRepository(
           await database.query(
             `insert into argus_app.editorial_review_decisions(
                request_id,reviewer_id,decision,reason
-             ) values ($1,argus_private.request_user_id(),$2,$3)`,
+             ) values ($1,argus_private.trusted_request_user_id(),$2,$3)`,
             [request.id, decision, reason],
           );
           await database.query(
@@ -1774,25 +1856,8 @@ export function createSupabaseAdminRepository(
             [action === "approve" ? "approved" : "rejected", revisionId],
           );
         } else if (action === "publish") {
-          first(
-            (
-              await database.query<{ id: string }>(
-                `update argus_app.editorial_revisions set state='published'
-                  where id=$1 and item_id=$2 and state='approved' returning id`,
-                [revisionId, itemId],
-              )
-            ).rows,
-          );
           await database.query(
-            `update argus_app.editorial_items
-                set status='published',current_published_revision_id=$1
-              where id=$2`,
-            [revisionId, itemId],
-          );
-          await database.query(
-            `insert into argus_app.publication_events(
-               item_id,revision_id,action,effective_at,actor_id,reason
-             ) values ($1,$2,'publish',clock_timestamp(),argus_private.request_user_id(),$3)`,
+            `select argus_private.publish_editorial_revision($1,$2,$3)`,
             [itemId, revisionId, reason],
           );
         } else {
@@ -1814,7 +1879,7 @@ export function createSupabaseAdminRepository(
           await database.query(
             `insert into argus_app.publication_events(
                item_id,revision_id,action,effective_at,actor_id,reason
-             ) values ($1,$2,'withdraw',clock_timestamp(),argus_private.request_user_id(),$3)`,
+             ) values ($1,$2,'withdraw',clock_timestamp(),argus_private.trusted_request_user_id(),$3)`,
             [itemId, item.current_published_revision_id, reason],
           );
         }
@@ -1959,16 +2024,8 @@ export function createSupabasePublicPreviewRepository(pool: DatabasePool) {
       withAnonymousRequestTransaction(pool, async (database) =>
         (
           await database.query<JsonObject>(
-            `select item.id, item.kind, item.slug, revision.id as revision_id,
-                    revision.revision_number, revision.payload
-               from argus_app.editorial_items item
-               join argus_app.editorial_revisions revision
-                 on revision.id = item.current_published_revision_id
-              where item.status = 'published'
-                and revision.state = 'published'
-                and item.kind = $1
-              order by item.slug, item.id
-              limit $2`,
+            `select id,kind,slug,revision_id,revision_number,document as payload
+               from argus_private.list_current_published_editorial($1,$2)`,
             [kind, limit],
           )
         ).rows,
@@ -1976,14 +2033,8 @@ export function createSupabasePublicPreviewRepository(pool: DatabasePool) {
     getPublished: (slug: string) =>
       withAnonymousRequestTransaction(pool, async (database) => {
         const result = await database.query<JsonObject>(
-          `select item.id, item.kind, item.slug, revision.id as revision_id,
-                  revision.revision_number, revision.payload
-             from argus_app.editorial_items item
-             join argus_app.editorial_revisions revision
-               on revision.id = item.current_published_revision_id
-            where item.status = 'published'
-              and revision.state = 'published'
-              and item.slug = $1`,
+          `select id,kind,slug,revision_id,revision_number,document as payload
+             from argus_private.get_current_published_editorial($1)`,
           [slug],
         );
         return result.rows[0] ?? null;
@@ -1997,19 +2048,23 @@ export function createSupabaseAssetRepository(
   const publishedAssetSelect = `select asset.*,
       revision.id as revision_id,revision.created_at as revision_created_at,
       revision.payload,
-      exists(select 1 from argus_app.saved_items saved
-              where saved.user_id=argus_private.request_user_id()
-                and saved.item_kind='asset' and saved.item_id=asset.id) as saved
+      exists(select 1 from argus_app.member_saved_items saved
+              where saved.tenant_id=argus_private.trusted_request_tenant_id()
+                and saved.lifecycle_id=argus_private.trusted_request_lifecycle_id()
+                and saved.asset_id=asset.id) as saved
     from argus_app.catalog_assets asset
     join lateral (
-      select candidate.id,candidate.created_at,candidate.payload
+      select candidate.id,candidate.created_at,document.document as payload
         from argus_app.editorial_items item
         join argus_app.editorial_revisions candidate
           on candidate.id=item.current_published_revision_id
+        join argus_app.asset_codex_revisions codex
+          on codex.editorial_item_id=item.id and codex.revision_id=candidate.id
+         and codex.asset_id=asset.id
+        join argus_app.editorial_render_documents document
+          on document.item_id=item.id and document.revision_id=candidate.id
        where item.kind='asset_codex' and item.status='published'
          and candidate.state='published'
-         and (item.slug=asset.slug or candidate.payload->>'asset_id'=asset.id::text)
-       order by (candidate.payload->>'asset_id'=asset.id::text) desc
        limit 1
     ) revision on true`;
   return Object.freeze({
@@ -2050,15 +2105,17 @@ export function createSupabaseAssetRepository(
              join argus_app.editorial_revisions revision
                on revision.id=item.current_published_revision_id
               and revision.state='published'
-             cross join lateral jsonb_array_elements_text(
-               coalesce(revision.payload->'evidence_claim_ids','[]'::jsonb)
-             ) claim_id
-             join argus_app.evidence_claims claim on claim.id=claim_id::text::uuid
+             join argus_app.asset_codex_revisions codex
+               on codex.editorial_item_id=item.id and codex.revision_id=revision.id
+              and codex.asset_id=asset.id
+             join argus_app.asset_codex_revision_evidence evidence
+               on evidence.editorial_item_id=codex.editorial_item_id
+              and evidence.revision_id=codex.revision_id
+             join argus_app.evidence_claims claim on claim.id=evidence.evidence_claim_id
              join argus_app.evidence_sources source on source.id=claim.source_id
             where asset.id=$1 and asset.status='active'
-              and (item.slug=asset.slug or revision.payload->>'asset_id'=asset.id::text)
               and claim.status='active' and source.status='active'
-            order by claim.observed_at desc nulls last,claim.id`,
+            order by evidence.ordinal`,
           [assetId],
         );
         return result.rows;
@@ -2066,18 +2123,27 @@ export function createSupabaseAssetRepository(
     metrics: (assetId: string) =>
       ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `select metric.value as metric
+          `select jsonb_strip_nulls(jsonb_build_object(
+                   'observed_at',metric.observed_at,
+                   'price_minor',metric.price_minor,
+                   'change_bps',metric.change_bps,
+                   'expense_ratio_bps',metric.expense_ratio_bps,
+                   'source_label',metric.source_label
+                 )) as metric
              from argus_app.catalog_assets asset
              join argus_app.editorial_items item
                on item.kind='asset_codex' and item.status='published'
              join argus_app.editorial_revisions revision
                on revision.id=item.current_published_revision_id
               and revision.state='published'
-             cross join lateral jsonb_array_elements(
-               coalesce(revision.payload->'metrics','[]'::jsonb)
-             ) metric(value)
+             join argus_app.asset_codex_revisions codex
+               on codex.editorial_item_id=item.id and codex.revision_id=revision.id
+              and codex.asset_id=asset.id
+             join argus_app.asset_codex_revision_metrics metric
+               on metric.editorial_item_id=codex.editorial_item_id
+              and metric.revision_id=codex.revision_id
             where asset.id=$1 and asset.status='active'
-              and (item.slug=asset.slug or revision.payload->>'asset_id'=asset.id::text)
+            order by metric.ordinal
             limit 90`,
           [assetId],
         );
@@ -2100,13 +2166,25 @@ export function createSupabaseAssetRepository(
 export function createSupabaseCovenRepository(
   binding: SupabaseRepositoryBinding,
 ) {
-  const select = `select coven.*, to_jsonb(company) as company,
+  const select = `select coven.id,coven.editorial_item_id,coven.company_id,
+                         coalesce((select jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+                           'criterion_code',qualification.criterion_code,
+                           'claim',qualification.claim,
+                           'evidence_claim_id',qualification.evidence_claim_id
+                         )) order by qualification.ordinal)
+                           from argus_app.coven_qualifications qualification
+                          where qualification.coven_entry_id=coven.id
+                            and qualification.editorial_item_id=item.id
+                            and qualification.revision_id=revision.id),'[]'::jsonb)
+                           as qualification_payload,
+                         to_jsonb(company) as company,
                          asset.symbol,revision.id as revision_id,
                          revision.created_at as revision_created_at,
-                         revision.payload, item.slug,
-                         exists(select 1 from argus_app.saved_items saved
-                           where saved.user_id=argus_private.request_user_id()
-                             and saved.item_kind='coven' and saved.item_id=coven.id) as saved
+                         document.document as payload, item.slug,
+                         exists(select 1 from argus_app.member_saved_items saved
+                           where saved.tenant_id=argus_private.trusted_request_tenant_id()
+                             and saved.lifecycle_id=argus_private.trusted_request_lifecycle_id()
+                             and saved.coven_entry_id=coven.id) as saved
                     from argus_app.coven_entries coven
                     join argus_app.companies company on company.id = coven.company_id
                     left join argus_app.catalog_assets asset on asset.id=company.asset_id
@@ -2114,6 +2192,8 @@ export function createSupabaseCovenRepository(
                       on item.id = coven.editorial_item_id
                     join argus_app.editorial_revisions revision
                       on revision.id = item.current_published_revision_id
+                    join argus_app.editorial_render_documents document
+                      on document.item_id=item.id and document.revision_id=revision.id
                    where item.status = 'published' and revision.state = 'published'`;
   return Object.freeze({
     list: (limit: number) =>
@@ -2150,15 +2230,18 @@ export function createSupabaseDiscoverRepository(
         (
           await database.query<JsonObject>(
             `select grimoire.*, item.slug,revision.id as revision_id,
-                    revision.created_at as revision_created_at, revision.payload,
-                    exists(select 1 from argus_app.saved_items saved
-                      where saved.user_id=argus_private.request_user_id()
-                        and saved.item_kind='grimoire' and saved.item_id=grimoire.id) as saved
+                    revision.created_at as revision_created_at,document.document as payload,
+                    exists(select 1 from argus_app.member_saved_items saved
+                      where saved.tenant_id=argus_private.trusted_request_tenant_id()
+                        and saved.lifecycle_id=argus_private.trusted_request_lifecycle_id()
+                        and saved.grimoire_id=grimoire.id) as saved
                from argus_app.grimoires grimoire
                join argus_app.editorial_items item
                  on item.id = grimoire.editorial_item_id
                join argus_app.editorial_revisions revision
                  on revision.id = item.current_published_revision_id
+               join argus_app.editorial_render_documents document
+                 on document.item_id=item.id and document.revision_id=revision.id
               where item.status = 'published' and revision.state = 'published'
                 and ($2::text is null or grimoire.theme_code = $2)
               order by item.slug limit $1`,
@@ -2171,15 +2254,18 @@ export function createSupabaseDiscoverRepository(
         (
           await database.query<JsonObject>(
             `select template.*, item.slug,revision.id as revision_id,
-                    revision.created_at as revision_created_at, revision.payload,
-                    exists(select 1 from argus_app.saved_items saved
-                      where saved.user_id=argus_private.request_user_id()
-                        and saved.item_kind='circle_template' and saved.item_id=template.id) as saved
+                    revision.created_at as revision_created_at,document.document as payload,
+                    exists(select 1 from argus_app.member_saved_items saved
+                      where saved.tenant_id=argus_private.trusted_request_tenant_id()
+                        and saved.lifecycle_id=argus_private.trusted_request_lifecycle_id()
+                        and saved.circle_template_id=template.id) as saved
                from argus_app.community_templates template
                join argus_app.editorial_items item
                  on item.id = template.editorial_item_id
                join argus_app.editorial_revisions revision
                  on revision.id = item.current_published_revision_id
+               join argus_app.editorial_render_documents document
+                 on document.item_id=item.id and document.revision_id=revision.id
               where item.status = 'published' and revision.state = 'published'
                 and ($2::text is null or template.creator_label = $2)
               order by item.slug limit $1`,
@@ -2190,27 +2276,38 @@ export function createSupabaseDiscoverRepository(
     getGrimoire: (id: string) => ownerTransaction(binding, async (database) => {
       const result = await database.query<JsonObject>(
         `select grimoire.*,item.slug,revision.id as revision_id,
-                revision.created_at as revision_created_at,revision.payload,
-                exists(select 1 from argus_app.saved_items saved
-                  where saved.user_id=argus_private.request_user_id()
-                    and saved.item_kind='grimoire' and saved.item_id=grimoire.id) as saved,
+                revision.created_at as revision_created_at,document.document as payload,
+                exists(select 1 from argus_app.member_saved_items saved
+                  where saved.tenant_id=argus_private.trusted_request_tenant_id()
+                    and saved.lifecycle_id=argus_private.trusted_request_lifecycle_id()
+                    and saved.grimoire_id=grimoire.id) as saved,
                 coalesce((select jsonb_agg(jsonb_build_object(
                   'id',asset.id,'slug',asset.slug,'symbol',asset.symbol,'name',asset.name,
                   'asset_type',asset.asset_type,'currency',asset.currency,
                   'revision_id',asset_revision.id,'revision_created_at',asset_revision.created_at,
                   'payload',asset_revision.payload
                 ) order by entry.ordinal)
-                  from unnest(grimoire.asset_ids) with ordinality entry(asset_id,ordinal)
+                  from argus_app.grimoire_revision_assets entry
                   join argus_app.catalog_assets asset on asset.id=entry.asset_id
                   left join lateral (
-                    select r.id,r.created_at,r.payload from argus_app.editorial_items i
+                    select r.id,r.created_at,asset_document.document as payload from argus_app.editorial_items i
                     join argus_app.editorial_revisions r on r.id=i.current_published_revision_id
-                    where i.kind='asset_codex' and (i.slug=asset.slug or r.payload->>'asset_id'=asset.id::text)
+                    join argus_app.editorial_render_documents asset_document
+                      on asset_document.item_id=i.id and asset_document.revision_id=r.id
+                    join argus_app.asset_codex_revisions codex
+                      on codex.editorial_item_id=i.id and codex.revision_id=r.id
+                     and codex.asset_id=asset.id
+                    where i.kind='asset_codex' and i.status='published' and r.state='published'
                     limit 1
-                  ) asset_revision on true),'[]'::jsonb) as assets
+                  ) asset_revision on true
+                 where entry.grimoire_id=grimoire.id
+                   and entry.editorial_item_id=item.id
+                   and entry.revision_id=revision.id),'[]'::jsonb) as assets
            from argus_app.grimoires grimoire
            join argus_app.editorial_items item on item.id=grimoire.editorial_item_id
            join argus_app.editorial_revisions revision on revision.id=item.current_published_revision_id
+           join argus_app.editorial_render_documents document
+             on document.item_id=item.id and document.revision_id=revision.id
           where grimoire.id=$1 and item.status='published' and revision.state='published'`,
         [id],
       );
@@ -2221,10 +2318,12 @@ export function createSupabaseDiscoverRepository(
         await database.query<JsonObject>(
           `select distinct on (template.creator_label)
                   template.id,item.slug,template.creator_label,
-                  revision.created_at as revision_created_at,revision.payload
+                  revision.created_at as revision_created_at,document.document as payload
              from argus_app.community_templates template
              join argus_app.editorial_items item on item.id=template.editorial_item_id
              join argus_app.editorial_revisions revision on revision.id=item.current_published_revision_id
+             join argus_app.editorial_render_documents document
+               on document.item_id=item.id and document.revision_id=revision.id
             where item.status='published' and revision.state='published'
             order by template.creator_label,item.slug
             limit $1`,

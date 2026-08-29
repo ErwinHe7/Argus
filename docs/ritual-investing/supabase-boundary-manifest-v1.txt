@@ -216,9 +216,12 @@ supabase/migrations/20260828181500_u21_deletion_retry_transition.sql
 supabase/migrations/20260828183000_u22_hosted_security_advisor_hardening.sql
 supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
 supabase/migrations/20260829043359_u3_identity_security_foundation.sql
+supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
 supabase/seed.sql
 supabase/tests/architecture_contract.test.sql
+supabase/tests/argus_domain_model.test.sql
 supabase/tests/brokerage_private.test.sql
+supabase/tests/editorial_publication.test.sql
 supabase/tests/function_security.test.sql
 supabase/tests/grants_and_rls.test.sql
 supabase/tests/member_lifecycle.test.sql

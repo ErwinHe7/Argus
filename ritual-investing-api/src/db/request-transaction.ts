@@ -15,6 +15,8 @@ export interface RequestTransactionConfig {
   verifiedClaims: VerifiedRequestClaims;
 }
 
+type RequestRole = "argus_runtime" | "argus_member" | "argus_staff";
+
 export class InactivePrincipalError extends Error {
   constructor() {
     super("inactive_principal");
@@ -22,8 +24,9 @@ export class InactivePrincipalError extends Error {
   }
 }
 
-export async function withRequestTransaction<T>(
+async function withVerifiedRequestTransaction<T>(
   config: RequestTransactionConfig,
+  role: RequestRole,
   callback: (
     database: RequestDatabase,
     context: VerifiedRequestClaims,
@@ -32,7 +35,7 @@ export async function withRequestTransaction<T>(
   const verifiedClaims = createVerifiedRequestClaims(config.verifiedClaims);
   return withDatabaseTransaction(
     config.pool,
-    "argus_runtime",
+    role,
     async (database) => callback(database, verifiedClaims),
     async (database) => {
       await database.query(
@@ -45,6 +48,26 @@ export async function withRequestTransaction<T>(
       );
     },
   );
+}
+
+export function withRequestTransaction<T>(
+  config: RequestTransactionConfig,
+  callback: (
+    database: RequestDatabase,
+    context: VerifiedRequestClaims,
+  ) => Promise<T>,
+): Promise<T> {
+  return withVerifiedRequestTransaction(config, "argus_runtime", callback);
+}
+
+export function withMemberRequestTransaction<T>(
+  config: RequestTransactionConfig,
+  callback: (
+    database: RequestDatabase,
+    context: VerifiedRequestClaims,
+  ) => Promise<T>,
+): Promise<T> {
+  return withVerifiedRequestTransaction(config, "argus_member", callback);
 }
 
 /**
@@ -78,6 +101,49 @@ async function assertLiveStaffSession(
   if (authorization.rows[0]?.live !== true) {
     throw new StaffAuthorizationError();
   }
+}
+
+export async function withActiveEditorialStaffRequestTransaction<T>(
+  config: RequestTransactionConfig,
+  callback: (
+    database: RequestDatabase,
+    context: VerifiedRequestClaims,
+  ) => Promise<T>,
+): Promise<T> {
+  return withVerifiedRequestTransaction(
+    config,
+    "argus_staff",
+    async (database, context) => {
+      await assertLiveStaffSession(database, context);
+      return callback(database, context);
+    },
+  );
+}
+
+export async function withEditorialStaffRequestTransaction<T>(
+  config: RequestTransactionConfig,
+  permission: string,
+  callback: (
+    database: RequestDatabase,
+    context: VerifiedRequestClaims,
+  ) => Promise<T>,
+): Promise<T> {
+  if (!/^[a-z][a-z0-9_.:-]{0,127}$/.test(permission)) {
+    throw new StaffAuthorizationError();
+  }
+  return withActiveEditorialStaffRequestTransaction(
+    config,
+    async (database, context) => {
+      const authorization = await database.query<{ allowed: boolean }>(
+        "select argus_private.has_staff_permission($1::text) as allowed",
+        [permission],
+      );
+      if (authorization.rows[0]?.allowed !== true) {
+        throw new StaffAuthorizationError();
+      }
+      return callback(database, context);
+    },
+  );
 }
 
 /**

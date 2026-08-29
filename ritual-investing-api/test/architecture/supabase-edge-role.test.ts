@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 
 describe("Supabase Edge database login boundary", () => {
-  it("keeps credentials on a narrow login and privileges on argus_runtime", async () => {
+  it("keeps credentials on a narrow login and privileges on capability roles", async () => {
     const migrationName = (await readdir(resolve(repositoryRoot, "supabase/migrations")))
       .find((name) => name.endsWith("_u3_edge_login_role.sql"));
     expect(migrationName).toBeDefined();
@@ -38,8 +38,8 @@ describe("Supabase Edge database login boundary", () => {
     );
     expect(adapter).toMatch(/argus_edge/);
     expect(adapter).toMatch(/invalid_supabase_database_role/);
-    expect(transaction).toContain(
-      'export type DatabaseCapabilityRole = "argus_runtime" | "argus_waitlist"',
+    expect(transaction).toMatch(
+      /export type DatabaseCapabilityRole =[\s\S]*"argus_runtime"[\s\S]*"argus_member"[\s\S]*"argus_staff"[\s\S]*"argus_waitlist"/,
     );
     expect(transaction).toMatch(/set local role \$\{role\}/i);
     expect(waitlist).toContain(

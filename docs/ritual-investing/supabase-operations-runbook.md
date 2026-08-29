@@ -71,8 +71,9 @@ scripts/check-supabase-migration-inventory.sh --check-cli
 
 U1 recorded `destructive_reset_eligible = false`; forward-only history is now
 the sole selected artifact. Every applied migration through
-`20260828220113` is checksum-locked in
-`supabase-migration-inventory-v1.txt`. No clean-history SQL artifact is retained.
+`20260829043359` is checksum-locked in
+`supabase-migration-inventory-v1.txt`; the U4 forward candidate is appended
+after that immutable boundary. No clean-history SQL artifact is retained.
 The clean option is documented only as rejected decision logic in
 `supabase-schema-authoring.md` and cannot execute without a new complete
 eligibility record and separate approval.
@@ -127,6 +128,32 @@ Run `request_context.test.sql`, `function_security.test.sql`,
 `member_lifecycle.test.sql`, and `grants_and_rls.test.sql` together after every
 foundation change. Full AE4 stale job/callback/object/receipt/provider proof is
 not complete until U4-U6 bind those artifacts.
+
+## U4 application and publication boundary
+
+U4 member-facing children carry `(tenant_id,lifecycle_id)` composite foreign
+keys to `member_lifecycles`; their forced-RLS policies use only U3 trusted
+context and deny closed or cross-owner lifecycles. `argus_app_owner` is a
+NOLOGIN function/table owner with exact command dependencies, not a connection
+role. Member and editorial repository work assumes `argus_member` or
+`argus_staff` inside the reserved request transaction.
+
+Public and member editorial reads call only the bounded current-publication
+functions owned by NOLOGIN `argus_publication_owner`. That role has SELECT on
+exactly `editorial_items`, `editorial_revisions`, and
+`editorial_render_documents`; the runtime has no direct publication-table
+grant. Normalized draft/relationship rows are editable authority and sealed
+render documents are immutable historical presentation.
+
+Legacy U4 arrays, payload relationship fields, `saved_items`, and report target
+pairs are read-only compatibility projections through U9 observation and are
+removed by U10. Do not add an independent writer. The remaining compatibility
+bridge is deliberately outside U4: U5 owns brokerage/callback relations; U6
+owns queues, jobs, receipts, Storage, privacy and private durable work. Until
+U6 replaces its transaction seams, runtime retains the exact onboarding/
+scenario relations used with member idempotency, worker retains read-only open
+lifecycle resolution for the binding trigger, and the private purge definer
+retains DELETE-only access to `member_saved_items`.
 
 ## U1 architecture evidence gate
 
