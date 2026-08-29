@@ -15,7 +15,11 @@ export interface RequestTransactionConfig {
   verifiedClaims: VerifiedRequestClaims;
 }
 
-type RequestRole = "argus_runtime" | "argus_member" | "argus_staff";
+type RequestRole =
+  | "argus_runtime"
+  | "argus_member"
+  | "argus_callback"
+  | "argus_staff";
 
 export class InactivePrincipalError extends Error {
   constructor() {
@@ -70,6 +74,16 @@ export function withMemberRequestTransaction<T>(
   return withVerifiedRequestTransaction(config, "argus_member", callback);
 }
 
+export function withCallbackRequestTransaction<T>(
+  config: RequestTransactionConfig,
+  callback: (
+    database: RequestDatabase,
+    context: VerifiedRequestClaims,
+  ) => Promise<T>,
+): Promise<T> {
+  return withVerifiedRequestTransaction(config, "argus_callback", callback);
+}
+
 /**
  * Runs an auth-free published-content read. No JWT claims are installed, so
  * forced RLS can expose only policies that explicitly allow published rows.
@@ -103,7 +117,7 @@ async function assertLiveStaffSession(
   }
 }
 
-export async function withActiveEditorialStaffRequestTransaction<T>(
+export async function withActiveCapabilityStaffRequestTransaction<T>(
   config: RequestTransactionConfig,
   callback: (
     database: RequestDatabase,
@@ -120,7 +134,17 @@ export async function withActiveEditorialStaffRequestTransaction<T>(
   );
 }
 
-export async function withEditorialStaffRequestTransaction<T>(
+export async function withActiveEditorialStaffRequestTransaction<T>(
+  config: RequestTransactionConfig,
+  callback: (
+    database: RequestDatabase,
+    context: VerifiedRequestClaims,
+  ) => Promise<T>,
+): Promise<T> {
+  return withActiveCapabilityStaffRequestTransaction(config, callback);
+}
+
+export async function withCapabilityStaffRequestTransaction<T>(
   config: RequestTransactionConfig,
   permission: string,
   callback: (
@@ -131,7 +155,7 @@ export async function withEditorialStaffRequestTransaction<T>(
   if (!/^[a-z][a-z0-9_.:-]{0,127}$/.test(permission)) {
     throw new StaffAuthorizationError();
   }
-  return withActiveEditorialStaffRequestTransaction(
+  return withActiveCapabilityStaffRequestTransaction(
     config,
     async (database, context) => {
       const authorization = await database.query<{ allowed: boolean }>(
@@ -144,6 +168,17 @@ export async function withEditorialStaffRequestTransaction<T>(
       return callback(database, context);
     },
   );
+}
+
+export async function withEditorialStaffRequestTransaction<T>(
+  config: RequestTransactionConfig,
+  permission: string,
+  callback: (
+    database: RequestDatabase,
+    context: VerifiedRequestClaims,
+  ) => Promise<T>,
+): Promise<T> {
+  return withCapabilityStaffRequestTransaction(config, permission, callback);
 }
 
 /**

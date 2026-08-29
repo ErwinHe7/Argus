@@ -20,7 +20,7 @@ U9.
 | Job claims/retries | 1m runs/5m attempts, 100k queued/retry; 16 worker deliveries | claim/complete p95 <= 150 ms, hard <= 1 s; one row lock order; no table scan | U6 jobs owner replaces buffer TBD. |
 | Privacy export/purge | heavy lifecycle: 100k product rows and 10k objects; 4 concurrent generations/purges | prepare transaction <= 2 s; each page <= 500 rows and p95 <= 250 ms; external assembly deadline/batch TBD | U6 privacy owner selects batch/time budget after measurement. |
 | Brokerage projections | 100 accounts/member max fixture, 1m general and 2m order generations; 100 read requests, 8 refreshes | latest projection p95 <= 200 ms; append transaction <= 500 ms; no stale-provider timestamp substitution | U5 brokerage owner approves buffer ceiling. |
-| Webull recovery | 100k commands, 10k ambiguous, 16 concurrent reconcilers | claim/transition p95 <= 150 ms, hard <= 1 s; account lock wait <= 3 s; lookup age gate below | U5 owner measures ambiguity contention and lookup provider budget. |
+| Webull recovery | 100k commands, 10k ambiguous, 16 concurrent reconcilers | claim/transition p95 <= 150 ms, hard <= 1 s; account lock wait <= 3 s; lookup age gate below | U5 local 16-way claim and lock-order gates are measured; hosted contention and provider lookup latency remain U9 gates. |
 | Waitlist | 1m retained submissions; 100 requests/s burst | DB submit p95 <= 150 ms; Edge p95 <= 1 s excluding Turnstile, hard dependency deadline 3 s | Platform owner validates advisory-lock contention. |
 
 ## U4 local representative plan evidence
@@ -46,6 +46,36 @@ index, and no plan spilled to temporary storage.
 These values are approved as the U4 local regression baseline, not as hosted
 p95 evidence. The general 2x buffer-regression gate below applies to these
 baselines; the concurrency rows remain blocking until U9 records them.
+
+## U5 local representative plan evidence
+
+U5 uses two disposable-local, self-cleaning harnesses. Run
+`scripts/measure-u5-brokerage-plans.sql` with `psql -X -f` after a clean replay;
+its single transaction loads 100 members with 100 accounts each, 1m general
+projection generations, 2m typed order generations, 100k provider commands,
+and 10k due ambiguous reconciliations, captures `EXPLAIN (ANALYZE, BUFFERS)`
+for the four critical query slices below, and rolls back. Then run
+`ritual-investing-api/scripts/verify-u5-brokerage-lock-order.mjs` against the
+same local database. It measures 16 simultaneous bounded reconciliation
+claims, exercises token-refresh, projection-refresh, and command-recovery
+scope guards concurrently, proves list ingestion serializes with a connection
+fence, removes its fixed fixture, and refuses a non-loopback database URL.
+
+| U5 query slice | Required boundary | Local execution / buffers |
+|---|---|---|
+| Latest ready typed projection | Lifecycle-leading latest-generation index; <= 200 ms | 16.104 ms; `projection_generations_u5_latest_idx`; shared hit 631/read 47/dirtied 1; local hit 10/read 2. |
+| Append next-generation lookup | Parent-qualified generation lookup; append transaction <= 500 ms | 46.037 ms; `projection_generations_u5_parent_unique`; 100 rows scanned; shared hit 1/read 287/dirtied 1; local hit 9. |
+| Account-scoped ambiguity gate | Lifecycle/user/account/state index; <= 150 ms | 0.098 ms; `one_ambiguous_command_per_account`; shared hit 3; local hit 12. |
+| Due reconciliation queue claim | Due partial index plus command identity; <= 150 ms and `SKIP LOCKED` only here | 17.353 ms; 10k due rows, 25 locked; shared hit 783/read 2; 931 kB quicksort, no spill. |
+
+The local 16-way bounded reconciliation claim p95 was 91.130 ms. Token refresh,
+projection refresh, and command recovery acquired their common guards without
+deadlock; list ingestion completed before reauthorization, and the post-fence
+list write was rejected. Loading 1m general generations took 210736.696 ms and
+2m typed order generations took 653029.291 ms; those rollback-only fixture-load
+times are informational and are not application query budgets. The
+100-read/8-refresh concurrency mix, hosted plans, and provider lookup latency
+remain explicit U9 gates; local evidence does not claim them.
 
 ## Database, pool and transaction budgets
 

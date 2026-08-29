@@ -30,6 +30,7 @@ cb239ca1bb49bae7a5abb8edf1faa830e26ae586e48119e5b2400402a3160720  supabase/migra
 3b19d75b915e51bb6ce60293f416459f56b561304283ce4b74982308e71d1c1e  supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
 5173ba43c5d7348bc4dd2da07b3cd96ca55cc225e75d3cdd1707ce33ad20143f  supabase/migrations/20260829043359_u3_identity_security_foundation.sql
 75db53a7b0c7b806d00c315cf5607a132a28da7d6de5994ae66b716c9d0ec9b6  supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
+496833df482f2ca5f21a0c70282af3d704ad585f931e962b36922d9765e551f6  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
 
 [managed-resources]
 auth|project-auth|identity|supabase-managed|20|supported-configuration-and-admin-api
@@ -64,6 +65,7 @@ roles|argus-capability-and-login-roles|platform|migration-supported-api|01|creat
 
 [roles]
 argus_app_owner|non-login-owner|application|nologin|none|owned=u4-normalized-argus-relations-and-domain-commands,grants=exact-dependent-actions|none
+argus_brokerage_owner|non-login-owner|brokerage|nologin|none|owned=u5-brokerage-relations-and-scoped-domain-commands,grants=exact-dependent-actions-and-composite-request-context|none
 argus_identity_owner|non-login-owner|identity|nologin|none|owned=member-lifecycle-table-and-foundation-routines,grants=identity-provision-only|none
 argus_publication_owner|non-login-owner|publication|nologin|none|owned=two-bounded-current-publication-functions,grants=select-item-revision-render-only|none
 argus_member|capability|identity|nologin|none|owned=none,grants=current-lifecycle-read-foundation|statement=15s,lock=3s,idle_tx=15s
@@ -72,7 +74,7 @@ argus_callback|capability|brokerage|nologin|none|owned=none,grants=none-until-u5
 argus_migration|capability|platform|nologin|none|owned=none,grants=none-runtime-verifier-reserved|none
 argus_runtime|legacy|platform|nologin|none|owned=none,grants=target-acl|statement=15s,lock=3s,idle_tx=15s
 argus_worker|legacy|jobs|nologin|none|owned=none,grants=target-acl|statement=45s,lock=3s,idle_tx=15s
-argus_edge|runtime-login|platform|login|argus_runtime,argus_member,argus_staff|owned=none,grants=context-installer-and-membership-only|statement=15s,lock=3s,idle_tx=15s,idle=5m
+argus_edge|runtime-login|platform|login|argus_runtime,argus_member,argus_staff,argus_callback|owned=none,grants=context-installer-and-membership-only|statement=15s,lock=3s,idle_tx=15s,idle=5m
 argus_worker_edge|runtime-login|jobs|login|argus_worker|owned=none,grants=membership-only|statement=45s,lock=3s,idle_tx=15s,idle=5m
 argus_waitlist|legacy|waitlist|nologin|none|owned=none,grants=target-acl|statement=10s,lock=2s,idle_tx=10s
 argus_waitlist_edge|runtime-login|waitlist|login|argus_waitlist|owned=none,grants=membership-only|statement=10s,lock=2s,idle_tx=10s,idle=5m

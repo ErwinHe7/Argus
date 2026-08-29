@@ -3,7 +3,7 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_runtime, argus_worker, argus_waitlist
+grant argus_runtime, argus_worker, argus_waitlist, argus_brokerage_owner
   to current_user with set true;
 grant usage on schema extensions
   to argus_runtime, argus_worker, argus_waitlist;
@@ -11,7 +11,7 @@ grant usage on schema extensions
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(17);
+select plan(18);
 
 insert into auth.users(
   instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
@@ -43,6 +43,50 @@ insert into argus_app.media_assets(
   'aaaaaaaa-9100-4000-8000-000000000001','member-media',
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/avatar.webp','image/webp',10,
   'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+);
+
+-- A deletion must erase a retained command tree through the narrow U5 owner
+-- phase; the generic postgres purge never receives brokerage table DML.
+insert into argus_brokerage.connections(
+  id,user_id,deletion_epoch,status,capability_version,authorized_at
+) values (
+  'aaaaaaaa-1000-4000-8000-000000000001',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,'connected',1,now()
+);
+insert into argus_brokerage.accounts(
+  id,user_id,deletion_epoch,connection_id,display_label,base_currency,status,
+  capability_version,capabilities,fetched_at,expires_at
+) values (
+  'aaaaaaaa-2000-4000-8000-000000000001',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,
+  'aaaaaaaa-1000-4000-8000-000000000001','Privacy brokerage','USD',
+  'available',1,'[]',now(),now()+interval '5 minutes'
+);
+insert into argus_private.provider_commands(
+  id,user_id,deletion_epoch,connection_id,account_id,operation,
+  client_order_id,idempotency_key,normalized_payload_hash,
+  reviewed_payload_hash,capability_version,state,egress_started_at
+) values (
+  'aaaaaaaa-8000-4000-8000-000000000001',
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,
+  'aaaaaaaa-1000-4000-8000-000000000001',
+  'aaaaaaaa-2000-4000-8000-000000000001','place',
+  'argus_privacy_command_000000000001','privacy-command-idempotency-0001',
+  repeat('a',64),repeat('b',64),1,'manual_review',now()
+);
+insert into argus_private.provider_command_attempts(
+  user_id,deletion_epoch,command_id,attempt_number,attempt_kind,outcome
+) values (
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,
+  'aaaaaaaa-8000-4000-8000-000000000001',1,'detail_lookup','not_found'
+);
+insert into argus_private.reconciliation_records(
+  user_id,deletion_epoch,command_id,status,next_attempt_at,attempts,
+  last_error_code
+) values (
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',0,
+  'aaaaaaaa-8000-4000-8000-000000000001','manual_review',now(),4,
+  'provider_order_not_found'
 );
 
 set local role argus_runtime;
@@ -195,6 +239,20 @@ select is(
     where storage_path like 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/%'),
   0::bigint,
   'purge removes owner and global-path Argus product rows'
+);
+select is(
+  (select count(*)::bigint from argus_brokerage.connections
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  + (select count(*)::bigint from argus_brokerage.accounts
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  + (select count(*)::bigint from argus_private.provider_commands
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  + (select count(*)::bigint from argus_private.provider_command_attempts
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  + (select count(*)::bigint from argus_private.reconciliation_records
+    where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+  0::bigint,
+  'privacy purge removes the lifecycle-scoped brokerage command tree'
 );
 set local role argus_worker;
 select throws_ok(

@@ -26,6 +26,7 @@ export type DatabasePool = {
 export type DatabaseCapabilityRole =
   | "argus_runtime"
   | "argus_member"
+  | "argus_callback"
   | "argus_staff"
   | "argus_waitlist";
 

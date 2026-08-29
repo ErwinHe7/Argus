@@ -9,9 +9,9 @@ Every target key is parent-qualified so a child cannot cross editorial,
 member-lifecycle, brokerage-account, or immutable-generation boundaries.
 
 U3 supplies `argus_app.member_lifecycles` as the immutable, tenant-qualified
-identity parent. U4 now binds the Argus application children to that parent and
-implements the typed editorial/member relations in this contract. U5 still
-owns brokerage/callback state and U6 still owns queues, jobs, receipts,
+identity parent. U4 binds the Argus application children to that parent and
+implements the typed editorial/member relations in this contract. U5 now binds
+brokerage/callback state and implements typed brokerage facts. U6 still owns queues, jobs, receipts,
 Storage, privacy artifacts, durable work, and private operational relations;
 their `deletion_epoch` bridge remains explicit until those units add their own
 composite lifecycle keys and command-specific policies.
@@ -39,6 +39,39 @@ SELECT on exactly the item, revision, and sealed-document inputs, and is the
 only role with the three unconditional read policies. Runtime callers have no
 direct publication-table privilege, so draft state cannot be inferred through
 an alternate table path.
+
+## U5 implemented brokerage model
+
+The U5 forward-only migration makes the immutable member lifecycle and the
+Webull connection/account hierarchy one parent-qualified identity. A
+connection proves both `(tenant_id,lifecycle_id)` and
+`(user_id,lifecycle_id)` against `member_lifecycles`; every retained child that
+still carries `user_id` uses a composite parent key containing tenant,
+lifecycle, user, connection, and account as applicable. Active-account
+selection, projection generations, provider mappings, command attempts, and
+reconciliation cannot combine independently valid identifiers from different
+connections or identity subjects.
+
+`account_capabilities` and typed balance, position, restriction, account, and
+order facts are the Argus read and feature-gate authority. Provider documents
+are private diagnostic envelopes with a schema version, SHA-256 fingerprint,
+bounded byte size, immutable generation identity, and explicit normalization
+state. They cannot contain credential-shaped fields and are never financial-
+command authority.
+
+The NOLOGIN `argus_brokerage_owner` owns the reviewed brokerage routines and
+relations behind FORCE RLS. Member, callback, worker, and staff roles receive
+an exact relation/action or function-signature capability. Members cannot read
+credential ciphertext or mutate attempts/reconciliation; callbacks cannot
+delete connection materialization directly; workers can claim only lookup and
+reconciliation work, never prepare or resubmit financial commands.
+
+All state-changing brokerage routines acquire lifecycle, connection, account,
+then command or lease locks in that order. Preparing a command commits the
+command and immutable started attempt before provider egress. Once the command
+is `dispatching`, any crash is recovered only by recording a definitive
+response or provider lookup/reconciliation; absence never grants permission to
+submit a second write.
 
 ## Relationship-bearing arrays and JSON
 

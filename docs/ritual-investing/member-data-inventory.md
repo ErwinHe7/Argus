@@ -63,6 +63,7 @@ Each surface below appears exactly once. The contract test derives current table
 | Surface | Classification | Target owner and disposition |
 | --- | --- | --- |
 | `database-table:accounts` | replaced-webull | Owner-scoped normalized Webull brokerage accounts |
+| `database-table:account_capabilities` | replaced-webull | Typed fail-closed Webull account capabilities used for Argus feature gates |
 | `database-table:active_account_selections` | replaced-webull | Member-selected Webull account projection |
 | `database-table:admin_audit_checkpoints` | retained-argus | Supabase private admin audit state |
 | `database-table:admin_audit_events` | retained-argus | Supabase private admin audit state |
@@ -82,6 +83,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:briefing_template_revisions` | retained-argus | Argus editorial data in Supabase |
 | `database-table:briefing_templates` | retained-argus | Argus editorial data in Supabase |
 | `database-table:briefings` | retained-argus | Argus briefing data in Supabase |
+| `database-table:brokerage_normalization_quarantine` | replaced-webull | Bounded payload-free disposition evidence for malformed Webull observations |
 | `database-table:catalog_assets` | retained-argus | Argus catalog data in Supabase |
 | `database-table:cash_ledger_entries` | replaced-webull | Remove ledger; Webull balance/activity authority |
 | `database-table:circle_assets` | retained-argus | Argus community data in Supabase |
@@ -159,6 +161,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:order_previews` | replaced-webull | Replace simulated preview with capability-bound provider preview |
 | `database-table:oauth_states` | replaced-webull | One-use Webull OAuth state fencing |
 | `database-table:order_projection_generations` | replaced-webull | Immutable Webull order projection generations |
+| `database-table:order_projection_generation_snapshots` | replaced-webull | Private bounded and hashed Webull order observation envelopes |
 | `database-table:outbox_dispatch_failures` | retained-argus | Supabase private worker recovery |
 | `database-table:outbox_events` | retained-argus | Supabase private transactional work |
 | `database-table:portfolio_balance_snapshots` | replaced-webull | Webull balance projection authority |
@@ -169,9 +172,14 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:privacy_export_artifacts` | retained-argus | Private Supabase Storage export state |
 | `database-table:privacy_requests` | retained-argus | Argus privacy state in Supabase |
 | `database-table:profiles` | retained-argus | Argus profile state in Supabase |
+| `database-table:projection_account_facts` | replaced-webull | Typed account facts materialized from Webull observations |
+| `database-table:projection_balance_facts` | replaced-webull | Typed Webull balance facts; Webull remains financial authority |
 | `database-table:projection_generations` | replaced-webull | Immutable Webull read projection generations |
+| `database-table:projection_generation_snapshots` | replaced-webull | Private bounded and hashed Webull projection observation envelopes |
 | `database-table:projection_points` | retained-argus | Argus Future Mirror scenarios in Supabase |
+| `database-table:projection_position_facts` | replaced-webull | Typed Webull position facts with private provider identifiers separated |
 | `database-table:projection_refresh_leases` | replaced-webull | Fenced Webull projection refresh recovery |
+| `database-table:projection_restriction_facts` | replaced-webull | Typed fail-closed Webull account restrictions |
 | `database-table:projection_runs` | retained-argus | Argus Future Mirror scenarios in Supabase |
 | `database-table:provider_command_attempts` | replaced-webull | Immutable attempts for already-reviewed Webull commands |
 | `database-table:provider_commands` | replaced-webull | Capability-bound manual Webull command state |

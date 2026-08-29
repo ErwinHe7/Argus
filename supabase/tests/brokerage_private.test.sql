@@ -3,16 +3,17 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_runtime, argus_worker, argus_waitlist
+grant argus_runtime,argus_worker,argus_waitlist,argus_edge,argus_member,
+  argus_callback,argus_identity_owner,argus_brokerage_owner
   to current_user with set true;
 grant usage on schema extensions
   to argus_runtime, argus_worker, argus_waitlist;
 
 create extension if not exists pgtap with schema extensions;
-grant usage on schema extensions to argus_runtime;
+grant usage on schema extensions to argus_runtime,argus_member,argus_callback;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(35);
+select plan(36);
 
 select has_table('argus_brokerage', 'connections', 'normalized connection state exists');
 select has_table('argus_brokerage', 'accounts', 'local brokerage account projection root exists');
@@ -39,7 +40,7 @@ select is(
   (select count(*)::bigint from pg_policies
     where schemaname='argus_brokerage'
       and tablename='projection_generations'
-      and policyname='worker_projection_retention'
+      and policyname='u5_worker_projection_retention'
       and cmd='DELETE'),
   1::bigint,
   'worker projection deletion is constrained by an explicit retention policy'
@@ -70,7 +71,7 @@ insert into argus_brokerage.projection_generations (
 ) values (
   'aaaaaaaa-3000-4000-8000-000000000001', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 0,
   'aaaaaaaa-1000-4000-8000-000000000001', 'aaaaaaaa-2000-4000-8000-000000000001',
-  'positions', 1, '{"positions":[]}', now(), now(), now() + interval '5 minutes', 'available'
+  'positions', 1, '[]', now(), now(), now() + interval '5 minutes', 'available'
 );
 insert into argus_private.webull_asset_mappings (
   instrument_id, account_id, connection_id, user_id, deletion_epoch,
@@ -84,26 +85,38 @@ insert into argus_private.webull_asset_mappings (
   decode(repeat('ab',32),'hex'), repeat('e',64), 1, 'equity', 'EQUITY'
 );
 
-set local role argus_runtime;
+set local role argus_edge;
 do $$ begin
-  perform argus_private.set_request_context(
+  perform argus_private.install_request_context(
     'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
     'bbbbbbbb-0000-4000-8000-000000000001',
     'aal1'
   );
 end $$;
+reset role;
+set local role argus_member;
 select is((select count(*)::bigint from argus_brokerage.connections), 0::bigint, 'user B cannot read user A connection');
 select is((select count(*)::bigint from argus_brokerage.accounts), 0::bigint, 'user B cannot read user A account');
 select is((select count(*)::bigint from argus_brokerage.projection_generations), 0::bigint, 'user B cannot read user A projection');
 select is((select count(*)::bigint from argus_private.webull_asset_mappings), 0::bigint, 'user B cannot read user A provider asset mapping');
 
-do $$ begin
-  perform argus_private.set_request_context(
-    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    'aaaaaaaa-0000-4000-8000-000000000001',
-    'aal1'
-  );
+reset role;
+set local role argus_identity_owner;
+do $$
+declare context_relation text:=current_setting('argus.request_context_relation');
+begin
+  execute pg_catalog.format(
+    'update pg_temp.%I set user_id=$1,tenant_id=$2,lifecycle_id=$3,installed_at=clock_timestamp()',
+    context_relation
+  ) using
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
+    (select member.tenant_id from argus_app.members member
+      where member.user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+    (select member.lifecycle_id from argus_app.members member
+      where member.user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
 end $$;
+reset role;
+set local role argus_member;
 select is((select count(*)::bigint from argus_brokerage.projection_generations), 1::bigint, 'verified owner can read projection');
 select is((select count(*)::bigint from argus_private.webull_asset_mappings), 1::bigint, 'verified owner can read only their provider asset mapping');
 select throws_ok(
@@ -113,6 +126,7 @@ select throws_ok(
   'runtime cannot mutate an immutable projection generation'
 );
 
+reset role;
 update argus_brokerage.connections set status='pending'
  where id='aaaaaaaa-1000-4000-8000-000000000001';
 insert into argus_private.oauth_states (
@@ -125,6 +139,13 @@ insert into argus_private.oauth_states (
   'aaaaaaaa-1000-4000-8000-000000000001',repeat('b',64),
   'webull_native','webull-connect-public-docs-2026-08-28',now()+interval '5 minutes'
 );
+set local role argus_callback;
+select is(
+  (select count(*)::bigint from argus_private.oauth_states
+    where state_hash=repeat('b',64) and consumed_at is null),
+  1::bigint,
+  'installed callback context authorizes its exact lifecycle row policy'
+);
 select is(
   (select count(*)::bigint from argus_private.consume_webull_oauth_state(repeat('b',64),now())),
   1::bigint,
@@ -135,6 +156,7 @@ select is(
   0::bigint,
   'consumed state hash cannot be replayed'
 );
+reset role;
 insert into argus_private.oauth_states (
   id,user_id,session_id,deletion_epoch,connection_id,state_hash,
   return_target,contract_version,expires_at,created_at
@@ -146,17 +168,20 @@ insert into argus_private.oauth_states (
   'webull_native','webull-connect-public-docs-2026-08-28',
   now()-interval '5 minutes',now()-interval '10 minutes'
 );
+set local role argus_callback;
 select is(
   (select count(*)::bigint from argus_private.consume_webull_oauth_state(repeat('c',64),now())),
   0::bigint,
   'expired state hash cannot cross the callback boundary'
 );
+reset role;
 select is(
   (select count(*)::bigint from argus_private.oauth_states
     where state_hash=repeat('c',64) and consumed_at is null),
   1::bigint,
   'expired callback rejection does not mark the state consumed'
 );
+reset role;
 update argus_brokerage.connections set status='connected'
  where id='aaaaaaaa-1000-4000-8000-000000000001';
 insert into argus_private.oauth_states (
@@ -169,6 +194,7 @@ insert into argus_private.oauth_states (
   'aaaaaaaa-1000-4000-8000-000000000001',repeat('d',64),
   'webull_native','webull-connect-public-docs-2026-08-28',now()+interval '5 minutes'
 );
+set local role argus_callback;
 select is(
   (select count(*)::bigint from argus_private.consume_webull_oauth_state(repeat('d',64),now())),
   0::bigint,
@@ -199,13 +225,6 @@ update argus_app.members
  where user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 
 set local role argus_runtime;
-do $$ begin
-  perform argus_private.set_request_context(
-    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    'aaaaaaaa-0000-4000-8000-000000000001',
-    'aal1'
-  );
-end $$;
 select throws_ok(
   $$insert into argus_private.oauth_states (
       id, user_id, session_id, deletion_epoch, connection_id, state_hash,
@@ -218,8 +237,8 @@ select throws_ok(
       'webull_native', 'webull-connect-public-docs-2026-08-28',
       now() + interval '5 minutes'
     )$$,
-  'P0001',
-  'member_deletion_epoch_mismatch',
+  '42501',
+  'permission denied for table oauth_states',
   'deletion epoch rejects a late callback write'
 );
 reset role;

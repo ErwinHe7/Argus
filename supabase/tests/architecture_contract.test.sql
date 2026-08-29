@@ -12,11 +12,11 @@ select is((select count(*)::bigint from pg_class relation
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_brokerage' and relation.relkind in ('r','p')),
-  5::bigint,'the reviewed brokerage relation inventory is complete');
+  10::bigint,'the reviewed brokerage relation inventory is complete');
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_private' and relation.relkind in ('r','p')),
-  40::bigint,'the reviewed private relation inventory is complete');
+  43::bigint,'the reviewed private relation inventory is complete');
 
 select is(
   (select jsonb_agg(qualified_name order by qualified_name) from (
@@ -43,7 +43,9 @@ select is(
     ('argus_brokerage.order_projection_generations.normalized_payload'),
     ('argus_brokerage.projection_generations.normalized_payload'),
     ('argus_private.admin_audit_events.details'),
+    ('argus_private.order_projection_generation_snapshots.snapshot_payload'),
     ('argus_private.order_previews.normalized_payload'),
+    ('argus_private.projection_generation_snapshots.snapshot_payload'),
     ('argus_private.provider_commands.normalized_payload'),
     ('argus_private.security_events.details'),
     ('argus_private.staff_principals.permissions')
@@ -69,7 +71,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  110::bigint,'the reviewed routine-name inventory is complete');
+  150::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace

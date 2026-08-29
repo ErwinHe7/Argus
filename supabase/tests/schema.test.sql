@@ -86,7 +86,7 @@ select is(
      join pg_roles member on member.oid = membership.member
      join pg_roles parent on parent.oid = membership.roleid
     where member.rolname = 'argus_edge'),
-  array['argus_member','argus_runtime','argus_staff'],
+  array['argus_callback','argus_member','argus_runtime','argus_staff'],
   'Edge pooler identity has only the reviewed request capability memberships'
 );
 
@@ -173,7 +173,7 @@ select is(
      join pg_namespace namespace on namespace.oid=relation.relnamespace
     where namespace.nspname in ('argus_app','argus_brokerage','argus_private')
       and relation.relkind in ('r','p')),
-  103::bigint,
+  111::bigint,
   'the current application relation baseline has one reviewed inventory'
 );
 

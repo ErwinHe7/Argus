@@ -1,16 +1,9 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 import {
   assertBackgroundProjectionSafe,
   runWebullProjectionRefresh,
 } from "../../src/jobs/webull-projection-refresh.ts";
-
-const migration = readFileSync(resolve(
-  import.meta.dirname,
-  "../../../supabase/migrations/20260828152000_u15_webull_recovery.sql",
-), "utf8");
 
 describe("Webull projection recovery", () => {
   it("accepts bounded normalized reads and rejects credential-shaped data", () => {
@@ -45,14 +38,5 @@ describe("Webull projection recovery", () => {
     expect(refreshExistingProjection).toHaveBeenCalledWith(expect.objectContaining({
       leaseId: event.aggregateId,
     }));
-  });
-
-  it("rechecks credential ownership and preserves a failed lease for retry", () => {
-    expect(migration).toContain("credential.token_version=p_token_version");
-    expect(migration).toContain("credential.key_version=p_key_version");
-    expect(migration).toContain("credential.associated_data_hash=p_aad_hash");
-    expect(migration).toContain("connection.egress_fenced_at is null");
-    expect(migration).toContain("if p_preserve_for_retry then");
-    expect(migration).toContain("set leased_until=clock_timestamp()");
   });
 });

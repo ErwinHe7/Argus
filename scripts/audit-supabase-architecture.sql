@@ -357,15 +357,46 @@ select distinct on (resource_type)
    and account_id='00000000-0000-0000-0000-000000000000'::uuid
  order by resource_type,generation desc;
 
-select 'query_plan:webull_recovery' as inventory_section;
-explain (format json)
-select provider_command.id,provider_command.state,reconciliation.next_attempt_at
-  from argus_private.provider_commands provider_command
-  join argus_private.reconciliation_records reconciliation
-    on reconciliation.command_id=provider_command.id
- where provider_command.state in ('dispatching','ambiguous','reconciling')
-   and reconciliation.next_attempt_at<=clock_timestamp()
- order by reconciliation.next_attempt_at,provider_command.id
- for update of reconciliation skip locked limit 25;
+-- U5 deliberately removed retained-postgres table access. The permanent audit
+-- remains capability-free and records deterministic catalog support for the
+-- recovery query instead. Representative-volume EXPLAIN (ANALYZE, BUFFERS)
+-- evidence is captured by the rollback-only U5 performance harness.
+select 'query_support:webull_recovery' as inventory_section,
+       coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+         'relation',namespace.nspname||'.'||relation.relname,
+         'estimated_rows',relation.reltuples,
+         'pages',relation.relpages,
+         'index',index_relation.relname,
+         'keys',(
+           select pg_catalog.jsonb_agg(
+             pg_catalog.pg_get_indexdef(
+               index_row.indexrelid,key_column.ordinal,true
+             ) order by key_column.ordinal
+           )
+             from pg_catalog.generate_series(
+               1,index_row.indnkeyatts
+             ) key_column(ordinal)
+         ),
+         'predicate',coalesce(pg_catalog.pg_get_expr(
+           index_row.indpred,index_row.indrelid,true
+         ),''),
+         'unique',index_row.indisunique,
+         'primary',index_row.indisprimary,
+         'valid',index_row.indisvalid,
+         'ready',index_row.indisready,
+         'live',index_row.indislive
+       ) order by namespace.nspname,relation.relname,index_relation.relname),
+       '[]'::jsonb) as inventory
+  from pg_catalog.pg_index index_row
+  join pg_catalog.pg_class relation on relation.oid=index_row.indrelid
+  join pg_catalog.pg_namespace namespace on namespace.oid=relation.relnamespace
+  join pg_catalog.pg_class index_relation
+    on index_relation.oid=index_row.indexrelid
+ where namespace.nspname='argus_private'
+   and index_relation.relname in (
+     'provider_commands_pkey','provider_commands_u5_account_state_idx',
+     'reconciliation_records_u5_due_idx',
+     'reconciliation_records_u5_command_fk_idx'
+   );
 
 rollback;

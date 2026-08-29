@@ -3,16 +3,17 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_runtime, argus_worker, argus_waitlist
+grant argus_runtime,argus_worker,argus_waitlist,argus_edge,argus_member,
+  argus_brokerage_owner,argus_identity_owner
   to current_user with set true;
 grant usage on schema extensions
   to argus_runtime, argus_worker, argus_waitlist;
 
 create extension if not exists pgtap with schema extensions;
-grant usage on schema extensions to argus_runtime;
+grant usage on schema extensions to argus_runtime,argus_member;
 set local search_path=extensions,pg_catalog,public;
 
-select plan(35);
+select plan(41);
 
 select has_table('argus_private','order_previews','order previews are private');
 select has_table('argus_private','provider_commands','provider commands are private');
@@ -120,22 +121,13 @@ insert into argus_private.order_previews(
 update argus_private.kill_switches set enabled=false
  where name in ('provider_egress','order_mutations');
 
-set local role argus_runtime;
-set local search_path=extensions,pg_catalog,public;
-select throws_ok(
-  $$select auth.uid()$$,
-  '42501','permission denied for schema auth',
-  'runtime cannot call the Supabase-owned auth uid helper'
-);
-select argus_private.set_request_context(
+set local role argus_edge;
+select argus_private.install_request_context(
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   'aaaaaaaa-0000-4000-8000-000000000001','aal1'
 );
-select is(
-  argus_private.request_user_id(),
-  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid,
-  'runtime request helper reads the transaction-local JWT subject'::text
-);
+reset role;
+set local role argus_member;
 
 select is(
   (select state from argus_private.prepare_provider_order_command(
@@ -148,6 +140,7 @@ select is(
   'dispatching'::text,
   'new command is dispatching before provider egress'::text
 );
+reset role;
 select is(
   (select count(*)::bigint from argus_private.provider_command_attempts
     where command_id='aaaaaaaa-8000-4000-8000-000000000001'
@@ -155,6 +148,7 @@ select is(
   1::bigint,
   'immutable started attempt commits with the command'
 );
+set local role argus_member;
 select is(
   (select is_duplicate from argus_private.prepare_provider_order_command(
     'aaaaaaaa-7000-4000-8000-000000000001','aaaaaaaa-8000-4000-8000-000000000099',
@@ -166,11 +160,20 @@ select is(
   true,
   'exact duplicate returns the durable winner even after preview consumption'
 );
+reset role;
 select is(
   (select count(*)::bigint from argus_private.provider_commands),
   1::bigint,
   'duplicate confirmation does not create a second command'
 );
+select is(
+  (select count(*)::bigint from argus_private.provider_command_attempts
+    where command_id='aaaaaaaa-8000-4000-8000-000000000001'
+      and attempt_kind='egress' and outcome='started'),
+  1::bigint,
+  'duplicate confirmation does not create a second egress attempt'
+);
+set local role argus_member;
 select throws_ok(
   $$select * from argus_private.prepare_provider_order_command(
     'aaaaaaaa-7000-4000-8000-000000000002','aaaaaaaa-8000-4000-8000-000000000002',
@@ -204,6 +207,7 @@ select is(
   'dispatching'::text,
   'another account remains independently available'::text
 );
+reset role;
 select throws_ok(
   $$update argus_private.provider_commands set state='accepted',updated_at=now()
      where id='aaaaaaaa-8000-4000-8000-000000000001';
@@ -215,23 +219,132 @@ select throws_ok(
 select throws_ok(
   $$update argus_private.provider_command_attempts set outcome='accepted'
      where command_id='aaaaaaaa-8000-4000-8000-000000000001'$$,
-  '42501','permission denied for table provider_command_attempts',
-  'runtime cannot mutate provider attempt history'
+  'P0001','immutable_record',
+  'provider attempt history is immutable even for the table owner path'
 );
 
-select argus_private.set_request_context(
-  'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-  'bbbbbbbb-0000-4000-8000-000000000001','aal1'
+set local role argus_member;
+select is(
+  (select state from argus_private.record_provider_command_dispatch_outcome(
+    'aaaaaaaa-8000-4000-8000-000000000001','ambiguous','ambiguous',
+    'provider_response_unknown'
+  )),
+  'ambiguous'::text,
+  'possible provider send transitions to lookup-only ambiguity'
 );
+select is(
+  (select claim_outcome
+     from argus_private.claim_provider_command_reconciliation(
+       'aaaaaaaa-8000-4000-8000-000000000001'
+     )),
+  'claimed'::text,
+  'member reconciliation uses the bounded shared lookup claim'
+);
+select lives_ok(
+  $$select argus_private.record_provider_command_not_found(
+      'aaaaaaaa-8000-4000-8000-000000000001'
+    )$$,
+  'provider not-found remains weak lookup-only evidence'
+);
+reset role;
+update argus_private.reconciliation_records
+   set next_attempt_at=clock_timestamp()
+ where command_id='aaaaaaaa-8000-4000-8000-000000000001';
+set local role argus_member;
+select lives_ok(
+  $statement$do $body$ begin
+    perform claim.claim_outcome
+      from argus_private.claim_provider_command_reconciliation(
+        'aaaaaaaa-8000-4000-8000-000000000001'
+      ) claim;
+    perform argus_private.record_provider_command_not_found(
+      'aaaaaaaa-8000-4000-8000-000000000001'
+    );
+  end $body$$statement$,
+  'second lookup cannot resubmit the provider command'
+);
+reset role;
+update argus_private.reconciliation_records
+   set next_attempt_at=clock_timestamp()
+ where command_id='aaaaaaaa-8000-4000-8000-000000000001';
+set local role argus_member;
+select lives_ok(
+  $statement$do $body$ begin
+    perform claim.claim_outcome
+      from argus_private.claim_provider_command_reconciliation(
+        'aaaaaaaa-8000-4000-8000-000000000001'
+      ) claim;
+    perform argus_private.record_provider_command_not_found(
+      'aaaaaaaa-8000-4000-8000-000000000001'
+    );
+  end $body$$statement$,
+  'third lookup remains reconciliation-only'
+);
+reset role;
+update argus_private.reconciliation_records
+   set next_attempt_at=clock_timestamp()
+ where command_id='aaaaaaaa-8000-4000-8000-000000000001';
+set local role argus_member;
+select lives_ok(
+  $statement$do $body$ begin
+    perform claim.claim_outcome
+      from argus_private.claim_provider_command_reconciliation(
+        'aaaaaaaa-8000-4000-8000-000000000001'
+      ) claim;
+    perform argus_private.record_provider_command_not_found(
+      'aaaaaaaa-8000-4000-8000-000000000001'
+    );
+  end $body$$statement$,
+  'fourth lookup reaches the configured external-lookup bound'
+);
+reset role;
+update argus_private.reconciliation_records
+   set next_attempt_at=clock_timestamp()
+ where command_id='aaaaaaaa-8000-4000-8000-000000000001';
+set local role argus_member;
+select is(
+  (select claim_outcome
+     from argus_private.claim_provider_command_reconciliation(
+       'aaaaaaaa-8000-4000-8000-000000000001'
+     )),
+  'manual_review'::text,
+  'fifth claim persists manual review without another provider lookup'
+);
+reset role;
+select ok(
+  (select state='manual_review'
+     from argus_private.provider_commands
+    where id='aaaaaaaa-8000-4000-8000-000000000001')
+  and (select attempts=4 and status='manual_review'
+         from argus_private.reconciliation_records
+        where command_id='aaaaaaaa-8000-4000-8000-000000000001')
+  and (select pg_catalog.count(*)=1
+         from argus_private.provider_command_attempts
+        where command_id='aaaaaaaa-8000-4000-8000-000000000001'
+          and attempt_kind='egress' and outcome='started'),
+  'bounded not-found recovery never creates a second egress attempt'
+);
+
+set local role argus_identity_owner;
+do $$
+declare context_relation text:=current_setting('argus.request_context_relation');
+begin
+  execute pg_catalog.format(
+    'update pg_temp.%I set user_id=$1,tenant_id=$2,lifecycle_id=$3,installed_at=clock_timestamp()',
+    context_relation
+  ) using
+    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'::uuid,
+    (select member.tenant_id from argus_app.members member
+      where member.user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+    (select member.lifecycle_id from argus_app.members member
+      where member.user_id='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+end $$;
+reset role;
+set local role argus_member;
 select is(
   (select count(*)::bigint from argus_private.provider_commands),
   0::bigint,
   'another user cannot read commands'
-);
-select is(
-  (select count(*)::bigint from argus_private.provider_command_attempts),
-  0::bigint,
-  'another user cannot read attempts'
 );
 select is(
   (select count(*)::bigint from argus_private.webull_order_mappings),

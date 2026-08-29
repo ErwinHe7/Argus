@@ -155,6 +155,58 @@ scenario relations used with member idempotency, worker retains read-only open
 lifecycle resolution for the binding trigger, and the private purge definer
 retains DELETE-only access to `member_saved_items`.
 
+## U5 brokerage authority and recovery boundary
+
+U5 brokerage rows are qualified by immutable tenant, lifecycle, user,
+connection, and account identity. The application uses `argus_member` for
+member reads and commands, `argus_callback` for Webull completion, and
+`argus_staff` for reviewed diagnostics. These capabilities run only inside the
+reserved request transaction after trusted context installation. The legacy
+runtime must not be used by a brokerage repository.
+
+Webull remains authoritative for provider account and order outcomes. Typed
+capability, balance, position, restriction, account, and order facts serve
+Argus reads; private bounded/versioned/hashed snapshots are diagnostic evidence
+only. Never use a raw snapshot as authorization, feature-gate, freshness, or
+financial-command truth, and never expose credential-shaped fields through a
+snapshot or member grant.
+
+All worker and callback mutations take locks in this order: lifecycle,
+connection, account, then command or lease. Lifecycle closure and connection
+cleanup use the same parent guards. A lock timeout is a retriable operation
+failure; it is not permission to skip a parent or acquire children out of
+order. `SKIP LOCKED` remains restricted to queue-like batch claims and is not a
+substitute for serialization of a named brokerage command.
+
+Before any financial provider request, the prepare transaction commits one
+durable command and one immutable `egress/started` attempt and marks the command
+`dispatching`. A crash before the actual send may sacrifice liveness. It must
+not restore submit authority. After a possible send, recovery may only record a
+definitive response or perform provider lookup/reconciliation against the same
+command identity. Provider not-found stays ambiguous until the configured
+visibility window and then moves to manual review; it never permits a second
+submit.
+
+Reconnect, failure, disconnect, lifecycle close, or deletion must call the
+scoped materialization cleanup boundary. Cleanup refuses a connection with a
+nonterminal command; it destroys credential and provider-identifier material
+while retaining the minimum account parent needed for immutable command audit.
+It does not claim to close or alter the Webull account itself.
+
+After a disposable-local clean replay, capture the U5 database evidence with:
+
+```sh
+docker exec -i supabase_db_argus psql -U postgres -d postgres -X \
+  < scripts/measure-u5-brokerage-plans.sql
+cd ritual-investing-api
+ARGUS_LOCAL_DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres \
+  node scripts/verify-u5-brokerage-lock-order.mjs
+```
+
+The SQL harness is rollback-only. The concurrency harness refuses non-local
+hosts and removes its fixed synthetic identity and brokerage fixture even when
+an assertion fails.
+
 ## U1 architecture evidence gate
 
 Before selecting migration history or requesting hosted credentials, run:

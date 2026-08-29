@@ -33,37 +33,59 @@ select ok(
   'use-case capability roles are NOLOGIN, non-owner, and non-BYPASSRLS'
 );
 
-select ok(
-  pg_has_role('argus_edge','argus_member','member')
-    and pg_has_role('argus_edge','argus_staff','member')
-    and not pg_has_role('argus_edge','argus_callback','member')
-    and not pg_has_role('argus_edge','argus_migration','member')
-    and not pg_has_role('argus_edge','argus_publication_owner','member'),
-  'API login can assume only member, staff, and retained runtime capabilities'
+select is(
+  (select array_agg(parent.rolname::text order by parent.rolname)
+     from pg_auth_members membership
+     join pg_roles member on member.oid=membership.member
+     join pg_roles parent on parent.oid=membership.roleid
+    where member.rolname='argus_edge'),
+  array['argus_callback','argus_member','argus_runtime','argus_staff'],
+  'API login has the exact reviewed request capability memberships'
 );
 
-select is(
-  (select count(*)::bigint
-     from information_schema.role_table_grants
-    where grantee in ('argus_callback','argus_migration')
-      and table_schema in ('argus_app','argus_brokerage','argus_private')),
-  0::bigint,
-  'unbound callback and migration capabilities receive no application table grants'
+select set_eq(
+  $$select grantee.rolname||':'||namespace.nspname||'.'||relation.relname||
+           ':'||privilege.privilege_type
+      from pg_class relation
+      join pg_namespace namespace on namespace.oid=relation.relnamespace
+      cross join lateral aclexplode(relation.relacl) privilege
+      join pg_roles grantee on grantee.oid=privilege.grantee
+     where grantee.rolname in ('argus_callback','argus_migration')
+       and namespace.nspname in ('argus_app','argus_brokerage','argus_private')$$,
+  $$values
+    ('argus_callback:argus_app.member_lifecycles:SELECT'),
+    ('argus_callback:argus_app.members:SELECT'),
+    ('argus_callback:argus_brokerage.accounts:INSERT'),
+    ('argus_callback:argus_brokerage.connections:SELECT'),
+    ('argus_callback:argus_private.oauth_states:SELECT'),
+    ('argus_callback:argus_private.webull_account_mappings:INSERT'),
+    ('argus_callback:argus_private.webull_completion_handles:INSERT'),
+    ('argus_callback:argus_private.webull_credentials:INSERT')$$,
+  'callback table actions are exact and migration remains table-unbound'
 );
 
-select is(
-  (select count(*)::bigint
-     from information_schema.role_table_grants
-    where grantee in ('argus_member','argus_staff')
-      and (
-        table_schema='argus_brokerage'
-        or (table_schema='argus_private' and not (
-          grantee='argus_staff' and table_name='admin_audit_events'
-          and privilege_type='INSERT'
-        ))
-      )),
-  0::bigint,
-  'member and staff capabilities do not inherit U5/U6 brokerage or private operational grants'
+select set_eq(
+  $$select grantee||':'||table_schema||'.'||table_name||':'||privilege_type
+      from information_schema.role_table_grants
+     where grantee in ('argus_member','argus_staff')
+       and table_schema in ('argus_brokerage','argus_private')$$,
+  $$values
+    ('argus_member:argus_brokerage.account_capabilities:SELECT'),
+    ('argus_member:argus_brokerage.active_account_selections:DELETE'),
+    ('argus_member:argus_brokerage.active_account_selections:INSERT'),
+    ('argus_member:argus_brokerage.active_account_selections:SELECT'),
+    ('argus_member:argus_brokerage.connections:SELECT'),
+    ('argus_member:argus_brokerage.projection_account_facts:SELECT'),
+    ('argus_member:argus_brokerage.projection_balance_facts:SELECT'),
+    ('argus_member:argus_brokerage.projection_position_facts:SELECT'),
+    ('argus_member:argus_brokerage.projection_restriction_facts:SELECT'),
+    ('argus_member:argus_private.oauth_states:INSERT'),
+    ('argus_member:argus_private.order_previews:INSERT'),
+    ('argus_member:argus_private.webull_account_mappings:SELECT'),
+    ('argus_member:argus_private.webull_asset_mappings:SELECT'),
+    ('argus_member:argus_private.webull_order_mappings:SELECT'),
+    ('argus_staff:argus_private.admin_audit_events:INSERT')$$,
+  'member and staff table actions match the reviewed U4/U5 capability matrix'
 );
 
 select is(

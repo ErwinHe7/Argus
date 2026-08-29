@@ -1,6 +1,6 @@
 import type { DatabasePool } from "../../db/database-port.ts";
 import type { VerifiedRequestClaims } from "../../db/request-context.ts";
-import { withRequestTransaction } from "../../db/request-transaction.ts";
+import { withMemberRequestTransaction } from "../../db/request-transaction.ts";
 import {
   type BrokerageAccountContext,
   BrokerageProjectionError,
@@ -38,7 +38,7 @@ export function createWebullAccountMappingStore(
 ): WebullAccountMappingStore {
   const store: WebullAccountMappingStore = {
     get: (context) =>
-      withRequestTransaction(
+      withMemberRequestTransaction(
         { pool: input.pool, verifiedClaims: input.claims },
         async (database) => {
           if (
@@ -69,7 +69,7 @@ export function createWebullAccountMappingStore(
                  on connection.id=account.connection_id
                 and connection.user_id=account.user_id
                 and connection.deletion_epoch=account.deletion_epoch
-              where mapping.account_id=$1 and mapping.user_id=argus_private.request_user_id()
+              where mapping.account_id=$1 and mapping.user_id=argus_private.trusted_request_user_id()
                 and mapping.connection_id=$2 and mapping.deletion_epoch=$3
                 and connection.status='connected'`,
             [context.accountId, context.connectionId, context.deletionEpoch],

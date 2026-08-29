@@ -1,6 +1,6 @@
 import type { DatabasePool } from "../../db/database-port.ts";
 import type { VerifiedRequestClaims } from "../../db/request-context.ts";
-import { withRequestTransaction } from "../../db/request-transaction.ts";
+import { withMemberRequestTransaction } from "../../db/request-transaction.ts";
 import type { BrokerageAccountContext } from "../brokerage-projections/types.ts";
 import { BrokerageProjectionError } from "../brokerage-projections/types.ts";
 
@@ -50,32 +50,16 @@ export function createBrokerageAssetMappingRepository(
       ) {
         throw new BrokerageProjectionError("provider_contract_unavailable");
       }
-      return withRequestTransaction(
+      return withMemberRequestTransaction(
         { pool: input.pool, verifiedClaims: input.claims },
         async (database) => {
-          await database.query(
-            `insert into argus_private.webull_asset_mappings(
-               instrument_id,account_id,connection_id,user_id,deletion_epoch,
-               provider_environment,provider_asset_id_ciphertext,
-               provider_asset_id_hash,key_version,asset_kind,
-               provider_asset_kind
-             ) select $1,account.id,account.connection_id,account.user_id,
-                      account.deletion_epoch,$2,$3,$4,$5,$9,$10
-                 from argus_brokerage.accounts account
-                 join argus_brokerage.connections connection
-                   on connection.id=account.connection_id
-                  and connection.user_id=account.user_id
-                  and connection.deletion_epoch=account.deletion_epoch
-                where account.id=$6 and account.user_id=argus_private.request_user_id()
-                  and account.connection_id=$7
-                  and account.deletion_epoch=$8
-                  and connection.status='connected'
-             on conflict (user_id,account_id,provider_asset_id_hash)
-             do update set
-               asset_kind=excluded.asset_kind,
-               provider_asset_kind=excluded.provider_asset_kind
-             where webull_asset_mappings.asset_kind='unsupported'
-               and webull_asset_mappings.provider_asset_kind='LEGACY_UNKNOWN'`,
+          const result = await database.query<{
+            result_instrument_id: string;
+            result_key_version: number | string;
+          }>(
+            `select * from argus_private.resolve_webull_asset_mapping_scoped(
+               $1,$6,$7,$8,$2,$3,$4,$5,$9,$10
+             )`,
             [
               mapping.candidateInstrumentId,
               mapping.environment,
@@ -89,31 +73,14 @@ export function createBrokerageAssetMappingRepository(
               mapping.providerAssetKind,
             ],
           );
-          const result = await database.query<{
-            instrument_id: string;
-            key_version: number | string;
-          }>(
-            `select instrument_id,key_version
-               from argus_private.webull_asset_mappings
-              where user_id=argus_private.request_user_id() and account_id=$1
-                and connection_id=$2 and deletion_epoch=$3
-                and provider_environment=$4 and provider_asset_id_hash=$5`,
-            [
-              mapping.context.accountId,
-              mapping.context.connectionId,
-              mapping.context.deletionEpoch,
-              mapping.environment,
-              mapping.providerAssetIdHash,
-            ],
-          );
           const row = result.rows[0];
-          const keyVersion = typeof row?.key_version === "string" &&
-              /^\d+$/.test(row.key_version)
-            ? Number(row.key_version)
-            : row?.key_version;
+          const keyVersion = typeof row?.result_key_version === "string" &&
+              /^\d+$/.test(row.result_key_version)
+            ? Number(row.result_key_version)
+            : row?.result_key_version;
           if (
             row === undefined ||
-            !uuidPattern.test(row.instrument_id) ||
+            !uuidPattern.test(row.result_instrument_id) ||
             !Number.isSafeInteger(keyVersion) ||
             Number(keyVersion) < 1
           ) {
@@ -122,7 +89,7 @@ export function createBrokerageAssetMappingRepository(
             throw new BrokerageProjectionError("refresh_fenced");
           }
           return Object.freeze({
-            instrumentId: row.instrument_id,
+            instrumentId: row.result_instrument_id,
             keyVersion: Number(keyVersion),
           });
         },

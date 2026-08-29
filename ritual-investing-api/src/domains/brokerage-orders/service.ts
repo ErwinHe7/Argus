@@ -343,6 +343,7 @@ export function createBrokerageOrderService(
     order: input.repository.order,
     reconcile: async (commandId) => {
       const prepared = await input.repository.claimReconciliation(commandId);
+      if (prepared === null) return input.repository.command(commandId);
       let detail: ProviderDetailResult;
       try {
         detail = await input.provider.detail(prepared);

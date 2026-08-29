@@ -91,8 +91,8 @@ reviewed public contracts. Vault inventory contains names only. Edge Functions
 and secrets are deployed out of band from an exact Git revision.
 
 The `argus_runtime`, `argus_worker`, and `argus_waitlist` NOLOGIN roles remain
-legacy compatibility containers for U5/U6-owned brokerage, callbacks, durable
-work, queues, privacy/Storage and private operational state. U4 application
+legacy compatibility containers for U6-owned durable work, queues,
+privacy/Storage and private operational state. U4 application
 relations use `argus_member`/`argus_staff`; the runtime has no direct U4
 publication-table grant and can execute only the two bounded current-publication
 projection functions. Their dedicated `argus_publication_owner` is NOLOGIN,
@@ -101,10 +101,11 @@ sealed-render inputs. The exact onboarding/scenario relations sharing U6's
 private member-idempotency transaction seam remain the compatibility exception. U3 adds
 empty-by-default `argus_member`, `argus_staff`,
 `argus_callback`, and `argus_migration` capability roles plus the narrow
-`argus_identity_owner`. Only the lifecycle foundation is granted to the new
-member/staff roles; callback and migration capabilities stay unbound until
-their owning units add exact signatures and relation grants. No capability role
-owns objects.
+`argus_identity_owner`. U5 adds only reviewed brokerage actions to member,
+staff, callback, and worker capabilities; the member credential grant is
+column-scoped and provider recovery remains lookup-only. `argus_migration`
+stays unbound until its owning unit adds exact signatures and relation grants.
+No capability role owns objects.
 U6 also retains two explicit cross-unit dependencies: `argus_worker` may SELECT
 open lifecycle parents solely so the lifecycle-binding trigger can derive
 worker-written member projections, and the existing private purge definer may
@@ -113,7 +114,8 @@ not general application capabilities.
 `argus_edge`, `argus_worker_edge`, and `argus_waitlist_edge` are runtime logins
 with null migration-time passwords, exact membership, connection limits and
 timeouts. A narrow non-login owner may own one domain module but may not be
-used as an Edge login; U3 applies that rule to `argus_identity_owner` only.
+used as an Edge login; U3 applies that rule to `argus_identity_owner` and U5
+applies it to `argus_brokerage_owner`.
 Supabase-managed roles are never recreated by Argus.
 Role rows are ordered as name, classification, domain owner, login state,
 membership, owned-object/grant disposition, and connection settings. The replay

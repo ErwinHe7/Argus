@@ -187,6 +187,7 @@ independent authorities.
 | `20260828220113_grant_extension_usage_to_capability_roles.sql` | Extension usage grants | Platform security | API/worker/waitlist routines; `extensions` schema (`pgcrypto`, PGMQ helpers as used); capability-role schema usage only | Preserve evidence; reduce to exact supported capabilities in U3. |
 | `20260829043359_u3_identity_security_foundation.sql` | Immutable member lifecycle parent, derived temporary request context, narrow identity owner, use-case capability shells, exact foundation grants/RLS/functions | Identity and platform security | API reserved transaction connection; Auth provisioning trigger; no managed-schema mutation or external I/O | U3 target foundation. U4-U6 own every dependent relation binding and compatibility removal. |
 | `20260829051338_u4_normalize_argus_domains.sql` | Lifecycle-bound Argus application children; typed saved/report targets; ordered ritual, Grimoire, Circle-template, Coven and Asset Codex relations; immutable render documents; atomic domain synchronization/publication | Argus application and editorial domains | Member/editorial/public API; U3 trusted context; forced RLS; no external I/O | U4 target model. Legacy relationship columns remain fenced compatibility-only through U9; U5/U6 bridges remain explicitly owned by those units. |
+| `20260829073116_u5_strengthen_brokerage_relations.sql` | Dual-identity connection root; lifecycle/user/connection/account-qualified brokerage children; typed capabilities/projection facts; bounded provider snapshots; ordered command/recovery guards; exact brokerage capabilities | Brokerage connection, reads, orders and recovery | Member API, callback, staff diagnostics and lookup-only worker recovery; Webull; forced RLS and narrow definer commands | U5 target model. Webull remains authoritative; a dispatching command is never resubmitted, and only U6 durable-work composition remains compatible. |
 
 0975bf24b33bbe92871737b3f9753fa47cfda327144594893ce3e504abb9fd91  supabase/migrations/20260828054740_argus_private_baseline.sql
 420520cb742ee93fc818fc3ddccc529ae2ca050054cb4500ace2b1cc1b3258f2  supabase/migrations/20260828062806_u14_retained_repository_primitives.sql
@@ -209,6 +210,7 @@ eaf80efcc1602dc5b698486f9593d7ad53306aa1099253765cfc0c242b7221d1  supabase/migra
 5596cb169277513a9f106ba4a3690ec939da58e50d17de85edb2a41d4f24ba59  supabase/migrations/20260828181500_u21_deletion_retry_transition.sql
 cb239ca1bb49bae7a5abb8edf1faa830e26ae586e48119e5b2400402a3160720  supabase/migrations/20260828183000_u22_hosted_security_advisor_hardening.sql
 3b19d75b915e51bb6ce60293f416459f56b561304283ce4b74982308e71d1c1e  supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
+496833df482f2ca5f21a0c70282af3d704ad585f931e962b36922d9765e551f6  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
 
 ## Installed object register
 
@@ -220,11 +222,11 @@ groupings assign one target owner and disposition to every returned row.
 | Objects | Current owner / consumers | Disposition |
 |---|---|---|
 | `argus_app`: 58 relations including immutable `member_lifecycles`, lifecycle-bound member children, normalized editorial/ritual/community relations, and sealed render documents | Identity, content, member API/admin API | U3 owns the lifecycle parent/security foundation; U4 owns dependent Argus relations and exact application/editorial capabilities; U7 owns broader composition. |
-| `argus_brokerage`: connections, accounts, active selection, general and order projection generations | Brokerage APIs, callback and worker | Preserve Webull authority boundary; U5 owns redesign. |
-| `argus_private`: 40 operational, credential, command, mapping, job, privacy, audit, waitlist and rate-limit relations | API/worker/waitlist capabilities only | Keep private; U3/U5/U6 own replacements. |
-| 110 distinct routine names across the three Argus schemas and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | U3 foundation and U4 domain routines are exact-signature/empty-search-path and narrowly owned; legacy brokerage/durable-work routines remain owned by U5/U6. |
+| `argus_brokerage`: 10 lifecycle-qualified connection/account/selection and typed capability/projection relations, with private diagnostic snapshots | Brokerage APIs, callback and lookup-only worker recovery | U5 target model; preserve Webull authority and at-most-once command boundary. |
+| `argus_private`: 43 operational, credential, command, mapping, job, privacy, audit, waitlist and rate-limit relations | API/worker/waitlist capabilities only | U5 owns brokerage credentials/mappings/commands behind exact capabilities; U6 still owns durable-work/private operational replacements. |
+| 150 distinct routine names across the three Argus schemas and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | U3-U5 foundation/domain/brokerage routines are exact-signature, pinned-search-path and narrowly owned; remaining durable-work routines stay with U6. |
 | Application policies and triggers | New lifecycle policies plus compatibility `argus_runtime`, `argus_worker`, `argus_waitlist` policies/triggers | U3 foundation is command-specific and fail-closed; U4-U6 remove generic owner policies and the universal epoch trigger as their relations cut over. |
-| Roles | `argus_identity_owner`, `argus_app_owner`, `argus_publication_owner`; `argus_member`, `argus_staff`, `argus_callback`, `argus_migration`; compatibility runtime/worker/waitlist roles and login shells | U3 owns identity; U4's NOLOGIN application owner is constrained by FORCE RLS and exact command dependencies, while the publication owner owns only two bounded read definers and has three SELECT dependencies; U5/U6 bind remaining capabilities. |
+| Roles | `argus_identity_owner`, `argus_app_owner`, `argus_publication_owner`, `argus_brokerage_owner`; `argus_member`, `argus_staff`, `argus_callback`, `argus_migration`; compatibility runtime/worker/waitlist roles and login shells | U3 owns identity; U4 owns application/publication; U5's NOLOGIN brokerage owner is constrained by FORCE RLS and explicit relation/action policies while member/callback/worker/staff receive exact brokerage capabilities; U6 binds the remaining durable-work capabilities. |
 | Extensions | `pgcrypto`, `pgmq`, `pg_cron`, `pg_net`, `supabase_vault`, test-only `pgtap` | Preserve supported APIs. Do not pin extension versions; 2026-08 changelog says explicit version clauses are ignored. |
 | Queues | `argus_jobs`, `brokerage_refresh`, `brokerage_reconcile` | Preserve opaque event-id transport; U6 single-sources registry. |
 | Cron | outbox relay, expired-work recovery, retained scheduling, Webull recovery, worker invoke, waitlist retention | Preserve bounded schedules; U6 owns parity and failure handling. |
@@ -240,19 +242,20 @@ Auth provisioning creates one open lifecycle and member-root deletion closes
 without erasing it. Trusted API context accepts only user/session/AAL from the
 verified server boundary and derives tenant/lifecycle from that open parent.
 
-All other application, brokerage and private rows still carrying `user_id`
-plus `deletion_epoch`, as well as Storage object prefixes, callbacks,
-job/outbox ownership, receipts, caches and provider credentials, remain the
-explicit U4-U6 compatibility inventory. The universal epoch trigger and broad
-runtime/worker grants remain only for those uncut-over relations. Cross-system
-AE4 is therefore deferred, not claimed by the U3 foundation.
+U4 application rows and U5 brokerage, callback, provider-credential, command,
+attempt, and reconciliation rows are now lifecycle-qualified. Storage object
+prefixes, job/outbox ownership, receipts, caches, and the remaining private
+durable-work rows remain the explicit U6 compatibility inventory. The
+universal epoch trigger and broad runtime/worker grants remain only for those
+uncut-over relations. Cross-system AE4 is therefore deferred until U6, not
+claimed by the U3 foundation alone.
 
 | Class | Read/write | Export | Purge/retention | Storage/provider behavior |
 |---|---|---|---|---|
 | Profile/preferences/onboarding/consent/notifications/intentions/social state | Owner runtime plus reviewed staff cases | Included where classified | Cascade/purge by current epoch | Avatar/media links require lifecycle-qualified object authority. |
 | Briefings and read state | Owner; generated rows immutable, read state mutable | Included | Owner purge; generated retention TBD U6 | Export must use one sealed generation. |
 | Privacy requests/artifacts/tombstones/receipts | Owner or narrow worker/staff capability | Process authority | Tombstone survives Auth deletion; artifacts expire/revoke | Private bucket; Auth deletion last. |
-| Brokerage connections/projections/mappings/credentials/commands | Owner API; worker only through exact routines | Redacted state only; no provider secrets | Fence then cryptographic destruction and bounded projection purge | Webull remains authoritative; ambiguity is never generic retry. |
+| Brokerage connections/projections/mappings/credentials/commands | Member/callback/staff exact capabilities; worker only through lookup/recovery routines | Redacted state only; no provider secrets | Fence then cryptographic destruction, preserve command audit parents, and bounded projection purge | Webull remains authoritative; ambiguity is never generic retry or resubmit. |
 | Outbox/jobs/attempts/receipts/DLQ | Narrow worker, staff diagnostics read | Operational evidence only | Bounded retries/dead-letter retention TBD U6 | Opaque event id; lifecycle checked on claim/completion. |
 | Media upload/asset state | Owner API and worker | Object identifier/hash only | Quarantine/orphan sweep/purge | Structural validation is not malware-clear. |
 | OAuth states, completion handles, step-up and staff receipts | Narrow capability routines | Excluded from export | Short TTL/consume/revoke | Old lifecycle and stale sessions must never authorize. |
@@ -347,8 +350,12 @@ destructive-reset claims remain blocked.
 
 `scripts/audit-supabase-architecture.sql` emits read-only `EXPLAIN (FORMAT
 JSON)` plans for owner lists, editorial publication, discovery/search, outbox
-and job claims, privacy export, brokerage projections and Webull recovery. The
-representative-volume/concurrency gates and thresholds are versioned in
+and job claims, privacy export, and brokerage projections. Because U5 denies
+retained postgres direct command/reconciliation reads, the permanent audit
+records deterministic Webull-recovery relation statistics plus exact index
+keys, predicates, and valid/ready/live flags instead; the rollback-only U5
+harness owns its representative-volume `EXPLAIN (ANALYZE, BUFFERS)` evidence.
+The representative-volume/concurrency gates and thresholds are versioned in
 `supabase-performance-and-operations-budget-v1.md`. U1 could not supply
 `ANALYZE, BUFFERS` evidence. U4 now records a rollback-only local baseline at
 100k members, the heavy-owner fixture, 25k editorial items, 250k revisions and
@@ -357,27 +364,31 @@ ms, and the bounded publication page returns 100 rows in 6.320 ms with an exact
 100-row returned-node estimate. No plan spills. Concurrent/hosted p95 and the
 50-ordered-child publication transaction remain explicit U9 gates.
 
-The U4 local advisor budget removes all compatibility-policy overlap from the
-cut-over editorial/catalog/community/evidence/ritual/Rowan relations. The
-final local performance advisor reports exactly ten compatibility warnings,
-all owned and enumerated rather than hidden:
-U5 owns `argus_brokerage.connections`,
-`argus_private.provider_command_attempts`, `provider_commands`, and
-`reconciliation_records`; U6 owns `argus_app.media_assets`,
-`argus_private.staff_step_up_receipts`, `privacy_requests`, and
-`outbox_events`; U7 owns the retained `argus_app.moderation_cases` composition
-bridge. U4 introduces no advisor exception for its normalized relations.
-Error-level lint reports exactly the six previously registered U5 brokerage
-ambiguities and no U4 function error; the local security advisor is empty.
+U5's rollback-only representative fixture measured the latest typed projection
+at 16.104 ms, append-supporting generation lookup at 46.037 ms, the
+account-scoped ambiguity gate at 0.098 ms, and the 10k-due-row reconciliation
+claim at 17.353 ms with 25 rows locked and no sort spill. The 16-way bounded
+reconciliation claim p95 was 91.130 ms; token refresh, projection refresh, and
+command recovery completed without deadlock, list ingestion serialized before
+reauthorization, and a post-fence write was rejected. Hosted plans, the
+100-read/8-refresh mix, and provider lookup latency remain U9 gates.
+
+The U5 local security advisor is empty and error-level lint reports no U5
+function error. The remaining performance advisor inventory is six
+later-unit compatibility warnings: one `auth_rls_initplan` warning on
+`argus_private.staff_step_up_receipts` and five legacy
+multiple-permissive-policy warnings. They remain explicitly owned by their
+later remediation units rather than being hidden or broadened in U5. U4 and
+U5 introduce no advisor exception for their normalized relations.
 
 ## Open remediation items
 
 | ID | Current shortcut/gap | Disposition and owner |
 |---|---|---|
-| U1-G01 | Mutable deletion epoch is not an immutable member lifecycle; stale rows can remain structurally addressable. | U3 supplies the immutable parent and U4 binds Argus application children. U5 brokerage/callback and U6 durable/private child bindings remain open until complete AE4 passes. |
-| U1-G02 | Generic generated owner policies and broad table grants obscure exact capabilities. | U3 added empty-by-default capabilities; U4 replaces application/editorial grants with command-specific member/staff policies. The remaining runtime/worker grants are the enumerated U5/U6 bridge. |
-| U1-G03 | UUID arrays, JSON-backed editorial relations and polymorphic IDs lack parent-qualified relational enforcement. | Resolved for U4-owned Argus/editorial state by the typed target model, ordered junctions, quarantine/parity records and sealed publication documents. U5/U6-owned envelopes remain with their units. |
-| U1-G04 | Provider projection JSON is both convenient output and weakly bounded storage. | Preserve opaque versioned snapshots only; normalize addressable facts in U5. |
+| U1-G01 | Mutable deletion epoch is not an immutable member lifecycle; stale rows can remain structurally addressable. | U3 supplies the immutable parent; U4 binds Argus application children; U5 binds brokerage/callback state with dual identity proof and parent-qualified composites. U6 durable/private child bindings remain open until complete AE4 passes. |
+| U1-G02 | Generic generated owner policies and broad table grants obscure exact capabilities. | U3 added empty-by-default capabilities; U4 replaces application/editorial grants; U5 replaces brokerage owner/member/callback matrices with exact action policies, column grants, and narrow commands. Remaining runtime/worker grants are the enumerated U6 bridge. |
+| U1-G03 | UUID arrays, JSON-backed editorial relations and polymorphic IDs lack parent-qualified relational enforcement. | Resolved for U4 Argus/editorial state and U5 brokerage relationships/facts. U6-owned envelopes remain with that unit. |
+| U1-G04 | Provider projection JSON is both convenient output and weakly bounded storage. | Resolved U5: typed facts serve reads and feature gates; opaque provider snapshots are private, bounded, versioned, hashed, quarantinable diagnostic evidence only. |
 | U1-G05 | SQL and TypeScript event/handler registries are independently maintained. | Single-source or generated parity in U6. |
 | U1-G06 | Privacy export currently relies on runtime snapshot behavior rather than immutable generation manifests. | Replace U6 per KTD12. |
 | U1-G07 | Retained repository SQL remains centralized in one large adapter. | Compose by bounded context in U7. |

@@ -1,7 +1,10 @@
 import type { DatabasePool } from "../../db/database-port.ts";
 import { withDatabaseTransaction } from "../../db/database-port.ts";
 import type { VerifiedRequestClaims } from "../../db/request-context.ts";
-import { withRequestTransaction } from "../../db/request-transaction.ts";
+import {
+  withCallbackRequestTransaction,
+  withMemberRequestTransaction,
+} from "../../db/request-transaction.ts";
 
 const stateLifetimeMilliseconds = 5 * 60 * 1_000;
 const completionLifetimeMilliseconds = 5 * 60 * 1_000;
@@ -88,14 +91,14 @@ export function createBrokerageConnectionRepository(
     const stateHash = await hash(state);
     const startedAt = now();
     const expiresAt = new Date(startedAt.getTime() + stateLifetimeMilliseconds);
-    const connectionId = await withRequestTransaction(
+    const connectionId = await withMemberRequestTransaction(
       { pool: input.pool, verifiedClaims: input.claims },
       async (database) => {
         const member = await database.query<{
           deletion_epoch: number;
         }>(
           `select deletion_epoch from argus_app.members
-            where user_id = argus_private.request_user_id() and status = 'active' for update`,
+            where user_id = argus_private.trusted_request_user_id() and status = 'active' for update`,
         );
         const deletionEpoch = member.rows[0]?.deletion_epoch;
         if (deletionEpoch === undefined) {
@@ -103,7 +106,7 @@ export function createBrokerageConnectionRepository(
         }
         const existing = await database.query<{ id: string; status: string }>(
           `select id,status from argus_brokerage.connections
-            where user_id = argus_private.request_user_id()
+            where user_id = argus_private.trusted_request_user_id()
               and status not in ('denied','failed','disconnected')
             order by created_at desc limit 1 for update`,
         );
@@ -116,44 +119,33 @@ export function createBrokerageConnectionRepository(
           await database.query(
             `insert into argus_brokerage.connections(
                id,user_id,deletion_epoch,status
-             ) values ($1,argus_private.request_user_id(),$2,'pending')`,
+             ) values ($1,argus_private.trusted_request_user_id(),$2,'pending')`,
             [connectionId, deletionEpoch],
           );
         } else {
           if (reconnect) {
             await database.query(
-              `delete from argus_brokerage.accounts
-                where user_id=argus_private.request_user_id() and connection_id=$1`,
-              [connectionId],
-            );
-            await database.query(
-              `delete from argus_private.webull_credentials
-                where user_id=argus_private.request_user_id() and connection_id=$1`,
-              [connectionId],
-            );
-            await database.query(
-              `delete from argus_private.refresh_leases
-                where user_id=argus_private.request_user_id() and connection_id=$1`,
+              `select argus_private.clear_webull_connection_materialization($1)`,
               [connectionId],
             );
           }
           await database.query(
             `update argus_brokerage.connections
                 set status='pending',last_error_code=null,updated_at=$2
-              where id=$1 and user_id=argus_private.request_user_id()`,
+              where id=$1 and user_id=argus_private.trusted_request_user_id()`,
             [connectionId, startedAt],
           );
         }
         await database.query(
           `update argus_private.oauth_states set consumed_at=$1
-            where user_id=argus_private.request_user_id() and consumed_at is null`,
+            where user_id=argus_private.trusted_request_user_id() and consumed_at is null`,
           [startedAt],
         );
         await database.query(
           `insert into argus_private.oauth_states(
              id,user_id,session_id,deletion_epoch,connection_id,state_hash,
              return_target,contract_version,provider_environment,expires_at
-           ) values ($1,argus_private.request_user_id(),$2,$3,$4,$5,$6,$7,$8,$9)`,
+           ) values ($1,argus_private.trusted_request_user_id(),$2,$3,$4,$5,$6,$7,$8,$9)`,
           [
             crypto.randomUUID(),
             input.claims.sessionId,
@@ -181,15 +173,15 @@ export function createBrokerageConnectionRepository(
       const receipt = randomOpaqueValue();
       const receiptHash = await hash(receipt);
       const expiresAt = new Date(now().getTime() + 5 * 60 * 1_000);
-      await withRequestTransaction(
+      await withMemberRequestTransaction(
         { pool: input.pool, verifiedClaims: input.claims },
         async (database) => {
           const inserted = await database.query(
             `insert into argus_private.step_up_receipts(
                user_id,session_id,deletion_epoch,action,receipt_hash,aal,expires_at
-             ) select argus_private.request_user_id(),$1,member.deletion_epoch,$2,$3,$4,$5
+             ) select argus_private.trusted_request_user_id(),$1,member.deletion_epoch,$2,$3,$4,$5
                  from argus_app.members member
-                where member.user_id=argus_private.request_user_id() and member.status='active'
+                where member.user_id=argus_private.trusted_request_user_id() and member.status='active'
              returning id`,
             [
               input.claims.sessionId,
@@ -215,7 +207,7 @@ export function createBrokerageConnectionRepository(
     start: (returnTarget: WebullReturnTarget) => start(returnTarget, false),
     reconnect: (returnTarget: WebullReturnTarget) => start(returnTarget, true),
     status: () =>
-      withRequestTransaction(
+      withMemberRequestTransaction(
         { pool: input.pool, verifiedClaims: input.claims },
         async (database) => {
           const result = await database.query<Record<string, unknown>>(
@@ -241,7 +233,7 @@ export function createBrokerageConnectionRepository(
                left join argus_brokerage.active_account_selections selection
                  on selection.user_id=connection.user_id
                 and selection.account_id=account.id
-              where connection.user_id=argus_private.request_user_id()
+              where connection.user_id=argus_private.trusted_request_user_id()
               group by connection.id
               order by connection.created_at desc limit 1`,
           );
@@ -255,7 +247,7 @@ export function createBrokerageConnectionRepository(
       if (!uuidPattern.test(accountId)) {
         throw new BrokerageConnectionError("account_not_available");
       }
-      return withRequestTransaction(
+      return withMemberRequestTransaction(
         { pool: input.pool, verifiedClaims: input.claims },
         async (database) => {
           const result = await database.query<{ connection_id: string }>(
@@ -264,7 +256,7 @@ export function createBrokerageConnectionRepository(
                join argus_brokerage.connections connection
                  on connection.id=account.connection_id
                 and connection.user_id=account.user_id
-              where account.id=$1 and account.user_id=argus_private.request_user_id()
+              where account.id=$1 and account.user_id=argus_private.trusted_request_user_id()
                 and account.status='available' and connection.status='connected'`,
             [accountId],
           );
@@ -275,9 +267,9 @@ export function createBrokerageConnectionRepository(
           await database.query(
             `insert into argus_brokerage.active_account_selections(
                user_id,deletion_epoch,connection_id,account_id
-             ) select argus_private.request_user_id(),member.deletion_epoch,$1,$2
+             ) select argus_private.trusted_request_user_id(),member.deletion_epoch,$1,$2
                  from argus_app.members member
-                where member.user_id=argus_private.request_user_id() and member.status='active'
+                where member.user_id=argus_private.trusted_request_user_id() and member.status='active'
              on conflict (user_id) do update
                set deletion_epoch=excluded.deletion_epoch,
                    connection_id=excluded.connection_id,
@@ -294,14 +286,14 @@ export function createBrokerageConnectionRepository(
         throw new BrokerageConnectionError("completion_not_found");
       }
       const handleHash = await hash(handle);
-      return withRequestTransaction(
+      return withMemberRequestTransaction(
         { pool: input.pool, verifiedClaims: input.claims },
         async (database) => {
           const result = await database.query<Record<string, unknown>>(
             `update argus_private.webull_completion_handles completion
                 set consumed_at=now()
               where completion.handle_hash=$1
-                and completion.user_id=argus_private.request_user_id()
+                and completion.user_id=argus_private.trusted_request_user_id()
                 and completion.session_id=$2
                 and completion.consumed_at is null
                 and completion.expires_at > now()
@@ -322,7 +314,7 @@ export function createBrokerageConnectionRepository(
       }
       const receiptHash = await hash(receipt);
       try {
-        return await withRequestTransaction(
+        return await withMemberRequestTransaction(
           { pool: input.pool, verifiedClaims: input.claims },
           async (database) => {
             const disconnected = await database.query<{
@@ -403,7 +395,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
     consumeState: async (stateHash: string, consumedAt: Date) => {
       return withDatabaseTransaction(
         pool,
-        "argus_runtime",
+        "argus_callback",
         async (database) => {
           const result = await database.query<{
             state_id: string;
@@ -440,7 +432,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
       handleHash: string,
       expiresAt: Date,
     ) =>
-      withRequestTransaction(
+      withCallbackRequestTransaction(
         {
           pool,
           verifiedClaims: {
@@ -471,7 +463,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
               join argus_brokerage.connections connection
                 on connection.id=state.connection_id
                and connection.user_id=state.user_id
-             where state.id=$1 and state.user_id=argus_private.request_user_id()
+             where state.id=$1 and state.user_id=argus_private.trusted_request_user_id()
                and state.session_id=$2 and state.connection_id=$3
                and state.deletion_epoch=$4 and state.consumed_at is not null
                and member.status='active'
@@ -489,6 +481,10 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
             throw new BrokerageConnectionError("connection_not_found");
           }
           await database.query(
+            `select argus_private.clear_webull_connection_materialization($1)`,
+            [state.connectionId],
+          );
+          await database.query(
             `insert into argus_private.webull_credentials(
                connection_id,user_id,deletion_epoch,provider_environment,
                token_version,key_version,
@@ -496,24 +492,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
                refresh_ciphertext,refresh_nonce,refresh_tag,
                wrapped_data_key,wrapped_key_nonce,wrapped_key_tag,
                associated_data_hash,access_expires_at,refresh_expires_at
-             ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
-             on conflict (connection_id) do update set
-               provider_environment=excluded.provider_environment,
-               token_version=excluded.token_version,
-               key_version=excluded.key_version,
-               access_ciphertext=excluded.access_ciphertext,
-               access_nonce=excluded.access_nonce,
-               access_tag=excluded.access_tag,
-               refresh_ciphertext=excluded.refresh_ciphertext,
-               refresh_nonce=excluded.refresh_nonce,
-               refresh_tag=excluded.refresh_tag,
-               wrapped_data_key=excluded.wrapped_data_key,
-               wrapped_key_nonce=excluded.wrapped_key_nonce,
-               wrapped_key_tag=excluded.wrapped_key_tag,
-               associated_data_hash=excluded.associated_data_hash,
-               access_expires_at=excluded.access_expires_at,
-               refresh_expires_at=excluded.refresh_expires_at,
-               updated_at=now()`,
+             ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)`,
             [
               state.connectionId,
               state.userId,
@@ -534,11 +513,6 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
               credentials.accessExpiresAt,
               credentials.refreshExpiresAt,
             ],
-          );
-          await database.query(
-            `delete from argus_brokerage.accounts
-              where user_id=argus_private.request_user_id() and connection_id=$1`,
-            [state.connectionId],
           );
           for (const account of accounts) {
             await database.query(
@@ -584,7 +558,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
             `update argus_brokerage.connections
                 set status='connected',authorized_at=now(),disconnected_at=null,
                     last_error_code=null,updated_at=now()
-              where id=$1 and user_id=argus_private.request_user_id()`,
+              where id=$1 and user_id=argus_private.trusted_request_user_id()`,
             [state.connectionId],
           );
           await database.query(
@@ -609,7 +583,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
       handleHash: string,
       expiresAt: Date,
     ) =>
-      withRequestTransaction(
+      withCallbackRequestTransaction(
         {
           pool,
           verifiedClaims: {
@@ -625,7 +599,7 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
                join argus_brokerage.connections connection
                  on connection.id=state.connection_id
                 and connection.user_id=state.user_id
-              where state.id=$1 and state.user_id=argus_private.request_user_id()
+              where state.id=$1 and state.user_id=argus_private.trusted_request_user_id()
                 and state.session_id=$2 and state.connection_id=$3
                 and state.deletion_epoch=$4 and state.consumed_at is not null
                 and member.status='active'
@@ -643,19 +617,13 @@ export function createWebullCallbackRepository(pool: DatabasePool) {
             throw new BrokerageConnectionError("connection_not_found");
           }
           await database.query(
-            `delete from argus_private.webull_credentials
-              where user_id=argus_private.request_user_id() and connection_id=$1`,
-            [state.connectionId],
-          );
-          await database.query(
-            `delete from argus_private.refresh_leases
-              where user_id=argus_private.request_user_id() and connection_id=$1`,
+            `select argus_private.clear_webull_connection_materialization($1)`,
             [state.connectionId],
           );
           await database.query(
             `update argus_brokerage.connections
                 set status=$2,last_error_code=$2,updated_at=now()
-              where id=$1 and user_id=argus_private.request_user_id() and status='pending'`,
+              where id=$1 and user_id=argus_private.trusted_request_user_id() and status='pending'`,
             [state.connectionId, outcome],
           );
           await database.query(

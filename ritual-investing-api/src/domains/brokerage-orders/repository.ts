@@ -1,11 +1,13 @@
 import type { DatabasePool } from "../../db/database-port.ts";
 import type { VerifiedRequestClaims } from "../../db/request-context.ts";
 import {
-  withRequestTransaction,
-  withStaffRequestTransaction,
+  withCapabilityStaffRequestTransaction,
+  withMemberRequestTransaction,
 } from "../../db/request-transaction.ts";
-import { normalizeRestriction } from "../brokerage-accounts/normalization.ts";
-import type { NormalizedCapability } from "../brokerage-accounts/normalization.ts";
+import type {
+  NormalizedCapability,
+  NormalizedRestriction,
+} from "../brokerage-accounts/normalization.ts";
 import type { BrokerageProjectionAvailability } from "../brokerage-projections/types.ts";
 import {
   type BrokerageOrderAuthority,
@@ -71,6 +73,37 @@ function capabilities(value: unknown): readonly NormalizedCapability[] {
       capability: record.capability as NormalizedCapability["capability"],
       provider_code: record.provider_code,
       available: record.available,
+    });
+  }));
+}
+
+function restrictions(value: unknown): readonly NormalizedRestriction[] {
+  if (!Array.isArray(value) || value.length > 256) {
+    throw new BrokerageOrderError("brokerage_authority_stale");
+  }
+  return Object.freeze(value.map((entry) => {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      throw new BrokerageOrderError("brokerage_authority_stale");
+    }
+    const record = entry as Record<string, unknown>;
+    if (
+      ![
+        "closing_only",
+        "trading_disabled",
+        "liquidation_only",
+        "unsupported",
+      ].includes(String(record.restriction)) ||
+      typeof record.provider_code !== "string" ||
+      typeof record.active !== "boolean" ||
+      (record.detail !== null && typeof record.detail !== "string")
+    ) {
+      throw new BrokerageOrderError("brokerage_authority_stale");
+    }
+    return Object.freeze({
+      restriction: record.restriction as NormalizedRestriction["restriction"],
+      provider_code: record.provider_code,
+      active: record.active,
+      detail: record.detail as string | null,
     });
   }));
 }
@@ -290,7 +323,7 @@ export interface BrokerageOrderRepository {
     prepared: PreparedOrderCommand,
     reasonCode: string,
   ): Promise<BrokerageOrderCommand>;
-  claimReconciliation(commandId: string): Promise<PreparedOrderCommand>;
+  claimReconciliation(commandId: string): Promise<PreparedOrderCommand | null>;
   recordReconciliationNotFound(
     prepared: PreparedOrderCommand,
   ): Promise<BrokerageOrderCommand>;
@@ -322,16 +355,16 @@ export function createBrokerageOrderRepository(
   }>,
 ): BrokerageOrderRepository {
   const transaction = <T>(
-    callback: Parameters<typeof withRequestTransaction<T>>[1],
+    callback: Parameters<typeof withMemberRequestTransaction<T>>[1],
   ) =>
-    withRequestTransaction(
+    withMemberRequestTransaction(
       { pool: input.pool, verifiedClaims: input.claims },
       callback,
     );
   const staffTransaction = <T>(
-    callback: Parameters<typeof withStaffRequestTransaction<T>>[2],
+    callback: Parameters<typeof withCapabilityStaffRequestTransaction<T>>[2],
   ) =>
-    withStaffRequestTransaction(
+    withCapabilityStaffRequestTransaction(
       { pool: input.pool, verifiedClaims: input.claims },
       "brokerage:read",
       callback,
@@ -348,33 +381,53 @@ export function createBrokerageOrderRepository(
         `select account.user_id,account.deletion_epoch,account.connection_id,
                 connection.status connection_status,account.id account_id,
                 account.status account_status,account.capability_version,
-                account.capabilities,account.expires_at account_expires_at,
+                coalesce((
+                  select jsonb_agg(jsonb_build_object(
+                    'capability',case capability.capability_code
+                      when 'balances_read' then 'balances_read'
+                      when 'positions_read' then 'positions_read'
+                      when 'orders_read' then 'orders_read'
+                      when 'manual_orders' then 'manual_orders'
+                      else 'unsupported' end,
+                    'provider_code',capability.provider_code,
+                    'available',capability.available
+                  ) order by capability.provider_code)
+                  from argus_brokerage.account_capabilities capability
+                  where capability.tenant_id=account.tenant_id
+                    and capability.lifecycle_id=account.lifecycle_id
+                    and capability.account_id=account.id
+                    and capability.capability_version=account.capability_version
+                ),'[]'::jsonb) capabilities,
+                account.expires_at account_expires_at,
                 restriction.generation restriction_generation,
                 restriction.expires_at restriction_expires_at,
                 restriction.availability restriction_availability,
-                restriction.normalized_payload restrictions
+                restriction.restrictions
            from argus_brokerage.accounts account
            join argus_brokerage.connections connection
              on connection.id=account.connection_id
             and connection.user_id=account.user_id
             and connection.deletion_epoch=account.deletion_epoch
            left join lateral (
-             select generation,expires_at,availability,normalized_payload
-               from argus_brokerage.projection_generations
-              where user_id=account.user_id and account_id=account.id
+             select generation.generation,generation.expires_at,
+                    generation.availability,
+                    argus_private.read_brokerage_projection_payload(
+                      generation.id
+                    ) restrictions
+               from argus_brokerage.projection_generations generation
+              where generation.tenant_id=account.tenant_id
+                and generation.lifecycle_id=account.lifecycle_id
+                and generation.user_id=account.user_id
+                and generation.account_id=account.id
                 and resource_type='restrictions'
-              order by generation desc limit 1
+                and generation.normalization_state='ready'
+              order by generation.generation desc limit 1
            ) restriction on true
-          where account.id=$1 and account.user_id=argus_private.request_user_id()`,
+          where account.id=$1 and account.user_id=argus_private.trusted_request_user_id()`,
         [accountId],
       );
       const row = result.rows[0];
       if (row === undefined) throw new BrokerageOrderError("account_not_found");
-      const restrictionPayload = row.restrictions;
-      const safeRestrictionPayload = Array.isArray(restrictionPayload) &&
-          restrictionPayload.length <= 256
-        ? restrictionPayload
-        : [];
       return Object.freeze({
         context: Object.freeze({
           userId: String(row.user_id),
@@ -406,9 +459,7 @@ export function createBrokerageOrderRepository(
           : date(row.restriction_expires_at, "restriction_expires_at"),
         restrictionAvailability: (row.restriction_availability ??
           "unavailable") as BrokerageProjectionAvailability,
-        restrictions: Object.freeze(
-          safeRestrictionPayload.map(normalizeRestriction),
-        ),
+        restrictions: restrictions(row.restrictions ?? []),
       });
     });
   };
@@ -422,7 +473,7 @@ export function createBrokerageOrderRepository(
         `select id,account_id,operation,target_order_id,order_id,state,
               created_at,updated_at
          from argus_private.provider_commands
-        where id=$1 and user_id=argus_private.request_user_id()`,
+        where id=$1 and user_id=argus_private.trusted_request_user_id()`,
         [commandId],
       );
       if (result.rows[0] === undefined) {
@@ -439,46 +490,15 @@ export function createBrokerageOrderRepository(
   ): Promise<BrokerageOrderCommand> =>
     transaction(async (database) => {
       const updated = await database.query<Record<string, unknown>>(
-        `update argus_private.provider_commands
-          set state=$2,updated_at=now()
-        where id=$1 and user_id=argus_private.request_user_id() and state='dispatching'
-        returning id,account_id,operation,target_order_id,order_id,state,
-                  created_at,updated_at`,
-        [prepared.id, state],
+        `select command_id id,account_id,operation,target_order_id,order_id,
+                state,created_at,updated_at
+           from argus_private.record_provider_command_dispatch_outcome(
+             $1,$2,$3,$4
+           )`,
+        [prepared.id, state, outcome, reasonCode],
       );
       if (updated.rows[0] === undefined) {
         throw new BrokerageOrderError("command_not_found");
-      }
-      await database.query(
-        `insert into argus_private.provider_command_attempts(
-         user_id,deletion_epoch,command_id,attempt_number,attempt_kind,
-         outcome,provider_error_code
-       ) select user_id,deletion_epoch,id,2,'egress',$2,$3
-           from argus_private.provider_commands where id=$1 and user_id=argus_private.request_user_id()`,
-        [prepared.id, outcome, reasonCode],
-      );
-      if (state === "ambiguous") {
-        await database.query(
-          `insert into argus_private.reconciliation_records(
-           user_id,deletion_epoch,command_id,status,next_attempt_at
-         ) select user_id,deletion_epoch,id,'pending',now()
-             from argus_private.provider_commands
-            where id=$1 and user_id=argus_private.request_user_id()
-         on conflict (command_id) do update
-           set status='pending',next_attempt_at=now(),updated_at=now()`,
-          [prepared.id],
-        );
-        await database.query(
-          `insert into argus_private.outbox_events(
-           user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
-         ) select user_id,deletion_epoch,'brokerage_reconcile',
-                  'webull.command.reconciliation.requested',id,
-                  'provider-command:' || id::text
-             from argus_private.provider_commands
-            where id=$1 and user_id=argus_private.request_user_id()
-         on conflict (topic,dedupe_key) do nothing`,
-          [prepared.id],
-        );
       }
       return command(updated.rows[0]);
     });
@@ -498,7 +518,7 @@ export function createBrokerageOrderRepository(
             and account.connection_id=mapping.connection_id
             and account.deletion_epoch=mapping.deletion_epoch
           where mapping.account_id=$1 and mapping.instrument_id=$2
-            and mapping.user_id=argus_private.request_user_id()
+            and mapping.user_id=argus_private.trusted_request_user_id()
             and mapping.asset_kind in ('equity','etf')`,
           [accountId, instrumentId],
         );
@@ -516,18 +536,26 @@ export function createBrokerageOrderRepository(
                   projection.instrument_id,asset.asset_kind
            from argus_private.webull_order_mappings mapping
            join lateral (
-             select state,normalized_payload->>'instrument_id' instrument_id
-               from argus_brokerage.order_projection_generations
-              where user_id=mapping.user_id and account_id=mapping.account_id
-                and order_id=mapping.order_id
-              order by generation desc limit 1
+             select generation.state,generation.instrument_id
+               from argus_brokerage.order_projection_generations generation
+              where generation.tenant_id=mapping.tenant_id
+                and generation.lifecycle_id=mapping.lifecycle_id
+                and generation.user_id=mapping.user_id
+                and generation.connection_id=mapping.connection_id
+                and generation.account_id=mapping.account_id
+                and generation.order_id=mapping.order_id
+                and generation.normalization_state='ready'
+              order by generation.generation desc limit 1
            ) projection on true
            left join argus_private.webull_asset_mappings asset
-             on asset.user_id=mapping.user_id
+             on asset.tenant_id=mapping.tenant_id
+            and asset.lifecycle_id=mapping.lifecycle_id
+            and asset.user_id=mapping.user_id
+            and asset.connection_id=mapping.connection_id
             and asset.account_id=mapping.account_id
-            and asset.instrument_id=projection.instrument_id::uuid
+            and asset.instrument_id=projection.instrument_id
           where mapping.order_id=$2 and mapping.account_id=$1
-            and mapping.user_id=argus_private.request_user_id()`,
+            and mapping.user_id=argus_private.trusted_request_user_id()`,
           [accountId, orderId],
         );
         const row = result.rows[0];
@@ -747,7 +775,7 @@ export function createBrokerageOrderRepository(
           `select id,account_id,operation,target_order_id,order_id,state,
                 created_at,updated_at
            from argus_private.provider_commands
-          where id=$1 and user_id=argus_private.request_user_id()`,
+          where id=$1 and user_id=argus_private.trusted_request_user_id()`,
           [prepared.id],
         );
         if (updated.rows[0] === undefined) {
@@ -770,6 +798,10 @@ export function createBrokerageOrderRepository(
         const row = result.rows[0];
         if (row === undefined) {
           throw new BrokerageOrderError("command_not_found");
+        }
+        if (row.claim_outcome === "manual_review") return null;
+        if (row.claim_outcome !== "claimed") {
+          throw new BrokerageOrderError("provider_contract_unavailable");
         }
         return Object.freeze({
           id: String(row.command_id),
@@ -808,7 +840,7 @@ export function createBrokerageOrderRepository(
           `select id,account_id,operation,target_order_id,order_id,state,
                 created_at,updated_at
            from argus_private.provider_commands
-          where id=$1 and user_id=argus_private.request_user_id()`,
+          where id=$1 and user_id=argus_private.trusted_request_user_id()`,
           [prepared.id],
         );
         if (updated.rows[0] === undefined) {
@@ -826,7 +858,7 @@ export function createBrokerageOrderRepository(
           `select id,account_id,operation,target_order_id,order_id,state,
                   created_at,updated_at
              from argus_private.provider_commands
-            where id=$1 and user_id=argus_private.request_user_id()`,
+            where id=$1 and user_id=argus_private.trusted_request_user_id()`,
           [prepared.id],
         );
         if (updated.rows[0] === undefined) {
@@ -862,7 +894,7 @@ export function createBrokerageOrderRepository(
           `select id,account_id,operation,target_order_id,order_id,state,
                 created_at,updated_at
            from argus_private.provider_commands
-          where id=$1 and user_id=argus_private.request_user_id()`,
+          where id=$1 and user_id=argus_private.trusted_request_user_id()`,
           [prepared.id],
         );
         if (updated.rows[0] === undefined) {
@@ -876,27 +908,48 @@ export function createBrokerageOrderRepository(
           throw new BrokerageOrderError("account_not_found");
         }
         const result = await database.query<Record<string, unknown>>(
-          `select generation.normalized_payload,generation.provider_observed_at,
-                generation.fetched_at,generation.expires_at,generation.availability,
+          `select generation.orders,generation.provider_observed_at,
+                generation.fetched_at,generation.expires_at,
+                generation.availability,
                 connection.status connection_status
            from argus_brokerage.accounts account
            join argus_brokerage.connections connection
              on connection.id=account.connection_id and connection.user_id=account.user_id
            left join lateral (
-             select normalized_payload,provider_observed_at,fetched_at,expires_at,availability
-               from argus_brokerage.projection_generations
-              where user_id=account.user_id and account_id=account.id
-                and resource_type='orders'
-              order by generation desc limit 1
+             select header.provider_observed_at,header.fetched_at,
+                    header.expires_at,header.availability,
+                    coalesce((
+                      select jsonb_agg(
+                        argus_private.read_brokerage_order_payload(detail.id)
+                        order by detail.order_id
+                      )
+                      from argus_brokerage.order_projection_generations detail
+                      where detail.tenant_id=header.tenant_id
+                        and detail.lifecycle_id=header.lifecycle_id
+                        and detail.user_id=header.user_id
+                        and detail.connection_id=header.connection_id
+                        and detail.account_id=header.account_id
+                        and detail.source='list'
+                        and detail.order_list_generation=header.generation
+                        and detail.normalization_state='ready'
+                    ),'[]'::jsonb) orders
+               from argus_brokerage.projection_generations header
+              where header.tenant_id=account.tenant_id
+                and header.lifecycle_id=account.lifecycle_id
+                and header.user_id=account.user_id
+                and header.account_id=account.id
+                and header.resource_type='orders'
+                and header.normalization_state='ready'
+              order by header.generation desc limit 1
            ) generation on true
-          where account.id=$1 and account.user_id=argus_private.request_user_id()`,
+          where account.id=$1 and account.user_id=argus_private.trusted_request_user_id()`,
           [accountId],
         );
         const row = result.rows[0];
         if (row === undefined) {
           throw new BrokerageOrderError("account_not_found");
         }
-        const payload = row.normalized_payload;
+        const payload = row.orders;
         if (payload !== null && !Array.isArray(payload)) {
           throw new BrokerageOrderError("provider_contract_unavailable");
         }
@@ -911,7 +964,7 @@ export function createBrokerageOrderRepository(
             ? "disconnected"
             : row.connection_status === "reauthorization_required"
             ? "reauthorization_required"
-            : row.normalized_payload === null
+            : row.orders === null
             ? "unavailable"
             : expiresAt !== null && expiresAt <= new Date()
             ? "stale"
@@ -944,44 +997,16 @@ export function createBrokerageOrderRepository(
         ) {
           throw new BrokerageOrderError("provider_contract_unavailable");
         }
-        await database.query(
-          "select pg_advisory_xact_lock(hashtextextended($1,782743))",
-          [context.accountId],
-        );
-        const live = await database.query<{ provider_environment: string }>(
-          `select credential.provider_environment
-             from argus_brokerage.accounts account
-             join argus_brokerage.connections connection
-               on connection.id=account.connection_id
-              and connection.user_id=account.user_id
-              and connection.deletion_epoch=account.deletion_epoch
-             join argus_private.webull_credentials credential
-               on credential.connection_id=connection.id
-              and credential.user_id=connection.user_id
-            where account.id=$1 and account.user_id=argus_private.request_user_id()
-              and account.user_id=$2 and account.deletion_epoch=$3
-              and account.connection_id=$4 and connection.status='connected'
-            for update of account`,
-          [
-            context.accountId,
-            context.userId,
-            context.deletionEpoch,
-            context.connectionId,
-          ],
-        );
-        const environment = live.rows[0]?.provider_environment;
-        if (environment !== "sandbox" && environment !== "production") {
-          throw new BrokerageOrderError("provider_contract_unavailable");
-        }
-        const generationResult = await database.query<{ generation: unknown }>(
-          `select coalesce(max(generation),0)+1 generation
-             from argus_brokerage.projection_generations
-            where user_id=argus_private.request_user_id() and account_id=$1
-              and resource_type='orders'`,
-          [context.accountId],
+        const generationResult = await database.query<{
+          result_list_generation: unknown;
+        }>(
+          `select * from argus_private.begin_brokerage_order_list_ingestion(
+             $1,$2,$3
+           )`,
+          [context.accountId, context.connectionId, context.deletionEpoch],
         );
         const listGeneration = integer(
-          generationResult.rows[0]?.generation,
+          generationResult.rows[0]?.result_list_generation,
           "order_list_generation",
           1,
         );
@@ -1003,65 +1028,25 @@ export function createBrokerageOrderRepository(
           ) {
             throw new BrokerageOrderError("provider_contract_unavailable");
           }
-          const asset = await database.query(
-            `select 1 from argus_private.webull_asset_mappings
-              where user_id=argus_private.request_user_id() and account_id=$1
-                and instrument_id=$2 and connection_id=$3
-                and deletion_epoch=$4`,
-            [
-              context.accountId,
-              normalized.instrument_id,
-              context.connectionId,
-              context.deletionEpoch,
-            ],
-          );
-          if (asset.rows.length !== 1) {
-            throw new BrokerageOrderError("provider_contract_unavailable");
-          }
           await database.query(
-            `insert into argus_private.webull_order_mappings(
-               order_id,account_id,connection_id,user_id,deletion_epoch,
-               provider_environment,provider_order_ref_ciphertext,
-               provider_order_ref_hash,key_version
-             ) values ($1,$2,$3,argus_private.request_user_id(),$4,$5,$6,$7,$8)
-             on conflict (user_id,account_id,provider_order_ref_hash) do nothing`,
+            `select argus_private.append_brokerage_order_list_observation(
+               $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14
+             )`,
             [
-              order.id,
               context.accountId,
               context.connectionId,
               context.deletionEpoch,
-              environment,
+              listGeneration,
+              order.id,
               reference.ciphertext,
               reference.hash,
               reference.keyVersion,
-            ],
-          );
-          const mapping = await database.query(
-            `select 1 from argus_private.webull_order_mappings
-              where user_id=argus_private.request_user_id() and account_id=$1 and order_id=$2
-                and provider_order_ref_hash=$3`,
-            [context.accountId, order.id, reference.hash],
-          );
-          if (mapping.rows.length !== 1) {
-            throw new BrokerageOrderError("provider_contract_unavailable");
-          }
-          await database.query(
-            `select argus_private.append_order_projection(
-               $1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10,$11,$12
-             )`,
-            [
-              context.userId,
-              context.deletionEpoch,
-              context.connectionId,
-              context.accountId,
-              order.id,
+              normalized.instrument_id,
               normalized.state,
               normalized.filled_quantity,
-              "list",
               JSON.stringify(normalized),
               order.provider_observed_at,
               order.fetched_at,
-              listGeneration,
             ],
           );
         }
@@ -1069,18 +1054,13 @@ export function createBrokerageOrderRepository(
           projection.observations.map((entry) => publicListOrder(entry.order)),
         );
         await database.query(
-          `insert into argus_brokerage.projection_generations(
-             user_id,deletion_epoch,connection_id,account_id,resource_type,
-             generation,normalized_payload,provider_observed_at,fetched_at,
-             expires_at,availability,reason_code,purge_after
-           ) values (
-             argus_private.request_user_id(),$1,$2,$3,'orders',$4,$5::jsonb,$6,$7,$8,$9,$10,
-             $7+interval '90 days'
+          `select argus_private.complete_brokerage_order_list_ingestion(
+             $1,$2,$3,$4,$5::jsonb,$6,$7,$8,$9,$10
            )`,
           [
-            context.deletionEpoch,
-            context.connectionId,
             context.accountId,
+            context.connectionId,
+            context.deletionEpoch,
             listGeneration,
             JSON.stringify(orders),
             projection.providerObservedAt,
@@ -1111,18 +1091,21 @@ export function createBrokerageOrderRepository(
         }
         const result = await database.query<Record<string, unknown>>(
           `select generation.generation,generation.source,
-                generation.normalized_payload,generation.provider_observed_at,
-                generation.fetched_at
+                argus_private.read_brokerage_order_payload(
+                  generation.id
+                ) payload,
+                generation.provider_observed_at,generation.fetched_at
            from argus_brokerage.order_projection_generations generation
           where generation.account_id=$1 and generation.order_id=$2
-            and generation.user_id=argus_private.request_user_id()
+            and generation.user_id=argus_private.trusted_request_user_id()
+            and generation.normalization_state='ready'
           order by generation.generation desc limit 1`,
           [accountId, orderId],
         );
         const row = result.rows[0];
         if (row === undefined) throw new BrokerageOrderError("order_not_found");
         return Object.freeze({
-          ...parseNormalizedOrderProjection(row.normalized_payload),
+          ...parseNormalizedOrderProjection(row.payload),
           generation: integer(row.generation, "order_generation", 1),
           source: row.source as "list" | "detail",
           provider_observed_at: date(

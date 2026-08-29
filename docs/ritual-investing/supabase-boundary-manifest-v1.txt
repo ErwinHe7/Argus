@@ -87,6 +87,7 @@ ritual-investing-api-client/lib/generated/api/session_api.dart
 ritual-investing-api-client/test/contract_client_test.dart
 ritual-investing-api/openapi/ritual-investing-v1.yaml
 ritual-investing-api/scripts/generate-openapi.ts
+ritual-investing-api/scripts/verify-u5-brokerage-lock-order.mjs
 ritual-investing-api/src/db/request-context.ts
 ritual-investing-api/src/db/request-transaction.ts
 ritual-investing-api/src/db/supabase-repositories.ts
@@ -117,10 +118,10 @@ ritual-investing-api/test/jobs/briefing-builder.test.ts
 ritual-investing-api/test/jobs/cron-recovery.test.ts
 ritual-investing-api/test/jobs/privacy-export-inventory.test.ts
 ritual-investing-api/test/jobs/supabase-queue-runtime.test.ts
-ritual-investing-api/test/jobs/webull-projection-refresh.test.ts
 ritual-investing-api/test/jobs/webull-reconciliation.test.ts
 ritual-investing-api/test/jobs/webull-token-refresh.test.ts
 ritual-investing-api/test/operations/cutover-inventory.test.ts
+ritual-investing-api/test/security/brokerage-capability-cutover.test.ts
 ritual-investing-api/test/security/provider-command-idempotency.test.ts
 ritual-investing-api/test/webull/connect-contract.test.ts
 ritual-investing-api/test/webull/oauth.test.ts
@@ -169,6 +170,7 @@ scripts/check-supabase-deploy-target.ts
 scripts/check-supabase-hosted-acceptance.sh
 scripts/check-supabase-migration-inventory.sh
 scripts/fence-supabase-deployment.sql
+scripts/measure-u5-brokerage-plans.sql
 scripts/render-supabase-target-manifest.sql
 scripts/test-check-demo-provider-boundaries.sh
 scripts/test-check-member-provider-boundaries.sh
@@ -217,9 +219,11 @@ supabase/migrations/20260828183000_u22_hosted_security_advisor_hardening.sql
 supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
 supabase/migrations/20260829043359_u3_identity_security_foundation.sql
 supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
+supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
 supabase/seed.sql
 supabase/tests/architecture_contract.test.sql
 supabase/tests/argus_domain_model.test.sql
+supabase/tests/brokerage_integrity.test.sql
 supabase/tests/brokerage_private.test.sql
 supabase/tests/editorial_publication.test.sql
 supabase/tests/function_security.test.sql

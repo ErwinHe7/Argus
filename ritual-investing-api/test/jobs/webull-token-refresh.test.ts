@@ -4,10 +4,6 @@ import { describe, expect, it, vi } from "vitest";
 
 import { runWebullTokenRefresh } from "../../src/jobs/webull-token-refresh.ts";
 
-const migration = readFileSync(resolve(
-  import.meta.dirname,
-  "../../../supabase/migrations/20260828152000_u15_webull_recovery.sql",
-), "utf8");
 const adapter = readFileSync(resolve(
   import.meta.dirname,
   "../../../supabase/functions/_shared/jobs/webull-recovery.ts",
@@ -33,24 +29,17 @@ describe("Webull token recovery", () => {
     }));
   });
 
-  it("persists possible egress before refresh and CASes token, key, and AAD", () => {
+  it("persists possible egress before refresh and commits only afterward", () => {
     const egress = adapter.indexOf("mark_webull_refresh_egress_started");
     const provider = adapter.indexOf("config.provider.refresh", egress);
     const commit = adapter.indexOf("commit_webull_token_refresh", provider);
     expect(egress).toBeGreaterThan(0);
     expect(provider).toBeGreaterThan(egress);
     expect(commit).toBeGreaterThan(provider);
-    expect(migration).toContain("credential.token_version=p_expected_token_version");
-    expect(migration).toContain("credential.key_version=p_expected_key_version");
-    expect(migration).toContain("credential.associated_data_hash=p_expected_aad_hash");
-    expect(migration).toContain("prior.egress_started_at is not null");
-    expect(migration).toContain("refresh_outcome_unknown");
   });
 
   it("clears an egress marker only for an explicit before-egress result", () => {
     const reset = adapter.indexOf("reset_webull_refresh_before_egress");
     expect(reset).toBeGreaterThan(adapter.indexOf("WebullRecoveryBeforeEgressError"));
-    expect(migration).toContain("lease.egress_started_at is not null");
-    expect(migration).toContain("lease.egress_started_at is null");
   });
 });

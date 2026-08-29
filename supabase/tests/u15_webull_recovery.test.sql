@@ -1,5 +1,10 @@
 begin;
 
+-- U5 transfers brokerage relation ownership to a NOLOGIN capability owner.
+-- This rollback-only membership is fixture authority, never a production
+-- runtime grant.
+grant argus_brokerage_owner to current_user with set true;
+
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
@@ -23,9 +28,9 @@ select ok(has_function_privilege('argus_worker',
 select ok(not has_function_privilege('argus_worker',
   'argus_private.prepare_provider_order_command(uuid,uuid,uuid,bigint,uuid,uuid,text,uuid,text,text,jsonb,text,text,timestamptz)','execute'),
   'worker cannot prepare a provider command');
-select ok(has_function_privilege('argus_runtime',
+select ok(has_function_privilege('argus_member',
   'argus_private.disconnect_webull_connection(text,uuid)','execute'),
-  'member runtime can call the atomic disconnect boundary');
+  'member capability can call the atomic disconnect boundary');
 select is((select count(*)::bigint from cron.job
   where jobname='argus-webull-recovery-enqueue'
     and command='select argus_private.enqueue_due_webull_recovery_jobs(25);'),
