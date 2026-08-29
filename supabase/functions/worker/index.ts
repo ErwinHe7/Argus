@@ -9,9 +9,11 @@ import {
   type WorkerSecretConfiguration,
 } from "../_shared/jobs/auth.ts";
 import { createMemberPurgeSaga } from "../_shared/jobs/purge.ts";
+import { createMediaStorageSaga } from "../_shared/jobs/media.ts";
+import { createPrivacyExportSaga } from "../_shared/jobs/privacy-export.ts";
 import {
+  createScopedWorkerTransactions,
   createSupabaseWorkerRuntime,
-  createWorkerTransaction,
 } from "../_shared/jobs/runtime.ts";
 import { createPrivateSupabaseStorage } from "../_shared/jobs/storage.ts";
 import {
@@ -30,9 +32,11 @@ import {
 
 const MAX_BODY_BYTES = 1_024;
 
-export type WorkerInvocationRuntime = SupabaseQueueRuntime & Readonly<{
-  consumeInvocation(nonce: string, issuedAtSeconds: number): Promise<boolean>;
-}>;
+export type WorkerInvocationRuntime =
+  & SupabaseQueueRuntime
+  & Readonly<{
+    consumeInvocation(nonce: string, issuedAtSeconds: number): Promise<boolean>;
+  }>;
 
 function response(status: number, body: Record<string, unknown>): Response {
   return Response.json(body, {
@@ -46,9 +50,12 @@ function response(status: number, body: Record<string, unknown>): Response {
 
 async function boundedJson(request: Request): Promise<unknown> {
   const declaredLength = request.headers.get("content-length");
-  if (declaredLength !== null && (
-    !/^\d{1,10}$/.test(declaredLength) || Number(declaredLength) > MAX_BODY_BYTES
-  )) throw new Error("request_body_too_large");
+  if (
+    declaredLength !== null && (
+      !/^\d{1,10}$/.test(declaredLength) ||
+      Number(declaredLength) > MAX_BODY_BYTES
+    )
+  ) throw new Error("request_body_too_large");
   if (request.body === null) throw new Error("invalid_request_body");
   const reader = request.body.getReader();
   const chunks: Uint8Array[] = [];
@@ -85,17 +92,22 @@ function batchSizeFrom(body: unknown): number {
     throw new Error("invalid_request_body");
   }
   const batchSize = (body as { batch_size?: unknown }).batch_size ?? 25;
-  if (!Number.isInteger(batchSize) || Number(batchSize) < 1 || Number(batchSize) > 25) {
+  if (
+    !Number.isInteger(batchSize) || Number(batchSize) < 1 ||
+    Number(batchSize) > 25
+  ) {
     throw new Error("invalid_request_body");
   }
   return Number(batchSize);
 }
 
-export function createWorkerHandler(config: Readonly<{
-  secrets: WorkerSecretConfiguration;
-  runtime: WorkerInvocationRuntime;
-  now?: () => Date;
-}>): (request: Request) => Promise<Response> {
+export function createWorkerHandler(
+  config: Readonly<{
+    secrets: WorkerSecretConfiguration;
+    runtime: WorkerInvocationRuntime;
+    now?: () => Date;
+  }>,
+): (request: Request) => Promise<Response> {
   return async (request: Request) => {
     if (request.method !== "POST") {
       const denied = response(405, { error: "method_not_allowed" });
@@ -117,7 +129,9 @@ export function createWorkerHandler(config: Readonly<{
       batchSize = batchSizeFrom(await boundedJson(request));
     } catch (error) {
       return response(
-        error instanceof Error && error.message === "request_body_too_large" ? 413 : 400,
+        error instanceof Error && error.message === "request_body_too_large"
+          ? 413
+          : 400,
         { error: "invalid_request" },
       );
     }
@@ -150,17 +164,26 @@ function productionHandler(): (request: Request) => Promise<Response> {
     supabaseUrl: requiredEnvironment("SUPABASE_URL"),
     secretKey: supabaseSecretKey(),
   });
+  const transactions = createScopedWorkerTransactions(pool);
   const purgeSaga = createMemberPurgeSaga({
     storage,
     authAdmin,
-    transaction: createWorkerTransaction(pool),
+    transaction: transactions.transaction,
+  });
+  const media = createMediaStorageSaga({
+    storage,
+    transaction: transactions.transaction,
+  });
+  const privacyExport = createPrivacyExportSaga({
+    storage,
+    transaction: transactions.transaction,
   });
   const webullKeyRing = Deno.env.get("WEBULL_MASTER_KEY_RING");
   const webullEnvironment = Deno.env.get("WEBULL_ENVIRONMENT");
   const webull = webullKeyRing !== undefined &&
       (webullEnvironment === "sandbox" || webullEnvironment === "production")
     ? createWebullRecoveryPorts({
-      transaction: createWorkerTransaction(pool),
+      transaction: transactions.transaction,
       vault: new WebullTokenVault(
         webullEnvironment,
         parseWebullMasterKeyRing(webullKeyRing),
@@ -172,7 +195,8 @@ function productionHandler(): (request: Request) => Promise<Response> {
     : createBlockedWebullRecoveryPorts();
   const runtime = createSupabaseWorkerRuntime({
     pool,
-    dependencies: { storage, purgeSaga, webull },
+    dependencies: { media, privacyExport, purgeSaga, webull },
+    transactions,
   });
   const next = Deno.env.get("WORKER_SECRET_NEXT") || undefined;
   const nextValidUntilText = Deno.env.get("WORKER_SECRET_NEXT_VALID_UNTIL");

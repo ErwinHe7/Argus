@@ -23,7 +23,9 @@ describe("Supabase queue runtime", () => {
 
   it("contains no background financial handler", () => {
     expect(handlerForEventType("privacy.export.requested")).toBe("privacy-export");
-    expect(handlerForEventType("media.scan.requested")).toBe("media-scan");
+    expect(handlerForEventType("media.structural_validation.requested"))
+      .toBe("media-structural-validation");
+    expect(handlerForEventType("media.scan.requested")).toBeNull();
     expect(handlerForEventType("recurring.plan.due")).toBeNull();
     expect(handlerForEventType("order.place.requested")).toBeNull();
     expect(handlerForEventType("provider_command_reconciliation_requested")).toBeNull();

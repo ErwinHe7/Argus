@@ -78,6 +78,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:asset_metric_snapshots` | retained-argus | Argus evidence data in Supabase |
 | `database-table:assets` | retained-argus | Argus asset catalog in Supabase |
 | `database-table:astrology_profiles` | retained-argus | Argus optional personalization in Supabase |
+| `database-table:briefing_generation_requests` | retained-argus | Private idempotent briefing coordination evidence |
 | `database-table:briefing_read_states` | retained-argus | Owner- and deletion-epoch-fenced briefing read markers in Supabase |
 | `database-table:briefing_sections` | retained-argus | Argus briefing data in Supabase |
 | `database-table:briefing_template_revisions` | retained-argus | Argus editorial data in Supabase |
@@ -127,6 +128,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:entitlement_events` | deleted | Remove Demo membership authority |
 | `database-table:evidence_claims` | retained-argus | Argus evidence workflow in Supabase |
 | `database-table:evidence_sources` | retained-argus | Argus evidence workflow in Supabase |
+| `database-table:external_effects` | retained-argus | Private prepare/effect/complete checkpoint authority |
 | `database-table:future_mirror_points` | retained-argus | Argus non-command scenario projections in Supabase |
 | `database-table:future_mirror_runs` | retained-argus | Argus non-command scenario runs in Supabase |
 | `database-table:gateway_rate_limits` | retained-argus | Supabase private Edge rate-limit state |
@@ -136,12 +138,16 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:idempotency_records` | retained-argus | Supabase private API idempotency |
 | `database-table:intentions` | retained-argus | Argus scenario state in Supabase |
 | `database-table:investor_profiles` | retained-argus | Argus preference state in Supabase |
+| `database-table:in_app_notification_receipts` | retained-argus | Private idempotent in-app notification recording evidence |
 | `database-table:job_attempts` | retained-argus | Supabase private bounded worker attempt evidence |
+| `database-table:job_event_registry` | retained-argus | Versioned private event, handler, ownership and retry contract |
 | `database-table:job_runs` | retained-argus | Supabase private job operations |
+| `database-table:job_schedule_registry` | retained-argus | Versioned private Cron coordination contract |
 | `database-table:kill_switches` | retained-argus | Supabase private deployment and provider fences |
 | `database-table:ledger_transactions` | replaced-webull | Remove Argus brokerage ledger |
 | `database-table:legacy_normalization_identity_map` | retained-argus | U4 source-to-target parity and bijection evidence |
 | `database-table:legacy_normalization_quarantine` | retained-argus | U4 malformed legacy cohort quarantine |
+| `database-table:managed_storage_objects` | retained-argus | Lifecycle-qualified immutable Storage object authority |
 | `database-table:media_assets` | retained-argus | Argus metadata plus private Supabase Storage |
 | `database-table:media_upload_intents` | retained-argus | Argus private upload state in Supabase |
 | `database-table:member_command_receipts` | retained-argus | Supabase private command idempotency |
@@ -170,6 +176,11 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:position_ledger_entries` | replaced-webull | Remove Argus brokerage ledger |
 | `database-table:preferences` | retained-argus | Argus preference state in Supabase |
 | `database-table:privacy_export_artifacts` | retained-argus | Private Supabase Storage export state |
+| `database-table:privacy_export_collection_registry` | retained-argus | Ordered privacy collection and source-relation parity contract |
+| `database-table:privacy_export_generation_collections` | retained-argus | Sealed per-collection counts and fingerprints |
+| `database-table:privacy_export_generation_objects` | retained-argus | Immutable source-object identities and checksums for one export generation |
+| `database-table:privacy_export_generation_rows` | retained-argus | Ordered normalized immutable export rows |
+| `database-table:privacy_export_generations` | retained-argus | Lifecycle-bound cutoff and sealed manifest authority |
 | `database-table:privacy_requests` | retained-argus | Argus privacy state in Supabase |
 | `database-table:profiles` | retained-argus | Argus profile state in Supabase |
 | `database-table:projection_account_facts` | replaced-webull | Typed account facts materialized from Webull observations |
@@ -217,6 +228,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:simulated_order_fills` | replaced-webull | Webull order projection authority |
 | `database-table:simulated_orders` | replaced-webull | Webull order projection authority |
 | `database-table:simulation_commands` | replaced-webull | Replace with provider-bound commands |
+| `database-table:storage_access_leases` | retained-argus | Single-use URL-issuance receipt; the issued Supabase signed URL has a disclosed residual lifetime of at most 30 seconds |
 | `database-table:staff_principals` | retained-argus | Supabase Auth plus private staff authorization |
 | `database-table:staff_step_up_receipts` | retained-argus | Supabase staff AAL2 proof receipts |
 | `database-table:step_up_receipts` | retained-argus | Supabase member recent-auth proof receipts |
@@ -229,6 +241,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:webull_completion_handles` | replaced-webull | One-use Webull completion redemption handles |
 | `database-table:webull_credentials` | replaced-webull | Versioned encrypted Webull credential custody |
 | `database-table:webull_order_mappings` | replaced-webull | Private provider-to-Argus order identifiers |
+| `database-table:worker_dispatches` | retained-argus | Cron-to-worker dispatch and reconciliation evidence |
 | `database-table:worker_invocation_nonces` | retained-argus | Supabase worker HMAC replay prevention |
 | `api-domain:accounts` | retained-argus | Argus account identity; brokerage accounts become separate Webull projections |
 | `api-domain:admin` | retained-argus | Argus staff operations in Supabase |
@@ -261,12 +274,15 @@ Each surface below appears exactly once. The contract test derives current table
 | `api-domain:search` | retained-argus | Argus search API |
 | `api-domain:session` | retained-argus | Supabase Auth-backed Argus bootstrap |
 | `api-domain:simulation` | replaced-webull | Delete ledger/reset/membership; replace reads and manual orders |
-| `background-handler:briefing-builder` | retained-argus | Supabase Queue/Cron worker |
-| `background-handler:notification-writer` | retained-argus | Supabase Queue worker |
+| `background-handler:briefing-builder` | deleted | Replaced by truthful briefing-generation coordination |
+| `background-handler:briefing-generation-coordinator` | retained-argus | Registry-backed internal briefing coordination |
+| `background-handler:notification-writer` | deleted | Replaced by idempotent notification-record writer |
+| `background-handler:notification-record-writer` | retained-argus | Idempotent in-app notification fact writer |
 | `background-handler:notification-delivery` | retained-argus | Supabase Queue worker |
 | `background-handler:privacy-export` | retained-argus | Supabase Queue/Storage worker |
 | `background-handler:privacy-purge` | retained-argus | Supabase Queue deletion worker |
-| `background-handler:media-scan` | retained-argus | Bounded Supabase worker |
+| `background-handler:media-scan` | deleted | Removed because no malware scanner attestation exists |
+| `background-handler:media-structural-validation` | retained-argus | Quarantined checksum/type/dimension validation; no malware claim |
 | `background-handler:media-cleanup` | retained-argus | Supabase Queue/Storage worker |
 | `background-handler:moderation-triage` | retained-argus | Supabase Queue worker |
 | `background-handler:editorial-publisher` | retained-argus | Supabase Queue/Cron worker |

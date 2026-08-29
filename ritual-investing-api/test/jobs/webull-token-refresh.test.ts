@@ -14,6 +14,8 @@ const event = {
   eventType: "webull.token.refresh.requested" as const,
   handlerName: "webull-token-refresh" as const,
   aggregateId: "018f3c2a-4b67-7a89-8abc-123456789002",
+  tenantId: "018f3c2a-4b67-7a89-8abc-123456789003",
+  lifecycleId: "018f3c2a-4b67-7a89-8abc-123456789004",
   userId: "018f3c2a-4b67-7a89-8abc-123456789003",
   deletionEpoch: 2,
 };

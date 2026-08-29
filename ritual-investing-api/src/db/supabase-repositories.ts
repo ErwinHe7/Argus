@@ -2,6 +2,7 @@ import type { DatabasePool, DatabaseTransaction } from "./database-port.ts";
 import {
   type RequestTransactionConfig,
   StaffAuthorizationError,
+  withCapabilityStaffRequestTransaction,
   withEditorialStaffRequestTransaction,
   withMemberRequestTransaction,
   withActiveStaffRequestTransaction,
@@ -141,8 +142,6 @@ export const RETAINED_SUPABASE_RELATIONS = Object.freeze({
     "argus_app.editorial_review_decisions",
   ],
   adminOperations: [
-    "argus_private.job_runs",
-    "argus_app.privacy_requests",
     "argus_private.admin_audit_events",
     "argus_brokerage.connections",
     "argus_private.provider_commands",
@@ -195,6 +194,18 @@ function staffTransaction<T>(
 ): Promise<T> {
   return withStaffRequestTransaction(config(binding), permission, (database) =>
     callback(database),
+  );
+}
+
+function capabilityStaffTransaction<T>(
+  binding: SupabaseRepositoryBinding,
+  permission: string,
+  callback: (database: DatabaseTransaction) => Promise<T>,
+): Promise<T> {
+  return withCapabilityStaffRequestTransaction(
+    config(binding),
+    permission,
+    (database) => callback(database),
   );
 }
 
@@ -1033,26 +1044,15 @@ export function createSupabaseMediaRepository(
   return Object.freeze({
     createUploadIntent: (
       input: Readonly<{
-        bucketId: "member-media" | "media-quarantine";
-        objectPath: string;
         mimeType: "image/jpeg" | "image/png" | "image/webp";
         maxBytes: number;
         expiresAt: Date;
       }>,
     ) =>
-      legacyOwnerTransaction(binding, async (database) => {
+      ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `insert into argus_private.media_upload_intents(
-             user_id, deletion_epoch, bucket_id, object_path, mime_type,
-             max_bytes, expires_at
-           )
-           select argus_private.request_user_id(), member.deletion_epoch, $1, $2, $3, $4, $5
-             from argus_app.members member
-            where member.user_id = argus_private.request_user_id() and member.status = 'active'
-          returning *`,
+          `select * from argus_private.create_media_upload_intent($1,$2,$3)`,
           [
-            input.bucketId,
-            input.objectPath,
             input.mimeType,
             input.maxBytes,
             input.expiresAt,
@@ -1061,53 +1061,20 @@ export function createSupabaseMediaRepository(
         return first(result.rows);
       }),
     getUploadIntent: (id: string) =>
-      legacyOwnerTransaction(binding, async (database) => {
+      ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `select * from argus_private.media_upload_intents
-            where user_id = argus_private.request_user_id() and id = $1`,
+          `select * from argus_private.get_member_media_upload_intent($1)`,
           [id],
         );
         return result.rows[0] ?? null;
       }),
     finalizeUpload: (intentId: string, byteSize: number, checksum: string) =>
-      staffTransaction(binding, "editorial:write", async (database) => {
-        const updated = await database.query<{
-          bucket_id: string;
-          object_path: string;
-          mime_type: string;
-          max_bytes: number;
-          user_id: string;
-          deletion_epoch: number;
-        }>(
-          `update argus_private.media_upload_intents
-              set status = 'uploaded'
-            where id = $1 and user_id = argus_private.request_user_id() and status = 'pending'
-              and expires_at > clock_timestamp() and max_bytes >= $2
-          returning bucket_id, object_path, mime_type, max_bytes, user_id, deletion_epoch`,
-          [intentId, byteSize],
+      ownerTransaction(binding, async (database) => {
+        const result = await database.query<JsonObject>(
+          `select (argus_private.finalize_media_upload($1,$2,$3)).*`,
+          [intentId, byteSize, checksum],
         );
-        const intent = first(updated.rows);
-        const asset = await database.query<JsonObject>(
-          `insert into argus_app.media_assets(
-             storage_bucket, storage_path, mime_type, byte_size, checksum
-           ) values ($1, $2, $3, $4, $5)
-          returning *`,
-          [
-            intent.bucket_id,
-            intent.object_path,
-            intent.mime_type,
-            byteSize,
-            checksum,
-          ],
-        );
-        await database.query(
-          `insert into argus_private.outbox_events(
-             user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
-           ) values ($1,$2,'argus_jobs','media.scan.requested',$3,$4)
-           on conflict (topic,dedupe_key) do nothing`,
-          [intent.user_id, intent.deletion_epoch, intentId, `media-scan:${intentId}`],
-        );
-        return first(asset.rows);
+        return first(result.rows);
       }),
     getAsset: (id: string) =>
       staffTransaction(binding, "editorial:read", async (database) => {
@@ -1189,12 +1156,10 @@ export function createSupabasePrivacyRepository(
 ) {
   return Object.freeze({
     list: () =>
-      legacyOwnerTransaction(binding, async (database) =>
+      ownerTransaction(binding, async (database) =>
         (
           await database.query<JsonObject>(
-            `select * from argus_app.privacy_requests
-              where user_id = argus_private.request_user_id()
-              order by requested_at desc, id desc`,
+            `select * from argus_private.list_member_privacy_requests()`,
           )
         ).rows,
       ),
@@ -1203,7 +1168,7 @@ export function createSupabasePrivacyRepository(
       dedupeKey: string,
       stepUpReceipt?: string,
     ) =>
-      legacyOwnerTransaction(binding, async (database) => {
+      ownerTransaction(binding, async (database) => {
         if (requestType === "deletion") {
           if (stepUpReceipt === undefined) throw new RepositoryStepUpRequiredError();
           try {
@@ -1217,8 +1182,8 @@ export function createSupabasePrivacyRepository(
             );
             const deletion = first(result.rows);
             const request = await database.query<JsonObject>(
-              `select * from argus_app.privacy_requests
-                where user_id=argus_private.request_user_id() and id=$1`,
+              `select * from argus_private.list_member_privacy_requests()
+                where id=$1`,
               [deletion.id],
             );
             return first(request.rows);
@@ -1235,124 +1200,62 @@ export function createSupabasePrivacyRepository(
         const scopedDedupeKey = `privacy-export:${await sha256TextHex(
           `${binding.claims.userId}\u0000${dedupeKey}`,
         )}`;
-        await database.query(
-          "select pg_advisory_xact_lock(hashtextextended($1,0))",
-          [scopedDedupeKey],
-        );
-        const member = await database.query<{ user_id: string }>(
-          `select user_id from argus_app.members
-            where user_id=argus_private.request_user_id() and status='active'
-            for update`,
-        );
-        if (member.rows[0] === undefined) throw new RepositoryNotFoundError();
-        const existing = await database.query<{
-          event_type: string;
-          aggregate_id: string;
-        }>(
-          `select event_type,aggregate_id from argus_private.outbox_events
-            where user_id=argus_private.request_user_id()
-              and topic='argus_jobs' and dedupe_key=$1`,
-          [scopedDedupeKey],
-        );
-        if (existing.rows[0] !== undefined) {
-          if (existing.rows[0].event_type !== "privacy.export.requested") {
-            throw new RepositoryRevisionConflictError();
-          }
-          const existingRequest = await database.query<JsonObject>(
-            `select * from argus_app.privacy_requests
-              where user_id=argus_private.request_user_id() and id=$1`,
-            [existing.rows[0].aggregate_id],
-          );
-          return first(existingRequest.rows);
-        }
         const created = await database.query<{ id: string }>(
-          `insert into argus_app.privacy_requests(
-             user_id, deletion_epoch, request_type, status
-           )
-           select argus_private.request_user_id(), member.deletion_epoch, $1, 'requested'
-             from argus_app.members member
-            where member.user_id = argus_private.request_user_id() and member.status = 'active'
-          returning id`,
-          [requestType],
+          `select argus_private.request_privacy_export($1) as id`,
+          [scopedDedupeKey],
         );
         const request = first(created.rows);
-        await database.query(
-          `insert into argus_private.outbox_events(
-             user_id, deletion_epoch, topic, event_type, aggregate_id,
-             dedupe_key
-           )
-           select argus_private.request_user_id(), member.deletion_epoch, 'argus_jobs', $2, $1, $3
-             from argus_app.members member
-            where member.user_id = argus_private.request_user_id() and member.status = 'active'`,
-          [request.id, "privacy.export.requested", scopedDedupeKey],
-        );
         const createdRequest = await database.query<JsonObject>(
-          `select * from argus_app.privacy_requests
-            where user_id=argus_private.request_user_id() and id=$1`,
+          `select * from argus_private.list_member_privacy_requests()
+            where id=$1`,
           [request.id],
         );
         return first(createdRequest.rows);
       }),
     getDeletionTombstone: () =>
-      legacyOwnerTransaction(binding, async (database) => {
+      ownerTransaction(binding, async (database) => {
         const result = await database.query<JsonObject>(
-          `select * from argus_private.deletion_tombstones
-            where user_id = argus_private.request_user_id()
-            order by deletion_epoch desc
-            limit 1`,
+          `select * from argus_private.get_member_deletion_tombstone()`,
         );
         return result.rows[0] ?? null;
       }),
     createDownloadUrl: async (requestId: string) => {
       if (binding.signedStorage === undefined) throw new Error("storage_unavailable");
-      const artifact = await legacyOwnerTransaction(binding, async (database) => {
+      const artifact = await ownerTransaction(binding, async (database) => {
         const result = await database.query<{
+          access_lease_id: string;
           bucket_id: string;
           object_path: string;
+          expires_in_seconds: number;
         }>(
-          `select artifact.bucket_id,artifact.object_path
-             from argus_private.privacy_export_artifacts artifact
-             join argus_app.privacy_requests request on request.id=artifact.request_id
-             join argus_app.members member on member.user_id=artifact.user_id
-            where artifact.request_id=$1
-              and artifact.user_id=argus_private.request_user_id()
-              and artifact.deletion_epoch=member.deletion_epoch
-              and request.status='completed'
-              and artifact.revoked_at is null
-              and artifact.expires_at>clock_timestamp()
-              and member.status='active'`,
+          `select * from argus_private.prepare_privacy_export_download($1)`,
           [requestId],
         );
         if (result.rows[0] === undefined) throw new RepositoryNotFoundError();
         return result.rows[0];
       });
+      if (
+        !Number.isInteger(artifact.expires_in_seconds) ||
+        artifact.expires_in_seconds < 1 || artifact.expires_in_seconds > 30
+      ) throw new Error("storage_unavailable");
       const issuedAt = Date.now();
       const url = await binding.signedStorage.createSignedUrl(
         artifact.bucket_id,
         artifact.object_path,
-        300,
+        artifact.expires_in_seconds,
       );
-      await legacyOwnerTransaction(binding, async (database) => {
+      await ownerTransaction(binding, async (database) => {
         const current = await database.query<{ current: boolean }>(
-          `select exists(
-             select 1 from argus_private.privacy_export_artifacts artifact
-             join argus_app.privacy_requests request on request.id=artifact.request_id
-             join argus_app.members member on member.user_id=artifact.user_id
-            where artifact.request_id=$1
-              and artifact.user_id=argus_private.request_user_id()
-              and artifact.deletion_epoch=member.deletion_epoch
-              and artifact.revoked_at is null
-              and artifact.expires_at>clock_timestamp()
-              and request.status='completed'
-              and member.status='active'
-           ) as current`,
-          [requestId],
+          `select argus_private.confirm_privacy_export_download($1) as current`,
+          [artifact.access_lease_id],
         );
         if (current.rows[0]?.current !== true) throw new RepositoryNotFoundError();
       });
       return {
         url,
-        expires_at: new Date(issuedAt + 300_000).toISOString(),
+        expires_at: new Date(
+          issuedAt + artifact.expires_in_seconds * 1_000,
+        ).toISOString(),
       };
     },
   });
@@ -1900,35 +1803,25 @@ export function createSupabaseAdminOperationsRepository(
 ) {
   return Object.freeze({
     listJobs: (limit: number) =>
-      staffTransaction(binding, "operations:read", async (database) =>
+      capabilityStaffTransaction(binding, "operations:read", async (database) =>
         (
           await database.query<JsonObject>(
-            `select id as correlation_id,job_type,status,attempts,
-                    next_attempt_at,last_error_code,created_at,updated_at
-               from argus_private.job_runs
-              order by created_at desc, id desc
-              limit $1`,
+            `select * from argus_private.list_job_diagnostics($1)`,
             [limit],
           )
         ).rows,
       ),
     listPrivacy: (limit: number) =>
-      staffTransaction(binding, "privacy:read", async (database) =>
+      capabilityStaffTransaction(binding, "privacy:read", async (database) =>
         (
           await database.query<JsonObject>(
-            `select id as correlation_id,request_type,status,requested_at,
-                    completed_at,
-                    case when failure_code is null then null
-                         else 'privacy_failure_redacted' end as reason_code
-               from argus_app.privacy_requests
-              order by requested_at desc, id desc
-              limit $1`,
+            `select * from argus_private.list_privacy_request_diagnostics($1)`,
             [limit],
           )
         ).rows,
       ),
     listAudit: (limit: number) =>
-      staffTransaction(binding, "audit:read", async (database) =>
+      capabilityStaffTransaction(binding, "audit:read", async (database) =>
         (
           await database.query<JsonObject>(
             `select id,actor_user_id,action,target_kind,target_id,outcome,
@@ -1941,7 +1834,7 @@ export function createSupabaseAdminOperationsRepository(
         ).rows,
       ),
     listBrokerageDiagnostics: (limit: number) =>
-      staffTransaction(binding, "brokerage:read", async (database) =>
+      capabilityStaffTransaction(binding, "brokerage:read", async (database) =>
         (
           await database.query<JsonObject>(
             `with diagnostics as (
@@ -1976,7 +1869,7 @@ export function createSupabaseAdminOperationsRepository(
         ).rows,
       ),
     requestJobRetry: (jobId: string, dedupeKey: string, receipt: string) =>
-      staffTransaction(binding, "operations:write", async (database) => {
+      capabilityStaffTransaction(binding, "operations:write", async (database) => {
         const result = await database.query<{ outbox_id: string }>(
           `select argus_private.request_admin_job_retry($1,$2,$3,$4) as outbox_id`,
           [
@@ -1998,7 +1891,7 @@ export function createSupabaseAdminOperationsRepository(
       dedupeKey: string,
       receipt: string,
     ) =>
-      staffTransaction(binding, "privacy:write", async (database) => {
+      capabilityStaffTransaction(binding, "privacy:write", async (database) => {
         const result = await database.query<{ outbox_id: string }>(
           `select argus_private.request_admin_privacy_retry($1,$2,$3,$4) as outbox_id`,
           [

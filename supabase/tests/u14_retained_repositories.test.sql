@@ -3,10 +3,10 @@ begin;
 -- PostgreSQL 17 gives a non-superuser role creator ADMIN but not SET on
 -- newly created roles. Enable role switching only for this test transaction;
 -- the final rollback restores the hosted membership options.
-grant argus_edge, argus_member, argus_runtime, argus_worker, argus_waitlist
+grant argus_edge, argus_member, argus_runtime, argus_staff, argus_worker, argus_waitlist
   to current_user with set true;
 grant usage on schema extensions
-  to argus_edge, argus_member, argus_runtime, argus_worker, argus_waitlist;
+  to argus_edge, argus_member, argus_runtime, argus_staff, argus_worker, argus_waitlist;
 
 create extension if not exists pgtap with schema extensions;
 grant usage on schema extensions to argus_member,argus_runtime;
@@ -256,33 +256,31 @@ select is(
 reset role;
 
 insert into argus_app.privacy_requests (
-  id, user_id, deletion_epoch, request_type, status
-) values (
-  'dddddddd-2000-4000-8000-000000000001',
-  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-  0,
-  'export',
-  'failed'
-);
+  id, tenant_id, lifecycle_id, user_id, deletion_epoch, request_type, status
+)
+select 'dddddddd-2000-4000-8000-000000000001',member.tenant_id,
+  member.lifecycle_id,member.user_id,member.deletion_epoch,'export','failed'
+from argus_app.members member
+where member.user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 insert into argus_private.outbox_events(
-  id,user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key,published_at
-) values (
-  'dddddddd-2f00-4000-8000-000000000001',
-  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',0,'argus_jobs',
-  'privacy.export.requested','dddddddd-2000-4000-8000-000000000001',
+  id,tenant_id,lifecycle_id,user_id,deletion_epoch,topic,event_type,event_version,
+  aggregate_id,dedupe_key,published_at
+)
+select 'dddddddd-2f00-4000-8000-000000000001',member.tenant_id,
+  member.lifecycle_id,member.user_id,member.deletion_epoch,'argus_jobs',
+  'privacy.export.requested',1,'dddddddd-2000-4000-8000-000000000001',
   'u14-original-export-event',now()
-);
+from argus_app.members member
+where member.user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 insert into argus_private.job_runs (
-  id,user_id,deletion_epoch,job_type,source_event_id,status,attempts,
+  id,tenant_id,lifecycle_id,user_id,deletion_epoch,job_type,source_event_id,status,attempts,
   queue_message_id,handler_name,max_attempts,diagnostic_hash
-) values (
-  'dddddddd-3000-4000-8000-000000000001',
-  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-  0,
-  'privacy-export',
+) select 'dddddddd-3000-4000-8000-000000000001',member.tenant_id,
+  member.lifecycle_id,member.user_id,member.deletion_epoch,'privacy-export',
   'dddddddd-2f00-4000-8000-000000000001','dead_lettered',5,14001,
   'privacy-export',5,repeat('d',64)
-);
+from argus_app.members member
+where member.user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 insert into argus_private.staff_step_up_receipts(
   user_id,session_id,action,target_id,receipt_hash,expires_at
 ) values (
@@ -297,13 +295,16 @@ select argus_private.set_request_context(
   'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
   'dddddddd-0000-4000-8000-000000000001','aal2'
 );
+set local role argus_staff;
 select is(
-  (select count(*)::bigint from argus_app.privacy_requests where id = 'dddddddd-2000-4000-8000-000000000001'),
+  (select count(*)::bigint from argus_private.list_privacy_request_diagnostics(100)
+    where correlation_id='dddddddd-2000-4000-8000-000000000001'),
   1::bigint,
   'active privacy staff can read cross-user privacy operations'
 );
 select is(
-  (select count(*)::bigint from argus_private.job_runs where id = 'dddddddd-3000-4000-8000-000000000001'),
+  (select count(*)::bigint from argus_private.list_job_diagnostics(100)
+    where correlation_id='dddddddd-3000-4000-8000-000000000001'),
   1::bigint,
   'active operations staff can read cross-user job operations'
 );
@@ -315,27 +316,22 @@ select ok(
   ) is not null,
   'operations write permission atomically creates a retry request'
 );
+reset role;
 select is(
   (select count(*)::bigint from argus_private.outbox_events where dedupe_key = 'u14-job-retry-01'),
   1::bigint,
   'admin retry is represented by a durable outbox event'
 );
-reset role;
-
 update argus_private.staff_principals
    set status = 'revoked', revoked_at = now(), revocation_epoch = revocation_epoch + 1
  where user_id = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 
 reset role;
-set local role argus_runtime;
-select argus_private.set_request_context(
-  'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
-  'dddddddd-0000-4000-8000-000000000001','aal2'
-);
-select is(
-  (select count(*)::bigint from argus_private.job_runs where id = 'dddddddd-3000-4000-8000-000000000001'),
-  0::bigint,
-  'revoked staff immediately loses cross-user job visibility'
+set local role argus_staff;
+select throws_ok(
+  $$select * from argus_private.list_job_diagnostics(100)$$,
+  '42501','staff_permission_required',
+  'revoked staff immediately loses cross-user job diagnostics'
 );
 select throws_ok(
   $$select argus_private.request_admin_job_retry(

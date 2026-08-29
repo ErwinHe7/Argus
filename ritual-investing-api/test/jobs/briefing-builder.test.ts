@@ -6,8 +6,8 @@ import {
   type JobHandlerDependencies,
 } from "../../src/jobs/handlers";
 
-describe("briefing builder", () => {
-  it("constructs section JSON in Postgres instead of casting serialized JSON", async () => {
+describe("briefing generation coordination", () => {
+  it("coordinates a generation without fabricating generated content", async () => {
     const queries: Array<{
       text: string;
       values: readonly unknown[];
@@ -16,11 +16,8 @@ describe("briefing builder", () => {
       async query<Row>(text: string, values: readonly unknown[] = []) {
         queries.push({ text, values });
         return {
-          rows:
-            (text.includes("update argus_app.briefings")
-              ? [{ id: "700199a4-4c23-470a-93c4-83b5181c775d" }]
-              : []) as Row[],
-          rowCount: text.includes("update argus_app.briefings") ? 1 : 0,
+          rows: [{ outcome: "generation-coordinated" }] as Row[],
+          rowCount: 1,
         };
       },
       release() {},
@@ -28,25 +25,23 @@ describe("briefing builder", () => {
     const event = {
       id: "c09b4ae8-b99f-4726-b59a-c386444b3b42",
       eventType: "briefing.daily.requested",
-      handlerName: "briefing-builder",
+      handlerName: "briefing-generation-coordinator",
       aggregateId: "700199a4-4c23-470a-93c4-83b5181c775d",
+      tenantId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      lifecycleId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       userId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       deletionEpoch: 0,
     } as const;
     const effect = handlerFor(event, {} as JobHandlerDependencies);
 
     await expect(effect(database, event)).resolves.toBe(
-      "briefing:700199a4-4c23-470a-93c4-83b5181c775d",
+      "generation-coordinated",
     );
 
-    const section = queries.find(({ text }) =>
-      text.includes("insert into argus_app.briefing_sections")
-    );
-    expect(section?.text).toContain(
-      "jsonb_build_object('disclosure',$4::text)",
-    );
-    expect(section?.values[3]).toBe(
-      "A reflective Argus briefing, not financial advice.",
-    );
+    expect(queries).toEqual([{
+      text: "select argus_private.coordinate_briefing_generation($1) as outcome",
+      values: [event.id],
+    }]);
+    expect(queries.some(({ text }) => text.includes("briefing_sections"))).toBe(false);
   });
 });

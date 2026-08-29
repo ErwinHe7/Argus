@@ -18,25 +18,12 @@ part 'create_upload_intent_request.g.dart';
 class CreateUploadIntentRequest {
   /// Returns a new [CreateUploadIntentRequest] instance.
   CreateUploadIntentRequest({
-    required this.bucketId,
-
     required this.expiresAt,
 
     required this.maxBytes,
 
     required this.mimeType,
-
-    required this.objectPath,
   });
-
-  @JsonKey(
-    name: r'bucketId',
-    required: true,
-    includeIfNull: false,
-    unknownEnumValue:
-        CreateUploadIntentRequestBucketIdEnum.unknownDefaultOpenApi,
-  )
-  final CreateUploadIntentRequestBucketIdEnum bucketId;
 
   @JsonKey(name: r'expiresAt', required: true, includeIfNull: true)
   final DateTime? expiresAt;
@@ -55,26 +42,19 @@ class CreateUploadIntentRequest {
   )
   final CreateUploadIntentRequestMimeTypeEnum mimeType;
 
-  @JsonKey(name: r'objectPath', required: true, includeIfNull: false)
-  final String objectPath;
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is CreateUploadIntentRequest &&
-          other.bucketId == bucketId &&
           other.expiresAt == expiresAt &&
           other.maxBytes == maxBytes &&
-          other.mimeType == mimeType &&
-          other.objectPath == objectPath;
+          other.mimeType == mimeType;
 
   @override
   int get hashCode =>
-      bucketId.hashCode +
       (expiresAt == null ? 0 : expiresAt.hashCode) +
       maxBytes.hashCode +
-      mimeType.hashCode +
-      objectPath.hashCode;
+      mimeType.hashCode;
 
   factory CreateUploadIntentRequest.fromJson(Map<String, dynamic> json) =>
       _$CreateUploadIntentRequestFromJson(json);
@@ -85,22 +65,6 @@ class CreateUploadIntentRequest {
   String toString() {
     return toJson().toString();
   }
-}
-
-enum CreateUploadIntentRequestBucketIdEnum {
-  @JsonValue(r'member-media')
-  memberMedia(r'member-media'),
-  @JsonValue(r'media-quarantine')
-  mediaQuarantine(r'media-quarantine'),
-  @JsonValue(r'unknown_default_open_api')
-  unknownDefaultOpenApi(r'unknown_default_open_api');
-
-  const CreateUploadIntentRequestBucketIdEnum(this.value);
-
-  final String value;
-
-  @override
-  String toString() => value;
 }
 
 enum CreateUploadIntentRequestMimeTypeEnum {

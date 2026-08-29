@@ -76,6 +76,7 @@ describe("privacy artifacts", () => {
       requestId: "request-a",
       snapshotAt: "2026-08-24T10:00:00.000Z",
       sourceSequence: 42,
+      sealedManifestChecksum: "a".repeat(64),
       pageSize: 2,
       collections: [
         {
@@ -98,6 +99,7 @@ describe("privacy artifacts", () => {
     expect(readable).not.toContain("never-export");
     expect(completed.manifest).toMatchObject({
       schema_version: 2,
+      sealed_manifest_checksum: "a".repeat(64),
       collections: { profiles: 5 },
     });
     expect(completed.manifestChecksum).toMatch(/^[a-f0-9]{64}$/);

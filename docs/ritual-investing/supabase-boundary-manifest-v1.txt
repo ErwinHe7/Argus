@@ -31,7 +31,6 @@ ritual-investing-admin/test/supabase_admin_session_test.dart
 ritual-investing-api-client/README.md
 ritual-investing-api-client/doc/AccountApi.md
 ritual-investing-api-client/doc/AdminApi.md
-ritual-investing-api-client/doc/AdminMediaApi.md
 ritual-investing-api-client/doc/AdminModerationApi.md
 ritual-investing-api-client/doc/AdminOperationsApi.md
 ritual-investing-api-client/doc/AssetsApi.md
@@ -60,7 +59,6 @@ ritual-investing-api-client/doc/SessionApi.md
 ritual-investing-api-client/lib/generated/api.dart
 ritual-investing-api-client/lib/generated/api/account_api.dart
 ritual-investing-api-client/lib/generated/api/admin_api.dart
-ritual-investing-api-client/lib/generated/api/admin_media_api.dart
 ritual-investing-api-client/lib/generated/api/admin_moderation_api.dart
 ritual-investing-api-client/lib/generated/api/admin_operations_api.dart
 ritual-investing-api-client/lib/generated/api/assets_api.dart
@@ -99,7 +97,9 @@ ritual-investing-api/src/domains/brokerage-projections/repository.ts
 ritual-investing-api/src/domains/intentions/repository.ts
 ritual-investing-api/src/domains/session/supabase-schemas.ts
 ritual-investing-api/src/jobs/handlers.ts
+ritual-investing-api/src/jobs/privacy-export.ts
 ritual-investing-api/src/jobs/queue-runtime.ts
+ritual-investing-api/src/jobs/registry.ts
 ritual-investing-api/src/retained-app.ts
 ritual-investing-api/test/admin/supabase-staff-auth.test.ts
 ritual-investing-api/test/architecture/runtime-import-boundary.test.ts
@@ -116,6 +116,7 @@ ritual-investing-api/test/domains/u7-member-routes.test.ts
 ritual-investing-api/test/edge/api-edge-integration.test.ts
 ritual-investing-api/test/jobs/briefing-builder.test.ts
 ritual-investing-api/test/jobs/cron-recovery.test.ts
+ritual-investing-api/test/jobs/job-registry.test.ts
 ritual-investing-api/test/jobs/privacy-export-inventory.test.ts
 ritual-investing-api/test/jobs/supabase-queue-runtime.test.ts
 ritual-investing-api/test/jobs/webull-reconciliation.test.ts
@@ -184,6 +185,8 @@ supabase/functions/_shared/environment.ts
 supabase/functions/_shared/environment_test.ts
 supabase/functions/_shared/http.ts
 supabase/functions/_shared/jobs/auth-admin.ts
+supabase/functions/_shared/jobs/media.ts
+supabase/functions/_shared/jobs/privacy-export.ts
 supabase/functions/_shared/jobs/purge.ts
 supabase/functions/_shared/jobs/runtime.ts
 supabase/functions/_shared/jobs/storage.ts
@@ -195,6 +198,7 @@ supabase/functions/waitlist/index.ts
 supabase/functions/waitlist/waitlist.test.ts
 supabase/functions/webull-callback/index.ts
 supabase/functions/worker/index.ts
+supabase/functions/worker/privacy_export_test.ts
 supabase/functions/worker/worker_test.ts
 supabase/migrations/20260828054740_argus_private_baseline.sql
 supabase/migrations/20260828062806_u14_retained_repository_primitives.sql
@@ -221,6 +225,7 @@ supabase/migrations/20260829043359_u3_identity_security_foundation.sql
 supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
 supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
 supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
+supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
 supabase/seed.sql
 supabase/tests/architecture_contract.test.sql
 supabase/tests/argus_domain_model.test.sql
@@ -229,7 +234,9 @@ supabase/tests/brokerage_private.test.sql
 supabase/tests/editorial_publication.test.sql
 supabase/tests/function_security.test.sql
 supabase/tests/grants_and_rls.test.sql
+supabase/tests/job_contracts.test.sql
 supabase/tests/member_lifecycle.test.sql
+supabase/tests/privacy_inventory.test.sql
 supabase/tests/provider_order_commands.test.sql
 supabase/tests/queues_and_cron.test.sql
 supabase/tests/request_context.test.sql

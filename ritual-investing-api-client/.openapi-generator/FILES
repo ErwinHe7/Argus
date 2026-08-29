@@ -4,7 +4,6 @@ analysis_options.yaml
 build.yaml
 doc/AccountApi.md
 doc/AdminApi.md
-doc/AdminMediaApi.md
 doc/AdminModerationApi.md
 doc/AdminOperationsApi.md
 doc/AssetCodexDetail.md
@@ -217,7 +216,6 @@ doc/WebullDisconnectResponse.md
 lib/generated/api.dart
 lib/generated/api/account_api.dart
 lib/generated/api/admin_api.dart
-lib/generated/api/admin_media_api.dart
 lib/generated/api/admin_moderation_api.dart
 lib/generated/api/admin_operations_api.dart
 lib/generated/api/assets_api.dart

@@ -19,10 +19,12 @@ function safeExportValue(value: unknown): unknown {
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value !== null && typeof value === "object") {
-    return `{${Object.entries(value as Record<string, unknown>)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
-      .join(",")}}`;
+    return `{${
+      Object.entries(value as Record<string, unknown>)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, child]) => `${JSON.stringify(key)}:${stableJson(child)}`)
+        .join(",")
+    }}`;
   }
   return JSON.stringify(value);
 }
@@ -102,30 +104,28 @@ function littleEndian(values: Array<[number, number]>): Uint8Array {
   return result;
 }
 
-function concatenate(parts: Uint8Array[]): Uint8Array {
-  const output = new Uint8Array(
-    parts.reduce((total, part) => total + part.length, 0),
-  );
-  let offset = 0;
-  for (const part of parts) {
-    output.set(part, offset);
-    offset += part.length;
-  }
-  return output;
-}
-
 export type StreamingExportCollection = {
   name: string;
   readPage: (offset: number, limit: number) => Promise<unknown[]>;
 };
 
-export type StreamingPrivacyArchiveInput = Omit<
-  ExportManifestInput,
-  "rows"
-> & {
-  collections: readonly StreamingExportCollection[];
-  pageSize?: number;
-};
+export type StreamingPrivacyArchiveFile = Readonly<{
+  name: string;
+  contentChecksum: string;
+  open: () => Promise<ReadableStream<Uint8Array>>;
+}>;
+
+export type StreamingPrivacyArchiveInput =
+  & Omit<
+    ExportManifestInput,
+    "rows"
+  >
+  & {
+    sealedManifestChecksum: string;
+    collections: readonly StreamingExportCollection[];
+    files?: readonly StreamingPrivacyArchiveFile[];
+    pageSize?: number;
+  };
 
 type StreamingPrivacyArchiveResult = {
   body: ReadableStream<Uint8Array>;
@@ -139,8 +139,9 @@ function updateCrc32(state: number, bytes: Uint8Array): number {
   let crc = state;
   for (const byte of bytes) {
     crc ^= byte;
-    for (let bit = 0; bit < 8; bit += 1)
+    for (let bit = 0; bit < 8; bit += 1) {
       crc = (crc >>> 1) ^ (0xedb88320 & -(crc & 1));
+    }
   }
   return crc;
 }
@@ -195,16 +196,38 @@ function zipCentralHeader(
 }
 
 /**
- * Produces a valid stored ZIP while retaining only one bounded database page
- * and two central-directory records. `completion` resolves after the stream
- * has observed every row and finalized the deterministic manifest checksum.
+ * Produces a valid stored ZIP while retaining only one bounded database page,
+ * one file chunk, and compact central-directory metadata. `completion`
+ * resolves after the stream has observed every row and finalized the
+ * deterministic manifest checksum.
  */
 export function buildStreamingPrivacyZip(
   input: StreamingPrivacyArchiveInput,
 ): StreamingPrivacyArchiveResult {
+  if (!/^[a-f0-9]{64}$/.test(input.sealedManifestChecksum)) {
+    throw new Error("invalid_privacy_export_seal");
+  }
   const pageSize = input.pageSize ?? 100;
-  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 500)
+  if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 500) {
     throw new Error("invalid_privacy_export_page_size");
+  }
+  const files = [...(input.files ?? [])].sort((left, right) =>
+    left.name < right.name ? -1 : left.name > right.name ? 1 : 0
+  );
+  const archiveNamePattern = /^[A-Za-z0-9._/-]{1,1024}$/;
+  for (const [index, file] of files.entries()) {
+    if (
+      !archiveNamePattern.test(file.name) || file.name.startsWith("/") ||
+      file.name.split("/").includes("..") ||
+      !/^[a-f0-9]{64}$/.test(file.contentChecksum) ||
+      (index > 0 && files[index - 1]?.name === file.name)
+    ) {
+      throw new Error("invalid_privacy_export_file");
+    }
+  }
+  if (files.length + 2 > 0xffff) {
+    throw new Error("privacy_export_archive_too_large");
+  }
   let resolveCompletion!: (value: {
     manifest: Record<string, unknown>;
     manifestChecksum: string;
@@ -220,6 +243,16 @@ export function buildStreamingPrivacyZip(
   void completion.catch(() => undefined);
   const encoder = new TextEncoder();
   const iterator = (async function* () {
+    const centralEntries: Array<
+      Readonly<{
+        name: Uint8Array;
+        flags: number;
+        checksum: number;
+        size: number;
+        offset: number;
+      }>
+    > = [];
+    let archiveOffset = 0;
     const dataName = encoder.encode("data.ndjson");
     const dataHeader = zipLocalHeader(dataName.length, 0x08);
     yield dataHeader;
@@ -233,21 +266,24 @@ export function buildStreamingPrivacyZip(
       let pageNumber = 0;
       for (;;) {
         const page = await collection.readPage(offset, pageSize);
-        if (page.length > pageSize)
+        if (page.length > pageSize) {
           throw new Error("privacy_export_page_exceeded_bound");
+        }
         if (page.length === 0) break;
         const safeRows = safeExportValue(page) as unknown[];
-        const chunkText =
-          safeRows
-            .map((row) => stableJson({ collection: collection.name, row }))
-            .join("\n") + "\n";
+        const chunkText = safeRows
+          .map((row) => stableJson({ collection: collection.name, row }))
+          .join("\n") + "\n";
         const chunk = encoder.encode(chunkText);
         dataSize += chunk.length;
-        if (dataSize > 0xffffffff)
+        if (dataSize > 0xffffffff) {
           throw new Error("privacy_export_archive_too_large");
+        }
         dataCrcState = updateCrc32(dataCrcState, chunk);
         rollingChecksum = await sha256(
-          `${rollingChecksum}:${collection.name}:${pageNumber}:${await sha256(chunkText)}`,
+          `${rollingChecksum}:${collection.name}:${pageNumber}:${await sha256(
+            chunkText,
+          )}`,
         );
         yield chunk;
         offset += page.length;
@@ -263,6 +299,74 @@ export function buildStreamingPrivacyZip(
       [dataSize, 4],
       [dataSize, 4],
     ]);
+    centralEntries.push({
+      name: dataName,
+      flags: 0x08,
+      checksum: dataChecksum,
+      size: dataSize,
+      offset: 0,
+    });
+    archiveOffset = dataHeader.length + dataName.length + dataSize + 16;
+
+    const archivedFiles: Array<
+      Readonly<{
+        archive_path: string;
+        content_checksum: string;
+        byte_length: number;
+      }>
+    > = [];
+    for (const file of files) {
+      const name = encoder.encode(file.name);
+      const header = zipLocalHeader(name.length, 0x08);
+      const fileOffset = archiveOffset;
+      yield header;
+      yield name;
+      let checksumState = 0xffffffff;
+      let size = 0;
+      const reader = (await file.open()).getReader();
+      let complete = false;
+      try {
+        for (;;) {
+          const next = await reader.read();
+          if (next.done) {
+            complete = true;
+            break;
+          }
+          if (size > 0xffffffff - next.value.byteLength) {
+            throw new Error("privacy_export_archive_too_large");
+          }
+          size += next.value.byteLength;
+          checksumState = updateCrc32(checksumState, next.value);
+          yield next.value;
+        }
+      } finally {
+        if (!complete) await reader.cancel("privacy_export_archive_cancelled");
+        reader.releaseLock();
+      }
+      const checksum = (checksumState ^ 0xffffffff) >>> 0;
+      yield littleEndian([
+        [0x08074b50, 4],
+        [checksum, 4],
+        [size, 4],
+        [size, 4],
+      ]);
+      centralEntries.push({
+        name,
+        flags: 0x08,
+        checksum,
+        size,
+        offset: fileOffset,
+      });
+      archiveOffset += header.length + name.length + size + 16;
+      if (archiveOffset > 0xffffffff) {
+        throw new Error("privacy_export_archive_too_large");
+      }
+      archivedFiles.push({
+        archive_path: file.name,
+        content_checksum: file.contentChecksum,
+        byte_length: size,
+      });
+    }
 
     const manifest = {
       schema_version: 2 as const,
@@ -271,17 +375,18 @@ export function buildStreamingPrivacyZip(
       request_id: input.requestId,
       snapshot_at: input.snapshotAt,
       source_sequence: input.sourceSequence,
+      sealed_manifest_checksum: input.sealedManifestChecksum,
       checksum_algorithm: "sha256-page-chain-v1",
       content_checksum: rollingChecksum,
       collections: collectionCounts,
+      files: archivedFiles,
     };
     const manifestBody = encoder.encode(stableJson(manifest));
     const manifestChecksum = await sha256(stableJson(manifest));
     resolveCompletion({ manifest, manifestChecksum });
     const manifestName = encoder.encode("manifest.json");
     const manifestCrc = crc32(manifestBody);
-    const manifestOffset =
-      dataHeader.length + dataName.length + dataSize + 16;
+    const manifestOffset = archiveOffset;
     const manifestHeader = zipLocalHeader(
       manifestName.length,
       0,
@@ -291,38 +396,42 @@ export function buildStreamingPrivacyZip(
     yield manifestHeader;
     yield manifestName;
     yield manifestBody;
-
-    const central = concatenate([
-      zipCentralHeader(
-        dataName.length,
-        0x08,
-        dataChecksum,
-        dataSize,
-        0,
-      ),
-      dataName,
-      zipCentralHeader(
-        manifestName.length,
-        0,
-        manifestCrc,
-        manifestBody.length,
-        manifestOffset,
-      ),
-      manifestName,
-    ]);
-    const centralOffset =
-      manifestOffset +
+    centralEntries.push({
+      name: manifestName,
+      flags: 0,
+      checksum: manifestCrc,
+      size: manifestBody.length,
+      offset: manifestOffset,
+    });
+    const centralOffset = manifestOffset +
       manifestHeader.length +
       manifestName.length +
       manifestBody.length;
-    yield central;
+    const centralSize = centralEntries.reduce(
+      (size, entry) => size + 46 + entry.name.length,
+      0,
+    );
+    if (centralOffset > 0xffffffff || centralSize > 0xffffffff) {
+      throw new Error("privacy_export_archive_too_large");
+    }
+    for (const entry of centralEntries) {
+      yield zipCentralHeader(
+        entry.name.length,
+        entry.flags,
+        entry.checksum,
+        entry.size,
+        entry.offset,
+      );
+      yield entry.name;
+    }
+    const entryCount = centralEntries.length;
     yield littleEndian([
       [0x06054b50, 4],
       [0, 2],
       [0, 2],
-      [2, 2],
-      [2, 2],
-      [central.length, 4],
+      [entryCount, 2],
+      [entryCount, 2],
+      [centralSize, 4],
       [centralOffset, 4],
       [0, 2],
     ]);

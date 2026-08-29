@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   inspectQuarantinedObject,
-  validateQuarantinedMedia,
+  validateStructuralMedia,
 } from "../../src/domains/media/service";
 
 const cleanPng = {
@@ -15,7 +15,6 @@ const cleanPng = {
   width: 1024,
   height: 1024,
   decodedBytes: 4_194_304,
-  scanResult: "clean" as const,
   polyglot: false,
   activeContent: false,
   actorId: "018f3c2a-4b67-7a89-8abc-123456789010",
@@ -24,9 +23,9 @@ const cleanPng = {
   expectedUploadIntentId: "018f3c2a-4b67-7a89-8abc-123456789011",
 };
 
-describe("R2 media quarantine completion", () => {
-  it("accepts a bounded clean raster matching the single-use actor intent", () => {
-    expect(validateQuarantinedMedia(cleanPng)).toEqual({ ok: true });
+describe("U6 truthful media structural validation", () => {
+  it("verifies only bounded raster structure and the single-use actor intent", () => {
+    expect(validateStructuralMedia(cleanPng)).toEqual({ ok: true });
   });
 
   it.each([
@@ -40,14 +39,13 @@ describe("R2 media quarantine completion", () => {
     ["polyglot", { polyglot: true }],
     ["unsupported_type", { detectedMime: "image/svg+xml" }],
     ["unsupported_type", { detectedMime: "text/html" }],
-    ["malware", { scanResult: "malicious" }],
     ["foreign_actor", { actorId: "018f3c2a-4b67-7a89-8abc-123456789099" }],
     [
       "foreign_intent",
       { uploadIntentId: "018f3c2a-4b67-7a89-8abc-123456789099" },
     ],
   ])("rejects %s before quarantine can attach", (code, override) => {
-    expect(validateQuarantinedMedia({ ...cleanPng, ...override })).toEqual({
+    expect(validateStructuralMedia({ ...cleanPng, ...override })).toEqual({
       ok: false,
       code,
     });
@@ -69,7 +67,6 @@ describe("R2 media quarantine completion", () => {
     const result = await inspectQuarantinedObject(bytes, {
       declaredMime: "image/webp",
       expectedChecksum,
-      scanResult: "clean",
       actorId: cleanPng.actorId,
       intendedActorId: cleanPng.intendedActorId,
       uploadIntentId: cleanPng.uploadIntentId,

@@ -499,47 +499,55 @@ update argus_private.staff_principals
  where user_id='11111111-1111-4111-8111-111111111111';
 
 insert into argus_private.outbox_events(
-  id,user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key,
-  published_at
-) values (
-  '11111111-4000-4000-8000-000000000001',
-  '44444444-4444-4444-8444-444444444444',0,
-  'argus_jobs','briefing.daily.requested',
+  id,tenant_id,lifecycle_id,user_id,deletion_epoch,topic,event_type,event_version,
+  aggregate_id,dedupe_key,published_at
+)
+select '11111111-4000-4000-8000-000000000001',member.tenant_id,
+  member.lifecycle_id,member.user_id,member.deletion_epoch,
+  'argus_jobs','briefing.daily.requested',1,
   '11111111-4100-4000-8000-000000000001','u11-original-event-0001',now()
-);
+from argus_app.members member
+where member.user_id='44444444-4444-4444-8444-444444444444';
 insert into argus_private.job_runs(
-  id,user_id,deletion_epoch,job_type,source_event_id,status,attempts,
+  id,tenant_id,lifecycle_id,user_id,deletion_epoch,job_type,source_event_id,status,attempts,
   queue_message_id,handler_name,max_attempts,diagnostic_hash
-) values (
-  '11111111-4200-4000-8000-000000000001',
-  '44444444-4444-4444-8444-444444444444',0,'briefing-builder',
+) select '11111111-4200-4000-8000-000000000001',
+  member.tenant_id,member.lifecycle_id,member.user_id,member.deletion_epoch,
+  'briefing-generation-coordinator',
   '11111111-4000-4000-8000-000000000001','dead_lettered',5,1001,
-  'briefing-builder',5,repeat('9',64)
-);
+  'briefing-generation-coordinator',5,repeat('9',64)
+from argus_app.members member
+where member.user_id='44444444-4444-4444-8444-444444444444';
 insert into argus_app.privacy_requests(
-  id,user_id,deletion_epoch,request_type,status,failure_code
-) values
-  ('11111111-4300-4000-8000-000000000001',
-   '44444444-4444-4444-8444-444444444444',0,'export','failed','storage_unavailable');
+  id,tenant_id,lifecycle_id,user_id,deletion_epoch,request_type,status,failure_code
+)
+select '11111111-4300-4000-8000-000000000001',member.tenant_id,
+  member.lifecycle_id,member.user_id,member.deletion_epoch,
+  'export','failed','storage_unavailable'
+from argus_app.members member
+where member.user_id='44444444-4444-4444-8444-444444444444';
 update argus_app.members
    set deletion_epoch=1
  where user_id='55555555-5555-4555-8555-555555555555';
 insert into argus_app.privacy_requests(
-  id,user_id,deletion_epoch,request_type,status,failure_code
-) values (
-  '11111111-4300-4000-8000-000000000002',
-  '55555555-5555-4555-8555-555555555555',1,'deletion','failed','worker_killed'
-);
+  id,tenant_id,lifecycle_id,user_id,deletion_epoch,request_type,status,failure_code
+)
+select '11111111-4300-4000-8000-000000000002',member.tenant_id,
+  member.lifecycle_id,member.user_id,member.deletion_epoch,
+  'deletion','failed','worker_killed'
+from argus_app.members member
+where member.user_id='55555555-5555-4555-8555-555555555555';
 update argus_app.members
    set status='deletion_pending',deletion_requested_at=clock_timestamp()
  where user_id='55555555-5555-4555-8555-555555555555'
    and deletion_epoch=1;
 insert into argus_private.deletion_tombstones(
-  id,user_id,deletion_epoch,status
-) values (
-  '11111111-4400-4000-8000-000000000001',
-  '55555555-5555-4555-8555-555555555555',1,'failed'
-);
+  id,tenant_id,lifecycle_id,user_id,deletion_epoch,status
+)
+select '11111111-4400-4000-8000-000000000001',member.tenant_id,
+  member.lifecycle_id,member.user_id,member.deletion_epoch,'failed'
+from argus_app.members member
+where member.user_id='55555555-5555-4555-8555-555555555555';
 insert into argus_private.staff_step_up_receipts(
   user_id,session_id,action,target_id,receipt_hash,expires_at
 ) values
@@ -550,11 +558,7 @@ insert into argus_private.staff_step_up_receipts(
   ('11111111-1111-4111-8111-111111111111','11111111-0000-4000-8000-000000000002',
    'admin_privacy_retry','11111111-4300-4000-8000-000000000002',repeat('8',64),now()+interval '5 minutes');
 
-set local role argus_runtime;
-select argus_private.set_request_context(
-  '11111111-1111-4111-8111-111111111111',
-  '11111111-0000-4000-8000-000000000002','aal2'
-);
+set local role argus_staff;
 select throws_ok(
   $$insert into argus_private.outbox_events(
       user_id,deletion_epoch,topic,event_type,aggregate_id,dedupe_key
@@ -564,7 +568,7 @@ select throws_ok(
       '11111111-4100-4000-8000-000000000099','u11-direct-staff-retry-0001'
     )$$,
   '42501',
-  'new row violates row-level security policy for table "outbox_events"',
+  null,
   'staff runtime cannot directly insert even an allowlisted retained retry event'
 );
 select lives_ok(
@@ -573,6 +577,7 @@ select lives_ok(
       repeat('6',64),'11111111-0000-4000-8000-000000000002')$$,
   'a dead-lettered job republishes its original retained source event'
 );
+reset role;
 select is(
   (select event_type from argus_private.outbox_events
     where dedupe_key='u11-admin-job-retry-0001'),
@@ -584,28 +589,30 @@ select is(
   (select argus_private.retained_job_handler(event_type)
      from argus_private.outbox_events
     where dedupe_key='u11-admin-job-retry-0001'),
-  'briefing-builder',
+  'briefing-generation-coordinator',
   'republished job retry resolves to the original retained handler'
 );
-set local role argus_runtime;
 select is(
   (select aggregate_id from argus_private.outbox_events
     where dedupe_key='u11-admin-job-retry-0001'),
   '11111111-4100-4000-8000-000000000001'::uuid,
   'republished job retry retains the original aggregate authority'
 );
+set local role argus_staff;
 select lives_ok(
   $$select argus_private.request_admin_privacy_retry(
       '11111111-4300-4000-8000-000000000001','u11-privacy-export-retry-0001',
       repeat('7',64),'11111111-0000-4000-8000-000000000002')$$,
   'failed privacy export is re-enqueued through its retained source event'
 );
+reset role;
 select is(
   (select event_type from argus_private.outbox_events
     where dedupe_key='u11-privacy-export-retry-0001'),
   'privacy.export.requested',
   'privacy export retry resolves to the export handler event'
 );
+set local role argus_staff;
 select lives_ok(
   $$select argus_private.request_admin_privacy_retry(
       '11111111-4300-4000-8000-000000000002','u11-privacy-delete-retry-0001',

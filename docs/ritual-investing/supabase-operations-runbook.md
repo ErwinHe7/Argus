@@ -224,6 +224,83 @@ The SQL harness is rollback-only. The concurrency harness refuses non-local
 hosts and removes its fixed synthetic identity and brokerage fixture even when
 an assertion fails.
 
+## U6 durable work, privacy, and managed Storage boundary
+
+`argus_private.job_event_registry` and `job_schedule_registry` are the deployed
+versioned contract. `src/jobs/registry.ts` is parity-checked against them; an
+event, handler, payload version, topic, retry limit, visibility timeout,
+dead-letter policy, or schedule added in only one layer is a release failure.
+Member events must carry tenant, lifecycle, and identity scope. The global
+privacy-deletion event must carry none and resolves its subject only through
+its tombstone.
+
+`argus_jobs_owner` is the NOLOGIN owner for the durable-work tables and
+capabilities. PGMQ is private to its six-operation queue adapter. The worker
+can relay, claim, renew, complete, fail, and recover through higher-level
+commands, but has no PGMQ schema access or job/storage table DML. Cron deploys
+only these reviewed coordination/enqueue schedules:
+
+- `argus-durable-work-coordinate` every minute;
+- `argus-worker-dispatch-enqueue` every minute; and
+- `argus-webull-recovery-coordinate` every five minutes.
+
+Each retains seven days of its own `cron.job_run_details`. Waitlist retention
+remains independently owned. Never add provider, Auth, or Storage work to a
+Cron command.
+
+External handlers use prepare/effect/complete sagas. A claim commits before
+Auth, Storage, or provider I/O. Every short effect checkpoint installs and
+revalidates the exact event, run, and lease token; lease renewal and terminal
+failure use an unscoped control transaction so a lost lease cannot prevent
+recovery. Do not pass a transaction-bound database client to an HTTP, Auth,
+Storage, or provider port.
+
+Media upload commands allocate a non-reusable lifecycle-qualified object path.
+Objects move through `quarantined`, `structurally_verified`, `published`,
+`rejected`, `tombstoned`, `deletion_pending`, `deleted`, or `reconciliation`.
+Only the exact observed checksum can publish, and authenticated clients have no
+replace/delete path. Structural inspection validates the declared image
+format, dimensions, size, and checksum. It is not malware scanning and no
+malware-clear state may be inferred until a real scanner attestation is added.
+
+Privacy export preparation runs in one repeatable-read transaction. It writes
+ordered normalized rows, per-collection counts and fingerprints, bound object
+hashes, a cutoff, and one manifest checksum before assembly. Assembly pages
+only sealed rows. Missing or changed source content fails that generation; a
+retry receives a new generation and immutable Storage identity. Published
+exports are member-accessible only through a one-time URL-issuance lease. The
+issued Supabase signed URL is reusable for a disclosed residual lifetime of at
+most 30 seconds; it is not described as single-use. Deletion similarly preserves its own leased event/run until the
+tombstone, Storage receipts, product purge, Auth-last deletion, lifecycle
+closure, and terminal consumer receipt are complete.
+
+For diagnosis, an `argus_staff` transaction with `operations:read` may call
+`argus_private.read_job_operational_signals()`. It returns bounded counts for
+queue depth/age, expired leases, attempts, dead letters, Cron and dispatch
+failures, external-effect and Storage reconciliation, database lock waits, and
+worker runtime p95. It exposes no payload, object path, credential, or member
+identity. Fence `background_workers` before manual recovery. Resume only after
+the registry/schedule inventory matches, expired claims converge, every
+unknown external effect is reconciled from its immutable evidence, and queue
+age/depth return below the versioned budget.
+
+The admin operations API reads jobs and privacy requests only through
+`list_job_diagnostics(integer)` and
+`list_privacy_request_diagnostics(integer)`; both are bounded to 100 and
+redact failure detail. A retry requires the corresponding write permission and
+a one-use AAL2 step-up receipt. It republishes the exact registered source
+event under a new dedupe key, preserving lifecycle and aggregate authority;
+the staff role has no direct job, outbox, or privacy-request table DML.
+
+After a disposable-local clean replay, run the full pgTAP suite, error-level
+lint, and both advisors. The focused U6 behavioral contracts are
+`job_contracts.test.sql`, `privacy_inventory.test.sql`,
+`queues_and_cron.test.sql`, `storage_policies.test.sql`, and
+`u10_privacy_jobs.test.sql`. Also run API typecheck/job tests and the worker
+Deno check/test. Hosted queue visibility/delay, Storage/Auth effects, Cron
+execution, concurrency budgets, and orphan reconciliation remain U9 launch
+gates; local source or pgTAP success does not satisfy them.
+
 ## U1 architecture evidence gate
 
 Before selecting migration history or requesting hosted credentials, run:

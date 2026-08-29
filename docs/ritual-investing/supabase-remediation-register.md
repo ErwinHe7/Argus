@@ -188,6 +188,7 @@ independent authorities.
 | `20260829043359_u3_identity_security_foundation.sql` | Immutable member lifecycle parent, derived temporary request context, narrow identity owner, use-case capability shells, exact foundation grants/RLS/functions | Identity and platform security | API reserved transaction connection; Auth provisioning trigger; no managed-schema mutation or external I/O | U3 target foundation. U4-U6 own every dependent relation binding and compatibility removal. |
 | `20260829051338_u4_normalize_argus_domains.sql` | Lifecycle-bound Argus application children; typed saved/report targets; ordered ritual, Grimoire, Circle-template, Coven and Asset Codex relations; immutable render documents; atomic domain synchronization/publication | Argus application and editorial domains | Member/editorial/public API; U3 trusted context; forced RLS; no external I/O | U4 target model. Legacy relationship columns remain fenced compatibility-only through U9; U5/U6 bridges remain explicitly owned by those units. |
 | `20260829073116_u5_strengthen_brokerage_relations.sql` | Dual-identity connection root; lifecycle/user/connection/account-qualified brokerage children; typed capabilities/projection facts; bounded provider snapshots; ordered command/recovery guards; exact brokerage capabilities | Brokerage connection, reads, orders and recovery | Member API, callback, staff diagnostics and lookup-only worker recovery; Webull; forced RLS and narrow definer commands | U5 target model. Webull remains authoritative; a dispatching command is never resubmitted, and only U6 durable-work composition remains compatible. |
+| `20260829140000_u6_compose_durable_external_work.sql` | Versioned job/schedule registry; private PGMQ adapter; lifecycle-bound work; queue claims/attempts/DLQ; sealed export generations; immutable Storage/effect identities; media, privacy and purge sagas; bounded diagnostics | Jobs, privacy, media, retained brokerage recovery coordination | Member/staff API, worker and Cron; Auth admin, Storage, PGMQ, Vault-name contract and `pg_net`; NOLOGIN jobs owner, FORCE RLS and exact capabilities | U6 target model. Cron coordinates/enqueues only, external calls occur between committed checkpoints, and structural validation makes no malware claim. |
 | `20260829102909_u3_serialize_request_context_lifecycle.sql` | Forward replacement of trusted context installation through the identity-owned shared lifecycle-lock primitive | Identity and platform security | API/Edge reserved request transaction; PostgreSQL row locking; security definer with empty search path and exact login-only execution | U3 correction. An installed request holds the lifecycle `FOR SHARE` lock to commit; a close that locks first makes installation wait and fail closed. |
 
 0975bf24b33bbe92871737b3f9753fa47cfda327144594893ce3e504abb9fd91  supabase/migrations/20260828054740_argus_private_baseline.sql
@@ -213,6 +214,7 @@ cb239ca1bb49bae7a5abb8edf1faa830e26ae586e48119e5b2400402a3160720  supabase/migra
 3b19d75b915e51bb6ce60293f416459f56b561304283ce4b74982308e71d1c1e  supabase/migrations/20260828220113_grant_extension_usage_to_capability_roles.sql
 496833df482f2ca5f21a0c70282af3d704ad585f931e962b36922d9765e551f6  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
 ee8ec79518f4d2417bff5d96a84917b2f21c027583309a765fe04aa90d5c6f39  supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
+234a23485eca5f9a441bd26264f3f8e8501b8f48101d3693903582ed85d03ffd  supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
 
 ## Installed object register
 
@@ -225,10 +227,10 @@ groupings assign one target owner and disposition to every returned row.
 |---|---|---|
 | `argus_app`: 58 relations including immutable `member_lifecycles`, lifecycle-bound member children, normalized editorial/ritual/community relations, and sealed render documents | Identity, content, member API/admin API | U3 owns the lifecycle parent/security foundation; U4 owns dependent Argus relations and exact application/editorial capabilities; U7 owns broader composition. |
 | `argus_brokerage`: 10 lifecycle-qualified connection/account/selection and typed capability/projection relations, with private diagnostic snapshots | Brokerage APIs, callback and lookup-only worker recovery | U5 target model; preserve Webull authority and at-most-once command boundary. |
-| `argus_private`: 43 operational, credential, command, mapping, job, privacy, audit, waitlist and rate-limit relations | API/worker/waitlist capabilities only | U5 owns brokerage credentials/mappings/commands behind exact capabilities; U6 still owns durable-work/private operational replacements. |
-| 150 distinct routine names across the three Argus schemas and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | U3-U5 foundation/domain/brokerage routines are exact-signature, pinned-search-path and narrowly owned; remaining durable-work routines stay with U6. |
+| `argus_private`: 56 operational, credential, command, mapping, job, privacy, export-generation, Storage-authority, audit, waitlist and rate-limit relations | API/worker/waitlist capabilities only | U5 owns brokerage credentials/mappings/commands; U6 owns the job registry, queue adapter, sealed exports and external-effect sagas behind exact capabilities. |
+| 201 distinct routine names across the three Argus schemas and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | U3-U6 foundation, domain, brokerage and durable-work routines are exact-signature, pinned-search-path and narrowly owned. |
 | Application policies and triggers | New lifecycle policies plus compatibility `argus_runtime`, `argus_worker`, `argus_waitlist` policies/triggers | U3 foundation is command-specific and fail-closed; U4-U6 remove generic owner policies and the universal epoch trigger as their relations cut over. |
-| Roles | `argus_identity_owner`, `argus_app_owner`, `argus_publication_owner`, `argus_brokerage_owner`; `argus_member`, `argus_staff`, `argus_callback`, `argus_migration`; compatibility runtime/worker/waitlist roles and login shells | U3 owns identity; U4 owns application/publication; U5's NOLOGIN brokerage owner is constrained by FORCE RLS and explicit relation/action policies while member/callback/worker/staff receive exact brokerage capabilities; U6 binds the remaining durable-work capabilities. |
+| Roles | `argus_identity_owner`, `argus_app_owner`, `argus_publication_owner`, `argus_brokerage_owner`, `argus_jobs_owner`; `argus_member`, `argus_staff`, `argus_callback`, `argus_migration`; compatibility runtime/worker/waitlist roles and login shells | U3 owns identity; U4 owns application/publication; U5 owns brokerage; U6's NOLOGIN jobs owner is constrained by FORCE RLS, exact relation/action policies and eight reviewed cross-domain helpers while member/staff/worker receive routines rather than durable-work table DML. |
 | Extensions | `pgcrypto`, `pgmq`, `pg_cron`, `pg_net`, `supabase_vault`, test-only `pgtap` | Preserve supported APIs. Do not pin extension versions; 2026-08 changelog says explicit version clauses are ignored. |
 | Queues | `argus_jobs`, `brokerage_refresh`, `brokerage_reconcile` | Preserve opaque event-id transport; U6 single-sources registry. |
 | Cron | outbox relay, expired-work recovery, retained scheduling, Webull recovery, worker invoke, waitlist retention | Preserve bounded schedules; U6 owns parity and failure handling. |
@@ -244,22 +246,22 @@ Auth provisioning creates one open lifecycle and member-root deletion closes
 without erasing it. Trusted API context accepts only user/session/AAL from the
 verified server boundary and derives tenant/lifecycle from that open parent.
 
-U4 application rows and U5 brokerage, callback, provider-credential, command,
-attempt, and reconciliation rows are now lifecycle-qualified. Storage object
-prefixes, job/outbox ownership, receipts, caches, and the remaining private
-durable-work rows remain the explicit U6 compatibility inventory. The
-universal epoch trigger and broad runtime/worker grants remain only for those
-uncut-over relations. Cross-system AE4 is therefore deferred until U6, not
-claimed by the U3 foundation alone.
+U4 application rows, U5 brokerage state, and U6 member-owned outbox, job,
+receipt, privacy, export-generation, media-intent, managed-object and effect
+state are lifecycle-qualified. Global deletion work is deliberately unscoped
+and can execute only against its lifecycle-qualified tombstone. U6 removes
+request/worker table DML for durable work and exposes bounded member, worker,
+and staff capabilities. Cross-system AE4 remains a U9 hosted race gate rather
+than an unverified deployment claim.
 
 | Class | Read/write | Export | Purge/retention | Storage/provider behavior |
 |---|---|---|---|---|
 | Profile/preferences/onboarding/consent/notifications/intentions/social state | Owner runtime plus reviewed staff cases | Included where classified | Cascade/purge by current epoch | Avatar/media links require lifecycle-qualified object authority. |
-| Briefings and read state | Owner; generated rows immutable, read state mutable | Included | Owner purge; generated retention TBD U6 | Export must use one sealed generation. |
-| Privacy requests/artifacts/tombstones/receipts | Owner or narrow worker/staff capability | Process authority | Tombstone survives Auth deletion; artifacts expire/revoke | Private bucket; Auth deletion last. |
+| Briefings and read state | Owner; generation requests and notifications are recorded only after their internal facts exist | Included in one sealed generation | Lifecycle purge through the jobs-owner phase | No placeholder state is called generated or delivered. |
+| Privacy requests/artifacts/tombstones/receipts | Owner or narrow worker/staff capability | Deterministic, cutoff-bound sealed generation | Tombstone survives Auth deletion; immutable object receipts; Auth deletion last | Private immutable object identity; one-time URL issuance with a disclosed reusable signed-URL lifetime of at most 30 seconds. |
 | Brokerage connections/projections/mappings/credentials/commands | Member/callback/staff exact capabilities; worker only through lookup/recovery routines | Redacted state only; no provider secrets | Fence then cryptographic destruction, preserve command audit parents, and bounded projection purge | Webull remains authoritative; ambiguity is never generic retry or resubmit. |
-| Outbox/jobs/attempts/receipts/DLQ | Narrow worker, staff diagnostics read | Operational evidence only | Bounded retries/dead-letter retention TBD U6 | Opaque event id; lifecycle checked on claim/completion. |
-| Media upload/asset state | Owner API and worker | Object identifier/hash only | Quarantine/orphan sweep/purge | Structural validation is not malware-clear. |
+| Outbox/jobs/attempts/receipts/DLQ | Jobs-owner commands; worker lifecycle capabilities; bounded redacted staff diagnostics | Operational evidence only | Registry-bounded retry/DLQ and seven-day Cron run-detail retention | Opaque event id; lifecycle and lease checked on every claim/effect checkpoint/completion. |
+| Media upload/asset state | Member allocation/finalization capabilities and worker saga checkpoints | Immutable object identifier/hash only | Tombstone, bounded cleanup and reconciliation | Structural validation is explicitly not malware-clear; only the verified object version may publish. |
 | OAuth states, completion handles, step-up and staff receipts | Narrow capability routines | Excluded from export | Short TTL/consume/revoke | Old lifecycle and stale sessions must never authorize. |
 | Waitlist | Dedicated unauthenticated Edge capability | Separate provisional data class | 23m29d Cron retention; verified removal out of band | No member lifecycle until conversion is explicitly designed. |
 
@@ -324,7 +326,7 @@ against the upgraded runtime before promotion.
 | storage-read | Worker/API secret-key adapters inspect or download private objects | Read immutable key/hash from sealed generation; changed/missing object fails that generation. U6. |
 | storage-write | Privacy/media worker writes private object through Storage API | Deterministic generation/object key plus checksum; retry reconciles exact object, never overwrites another lifecycle. U6. |
 | storage-delete | Worker removes bounded batches; provider supports repeated missing-object deletion | Persist intended object list first; delete outside transaction; record per-object receipt; reconcile missing as success only for exact key. U6. |
-| storage-sign | API creates short-lived private signed URL | Lifecycle/current-owner check immediately before mint; five-minute maximum; no raw object coordinates in API. U3/U6. |
+| storage-sign | API creates short-lived private signed URL | Lifecycle/current-owner check immediately before mint; at most 30 seconds residual URL lifetime; no raw object coordinates in API; issuance receipt is single-use but the signed URL itself is reusable until expiry. U3/U6. |
 | turnstile-verify | Waitlist POST with provider idempotency key; response can reject or be unavailable | Two bounded attempts only for provider internal/transient failure; no submission before positive hostname-bound proof. Waitlist/platform. |
 | webull-authorization-exchange | Callback exchanges one authorization code and reads accounts; exact partner contract currently blocked | One-use state; no replay; failure is generic and connection state is durable. U5. |
 | webull-token-refresh | Provider may rotate/invalidate refresh tokens and has ambiguous post-response failures | Persist egress marker first; unknown outcome fences old credential and requires reauthorization; never blind retry. U5/U6. |
@@ -387,18 +389,18 @@ U5 introduce no advisor exception for their normalized relations.
 
 | ID | Current shortcut/gap | Disposition and owner |
 |---|---|---|
-| U1-G01 | Mutable deletion epoch is not an immutable member lifecycle; stale rows can remain structurally addressable. | U3 supplies the immutable parent; U4 binds Argus application children; U5 binds brokerage/callback state with dual identity proof and parent-qualified composites. U6 durable/private child bindings remain open until complete AE4 passes. |
-| U1-G02 | Generic generated owner policies and broad table grants obscure exact capabilities. | U3 added empty-by-default capabilities; U4 replaces application/editorial grants; U5 replaces brokerage owner/member/callback matrices with exact action policies, column grants, and narrow commands. Remaining runtime/worker grants are the enumerated U6 bridge. |
-| U1-G03 | UUID arrays, JSON-backed editorial relations and polymorphic IDs lack parent-qualified relational enforcement. | Resolved for U4 Argus/editorial state and U5 brokerage relationships/facts. U6-owned envelopes remain with that unit. |
+| U1-G01 | Mutable deletion epoch is not an immutable member lifecycle; stale rows can remain structurally addressable. | Resolved locally through U6: U3 supplies the immutable parent, U4 binds application children, U5 binds brokerage, and U6 binds member-owned durable work while global purge events require an exact tombstone. Hosted AE4 remains U9. |
+| U1-G02 | Generic generated owner policies and broad table grants obscure exact capabilities. | Resolved for U3-U6-owned surfaces: application, brokerage and durable work use NOLOGIN owners, exact actions and narrow commands. Remaining compatibility roles are assigned to U7/U8/U10, not used for U6 job/privacy authority. |
+| U1-G03 | UUID arrays, JSON-backed editorial relations and polymorphic IDs lack parent-qualified relational enforcement. | Resolved for U4 application/editorial, U5 brokerage, and U6 lifecycle/job/export/Storage authority. Remaining downstream compatibility payloads are U7/U8/U10-owned. |
 | U1-G04 | Provider projection JSON is both convenient output and weakly bounded storage. | Resolved U5: typed facts serve reads and feature gates; opaque provider snapshots are private, bounded, versioned, hashed, quarantinable diagnostic evidence only. |
-| U1-G05 | SQL and TypeScript event/handler registries are independently maintained. | Single-source or generated parity in U6. |
-| U1-G06 | Privacy export currently relies on runtime snapshot behavior rather than immutable generation manifests. | Replace U6 per KTD12. |
+| U1-G05 | SQL and TypeScript event/handler registries are independently maintained. | Resolved U6 with one versioned SQL registry and exact TypeScript parity tests for event, handler, topic, owner, effect and retry metadata. |
+| U1-G06 | Privacy export currently relies on runtime snapshot behavior rather than immutable generation manifests. | Resolved U6 with one repeatable-read preparation transaction, ordered normalized rows, collection fingerprints, immutable object hashes, a cutoff and a sealed manifest checksum; a failed retry creates a new generation. |
 | U1-G07 | Retained repository SQL remains centralized in one large adapter. | Compose by bounded context in U7. |
 | U1-G08 | Discovery/search uses retained compatibility behavior without final indexed keyset contract. | Replace U8. |
 | U1-G09 | CLI pin 2.65.5 was below the reviewed 2.115.0 gate. | Resolved U2: CI, inventory and developer operations pin exact 2.115.0 without changing the machine-wide install. |
 | U1-G10 | Hosted identity, counts, advisors, recovery drill and disposability are unknown. | Forward-only selected U2 without hosted inspection; U9 owns fresh hosted evidence before promotion and destructive action remains forbidden. |
-| U1-G11 | Existing tests still include some migration-source assertions where catalog behavior is observable. | Keep as evidence for now; migrate to catalog/black-box coverage in U2-U6. |
-| U1-G12 | Current `media_assets.quarantine_status = clear` vocabulary can overstate structural validation. | Truthful state replacement U6; no malware-clear claim before approved scanner attestation. |
+| U1-G11 | Existing tests still include some migration-source assertions where catalog behavior is observable. | U3-U6 critical privileges, registries, lifecycle relationships, queue/storage states and sagas now have catalog or black-box coverage. Remaining source assertions are downstream U7/U8/U10 inventory seams. |
+| U1-G12 | Current `media_assets.quarantine_status = clear` vocabulary can overstate structural validation. | Resolved U6: new state uses `structurally_verified`, publish is checksum/version-bound, and neither code nor event vocabulary claims malware clearance without a real attestation. |
 
 Run `scripts/check-supabase-architecture-contract.sh --offline` on every
 inventory change. With an explicitly selected disposable database and `psql`

@@ -1,56 +1,79 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { privacyExportCollections } from "../../src/jobs/handlers.ts";
+import {
+  brokeragePrivacyExportCollections,
+  privacyExportCollections,
+} from "../../src/jobs/privacy-export.ts";
+
+const expectedBrokerageCollections = [
+  ["brokerage_connections", "argus_brokerage.connections"],
+  ["brokerage_accounts", "argus_brokerage.accounts"],
+  ["brokerage_active_account_selections", "argus_brokerage.active_account_selections"],
+  ["brokerage_account_capabilities", "argus_brokerage.account_capabilities"],
+  ["brokerage_projection_generations", "argus_brokerage.projection_generations"],
+  ["brokerage_projection_balance_facts", "argus_brokerage.projection_balance_facts"],
+  ["brokerage_projection_position_facts", "argus_brokerage.projection_position_facts"],
+  ["brokerage_projection_restriction_facts", "argus_brokerage.projection_restriction_facts"],
+  ["brokerage_projection_account_facts", "argus_brokerage.projection_account_facts"],
+  ["brokerage_order_projection_generations", "argus_brokerage.order_projection_generations"],
+] as const;
 
 describe("Supabase privacy export inventory", () => {
-  it("exports Argus-owned product rows without provider secrets or raw payloads", async () => {
-    const inventory = privacyExportCollections.map(([, sql]) => sql).join("\n");
+  it("exports application rows and the exact normalized member brokerage projections", () => {
+    const inventory = privacyExportCollections.map(({ sourceRelation }) => sourceRelation)
+      .join("\n");
     expect(inventory).toContain("argus_app.members");
     expect(inventory).toContain("argus_app.privacy_requests");
+    expect(brokeragePrivacyExportCollections.map(({ name, sourceRelation }) => [
+      name,
+      sourceRelation,
+    ])).toEqual(expectedBrokerageCollections);
+    expect(inventory).toContain("argus_brokerage.projection_position_facts");
+    expect(inventory).toContain("argus_brokerage.order_projection_generations");
     expect(inventory).not.toMatch(
-      /argus_brokerage|provider|oauth|token|credential|raw_response|authorization/i,
+      /argus_private|credential|oauth|token|mapping|snapshot|refresh_lease|provider_command|attempt|reconciliation|raw_response|authorization/i,
     );
   });
 
-  it("selects only columns declared by the Supabase baseline", async () => {
-    const migration = await readFile(
-      resolve("../supabase/migrations/20260828054740_argus_private_baseline.sql"),
-      "utf8",
+  it("references only relations declared by the full forward migration history", async () => {
+    const migrationRoot = resolve("../supabase/migrations");
+    const migrations = await Promise.all(
+      (await readdir(migrationRoot))
+        .filter((name) => name.endsWith(".sql"))
+        .sort()
+        .map(async (name) => ({
+          name,
+          source: await readFile(resolve(migrationRoot, name), "utf8"),
+        })),
     );
-    for (const [name, sql] of privacyExportCollections) {
-      const table = sql.match(/from argus_app\.(\w+)/i)?.[1];
-      expect(table, name).toBeDefined();
-      const definition = migration.match(
-        new RegExp(`create table argus_app\\.${table} \\(([\\s\\S]*?)\\n\\);`, "i"),
-      )?.[1];
-      expect(definition, `${name}:${table}`).toBeDefined();
-      const columns = sql.match(/^select ([\s\S]*?) from /i)?.[1]
-        ?.split(",")
-        .map((entry) => entry.trim().match(/^([a-z_]+)/i)?.[1])
-        .filter((column): column is string => column !== undefined) ?? [];
-      for (const column of columns) {
-        expect(definition, `${name}:${table}.${column}`).toMatch(
-          new RegExp(`(?:^|\\n)\\s*${column}\\s`, "i"),
-        );
-      }
+    for (const { name, sourceRelation } of privacyExportCollections) {
+      const tableHistory = migrations
+        .filter(({ source }) => source.includes(sourceRelation))
+        .map(({ source }) => source)
+        .join("\n");
+      expect(tableHistory, `${name}:${sourceRelation}`).not.toBe("");
     }
   });
 
-  it("grants the worker owner policy to every exported owner table", async () => {
-    const u10 = await readFile(
-      resolve("../supabase/migrations/20260828132056_u10_supabase_jobs_storage.sql"),
-      "utf8",
+  it("composes one unique ordered worker inventory without internal brokerage tables", () => {
+    expect(new Set(privacyExportCollections.map(({ name }) => name)).size).toBe(
+      privacyExportCollections.length,
     );
-    const policyLoop = u10.match(
-      /foreach table_name in array array\[([\s\S]*?)\]\s*loop/,
-    )?.[1];
-    expect(policyLoop).toBeDefined();
-    for (const [, sql] of privacyExportCollections) {
-      const table = sql.match(/from argus_app\.(\w+)/i)?.[1];
-      expect(policyLoop, `worker owner policy for ${table}`).toContain(`'${table}'`);
+    expect(privacyExportCollections.slice(-expectedBrokerageCollections.length).map(
+      ({ name, sourceRelation }) => [name, sourceRelation],
+    )).toEqual(expectedBrokerageCollections);
+    expect(privacyExportCollections.map(({ sourceRelation }) => sourceRelation).join("\n"))
+      .not.toMatch(/argus_app\.saved_items|argus_private|credentials|snapshots|provider_commands/i);
+  });
+
+  it("keeps workers on named sealed collections rather than executable source SQL", () => {
+    for (const { name, sourceRelation } of privacyExportCollections) {
+      expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
+      expect(sourceRelation).toMatch(/^argus_(?:app|brokerage)\.[a-z_]+$/);
+      expect(sourceRelation).not.toMatch(/\s|;|--|\/\*|\*\/|["']/);
     }
   });
 });

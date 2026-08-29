@@ -1,4 +1,4 @@
-export type QuarantinedMediaInspection = {
+export type StructuralMediaInspection = {
   declaredMime: string;
   detectedMime: string;
   extension: string;
@@ -8,7 +8,6 @@ export type QuarantinedMediaInspection = {
   width: number;
   height: number;
   decodedBytes: number;
-  scanResult: string;
   polyglot: boolean;
   activeContent: boolean;
   actorId: string;
@@ -29,7 +28,6 @@ export type MediaValidationResult =
         | "file_too_large"
         | "foreign_actor"
         | "foreign_intent"
-        | "malware"
         | "mime_mismatch"
         | "pixel_limit"
         | "polyglot"
@@ -42,8 +40,8 @@ const acceptedTypes = {
   "image/webp": new Set(["webp"]),
 } as const;
 
-export function validateQuarantinedMedia(
-  inspection: QuarantinedMediaInspection,
+export function validateStructuralMedia(
+  inspection: StructuralMediaInspection,
 ): MediaValidationResult {
   const extensions =
     acceptedTypes[inspection.detectedMime as keyof typeof acceptedTypes];
@@ -68,7 +66,6 @@ export function validateQuarantinedMedia(
     return { ok: false, code: "decompression_limit" };
   if (inspection.activeContent) return { ok: false, code: "active_content" };
   if (inspection.polyglot) return { ok: false, code: "polyglot" };
-  if (inspection.scanResult !== "clean") return { ok: false, code: "malware" };
   if (inspection.actorId !== inspection.intendedActorId)
     return { ok: false, code: "foreign_actor" };
   if (inspection.uploadIntentId !== inspection.expectedUploadIntentId)
@@ -167,7 +164,7 @@ function dimensions(
 export async function inspectQuarantinedObject(
   bytes: Uint8Array,
   input: Omit<
-    QuarantinedMediaInspection,
+    StructuralMediaInspection,
     | "detectedMime"
     | "extension"
     | "byteSize"
@@ -177,8 +174,7 @@ export async function inspectQuarantinedObject(
     | "decodedBytes"
     | "polyglot"
     | "activeContent"
-    | "scanResult"
-  > & { scanResult: string },
+  >,
 ): Promise<{
   validation: MediaValidationResult;
   width: number;
@@ -205,7 +201,7 @@ export async function inspectQuarantinedObject(
   const signatureCount = ["89504e470d0a1a0a", "ffd8ff", "52494646"].filter(
     (signature) => hex(bytes).includes(signature),
   ).length;
-  const inspection: QuarantinedMediaInspection = {
+  const inspection: StructuralMediaInspection = {
     ...input,
     detectedMime: detected?.mime ?? "application/octet-stream",
     extension: detected?.extension ?? "bin",
@@ -218,7 +214,7 @@ export async function inspectQuarantinedObject(
     activeContent,
   };
   return {
-    validation: validateQuarantinedMedia(inspection),
+    validation: validateStructuralMedia(inspection),
     width: inspection.width,
     height: inspection.height,
     checksum,

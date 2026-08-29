@@ -32,6 +32,7 @@ cb239ca1bb49bae7a5abb8edf1faa830e26ae586e48119e5b2400402a3160720  supabase/migra
 75db53a7b0c7b806d00c315cf5607a132a28da7d6de5994ae66b716c9d0ec9b6  supabase/migrations/20260829051338_u4_normalize_argus_domains.sql
 496833df482f2ca5f21a0c70282af3d704ad585f931e962b36922d9765e551f6  supabase/migrations/20260829073116_u5_strengthen_brokerage_relations.sql
 ee8ec79518f4d2417bff5d96a84917b2f21c027583309a765fe04aa90d5c6f39  supabase/migrations/20260829102909_u3_serialize_request_context_lifecycle.sql
+234a23485eca5f9a441bd26264f3f8e8501b8f48101d3693903582ed85d03ffd  supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
 
 [managed-resources]
 auth|project-auth|identity|supabase-managed|20|supported-configuration-and-admin-api
@@ -47,12 +48,15 @@ extension|supabase_vault|operations|migration-supported-api|01|create-or-verify
 pgmq|argus_jobs|jobs|migration-supported-api|90|create-or-verify
 pgmq|brokerage_refresh|brokerage|migration-supported-api|90|create-or-verify
 pgmq|brokerage_reconcile|brokerage|migration-supported-api|90|create-or-verify
-cron|argus-retained-enqueue|jobs|migration-supported-api|90|replace-by-name
 cron|argus-outbox-relay|jobs|migration-supported-api|90|legacy-unscheduled-by-u10
 cron|argus-recovery-sweep|jobs|migration-supported-api|90|legacy-unscheduled-by-u10
+cron|argus-retained-enqueue|jobs|migration-supported-api|90|legacy-unscheduled-by-u6
+cron|argus-durable-work-coordinate|jobs|migration-supported-api|90|replace-by-registry
+cron|argus-worker-dispatch-enqueue|jobs|migration-supported-api|90|replace-by-registry
+cron|argus-webull-recovery-coordinate|brokerage|migration-supported-api|90|replace-by-registry
 cron|argus-waitlist-retention|waitlist|migration-supported-api|90|replace-by-name
-cron|argus-webull-recovery-enqueue|brokerage|migration-supported-api|90|replace-by-name
-cron|argus-worker-dispatch|jobs|migration-supported-api|90|replace-by-name
+cron|argus-webull-recovery-enqueue|brokerage|migration-supported-api|90|legacy-unscheduled-by-u6
+cron|argus-worker-dispatch|jobs|migration-supported-api|90|legacy-unscheduled-by-u6
 pg_net|worker-invocation|jobs|migration-supported-api|90|owner-function-only
 vault|argus_worker_url|operations|out-of-band|90|name-only-rotate-value
 vault|argus_worker_secret_current|operations|out-of-band|90|name-only-rotate-value
@@ -68,6 +72,7 @@ roles|argus-capability-and-login-roles|platform|migration-supported-api|01|creat
 argus_app_owner|non-login-owner|application|nologin|none|owned=u4-normalized-argus-relations-and-domain-commands,grants=exact-dependent-actions|none
 argus_brokerage_owner|non-login-owner|brokerage|nologin|none|owned=u5-brokerage-relations-and-scoped-domain-commands,grants=exact-dependent-actions-and-composite-request-context|none
 argus_identity_owner|non-login-owner|identity|nologin|none|owned=member-lifecycle-table-and-foundation-routines,grants=identity-provision-only|none
+argus_jobs_owner|non-login-owner|jobs|nologin|none|owned=u6-registries-sagas-and-job-capabilities,grants=exact-dependent-actions-and-eight-reviewed-cross-domain-helpers|statement=30s,lock=3s,idle_tx=15s
 argus_publication_owner|non-login-owner|publication|nologin|none|owned=two-bounded-current-publication-functions,grants=select-item-revision-render-only|none
 argus_member|capability|identity|nologin|none|owned=none,grants=current-lifecycle-read-foundation|statement=15s,lock=3s,idle_tx=15s
 argus_staff|capability|staff|nologin|none|owned=none,grants=current-lifecycle-read-foundation|statement=15s,lock=3s,idle_tx=15s

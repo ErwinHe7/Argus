@@ -3788,8 +3788,6 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   });
 
   const uploadIntentBody = z.object({
-    bucketId: z.enum(["member-media", "media-quarantine"]),
-    objectPath: z.string().min(1).max(512),
     mimeType: z.enum(["image/jpeg", "image/png", "image/webp"]),
     maxBytes: z.number().int().min(1).max(10 * 1024 * 1024),
     expiresAt: z.coerce.date(),
@@ -3834,9 +3832,9 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   }).strict();
   const finalizeMedia = route(
     "post",
-    "/v1/admin/media/upload-intents/{intent_id}/finalize",
+    "/v1/media/upload-intents/{intent_id}/finalize",
     "finalizeUpload",
-    "Admin Media",
+    "Media",
     { pathParams: z.object({ intent_id: uuid }), body: finalizeMediaBody },
   );
   register(finalizeMedia, async (context) => {

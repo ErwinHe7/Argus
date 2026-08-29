@@ -81,7 +81,6 @@ Class | Method | HTTP request | Description
 [*AdminApi*](doc/AdminApi.md) | [**listAdminAudit**](doc/AdminApi.md#listadminaudit) | **GET** /v1/admin/audit | 
 [*AdminApi*](doc/AdminApi.md) | [**listAdminEditorial**](doc/AdminApi.md#listadmineditorial) | **GET** /v1/admin/editorial | 
 [*AdminApi*](doc/AdminApi.md) | [**patchAdminEditorialRevision**](doc/AdminApi.md#patchadmineditorialrevision) | **PATCH** /v1/admin/editorial/{item_id}/revisions/{revision_id} | 
-[*AdminMediaApi*](doc/AdminMediaApi.md) | [**finalizeUpload**](doc/AdminMediaApi.md#finalizeupload) | **POST** /v1/admin/media/upload-intents/{intent_id}/finalize | 
 [*AdminModerationApi*](doc/AdminModerationApi.md) | [**decideModeration**](doc/AdminModerationApi.md#decidemoderation) | **POST** /v1/admin/moderation/{case_id}/decision | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminBrokerageDiagnostics**](doc/AdminOperationsApi.md#listadminbrokeragediagnostics) | **GET** /v1/admin/operations/brokerage | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminJobs**](doc/AdminOperationsApi.md#listadminjobs) | **GET** /v1/admin/operations/jobs | 
@@ -147,6 +146,7 @@ Class | Method | HTTP request | Description
 [*IntentionsApi*](doc/IntentionsApi.md) | [**listIntentions**](doc/IntentionsApi.md#listintentions) | **GET** /v1/intentions | 
 [*IntentionsApi*](doc/IntentionsApi.md) | [**patchIntention**](doc/IntentionsApi.md#patchintention) | **PATCH** /v1/intentions/{intention_id} | 
 [*MediaApi*](doc/MediaApi.md) | [**createUploadIntent**](doc/MediaApi.md#createuploadintent) | **POST** /v1/media/upload-intents | 
+[*MediaApi*](doc/MediaApi.md) | [**finalizeUpload**](doc/MediaApi.md#finalizeupload) | **POST** /v1/media/upload-intents/{intent_id}/finalize | 
 [*MediaApi*](doc/MediaApi.md) | [**getUploadIntent**](doc/MediaApi.md#getuploadintent) | **GET** /v1/media/upload-intents/{intent_id} | 
 [*MemberSecurityApi*](doc/MemberSecurityApi.md) | [**issueMemberStepUp**](doc/MemberSecurityApi.md#issuememberstepup) | **POST** /v1/member/step-up | 
 [*ModerationApi*](doc/ModerationApi.md) | [**reportContent**](doc/ModerationApi.md#reportcontent) | **POST** /v1/moderation/reports | 

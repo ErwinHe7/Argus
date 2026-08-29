@@ -1,5 +1,7 @@
 begin;
 
+grant argus_worker to current_user with set true;
+grant usage on schema extensions to argus_worker;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
@@ -16,7 +18,7 @@ select is((select count(*)::bigint from pg_class relation
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_private' and relation.relkind in ('r','p')),
-  43::bigint,'the reviewed private relation inventory is complete');
+  56::bigint,'the reviewed private relation inventory is complete');
 
 select is(
   (select jsonb_agg(qualified_name order by qualified_name) from (
@@ -47,6 +49,7 @@ select is(
     ('argus_private.order_previews.normalized_payload'),
     ('argus_private.projection_generation_snapshots.snapshot_payload'),
     ('argus_private.provider_commands.normalized_payload'),
+    ('argus_private.privacy_export_generation_rows.row_payload'),
     ('argus_private.security_events.details'),
     ('argus_private.staff_principals.permissions')
   ) approved(qualified_name)),
@@ -71,7 +74,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  150::bigint,'the reviewed routine-name inventory is complete');
+  201::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
@@ -87,13 +90,14 @@ select is((select count(*)::bigint from pg_proc function_row
       'argus_edge','argus_worker_edge','argus_waitlist_edge')),
   0::bigint,'capability roles never own Argus routines');
 
+set local role argus_worker;
 select is(
   (select jsonb_object_agg(event_type,argus_private.retained_job_handler(event_type)
      order by event_type) from (values
     ('briefing.daily.requested'),('briefing.weekly.requested'),
     ('briefing.moon_cycle.requested'),('briefing.daily.generated'),
     ('briefing.weekly.generated'),('briefing.moon_cycle.generated'),
-    ('media.scan.requested'),('media.quarantine.cleanup'),
+    ('media.structural_validation.requested'),('media.quarantine.cleanup'),
     ('content-report.created'),('privacy.export.requested'),
     ('privacy.deletion.requested'),('privacy.export.retention.requested'),
     ('webull.token.refresh.requested'),
@@ -101,13 +105,13 @@ select is(
     ('webull.command.reconciliation.requested')
   ) approved(event_type)),
   jsonb_build_object(
-    'briefing.daily.requested','briefing-builder',
-    'briefing.weekly.requested','briefing-builder',
-    'briefing.moon_cycle.requested','briefing-builder',
-    'briefing.daily.generated','notification-writer',
-    'briefing.weekly.generated','notification-writer',
-    'briefing.moon_cycle.generated','notification-writer',
-    'media.scan.requested','media-scan',
+    'briefing.daily.requested','briefing-generation-coordinator',
+    'briefing.weekly.requested','briefing-generation-coordinator',
+    'briefing.moon_cycle.requested','briefing-generation-coordinator',
+    'briefing.daily.generated','notification-record-writer',
+    'briefing.weekly.generated','notification-record-writer',
+    'briefing.moon_cycle.generated','notification-record-writer',
+    'media.structural_validation.requested','media-structural-validation',
     'media.quarantine.cleanup','media-cleanup',
     'content-report.created','moderation-triage',
     'privacy.export.requested','privacy-export',
@@ -120,6 +124,7 @@ select is(
 
 select is(argus_private.retained_job_handler('unregistered.event'),null::text,
   'an unregistered event has no handler');
+reset role;
 
 select is((select array_agg(queue_name order by queue_name) from pgmq.meta
   where queue_name like 'argus_%' or queue_name like 'brokerage_%'),
@@ -128,8 +133,8 @@ select is((select array_agg(queue_name order by queue_name) from pgmq.meta
 
 select is((select array_agg(jobname order by jobname) from cron.job
   where jobname like 'argus-%'),array[
-    'argus-retained-enqueue','argus-waitlist-retention',
-    'argus-webull-recovery-enqueue','argus-worker-dispatch'
+    'argus-durable-work-coordinate','argus-waitlist-retention',
+    'argus-webull-recovery-coordinate','argus-worker-dispatch-enqueue'
   ],'the managed Cron inventory is exact');
 
 select is((select array_agg(id order by id) from storage.buckets

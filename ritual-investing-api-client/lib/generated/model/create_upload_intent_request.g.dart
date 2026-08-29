@@ -7,10 +7,6 @@ part of 'create_upload_intent_request.dart';
 // **************************************************************************
 
 abstract class _$CreateUploadIntentRequestCWProxy {
-  CreateUploadIntentRequest bucketId(
-    CreateUploadIntentRequestBucketIdEnum bucketId,
-  );
-
   CreateUploadIntentRequest expiresAt(DateTime? expiresAt);
 
   CreateUploadIntentRequest maxBytes(int maxBytes);
@@ -19,8 +15,6 @@ abstract class _$CreateUploadIntentRequestCWProxy {
     CreateUploadIntentRequestMimeTypeEnum mimeType,
   );
 
-  CreateUploadIntentRequest objectPath(String objectPath);
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `CreateUploadIntentRequest(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -28,11 +22,9 @@ abstract class _$CreateUploadIntentRequestCWProxy {
   /// CreateUploadIntentRequest(...).copyWith(id: 12, name: "My name")
   /// ````
   CreateUploadIntentRequest call({
-    CreateUploadIntentRequestBucketIdEnum bucketId,
     DateTime? expiresAt,
     int maxBytes,
     CreateUploadIntentRequestMimeTypeEnum mimeType,
-    String objectPath,
   });
 }
 
@@ -42,11 +34,6 @@ class _$CreateUploadIntentRequestCWProxyImpl
   const _$CreateUploadIntentRequestCWProxyImpl(this._value);
 
   final CreateUploadIntentRequest _value;
-
-  @override
-  CreateUploadIntentRequest bucketId(
-    CreateUploadIntentRequestBucketIdEnum bucketId,
-  ) => this(bucketId: bucketId);
 
   @override
   CreateUploadIntentRequest expiresAt(DateTime? expiresAt) =>
@@ -61,10 +48,6 @@ class _$CreateUploadIntentRequestCWProxyImpl
   ) => this(mimeType: mimeType);
 
   @override
-  CreateUploadIntentRequest objectPath(String objectPath) =>
-      this(objectPath: objectPath);
-
-  @override
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `CreateUploadIntentRequest(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -72,17 +55,11 @@ class _$CreateUploadIntentRequestCWProxyImpl
   /// CreateUploadIntentRequest(...).copyWith(id: 12, name: "My name")
   /// ````
   CreateUploadIntentRequest call({
-    Object? bucketId = const $CopyWithPlaceholder(),
     Object? expiresAt = const $CopyWithPlaceholder(),
     Object? maxBytes = const $CopyWithPlaceholder(),
     Object? mimeType = const $CopyWithPlaceholder(),
-    Object? objectPath = const $CopyWithPlaceholder(),
   }) {
     return CreateUploadIntentRequest(
-      bucketId: bucketId == const $CopyWithPlaceholder()
-          ? _value.bucketId
-          // ignore: cast_nullable_to_non_nullable
-          : bucketId as CreateUploadIntentRequestBucketIdEnum,
       expiresAt: expiresAt == const $CopyWithPlaceholder()
           ? _value.expiresAt
           // ignore: cast_nullable_to_non_nullable
@@ -95,10 +72,6 @@ class _$CreateUploadIntentRequestCWProxyImpl
           ? _value.mimeType
           // ignore: cast_nullable_to_non_nullable
           : mimeType as CreateUploadIntentRequestMimeTypeEnum,
-      objectPath: objectPath == const $CopyWithPlaceholder()
-          ? _value.objectPath
-          // ignore: cast_nullable_to_non_nullable
-          : objectPath as String,
     );
   }
 }
@@ -117,26 +90,8 @@ extension $CreateUploadIntentRequestCopyWith on CreateUploadIntentRequest {
 CreateUploadIntentRequest _$CreateUploadIntentRequestFromJson(
   Map<String, dynamic> json,
 ) => $checkedCreate('CreateUploadIntentRequest', json, ($checkedConvert) {
-  $checkKeys(
-    json,
-    requiredKeys: const [
-      'bucketId',
-      'expiresAt',
-      'maxBytes',
-      'mimeType',
-      'objectPath',
-    ],
-  );
+  $checkKeys(json, requiredKeys: const ['expiresAt', 'maxBytes', 'mimeType']);
   final val = CreateUploadIntentRequest(
-    bucketId: $checkedConvert(
-      'bucketId',
-      (v) => $enumDecode(
-        _$CreateUploadIntentRequestBucketIdEnumEnumMap,
-        v,
-        unknownValue:
-            CreateUploadIntentRequestBucketIdEnum.unknownDefaultOpenApi,
-      ),
-    ),
     expiresAt: $checkedConvert(
       'expiresAt',
       (v) => v == null ? null : DateTime.parse(v as String),
@@ -151,7 +106,6 @@ CreateUploadIntentRequest _$CreateUploadIntentRequestFromJson(
             CreateUploadIntentRequestMimeTypeEnum.unknownDefaultOpenApi,
       ),
     ),
-    objectPath: $checkedConvert('objectPath', (v) => v as String),
   );
   return val;
 });
@@ -159,20 +113,10 @@ CreateUploadIntentRequest _$CreateUploadIntentRequestFromJson(
 Map<String, dynamic> _$CreateUploadIntentRequestToJson(
   CreateUploadIntentRequest instance,
 ) => <String, dynamic>{
-  'bucketId':
-      _$CreateUploadIntentRequestBucketIdEnumEnumMap[instance.bucketId]!,
   'expiresAt': instance.expiresAt?.toIso8601String(),
   'maxBytes': instance.maxBytes,
   'mimeType':
       _$CreateUploadIntentRequestMimeTypeEnumEnumMap[instance.mimeType]!,
-  'objectPath': instance.objectPath,
-};
-
-const _$CreateUploadIntentRequestBucketIdEnumEnumMap = {
-  CreateUploadIntentRequestBucketIdEnum.memberMedia: 'member-media',
-  CreateUploadIntentRequestBucketIdEnum.mediaQuarantine: 'media-quarantine',
-  CreateUploadIntentRequestBucketIdEnum.unknownDefaultOpenApi:
-      'unknown_default_open_api',
 };
 
 const _$CreateUploadIntentRequestMimeTypeEnumEnumMap = {

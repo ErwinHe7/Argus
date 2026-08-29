@@ -173,7 +173,7 @@ select is(
      join pg_namespace namespace on namespace.oid=relation.relnamespace
     where namespace.nspname in ('argus_app','argus_brokerage','argus_private')
       and relation.relkind in ('r','p')),
-  111::bigint,
+  124::bigint,
   'the current application relation baseline has one reviewed inventory'
 );
 

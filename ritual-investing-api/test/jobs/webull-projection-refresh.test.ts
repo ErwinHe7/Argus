@@ -31,6 +31,8 @@ describe("Webull projection recovery", () => {
       eventType: "webull.projection.refresh.requested" as const,
       handlerName: "webull-projection-refresh" as const,
       aggregateId: "018f3c2a-4b67-7a89-8abc-123456789012",
+      tenantId: "018f3c2a-4b67-7a89-8abc-123456789013",
+      lifecycleId: "018f3c2a-4b67-7a89-8abc-123456789014",
       userId: "018f3c2a-4b67-7a89-8abc-123456789013",
       deletionEpoch: 1,
     };

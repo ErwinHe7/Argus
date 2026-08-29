@@ -1,18 +1,28 @@
 const MAX_WORKER_BATCH_SIZE = 25;
 
-const persistedFailureCodes = new Set([
+export const persistedFailureCodes = Object.freeze([
   "deletion_epoch_changed",
   "dependency_unavailable",
   "event_not_found",
   "handler_not_allowed",
+  "internal_failure",
   "invalid_event_payload",
   "invalid_message_version",
   "lease_expired",
+  "lifecycle_closed",
   "media_object_invalid",
+  "privacy_export_assembly_failed",
+  "privacy_export_manifest_mismatch",
+  "privacy_export_source_mismatch",
+  "storage_object_checksum_mismatch",
+  "storage_object_conflict",
+  "storage_object_missing",
   "member_deleted",
   "storage_unavailable",
   "worker_killed",
-]);
+] as const);
+
+const persistedFailureCodeSet = new Set<string>(persistedFailureCodes);
 
 export type WorkerLease = Readonly<{ token: string }>;
 
@@ -38,7 +48,7 @@ export type SupabaseQueueRunResult = QueueBatchResult &
   }>;
 
 export function redactedFailureCode(error: unknown): string {
-  return error instanceof Error && persistedFailureCodes.has(error.message)
+  return error instanceof Error && persistedFailureCodeSet.has(error.message)
     ? error.message
     : "internal_failure";
 }

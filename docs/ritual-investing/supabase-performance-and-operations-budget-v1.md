@@ -77,6 +77,25 @@ times are informational and are not application query budgets. The
 100-read/8-refresh concurrency mix, hosted plans, and provider lookup latency
 remain explicit U9 gates; local evidence does not claim them.
 
+## U6 durable-work measurement status
+
+U6 does not increase relay, claim, or worker concurrency. It replaces the
+mixed runtime paths with bounded `SKIP LOCKED` queue claims, a registry-owned
+maximum-attempt/visibility policy, short prepare/effect/complete checkpoints,
+and one redacted staff signal surface. The signal inventory covers queue depth
+and oldest age, expired leases, attempts, dead letters, Cron/dispatch failures,
+external-effect and Storage reconciliation, lock waits, and worker runtime p95.
+
+The focused disposable-local pgTAP contract proves registry/Cron parity,
+duplicate relay and delivery idempotency, poison-message handling, immutable
+effect identities, lease-loss denial, deterministic sealed export generations,
+and truthful Storage/media state. Representative 1m-outbox, 5m-attempt,
+100k-row/10k-object export volumes and 8/16-way concurrency timings are not
+fabricated from that behavioral suite: they remain blocking U9 load gates
+against the budgets above. Hosted PGMQ visibility/delay/archive behavior,
+Cron execution, Auth/Storage effects, orphan reconciliation, and dashboard
+signal collection likewise require managed-service evidence before promotion.
+
 ## Database, pool and transaction budgets
 
 | Signal | Warning | Hard gate |

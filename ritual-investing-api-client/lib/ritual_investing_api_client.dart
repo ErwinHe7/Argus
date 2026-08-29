@@ -10,7 +10,6 @@ export 'package:ritual_investing_api_client/generated/auth/oauth.dart';
 
 export 'package:ritual_investing_api_client/generated/api/account_api.dart';
 export 'package:ritual_investing_api_client/generated/api/admin_api.dart';
-export 'package:ritual_investing_api_client/generated/api/admin_media_api.dart';
 export 'package:ritual_investing_api_client/generated/api/admin_moderation_api.dart';
 export 'package:ritual_investing_api_client/generated/api/admin_operations_api.dart';
 export 'package:ritual_investing_api_client/generated/api/assets_api.dart';

@@ -82,24 +82,24 @@ await Promise.all(
 // MultipartFile but its dart-dio template still JSON-encodes that value. Keep
 // the workaround in the reproducible generation pipeline until the pinned
 // upstream generator emits raw binary request bodies itself.
-const adminMediaApiPath = resolve(
+const mediaApiPath = resolve(
   clientRoot,
-  "lib/generated/api/admin_media_api.dart",
+  "lib/generated/api/media_api.dart",
 );
-const adminMediaApi = await readFile(adminMediaApiPath, "utf8");
-const uploadMethod = adminMediaApi.indexOf(
+const mediaApi = await readFile(mediaApiPath, "utf8");
+const uploadMethod = mediaApi.indexOf(
   "Future<Response<void>> uploadMediaQuarantineContent",
 );
 if (uploadMethod >= 0) {
-  const encodedBodyStart = adminMediaApi.indexOf(
+  const encodedBodyStart = mediaApi.indexOf(
     "    dynamic _bodyData;",
     uploadMethod,
   );
-  const requestStart = adminMediaApi.indexOf(
+  const requestStart = mediaApi.indexOf(
     "    final _response",
     encodedBodyStart,
   );
-  const encodedBody = adminMediaApi.slice(encodedBodyStart, requestStart);
+  const encodedBody = mediaApi.slice(encodedBodyStart, requestStart);
   if (
     encodedBodyStart < 0 ||
     requestStart < 0 ||
@@ -110,10 +110,10 @@ if (uploadMethod >= 0) {
     );
   }
   await writeFile(
-    adminMediaApiPath,
+    mediaApiPath,
     `${
-      adminMediaApi.slice(0, encodedBodyStart)
-    }    final _bodyData = body;\n\n${adminMediaApi.slice(requestStart)}`,
+      mediaApi.slice(0, encodedBodyStart)
+    }    final _bodyData = body;\n\n${mediaApi.slice(requestStart)}`,
     "utf8",
   );
 }

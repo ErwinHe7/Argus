@@ -19,6 +19,8 @@ describe("Webull command reconciliation", () => {
       eventType: "webull.command.reconciliation.requested" as const,
       handlerName: "webull-reconciliation" as const,
       aggregateId: "018f3c2a-4b67-7a89-8abc-123456789022",
+      tenantId: "018f3c2a-4b67-7a89-8abc-123456789023",
+      lifecycleId: "018f3c2a-4b67-7a89-8abc-123456789024",
       userId: "018f3c2a-4b67-7a89-8abc-123456789023",
       deletionEpoch: 1,
     };

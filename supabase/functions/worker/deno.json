@@ -5,7 +5,7 @@
   },
   "lock": "./deno.lock",
   "tasks": {
-    "check": "deno check index.ts worker_test.ts webull_recovery_test.ts ../_shared/database.ts ../_shared/environment.ts ../_shared/jobs/auth.ts ../_shared/jobs/auth-admin.ts ../_shared/jobs/purge.ts ../_shared/jobs/runtime.ts ../_shared/jobs/storage.ts ../_shared/jobs/webull-recovery.ts",
+    "check": "deno check index.ts worker_test.ts webull_recovery_test.ts ../_shared/database.ts ../_shared/environment.ts ../_shared/jobs/auth.ts ../_shared/jobs/auth-admin.ts ../_shared/jobs/media.ts ../_shared/jobs/privacy-export.ts ../_shared/jobs/purge.ts ../_shared/jobs/runtime.ts ../_shared/jobs/storage.ts ../_shared/jobs/webull-recovery.ts",
     "test": "deno test --allow-env worker_test.ts webull_recovery_test.ts ../_shared/environment_test.ts"
   }
 }

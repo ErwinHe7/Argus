@@ -335,18 +335,16 @@ describe("Supabase transaction-pooler repository boundary", () => {
     ]);
   });
 
-  it("writes the retained privacy request and outbox atomically in U2 schemas", async () => {
+  it("writes the retained privacy request and outbox through one U6 capability", async () => {
     const requestId = "018f3c2a-4b67-7a89-8abc-123456789041";
     const recorded = recordingPool((text) => {
-      if (text.includes("select user_id from argus_app.members")) {
-        return { rows: [{ user_id: userA }], rowCount: 1 };
-      }
-      if (text.includes("select * from argus_app.privacy_requests")) {
+      if (text.includes("request_privacy_export")) {
         return { rows: [{ id: requestId }], rowCount: 1 };
       }
-      return text.includes("insert into argus_app.privacy_requests")
-        ? { rows: [{ id: requestId }], rowCount: 1 }
-        : { rows: [], rowCount: 0 };
+      if (text.includes("list_member_privacy_requests")) {
+        return { rows: [{ id: requestId }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
     });
     const repository = createSupabasePrivacyRepository({
       pool: recorded.pool,
@@ -357,24 +355,20 @@ describe("Supabase transaction-pooler repository boundary", () => {
       id: requestId,
     });
     const statements = recorded.queries.map(({ text }) => text);
-    expect(statements.some((text) => text.includes("argus_app.privacy_requests"))).toBe(true);
-    expect(statements.some((text) => text.includes("argus_private.outbox_events"))).toBe(true);
+    expect(statements).toContain(
+      "select argus_private.request_privacy_export($1) as id",
+    );
+    expect(statements.some((text) => /(?:insert|update|delete)\s/i.test(text))).toBe(false);
     expect(statements.at(-1)).toBe("commit");
   });
 
   it("replays an export idempotency key without creating a second request", async () => {
     const requestId = "018f3c2a-4b67-7a89-8abc-123456789041";
     const recorded = recordingPool((text) => {
-      if (text.includes("select user_id from argus_app.members")) {
-        return { rows: [{ user_id: userA }], rowCount: 1 };
+      if (text.includes("request_privacy_export")) {
+        return { rows: [{ id: requestId }], rowCount: 1 };
       }
-      if (text.includes("select event_type,aggregate_id")) {
-        return {
-          rows: [{ event_type: "privacy.export.requested", aggregate_id: requestId }],
-          rowCount: 1,
-        };
-      }
-      if (text.includes("select * from argus_app.privacy_requests")) {
+      if (text.includes("list_member_privacy_requests")) {
         return { rows: [{ id: requestId }], rowCount: 1 };
       }
       return { rows: [], rowCount: 0 };
@@ -385,31 +379,18 @@ describe("Supabase transaction-pooler repository boundary", () => {
     });
     await expect(repository.request("export", "privacy-export-replay")).resolves
       .toEqual({ id: requestId });
-    expect(recorded.queries.some(({ text }) =>
-      text.includes("insert into argus_app.privacy_requests")
-    )).toBe(false);
+    expect(recorded.queries.filter(({ text }) =>
+      text.includes("request_privacy_export")
+    )).toHaveLength(1);
   });
 
   it("scopes export idempotency by owner before the globally unique outbox key", async () => {
     const keys = new Set<string>();
     let created = 0;
     const recorded = recordingPool((text, values) => {
-      if (text.includes("select user_id from argus_app.members")) {
-        return { rows: [{ user_id: userA }], rowCount: 1 };
-      }
-      if (text.includes("select event_type,aggregate_id")) {
-        return { rows: [], rowCount: 0 };
-      }
-      if (text.includes("select * from argus_app.privacy_requests")) {
-        return {
-          rows: [{ id: created === 1
-            ? "018f3c2a-4b67-7a89-8abc-123456789041"
-            : "018f3c2a-4b67-7a89-8abc-123456789042" }],
-          rowCount: 1,
-        };
-      }
-      if (text.includes("insert into argus_app.privacy_requests")) {
+      if (text.includes("request_privacy_export")) {
         created += 1;
+        keys.add(String(values[0]));
         return {
           rows: [{ id: created === 1
             ? "018f3c2a-4b67-7a89-8abc-123456789041"
@@ -417,8 +398,13 @@ describe("Supabase transaction-pooler repository boundary", () => {
           rowCount: 1,
         };
       }
-      if (text.includes("insert into argus_private.outbox_events")) {
-        keys.add(String(values[2]));
+      if (text.includes("list_member_privacy_requests")) {
+        return {
+          rows: [{ id: created === 1
+            ? "018f3c2a-4b67-7a89-8abc-123456789041"
+            : "018f3c2a-4b67-7a89-8abc-123456789042" }],
+          rowCount: 1,
+        };
       }
       return { rows: [], rowCount: 0 };
     });
@@ -431,21 +417,28 @@ describe("Supabase transaction-pooler repository boundary", () => {
     expect([...keys].join(" ")).not.toContain("same-client-key-across-users");
   });
 
-  it("mints a five-minute privacy URL without returning object coordinates", async () => {
+  it("mints a bounded privacy URL without returning object coordinates", async () => {
     let now = 1_000;
     const nowSpy = vi.spyOn(Date, "now").mockImplementation(() => now);
     const signed = vi.fn(async () => {
-      now = 61_000; // Signing latency cannot extend the advertised lifetime.
+      now = 11_000; // Signing latency cannot extend the advertised lifetime.
       return "https://project.supabase.co/storage/v1/object/sign/token";
     });
     const recorded = recordingPool((text) => {
-      if (text.includes("select artifact.bucket_id")) {
+      if (text.includes("prepare_privacy_export_download")) {
         return {
-          rows: [{ bucket_id: "privacy-exports", object_path: `${userA}/export.zip` }],
+          rows: [{
+            access_lease_id: "018f3c2a-4b67-7a89-8abc-123456789043",
+            bucket_id: "privacy-exports",
+            object_path: `${userA}/export.zip`,
+            expires_in_seconds: 30,
+          }],
           rowCount: 1,
         };
       }
-      if (text.includes("select exists(")) return { rows: [{ current: true }], rowCount: 1 };
+      if (text.includes("confirm_privacy_export_download")) {
+        return { rows: [{ current: true }], rowCount: 1 };
+      }
       return { rows: [], rowCount: 0 };
     });
     const repository = createSupabasePrivacyRepository({
@@ -456,15 +449,15 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const result = await repository.createDownloadUrl(
       "018f3c2a-4b67-7a89-8abc-123456789041",
     );
-    expect(signed).toHaveBeenCalledWith("privacy-exports", `${userA}/export.zip`, 300);
+    expect(signed).toHaveBeenCalledWith("privacy-exports", `${userA}/export.zip`, 30);
     expect(result).toEqual({
       url: "https://project.supabase.co/storage/v1/object/sign/token",
-      expires_at: new Date(301_000).toISOString(),
+      expires_at: new Date(31_000).toISOString(),
     });
     expect(JSON.stringify(result)).not.toContain("export.zip");
-    const postSignCheck = recorded.queries.find(({ text }) => text.includes("select exists("));
-    expect(postSignCheck?.text).toContain("join argus_app.privacy_requests request");
-    expect(postSignCheck?.text).toContain("request.status='completed'");
+    expect(recorded.queries.map(({ text }) => text)).toContain(
+      "select argus_private.confirm_privacy_export_download($1) as current",
+    );
     nowSpy.mockRestore();
   });
 
@@ -529,7 +522,7 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const receipt = "R".repeat(43);
     const recorded = recordingPool((text) =>
       text.includes("begin_member_deletion") ||
-        text.includes("select * from argus_app.privacy_requests")
+        text.includes("list_member_privacy_requests")
         ? { rows: [{ id: requestId }], rowCount: 1 }
         : { rows: [], rowCount: 0 }
     );
@@ -859,6 +852,23 @@ describe("Supabase transaction-pooler repository boundary", () => {
       const executedSql = executedByDomain[domain];
       expect(executedSql, `${domain} has executable repository evidence`).toBeDefined();
       for (const relation of relations) {
+        const composedCapabilities: Record<string, Record<string, string>> = {
+          media: {
+            "argus_private.media_upload_intents": "argus_private.get_member_media_upload_intent",
+            "argus_app.media_assets": "argus_private.finalize_media_upload",
+          },
+          privacy: {
+            "argus_app.privacy_requests": "argus_private.list_member_privacy_requests",
+            "argus_private.outbox_events": "argus_private.request_privacy_export",
+            "argus_private.deletion_tombstones": "argus_private.get_member_deletion_tombstone",
+          },
+        };
+        const capability = composedCapabilities[domain]?.[relation];
+        if (capability !== undefined) {
+          expect(executedSql, `${domain} composes ${relation} behind ${capability}`)
+            .toContain(capability);
+          continue;
+        }
         if (
           (domain === "editorial" || domain === "publicPreview") &&
           [
@@ -874,6 +884,15 @@ describe("Supabase transaction-pooler repository boundary", () => {
         expect(executedSql, `${domain} executes ${relation}`).toContain(relation);
       }
     }
+    expect(executedByDomain.adminOperations).toContain(
+      "argus_private.list_job_diagnostics",
+    );
+    expect(executedByDomain.adminOperations).toContain(
+      "argus_private.list_privacy_request_diagnostics",
+    );
+    expect(executedByDomain.adminOperations).not.toMatch(
+      /from\s+argus_private\.job_runs|from\s+argus_app\.privacy_requests/i,
+    );
   });
 
   it("defines a retained Supabase session model without deleted Demo authority", async () => {

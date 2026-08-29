@@ -22,12 +22,14 @@ export type PurgeFaultPoint =
   | "after_auth"
   | "after_complete";
 
-export function createMemberPurgeSaga(config: Readonly<{
-  storage: PrivateStorage;
-  authAdmin: WorkerAuthAdmin;
-  transaction: WorkerTransaction;
-  fault?: (point: PurgeFaultPoint) => Promise<void> | void;
-}>): WorkerPurgeSagaPort {
+export function createMemberPurgeSaga(
+  config: Readonly<{
+    storage: PrivateStorage;
+    authAdmin: WorkerAuthAdmin;
+    transaction: WorkerTransaction;
+    fault?: (point: PurgeFaultPoint) => Promise<void> | void;
+  }>,
+): WorkerPurgeSagaPort {
   const fault = async (point: PurgeFaultPoint) => config.fault?.(point);
   return Object.freeze({
     async run(tombstoneId: string, keepAlive = async () => undefined) {
@@ -36,7 +38,9 @@ export function createMemberPurgeSaga(config: Readonly<{
           user_id: string;
           deletion_epoch: number;
           purge_phase: PurgePhase;
-        }>("select * from argus_private.prepare_member_purge($1)", [tombstoneId]);
+        }>("select * from argus_private.prepare_member_purge($1)", [
+          tombstoneId,
+        ]);
         const row = result.rows[0];
         if (row === undefined) throw new Error("invalid_event_payload");
         return row;
@@ -54,33 +58,60 @@ export function createMemberPurgeSaga(config: Readonly<{
             [tombstoneId],
           )).rows
         );
-        for (const bucket of ["member-media", "media-quarantine", "privacy-exports"]) {
+        for (
+          const bucket of [
+            "member-media",
+            "media-quarantine",
+            "privacy-exports",
+          ]
+        ) {
           const paths = objects.filter((object) => object.bucket_id === bucket)
             .map((object) => object.object_path);
           for (let offset = 0; offset < paths.length; offset += 100) {
             await keepAlive();
-            await config.storage.remove(bucket, paths.slice(offset, offset + 100));
+            await config.storage.remove(
+              bucket,
+              paths.slice(offset, offset + 100),
+            );
           }
         }
-        const receipts = await Promise.all(objects.map(async (object) => ({
-          bucket_id: object.bucket_id,
-          path_hash: await sha256TextHex(object.object_path),
-        })));
-        await config.transaction(async (database) => {
-          await database.query(
-            "select argus_private.mark_member_storage_purged($1,$2::jsonb)",
-            [tombstoneId, JSON.stringify(receipts)],
-          );
-        });
+        // Persist deletion evidence in bounded chunks. The SQL capability
+        // advances the tombstone only when every managed object has a receipt,
+        // so a crash resumes safely without one unbounded JSON argument.
+        const receiptBatchSize = 1000;
+        const receiptSources = objects.length === 0 ? [[]] : Array.from(
+          { length: Math.ceil(objects.length / receiptBatchSize) },
+          (_, index) =>
+            objects.slice(
+              index * receiptBatchSize,
+              (index + 1) * receiptBatchSize,
+            ),
+        );
+        for (const sources of receiptSources) {
+          await keepAlive();
+          const receipts = await Promise.all(sources.map(async (object) => ({
+            bucket_id: object.bucket_id,
+            path_hash: await sha256TextHex(object.object_path),
+          })));
+          await config.transaction(async (database) => {
+            await database.query(
+              "select argus_private.mark_member_storage_purged($1,$2::jsonb)",
+              [tombstoneId, JSON.stringify(receipts)],
+            );
+          });
+        }
       }
       await fault("after_storage");
 
       if (["neutralized", "storage_purged"].includes(prepared.purge_phase)) {
         await keepAlive();
         await config.transaction(async (database) => {
-          await database.query("select argus_private.purge_member_argus_data($1)", [
-            tombstoneId,
-          ]);
+          await database.query(
+            "select argus_private.purge_member_argus_data($1)",
+            [
+              tombstoneId,
+            ],
+          );
         });
       }
       await fault("after_data");

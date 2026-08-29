@@ -6,7 +6,10 @@ export type OutboxEvent = Readonly<{
   eventType: RetainedEventType;
   handlerName: RetainedJobHandler;
   aggregateId: string;
+  tenantId: string | null;
+  lifecycleId: string | null;
   userId: string | null;
+  /** U5 provider-adapter compatibility only; U6 authorization uses lifecycleId. */
   deletionEpoch: number | null;
 }>;
 
