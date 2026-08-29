@@ -220,7 +220,7 @@ groupings assign one target owner and disposition to every returned row.
 | `argus_app`: 41 relations from `members` through content/editorial, ritual, social, intention, briefing, privacy and moderation state | Identity, content, member API/admin API | Preserve product meaning; U3 owns lifecycle/security, U4 relational model, U7 composition. |
 | `argus_brokerage`: connections, accounts, active selection, general and order projection generations | Brokerage APIs, callback and worker | Preserve Webull authority boundary; U5 owns redesign. |
 | `argus_private`: 40 operational, credential, command, mapping, job, privacy, audit, waitlist and rate-limit relations | API/worker/waitlist capabilities only | Keep private; U3/U5/U6 own replacements. |
-| 80 distinct `argus_private` routine names and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | Preserve current semantics; replace by domain module, exact signature and least privilege. |
+| 79 distinct `argus_private` routine names and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | Preserve current semantics; replace by domain module, exact signature and least privilege. |
 | Application policies and triggers | `argus_runtime`, `argus_worker`, `argus_waitlist`; member/staff/API jobs | Preserve deny-by-default; U3 replaces generic owner policy generation. |
 | Roles | `argus_runtime`, `argus_worker`, `argus_waitlist`; login shells `argus_edge`, `argus_worker_edge`, `argus_waitlist_edge` | Preserve capability shape; narrow membership/grants in U3. |
 | Extensions | `pgcrypto`, `pgmq`, `pg_cron`, `pg_net`, `supabase_vault`, test-only `pgtap` | Preserve supported APIs. Do not pin extension versions; 2026-08 changelog says explicit version clauses are ignored. |

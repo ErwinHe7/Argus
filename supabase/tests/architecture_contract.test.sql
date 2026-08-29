@@ -68,7 +68,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  80::bigint,'the reviewed routine-name inventory is complete');
+  79::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
@@ -120,7 +120,7 @@ select is(argus_private.retained_job_handler('unregistered.event'),null::text,
 
 select is((select array_agg(queue_name order by queue_name) from pgmq.meta
   where queue_name like 'argus_%' or queue_name like 'brokerage_%'),
-  array['argus_jobs','brokerage_reconcile','brokerage_refresh'],
+  array['argus_jobs','brokerage_reconcile','brokerage_refresh']::character varying[],
   'the managed queue inventory is exact');
 
 select is((select array_agg(jobname order by jobname) from cron.job

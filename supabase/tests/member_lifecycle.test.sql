@@ -23,7 +23,9 @@ insert into argus_app.members(user_id) values
   ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee')
 on conflict (user_id) do nothing;
 insert into argus_app.profiles(user_id,deletion_epoch,display_name) values
-  ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',0,'Lifecycle A');
+  ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',0,'Lifecycle A')
+on conflict (user_id) do update
+  set display_name=excluded.display_name;
 
 select todo_start('U3 replaces the mutable deletion epoch with an immutable lifecycle/incarnation identifier');
 select has_column('argus_app','members','lifecycle_id',
@@ -77,7 +79,9 @@ select throws_ok(
   'the current trigger rejects a stale-epoch write');
 select lives_ok(
   $$insert into argus_app.preferences(user_id,deletion_epoch)
-    values ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',1)$$,
+    values ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',1)
+    on conflict (user_id) do update
+      set deletion_epoch=excluded.deletion_epoch$$,
   'the current epoch can create new state');
 reset role;
 

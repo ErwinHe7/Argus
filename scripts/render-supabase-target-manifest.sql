@@ -144,7 +144,8 @@ with manifest_rows as materialized (
 
   union all
   select 'default-acl|' || owner.rolname || '|' || coalesce(namespace.nspname, '*') || '|' ||
-    default_acl.defaclobjtype || '|' || encode(extensions.digest(default_acl.defaclacl::text, 'sha256'), 'hex')
+    default_acl.defaclobjtype::text || '|' ||
+    encode(extensions.digest(default_acl.defaclacl::text, 'sha256'), 'hex')
   from pg_default_acl default_acl
   join pg_roles owner on owner.oid = default_acl.defaclrole
   left join pg_namespace namespace on namespace.oid = default_acl.defaclnamespace

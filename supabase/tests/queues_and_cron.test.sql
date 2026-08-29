@@ -168,13 +168,15 @@ set local role argus_worker;
 select is(argus_private.relay_outbox(10), 1, 'relay publishes one due retained event');
 reset role;
 select is(
-  (select count(*)::bigint from pgmq.q_argus_jobs where message ? 'event_id'),
+  (select count(*)::bigint from pgmq.q_argus_jobs
+    where message ->> 'event_id' = 'aaaaaaaa-7000-4000-8000-000000000002'),
   1::bigint,
   'relay publishes one opaque versioned queue message'
 );
 select is(
   (select count(*)::bigint from pgmq.q_argus_jobs q,
-    lateral jsonb_object_keys(q.message) key),
+    lateral jsonb_object_keys(q.message) key
+    where q.message ->> 'event_id' = 'aaaaaaaa-7000-4000-8000-000000000002'),
   2::bigint,
   'queue message has exactly two keys'
 );
