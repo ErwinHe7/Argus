@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(24);
+select plan(27);
 
 select ok(
   has_schema_privilege('argus_runtime', 'extensions', 'usage')
@@ -238,6 +238,39 @@ select is(
       and schemaname in ('argus_app','argus_brokerage','argus_private')),
   0::bigint,
   'no application or brokerage table is published to Realtime'
+);
+
+select is(
+  (select count(*)::bigint
+     from pg_proc function_row
+     join pg_namespace namespace on namespace.oid=function_row.pronamespace
+     join pg_roles owner on owner.oid=function_row.proowner
+    where namespace.nspname in ('argus_app','argus_brokerage','argus_private')
+      and owner.rolname in (
+        'argus_runtime','argus_worker','argus_waitlist',
+        'argus_edge','argus_worker_edge','argus_waitlist_edge'
+      )),
+  0::bigint,
+  'capability and login roles own no application routine'
+);
+
+select is(
+  (select count(*)::bigint
+     from pg_proc function_row
+     join pg_namespace namespace on namespace.oid=function_row.pronamespace
+    where namespace.nspname in ('argus_app','argus_brokerage','argus_private')
+      and has_function_privilege('public',function_row.oid,'execute')),
+  0::bigint,
+  'PUBLIC cannot execute invoker or definer application routines'
+);
+
+select is(
+  (select count(*)::bigint
+     from information_schema.role_table_grants
+    where grantee in ('argus_edge','argus_worker_edge','argus_waitlist_edge')
+      and table_schema in ('argus_app','argus_brokerage','argus_private')),
+  0::bigint,
+  'Edge login shells receive no direct application table grant'
 );
 
 select * from finish();

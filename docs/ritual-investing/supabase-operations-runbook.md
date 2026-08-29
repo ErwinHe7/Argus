@@ -56,6 +56,61 @@ an older backend, a second auth system, or a legacy database as rollback. Fix
 forward from the last reviewed migration or restore the Supabase project using
 the approved backup/recovery procedure.
 
+## U1 architecture evidence gate
+
+Before selecting migration history or requesting hosted credentials, run:
+
+```sh
+scripts/check-supabase-architecture-contract.sh --offline
+scripts/test-check-supabase-architecture-contract.sh
+```
+
+The remediation register binds every migration checksum. The versioned
+boundary manifest binds the exact path set of every directly detected
+Supabase-facing source surface; broad register patterns assign owner groups but
+never approve a direct file. Narrow reviewed module roots classify generated
+contracts and consumers reached through local adapters without hashing all of
+their unrelated source. The target-model contract classifies every current
+array, JSON and polymorphic relationship, and the versioned
+performance/operations budget owns every unmeasured release gate. Adding,
+removing, or renaming a direct boundary must make the checker fail, including a
+new Supabase-facing file inside an already-owned source tree.
+
+When a boundary change is intentional, generate the proposed inventory for
+review without modifying repository state:
+
+```sh
+scripts/check-supabase-architecture-contract.sh --print-boundary-manifest
+```
+
+Compare the output to
+`docs/ritual-investing/supabase-boundary-manifest-v1.txt`, review each path and
+module-classification delta with its domain owner, then update the versioned
+manifest or transitive-module register in the same change. Re-running the
+offline checker must be green; a broad owner-group pattern is never sufficient
+evidence. Ordinary edits to an already classified file do not require a
+manifest update unless the direct-boundary path set changes.
+
+The U1 hosted eligibility result is destructive-reset ineligible because the
+exact project/branch, retained data, dependencies, recovery coverage and
+approval are unknown. Do not infer eligibility from “development,” “beta,” or
+repository age. U2 must produce a fresh non-secret identity/count/checksum
+record. Any real-user activity or non-synthetic dependency requires the
+retention and zero-downtime path.
+
+For a database that has been explicitly selected and proven disposable, the
+read-only catalog inventory can be run without printing or inferring its URL:
+
+```sh
+scripts/check-supabase-architecture-contract.sh --database-url "$EXPLICIT_DATABASE_URL"
+```
+
+This is inventory only. It does not authorize `db reset`, migration repair,
+hosted SQL, secret reads, or managed-service mutation. Capture Vault names only,
+never values. Run pgTAP through the pinned Supabase CLI separately; an absent
+Docker daemon, an unpinned CLI, a zero-test result, or a missing restore drill
+is a blocker, not a waiver.
+
 ## Hosted secrets
 
 Hosted secrets live only in the protected GitHub environment or Supabase secret

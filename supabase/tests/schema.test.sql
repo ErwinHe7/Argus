@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(32);
+select plan(35);
 
 select has_schema('argus_app', 'Argus-owned state has a private schema');
 select has_schema('argus_brokerage', 'brokerage projections have a private schema');
@@ -165,6 +165,37 @@ select is(
   (select count(*)::bigint from argus_private.schema_contract_versions where version = 'webull-supabase-v1'),
   1::bigint,
   'clean baseline contract version is recorded'
+);
+
+select is(
+  (select count(*)::bigint
+     from pg_class relation
+     join pg_namespace namespace on namespace.oid=relation.relnamespace
+    where namespace.nspname in ('argus_app','argus_brokerage','argus_private')
+      and relation.relkind in ('r','p')),
+  86::bigint,
+  'the current application relation baseline has one reviewed inventory'
+);
+
+select ok(
+  exists(select 1 from pg_constraint
+    where conrelid='argus_app.circle_assets'::regclass and contype='f'
+      and pg_get_constraintdef(oid) like '%FOREIGN KEY (user_id, circle_id)%')
+  and exists(select 1 from pg_constraint
+    where conrelid='argus_app.future_mirror_points'::regclass and contype='f'
+      and pg_get_constraintdef(oid) like '%FOREIGN KEY (user_id, run_id)%')
+  and exists(select 1 from pg_constraint
+    where conrelid='argus_app.briefing_sections'::regclass and contype='f'
+      and pg_get_constraintdef(oid) like '%FOREIGN KEY (user_id, briefing_id)%'),
+  'existing nested member children use parent-qualified foreign keys'
+);
+
+select ok(
+  exists(select 1 from pg_constraint
+    where conrelid='argus_app.briefing_read_states'::regclass and contype='f'
+      and pg_get_constraintdef(oid)
+        like '%FOREIGN KEY (user_id, deletion_epoch, briefing_id)%'),
+  'briefing read state is parent- and lifecycle-qualified'
 );
 
 select * from finish();
