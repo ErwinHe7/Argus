@@ -1,4 +1,4 @@
-import type { DatabaseClient } from "../../db/database-port.ts";
+import type { DatabaseTransaction } from "../../db/database-port.ts";
 import type { VerifiedRequestClaims } from "../../db/request-context.ts";
 import {
   RepositoryNotFoundError,
@@ -157,7 +157,7 @@ function canonicalFutureMirror(intentionId: string, input: FutureMirrorInput): s
 
 function transaction<T>(
   binding: SupabaseRepositoryBinding,
-  callback: (database: DatabaseClient, claims: VerifiedRequestClaims) => Promise<T>,
+  callback: (database: DatabaseTransaction, claims: VerifiedRequestClaims) => Promise<T>,
 ): Promise<T> {
   return withRequestTransaction(
     { pool: binding.pool, verifiedClaims: binding.claims },
@@ -165,7 +165,7 @@ function transaction<T>(
   );
 }
 
-async function currentDeletionEpoch(database: DatabaseClient): Promise<string> {
+async function currentDeletionEpoch(database: DatabaseTransaction): Promise<string> {
   const result = await database.query<{ deletion_epoch: string }>(
     `select deletion_epoch::text
        from argus_app.members
@@ -178,7 +178,7 @@ async function currentDeletionEpoch(database: DatabaseClient): Promise<string> {
 }
 
 async function claimIdempotency(
-  database: DatabaseClient,
+  database: DatabaseTransaction,
   operation: string,
   key: string,
   requestHash: string,
@@ -215,7 +215,7 @@ async function claimIdempotency(
 }
 
 async function completeIdempotency(
-  database: DatabaseClient,
+  database: DatabaseTransaction,
   operation: string,
   key: string,
   resourceId: string,
@@ -231,7 +231,7 @@ async function completeIdempotency(
 }
 
 async function assertFutureDate(
-  database: DatabaseClient,
+  database: DatabaseTransaction,
   value: string,
 ): Promise<void> {
   const result = await database.query<{ valid: boolean }>(
@@ -244,7 +244,7 @@ async function assertFutureDate(
 }
 
 async function intentionView(
-  database: DatabaseClient,
+  database: DatabaseTransaction,
   intentionId: string,
 ): Promise<MemberIntention | null> {
   const result = await database.query<Record<string, unknown>>(
@@ -269,7 +269,7 @@ async function intentionView(
 }
 
 async function futureMirrorView(
-  database: DatabaseClient,
+  database: DatabaseTransaction,
   intentionId: string,
   runId: string,
 ): Promise<FutureMirror | null> {

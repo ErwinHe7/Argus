@@ -111,6 +111,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:media_upload_intents` | retained-argus | Argus private upload state in Supabase |
 | `database-table:member_command_receipts` | retained-argus | Supabase private command idempotency |
 | `database-table:member_idempotency_records` | retained-argus | Supabase private API idempotency |
+| `database-table:member_lifecycles` | retained-argus | Immutable Supabase identity lifecycle and deletion-recreation fence |
 | `database-table:members` | retained-argus | Supabase Auth member ownership root |
 | `database-table:moderation_case_decisions` | retained-argus | Argus moderation state in Supabase |
 | `database-table:moderation_cases` | retained-argus | Argus moderation state in Supabase |

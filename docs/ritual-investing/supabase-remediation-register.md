@@ -185,6 +185,7 @@ independent authorities.
 | `20260828181500_u21_deletion_retry_transition.sql` | Replacement live-epoch retry semantics | Identity/privacy | Privacy API/worker; Auth lifecycle; owner/worker capability routine | Replace with immutable lifecycle key in U3. |
 | `20260828183000_u22_hosted_security_advisor_hardening.sql` | Waitlist direct-access deny policy, function search paths | Platform security | Waitlist and all definer consumers; Supabase security advisor; deny policy and pinned search paths | Preserve behavior; re-author in U2/U3. |
 | `20260828220113_grant_extension_usage_to_capability_roles.sql` | Extension usage grants | Platform security | API/worker/waitlist routines; `extensions` schema (`pgcrypto`, PGMQ helpers as used); capability-role schema usage only | Preserve evidence; reduce to exact supported capabilities in U3. |
+| `20260829043359_u3_identity_security_foundation.sql` | Immutable member lifecycle parent, derived temporary request context, narrow identity owner, use-case capability shells, exact foundation grants/RLS/functions | Identity and platform security | API reserved transaction connection; Auth provisioning trigger; no managed-schema mutation or external I/O | U3 target foundation. U4-U6 own every dependent relation binding and compatibility removal. |
 
 0975bf24b33bbe92871737b3f9753fa47cfda327144594893ce3e504abb9fd91  supabase/migrations/20260828054740_argus_private_baseline.sql
 420520cb742ee93fc818fc3ddccc529ae2ca050054cb4500ace2b1cc1b3258f2  supabase/migrations/20260828062806_u14_retained_repository_primitives.sql
@@ -217,12 +218,12 @@ groupings assign one target owner and disposition to every returned row.
 
 | Objects | Current owner / consumers | Disposition |
 |---|---|---|
-| `argus_app`: 41 relations from `members` through content/editorial, ritual, social, intention, briefing, privacy and moderation state | Identity, content, member API/admin API | Preserve product meaning; U3 owns lifecycle/security, U4 relational model, U7 composition. |
+| `argus_app`: 42 relations including immutable `member_lifecycles`, `members`, and content/editorial, ritual, social, intention, briefing, privacy and moderation state | Identity, content, member API/admin API | U3 owns the lifecycle parent/security foundation; U4 owns dependent Argus relation cutover and U7 composition. |
 | `argus_brokerage`: connections, accounts, active selection, general and order projection generations | Brokerage APIs, callback and worker | Preserve Webull authority boundary; U5 owns redesign. |
 | `argus_private`: 40 operational, credential, command, mapping, job, privacy, audit, waitlist and rate-limit relations | API/worker/waitlist capabilities only | Keep private; U3/U5/U6 own replacements. |
-| 79 distinct `argus_private` routine names and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | Preserve current semantics; replace by domain module, exact signature and least privilege. |
-| Application policies and triggers | `argus_runtime`, `argus_worker`, `argus_waitlist`; member/staff/API jobs | Preserve deny-by-default; U3 replaces generic owner policy generation. |
-| Roles | `argus_runtime`, `argus_worker`, `argus_waitlist`; login shells `argus_edge`, `argus_worker_edge`, `argus_waitlist_edge` | Preserve capability shape; narrow membership/grants in U3. |
+| 89 distinct routine names across the three Argus schemas and their overloads | Triggers, API adapters, worker, Cron/`pg_net` | U3 foundation routines are exact-signature/empty-search-path and narrowly owned; legacy domain routines remain owned by U4-U6. |
+| Application policies and triggers | New lifecycle policies plus compatibility `argus_runtime`, `argus_worker`, `argus_waitlist` policies/triggers | U3 foundation is command-specific and fail-closed; U4-U6 remove generic owner policies and the universal epoch trigger as their relations cut over. |
+| Roles | `argus_identity_owner`; `argus_member`, `argus_staff`, `argus_callback`, `argus_migration`; compatibility runtime/worker/waitlist roles and login shells | U3 installs narrow roles/grants without granting unbound callback/migration access; later units bind exact domain capabilities. |
 | Extensions | `pgcrypto`, `pgmq`, `pg_cron`, `pg_net`, `supabase_vault`, test-only `pgtap` | Preserve supported APIs. Do not pin extension versions; 2026-08 changelog says explicit version clauses are ignored. |
 | Queues | `argus_jobs`, `brokerage_refresh`, `brokerage_reconcile` | Preserve opaque event-id transport; U6 single-sources registry. |
 | Cron | outbox relay, expired-work recovery, retained scheduling, Webull recovery, worker invoke, waitlist retention | Preserve bounded schedules; U6 owns parity and failure handling. |
@@ -232,13 +233,18 @@ groupings assign one target owner and disposition to every returned row.
 
 ### Member lifecycle inventory
 
-`argus_app.members(user_id, deletion_epoch)` is the current mutable epoch root.
-All member-owned application, brokerage and private rows with `user_id` plus
-`deletion_epoch`, as well as Storage object prefixes, JWT/session callbacks,
-job/outbox ownership, receipts, caches and provider credentials, are in scope.
-The current epoch closes writes but does not provide the required immutable
-incarnation identity; `member_lifecycle.test.sql` records that gap as TODO/red
-characterization. U3 owns the replacement and U6 owns export/purge sagas.
+`argus_app.member_lifecycles(id,tenant_id,identity_subject_id)` is the immutable
+identity parent. `argus_app.members` has a non-replaceable tenant/lifecycle FK;
+Auth provisioning creates one open lifecycle and member-root deletion closes
+without erasing it. Trusted API context accepts only user/session/AAL from the
+verified server boundary and derives tenant/lifecycle from that open parent.
+
+All other application, brokerage and private rows still carrying `user_id`
+plus `deletion_epoch`, as well as Storage object prefixes, callbacks,
+job/outbox ownership, receipts, caches and provider credentials, remain the
+explicit U4-U6 compatibility inventory. The universal epoch trigger and broad
+runtime/worker grants remain only for those uncut-over relations. Cross-system
+AE4 is therefore deferred, not claimed by the U3 foundation.
 
 | Class | Read/write | Export | Purge/retention | Storage/provider behavior |
 |---|---|---|---|---|
@@ -350,8 +356,8 @@ owned TBDs rather than invented measurements.
 
 | ID | Current shortcut/gap | Disposition and owner |
 |---|---|---|
-| U1-G01 | Mutable deletion epoch is not an immutable member lifecycle; stale rows can remain structurally addressable. | Redesign U3; lifecycle TODO/red characterization retained. |
-| U1-G02 | Generic generated owner policies and broad table grants obscure exact capabilities. | Replace U3 with exact policies/grants/signatures. |
+| U1-G01 | Mutable deletion epoch is not an immutable member lifecycle; stale rows can remain structurally addressable. | Foundation resolved U3 with immutable parent and trusted context. U4-U6 own child/artifact binding; gap remains open until complete AE4 passes. |
+| U1-G02 | Generic generated owner policies and broad table grants obscure exact capabilities. | U3 added command-specific foundation RLS and empty-by-default capabilities. Broad legacy relation grants remain an explicit U4-U6 compatibility item. |
 | U1-G03 | UUID arrays, JSON-backed editorial relations and polymorphic IDs lack parent-qualified relational enforcement. | Replace U4 per target-model contract. |
 | U1-G04 | Provider projection JSON is both convenient output and weakly bounded storage. | Preserve opaque versioned snapshots only; normalize addressable facts in U5. |
 | U1-G05 | SQL and TypeScript event/handler registries are independently maintained. | Single-source or generated parity in U6. |

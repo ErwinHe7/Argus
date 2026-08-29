@@ -90,13 +90,19 @@ mutated. Bucket definitions, queue creation, schedules and extensions use their
 reviewed public contracts. Vault inventory contains names only. Edge Functions
 and secrets are deployed out of band from an exact Git revision.
 
-The current `argus_runtime`, `argus_worker`, and `argus_waitlist` NOLOGIN roles
-are classified as legacy capability containers because they own no objects;
-U3 must preserve their capability shape while narrowing or replacing them.
+The `argus_runtime`, `argus_worker`, and `argus_waitlist` NOLOGIN roles remain
+legacy compatibility containers because U4-U6 still own their relation
+cutovers. U3 adds empty-by-default `argus_member`, `argus_staff`,
+`argus_callback`, and `argus_migration` capability roles plus the narrow
+`argus_identity_owner`. Only the lifecycle foundation is granted to the new
+member/staff roles; callback and migration capabilities stay unbound until
+their owning units add exact signatures and relation grants. No capability role
+owns objects.
 `argus_edge`, `argus_worker_edge`, and `argus_waitlist_edge` are runtime logins
 with null migration-time passwords, exact membership, connection limits and
-timeouts. A future non-login owner role may own one domain module but may not be
-used as an Edge login. Supabase-managed roles are never recreated by Argus.
+timeouts. A narrow non-login owner may own one domain module but may not be
+used as an Edge login; U3 applies that rule to `argus_identity_owner` only.
+Supabase-managed roles are never recreated by Argus.
 Role rows are ordered as name, classification, domain owner, login state,
 membership, owned-object/grant disposition, and connection settings. The replay
 target fingerprints the normalized object/function/default ACLs that implement

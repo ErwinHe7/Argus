@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set local search_path = extensions, pg_catalog, public;
 
-select plan(27);
+select plan(34);
 
 select ok(
   has_schema_privilege('argus_runtime', 'extensions', 'usage')
@@ -19,6 +19,80 @@ grant argus_runtime, argus_worker, argus_waitlist
   to current_user with set true;
 grant usage on schema extensions
   to argus_runtime, argus_worker, argus_waitlist;
+
+select ok(
+  (select bool_and(not rolcanlogin and not rolsuper and not rolbypassrls)
+     from pg_roles
+    where rolname in ('argus_member','argus_staff','argus_callback','argus_migration'))
+  and (select count(*) from pg_roles
+    where rolname in ('argus_member','argus_staff','argus_callback','argus_migration'))=4,
+  'use-case capability roles are NOLOGIN, non-owner, and non-BYPASSRLS'
+);
+
+select ok(
+  pg_has_role('argus_edge','argus_member','member')
+    and pg_has_role('argus_edge','argus_staff','member')
+    and not pg_has_role('argus_edge','argus_callback','member')
+    and not pg_has_role('argus_edge','argus_migration','member'),
+  'API login can assume only member, staff, and retained runtime capabilities'
+);
+
+select is(
+  (select count(*)::bigint
+     from information_schema.role_table_grants
+    where grantee in ('argus_callback','argus_migration')
+      and table_schema in ('argus_app','argus_brokerage','argus_private')),
+  0::bigint,
+  'unbound callback and migration capabilities receive no application table grants'
+);
+
+select is(
+  (select count(*)::bigint
+     from information_schema.role_table_grants
+    where grantee in ('argus_member','argus_staff')
+      and table_schema in ('argus_app','argus_brokerage','argus_private')
+      and not (
+        table_schema='argus_app' and table_name='member_lifecycles'
+        and privilege_type='SELECT'
+      )),
+  0::bigint,
+  'new member and staff capabilities have only the lifecycle foundation grant'
+);
+
+select ok(
+  has_function_privilege(
+    'argus_edge','argus_private.install_request_context(uuid,uuid,text)','execute'
+  ) and not has_function_privilege(
+    'argus_runtime','argus_private.install_request_context(uuid,uuid,text)','execute'
+  ),
+  'only the trusted API login can install request context'
+);
+
+select ok(
+  has_function_privilege(
+    'argus_member','argus_private.trusted_request_lifecycle_id()','execute'
+  ) and has_function_privilege(
+    'argus_staff','argus_private.trusted_request_lifecycle_id()','execute'
+  ) and has_function_privilege(
+    'argus_runtime','argus_private.trusted_request_lifecycle_id()','execute'
+  ),
+  'member, staff, and retained runtime policies can read validated context'
+);
+
+select is(
+  (select count(*)::bigint
+     from pg_auth_members membership
+     join pg_roles granted_role on granted_role.oid=membership.roleid
+    where granted_role.rolname in (
+      'argus_member','argus_staff','argus_callback','argus_migration'
+    ) and membership.member in (
+      select oid from pg_roles where rolname in (
+        'argus_member','argus_staff','argus_callback','argus_migration'
+      )
+    )),
+  0::bigint,
+  'capability roles do not inherit one another'
+);
 
 select ok(not has_schema_privilege('anon', 'argus_app', 'usage'), 'anon has no Argus schema usage');
 select ok(not has_schema_privilege('authenticated', 'argus_app', 'usage'), 'authenticated has no Argus schema usage');
@@ -66,6 +140,8 @@ select is(
     where n.nspname in ('argus_app', 'argus_brokerage', 'argus_private')
       and p.prosecdef
       and not (
+        'search_path=""'=any(coalesce(p.proconfig,array[]::text[]))
+        or
         exists (
           select 1
             from unnest(coalesce(p.proconfig, array[]::text[])) config(value)

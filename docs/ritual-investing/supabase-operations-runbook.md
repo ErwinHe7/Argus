@@ -100,6 +100,34 @@ The temporary target is replay evidence only, not a committed schema authority.
 See `supabase-schema-authoring.md` for dependency order, role classification,
 managed-resource ownership and the append-only workflow.
 
+## U3 trusted request transaction and compatibility boundary
+
+Authenticated API work uses one checked-out transaction-pooler connection for
+the complete sequence: `BEGIN`, `install_request_context`, `SET LOCAL ROLE`,
+all repository statements, and `COMMIT` or `ROLLBACK`. The installer is granted
+only to the `argus_edge` login and runs before it assumes a capability. It
+derives tenant and lifecycle from the active member root, takes a transaction
+key-share lock on that lifecycle, and stores context in a random temporary
+relation owned by `argus_identity_owner` with `ON COMMIT DROP`. Policy helpers
+reject a missing, malformed, caller-owned, wrong-backend, wrong-transaction,
+older-than-one-minute, or closed-lifecycle context. Repositories cannot issue
+transaction/role control or release the reserved connection.
+
+`argus_member`, `argus_staff`, `argus_callback`, and `argus_migration` are
+empty-by-default NOLOGIN capabilities. U3 grants only current-lifecycle reads
+to member/staff and leaves callback/migration unbound. `argus_runtime` and
+`argus_worker`, the legacy JWT-claims GUC, their broad relation grants, and the
+universal `enforce_live_member_epoch` trigger remain explicitly compatible for
+uncut-over U4-U6 relations. Do not treat them as the target model or add new
+consumers. U4 owns Argus relation bindings, U5 owns brokerage/callback bindings,
+and U6 owns job, receipt, Storage, privacy, and durable-work bindings; each unit
+removes only the compatibility it replaces.
+
+Run `request_context.test.sql`, `function_security.test.sql`,
+`member_lifecycle.test.sql`, and `grants_and_rls.test.sql` together after every
+foundation change. Full AE4 stale job/callback/object/receipt/provider proof is
+not complete until U4-U6 bind those artifacts.
+
 ## U1 architecture evidence gate
 
 Before selecting migration history or requesting hosted credentials, run:

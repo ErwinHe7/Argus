@@ -221,7 +221,7 @@ test -s "$manifest_roles" || fail "custom-role inventory is empty"
 if awk -F '|' '
   NF != 7 {print NR ":" $0; bad=1; next}
   $1 !~ /^[a-z][a-z0-9_]*$/ {print NR ":" $0; bad=1}
-  $2 !~ /^(supabase-managed|non-login-owner|runtime-login|legacy)$/ {print NR ":" $0; bad=1}
+  $2 !~ /^(supabase-managed|non-login-owner|capability|runtime-login|legacy)$/ {print NR ":" $0; bad=1}
   $3 !~ /^[a-z0-9_.-]+$/ {print NR ":" $0; bad=1}
   $4 !~ /^(login|nologin)$/ {print NR ":" $0; bad=1}
   {if (seen[$1]++) {print NR ":" $0; bad=1}}

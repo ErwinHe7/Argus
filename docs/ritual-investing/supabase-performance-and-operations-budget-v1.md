@@ -33,6 +33,7 @@ BUFFERS)`, and replace TBDs before the affected capability can pass U9.
 | Idle in transaction | zero expected | Existing role hard limit 15 s API/worker, 10 s waitlist. |
 | Pool use | warning at 70% of per-role pool; queue rather than open owner connection | Local baseline 20 server / 100 client; hosted per-role pool and max-client values are U2 TBD and must be recorded before load test. |
 | Connection checkout | p95 <= 50 ms | p99 <= 250 ms for 5 min; reject promotion on saturation/owner-DSN use. |
+| Trusted request context age | warning at 10 s from installation | 60 s hard expiry; missing/malformed context, a closed lifecycle, a changed backend/transaction, or context reuse after completion denies authority. |
 | Query estimates | <= 10x actual on critical families | > 100x or plan flip to full tenant scan is no-go. |
 | Shared buffers | Per-family ceilings are owned TBD above | Any regression > 2x the approved baseline or temp spill on keyset/claim paths is no-go. |
 

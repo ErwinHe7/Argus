@@ -81,20 +81,20 @@ select ok(
 );
 
 select is(
-  (select count(*)::bigint
+  (select array_agg(parent.rolname::text order by parent.rolname)
      from pg_auth_members membership
      join pg_roles member on member.oid = membership.member
      join pg_roles parent on parent.oid = membership.roleid
-    where member.rolname = 'argus_edge' and parent.rolname <> 'argus_runtime'),
-  0::bigint,
-  'Edge pooler identity has no role membership except argus_runtime'
+    where member.rolname = 'argus_edge'),
+  array['argus_member','argus_runtime','argus_staff'],
+  'Edge pooler identity has only the reviewed request capability memberships'
 );
 
 select ok(
   not has_schema_privilege('argus_edge', 'argus_app', 'usage')
     and not has_schema_privilege('argus_edge', 'argus_brokerage', 'usage')
-    and not has_schema_privilege('argus_edge', 'argus_private', 'usage'),
-  'Edge pooler identity has no direct application schema privileges'
+    and has_schema_privilege('argus_edge', 'argus_private', 'usage'),
+  'Edge pooler identity can reach the private context installer but no relation schema'
 );
 
 select is(
@@ -173,7 +173,7 @@ select is(
      join pg_namespace namespace on namespace.oid=relation.relnamespace
     where namespace.nspname in ('argus_app','argus_brokerage','argus_private')
       and relation.relkind in ('r','p')),
-  86::bigint,
+  87::bigint,
   'the current application relation baseline has one reviewed inventory'
 );
 

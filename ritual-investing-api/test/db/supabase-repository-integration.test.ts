@@ -3,7 +3,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import pg from "pg";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, expectTypeOf, it, vi } from "vitest";
 
 import type {
   DatabaseClient,
@@ -106,11 +106,11 @@ describe("Supabase transaction-pooler repository boundary", () => {
 
     expect(recorded.queries.map(({ text }) => text)).toEqual([
       "begin",
+      "select argus_private.install_request_context($1::uuid, $2::uuid, $3::text)",
       "set local role argus_runtime",
-      "select argus_private.set_request_context($1::uuid, $2::uuid, $3::text)",
       "commit",
     ]);
-    expect(recorded.queries[2]?.values).toEqual([userA, sessionA, "aal1"]);
+    expect(recorded.queries[1]?.values).toEqual([userA, sessionA, "aal1"]);
     expect(recorded.release).toHaveBeenCalledOnce();
   });
 
@@ -135,6 +135,38 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const statements = recorded.queries.map(({ text }) => text);
     expect(statements).toContain("rollback");
     expect(statements).not.toContain("commit");
+    expect(recorded.release).toHaveBeenCalledOnce();
+  });
+
+  it("exposes only guarded queries to repositories", async () => {
+    const recorded = recordingPool();
+
+    await withRequestTransaction(
+      { pool: recorded.pool, verifiedClaims: claims() },
+      async (database) => {
+        expectTypeOf(database).not.toHaveProperty("release");
+        expect("release" in database).toBe(false);
+        await expect(database.query("commit")).rejects.toThrow(
+          "nested_transaction_control_forbidden",
+        );
+        await expect(database.query("reset role")).rejects.toThrow(
+          "nested_transaction_control_forbidden",
+        );
+        await expect(database.query("select 1; commit")).rejects.toThrow(
+          "nested_transaction_control_forbidden",
+        );
+        await expect(database.query("/* repository */ end")).rejects.toThrow(
+          "nested_transaction_control_forbidden",
+        );
+      },
+    );
+
+    expect(recorded.queries.map(({ text }) => text)).toEqual([
+      "begin",
+      "select argus_private.install_request_context($1::uuid, $2::uuid, $3::text)",
+      "set local role argus_runtime",
+      "commit",
+    ]);
     expect(recorded.release).toHaveBeenCalledOnce();
   });
 
@@ -287,7 +319,7 @@ describe("Supabase transaction-pooler repository boundary", () => {
     );
 
     const installations = recorded.queries.filter(({ text }) =>
-      text.includes("set_request_context"),
+      text.includes("install_request_context"),
     );
     expect(installations.map(({ values }) => values)).toEqual([
       [userA, sessionA, "aal1"],

@@ -8,6 +8,13 @@ must either implement the named model or version this contract with review.
 Every target key is parent-qualified so a child cannot cross editorial,
 member-lifecycle, brokerage-account, or immutable-generation boundaries.
 
+U3 now supplies `argus_app.member_lifecycles` as the immutable, tenant-qualified
+identity parent and binds only `argus_app.members` to it. That foundation does
+not claim the U4-U6 child bindings below: their legacy `deletion_epoch`
+relations, callbacks, jobs, receipts, credentials, object manifests, and
+Storage authority remain compatibility surfaces until their owning unit adds
+the reviewed composite lifecycle FK and command-specific policy.
+
 ## Relationship-bearing arrays and JSON
 
 | Current field | Target and cardinality | Parent-qualified key / lifecycle owner | Order, nullability, uniqueness, deletion | Retained document, backfill and consuming API |

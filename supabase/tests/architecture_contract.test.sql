@@ -8,7 +8,7 @@ select plan(17);
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_app' and relation.relkind in ('r','p')),
-  41::bigint,'the reviewed application relation inventory is complete');
+  42::bigint,'the reviewed application relation inventory is complete');
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_brokerage' and relation.relkind in ('r','p')),
@@ -68,7 +68,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  79::bigint,'the reviewed routine-name inventory is complete');
+  89::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
@@ -158,9 +158,12 @@ select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')
     and function_row.prosecdef
-    and not coalesce(function_row.proconfig,array[]::text[])::text
-      like '%search_path=pg_catalog%'),0::bigint,
-  'every security-definer routine pins a pg_catalog-first search path');
+    and not (
+      'search_path=""'=any(coalesce(function_row.proconfig,array[]::text[]))
+      or coalesce(function_row.proconfig,array[]::text[])::text
+        like '%search_path=pg_catalog%'
+    )),0::bigint,
+  'every security-definer routine pins an approved trusted search path');
 
 select * from finish();
 rollback;

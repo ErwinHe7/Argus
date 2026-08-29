@@ -6,7 +6,7 @@ set local search_path=extensions,pg_catalog,public;
 grant argus_runtime to current_user with set true;
 grant usage on schema extensions to argus_runtime;
 
-select plan(10);
+select plan(17);
 
 insert into auth.users(
   instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,
@@ -27,10 +27,23 @@ insert into argus_app.profiles(user_id,deletion_epoch,display_name) values
 on conflict (user_id) do update
   set display_name=excluded.display_name;
 
-select todo_start('U3 replaces the mutable deletion epoch with an immutable lifecycle/incarnation identifier');
+select has_table('argus_app','member_lifecycles',
+  'identity owns an immutable member lifecycle parent');
 select has_column('argus_app','members','lifecycle_id',
   'member root has an immutable lifecycle identifier');
-select todo_end();
+select has_column('argus_app','members','tenant_id',
+  'member root binds the lifecycle to its tenant');
+select ok(
+  (select lifecycle_id is not null and tenant_id=user_id
+     from argus_app.members
+    where user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  'existing members are backfilled onto one tenant-qualified lifecycle'
+);
+select is(
+  (select state from argus_app.member_lifecycles
+    where identity_subject_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  'open','newly provisioned lifecycles start open'
+);
 
 select cmp_ok((select count(*)::bigint from information_schema.columns user_column
   join information_schema.columns epoch_column
@@ -64,6 +77,14 @@ reset role;
 
 update argus_app.members set deletion_epoch=1
  where user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd';
+
+select is(
+  (select lifecycle_id from argus_app.members
+    where user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  (select id from argus_app.member_lifecycles
+    where identity_subject_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  'legacy epoch transitions cannot replace the immutable lifecycle identity'
+);
 
 set local role argus_runtime;
 select argus_private.set_request_context(
@@ -103,6 +124,18 @@ select is(
   (select count(*)::bigint from argus_app.preferences
     where user_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
   0::bigint,'Auth deletion cascades current direct member-owned rows');
+
+select is(
+  (select state from argus_app.member_lifecycles
+    where identity_subject_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  'closed','member-root deletion closes but does not erase its lifecycle'
+);
+
+select is(
+  (select count(*)::bigint from argus_app.member_lifecycles
+    where identity_subject_id='dddddddd-dddd-4ddd-8ddd-dddddddddddd'),
+  1::bigint,'closed lifecycle identity remains non-reusable after Auth deletion'
+);
 
 select ok(exists(select 1 from auth.users
   where id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'),

@@ -10,7 +10,7 @@ type ReservedSql = Awaited<ReturnType<Sql["reserve"]>>;
 
 function databaseClient(connection: ReservedSql): DatabaseClient {
   let released = false;
-  return {
+  return Object.freeze({
     async query<Row = any>(
       text: string,
       values: readonly unknown[] = [],
@@ -27,16 +27,16 @@ function databaseClient(connection: ReservedSql): DatabaseClient {
       released = true;
       connection.release();
     },
-  };
+  });
 }
 
 /**
  * SUPABASE_DB_URL must be Supabase's transaction-pooler URL for the dedicated
  * non-BYPASSRLS, NOINHERIT login selected by the caller. Its password is
  * provisioned and rotated out-of-band after migrations; it is never embedded
- * in the repo. Each login has membership only in its matching NOLOGIN
- * capability role, which every transaction assumes with SET LOCAL ROLE. Never
- * pass a postgres owner credential or secret API key here.
+ * in the repo. Each login has only its reviewed NOLOGIN capability memberships,
+ * and every transaction assumes one explicitly with SET LOCAL ROLE. Never pass
+ * a postgres owner credential or secret API key here.
  */
 function createDatabasePool(
   databaseUrl: string,
@@ -59,11 +59,17 @@ function createDatabasePool(
       ? false
       : "require",
   });
+  let ended = false;
   return Object.freeze({
     async connect() {
+      if (ended) throw new Error("database_pool_ended");
+      // reserve() pins BEGIN, trusted-context installation, SET LOCAL ROLE,
+      // every repository statement, and completion to one pooler connection.
       return databaseClient(await sql.reserve());
     },
     async end() {
+      if (ended) return;
+      ended = true;
       await sql.end({ timeout: 5 });
     },
   });

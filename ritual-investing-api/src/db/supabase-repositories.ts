@@ -1,4 +1,4 @@
-import type { DatabaseClient, DatabasePool } from "./database-port.ts";
+import type { DatabasePool, DatabaseTransaction } from "./database-port.ts";
 import {
   type RequestTransactionConfig,
   StaffAuthorizationError,
@@ -148,7 +148,7 @@ function config(binding: SupabaseRepositoryBinding): RequestTransactionConfig {
 
 function ownerTransaction<T>(
   binding: SupabaseRepositoryBinding,
-  callback: (database: DatabaseClient) => Promise<T>,
+  callback: (database: DatabaseTransaction) => Promise<T>,
 ): Promise<T> {
   return withRequestTransaction(config(binding), (database) =>
     callback(database),
@@ -158,7 +158,7 @@ function ownerTransaction<T>(
 function staffTransaction<T>(
   binding: SupabaseRepositoryBinding,
   permission: string,
-  callback: (database: DatabaseClient) => Promise<T>,
+  callback: (database: DatabaseTransaction) => Promise<T>,
 ): Promise<T> {
   return withStaffRequestTransaction(config(binding), permission, (database) =>
     callback(database),
@@ -167,7 +167,7 @@ function staffTransaction<T>(
 
 function activeStaffTransaction<T>(
   binding: SupabaseRepositoryBinding,
-  callback: (database: DatabaseClient) => Promise<T>,
+  callback: (database: DatabaseTransaction) => Promise<T>,
 ): Promise<T> {
   return withActiveStaffRequestTransaction(config(binding), (database) =>
     callback(database),
@@ -181,7 +181,7 @@ function first<Row>(rows: Row[]): Row {
 }
 
 async function selectEvidence(
-  database: DatabaseClient,
+  database: DatabaseTransaction,
   claimIds: readonly string[],
 ): Promise<JsonObject[]> {
   return (
@@ -200,7 +200,7 @@ async function selectEvidence(
 export function createSupabaseSessionRepository(
   binding: SupabaseRepositoryBinding,
 ) {
-  const selectSnapshot = async (database: DatabaseClient) => {
+  const selectSnapshot = async (database: DatabaseTransaction) => {
     const result = await database.query<JsonObject>(
       `select jsonb_build_object(
          'member', to_jsonb(member),
@@ -503,7 +503,7 @@ export function createSupabaseAccountRepository(
 export function createSupabaseCircleRepository(
   binding: SupabaseRepositoryBinding,
 ) {
-  const selectCircle = async (database: DatabaseClient, id: string) => {
+  const selectCircle = async (database: DatabaseTransaction, id: string) => {
     const result = await database.query<JsonObject>(
       `select circle.*,true as private,
               (select item.current_published_revision_id
@@ -1479,7 +1479,7 @@ export function createSupabaseAdminRepository(
   binding: SupabaseRepositoryBinding,
 ) {
   const viewEditorialItem = async (
-    database: DatabaseClient,
+    database: DatabaseTransaction,
     itemId: string,
   ): Promise<JsonObject> =>
     first(
@@ -1502,7 +1502,7 @@ export function createSupabaseAdminRepository(
       ).rows,
     );
   const auditEditorial = (
-    database: DatabaseClient,
+    database: DatabaseTransaction,
     action: string,
     itemId: string,
     outcome: "allowed" | "denied" | "failed",

@@ -1,6 +1,6 @@
 import {
-  type DatabaseClient,
   type DatabasePool,
+  type DatabaseTransaction,
   withDatabaseTransaction,
 } from "./database-port.ts";
 import {
@@ -8,7 +8,7 @@ import {
   type VerifiedRequestClaims,
 } from "./request-context.ts";
 
-export type RequestDatabase = DatabaseClient;
+export type RequestDatabase = DatabaseTransaction;
 
 export interface RequestTransactionConfig {
   pool: DatabasePool;
@@ -33,16 +33,16 @@ export async function withRequestTransaction<T>(
   return withDatabaseTransaction(
     config.pool,
     "argus_runtime",
-    async (client) => {
-      await client.query(
-        "select argus_private.set_request_context($1::uuid, $2::uuid, $3::text)",
+    async (database) => callback(database, verifiedClaims),
+    async (database) => {
+      await database.query(
+        "select argus_private.install_request_context($1::uuid, $2::uuid, $3::text)",
         [
           verifiedClaims.userId,
           verifiedClaims.sessionId,
           verifiedClaims.aal,
         ],
       );
-      return callback(client, verifiedClaims);
     },
   );
 }
