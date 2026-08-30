@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createMemberBranchCapabilityEvaluator } from "../../../supabase/functions/api/member-branch-capabilities.ts";
+import { createBetaDraftStarpathCapabilityEvaluator } from "../../src/domains/starpath/draft-preview-repository.ts";
 
 const serverTime = "2026-08-30T12:00:00.000Z";
 
@@ -57,4 +58,30 @@ describe("Supabase member branch capability composition", () => {
       });
     },
   );
+
+  it("accepts a decision evaluated just after the database snapshot time", async () => {
+    const evaluator = createMemberBranchCapabilityEvaluator({
+      runtimeEnvironment: "staging",
+      starpath: createBetaDraftStarpathCapabilityEvaluator(
+        () => new Date("2026-08-30T12:00:00.250Z"),
+      ),
+    });
+
+    await expect(evaluator.evaluate(serverTime)).resolves.toMatchObject({
+      branches: ["ritual", "starpath", "discover", "coven", "you"],
+    });
+  });
+
+  it("still hides a decision implausibly far ahead of server time", async () => {
+    const evaluator = createMemberBranchCapabilityEvaluator({
+      runtimeEnvironment: "staging",
+      starpath: createBetaDraftStarpathCapabilityEvaluator(
+        () => new Date("2026-08-30T12:00:06.000Z"),
+      ),
+    });
+
+    await expect(evaluator.evaluate(serverTime)).resolves.toMatchObject({
+      branches: ["ritual", "discover", "coven", "you"],
+    });
+  });
 });

@@ -9,6 +9,7 @@ import type {
 type RuntimeEnvironment = RetainedRuntimeBindings["environment"];
 
 const capabilityTtlMs = 5 * 60 * 1_000;
+const capabilityDecisionClockSkewMs = 5_000;
 
 function isAvailableStarpathDecision(
   decision: StarpathCapabilityDecision,
@@ -25,7 +26,7 @@ function isAvailableStarpathDecision(
     decision.capabilityVersion > 0 &&
     Number.isFinite(evaluatedAt) &&
     Number.isFinite(expiresAt) &&
-    evaluatedAt <= serverTimeMs &&
+    evaluatedAt <= serverTimeMs + capabilityDecisionClockSkewMs &&
     expiresAt > serverTimeMs &&
     expiresAt > evaluatedAt;
 }
