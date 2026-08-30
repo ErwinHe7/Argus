@@ -17,6 +17,16 @@ describe("Starpath draft beta preview", () => {
     expect(snapshot.authority.manifest_version).toBe(
       draftPreviewStarpathManifestVersion,
     );
+    expect(snapshot.availability).toBe("available");
+    expect(snapshot.session).toMatchObject({
+      state: "active",
+      explicit_start: false,
+    });
+    expect(snapshot.progress).toMatchObject({
+      current_node_ordinal: 1,
+      version: 1,
+    });
+    expect(snapshot.theme).not.toBeNull();
     expect(snapshot.nodes.map((node) => node.title)).toEqual([
       "The Share Sigil",
       "The Market Lantern",

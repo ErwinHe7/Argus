@@ -468,7 +468,14 @@ const snapshot: StarpathSnapshot = starpathSnapshotSchema.parse({
     environment: "beta",
     jurisdiction: "US",
   },
-  session: null,
+  session: {
+    id: "63000000-7000-4000-8000-000000000001",
+    state: "active",
+    started_at: observedAt,
+    last_action_at: observedAt,
+    explicit_start: false,
+    replacement_of_session_id: null,
+  },
   theme: {
     id: "63000000-6000-4000-8000-000000000001",
     key: "constellation-map",
@@ -479,7 +486,11 @@ const snapshot: StarpathSnapshot = starpathSnapshotSchema.parse({
     accessible_label:
       "A downward constellation path connecting eight draft educational lessons.",
   },
-  progress: null,
+  progress: {
+    current_node_ordinal: 1,
+    version: 1,
+    updated_at: observedAt,
+  },
   nodes: draftNodes.map(nodeSnapshot),
   recall: null,
   command_effect: null,
