@@ -123,6 +123,7 @@ ritual-investing-api/src/domains/search/repository.ts
 ritual-investing-api/src/domains/session/repository.ts
 ritual-investing-api/src/domains/session/supabase-schemas.ts
 ritual-investing-api/src/domains/starpath/editorial-repository.ts
+ritual-investing-api/src/domains/starpath/repository.ts
 ritual-investing-api/src/jobs/handlers.ts
 ritual-investing-api/src/jobs/privacy-export.ts
 ritual-investing-api/src/jobs/queue-runtime.ts
@@ -136,6 +137,7 @@ ritual-investing-api/test/contracts/product-authority.test.ts
 ritual-investing-api/test/contracts/retained-openapi.test.ts
 ritual-investing-api/test/contracts/starpath-editorial-authority.test.ts
 ritual-investing-api/test/contracts/u8-pagination-routes.test.ts
+ritual-investing-api/test/db/starpath-repository-integration.test.ts
 ritual-investing-api/test/db/supabase-repository-integration.test.ts
 ritual-investing-api/test/db/u7-async-privacy-migration.test.ts
 ritual-investing-api/test/domains/briefing-read-state.test.ts
@@ -265,6 +267,7 @@ supabase/migrations/20260829170000_u8_normalized_query_contracts.sql
 supabase/migrations/20260829180000_u9_bootstrap_daily_ritual_content.sql
 supabase/migrations/20260830060327_starpath_editorial.sql
 supabase/migrations/20260830063238_starpath_member_state.sql
+supabase/migrations/20260830071000_starpath_member_api.sql
 supabase/seed.sql
 supabase/tests/application_purge_owner.test.sql
 supabase/tests/architecture_contract.test.sql

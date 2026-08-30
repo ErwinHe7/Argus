@@ -113,6 +113,11 @@ import {
   registerStarpathEditorialRoutes,
   type StarpathEditorialRouteRepository,
 } from "./domains/starpath/editorial-routes.ts";
+import { mapStarpathBoundaryError } from "./domains/starpath/error-mapping.ts";
+import {
+  registerStarpathRoutes,
+  type StarpathRouteRepository,
+} from "./domains/starpath/routes.ts";
 import { registerSessionRoutes } from "./domains/session/routes.ts";
 import {
   createSessionService,
@@ -142,6 +147,7 @@ export type RetainedRepositorySet = Readonly<{
   rowan: RowanRouteRepository;
   search: SearchRepository;
   starpath: StarpathEditorialRouteRepository;
+  starpathMember: StarpathRouteRepository;
   admin: AdminRouteRepository;
   adminOperations: AdminOperationsRouteService;
   scenarios: IntentionRouteRepository;
@@ -514,6 +520,10 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     if (scenarioError !== undefined) {
       return errorResponse(context, scenarioError);
     }
+    const starpathError = mapStarpathBoundaryError(error);
+    if (starpathError !== undefined) {
+      return errorResponse(context, starpathError);
+    }
     if (error instanceof StaffAuthorizationError) {
       return errorResponse(
         context,
@@ -774,6 +784,11 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   registerRowanRoutes({
     register,
     repository: (context) => repositories(context).rowan,
+  });
+
+  registerStarpathRoutes({
+    register,
+    repository: (context) => repositories(context).starpathMember,
   });
 
   registerPublicPreviewRoutes({

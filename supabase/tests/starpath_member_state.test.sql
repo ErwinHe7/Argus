@@ -4,7 +4,7 @@ set transaction isolation level repeatable read;
 create extension if not exists pgtap with schema extensions;
 set local search_path=extensions,pg_catalog,public;
 
-select plan(51);
+select plan(58);
 
 select has_table('argus_app','starpath_sessions',
   'Starpath sessions are lifecycle-bound application data');
@@ -42,6 +42,12 @@ select has_function('argus_private','skip_starpath_recall',
 select has_function('argus_private','capture_starpath_retention_snapshot',
   array['timestamp with time zone'],
   'retention evidence is captured at one fixed server instant');
+select has_function('argus_private','resolve_starpath_member_authority',
+  array['text','text'],
+  'release scope resolves through a narrow reviewed authority projection');
+select has_function('argus_private','read_starpath_curriculum_projection',
+  array['uuid','uuid','text','text'],
+  'member curriculum is exposed without direct editorial table access');
 
 select ok(
   exists(
@@ -101,6 +107,7 @@ declare relation_name text;
 begin
   foreach relation_name in array array[
     'starpath_policies','starpath_lessons','starpath_lesson_revisions',
+    'starpath_factual_sections','starpath_evidence_bindings',
     'starpath_knowledge_checks','starpath_knowledge_check_options',
     'starpath_session_themes','starpath_curriculum_manifests',
     'starpath_manifest_nodes','starpath_manifest_themes'
@@ -173,6 +180,35 @@ select (
   'Investment values can change and loss is possible.',
   'Recall the factual concept from lesson '||node||'.',
   'The guide is a mnemonic only; the lesson remains factual.'
+from pg_catalog.generate_series(1,8) node;
+
+insert into argus_app.starpath_factual_sections(
+  lesson_id,revision_id,ordinal,section_kind,heading,body,uncertainty,observed_at
+)
+select (
+    '52000000-4000-4000-8000-'||pg_catalog.lpad(node::text,12,'0')
+  )::uuid,(
+    '52000000-3000-4000-8000-'||pg_catalog.lpad(node::text,12,'0')
+  )::uuid,1,'fact','Reviewed fact '||node,
+  'A reviewed factual statement for lesson '||node||'.',
+  'Definitions and issuer-specific rights can vary.',now()-interval '1 day'
+from pg_catalog.generate_series(1,8) node;
+
+insert into argus_app.starpath_evidence_bindings(
+  id,lesson_id,revision_id,section_ordinal,ordinal,canonical_url,
+  source_title,publisher,source_observed_at,effective_at,retrieved_at,
+  current_until,claim_summary
+)
+select (
+    '52000000-e000-4000-8000-'||pg_catalog.lpad(node::text,12,'0')
+  )::uuid,(
+    '52000000-4000-4000-8000-'||pg_catalog.lpad(node::text,12,'0')
+  )::uuid,(
+    '52000000-3000-4000-8000-'||pg_catalog.lpad(node::text,12,'0')
+  )::uuid,1,1,'https://www.investor.gov/starpath-fixture-'||node,
+  'Investor education fixture '||node,'Investor.gov',now()-interval '1 day',
+  null,now()-interval '1 day',now()+interval '365 days',
+  'Official factual support for the reviewed lesson section.'
 from pg_catalog.generate_series(1,8) node;
 
 insert into argus_app.starpath_knowledge_checks(
@@ -248,6 +284,7 @@ declare relation_name text;
 begin
   foreach relation_name in array array[
     'starpath_policies','starpath_lessons','starpath_lesson_revisions',
+    'starpath_factual_sections','starpath_evidence_bindings',
     'starpath_knowledge_checks','starpath_knowledge_check_options',
     'starpath_session_themes','starpath_curriculum_manifests',
     'starpath_manifest_nodes','starpath_manifest_themes'
@@ -273,6 +310,42 @@ select argus_private.install_request_context(
   '52000000-1000-4000-8000-000000000002','aal1'
 );
 set local role argus_member;
+select is(
+  argus_private.resolve_starpath_member_authority('beta','US')->>'manifestId',
+  '52000000-a000-4000-8000-000000000001',
+  'member authority selects the exact complete beta manifest'
+);
+select is(
+  argus_private.resolve_starpath_member_authority('beta','US')->>'themeId',
+  '52000000-9000-4000-8000-000000000001',
+  'member authority chooses a reviewed non-personalized theme'
+);
+select is(
+  pg_catalog.jsonb_array_length(
+    argus_private.read_starpath_curriculum_projection(
+      '52000000-a000-4000-8000-000000000001',
+      '52000000-9000-4000-8000-000000000001','beta','US'
+    )->'nodes'
+  ),8,
+  'the member projection contains exactly eight ordered nodes'
+);
+select ok(
+  argus_private.read_starpath_curriculum_projection(
+    '52000000-a000-4000-8000-000000000001',
+    '52000000-9000-4000-8000-000000000001','beta','US'
+  )#>>'{nodes,0,factualSections,0,evidence,0,publisher}'='Investor.gov',
+  'the factual projection keeps source evidence adjacent'
+);
+select ok(
+  pg_catalog.strpos(
+    argus_private.read_starpath_curriculum_projection(
+      '52000000-a000-4000-8000-000000000001',
+      '52000000-9000-4000-8000-000000000001','beta','US'
+    )::text,
+    'isCorrect'
+  )=0,
+  'the pre-answer projection never exposes correctness'
+);
 select lives_ok(
   $$select argus_private.start_or_resume_starpath_session(
     'starpath-start-0001',repeat('1',64),

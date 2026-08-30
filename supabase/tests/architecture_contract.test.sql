@@ -81,7 +81,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  238::bigint,'the reviewed routine-name inventory is complete');
+  240::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace

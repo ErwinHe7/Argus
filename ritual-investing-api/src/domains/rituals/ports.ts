@@ -1,8 +1,8 @@
 import type { JsonObject } from "../../db/repository-support.ts";
 
 export interface RitualRepository {
-  getDaily(mode?: "tarot" | "astrology"): Promise<JsonObject>;
-  get(assignmentId: string): Promise<JsonObject>;
+  getDaily(mode?: "tarot" | "astrology"): Promise<JsonObject | null>;
+  get(assignmentId: string): Promise<JsonObject | null>;
   history(limit: number): Promise<JsonObject[]>;
   evidence(assignmentId: string): Promise<JsonObject[]>;
   transition(
@@ -14,6 +14,6 @@ export interface RitualRepository {
   getSchedule(
     localDate: string,
     mode: "tarot" | "astrology",
-  ): Promise<JsonObject>;
-  getScenario(revisionId: string): Promise<JsonObject>;
+  ): Promise<JsonObject | null>;
+  getScenario(revisionId: string): Promise<JsonObject | null>;
 }

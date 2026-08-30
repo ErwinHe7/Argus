@@ -44,6 +44,7 @@ import {
   createSupabaseRowanRepository,
   createSupabaseSearchRepository,
   createSupabaseSessionRepository,
+  createSupabaseStarpathRepository,
 } from "../../src/db/supabase-repositories.ts";
 import { createSupabaseScenarioRepository } from "../../src/domains/intentions/repository.ts";
 import {
@@ -749,6 +750,36 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const genericId = "018f3c2a-4b67-7a89-8abc-123456789099";
     let scenarioRequestHash = "";
     const recorded = recordingPool((text, values = []) => {
+      if (text.includes("clock_timestamp() as now")) {
+        return { rows: [{ now: "2026-08-30T12:00:00.000Z" }], rowCount: 1 };
+      }
+      if (text.includes("resolve_starpath_member_authority")) {
+        return {
+          rows: [{ authority: {
+            manifestId: genericId,
+            manifestVersion: "starpath-beta-v1",
+            policyVersion: "starpath-no-advice-v1",
+            environment: "beta",
+            jurisdiction: "US",
+            themeId: genericId,
+          } }],
+          rowCount: 1,
+        };
+      }
+      if (
+        text.includes("read_starpath_state") ||
+        text.includes("start_or_resume_starpath_session") ||
+        text.includes("answer_starpath_question") ||
+        text.includes("skip_starpath_recall")
+      ) {
+        return {
+          rows: [{ state: { availability: "not_started" } }],
+          rowCount: 1,
+        };
+      }
+      if (text.includes("read_starpath_curriculum_projection")) {
+        return { rows: [{ projection: {} }], rowCount: 1 };
+      }
       if (text.includes("select event_type,aggregate_id")) {
         return { rows: [], rowCount: 0 };
       }
@@ -892,6 +923,11 @@ describe("Supabase transaction-pooler repository boundary", () => {
       await run();
       return recorded.queries.slice(start).map(({ text }) => text).join("\n");
     };
+    const captureAttempt = async (run: () => Promise<unknown>) => {
+      const start = recorded.queries.length;
+      await run().catch(() => undefined);
+      return recorded.queries.slice(start).map(({ text }) => text).join("\n");
+    };
     const evidenceIds = [genericId];
     const database = recorded.database;
     const session = createSupabaseSessionRepository(database, userA);
@@ -916,6 +952,23 @@ describe("Supabase transaction-pooler repository boundary", () => {
     );
     const scenarios = createSupabaseScenarioRepository(database);
     const preview = createSupabasePublicPreviewRepository(database);
+    const starpathMember = createSupabaseStarpathRepository(database, {
+      evaluate: async () => ({
+        branch: "starpath",
+        available: true,
+        environment: "beta",
+        jurisdiction: "US",
+        capabilityVersion: 1,
+        evaluatedAt: "2026-08-30T11:59:00.000Z",
+        expiresAt: "2026-08-30T12:05:00.000Z",
+        protectedRoutes: [
+          "starpath.read",
+          "starpath.start",
+          "starpath.answer",
+          "starpath.recall.skip",
+        ],
+      }),
+    });
 
     const executedByDomain: Record<string, string> = {
       session: await capture(() => session.bootstrap()),
@@ -988,6 +1041,28 @@ describe("Supabase transaction-pooler repository boundary", () => {
         await rituals.getScenario(genericId);
       }),
       rowan: await capture(() => rowan.resolve("daily_ritual", "daily")),
+      starpathMember: [
+        await captureAttempt(() => starpathMember.read()),
+        await captureAttempt(() =>
+          starpathMember.startOrResume("starpath-start-coverage")
+        ),
+        await captureAttempt(() =>
+          starpathMember.answer({
+            session_id: genericId,
+            manifest_id: genericId,
+            revision_id: genericId,
+            question_id: genericId,
+            option_id: genericId,
+          }, 1, "starpath-answer-coverage")
+        ),
+        await captureAttempt(() =>
+          starpathMember.skipRecall(
+            { session_id: genericId },
+            1,
+            "starpath-recall-coverage",
+          )
+        ),
+      ].join("\n"),
       search: await capture(() =>
         search.searchPage({
           query: "argus",
@@ -1054,6 +1129,25 @@ describe("Supabase transaction-pooler repository boundary", () => {
             "argus_app.privacy_requests": "argus_private.list_member_privacy_requests",
             "argus_private.outbox_events": "argus_private.request_privacy_export",
             "argus_private.deletion_tombstones": "argus_private.get_member_deletion_tombstone",
+          },
+          starpathMember: {
+            "argus_app.starpath_policies": "argus_private.resolve_starpath_member_authority",
+            "argus_app.starpath_lessons": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_lesson_revisions": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_factual_sections": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_knowledge_checks": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_knowledge_check_options": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_evidence_bindings": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_session_themes": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_curriculum_manifests": "argus_private.resolve_starpath_member_authority",
+            "argus_app.starpath_manifest_nodes": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_manifest_themes": "argus_private.read_starpath_curriculum_projection",
+            "argus_app.starpath_sessions": "argus_private.read_starpath_state",
+            "argus_app.starpath_progress_states": "argus_private.answer_starpath_question",
+            "argus_app.starpath_lesson_completions": "argus_private.answer_starpath_question",
+            "argus_app.starpath_attempts": "argus_private.answer_starpath_question",
+            "argus_app.starpath_recall_states": "argus_private.skip_starpath_recall",
+            "argus_private.member_idempotency_records": "argus_private.start_or_resume_starpath_session",
           },
           search: {
             "argus_app.catalog_assets": "argus_private.search_published_content_page",
