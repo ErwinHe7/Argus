@@ -3,7 +3,7 @@ begin;
 do $membership$
 begin
   execute pg_catalog.format(
-    'grant argus_app_owner,argus_jobs_owner,argus_application_purge_owner,argus_identity_owner to %I with set true',
+    'grant argus_app_owner,argus_jobs_owner,argus_application_purge_owner,argus_identity_owner to %1$I with inherit true,set true,admin false granted by %1$I',
     current_user
   );
 end
@@ -13,12 +13,12 @@ $membership$;
 -- separate immutable authority; sessions pin exact manifest/theme/revision
 -- identities and commands derive correctness on the server.
 
-grant create on schema argus_app to argus_app_owner;
+grant create on schema argus_app,argus_private to argus_app_owner;
 set local role argus_app_owner;
 alter table argus_app.starpath_manifest_nodes
   add constraint starpath_manifest_nodes_exact_identity_unique
   unique(manifest_id,lesson_id,revision_id,node_ordinal);
-reset role;
+set local role postgres;
 
 create table argus_app.starpath_sessions (
   id uuid primary key default extensions.gen_random_uuid(),
@@ -423,7 +423,7 @@ grant select,insert,update on argus_private.member_idempotency_records
 set local role argus_identity_owner;
 grant execute on function argus_private.lock_open_member_lifecycle(uuid,uuid,uuid)
   to argus_app_owner;
-reset role;
+set local role postgres;
 
 create or replace function argus_private.assert_starpath_manifest_theme(
   p_manifest_id uuid,p_theme_id uuid
@@ -1189,7 +1189,7 @@ alter table argus_private.privacy_export_collection_registry force row level sec
 create trigger reject_privacy_collection_registry_mutation
   before update or delete on argus_private.privacy_export_collection_registry
   for each row execute function argus_private.reject_registry_mutation();
-reset role;
+set local role postgres;
 
 create or replace function argus_private.export_starpath_generation_rows()
 returns trigger language plpgsql security definer set search_path='' as $$
@@ -1278,7 +1278,7 @@ revoke all on function
   argus_private.purge_member_application_data_without_starpath(uuid)
 from public,anon,authenticated,argus_runtime,argus_member,argus_staff,
   argus_callback,argus_worker,argus_jobs_owner,postgres,argus_app_owner;
-reset role;
+set local role postgres;
 revoke create on schema argus_private from argus_application_purge_owner;
 
 create or replace function argus_private.purge_member_application_data(
@@ -1383,7 +1383,7 @@ set local role argus_identity_owner;
 grant execute on function
   argus_private.lock_open_member_lifecycle(uuid,uuid,uuid)
 to argus_app_owner;
-reset role;
+set local role postgres;
 grant execute on function
   argus_private.start_or_resume_starpath_session(text,text,uuid,uuid,bigint),
   argus_private.read_starpath_state(uuid,uuid),
@@ -1411,7 +1411,7 @@ comment on function argus_private.purge_member_application_data(uuid) is
 do $membership$
 begin
   execute pg_catalog.format(
-    'revoke argus_app_owner,argus_jobs_owner,argus_application_purge_owner,argus_identity_owner from %I',
+    'revoke argus_app_owner,argus_jobs_owner,argus_application_purge_owner,argus_identity_owner from %1$I granted by %1$I',
     current_user
   );
 end
