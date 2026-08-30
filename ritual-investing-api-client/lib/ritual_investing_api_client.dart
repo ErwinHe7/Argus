@@ -159,6 +159,7 @@ export 'package:ritual_investing_api_client/generated/model/list_admin_audit200_
 export 'package:ritual_investing_api_client/generated/model/list_admin_audit200_response_meta.dart';
 export 'package:ritual_investing_api_client/generated/model/member_account.dart';
 export 'package:ritual_investing_api_client/generated/model/member_account_response.dart';
+export 'package:ritual_investing_api_client/generated/model/member_branch_capabilities.dart';
 export 'package:ritual_investing_api_client/generated/model/member_circle.dart';
 export 'package:ritual_investing_api_client/generated/model/member_circle_assets_inner.dart';
 export 'package:ritual_investing_api_client/generated/model/member_intention.dart';

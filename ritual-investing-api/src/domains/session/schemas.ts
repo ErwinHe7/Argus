@@ -20,6 +20,16 @@ const sessionMemberSchema = z.object({
   created_at: nullableTimestampSchema,
   updated_at: nullableTimestampSchema,
 }).passthrough().openapi("SessionMember");
+const memberBranchCapabilitiesSchema = z.object({
+  schema_version: z.literal("member-branch-capabilities-v1"),
+  capability_version: z.number().int().positive(),
+  environment: z.enum(["beta", "production"]),
+  evaluated_at: z.string().datetime(),
+  expires_at: z.string().datetime(),
+  branches: z.array(
+    z.string().regex(/^(ritual|starpath|discover|coven|you)$/),
+  ).min(1).max(5),
+}).strict().openapi("MemberBranchCapabilities");
 const sessionBootstrapSchema = z.object({
   member: sessionMemberSchema,
   profile: memberProfileSchema.nullable(),
@@ -28,6 +38,7 @@ const sessionBootstrapSchema = z.object({
   investor_profile: investorProfileSchema.nullable(),
   astrology_profile: z.record(z.string(), z.unknown()).nullable(),
   server_time: z.string().datetime(),
+  branch_capabilities: memberBranchCapabilitiesSchema,
 }).strict().openapi("SessionBootstrap");
 export const sessionBootstrapResponseSchema = retainedEnvelope(
   "SessionBootstrapResponse",

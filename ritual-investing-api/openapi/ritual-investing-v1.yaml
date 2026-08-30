@@ -3249,6 +3249,43 @@ components:
         - data
         - meta
       type: object
+    MemberBranchCapabilities:
+      additionalProperties: false
+      properties:
+        branches:
+          items:
+            pattern: ^(ritual|starpath|discover|coven|you)$
+            type: string
+          maxItems: 5
+          minItems: 1
+          type: array
+        capability_version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        environment:
+          enum:
+            - beta
+            - production
+          type: string
+        evaluated_at:
+          format: date-time
+          type: string
+        expires_at:
+          format: date-time
+          type: string
+        schema_version:
+          enum:
+            - member-branch-capabilities-v1
+          type: string
+      required:
+        - schema_version
+        - capability_version
+        - environment
+        - evaluated_at
+        - expires_at
+        - branches
+      type: object
     MemberCircle:
       additionalProperties:
         nullable: true
@@ -4251,6 +4288,8 @@ components:
             nullable: true
           nullable: true
           type: object
+        branch_capabilities:
+          $ref: "#/components/schemas/MemberBranchCapabilities"
         investor_profile:
           $ref: "#/components/schemas/InvestorProfile"
         member:
@@ -4272,6 +4311,7 @@ components:
         - investor_profile
         - astrology_profile
         - server_time
+        - branch_capabilities
       type: object
     SessionBootstrapResponse:
       additionalProperties: false

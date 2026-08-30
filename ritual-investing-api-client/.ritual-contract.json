@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "openapi_sha256": "505ecb530426269360c9368d140667484cc6ca6ba9fe7ed4614d1553d6db1523",
+  "openapi_sha256": "baede67ae7dc918a0a3e4d61abc3f5555b073b98e0bd91414de448a96eefa3ab",
   "client_version": "0.2.0",
   "generator_image": "openapitools/openapi-generator-cli:v7.24.0"
 }

@@ -309,6 +309,7 @@ Class | Method | HTTP request | Description
  - [ListAdminAudit200ResponseMeta](doc/ListAdminAudit200ResponseMeta.md)
  - [MemberAccount](doc/MemberAccount.md)
  - [MemberAccountResponse](doc/MemberAccountResponse.md)
+ - [MemberBranchCapabilities](doc/MemberBranchCapabilities.md)
  - [MemberCircle](doc/MemberCircle.md)
  - [MemberCircleAssetsInner](doc/MemberCircleAssetsInner.md)
  - [MemberIntention](doc/MemberIntention.md)

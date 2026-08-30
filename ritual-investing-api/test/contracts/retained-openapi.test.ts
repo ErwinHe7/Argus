@@ -155,6 +155,41 @@ describe("Supabase retained OpenAPI contract", () => {
     }
   });
 
+  it("requires authoritative member branch capabilities in session snapshots", () => {
+    const schemas = buildRetainedOpenApiDocument(contractApp()).components
+      ?.schemas as Record<string, any>;
+
+    expect(schemas.SessionBootstrap.required).toContain(
+      "branch_capabilities",
+    );
+    expect(schemas.MemberBranchCapabilities).toMatchObject({
+      additionalProperties: false,
+      required: [
+        "schema_version",
+        "capability_version",
+        "environment",
+        "evaluated_at",
+        "expires_at",
+        "branches",
+      ],
+      properties: {
+        schema_version: {
+          type: "string",
+          enum: ["member-branch-capabilities-v1"],
+        },
+        environment: { enum: ["beta", "production"] },
+        branches: {
+          minItems: 1,
+          maxItems: 5,
+          items: {
+            type: "string",
+            pattern: "^(ritual|starpath|discover|coven|you)$",
+          },
+        },
+      },
+    });
+  });
+
   it("keeps retained content precise and member-safe across generated boundaries", () => {
     const document = buildRetainedOpenApiDocument(contractApp());
     const serialized = JSON.stringify(document);

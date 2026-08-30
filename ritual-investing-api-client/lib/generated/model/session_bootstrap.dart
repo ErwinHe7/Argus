@@ -3,6 +3,7 @@
 //
 
 // ignore_for_file: unused_element
+import 'package:ritual_investing_api_client/generated/model/member_branch_capabilities.dart';
 import 'package:ritual_investing_api_client/generated/model/investor_profile.dart';
 import 'package:ritual_investing_api_client/generated/model/onboarding_state.dart';
 import 'package:ritual_investing_api_client/generated/model/member_preferences.dart';
@@ -25,6 +26,8 @@ class SessionBootstrap {
   SessionBootstrap({
     required this.astrologyProfile,
 
+    required this.branchCapabilities,
+
     required this.investorProfile,
 
     required this.member,
@@ -40,6 +43,9 @@ class SessionBootstrap {
 
   @JsonKey(name: r'astrology_profile', required: true, includeIfNull: true)
   final Map<String, Object?>? astrologyProfile;
+
+  @JsonKey(name: r'branch_capabilities', required: true, includeIfNull: false)
+  final MemberBranchCapabilities branchCapabilities;
 
   @JsonKey(name: r'investor_profile', required: true, includeIfNull: true)
   final InvestorProfile? investorProfile;
@@ -64,6 +70,7 @@ class SessionBootstrap {
       identical(this, other) ||
       other is SessionBootstrap &&
           other.astrologyProfile == astrologyProfile &&
+          other.branchCapabilities == branchCapabilities &&
           other.investorProfile == investorProfile &&
           other.member == member &&
           other.onboarding == onboarding &&
@@ -74,6 +81,7 @@ class SessionBootstrap {
   @override
   int get hashCode =>
       (astrologyProfile == null ? 0 : astrologyProfile.hashCode) +
+      branchCapabilities.hashCode +
       (investorProfile == null ? 0 : investorProfile.hashCode) +
       member.hashCode +
       (onboarding == null ? 0 : onboarding.hashCode) +

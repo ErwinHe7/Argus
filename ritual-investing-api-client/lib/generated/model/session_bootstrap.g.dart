@@ -9,6 +9,10 @@ part of 'session_bootstrap.dart';
 abstract class _$SessionBootstrapCWProxy {
   SessionBootstrap astrologyProfile(Map<String, Object?>? astrologyProfile);
 
+  SessionBootstrap branchCapabilities(
+    MemberBranchCapabilities branchCapabilities,
+  );
+
   SessionBootstrap investorProfile(InvestorProfile? investorProfile);
 
   SessionBootstrap member(SessionMember member);
@@ -29,6 +33,7 @@ abstract class _$SessionBootstrapCWProxy {
   /// ````
   SessionBootstrap call({
     Map<String, Object?>? astrologyProfile,
+    MemberBranchCapabilities branchCapabilities,
     InvestorProfile? investorProfile,
     SessionMember member,
     OnboardingState? onboarding,
@@ -47,6 +52,11 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
   @override
   SessionBootstrap astrologyProfile(Map<String, Object?>? astrologyProfile) =>
       this(astrologyProfile: astrologyProfile);
+
+  @override
+  SessionBootstrap branchCapabilities(
+    MemberBranchCapabilities branchCapabilities,
+  ) => this(branchCapabilities: branchCapabilities);
 
   @override
   SessionBootstrap investorProfile(InvestorProfile? investorProfile) =>
@@ -79,6 +89,7 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
   /// ````
   SessionBootstrap call({
     Object? astrologyProfile = const $CopyWithPlaceholder(),
+    Object? branchCapabilities = const $CopyWithPlaceholder(),
     Object? investorProfile = const $CopyWithPlaceholder(),
     Object? member = const $CopyWithPlaceholder(),
     Object? onboarding = const $CopyWithPlaceholder(),
@@ -91,6 +102,10 @@ class _$SessionBootstrapCWProxyImpl implements _$SessionBootstrapCWProxy {
           ? _value.astrologyProfile
           // ignore: cast_nullable_to_non_nullable
           : astrologyProfile as Map<String, Object?>?,
+      branchCapabilities: branchCapabilities == const $CopyWithPlaceholder()
+          ? _value.branchCapabilities
+          // ignore: cast_nullable_to_non_nullable
+          : branchCapabilities as MemberBranchCapabilities,
       investorProfile: investorProfile == const $CopyWithPlaceholder()
           ? _value.investorProfile
           // ignore: cast_nullable_to_non_nullable
@@ -138,6 +153,7 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
           json,
           requiredKeys: const [
             'astrology_profile',
+            'branch_capabilities',
             'investor_profile',
             'member',
             'onboarding',
@@ -150,6 +166,10 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
           astrologyProfile: $checkedConvert(
             'astrology_profile',
             (v) => v as Map<String, dynamic>?,
+          ),
+          branchCapabilities: $checkedConvert(
+            'branch_capabilities',
+            (v) => MemberBranchCapabilities.fromJson(v as Map<String, dynamic>),
           ),
           investorProfile: $checkedConvert(
             'investor_profile',
@@ -188,6 +208,7 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
       },
       fieldKeyMap: const {
         'astrologyProfile': 'astrology_profile',
+        'branchCapabilities': 'branch_capabilities',
         'investorProfile': 'investor_profile',
         'serverTime': 'server_time',
       },
@@ -196,6 +217,7 @@ SessionBootstrap _$SessionBootstrapFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$SessionBootstrapToJson(SessionBootstrap instance) =>
     <String, dynamic>{
       'astrology_profile': instance.astrologyProfile,
+      'branch_capabilities': instance.branchCapabilities.toJson(),
       'investor_profile': instance.investorProfile?.toJson(),
       'member': instance.member.toJson(),
       'onboarding': instance.onboarding?.toJson(),

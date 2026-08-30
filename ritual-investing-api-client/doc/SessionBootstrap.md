@@ -9,6 +9,7 @@ import 'package:ritual_investing_api_client/api.dart';
 Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **astrologyProfile** | **Map&lt;String, Object?&gt;** |  | 
+**branchCapabilities** | [**MemberBranchCapabilities**](MemberBranchCapabilities.md) |  | 
 **investorProfile** | [**InvestorProfile**](InvestorProfile.md) |  | 
 **member** | [**SessionMember**](SessionMember.md) |  | 
 **onboarding** | [**OnboardingState**](OnboardingState.md) |  | 

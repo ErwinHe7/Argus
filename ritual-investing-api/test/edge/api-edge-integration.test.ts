@@ -50,7 +50,10 @@ type FixtureOptions = Readonly<{
 function fixture(options: FixtureOptions = {}) {
   const verifyAccessToken = options.verifyAccessToken ??
     vi.fn(async () => principal());
-  const bootstrap = vi.fn(async () => ({ member: { user_id: userId } }));
+  const bootstrap = vi.fn(async () => ({
+    member: { user_id: userId },
+    server_time: "2026-08-30T12:00:00.000Z",
+  }));
   const getStaffPrincipal = vi.fn(async () =>
     options.staffPrincipal === undefined
       ? {
@@ -185,7 +188,42 @@ describe("Supabase Edge retained API adapter", () => {
       expect.any(Function),
     );
     expect(await response.json()).toMatchObject({
-      data: { member: { user_id: userId } },
+      data: {
+        member: { user_id: userId },
+        branch_capabilities: {
+          schema_version: "member-branch-capabilities-v1",
+          capability_version: 1,
+          environment: "beta",
+          evaluated_at: "2026-08-30T12:00:00.000Z",
+          expires_at: "2026-08-30T12:05:00.000Z",
+          branches: ["ritual", "starpath", "discover", "coven", "you"],
+        },
+      },
+    });
+  });
+
+  it("limits production navigation to the production branch set", async () => {
+    const test = fixture();
+    const response = await test.app.request(
+      "/v1/session/bootstrap",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer verified-supabase-token",
+          origin: apexOrigin,
+        },
+      },
+      { ...bindings, environment: "production" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: {
+        branch_capabilities: {
+          environment: "production",
+          branches: ["ritual", "starpath", "you"],
+        },
+      },
     });
   });
 

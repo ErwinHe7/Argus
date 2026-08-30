@@ -119,6 +119,7 @@ import 'package:ritual_investing_api_client/generated/model/list_admin_audit200_
 import 'package:ritual_investing_api_client/generated/model/list_admin_audit200_response_meta.dart';
 import 'package:ritual_investing_api_client/generated/model/member_account.dart';
 import 'package:ritual_investing_api_client/generated/model/member_account_response.dart';
+import 'package:ritual_investing_api_client/generated/model/member_branch_capabilities.dart';
 import 'package:ritual_investing_api_client/generated/model/member_circle.dart';
 import 'package:ritual_investing_api_client/generated/model/member_circle_assets_inner.dart';
 import 'package:ritual_investing_api_client/generated/model/member_intention.dart';
@@ -641,6 +642,9 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'MemberAccountResponse':
       return MemberAccountResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'MemberBranchCapabilities':
+      return MemberBranchCapabilities.fromJson(value as Map<String, dynamic>)
           as ReturnType;
     case 'MemberCircle':
       return MemberCircle.fromJson(value as Map<String, dynamic>) as ReturnType;

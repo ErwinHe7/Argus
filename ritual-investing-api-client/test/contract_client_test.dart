@@ -46,7 +46,7 @@ void main() {
     client.dio.httpClientAdapter = adapter;
     client.setBearerAuth('SupabaseBearer', 'verified-access-token');
 
-    await SessionApi(client.dio).bootstrapSession();
+    final response = await SessionApi(client.dio).bootstrapSession();
 
     expect(
       RitualInvestingApiClient.basePath,
@@ -59,6 +59,17 @@ void main() {
       adapter.requests.single.headers['Authorization'],
       'Bearer verified-access-token',
     );
+    expect(
+      response.data?.data.branchCapabilities.environment,
+      MemberBranchCapabilitiesEnvironmentEnum.beta,
+    );
+    expect(response.data?.data.branchCapabilities.branches, [
+      'ritual',
+      'starpath',
+      'discover',
+      'coven',
+      'you',
+    ]);
   });
 
   test('preserves If-Match on retained optimistic mutations', () async {
@@ -375,6 +386,14 @@ Map<String, Object?> _defaultData(String path) {
       'preferences': null,
       'profile': null,
       'server_time': '2026-08-28T12:00:00.000Z',
+      'branch_capabilities': {
+        'schema_version': 'member-branch-capabilities-v1',
+        'capability_version': 1,
+        'environment': 'beta',
+        'evaluated_at': '2026-08-28T12:00:00.000Z',
+        'expires_at': '2026-08-28T12:05:00.000Z',
+        'branches': ['ritual', 'starpath', 'discover', 'coven', 'you'],
+      },
     };
   }
   if (path == '/v1/preferences') {

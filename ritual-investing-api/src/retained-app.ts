@@ -673,7 +673,11 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
 
   registerSessionRoutes({
     register,
-    service: (context) => createSessionService(repositories(context).session),
+    service: (context) =>
+      createSessionService(
+        repositories(context).session,
+        context.env.environment,
+      ),
   });
 
   registerBrokerageRoutes({

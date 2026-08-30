@@ -140,6 +140,7 @@ doc/ListAdminAudit200ResponseMeta.md
 doc/MediaApi.md
 doc/MemberAccount.md
 doc/MemberAccountResponse.md
+doc/MemberBranchCapabilities.md
 doc/MemberCircle.md
 doc/MemberCircleAssetsInner.md
 doc/MemberIntention.md
@@ -395,6 +396,7 @@ lib/generated/model/list_admin_audit200_response.dart
 lib/generated/model/list_admin_audit200_response_meta.dart
 lib/generated/model/member_account.dart
 lib/generated/model/member_account_response.dart
+lib/generated/model/member_branch_capabilities.dart
 lib/generated/model/member_circle.dart
 lib/generated/model/member_circle_assets_inner.dart
 lib/generated/model/member_intention.dart

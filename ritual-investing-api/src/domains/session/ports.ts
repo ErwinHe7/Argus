@@ -1,5 +1,9 @@
+export type SessionRepositorySnapshot = Readonly<
+  Record<string, unknown> & { server_time: string }
+>;
+
 export interface SessionRepository {
-  bootstrap(): Promise<unknown>;
+  bootstrap(): Promise<SessionRepositorySnapshot>;
   finalizeOnboarding(
     input: Readonly<{
       expectedOnboardingVersion: number;
@@ -20,5 +24,5 @@ export interface SessionRepository {
       >;
     }>,
     idempotencyKey: string,
-  ): Promise<unknown>;
+  ): Promise<SessionRepositorySnapshot>;
 }
