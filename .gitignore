@@ -13,6 +13,7 @@ __pycache__/
 .worktrees/
 node_modules/
 .next/
+.context/compound-engineering/
 
 # Local Ritual staging/load evidence is stored in the approved evidence system.
 ritual-investing-api/capacity-report*.json

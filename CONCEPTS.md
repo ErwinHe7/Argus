@@ -7,6 +7,9 @@ Shared domain vocabulary for this project — entities, named processes, and sta
 ### Daily Ritual
 The recurring entry experience that frames investment research through tarot or astrology, then keeps evidence, uncertainty, and limitations adjacent to the interpretation.
 
+### Starpath
+The signed-in factual investing curriculum that uses a vertically descending celestial path, tarot-led mnemonic activities, and one non-predictive horoscope theme per session while keeping sourced financial education separate from mystical framing.
+
 ### Market-informed
 A disclosure that a mystical interpretation has an inspectable market basis, observation context, uncertainty, and reason for each idea rather than supernatural causation or a guarantee.
 
@@ -48,6 +51,9 @@ An explicit public- or member-safe database view of the currently approved edito
 
 ### Account tenant
 The v1 ownership boundary for server data. Each authenticated Ritual Investing account maps to one server-assigned tenant identifier that clients cannot choose, while future multi-user organization membership remains outside the current model.
+
+### Member lifecycle
+The immutable incarnation of a member's authority within an Account tenant. Closing a lifecycle permanently revokes that incarnation's access and work; later registration creates a new lifecycle, while each old resource follows its explicit deletion, redaction, tombstone, or retention rule.
 
 ### Member bootstrap
 The authenticated, bodyless account-preparation process that maps a verified member identity to the canonical server-owned session snapshot used to route onboarding or member entry.
