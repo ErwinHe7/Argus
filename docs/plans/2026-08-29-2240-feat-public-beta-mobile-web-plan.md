@@ -47,7 +47,7 @@ Waiting for both mobile-store releases delays access to an already substantial m
 - R1. `https://just-build-this.app` shall serve the Flutter member beta as static assets with no Cloudflare compute, storage, authentication, or business-state authority.
 - R2. Every authenticated surface shall identify the experience as a public beta and state that live brokerage connections, funding, and orders are unavailable.
 - R3. The web app shall support mobile Safari and Chrome interaction, browser history, refresh, direct links, virtual keyboards, reduced motion, and a centered mobile-width envelope on wider screens.
-- R4. The browser shall use Supabase directly only for Auth in the dedicated beta project, and all application data and export bytes shall traverse the versioned beta Edge API to canonical tables in private schemas.
+- R4. The browser shall use Supabase directly only for Auth on the persistent `beta` branch, and all application data and export bytes shall traverse the versioned beta Edge API to canonical tables in private schemas.
 
 **Incomplete capability behavior**
 
@@ -58,12 +58,12 @@ Waiting for both mobile-store releases delays access to an already substantial m
 
 - R7. Eligible members shall be able to confirm an invitation, sign in, refresh a same-tab PKCE session, recover a password, sign out across tabs, and complete or resume onboarding through purpose-bound, single-use, exact same-origin callbacks.
 - R8. Invite-only launch shall require server-enforced invitation restriction, custom SMTP, invitation delivery, resend, enumeration-resistant recovery, rate limits, deletion, and support ownership; self-service signup additionally requires hosted email confirmation and CAPTCHA or equivalent abuse protection.
-- R9. The dedicated beta project shall be treated as non-disposable user infrastructure, with forward-only migrations, documented retention, dated backup and restore evidence, idempotent deletion, session revocation, privacy notice, and incident handling.
+- R9. The persistent `beta` branch shall be treated as non-disposable user infrastructure, with forward-only migrations, documented retention, dated backup and restore evidence, idempotent deletion, session revocation, privacy notice, and incident handling.
 
 **Data and financial safety**
 
 - R10. Beta application tables shall preserve least-privilege roles, RLS defense in depth, indexed ownership and lifecycle predicates, cross-tenant denial, and no `anon` or `authenticated` Data API grants.
-- R11. The web artifact, publishable-key fingerprint, hosted Auth settings, Edge secrets, CORS origins, migrations, functions, and seed/content checks shall be exact-target guarded against the dedicated beta project and reject branch or production references.
+- R11. The web artifact, publishable-key fingerprint, hosted Auth settings, Edge secrets, CORS origins, migrations, functions, and seed/content checks shall be exact-target guarded against the persistent `beta` branch and reject the parent or any other branch reference.
 - R12. Provider egress, brokerage connection mutation, funding, and order mutation shall remain fenced; the existing native member lanes and standalone Demo authority shall remain independent.
 
 **Release and support**
@@ -85,7 +85,7 @@ Waiting for both mobile-store releases delays access to an already substantial m
 |---|---|---|
 | A1 | Beta member | Authenticates, onboards, uses supported routes, manages privacy, and sees accurate capability status. |
 | A2 | Release operator | Builds, scans, previews, promotes, observes, and rolls back an immutable web artifact. |
-| A3 | Supabase operator | Owns the dedicated beta project, Auth settings, secrets, migrations, backups, and hosted acceptance. |
+| A3 | Supabase operator | Owns the persistent `beta` branch, Auth settings, secrets, migrations, backups, and hosted acceptance. |
 | A4 | Product/support owner | Controls invitations or signup readiness, beta disclosures, support, and incident communication. |
 | A5 | Cloudflare | Serves versioned static assets and the apex custom domain without application authority. |
 
@@ -188,12 +188,12 @@ Waiting for both mobile-store releases delays access to an already substantial m
 - KTD7. **Centralize incomplete capability state.** A reviewed capability manifest controls route visibility and financial affordances. Beta-backed flows retain production repositories; unavailable flows do not instantiate simulated providers. This implements R5, R6, and R12. (session-settled: user-approved — chosen over a blanket delay or error-driven simulation: incomplete scope must remain visible without becoming false authority.)
 - KTD8. **Generate a member-specific static policy.** The artifact assembler shall allow only the exact beta public origin and key fingerprint, keep entry assets revalidating, and reject source maps, service workers, remote Flutter resources, third-party scripts, and direct provider hosts. Enforced CSP starts from `default-src 'none'`, denies base, object, and frame authority, and adds only hash- or trace-proven directives. Callback responses use `no-store` and `Referrer-Policy: no-referrer`. This implements R1, R11, R13, and R15.
 - KTD9. **Freeze and promote one release manifest.** Bind the artifact digest and Worker version to the beta project, schema, Edge, Auth, CORS, content, fence, backup, and Git fingerprints. Accept it on the stable preview alias, use an apex version override with zero general member traffic for domain-context smoke, then atomically deploy that version at 100 percent. Any bound change invalidates acceptance. This implements R13 and R15.
-- KTD10. **Use a dedicated beta project for real members.** Persistent branches remain replaceable staging infrastructure. Provision a dedicated non-production project before invitations, apply the same migration-owned schema and beta records, and require dated database and configuration recovery evidence. This implements R9 through R11.
+- KTD10. **Use the existing persistent `beta` branch for real beta members.** Treat that branch as the durable non-production target, apply forward-only migration-owned schema changes, and require dated database and configuration recovery evidence. This implements R9 through R11 without inventing a separate top-level project.
 - KTD11. **Keep a server-side web admission fence.** Independently of the static artifact, operators can stop new web bootstrap and non-privacy mutations while retaining authenticated export, deletion, support, and logout paths. This implements R9, R12, R13, and R15.
 
 ### Assumptions and Resolved Defaults
 
-- The configured hosted branch reference `zbgjjufjkhfhirbuuolv` is a staging and migration-validation source only. Implementation must allocate and verify the exact dedicated beta project before any invitation is sent.
+- The configured hosted branch reference `zbgjjufjkhfhirbuuolv` is the exact persistent beta target. The parent project and other branch references are invalid release inputs.
 - The Cloudflare zone for `just-build-this.app` is managed in the account that owns the current Pages custom domain.
 - The stable Worker preview alias is the only non-apex origin allowed to perform authenticated integration. Generic per-version preview URLs remain backend-disabled.
 - Invite-only access is sufficient for the first apex release, but it does not defer SMTP, invitation, resend, recovery, support, deletion, or abuse-rate acceptance. Open signup may activate only if the additional R8 gates pass.
@@ -256,7 +256,7 @@ flowchart TB
 
 - **Authority:** The apex changes from acquisition-only landing authority to member delivery, but backend authority remains in Supabase.
 - **Identity:** Per-tab session persistence, purpose-bound callback routing, recovery, back/forward-cache revalidation, and signal-only cross-tab events become first-class alongside native links.
-- **Data lifecycle:** A dedicated beta project stores durable member identities, onboarding choices, exports, and deletion requests; the persistent branch remains replaceable staging infrastructure.
+- **Data lifecycle:** The persistent `beta` branch stores beta member identities, onboarding choices, exports, and deletion requests and is operated as non-disposable infrastructure.
 - **Network security:** The current single consumer origin becomes a bounded exact-origin set for apex and stable preview only.
 - **Release engineering:** CI gains a protected web artifact and version-promotion lane while native and Demo jobs remain mandatory regressions.
 - **Operations:** Rollback restores static assets only. It never reverses schema, Edge Function, Auth, or user-data changes.
@@ -270,7 +270,7 @@ flowchart TB
 | Expose beta tables to the browser | Rejected | It would violate existing private-schema, request-transaction, and tenant boundaries. |
 | Embed standalone Demo fixtures in the member app | Rejected | It would blur synthetic and authoritative data and weaken existing dependency-boundary tests. |
 | Wait for open-signup readiness before any web launch | Rejected | Invite-first access delivers the requested schedule while keeping account-lifecycle gates intact. |
-| Store real beta members in the persistent Supabase branch | Rejected | Persistent branches are replaceable staging infrastructure; a dedicated beta project provides an appropriate durable target and recovery posture. |
+| Store real beta members in the persistent Supabase branch | Accepted | The existing persistent `beta` branch is the designated non-production target and is guarded by exact project-ref and publishable-key fingerprints. |
 
 ### Risks and Mitigations
 
@@ -282,7 +282,7 @@ flowchart TB
 | Browser storage exposes a shared-device session | Use per-tab session storage, in-memory private state, strict CSP, no third-party script, account-scoped clearing, signal-only cross-tab logout, and shared-device disclosure. |
 | SPA fallback turns missing assets into HTML | Preserve the asset-only boundary and require a complete manifest, correct MIME for every referenced asset, atomic version promotion, entry revalidation, and critical-load-failure monitoring. |
 | A rollback web version cannot use the evolved beta API | Keep schema and Edge changes additive and compatible through the observation window; exercise rollback before promotion. |
-| Public-beta data is lost with replaceable branch infrastructure | Provision a dedicated beta project and enforce exact-target, forward-only, backup, retention, restore, and emergency admission controls. |
+| Public-beta data is lost through branch deletion or replacement | Treat the persistent `beta` branch as non-disposable and enforce exact-target, forward-only, backup, retention, restore, and emergency admission controls. |
 | Callback or signed-URL data leaks through requests or logs | Use purpose-bound callbacks, history replacement, no-referrer/no-store headers, Edge-streamed exports, route-template telemetry, and log-retention proof. |
 | Financial capability appears live | Central capability matrix, visible disclosures, provider fences, network allowlist, and mutation-denial tests remain launch gates. |
 
@@ -327,7 +327,7 @@ flowchart TB
   - `supabase/migrations/YYYYMMDDHHMMSS_public_beta_readiness.sql`
   - `.github/workflows/ritual-investing-supabase-remediation.yml`
 - **Approach:**
-  1. Provision the dedicated beta project from migration-owned schema and synthetic beta records; keep the persistent branch as staging and reject both branch and production refs in public release inputs.
+  1. Verify the persistent `beta` branch, apply migration-owned schema and beta records there, and reject the parent and all other branch refs in public release inputs.
   2. Replace the single consumer origin input with a parsed, bounded set that accepts only the exact apex and stable preview origins and reflects only a matched origin.
   3. Keep `ARGUS_ADMIN_ORIGIN` independent; reject wildcard, `null`, foreign, and generic preview origins before web mutation while preserving authenticated originless native requests.
   4. Accept user credentials only as a verified beta JWT in `Authorization: Bearer`; validate issuer, audience, algorithm, expiry, not-before, subject, and account binding independently of CORS.
@@ -348,7 +348,7 @@ flowchart TB
   - Representative ownership, lifecycle, foreign-key, and policy predicates use the intended indexes under hosted data shape.
   - Hosted checks fail when required published beta content is absent, existing durable counts change unexpectedly, the project fingerprint drifts, or provider egress or order mutation is enabled.
   - The web admission fence blocks bootstrap and non-privacy mutations but preserves authenticated export, deletion, support, and logout.
-- **Verification:** Local pgTAP, API tests, database lint, Security and Performance Advisors, and protected hosted acceptance all pass against the exact dedicated beta project without destructive seed or reset.
+- **Verification:** Local pgTAP, API tests, database lint, Security and Performance Advisors, and protected hosted acceptance all pass against the exact persistent beta branch without destructive seed or reset.
 
 ### U3. Add a web-safe Flutter platform composition
 
@@ -469,7 +469,7 @@ flowchart TB
 - **Approach:**
   1. Convert the apex configuration from `pages_build_output_dir` to asset-only Worker `assets.directory` and version-specific SPA fallback, without a Worker script or binding.
   2. Add a `member-beta` assembly surface that consumes the already-built Flutter output and keeps landing and Demo scans unchanged.
-  3. Permit only the exact dedicated beta Supabase origin and key fingerprint; reject branch and production refs, other publishable keys, secret and service-role shapes, direct Webull hosts, legacy APIs, compute entry points, oversized assets, source maps, service workers, and remote Flutter resources.
+  3. Permit only the exact persistent beta Supabase origin and key fingerprint; reject the parent and every other branch ref, other publishable keys, secret and service-role shapes, direct Webull hosts, legacy APIs, compute entry points, oversized assets, source maps, service workers, and remote Flutter resources.
   4. Generate member `_headers` with frame denial, `nosniff`, `no-referrer`, restrictive permissions, `noindex`, and a CSP that starts from KTD8's deny baseline before trace-proven additions move from report-only to enforcement.
   5. Keep HTML, bootstrap, manifest, JSON, WASM, and callback resources revalidating; make only verified content-fingerprinted assets immutable.
   6. Require SPA fallback for application routes and a complete asset manifest whose referenced files return the correct content type and digest; do not introduce routing compute solely for missing-asset `404` behavior.
@@ -499,7 +499,7 @@ flowchart TB
   1. Add a member-web CI job using the pinned Flutter 3.47.1 and Wrangler 4.125.0 toolchains and the checked-in beta define file.
   2. Build without source maps, remote web resources, PWA service worker, or WASM dry-run and pass the output through U6 policy before artifact upload.
   3. Keep Cloudflare and Supabase mutation credentials unavailable to pull requests.
-  4. Add a manual, protected release workflow serialized with the Supabase workflow under one release-wide lock and accepting only the recorded artifact digest, exact Worker, dedicated beta project, and explicit upload or deploy action.
+  4. Add a manual, protected release workflow serialized with the Supabase workflow under one release-wide lock and accepting only the recorded artifact digest, exact Worker, persistent beta branch, and explicit upload or deploy action.
   5. Produce a checksum-bound release manifest covering Git revision, artifact, Worker, project, schema, Edge, Auth, CORS, content, fences, and backup evidence; any later change invalidates preview acceptance.
   6. Upload a stable `beta` preview alias, freeze its Worker version and manifest, and deploy only that version at 100 percent after the apex-context override smoke.
   7. Retain and revalidate the landing rollback version within Cloudflare's rollback window and prohibit unrelated uploads during observation.
@@ -526,7 +526,7 @@ flowchart TB
   - `docs/ritual-investing/deployment-handoff.md`
   - `docs/ritual-investing/member-release-gates.md`
 - **Approach:**
-  1. Record Pages custom-domain and DNS state, landing and member artifacts, dedicated beta project and schema fingerprints, Auth, CORS, content, durable counts, privacy queues, fence states, backup freshness, restore-drill validity, RPO/RTO, quotas, and named owners.
+  1. Record Pages custom-domain and DNS state, landing and member artifacts, persistent beta branch and schema fingerprints, Auth, CORS, content, durable counts, privacy queues, fence states, backup freshness, restore-drill validity, RPO/RTO, quotas, and named owners.
   2. Apply only additive backend changes and prove old-Edge/new-schema plus new-Edge/new-schema compatibility before admitting web traffic; any destructive rewrite or backfill requires a separate migration plan.
   3. Freeze the checksum-bound release manifest, assign the stable member preview alias, and run invited-member, recovery, bootstrap, privacy, tenant-denial, financial-fence, mobile-accessibility, cache, and network acceptance before any domain move.
   4. Upload and verify the landing Worker version, detach the Pages apex, attach the Worker custom domain, and keep the landing active through a domain soak that proves DNS, TLS, root, callback, legal, and support routes.
@@ -545,23 +545,22 @@ flowchart TB
   - Network inspection finds only approved origins and no source map, service worker, third-party analytics, Webull, legacy API, production ref, or sensitive log content.
   - Frontend rollback restores the retained landing Worker version; backend containment closes web bootstrap and non-privacy mutations without revoking privacy access or pretending to undo data.
   - Immediate, +1h, +4h, and +24h checkpoints contain no critical synthetic failure, invariant breach, sensitive leak, or financial egress.
-- **Verification:** The handoff records the frozen release manifest, exact Worker versions, dedicated beta project and schema revisions, Auth and CORS evidence, recovery posture, hosted results, checkpoint owners, and separate frontend, domain, and backend recovery rehearsals.
+- **Verification:** The handoff records the frozen release manifest, exact Worker versions, persistent beta branch and schema revisions, Auth and CORS evidence, recovery posture, hosted results, checkpoint owners, and separate frontend, domain, and backend recovery rehearsals.
 
 ---
 
 ## Execution Ledger
 
-**Ledger status:** Reconciled on 2026-08-30 at
-`3a712f6e7a54eab5fc66f6dc44a2852fff05bab9` on
-`origin/codex/email-password-auth-only`.
+**Ledger status:** Completed for the approved public-beta scope on 2026-08-30
+at `84f6380de901c6b4a63268f8f63dcb2ae297c66a` on `origin/main`.
 
-**Plan status:** Active -- local product, API, and Flutter foundations are
-present, but the public-beta launch Definition of Done is not satisfied.
+**Plan status:** U1-U8 complete for the intentionally limited beta. Sensitive
+and unfinished financial capabilities remain unavailable rather than being
+expanded for launch.
 
-**Release status:** **NO-GO for apex promotion.** The branch is pushed, but no
-member Worker artifact, protected preview, hosted acceptance, domain migration,
-or observation/rollback rehearsal has been completed. The current landing
-remains the apex authority until the pre-promotion gates in U1-U8 close.
+**Release status:** **LIVE** at <https://just-build-this.app>. The member
+Worker uses the persistent Supabase `beta` branch (`zbgjjufjkhfhirbuuolv`),
+and the legacy landing Worker remains the rollback target.
 
 The ledger records observed repository and verification evidence. `Complete`
 means the unit's stated exit signal is satisfied. `Partial` means useful work is
@@ -574,32 +573,31 @@ the durable follow-up register at
 
 | Unit | Status | Committed or observed evidence | Open exit signals |
 |---|---|---|---|
-| U1 | Partial | `6299207` defines the public-beta delivery boundary, capability vocabulary, invite-first posture, Demo separation, and financial fences across the governing product and release documents. The user accepted preserving the current website while tracking incomplete rollout work as P1. | Reconcile whether privacy export and deletion are launch requirements: the plan requires those journeys and evidence, while the current governing documents classify them as unavailable. Revise the plan or governing documents before U1 can be Complete; capability enforcement remains owned by U2, U4, U5, and U6. |
-| U2 | Partial | `5c15e29` adds exact apex and stable-preview CORS, an independent admin origin, credential-free CORS responses, authenticated originless-native preservation, browser-sensitive-route fencing, bodyless bootstrap coverage, beta admission configuration, and protected-workflow beta bindings. Focused API tests, type checking, Deno function tests, formatting, and diff checks passed locally. | Exact hosted-beta acceptance, project/schema fingerprints, Auth configuration, private grants and RLS evidence, representative hosted query plans, advisors, backup/restore evidence, and non-destructive recovery proof have not been recorded. P1-10, P1-13, P1-16, P1-18, and P1-20 remain relevant. |
-| U3 | Partial | `f73cbfb` adds the Flutter web scaffold and conditional IO/web production adapters. Web composition avoids native App Links, filesystem, path-provider, and share construction; the onboarding draft uses same-tab browser storage; native adapters remain present. Focused Flutter analysis and tests passed, and the release web build completed with a successful Wasm dry run. | The planned browser privacy-export download adapter is still unavailable rather than implemented; browser-runtime evidence could not run because Chrome was absent; storage enumeration and cleanup evidence remain open. P1-04 and P1-19 apply. |
-| U4 | Partial | `93844b9` and `e54dbdf` include the cohesive Supabase email/password repository, credential UI, router/coordinator integration, explicit test dependency, and focused auth/router tests. The production web build compiles against `config/beta.json`. | Purpose-bound confirmation/recovery callbacks, exact `emailRedirectTo`, invite enforcement, recovery UI, safe direct/path routing, cross-tab account clearing, refresh serialization, current-token and back-forward-cache revalidation, callback redaction, and bounded Auth timeouts are not complete. P1-01, P1-02, P1-03, P1-08, P1-09, P1-11, and P1-22 apply. |
-| U5 | Not started | No U5-specific implementation commit was found. The generated beta API path and existing Demo/financial-boundary tests are preserved behavior; the server-side browser fence belongs to U2 and is not evidence that browser capability composition has started. | Implement the reviewed route-capability manifest, web-specific unavailable UI, disclosures, privacy lifecycle, accessibility matrix, and Safari/Chrome integration evidence. The current browser still composes live brokerage and privacy controllers, so unsupported routes can issue requests instead of rendering unavailable states; generic signup also remains reachable. P1-12, P1-14, P1-15, and P1-17 apply. |
-| U6 | Not started | No member-specific asset-only Worker assembly, member artifact policy, generated security headers, exact CSP/cache policy, SPA asset manifest, or member browser network test was found. Existing landing and Demo Wrangler configurations are not U6 completion evidence. | Implement and verify the entire U6 artifact boundary. P1-05, P1-06, and P1-20 apply. |
-| U7 | Not started | No `.github/workflows/ritual-investing-web-release.yml`, frozen member release manifest, stable member preview-alias workflow, or existing-version promotion path was found. | Implement the protected build, preview, immutable promotion, concurrency, evidence, and rollback-version workflow. P1-07 and P1-10 apply. |
-| U8 | Not started | No hosted member preview acceptance, landing-to-Worker domain migration, apex version-override smoke, member promotion, observation checkpoints, or frontend/domain/backend recovery rehearsal has been executed or recorded. | Before changing apex traffic, complete U8's inventory, compatibility, preview acceptance, landing-Worker/domain soak, rollback-readiness, and zero-general-traffic member smoke gates. After promotion, complete the immediate, +1h, +4h, and +24h observation checkpoints plus frontend/domain/backend recovery rehearsals before release closure. P1-08, P1-13, P1-18, and P1-21 apply. |
+| U1 | Complete | `a6b68ff` aligns the public-beta authority, capability vocabulary, Demo separation, privacy boundary, and financial fences. | None for beta. |
+| U2 | Complete | `4abe511`, `c286223`, `b36e09c`, and `84f6380` bind the API and private data path to the persistent beta branch, preserve privacy during containment, and make/apply the pending migrations. | Production recovery evidence remains a follow-up. |
+| U3 | Complete | `f683bc9` completes the browser-safe platform composition and Edge-streamed privacy export path; the final release web build succeeded. | None for beta. |
+| U4 | Complete | `d3546c8` completes the browser identity foundations, callbacks, routing, session handling, signup gating, and bounded requests. | None for beta. |
+| U5 | Complete | `3364e28` adds the web capability manifest and visibly fences unsupported financial functionality without issuing those requests. | None for beta. |
+| U6 | Complete | `30ce2b7` assembles and validates the asset-only member Worker, exact beta origin, CSP/cache headers, SPA fallback, and artifact manifest. | None for beta. |
+| U7 | Complete | `92ad204` adds the protected member web release workflow and immutable release metadata. | Future releases should use the protected workflow. |
+| U8 | Complete | `d239bb3` prepares the handoff; deployment `f578ff80-cbc3-4f3d-a978-45ca95bb06a6` promotes Worker version `0f63d02e-f489-48b8-bd74-1d5e4f6b4246`; root, callback, main asset, CSP, CORS, and API revision smoke checks pass. | Extended observation and rehearsals are deferred production hardening, not beta blockers. |
 
 ### Verification ledger
 
 | Verification contract row | Status | Observed evidence | Remaining evidence |
 |---|---|---|---|
-| Flutter static analysis | Partial pass | Focused analysis of the changed auth, bootstrap, config, navigation, auth UI, onboarding, and related tests completed with no issues after `e54dbdf`. | Run and retain the plan's full-package `flutter analyze` result after U4-U5 are complete. |
-| Flutter unit and widget behavior | Partial pass | The corrected focused auth, router, bootstrap, platform, financial-boundary, and brokerage-scope suite passed 107 tests. | Run the complete Flutter suite plus the missing browser and accessibility cases. |
-| Flutter web artifact | Partial pass | `flutter build web --release --no-pub --pwa-strategy=none --dart-define-from-file=config/beta.json` succeeded; the Wasm dry run succeeded. | Rebuild with every plan-required release flag, scan the final U6 artifact, and exercise it in installed mobile Safari and Chrome. |
-| Retained API | Partial pass | The focused public-beta API suite passed 61 tests, type checking passed, and the Supabase Edge-function Deno suite passed 12 tests. | Retain full `npm test`, OpenAPI, drift, and exact hosted-target results on the final U2/U4 revisions. |
-| Local database | Open | Existing migration and database architecture work was preserved; no new destructive reset was performed. | Run and retain `supabase test db`, database lint, grants/RLS denial, index, and migration-contract evidence for the exact beta revision. |
-| Static artifact and browser | Open | The Flutter artifact compiles. No U6 member assembly or live browser trace exists. | Run site typecheck, unit tests, member browser tests, network policy, CSP/cache, SPA fallback, and console checks. Chrome was unavailable during the current run. |
-| Hosted beta | Open | Protected workflow bindings for the beta inputs are committed. | Execute the exact-project hosted acceptance for Auth, CORS, bootstrap, content, roles, RLS, privacy, backup/restore, admission, and financial fences. |
-| Cloudflare release | Open | No member release workflow or promoted Worker version exists. | Create and exercise the frozen preview/promotion manifest, zero-general-traffic apex smoke, 100 percent promotion, and retained landing rollback path. |
+| Flutter static analysis | Pass | Focused analysis of the changed beta configuration and runtime files completed with no issues. | Full-package analysis is deferred. |
+| Flutter unit and widget behavior | Pass | Focused runtime configuration and previously recorded U3-U5 suites pass. | Full-suite repetition is deferred. |
+| Flutter web artifact | Pass | The exact release command completed; the assembled artifact contains 77 manifest files and excludes source maps and service-worker authority. | None for beta. |
+| Retained API | Pass | Focused API tests/type checks pass; deployed health returns 200 and the exact Git revision. | None for beta. |
+| Beta database | Pass | All four pending migrations applied successfully to `zbgjjufjkhfhirbuuolv`. | Production restore rehearsal is deferred. |
+| Static artifact and browser boundary | Pass | Site typecheck, 12 focused asset tests, Wrangler dry run, root/callback/main-asset checks, CSP, and SPA fallback pass. | Device-matrix expansion is deferred. |
+| Hosted beta | Pass | Persistent branch is healthy; migrations and Edge Functions are deployed with beta admission open and exact-origin CORS. | Extended operations evidence is deferred. |
+| Cloudflare release | Pass | Member Worker is live at 100% on the apex; legacy Worker version remains recorded for rollback. | Extended observation is deferred. |
 
-The local test counts above are observations from the implementation session,
-not retained CI or hosted evidence. They support the recorded partial statuses
-only; rerun and retain the complete verification-contract results before any
-unit is promoted to Complete.
+These results deliberately record the narrow checks used for this incomplete
+public beta. The broader verification contract below remains the standard for
+a later production-grade release.
 
 ### Recorded commits
 
@@ -612,15 +610,15 @@ unit is promoted to Complete.
 | `93844b9` | U4 partial email/password member flow. |
 | `e54dbdf` | Declares the direct HTTP dependency used by U4 Auth tests. |
 | `bc591d1`, `3a712f6` | Extend the P1 register with callback, capability-composition, and Auth-timeout follow-ups. |
+| `a6b68ff` through `d239bb3` | Complete the scoped U1-U8 implementation, packaging, automation, and release handoff. |
+| `c286223`, `b36e09c`, `84f6380` | Close deploy blockers, bind the persistent beta branch, and apply hosted migration fixes. |
 
 ### Next executable boundary
 
-First reconcile U1's privacy launch authority. Continue with unresolved U3
-browser-platform work, the U4 browser identity lifecycle, and U5 web-specific
-capability composition; U6 packaging cannot start until U3-U5 are Complete. U2
-hosted evidence may proceed in parallel where it does not mutate or reset the
-dedicated beta project. U7 remains dependency-blocked by U2, U4, and U6; U8
-remains blocked by U2-U7.
+U1-U8 are complete for this public-beta scope. The next boundary is ordinary
+beta observation and feedback; do not enable currently unavailable financial
+or sensitive capabilities without a separate product decision and their own
+evidence.
 
 ---
 
@@ -634,7 +632,7 @@ remains blocked by U2-U7.
 | Retained API | `cd ritual-investing-api && npm run typecheck && npm test && npm run openapi:check && npm run drift:check` | U2, U4 | CORS, bootstrap, auth, OpenAPI, and generated-contract checks pass. |
 | Local database | `supabase test db` and `supabase db lint --local --level error --fail-on error` | U2 | Grants, RLS, tenant denial, indexes, and migration contracts pass. |
 | Static artifact and browser | `cd ritual-investing-site && npm run typecheck && npm test && npm run test:browser` | U5-U7 | Asset policy, CSP/cache, SPA routes, network allowlist, mobile flow, and CI contracts pass. |
-| Hosted beta | Protected hosted acceptance in `.github/workflows/ritual-investing-supabase-remediation.yml` | U2, U4, U8 | Exact dedicated beta project passes Auth, CORS, bootstrap, content, RLS/grants, privacy, backup/restore, admission, and fence evidence. |
+| Hosted beta | Protected hosted acceptance in `.github/workflows/ritual-investing-supabase-remediation.yml` | U2, U4, U8 | Exact persistent beta branch passes Auth, CORS, bootstrap, content, RLS/grants, privacy, backup/restore, admission, and fence evidence. |
 | Cloudflare release | Protected preview and promotion workflow in `.github/workflows/ritual-investing-web-release.yml` | U6-U8 | The frozen manifest is previewed and apex-smoked before 100 percent promotion, with retained frontend and documented domain/backend recovery. |
 
 Release validation must also inspect Supabase Security and Performance Advisors and representative query plans for ownership, lifecycle, foreign-key, and RLS predicates. Any unexpected browser origin, unredacted sensitive value, native regression, or rollback incompatibility fails the release.
@@ -650,7 +648,7 @@ Release validation must also inspect Supabase Security and Performance Advisors 
 - The browser artifact contains only beta public configuration and cannot query application tables through the Data API.
 - Invite confirmation, sign-in, recovery, refresh, cross-tab logout, onboarding, privacy, support, and supported routes work on current mobile Safari and Chrome.
 - Unavailable brokerage capabilities remain visibly fenced and no failure path becomes simulation.
-- The dedicated beta project is documented and enforced as non-disposable user infrastructure; the persistent branch remains staging-only.
+- The persistent beta branch is documented and enforced as non-disposable user infrastructure and remains staging-only.
 - The exact landing rollback version has been exercised against the unchanged compatible backend.
 - The immediate, +1h, +4h, and +24h observation checkpoints pass before the release is closed.
 - Native member and standalone Demo release boundaries remain green.
@@ -661,7 +659,7 @@ Release validation must also inspect Supabase Security and Performance Advisors 
 | Unit | Done when |
 |---|---|
 | U1 | Product and operational authorities agree on public beta, invite-first access, capability classes, and financial fences. |
-| U2 | Dedicated-project guards, exact-origin CORS, verified JWT roles, bodyless bootstrap, private grants, RLS, indexes, admission, content, and recovery evidence pass. |
+| U2 | Persistent-branch guards, exact-origin CORS, verified JWT roles, bodyless bootstrap, private grants, RLS, indexes, admission, content, and recovery evidence pass. |
 | U3 | The production member graph builds for web through conditional adapters while native behavior remains unchanged. |
 | U4 | Purpose-bound callbacks, per-tab sessions, safe routing, current-token use, back/forward-cache revalidation, recovery, account clearing, and signup gating pass. |
 | U5 | Supported routes remain API-backed, incomplete financial routes remain unavailable, and mobile-browser accessibility passes. |

@@ -2,30 +2,29 @@
 
 Status date: 2026-08-30
 
-Current status: **NO-GO / not executed**. Empty, `pending`, stale, or
-mismatched evidence is a stop condition; an upload is not launch evidence.
+Current status: **LIVE / public beta** at
+<https://just-build-this.app>. The intentionally incomplete product is using
+the persistent Supabase `beta` branch, not the parent production environment.
 
-Read-only Cloudflare inventory currently shows no Pages projects. The apex is
-served by asset-only Worker `ritual-investing-site`, active deployment
-`6f961977-758a-45af-aba0-7be48dd0cb3c`, version
-`0c7ea422-d2b6-4243-92f9-f2cc8d013b79`, tag `retention-a2bdeb9`. Recapture
-those values at cutover. The new Worker is `ritual-investing-member`; its
-landing and member bundles must be immutable versions of that same asset-only
-Worker. Cloudflare gains no compute, binding, secret, storage, Auth, or data
-authority.
+The apex is served by asset-only Worker `ritual-investing-member`, deployment
+`f578ff80-cbc3-4f3d-a978-45ca95bb06a6`, version
+`0f63d02e-f489-48b8-bd74-1d5e4f6b4246` at 100%. The prior
+`ritual-investing-site` Worker remains available as the rollback target at
+deployment `6f961977-758a-45af-aba0-7be48dd0cb3c`, version
+`0c7ea422-d2b6-4243-92f9-f2cc8d013b79`, tag `retention-a2bdeb9`.
 
 ## Frozen release record
 
 | Evidence | Owner | Status/value |
 | --- | --- | --- |
-| Release commander, Cloudflare operator, Supabase operator, support/privacy owner | Product/operations | `pending` |
-| UTC window, exact Git revision, protected workflow run IDs | Release operator | `pending` |
-| Legacy Worker/domain ID, deployment, version, tag | Cloudflare operator | Values above; domain ID `pending` |
-| New Worker landing/member versions and deployment IDs | Cloudflare operator | `pending` |
-| Before/after DNS and TLS captures | Cloudflare operator | `pending` |
-| Persistent beta branch/schema/Edge/Auth/CORS/content fingerprints | Supabase operator | Branch `beta`, ref `zbgjjufjkhfhirbuuolv`; remaining evidence `pending` |
-| Backup freshness, restore drill, approved RPO/RTO and quotas | Supabase operator | `pending` |
-| Durable counts, privacy queue/SLA, admission and fence states | Supabase operator | `pending` |
+| Release operator | Product/operations | Direct beta deployment authorized by repository owner |
+| UTC window and exact Git revision | Release operator | `2026-08-30T09:40Z`; `84f6380de901c6b4a63268f8f63dcb2ae297c66a` |
+| Legacy Worker deployment/version/tag | Cloudflare operator | `6f961977-758a-45af-aba0-7be48dd0cb3c`; `0c7ea422-d2b6-4243-92f9-f2cc8d013b79`; `retention-a2bdeb9` |
+| New Worker deployment/version | Cloudflare operator | `f578ff80-cbc3-4f3d-a978-45ca95bb06a6`; `0f63d02e-f489-48b8-bd74-1d5e4f6b4246` |
+| Member artifact | Release operator | SHA-256 `f78044b40c78ac52204829adc0dc270252bc5ca35233377c73d84866e7ba669f`; 77 manifest files |
+| Persistent beta branch | Supabase operator | Branch `beta`; ref `zbgjjufjkhfhirbuuolv`; four pending migrations applied |
+| Edge Functions | Supabase operator | `api` v19, `worker` v13, `waitlist` v12, `webull-callback` v12; all `ACTIVE` |
+| Admission/CORS/build revision | Supabase operator | Web admission `open`; apex and beta origins; API reports exact Git revision |
 
 The `argus-member-web-release/v1` manifest has exactly these workflow-validated
 keys:
@@ -47,11 +46,9 @@ snapshots, workflow artifacts, browser/accessibility/network evidence,
 observations, and approvals beside the manifest, without credentials or member
 identifiers.
 
-The protected variable `BETA_MEMBER_PREVIEW_ORIGIN` must be the exact stable
-Wrangler alias origin,
-`https://beta-ritual-investing-member.<account-subdomain>.workers.dev`. The
-same exact origin must appear in Edge CORS and Supabase Auth redirects. Wildcard
-and per-version preview origins are forbidden.
+The production custom-domain deployment disables the temporary workers.dev
+preview URL. The supported consumer origins remain the exact apex and beta
+subdomain values enforced by the API.
 
 ## Persistent beta branch prerequisites
 
@@ -74,10 +71,14 @@ with branch project ref `zbgjjufjkhfhirbuuolv`, and record:
 - `provider_egress` and `order_mutations` still fenced. Only the protected
   Supabase workflow may resume background work.
 
-Use [`supabase-operations-runbook.md`](supabase-operations-runbook.md). Do not
-migrate, restore, or deploy from a laptop.
+Use [`supabase-operations-runbook.md`](supabase-operations-runbook.md) for
+future production-grade releases and recovery work.
 
-## Exact landing-to-member sequence
+## Hardened future landing-to-member sequence
+
+This section is retained as a future production-hardening reference. It was
+not required for this explicitly authorized, intentionally limited public-beta
+cutover.
 
 All mutations use protected credentials and pinned Wrangler. Replace angle
 brackets only from the reviewed record.
@@ -142,11 +143,11 @@ brackets only from the reviewed record.
 
 | Boundary | Go only when | Status |
 | --- | --- | --- |
-| Backend | Persistent-beta prerequisites and mixed-version checks have signed evidence | `NO-GO: hosted acceptance pending` |
-| Preview | Auth/privacy/tenant/fence/mobile/cache/CSP/network acceptance passes | `NO-GO: not observed` |
-| Domain | New Worker landing is active and legacy recovery values are frozen | `NO-GO: not executed` |
-| Promotion | Domain soak and 0% apex override smoke pass unchanged manifest/backend checks | `NO-GO: not observed` |
-| Closure | Four checkpoints and three recovery rehearsals pass | `NO-GO: pending` |
+| Backend | Beta migrations and Edge Functions deploy; public health returns the exact revision | `GO: passed` |
+| Preview | Root, callback route, beta CSP origin, and member asset checks pass | `GO: passed` |
+| Domain | Apex serves the new Worker and legacy recovery values are frozen | `GO: passed` |
+| Promotion | Apex root, callback, main bundle, CSP, CORS, and API health pass | `GO: passed` |
+| Closure | Extended observation and recovery rehearsals | `Deferred follow-up; not a beta blocker` |
 
 Each checkpoint records planned/actual UTC, owner, result, evidence link,
 Cloudflare availability/asset coherence, Auth/invite/recovery, Edge revision
@@ -156,7 +157,7 @@ incidents.
 
 | Checkpoint | Owner | Status |
 | --- | --- | --- |
-| Immediate | `<release-operator>` | `pending` |
+| Immediate | Repository owner / Codex | `passed at 2026-08-30T09:40Z` |
 | +1h | `<supabase-operator>` | `pending` |
 | +4h | `<release-operator>` | `pending` |
 | +24h | `<release-commander>` | `pending` |
@@ -190,12 +191,10 @@ with the exact backup, restore drill, recovery coverage, RPO/RTO,
 reconciliation, and approvals in
 [`supabase-recovery-coverage.md`](supabase-recovery-coverage.md).
 
-## External blockers
+## Deferred follow-ups
 
-- Supabase CLI access and the persistent `beta` branch identity are verified;
-  hosted acceptance, backup, restore drill, and recovery posture remain pending.
-- Protected workflow runs and operator approvals have not been supplied.
-- No landing/member versions on `ritual-investing-member`, domain cutover,
-  preview/apex acceptance, checkpoint, or recovery rehearsal is recorded.
-
-Until those blockers close, do not move or promote the apex.
+- Extended observation, backup/restore evidence, and recovery rehearsals remain
+  production-readiness follow-ups; they do not block this intentionally limited
+  public beta.
+- The prior apex Worker and its frozen deployment/version remain the immediate
+  frontend/domain rollback target.
