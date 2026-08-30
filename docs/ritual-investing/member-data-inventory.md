@@ -10,7 +10,8 @@ This is the U1 migration authority for the member app, admin app, API, backgroun
 - Argus is authoritative for ritual, editorial, community, preference, and privacy state. Intentions and Future Mirror remain Argus-owned explanatory scenarios.
 - Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Application and brokerage data stays in private, non-Data-API schemas behind the versioned Argus API.
 - The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated.
-- Cloudflare Pages serves only static landing and standalone Demo assets.
+- Cloudflare Pages continues to serve the unchanged static landing and standalone Demo assets. Cloudflare Workers Static Assets may deliver the compiled member beta, but Cloudflare has no Auth, application-data, database, provider, or stateful backend authority.
+- The invite-first member web beta uses only beta Supabase Auth and the versioned beta Argus API. Browser code receives no direct application-table authority, and unfinished privacy and financial capabilities remain unavailable and fail closed.
 - Rowan cannot issue financial commands or receive Webull credentials, raw provider payloads, balances, or positions as prompt context.
 
 ## Classification meanings
@@ -23,6 +24,8 @@ This is the U1 migration authority for the member app, admin app, API, backgroun
 | `deleted` | The production behavior or provider integration is removed after its replacement gate passes. |
 
 ## Data handling contract
+
+The public-beta capability state is a delivery boundary, not a reclassification of the inventory below. `beta-backed` is limited to the existing non-sensitive member behavior served through the beta API; `unavailable` performs no privacy, provider, or financial request; `standalone Demo handoff` leaves the member app for the visibly synthetic, network-isolated Demo. Existing landing, Demo, mobile, and data behavior otherwise remains unchanged. The statement that sensitive capabilities are not functional in this beta does not classify stored identity or member data as non-sensitive and does not relax existing handling controls.
 
 Webull credentials, authorization codes, signing secrets, wrapped data keys, raw provider payloads, and provider-identifying callback material are server-only. They are excluded from Flutter, admin clients, public or exposed database objects, Data API grants, queue payloads, logs, analytics, crash breadcrumbs, exports, screenshots, and CI artifacts.
 
@@ -351,7 +354,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `storage-object:DELETION_DENY_JOURNAL` | retained-argus | Supabase private deletion recovery state |
 | `provider-dependency:auth0` | deleted | Replace member and staff identity with Supabase Auth |
 | `provider-dependency:neon` | deleted | Replace synthetic Neon schema with clean Supabase Postgres baseline |
-| `provider-dependency:cloudflare-workers` | deleted | Replace API/site compute with Supabase Edge; keep Pages static only |
+| `provider-dependency:cloudflare-workers` | retained-argus | Static member-beta asset delivery only; API/site compute remains deleted in favor of Supabase Edge |
 | `provider-dependency:cloudflare-queues` | deleted | Replace with private Supabase Queues |
 | `provider-dependency:r2` | deleted | Replace retained objects with private Supabase Storage |
 | `provider-dependency:cloudflare-access` | deleted | Replace staff gate with Supabase Auth and database authorization |
@@ -367,7 +370,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `secret-family:Supabase runtime role and worker secret` | retained-argus | Vault/Edge-secret custody and rotation; never client-exposed |
 | `secret-family:Webull client, signing, token-wrapping keys` | replaced-webull | Edge-secret custody with versioned rotation and redaction |
 | `runbook:admin-operations-runbook.md` | retained-argus | Rewrite for Supabase staff auth and redacted brokerage diagnostics |
-| `runbook:cloudflare-runbook.md` | deleted | Replace with static Pages-only deployment guidance |
+| `runbook:cloudflare-runbook.md` | retained-argus | Static Pages plus static member-beta delivery guidance; no Cloudflare backend authority |
 | `runbook:member-release-gates.md` | retained-argus | Rewrite for Supabase/Auth/Webull hosted evidence |
 | `runbook:neon-runbook.md` | deleted | Replace with Supabase local/hosted database operations |
 | `runbook:privacy-runbook.md` | retained-argus | Rewrite for deletion epoch and Supabase Storage |
@@ -400,6 +403,8 @@ Provider facts are not repurposed as Rowan context, marketing analytics, or a se
 
 ## Development and launch gates
 
-Branches and pull requests use a fresh local Supabase CLI stack. Serialized approved main/manual deployments target the persistent Supabase `beta` branch; pull requests receive no hosted credentials. A separate production project or reviewed production-branch promotion, production Webull registration, custom SMTP, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting remain launch gates.
+Branches and pull requests use a fresh local Supabase CLI stack. Serialized approved beta-web deployments target the exact dedicated beta Supabase project and versioned beta Argus API; the persistent `beta` branch remains replaceable staging and is not the public-beta data authority. Pull requests receive no hosted credentials. Production promotion, production Webull registration, custom SMTP, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting remain production launch gates. Open signup remains disabled until its separate invitation, recovery, abuse, and support evidence is complete.
+
+All unresolved public-beta web review work is P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md). Nothing in that register enables privacy export/deletion, brokerage reads or mutations, funding, or another unavailable capability.
 
 The repository migration removed Auth0, Neon, Cloudflare backend compute, Cloudflare Queues, R2, Cloudflare Access, Drizzle, and simulated-finance authority after focused replacement tests passed. Revoking any corresponding external credentials, routes, bindings, and resources that still exist in provider dashboards is an operator cleanup step.

@@ -20,7 +20,9 @@ Introduce Argus as an intimate, evidence-aware frontend for an existing Webull b
 
 Webull is authoritative for brokerage accounts, capabilities, restrictions, balances, positions, and orders. Argus is authoritative for ritual, editorial, community, preference, and privacy state. Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage.
 
-Cloudflare Pages serves only static landing and standalone Demo assets. It hosts no Pages Functions, `_worker.js`, Worker route, Worker binding, Queue, Cron, R2, authentication, or stateful request handling. If the waitlist is retained, the static form calls a narrowly scoped Supabase Edge Function; preview submissions remain disabled unless explicitly configured for the shared sandbox.
+Cloudflare Pages continues to retain the existing static landing and standalone Demo assets. This public-beta change does not redesign or change either artifact: the landing remains the tested rollback and Pages-hosted recovery surface even when the member Worker owns the apex. They host no Pages Functions, `_worker.js`, Worker route, Worker binding, Queue, Cron, R2, authentication, or stateful request handling. If the waitlist is retained, the static form calls a narrowly scoped Supabase Edge Function; preview submissions remain disabled unless explicitly configured for the shared sandbox.
+
+A separate compiled Flutter member beta may be delivered at the apex through Cloudflare Workers Static Assets. That delivery role is static-only and receives no Auth, application-data, database, provider, or stateful backend authority. The member beta is invite-first, uses beta Supabase and Argus API boundaries, and keeps unfinished privacy and financial capabilities visibly unavailable. It never imports Demo fixtures as a fallback.
 
 The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated. It does not call Supabase, Webull, Auth0, Neon, Cloudflare compute, or any production API.
 

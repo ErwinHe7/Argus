@@ -1,11 +1,44 @@
 # Ritual Investing member release gates
 
-Status date: 2026-08-28
+Status date: 2026-08-30
 
 Repository proof does not claim that a hosted Supabase migration, native OAuth
 callback, background worker, or Webull partner contract has passed. Record
 hosted evidence separately and keep every capability fail-closed until its gate
 is satisfied.
+
+## Invite-first public web beta
+
+The mobile-web beta may launch ahead of native store release without
+redesigning the retained landing artifact, standalone Demo, or member product
+behavior. The compiled Flutter artifact may replace the landing at the apex
+through Cloudflare Workers Static Assets; the unchanged landing remains the
+tested rollback artifact and Pages-hosted recovery surface. Cloudflare gains no
+request handler, binding, authentication, database, provider, or stateful
+backend authority. The browser uses Supabase directly only for beta Auth and
+sends application data through the versioned beta Argus API backed by private
+beta schemas.
+
+The release manifest uses one central capability state:
+
+| State | Public-beta meaning |
+| --- | --- |
+| `beta-backed` | Existing non-sensitive member behavior is connected to the exact beta API and private beta data boundary. |
+| `unavailable` | The surface is visibly incomplete and issues no privacy, provider, or financial request. |
+| `standalone Demo handoff` | The member leaves through an explicit Demo-labeled link to the independent synthetic artifact. |
+
+For this beta, brokerage reads and mutations, provider connection, funding,
+privacy export, privacy deletion, and every other unfinished sensitive
+capability remain `unavailable`. Demo fixtures are never a fallback. Open
+signup is disabled; entry is invitation-only. Before self-service signup can be
+considered, retain dated evidence for custom SMTP, invitation delivery and
+expiry, fresh-context callbacks, resend and recovery, enumeration-safe errors,
+rate limits and abuse thresholds, alert ownership, and a reachable support
+path.
+
+Every unresolved hardening and product-definition concern is a P1 follow-up in
+[`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md).
+Those entries do not authorize enabling an unavailable capability.
 
 ## Required repository proof
 
@@ -44,8 +77,8 @@ Edge Functions, and then runs
 - runtime and worker statement timeouts; and
 - all three deployment/provider fences remain enabled during acceptance.
 
-Only `background_workers` may be resumed by that deployment. Provider egress
-and order mutations remain blocked.
+Only `background_workers` may be resumed by that deployment. Provider egress,
+order mutations, and unfinished privacy routes remain blocked.
 
 On real iOS and Android devices, separately record Supabase sign-up/sign-in,
 PKCE callback recovery, session restoration and refresh, recent-auth proof,

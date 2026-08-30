@@ -14,7 +14,7 @@ Gen Z and millennial women who want investing to feel approachable without losin
 
 ## Product Purpose
 
-Create an iOS and Android investing companion where tarot and astrology make market research emotionally approachable while factual signals remain inspectable. Members may connect an existing Webull account, understand timestamped brokerage state, and explicitly confirm only supported manual order actions. Argus is not a brokerage, does not open or fund accounts, and does not maintain a second brokerage ledger.
+Create an adaptive iOS, Android, and mobile-web investing companion where tarot and astrology make market research emotionally approachable while factual signals remain inspectable. The public web beta preserves the existing member experience against beta services; it does not make unfinished privacy or brokerage capabilities functional. Members may eventually connect an existing Webull account, understand timestamped brokerage state, and explicitly confirm only supported manual order actions after their separate launch gates pass. Argus is not a brokerage, does not open or fund accounts, and does not maintain a second brokerage ledger.
 
 ## Authority Model
 
@@ -22,7 +22,9 @@ Create an iOS and Android investing companion where tarot and astrology make mar
 - Argus is authoritative for ritual, editorial, community, preference, and privacy state, including Daily Ritual, discovery, Circle, Grimoire, Founders' Coven, Intentions, and Future Mirror scenarios.
 - Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Flutter calls the versioned Argus API for application and brokerage data and uses Supabase directly only for Auth and approved Storage transport.
 - The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated. It is a separate product surface, not a mode or ledger in the production member app.
-- Cloudflare Pages serves only static landing and standalone Demo assets.
+- Cloudflare Pages continues to serve the unchanged static landing and standalone Demo assets. Cloudflare Workers Static Assets may deliver the compiled member web beta at the apex, but Cloudflare receives no Auth, application-data, database, provider, or stateful backend authority.
+- The member web beta is invite-first and uses only the beta Supabase Auth and versioned beta Argus API boundaries. Self-service signup remains unavailable pending its separate evidence gate.
+- Current member behavior is preserved. Unfinished privacy actions and every brokerage read or mutation are visibly unavailable and fail closed; the standalone Demo is the only synthetic experience and is always an explicit handoff.
 
 ## Brand Personality
 

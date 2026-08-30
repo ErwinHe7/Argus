@@ -1,14 +1,26 @@
 # Ritual Investing
 
-Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS and Android and does not import from, run, or modify the AXIO7 research services.
+Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS, Android, and an invite-first mobile-web beta and does not import from, run, or modify the AXIO7 research services. The web beta preserves the current member experience; it does not enable unfinished privacy or financial behavior.
 
 ## Product authority
 
-Webull is authoritative for brokerage accounts, capabilities, restrictions, balances, positions, and orders. Argus is authoritative for ritual, editorial, community, preference, and privacy state. Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Cloudflare Pages serves only static landing and standalone Demo assets.
+Webull is authoritative for brokerage accounts, capabilities, restrictions, balances, positions, and orders. Argus is authoritative for ritual, editorial, community, preference, and privacy state. Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Cloudflare Pages continues to serve the unchanged static landing and standalone Demo assets. Cloudflare Workers Static Assets may deliver compiled member-beta files at the apex, with no request handler, binding, authentication, data, or backend authority.
 
 The production member app is a frontend for an existing Webull brokerage relationship; it is not a brokerage ledger. Flutter never receives Webull credentials or raw provider payloads and never calls Webull directly. Brokerage reads and supported manual order commands cross the generated, versioned Argus API. Funding, account opening, recurring financial execution, autonomous trading, and rebalance execution are outside the product.
 
 The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated. It remains in `ritual-investing-demo/`; production must not import its fixtures, state, services, or reset behavior.
+
+## Public web beta
+
+The apex member beta is invite-first and binds only to the beta Supabase Auth project and versioned beta Argus API. It does not use production endpoints, public Data API tables, or a parallel browser-owned application-data path. The current landing site and standalone Demo remain unchanged.
+
+Capability labels have one meaning across the member app and release evidence:
+
+- `beta-backed` means the existing non-sensitive member behavior uses the versioned beta Argus API and private beta data boundary.
+- `unavailable` means the control is visibly incomplete and performs no provider, privacy, or financial request. Brokerage reads and mutations, funding, export, deletion, and every other unfinished sensitive capability remain in this state for the beta.
+- `standalone Demo handoff` means an explicit, visibly labeled navigation to the independent synthetic Demo; Demo fixtures never fill gaps in the member app.
+
+Invite delivery, recovery, callback, resend, abuse, and support proof must be recorded before self-service signup is considered. Open signup remains disabled. The unresolved hardening and product-definition work is tracked as P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](../docs/ritual-investing/public-beta-web-p1-follow-up-register.md); that register does not authorize enabling an unavailable capability.
 
 ## Member surfaces
 
@@ -40,17 +52,20 @@ flutter test integration_test/member_experience_test.dart -d <device-id> \
 ../scripts/check-member-provider-boundaries.sh
 ```
 
-Launch the member app against the persistent `beta` branch of the hosted
-Ritual Investment Supabase project from the repository root:
+For native development, launch the member app against the persistent `beta`
+staging branch of the hosted Ritual Investment Supabase project from the
+repository root:
 
 ```sh
 ./scripts/run-ritual-investing-beta.sh -d <device-id>
 ```
 
 The script reads the committed public client configuration from
-`ritual-investing-app/config/beta.json`. It contains only the beta branch URL
+`ritual-investing-app/config/beta.json`. It contains only the staging branch URL
 and Supabase publishable key; no server secret or database credential is
-shipped to Flutter.
+shipped to Flutter. This native development helper is not public-beta release
+authority: the web artifact must bind to the exact dedicated beta project and
+versioned beta API recorded in its release manifest.
 
 The visual baselines live under `test/goldens/`. Regenerate them only after comparing the result with the approved authority at `../docs/visual-references/standalone-ritual-investing/approved-light-dark-reference.html`.
 
