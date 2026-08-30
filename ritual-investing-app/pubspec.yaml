@@ -45,6 +45,7 @@ dependencies:
   share_plus: ^13.3.0
   supabase_flutter: 2.17.2
   url_launcher: 6.3.2
+  web: 1.1.1
 
 dev_dependencies:
   flutter_test:

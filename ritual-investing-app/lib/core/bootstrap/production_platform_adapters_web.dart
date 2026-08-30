@@ -18,7 +18,7 @@ OnboardingDraftStore createProductionOnboardingDraftStore({
 );
 
 PrivateExportFiles createProductionPrivateExportFiles() =>
-    const FlutterPrivateExportFiles();
+    FlutterPrivateExportFiles();
 
 void bindProductionBrokerageNativeLinks({
   required EntryCoordinator coordinator,
