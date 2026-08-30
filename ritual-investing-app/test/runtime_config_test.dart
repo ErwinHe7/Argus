@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/core/config/runtime_config.dart';
 
@@ -15,6 +18,7 @@ void main() {
     argusAuthRedirectAllowlist:
         authLinks ??
         'https://just-build-this.app/mobile/argus-auth/callback,'
+            'https://just-build-this.app/auth/recovery,'
             'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
     webullCompletionAllowlist:
         webullLinks ??
@@ -53,5 +57,41 @@ void main() {
       value.nativeLinks.preferredArgusAuthRedirect,
       Uri.parse('https://just-build-this.app/mobile/argus-auth/callback'),
     );
+    expect(
+      value.passwordRecoveryRedirect,
+      Uri.parse('https://just-build-this.app/auth/recovery'),
+    );
   });
+
+  test(
+    'public beta requires exact project and publishable-key fingerprint',
+    () {
+      const key = 'sb_publishable_abcdefghijklmnop';
+      final fingerprint = sha256.convert(utf8.encode(key)).toString();
+      expect(
+        RuntimeConfig(
+          environment: 'beta',
+          apiBaseUrl:
+              'https://abcdefghijklmnopqrst.supabase.co/functions/v1/api',
+          supabaseUrl: 'https://abcdefghijklmnopqrst.supabase.co',
+          supabasePublishableKey: key,
+          betaSupabaseProjectRef: 'abcdefghijklmnopqrst',
+          betaSupabasePublishableKeySha256: fingerprint,
+        ).environment,
+        'beta',
+      );
+      expect(
+        () => RuntimeConfig(
+          environment: 'beta',
+          apiBaseUrl:
+              'https://abcdefghijklmnopqrst.supabase.co/functions/v1/api',
+          supabaseUrl: 'https://abcdefghijklmnopqrst.supabase.co',
+          supabasePublishableKey: key,
+          betaSupabaseProjectRef: 'differentprojectrefxx',
+          betaSupabasePublishableKeySha256: fingerprint,
+        ),
+        throwsA(isA<RuntimeConfigException>()),
+      );
+    },
+  );
 }

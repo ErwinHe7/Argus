@@ -3,10 +3,12 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'member_auth.dart';
+import 'member_auth_storage.dart';
+
+export 'member_auth_storage.dart' show MemberAuthSecureStorage;
 
 class MemberSupabaseSession {
   const MemberSupabaseSession({
@@ -41,6 +43,13 @@ abstract interface class MemberSupabaseAuthClient {
     required String email,
     required String password,
   });
+
+  Future<void> requestPasswordRecovery({
+    required String email,
+    required String redirectTo,
+  });
+
+  Future<void> updatePassword({required String password});
 
   Future<void> signOut(MemberLogoutScope scope);
 }
@@ -116,6 +125,17 @@ class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
   }
 
   @override
+  Future<void> requestPasswordRecovery({
+    required String email,
+    required String redirectTo,
+  }) => _client.auth.resetPasswordForEmail(email, redirectTo: redirectTo);
+
+  @override
+  Future<void> updatePassword({required String password}) async {
+    await _client.auth.updateUser(UserAttributes(password: password));
+  }
+
+  @override
   Future<void> signOut(MemberLogoutScope scope) => _client.auth.signOut(
     scope: switch (scope) {
       MemberLogoutScope.local => SignOutScope.local,
@@ -147,11 +167,14 @@ class SupabaseSessionRepository
     implements
         SessionRepository,
         PasswordSessionRepository,
+        PasswordRecoverySessionRepository,
         SessionChangeRepository,
         ScopedSessionLogout {
   SupabaseSessionRepository({
     required MemberSupabaseAuthClient client,
     required Uri supabaseUrl,
+    this.passwordRecoveryRedirect =
+        'https://just-build-this.app/mobile/argus-auth/callback',
     DateTime Function()? now,
   }) : _client = client,
        _now = now ?? DateTime.now,
@@ -163,13 +186,17 @@ class SupabaseSessionRepository
   factory SupabaseSessionRepository.production({
     required SupabaseClient client,
     required Uri supabaseUrl,
+    required Uri passwordRecoveryRedirect,
   }) => SupabaseSessionRepository(
     client: SupabaseFlutterAuthClient(client),
     supabaseUrl: supabaseUrl,
+    passwordRecoveryRedirect: passwordRecoveryRedirect.toString(),
   );
 
   final MemberSupabaseAuthClient _client;
   final DateTime Function() _now;
+  final String passwordRecoveryRedirect;
+  Future<AuthSession?>? _activeRecovery;
 
   @override
   final MemberClientExpectation memberClientExpectation;
@@ -205,6 +232,12 @@ class SupabaseSessionRepository
 
   @override
   Future<AuthSession?> recover() async {
+    return _activeRecovery ??= _recover().whenComplete(
+      () => _activeRecovery = null,
+    );
+  }
+
+  Future<AuthSession?> _recover() async {
     final session = await _client.getCurrentSession();
     if (session == null) return null;
     final restored = _validated(session, allowExpired: true);
@@ -215,6 +248,17 @@ class SupabaseSessionRepository
     }
     return restored;
   }
+
+  @override
+  Future<void> requestPasswordRecovery({required String email}) =>
+      _client.requestPasswordRecovery(
+        email: email,
+        redirectTo: passwordRecoveryRedirect,
+      );
+
+  @override
+  Future<void> updatePassword({required String password}) =>
+      _client.updatePassword(password: password);
 
   @override
   Future<void> logout() => logoutWithScope(MemberLogoutScope.local);
@@ -313,40 +357,6 @@ class SupabaseSessionRepository
       value.endsWith('/') ? value.substring(0, value.length - 1) : value;
 }
 
-abstract interface class MemberAuthSecureStorage {
-  Future<String?> read(String key);
-  Future<void> write(String key, String value);
-  Future<void> delete(String key);
-}
-
-class FlutterMemberAuthSecureStorage implements MemberAuthSecureStorage {
-  FlutterMemberAuthSecureStorage({FlutterSecureStorage? storage})
-    : _storage =
-          storage ??
-          const FlutterSecureStorage(
-            aOptions: AndroidOptions(
-              storageNamespace: 'ritual_member_protected_v1',
-              migrateWithBackup: false,
-            ),
-            iOptions: IOSOptions(
-              accessibility: KeychainAccessibility.first_unlock_this_device,
-              synchronizable: false,
-            ),
-          );
-
-  final FlutterSecureStorage _storage;
-
-  @override
-  Future<String?> read(String key) => _storage.read(key: key);
-
-  @override
-  Future<void> write(String key, String value) =>
-      _storage.write(key: key, value: value);
-
-  @override
-  Future<void> delete(String key) => _storage.delete(key: key);
-}
-
 class SecureSupabaseLocalStorage extends LocalStorage {
   SecureSupabaseLocalStorage(this._storage);
 
@@ -417,7 +427,7 @@ Future<SupabaseClient> initializeMemberSupabase({
   required MemberNativeLinkPolicy nativeLinks,
   MemberAuthSecureStorage? secureStorage,
 }) async {
-  final storage = secureStorage ?? FlutterMemberAuthSecureStorage();
+  final storage = secureStorage ?? ProductionMemberAuthSecureStorage();
   final instance = await Supabase.initialize(
     url: url.toString(),
     publishableKey: publishableKey,

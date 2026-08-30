@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/member_sign_in_screen.dart';
@@ -15,13 +16,20 @@ import 'member_routes.dart';
 GoRouter createAppRouter({
   required DependencyContainer container,
   MemberResourceAccess? resourceAccess,
+  bool allowSelfServiceSignup = true,
 }) {
   final access = resourceAccess ?? (_, _) => false;
   return GoRouter(
-    initialLocation: container.entryCoordinator == null ? '/entry' : '/welcome',
+    initialLocation: kIsWeb
+        ? null
+        : container.entryCoordinator == null
+        ? '/entry'
+        : '/welcome',
     restorationScopeId: 'ritual-investing-router',
     refreshListenable: container,
+    errorBuilder: (context, state) => const _NotFoundScreen(),
     redirect: (context, state) {
+      if (state.error != null) return null;
       final coordinator = container.entryCoordinator;
       if (coordinator != null) {
         final path = state.uri.path;
@@ -33,6 +41,8 @@ GoRouter createAppRouter({
             _questionStep(stepName) != null || path == '/onboarding/review';
         final isAuthenticated =
             container.authController.state.phase == AuthPhase.signedIn;
+        if (path == '/auth/recovery' && isAuthenticated) return null;
+        if (path == '/forgot-password' && !isAuthenticated) return null;
         final isEntry =
             path == '/welcome' ||
             path == '/sign-in' ||
@@ -43,7 +53,12 @@ GoRouter createAppRouter({
           EntryDestination.restoring ||
           EntryDestination.finalizing => path == '/entry' ? null : '/entry',
           EntryDestination.welcome =>
-            path == '/welcome' || path == '/sign-in' ? null : '/welcome',
+            path == '/welcome' ||
+                    path == '/sign-in' ||
+                    path == '/forgot-password' ||
+                    path == '/create-account'
+                ? null
+                : '/welcome',
           EntryDestination.questionnaire =>
             path == '/create-account' && isAuthenticated
                 ? '/onboarding/review'
@@ -69,7 +84,9 @@ GoRouter createAppRouter({
           state.uri.path == '/entry' || state.uri.path == '/sign-in';
       if (container.entryGate != MemberEntryGate.member) {
         if (container.entryGate == MemberEntryGate.signedOut &&
-            state.uri.path == '/sign-in') {
+            (state.uri.path == '/sign-in' ||
+                state.uri.path == '/forgot-password' ||
+                state.uri.path == '/create-account')) {
           return null;
         }
         return atEntry ? null : '/entry';
@@ -90,19 +107,40 @@ GoRouter createAppRouter({
         builder: (context, state) => MemberSignInScreen(
           onSubmit: (email, password) =>
               container.signInWithPassword(email: email, password: password),
+          onForgotPassword: () => context.push('/forgot-password'),
+        ),
+      ),
+      GoRoute(
+        path: '/forgot-password',
+        builder: (context, state) => MemberPasswordScreen.forgot(
+          onSubmit: container.authController.requestPasswordRecovery,
+        ),
+      ),
+      GoRoute(
+        path: '/auth/recovery',
+        builder: (context, state) => MemberPasswordScreen.reset(
+          onSubmit: (password) async {
+            if (await container.authController.updatePassword(password) &&
+                context.mounted) {
+              context.go(MemberRoutes.ritual.path);
+            }
+          },
         ),
       ),
       GoRoute(
         path: '/create-account',
-        builder: (context, state) => MemberSignInScreen(
-          title: 'Create account',
-          submitLabel: 'Create account',
-          submittingLabel: 'Creating account…',
-          onSubmit: (email, password) => container.createAccountWithPassword(
-            email: email,
-            password: password,
-          ),
-        ),
+        builder: (context, state) => allowSelfServiceSignup
+            ? MemberSignInScreen(
+                title: 'Create account',
+                submitLabel: 'Create account',
+                submittingLabel: 'Creating account…',
+                onSubmit: (email, password) =>
+                    container.createAccountWithPassword(
+                      email: email,
+                      password: password,
+                    ),
+              )
+            : const _InviteOnlyScreen(),
       ),
       GoRoute(
         path: '/onboarding/review',
@@ -125,11 +163,15 @@ GoRouter createAppRouter({
           primaryActionLabel:
               container.authController.state.phase == AuthPhase.signedIn
               ? 'Finish setup'
-              : 'Create account',
+              : allowSelfServiceSignup
+              ? 'Create account'
+              : 'Sign in with invitation',
           onPrimaryAction:
               container.authController.state.phase == AuthPhase.signedIn
               ? () => _runUiAction(context, container.attachOnboardingDraft)
-              : () => context.push('/create-account'),
+              : () => context.push(
+                  allowSelfServiceSignup ? '/create-account' : '/sign-in',
+                ),
           onDraftChanged: (draft) => _runUiAction(
             context,
             () => container.persistOnboardingDraft(draft),
@@ -208,6 +250,49 @@ GoRouter createAppRouter({
         onLogout: container.logout,
       ),
     ],
+  );
+}
+
+class _InviteOnlyScreen extends StatelessWidget {
+  const _InviteOnlyScreen();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Public beta access')),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'This beta is invitation-only. Use the email address that received an invitation.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => context.go('/sign-in'),
+              child: const Text('Sign in'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _NotFoundScreen extends StatelessWidget {
+  const _NotFoundScreen();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Page not found')),
+    body: Center(
+      child: TextButton(
+        onPressed: () => context.go('/'),
+        child: const Text('Return to Ritual Investing'),
+      ),
+    ),
   );
 }
 

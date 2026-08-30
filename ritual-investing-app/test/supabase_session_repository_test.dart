@@ -530,6 +530,8 @@ class _FakeAuthClient implements MemberSupabaseAuthClient {
   final List<_PasswordSignIn> passwordSignUps = [];
   final List<MemberLogoutScope> logoutScopes = [];
   int refreshCalls = 0;
+  final List<String> recoveryEmails = [];
+  String? updatedPassword;
 
   @override
   Stream<MemberSupabaseAuthChange> get events => _events.stream;
@@ -565,6 +567,19 @@ class _FakeAuthClient implements MemberSupabaseAuthClient {
   }) async {
     passwordSignUps.add(_PasswordSignIn(email: email, password: password));
     return passwordResult ?? (throw StateError('No password result.'));
+  }
+
+  @override
+  Future<void> requestPasswordRecovery({
+    required String email,
+    required String redirectTo,
+  }) async {
+    recoveryEmails.add(email);
+  }
+
+  @override
+  Future<void> updatePassword({required String password}) async {
+    updatedPassword = password;
   }
 
   @override

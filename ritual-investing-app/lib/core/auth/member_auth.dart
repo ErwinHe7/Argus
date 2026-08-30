@@ -261,6 +261,11 @@ abstract interface class PasswordSessionRepository {
   });
 }
 
+abstract interface class PasswordRecoverySessionRepository {
+  Future<void> requestPasswordRecovery({required String email});
+  Future<void> updatePassword({required String password});
+}
+
 /// Optional richer session stream implemented by providers that expose
 /// refresh, recovery, sign-out, and auth-stream failures.
 abstract interface class SessionChangeRepository {

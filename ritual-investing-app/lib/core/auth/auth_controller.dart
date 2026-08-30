@@ -153,6 +153,30 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
     }
   }
 
+  Future<void> requestPasswordRecovery(String email) async {
+    if (_repository case final PasswordRecoverySessionRepository supported) {
+      try {
+        await supported.requestPasswordRecovery(email: email);
+      } on Object {
+        // Always return the same result to avoid disclosing account existence.
+      }
+    }
+  }
+
+  Future<bool> updatePassword(String password) async {
+    if (_repository case final PasswordRecoverySessionRepository supported) {
+      try {
+        await supported.updatePassword(password: password);
+        final session = _activeSession;
+        if (session != null) _adoptSession(session);
+        return true;
+      } on Object {
+        return false;
+      }
+    }
+    return false;
+  }
+
   static String _passwordSignInMessage(String reason) => switch (reason) {
     'invalid_credentials' ||
     'user_not_found' => 'Email or password is incorrect.',

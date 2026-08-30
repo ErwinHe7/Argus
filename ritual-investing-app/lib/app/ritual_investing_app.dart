@@ -15,11 +15,13 @@ class RitualInvestingApp extends StatefulWidget {
     required this.container,
     this.resourceAccess,
     this.bootstrapOnStart = true,
+    this.allowSelfServiceSignup = true,
   });
 
   final DependencyContainer container;
   final MemberResourceAccess? resourceAccess;
   final bool bootstrapOnStart;
+  final bool allowSelfServiceSignup;
 
   @override
   State<RitualInvestingApp> createState() => _RitualInvestingAppState();
@@ -29,6 +31,7 @@ class _RitualInvestingAppState extends State<RitualInvestingApp> {
   late final GoRouter _router = createAppRouter(
     container: widget.container,
     resourceAccess: widget.resourceAccess,
+    allowSelfServiceSignup: widget.allowSelfServiceSignup,
   );
 
   @override

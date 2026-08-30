@@ -31,6 +31,7 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
     repository: SupabaseSessionRepository.production(
       client: Supabase.instance.client,
       supabaseUrl: config.supabaseUrl,
+      passwordRecoveryRedirect: config.passwordRecoveryRedirect,
     ),
     stepUpReceipts: ApiStepUpReceiptRepository.fromClientProvider(() => client),
   );

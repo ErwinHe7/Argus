@@ -17,6 +17,7 @@ Future<void> main() async {
     runApp(
       RitualInvestingApp(
         container: createProductionDependencyContainer(config),
+        allowSelfServiceSignup: config.allowSelfServiceSignup,
       ),
     );
   } on RuntimeConfigException catch (error) {

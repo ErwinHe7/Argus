@@ -7,12 +7,14 @@ class MemberSignInScreen extends StatefulWidget {
     this.title = 'Sign in',
     this.submitLabel = 'Sign in',
     this.submittingLabel = 'Signing in…',
+    this.onForgotPassword,
   });
 
   final Future<void> Function(String email, String password)? onSubmit;
   final String title;
   final String submitLabel;
   final String submittingLabel;
+  final VoidCallback? onForgotPassword;
 
   @override
   State<MemberSignInScreen> createState() => _MemberSignInScreenState();
@@ -87,8 +89,93 @@ class _MemberSignInScreenState extends State<MemberSignInScreen> {
                 _isSubmitting ? widget.submittingLabel : widget.submitLabel,
               ),
             ),
+            if (widget.onForgotPassword != null)
+              TextButton(
+                key: const Key('member-forgot-password'),
+                onPressed: _isSubmitting ? null : widget.onForgotPassword,
+                child: const Text('Forgot password?'),
+              ),
           ],
         ),
+      ),
+    ),
+  );
+}
+
+class MemberPasswordScreen extends StatefulWidget {
+  const MemberPasswordScreen.forgot({super.key, required this.onSubmit})
+    : isReset = false;
+
+  const MemberPasswordScreen.reset({super.key, required this.onSubmit})
+    : isReset = true;
+
+  final bool isReset;
+  final Future<void> Function(String value) onSubmit;
+
+  @override
+  State<MemberPasswordScreen> createState() => _MemberPasswordScreenState();
+}
+
+class _MemberPasswordScreenState extends State<MemberPasswordScreen> {
+  final _controller = TextEditingController();
+  bool _submitted = false;
+  bool _busy = false;
+
+  Future<void> _submit() async {
+    if (_busy || _controller.text.trim().isEmpty) return;
+    setState(() => _busy = true);
+    try {
+      await widget.onSubmit(_controller.text.trim());
+      if (mounted) setState(() => _submitted = true);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: Text(widget.isReset ? 'Set new password' : 'Reset password'),
+    ),
+    body: SafeArea(
+      child: ListView(
+        padding: const EdgeInsets.all(24),
+        children: [
+          if (_submitted && !widget.isReset)
+            const Text(
+              'If this email is eligible, password recovery instructions are on the way.',
+              key: Key('password-recovery-sent'),
+            )
+          else ...[
+            TextField(
+              key: Key(
+                widget.isReset
+                    ? 'member-new-password'
+                    : 'member-recovery-email',
+              ),
+              controller: _controller,
+              obscureText: widget.isReset,
+              keyboardType: widget.isReset
+                  ? TextInputType.visiblePassword
+                  : TextInputType.emailAddress,
+              decoration: InputDecoration(
+                labelText: widget.isReset ? 'New password' : 'Email',
+              ),
+            ),
+            const SizedBox(height: 24),
+            FilledButton(
+              key: const Key('member-password-submit'),
+              onPressed: _busy ? null : _submit,
+              child: Text(widget.isReset ? 'Set password' : 'Send reset link'),
+            ),
+          ],
+        ],
       ),
     ),
   );
