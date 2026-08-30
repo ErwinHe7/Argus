@@ -4,11 +4,16 @@ import {
   RepositoryRevisionConflictError,
 } from "../../db/repository-support.ts";
 import { ritualAssignmentSchema } from "../engagement/schemas.ts";
+import { replaceLegacyDailyTarotProjection } from "./tarot-card-reading.ts";
 
 type RitualProjectionRow = Readonly<{ projection: unknown }>;
 
 function assignmentProjection(row: RitualProjectionRow | undefined) {
-  return row === undefined ? null : ritualAssignmentSchema.parse(row.projection);
+  if (row === undefined) return null;
+  const assignment = ritualAssignmentSchema.parse(row.projection);
+  return ritualAssignmentSchema.parse(
+    replaceLegacyDailyTarotProjection(assignment),
+  );
 }
 
 export function createSupabaseRitualRepository(
@@ -118,7 +123,7 @@ export function createSupabaseRitualRepository(
       to: "revealed" | "completed",
       expectedVersion: number,
     ) => {
-      const result = await database.query<JsonObject>(
+      const result = await database.query<{ id: string }>(
         `update argus_app.daily_ritual_assignments
               set state = $3,
                   revealed_at = case when $3 = 'revealed'
@@ -128,13 +133,21 @@ export function createSupabaseRitualRepository(
                   version = version + 1
             where user_id = argus_private.trusted_request_user_id() and id = $1 and state = $2
               and version = $4
-          returning *`,
+          returning id`,
         [assignmentId, from, to, expectedVersion],
       );
       if (result.rows.length !== 1) {
         throw new RepositoryRevisionConflictError();
       }
-      return result.rows[0]!;
+      const projectionResult = await database.query<RitualProjectionRow>(
+        `${selectAssignment} and assignment.id = $1 limit 1`,
+        [assignmentId],
+      );
+      const projection = assignmentProjection(projectionResult.rows[0]);
+      if (projection === null) {
+        throw new Error("ritual_transition_projection_missing");
+      }
+      return projection;
     },
     getSchedule: async (localDate: string, mode: "tarot" | "astrology") => {
       const result = await database.query<JsonObject>(

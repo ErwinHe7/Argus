@@ -22,6 +22,12 @@ void main() {
     expect(find.text('Market-informed · reveal the pattern'), findsOneWidget);
     expect(find.text('VIG'), findsOneWidget);
     expect(find.text('Founders’ Coven'), findsOneWidget);
+
+    await tester.scrollUntilVisible(
+      find.textContaining('Demo market scenario'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     expect(find.textContaining('Demo market scenario'), findsOneWidget);
 
     await tester.tap(find.text('Market-informed · reveal the pattern'));
@@ -29,7 +35,7 @@ void main() {
     expect(find.text('Durable dividend momentum'), findsOneWidget);
     expect(
       find.textContaining('Inspect the evidence, compare risks'),
-      findsOneWidget,
+      findsWidgets,
     );
   });
 

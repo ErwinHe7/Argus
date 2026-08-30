@@ -171,13 +171,5 @@ RitualTarotArtwork? resolveRitualTarotArtwork({
   required DailyRitualMode mode,
 }) {
   if (mode != DailyRitualMode.tarot) return null;
-
-  final explicitlyAssigned = _majorArcanaArtworkByKey[art.key];
-  if (explicitlyAssigned != null) return explicitlyAssigned;
-  if (art.key != 'the_compass') return null;
-
-  final calendarDate = DateTime.utc(date.year, date.month, date.day);
-  final dayNumber = calendarDate.difference(DateTime.utc(2000)).inDays;
-  final index = dayNumber % majorArcanaArtwork.length;
-  return majorArcanaArtwork[index];
+  return _majorArcanaArtworkByKey[art.key];
 }

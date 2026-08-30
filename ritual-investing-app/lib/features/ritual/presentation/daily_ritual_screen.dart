@@ -137,6 +137,9 @@ class DailyRitualScreen extends StatelessWidget {
                     art: controller.state.value!.art,
                     date: controller.state.value!.date,
                     mode: controller.state.value!.mode,
+                    concealed:
+                        controller.state.value!.state ==
+                        DailyRitualState.assigned,
                     useBundledArtwork: useBundledArtwork,
                     assetPackage: assetPackage,
                   ),
@@ -162,6 +165,23 @@ class DailyRitualScreen extends StatelessWidget {
                       icon: const Icon(Icons.auto_awesome),
                       label: const Text('Reveal today’s ritual'),
                     ),
+                    if (controller.mutationPhase ==
+                            RitualMutationPhase.retryableFailure ||
+                        controller.mutationPhase ==
+                            RitualMutationPhase.terminalFailure) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        controller.mutationPhase ==
+                                RitualMutationPhase.retryableFailure
+                            ? 'Could not update this ritual. Try again.'
+                            : 'This ritual could not be updated. Refresh and try again.',
+                        key: const Key('ritual-mutation-status'),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ],
                   ] else ...[
                     Text(
                       controller.state.value!.title,
@@ -180,6 +200,42 @@ class DailyRitualScreen extends StatelessWidget {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 14),
+                    Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 420),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: colors.screen,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: colors.line),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "TODAY'S REFLECTION",
+                                  style: TextStyle(
+                                    color: colors.gold,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: 1.4,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  controller.state.value!.guidance,
+                                  style: Theme.of(context).textTheme.bodyMedium
+                                      ?.copyWith(height: 1.45),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
                     if (_personalizationLabel(personalization)
                         case final label?) ...[
                       const SizedBox(height: 4),
@@ -190,36 +246,41 @@ class DailyRitualScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                     ],
-                    Center(
-                      child: TextButton.icon(
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(0, 44),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                    if (controller.state.value!.evidence.isNotEmpty) ...[
+                      Center(
+                        child: TextButton.icon(
+                          style: TextButton.styleFrom(
+                            minimumSize: const Size(0, 44),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                        onPressed: () => _showEvidence(context),
-                        icon: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: colors.positive,
-                            shape: BoxShape.circle,
+                          onPressed: () => _showEvidence(context),
+                          icon: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: colors.positive,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const SizedBox(width: 8, height: 8),
                           ),
-                          child: const SizedBox(width: 8, height: 8),
+                          label: Text(controller.state.value!.marketLabel),
                         ),
-                        label: Text(controller.state.value!.marketLabel),
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    Divider(color: colors.line),
-                    const SizedBox(height: 8),
-                    _Constellation(
-                      colors: colors,
-                      ideas: controller.state.value!.ideas,
-                      onOpenAsset: onOpenAsset,
-                    ),
-                    const SizedBox(height: 16),
+                    ],
+                    if (controller.state.value!.ideas.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Divider(color: colors.line),
+                      const SizedBox(height: 8),
+                      _Constellation(
+                        colors: colors,
+                        ideas: controller.state.value!.ideas,
+                        onOpenAsset: onOpenAsset,
+                      ),
+                      const SizedBox(height: 16),
+                    ] else
+                      const SizedBox(height: 16),
                     _CovenStrip(colors: colors, onTap: onOpenCoven),
                     const SizedBox(height: 14),
                     if (rowanController != null)
@@ -254,12 +315,14 @@ class DailyRitualScreen extends StatelessWidget {
                         label: const Text('Complete today’s ritual'),
                       ),
                     ],
-                    const SizedBox(height: 18),
-                    Text(
-                      DemoDisclosureCopy.marketScenario,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: colors.faint, fontSize: 12),
-                    ),
+                    if (controller.state.value!.demo.isDemo) ...[
+                      const SizedBox(height: 18),
+                      Text(
+                        DemoDisclosureCopy.marketScenario,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.faint, fontSize: 12),
+                      ),
+                    ],
                   ],
                   const SizedBox(height: 10),
                   TextButton.icon(
@@ -410,7 +473,7 @@ class DailyRitualScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Lifecycle states come from the server. Demo readings never imply market completion.',
+                        'Lifecycle states come from the server. Completing a ritual records reflection, not market action.',
                       ),
                       const SizedBox(height: 14),
                       StateStatus(
@@ -422,7 +485,9 @@ class DailyRitualScreen extends StatelessWidget {
                         ListTile(
                           contentPadding: EdgeInsets.zero,
                           minTileHeight: 56,
-                          leading: const DemoBadge(horizontalPadding: 7),
+                          leading: item.demo.isDemo
+                              ? const DemoBadge(horizontalPadding: 7)
+                              : null,
                           title: Text(item.title),
                           subtitle: Text(
                             '${_historyDate(item.date)} · ${_modeLabel(item.mode)} · ${_stateLabel(item.state)}\n${item.demo.sourceLabel} · observed ${ServerTime.timestamp(item.demo.observedAt)}',
@@ -521,6 +586,7 @@ class _CardStage extends StatelessWidget {
     required this.art,
     required this.date,
     required this.mode,
+    required this.concealed,
     required this.useBundledArtwork,
     required this.assetPackage,
   });
@@ -529,13 +595,14 @@ class _CardStage extends StatelessWidget {
   final RitualArt art;
   final DateTime date;
   final DailyRitualMode mode;
+  final bool concealed;
   final bool useBundledArtwork;
   final String? assetPackage;
 
   @override
   Widget build(BuildContext context) {
     final viewportWidth = MediaQuery.sizeOf(context).width;
-    final artwork = useBundledArtwork
+    final artwork = !concealed && useBundledArtwork
         ? resolveRitualTarotArtwork(art: art, date: date, mode: mode)
         : null;
     return SizedBox(
@@ -568,7 +635,9 @@ class _CardStage extends StatelessWidget {
               ),
               Semantics(
                 image: true,
-                label: artwork?.alt ?? art.alt,
+                label: concealed
+                    ? 'Unrevealed ritual card'
+                    : artwork?.alt ?? art.alt,
                 child: ExcludeSemantics(
                   child: Container(
                     width: 155,
@@ -586,7 +655,26 @@ class _CardStage extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: artwork != null
+                    child: concealed
+                        ? DecoratedBox(
+                            key: const Key('daily-ritual-card-back'),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(13),
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [colors.coven, colors.screenSoft],
+                              ),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                Icons.auto_awesome,
+                                color: colors.gold,
+                                size: 42,
+                              ),
+                            ),
+                          )
+                        : artwork != null
                         ? ClipRRect(
                             borderRadius: BorderRadius.circular(13),
                             child: Image.asset(
@@ -698,7 +786,7 @@ class _AssetStar extends StatelessWidget {
     return Expanded(
       child: Semantics(
         button: true,
-        label: [symbol, ?change, note, 'demo asset idea'].join(', '),
+        label: [symbol, ?change, note, 'ritual asset idea'].join(', '),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),
@@ -781,7 +869,7 @@ class _CovenStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Open Founders’ Coven, demo companies with women at the helm',
+      label: 'Open Founders’ Coven, companies with women at the helm',
       child: Material(
         color: colors.coven,
         borderRadius: BorderRadius.circular(16),
@@ -817,7 +905,7 @@ class _CovenStrip extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Explore demo companies with women at the helm',
+                        'Explore companies with women at the helm',
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.76),
                           fontSize: 12,

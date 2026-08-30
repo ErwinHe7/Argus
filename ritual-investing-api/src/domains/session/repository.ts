@@ -11,20 +11,30 @@ export function createSupabaseSessionRepository(
   database: DatabaseTransaction,
   verifiedSubject: string,
 ) {
-  const selectSnapshot = async (database: DatabaseTransaction) => {
+  const selectSnapshot = async (
+    database: DatabaseTransaction,
+    access: "member" | "runtime" = "member",
+  ) => {
+    const profileAndPreferencesProjection = access === "member"
+      ? `'profile', to_jsonb(profile),
+         'preferences', to_jsonb(preferences),`
+      : `'profile', null::jsonb,
+         'preferences', null::jsonb,`;
+    const profileAndPreferencesJoins = access === "member"
+      ? `left join argus_app.profiles profile on profile.user_id = member.user_id
+       left join argus_app.preferences preferences on preferences.user_id = member.user_id`
+      : "";
     const result = await database.query<JsonObject>(
       `select jsonb_build_object(
          'member', to_jsonb(member),
-         'profile', to_jsonb(profile),
-         'preferences', to_jsonb(preferences),
+         ${profileAndPreferencesProjection}
          'onboarding', to_jsonb(onboarding),
          'investor_profile', to_jsonb(investor),
          'astrology_profile', to_jsonb(astrology),
          'server_time', clock_timestamp()
        ) as snapshot
        from argus_app.members member
-       left join argus_app.profiles profile on profile.user_id = member.user_id
-       left join argus_app.preferences preferences on preferences.user_id = member.user_id
+       ${profileAndPreferencesJoins}
        left join argus_app.onboarding_states onboarding on onboarding.user_id = member.user_id
        left join argus_app.investor_profiles investor on investor.user_id = member.user_id
        left join argus_app.astrology_profiles astrology on astrology.user_id = member.user_id
@@ -59,7 +69,7 @@ export function createSupabaseSessionRepository(
       const requestHash = await sha256TextHex(JSON.stringify(input));
       await database.query(
         "select pg_advisory_xact_lock(hashtextextended($1,0))",
-        [`${verifiedSubject}\u0000${operation}\u0000${idempotencyKey}`],
+        [JSON.stringify([verifiedSubject, operation, idempotencyKey])],
       );
       const existing = await database.query<{
         request_hash: string;
@@ -75,7 +85,7 @@ export function createSupabaseSessionRepository(
         if (existing.rows[0].request_hash !== requestHash) {
           throw new RepositoryRevisionConflictError();
         }
-        return selectSnapshot(database);
+        return selectSnapshot(database, "runtime");
       }
       const current = await database.query<
         { version: number; completed_at: string | null }
@@ -156,7 +166,7 @@ export function createSupabaseSessionRepository(
               where member.user_id=argus_private.request_user_id()`,
         [operation, idempotencyKey, requestHash],
       );
-      return selectSnapshot(database);
+      return selectSnapshot(database, "runtime");
     },
   });
 }

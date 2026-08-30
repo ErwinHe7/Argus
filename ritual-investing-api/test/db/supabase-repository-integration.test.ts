@@ -57,6 +57,16 @@ const userA = "018f3c2a-4b67-7a89-8abc-123456789001";
 const userB = "018f3c2a-4b67-7a89-8abc-123456789002";
 const sessionA = "018f3c2a-4b67-7a89-8abc-123456789011";
 const sessionB = "018f3c2a-4b67-7a89-8abc-123456789012";
+const validOnboardingFinalizationInput = {
+  expectedOnboardingVersion: 1,
+  investing: {
+    goalType: "long_term_growth",
+    timeHorizon: "long",
+    riskComfort: "moderate",
+  },
+  astrology: { enabled: false },
+  consents: {},
+} as const;
 
 type RecordedQuery = { text: string; values: readonly unknown[] };
 
@@ -186,6 +196,88 @@ function privacyService(
 }
 
 describe("Supabase transaction-pooler repository boundary", () => {
+  it("uses a PostgreSQL-safe structured advisory lock key for onboarding finalization", async () => {
+    const stopAfterLock = new Error("stop_after_lock");
+    const recorded = recordingPool((text) => {
+      if (text.includes("pg_advisory_xact_lock")) throw stopAfterLock;
+      return { rows: [], rowCount: 0 };
+    });
+    const session = createSupabaseSessionRepository(recorded.database, userA);
+    const idempotencyKey = "onboarding-finalize-test";
+
+    await expect(
+      session.finalizeOnboarding(
+        validOnboardingFinalizationInput,
+        idempotencyKey,
+      ),
+    ).rejects.toBe(stopAfterLock);
+
+    const lockQuery = recorded.queries.find(({ text }) =>
+      text.includes("pg_advisory_xact_lock")
+    );
+    expect(lockQuery?.values).toEqual([
+      JSON.stringify([userA, "onboarding.finalize", idempotencyKey]),
+    ]);
+  });
+
+  it("keeps the onboarding finalization response inside the runtime role grant", async () => {
+    const completedAt = "2026-08-29T12:00:00.000Z";
+    const recorded = recordingPool((text) => {
+      if (text.includes("select request_hash,response_status")) {
+        return { rows: [], rowCount: 0 };
+      }
+      if (text.includes("select version,completed_at")) {
+        return { rows: [{ version: 1, completed_at: null }], rowCount: 1 };
+      }
+      if (text.includes("jsonb_build_object")) {
+        return {
+          rows: [{
+            snapshot: {
+              member: {
+                user_id: userA,
+                status: "active",
+                deletion_epoch: 0,
+                deletion_requested_at: null,
+                created_at: completedAt,
+                updated_at: completedAt,
+              },
+              profile: null,
+              preferences: null,
+              onboarding: {
+                user_id: userA,
+                deletion_epoch: 0,
+                current_step: "complete",
+                completed_steps: ["investing", "ritual", "astrology", "consents"],
+                completed_at: completedAt,
+                version: 2,
+              },
+              investor_profile: {},
+              astrology_profile: null,
+              server_time: completedAt,
+            },
+          }],
+          rowCount: 1,
+        };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const completed = await createSupabaseSessionRepository(
+      recorded.database,
+      userA,
+    ).finalizeOnboarding(
+      validOnboardingFinalizationInput,
+      "onboarding-finalize-runtime-grant",
+    );
+
+    expect(completed.onboarding?.completed_at).toBe(completedAt);
+    const responseQuery = recorded.queries.find(({ text }) =>
+      text.includes("jsonb_build_object")
+    );
+    expect(responseQuery?.text).not.toContain("argus_app.profiles");
+    expect(responseQuery?.text).not.toContain("argus_app.preferences");
+  });
+
   it("normalizes the account deletion epoch before returning the API projection", async () => {
     const recorded = recordingPool((text) => {
       if (
@@ -240,6 +332,77 @@ describe("Supabase transaction-pooler repository boundary", () => {
     expect(first?.id).toBe(assignmentId);
     expect(first?.deletion_epoch).toBe(0);
     expect(repeated?.id).toBe(assignmentId);
+  });
+
+  it("replaces the legacy demo ritual with the content for the drawn card", async () => {
+    const legacy = {
+      ...ritualProjection(),
+      payload: {
+        title: "The Compass",
+        art_key: "the_compass",
+        art_alt: "A compass card inviting deliberate research",
+        interpretation: "Direction matters more than urgency.",
+        guidance: "Compare the evidence and decide what deserves a closer look.",
+        market_label: "Market-informed Demo",
+        uncertainty: "Synthetic educational context can differ from current markets.",
+        ideas: [{ symbol: "VIG" }],
+        evidence: [{ factor_label: "Synthetic fixture" }],
+      },
+    };
+    const recorded = recordingPool((text) => {
+      if (text.includes("from argus_app.daily_ritual_assignments assignment")) {
+        return { rows: [{ projection: legacy }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const result = await createSupabaseRitualRepository(recorded.database)
+      .getDaily("tarot");
+
+    expect(result?.payload).toMatchObject({
+      title: "Death",
+      art_key: "death",
+      art_alt: "Death tarot card: a skeletal rider advances on a white horse at sunrise",
+      interpretation:
+        "Death marks a necessary ending: a pattern has run its course, creating room for a cleaner beginning.",
+      guidance:
+        "Name one assumption you are ready to release. Write down the evidence that would show an old thesis no longer fits.",
+      market_label: "Tarot reflection",
+      ideas: [],
+      evidence: [],
+    });
+    expect(result?.body_template).toBe(
+      "Let the ending be information, not catastrophe. Clearing an expired story can make your next question more honest.",
+    );
+    expect(result?.risk_footer).toBe(
+      "Tarot is a reflection tool, not a prediction or financial recommendation.",
+    );
+    expect(JSON.stringify(result)).not.toMatch(/compass|demo|synthetic/i);
+  });
+
+  it("returns the complete ritual projection after a lifecycle transition", async () => {
+    const assignmentId = "018f3c2a-4b67-7a89-8abc-123456789021";
+    const revealed = {
+      ...ritualProjection(assignmentId),
+      state: "revealed",
+      revealed_at: "2026-08-29T22:58:52.722457+00:00",
+      version: 2,
+    };
+    const recorded = recordingPool((text) => {
+      if (text.includes("update argus_app.daily_ritual_assignments")) {
+        return { rows: [{ id: assignmentId }], rowCount: 1 };
+      }
+      if (text.includes("as projection")) {
+        return { rows: [{ projection: revealed }], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 0 };
+    });
+
+    const result = await createSupabaseRitualRepository(
+      recorded.database,
+    ).transition(assignmentId, "assigned", "revealed", 1);
+
+    expect(result).toEqual({ ...revealed, deletion_epoch: 0 });
   });
 
   it("installs only verified JWT claims inside the owning transaction", async () => {
