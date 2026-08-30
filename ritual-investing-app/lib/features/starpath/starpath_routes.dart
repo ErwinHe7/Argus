@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/bootstrap/app_runtime.dart';
 import '../../core/navigation/member_routes.dart';
+import 'presentation/starpath_screen.dart';
 
 StatefulShellBranch buildStarpathBranch({
   required AppRuntime container,
@@ -37,12 +38,8 @@ class _StarpathBranchRootState extends State<_StarpathBranchRoot> {
   }
 
   @override
-  Widget build(BuildContext context) => const Scaffold(
-    key: Key('starpath-root'),
-    body: SafeArea(
-      child: Center(
-        child: Text('Starpath is preparing your factual learning path.'),
-      ),
-    ),
+  Widget build(BuildContext context) => StarpathScreen(
+    key: const Key('starpath-root'),
+    controller: widget.container.starpathController,
   );
 }
