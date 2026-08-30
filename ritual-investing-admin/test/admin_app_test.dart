@@ -6,6 +6,8 @@ import 'package:ritual_investing_admin/data/admin_gateway.dart';
 import 'package:ritual_investing_admin/domain/admin_models.dart';
 import 'package:ritual_investing_admin/ui/admin_app.dart';
 
+import 'support/starpath_fixture.dart';
+
 void main() {
   testWidgets('hides unauthorized areas and protects direct navigation', (
     tester,
@@ -333,6 +335,134 @@ void main() {
       findsOneWidget,
     );
     expect(find.byTooltip('Open navigation'), findsOneWidget);
+  });
+
+  testWidgets('Starpath preview separates mnemonic from sourced facts', (
+    tester,
+  ) async {
+    final gateway = FixtureAdminGateway(
+      records: [
+        AdminRecord(
+          id: 'item-1',
+          title: 'The Share Sigil',
+          status: 'submitted',
+          version: 1,
+          revisionId: '11111111-1111-4111-8111-111111111111',
+          payload: starpathLessonFixture(),
+        ),
+      ],
+    );
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      AdminApp(
+        session: AdminSessionController.fixture(
+          permissions: AdminPermission.all,
+        ),
+        gateway: gateway,
+        initialLocation: '/editorial/starpath',
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('The Share Sigil').first);
+    await tester.pumpAndSettle();
+
+    for (final heading in [
+      'Mythic mnemonic — memory aid only',
+      'Factual lesson',
+      'Risks and limitations',
+      'Dated evidence',
+      'Knowledge check',
+      'Recall',
+      'Explain with Rowan',
+    ]) {
+      expect(find.text(heading), findsOneWidget, reason: heading);
+    }
+    expect(find.text('Approve factual'), findsOneWidget);
+    expect(find.text('Approve compliance'), findsOneWidget);
+    expect(
+      find.text('Publication blocked: 7 nodes are missing.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Starpath discipline controls fail closed by staff scope', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      AdminApp(
+        session: AdminSessionController.fixture(
+          permissions: const {
+            AdminPermission.editorialRead,
+            AdminPermission.starpathFactualReview,
+          },
+        ),
+        gateway: FixtureAdminGateway(
+          records: [
+            AdminRecord(
+              id: 'item-1',
+              title: 'The Share Sigil',
+              status: 'submitted',
+              version: 1,
+              revisionId: '11111111-1111-4111-8111-111111111111',
+              payload: starpathLessonFixture(),
+            ),
+          ],
+        ),
+        initialLocation: '/editorial/starpath',
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('The Share Sigil').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Approve factual'), findsOneWidget);
+    expect(find.text('Approve compliance'), findsNothing);
+    expect(find.text('Publish eight-node manifest'), findsNothing);
+  });
+
+  testWidgets('Starpath authoring uses typed fields instead of JSON', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      AdminApp(
+        session: AdminSessionController.fixture(
+          permissions: AdminPermission.all,
+        ),
+        gateway: FixtureAdminGateway(),
+        initialLocation: '/editorial/starpath',
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('New typed lesson'));
+    await tester.pumpAndSettle();
+
+    for (final label in [
+      'Stable slug',
+      'Mythic mnemonic',
+      'Factual summary',
+      'Material limitations',
+      'Risk context',
+      'Canonical source URL',
+      'Knowledge-check prompt',
+    ]) {
+      final field = find.widgetWithText(TextFormField, label);
+      for (
+        var attempt = 0;
+        attempt < 20 && field.evaluate().isEmpty;
+        attempt++
+      ) {
+        await tester.drag(
+          find.byKey(const Key('starpath-editor-scroll')),
+          const Offset(0, -320),
+        );
+        await tester.pump();
+      }
+      expect(field, findsOneWidget, reason: label);
+    }
+    expect(find.textContaining('JSON'), findsNothing);
   });
 
   testWidgets(

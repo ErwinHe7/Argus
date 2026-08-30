@@ -6,6 +6,8 @@ import 'package:ritual_investing_admin/data/admin_gateway.dart';
 import 'package:ritual_investing_admin/domain/admin_models.dart';
 import 'package:ritual_investing_admin/ui/admin_app.dart';
 
+import '../test/support/starpath_fixture.dart';
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -72,5 +74,38 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Privacy requests'), findsNothing);
+  });
+
+  testWidgets('staff can inspect the typed Starpath preview in the browser', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      AdminApp(
+        session: AdminSessionController.fixture(
+          permissions: AdminPermission.all,
+        ),
+        gateway: FixtureAdminGateway(
+          records: [
+            AdminRecord(
+              id: 'item-1',
+              title: 'The Share Sigil',
+              status: 'submitted',
+              version: 1,
+              revisionId: '11111111-1111-4111-8111-111111111111',
+              payload: starpathLessonFixture(),
+            ),
+          ],
+        ),
+        initialLocation: '/editorial/starpath',
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('The Share Sigil').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mythic mnemonic — memory aid only'), findsOneWidget);
+    expect(find.text('Dated evidence'), findsOneWidget);
   });
 }

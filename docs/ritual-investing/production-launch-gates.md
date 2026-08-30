@@ -41,6 +41,13 @@ capability enablement.
 - Run `scripts/check-supabase-hosted-acceptance.sh` against the exact production
   target and retain its Auth, queue, Storage, schema, limit, fence, and Edge
   revision evidence.
+- Keep Starpath production capability disabled until all eight exact lesson
+  revisions have distinct factual and compliance attestations, the immutable
+  manifest projection matches `starpath-curriculum-v1.md`, and legal counsel has
+  approved the exact `starpath-no-advice-v1` document hash for production, US,
+  its effective/expiry window, and the current R20 trigger snapshot. Missing,
+  stale, superseded, invalidated, or differently scoped evidence is a NO-GO;
+  dashboard or beta completion is not production approval.
 
 Launch remains **NO-GO** while any item is missing. In particular, the current
 Webull partner protocol decision is unresolved, so real brokerage egress cannot
