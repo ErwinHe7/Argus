@@ -1,6 +1,6 @@
 # Argus member data and authority inventory
 
-Status date: 2026-08-29
+Status date: 2026-08-30
 
 This is the U1 migration authority for the member app, admin app, API, background work, site, and standalone Demo. It classifies the synthetic migration baseline; it is not evidence that the later Supabase or Webull implementation units are complete.
 
@@ -11,7 +11,7 @@ This is the U1 migration authority for the member app, admin app, API, backgroun
 - Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Application and brokerage data stays in private, non-Data-API schemas behind the versioned Argus API.
 - The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated.
 - Cloudflare Pages continues to serve the unchanged static landing and standalone Demo assets. Cloudflare Workers Static Assets may deliver the compiled member beta, but Cloudflare has no Auth, application-data, database, provider, or stateful backend authority.
-- The invite-first member web beta uses only beta Supabase Auth and the versioned beta Argus API. Browser code receives no direct application-table authority, and unfinished privacy and financial capabilities remain unavailable and fail closed.
+- The clearly labeled, invite-first member web beta uses only dedicated non-production beta Supabase Auth, the versioned beta Argus API, and canonical private tables. Browser code receives no direct application-table authority. Privacy export and deletion are launch-required beta-backed behaviors; brokerage connection and reads, funding, and order mutations remain unavailable and fail closed.
 - Rowan cannot issue financial commands or receive Webull credentials, raw provider payloads, balances, or positions as prompt context.
 
 ## Classification meanings
@@ -25,7 +25,7 @@ This is the U1 migration authority for the member app, admin app, API, backgroun
 
 ## Data handling contract
 
-The public-beta capability state is a delivery boundary, not a reclassification of the inventory below. `beta-backed` is limited to the existing non-sensitive member behavior served through the beta API; `unavailable` performs no privacy, provider, or financial request; `standalone Demo handoff` leaves the member app for the visibly synthetic, network-isolated Demo. Existing landing, Demo, mobile, and data behavior otherwise remains unchanged. The statement that sensitive capabilities are not functional in this beta does not classify stored identity or member data as non-sensitive and does not relax existing handling controls.
+The public-beta capability state is a delivery boundary, not a reclassification of the inventory below. `beta-backed` behavior is served through the beta API and private beta data boundary; it includes authorized privacy export and deletion through either the idempotent automated path or an API-backed request/status path with a verified manual completion SLA. `unavailable` behavior performs no provider or financial request and includes brokerage connection and reads, funding, and order mutations. `standalone Demo handoff` leaves the member app through an explicit, visibly labeled origin change to the synthetic, network-isolated Demo. No failure substitutes fixtures, production data, a legacy backend, or an automatic Demo redirect. These capability labels do not classify stored identity or member data as non-sensitive and do not relax existing handling controls.
 
 Webull credentials, authorization codes, signing secrets, wrapped data keys, raw provider payloads, and provider-identifying callback material are server-only. They are excluded from Flutter, admin clients, public or exposed database objects, Data API grants, queue payloads, logs, analytics, crash breadcrumbs, exports, screenshots, and CI artifacts.
 
@@ -345,7 +345,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `client:admin-session` | retained-argus | Supabase Auth, AAL2, and current staff permission |
 | `client:admin-editorial-workspace` | retained-argus | Argus editorial operations |
 | `client:admin-brokerage-diagnostics` | retained-argus | Redacted read-only operations; no credential or raw payload display |
-| `site-endpoint:/` | retained-argus | Static landing asset on Cloudflare Pages |
+| `site-endpoint:/` | retained-argus | Flutter member beta at the apex through Cloudflare static assets; landing retained on Pages as the tested recovery artifact |
 | `site-endpoint:/api/waitlist` | retained-argus | Move to narrow Supabase Edge Function; no Pages Function |
 | `site-endpoint:/api/*` | deleted | Delete Cloudflare Worker catch-all |
 | `storage-object:MEDIA_QUARANTINE` | retained-argus | Private Supabase Storage bucket |
@@ -403,8 +403,8 @@ Provider facts are not repurposed as Rowan context, marketing analytics, or a se
 
 ## Development and launch gates
 
-Branches and pull requests use a fresh local Supabase CLI stack. Serialized approved beta-web deployments target the exact dedicated beta Supabase project and versioned beta Argus API; the persistent `beta` branch remains replaceable staging and is not the public-beta data authority. Pull requests receive no hosted credentials. Production promotion, production Webull registration, custom SMTP, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting remain production launch gates. Open signup remains disabled until its separate invitation, recovery, abuse, and support evidence is complete.
+Branches and pull requests use a fresh local Supabase CLI stack. Serialized approved beta-web deployments target the exact dedicated beta Supabase project and versioned beta Argus API; the persistent `beta` branch remains replaceable staging and is not the public-beta data authority. Pull requests receive no hosted credentials. The invite-first beta requires custom SMTP, invitation delivery and resend, enumeration-resistant recovery, rate limits, deletion, and support ownership; open signup additionally requires hosted email confirmation and CAPTCHA or equivalent abuse protection. Production promotion, production Webull registration, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting remain separate production launch gates.
 
-All unresolved public-beta web review work is P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md). Nothing in that register enables privacy export/deletion, brokerage reads or mutations, funding, or another unavailable capability.
+All unresolved public-beta web review work is P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md). Nothing in that register waives the privacy launch gate or enables brokerage connection or reads, funding, order mutations, or another unavailable financial capability.
 
 The repository migration removed Auth0, Neon, Cloudflare backend compute, Cloudflare Queues, R2, Cloudflare Access, Drizzle, and simulated-finance authority after focused replacement tests passed. Revoking any corresponding external credentials, routes, bindings, and resources that still exist in provider dashboards is an operator cleanup step.

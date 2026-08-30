@@ -23,18 +23,28 @@ The release manifest uses one central capability state:
 
 | State | Public-beta meaning |
 | --- | --- |
-| `beta-backed` | Existing non-sensitive member behavior is connected to the exact beta API and private beta data boundary. |
-| `unavailable` | The surface is visibly incomplete and issues no privacy, provider, or financial request. |
+| `beta-backed` | Supported member behavior uses the exact beta API and private beta data boundary; privacy deletion may use an API-backed request/status path with a verified manual completion SLA. |
+| `unavailable` | The surface is visibly incomplete and issues no provider or financial request. |
 | `standalone Demo handoff` | The member leaves through an explicit Demo-labeled link to the independent synthetic artifact. |
 
-For this beta, brokerage reads and mutations, provider connection, funding,
-privacy export, privacy deletion, and every other unfinished sensitive
-capability remain `unavailable`. Demo fixtures are never a fallback. Open
-signup is disabled; entry is invitation-only. Before self-service signup can be
-considered, retain dated evidence for custom SMTP, invitation delivery and
-expiry, fresh-context callbacks, resend and recovery, enumeration-safe errors,
-rate limits and abuse thresholds, alert ownership, and a reachable support
-path.
+For this beta, authorized privacy export is `beta-backed`. Deletion must be
+`beta-backed` through the idempotent automated path or an API-backed
+request/status path with a verified manual completion SLA. If neither deletion
+path passes acceptance, the member beta is NO-GO; privacy must not be relabeled
+`unavailable` to ship. Brokerage reads and mutations, provider connection, and
+funding remain `unavailable`. Demo fixtures are never a fallback, and failures
+never redirect automatically to Demo. Every authenticated surface identifies
+the experience as a public beta, discloses the unavailable financial authority,
+and keeps privacy, support, about, beta-feedback, and legal information
+reachable.
+
+Open signup is disabled; entry is invitation-only. Invite-first release
+requires server-enforced invitation restriction and dated evidence for custom
+SMTP, invitation delivery and expiry, fresh-context callbacks, resend and
+enumeration-resistant recovery, rate limits and abuse thresholds, deletion,
+alert and support ownership, and a reachable support path. Self-service signup
+additionally requires hosted email confirmation and CAPTCHA or equivalent abuse
+protection.
 
 Every unresolved hardening and product-definition concern is a P1 follow-up in
 [`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md).
@@ -77,8 +87,10 @@ Edge Functions, and then runs
 - runtime and worker statement timeouts; and
 - all three deployment/provider fences remain enabled during acceptance.
 
-Only `background_workers` may be resumed by that deployment. Provider egress,
-order mutations, and unfinished privacy routes remain blocked.
+Only `background_workers` may be resumed by that deployment. Privacy
+export/deletion may be exposed only after their public-beta launch acceptance
+passes, with the verified manual deletion completion path allowed where
+automation is not ready. Provider egress and order mutations remain blocked.
 
 On real iOS and Android devices, separately record Supabase sign-up/sign-in,
 PKCE callback recovery, session restoration and refresh, recent-auth proof,
@@ -93,7 +105,7 @@ logs or evidence.
 | Background Argus work | Queue claim/receipt/retry/DLQ, Cron lease, revision, privacy and Storage lifecycle evidence | `background_workers=true` |
 | Webull connection and reads | Partner-confirmed protocol plus hosted sandbox authorization, refresh, disconnect, projection, rate-limit, and reauthorization evidence | `provider_egress=true` |
 | Manual Webull commands | Partner-confirmed signing/idempotency semantics plus preview/review/confirm, ambiguous-response reconciliation, and no-resubmission proof | `order_mutations=true` |
-| Privacy export/deletion | Private export lifecycle, deletion epoch, credential destruction, object receipts, Auth-last deletion, and crash-resume proof | Keep privacy route/worker gate closed |
+| Privacy export/deletion | Authorized private export lifecycle plus idempotent deletion epoch, credential destruction, object receipts, Auth-last deletion, and crash-resume proof; a verified manual completion SLA may satisfy deletion where automation is not ready | Block the member beta; keep any unproved automated route/worker closed rather than hiding the requirement |
 | External notifications or media processing | Approved provider, consent, allowlist, redaction, bounded retry, and rollback evidence | No provider secret or binding |
 
 Funding, account opening, recurring financial execution, autonomous trading,

@@ -14,7 +14,7 @@ Curious Gen Z and millennial women arriving on a phone during a quiet evening, c
 
 ## Product Purpose
 
-Introduce Argus as an intimate, evidence-aware frontend for an existing Webull brokerage relationship and provide a disposable, clearly synthetic product demonstration. The website must never imply that its Demo accounts, prices, communities, balances, or transactions are real.
+Deliver the clearly labeled Flutter member public beta at the apex while retaining the existing landing as the rollback and recovery artifact and the standalone Demo as a disposable, clearly synthetic product demonstration. The website must never imply that its Demo accounts, prices, communities, balances, or transactions are real, or that the beta can connect, fund, or place orders through a live brokerage.
 
 ## Authority Model
 
@@ -22,7 +22,9 @@ Webull is authoritative for brokerage accounts, capabilities, restrictions, bala
 
 Cloudflare Pages continues to retain the existing static landing and standalone Demo assets. This public-beta change does not redesign or change either artifact: the landing remains the tested rollback and Pages-hosted recovery surface even when the member Worker owns the apex. They host no Pages Functions, `_worker.js`, Worker route, Worker binding, Queue, Cron, R2, authentication, or stateful request handling. If the waitlist is retained, the static form calls a narrowly scoped Supabase Edge Function; preview submissions remain disabled unless explicitly configured for the shared sandbox.
 
-A separate compiled Flutter member beta may be delivered at the apex through Cloudflare Workers Static Assets. That delivery role is static-only and receives no Auth, application-data, database, provider, or stateful backend authority. The member beta is invite-first, uses beta Supabase and Argus API boundaries, and keeps unfinished privacy and financial capabilities visibly unavailable. It never imports Demo fixtures as a fallback.
+A separate compiled Flutter member beta may be delivered at the apex through Cloudflare Workers Static Assets. That delivery role is static-only and receives no Auth, application-data, database, provider, or stateful backend authority. The member beta is invite-first and uses only dedicated non-production beta Supabase Auth, the versioned beta Argus API, and canonical private tables. Supported routes, including privacy export and API-backed or verified-manual-SLA deletion, are beta-backed; brokerage connection and reads, funding, and order mutations stay visibly unavailable and fail closed. It never imports Demo fixtures as a fallback or redirects to Demo on failure.
+
+Every authenticated member surface identifies the experience as a public beta, states that live brokerage connections, funding, and orders are unavailable, and keeps privacy, support, about, beta-feedback, and legal information reachable. Self-service signup remains disabled until its hosted confirmation and abuse controls pass in addition to the invitation, recovery, deletion, rate-limit, and support evidence required for invite-first access. Any standalone Demo handoff is explicit, visibly labeled, and changes origin.
 
 The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated. It does not call Supabase, Webull, Auth0, Neon, Cloudflare compute, or any production API.
 

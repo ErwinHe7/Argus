@@ -1,6 +1,6 @@
 # Ritual Investing
 
-Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS, Android, and an invite-first mobile-web beta and does not import from, run, or modify the AXIO7 research services. The web beta preserves the current member experience; it does not enable unfinished privacy or financial behavior.
+Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS, Android, and an invite-first mobile-web beta and does not import from, run, or modify the AXIO7 research services. The web beta preserves supported member behavior, including the launch-required privacy lifecycle; it does not enable unfinished financial behavior.
 
 ## Product authority
 
@@ -12,15 +12,17 @@ The standalone Demo is synthetic, memory-only, auth-free, provider-free, credent
 
 ## Public web beta
 
-The apex member beta is invite-first and binds only to the beta Supabase Auth project and versioned beta Argus API. It does not use production endpoints, public Data API tables, or a parallel browser-owned application-data path. The current landing site and standalone Demo remain unchanged.
+The clearly labeled apex member beta is invite-first and binds only to dedicated non-production beta Supabase Auth, the versioned beta Argus API, and canonical private tables. It does not use production endpoints, public Data API tables, or a parallel browser-owned application-data path. The current landing artifact remains the rollback target, and the standalone Demo remains independent.
 
 Capability labels have one meaning across the member app and release evidence:
 
-- `beta-backed` means the existing non-sensitive member behavior uses the versioned beta Argus API and private beta data boundary.
-- `unavailable` means the control is visibly incomplete and performs no provider, privacy, or financial request. Brokerage reads and mutations, funding, export, deletion, and every other unfinished sensitive capability remain in this state for the beta.
+- `beta-backed` means the supported member behavior uses the versioned beta Argus API and private beta data boundary. Privacy export is beta-backed; deletion is beta-backed through the idempotent deletion path or a request/status path with a verified manual completion SLA.
+- `unavailable` means the control is visibly incomplete and performs no provider or financial request. Brokerage connection and reads, funding, and order mutations remain in this state for the beta.
 - `standalone Demo handoff` means an explicit, visibly labeled navigation to the independent synthetic Demo; Demo fixtures never fill gaps in the member app.
 
-Invite delivery, recovery, callback, resend, abuse, and support proof must be recorded before self-service signup is considered. Open signup remains disabled. The unresolved hardening and product-definition work is tracked as P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](../docs/ritual-investing/public-beta-web-p1-follow-up-register.md); that register does not authorize enabling an unavailable capability.
+Invite-first launch requires server-enforced invitation restriction, custom SMTP, invitation delivery and resend, enumeration-resistant recovery, rate limits, deletion, and support ownership. Self-service signup additionally requires hosted email confirmation and CAPTCHA or equivalent abuse protection; until that evidence is recorded, open signup remains disabled. The unresolved hardening and product-definition work is tracked as P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](../docs/ritual-investing/public-beta-web-p1-follow-up-register.md); that register does not waive a launch gate or authorize an unavailable financial capability.
+
+Every authenticated route labels the experience as a public beta and states that live brokerage connections, funding, and orders are unavailable. Privacy, support, about, beta-feedback, and legal information remain reachable from the member experience.
 
 ## Member surfaces
 

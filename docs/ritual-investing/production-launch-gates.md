@@ -5,16 +5,20 @@ and rollback authority. A pre-production deployment does not waive a gate.
 
 The invite-first public web beta is not a production launch and does not
 redesign the retained landing artifact, standalone Demo, or member product
-behavior. The member Worker may own the apex while the unchanged landing stays
-available as the tested rollback and Pages-hosted recovery surface. Cloudflare's
-member role is limited to compiled static assets, and the browser uses only the
-dedicated beta Supabase project and versioned beta Argus API. Brokerage,
-funding, privacy export/deletion, and all other unfinished sensitive
-capabilities remain visibly unavailable and fail closed. The beta's unresolved
-review work is uniformly tracked as P1 in
+behavior. The clearly labeled member Worker may own the apex while the
+unchanged landing stays available as the tested rollback and Pages-hosted
+recovery surface. Cloudflare's member role is limited to compiled static
+assets, and the browser uses only the dedicated beta Supabase project,
+versioned beta Argus API, and canonical private tables. Supported routes,
+including authorized privacy export and API-backed or verified-manual-SLA
+deletion, are beta-backed launch requirements. Brokerage connection and reads,
+funding, and order mutations remain visibly unavailable and fail closed; any
+standalone Demo handoff is explicit and never a failure fallback. Open signup
+remains disabled until the additional hosted confirmation and abuse gates pass.
+The beta's unresolved review work is uniformly tracked as P1 in
 [`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md);
-that priority classification does not waive these production gates or authorize
-capability enablement.
+that priority classification does not waive the privacy launch requirement,
+these production gates, or unavailable financial capability fences.
 
 - Provision a separate production Supabase project and confirm its exact ref,
   database hostname, quotas, network policy, and protected deployment environment.
