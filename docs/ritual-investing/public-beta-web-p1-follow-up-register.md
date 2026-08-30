@@ -59,6 +59,7 @@ handling controls remain in force.
 | P1-19 | Browser storage enumeration | Inventory every current browser datum and record its storage mechanism, account scope, expiry, clearing event, backup/synchronization behavior, and sensitive-data prohibition. |
 | P1-20 | Privacy-safe telemetry sink | Select the transport, sink, retention, redaction rules, route-template cardinality, access owner, and incident workflow before relying on beta telemetry. |
 | P1-21 | Post-native checkpoint | At a named checkpoint after native release, decide whether to graduate, retain, restrict, or retire the web beta and record data, domain, and support consequences. |
+| P1-22 | Bounded password-auth requests | Apply and test an explicit timeout for Supabase password sign-in and signup, translate timeout failures into a retryable member-auth state, and ensure the credential form always re-enables submission after a partial Auth outage. |
 
 ## Closure rule
 
