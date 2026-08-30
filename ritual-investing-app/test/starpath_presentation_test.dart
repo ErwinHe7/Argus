@@ -38,6 +38,44 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets(
+    'preserves the approved compact draw-and-descend geometry on wide screens',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final controller = starpathFixtureController();
+      await controller.load();
+
+      await tester.pumpWidget(_app(controller));
+      await tester.pumpAndSettle();
+
+      final stage = find.byKey(const Key('starpath-stage'));
+      expect(stage, findsOneWidget);
+      expect(tester.getSize(stage).width, lessThanOrEqualTo(440));
+      expect(find.byKey(const Key('starpath-return-current')), findsOneWidget);
+      expect(find.text('The First Constellation'), findsOneWidget);
+      expect(find.text('The Scales of Risk'), findsOneWidget);
+
+      final currentNode = find.byKey(const Key('starpath-node-3'));
+      expect(tester.getSize(currentNode).width, lessThanOrEqualTo(176));
+      expect(tester.getSize(currentNode).height, greaterThanOrEqualTo(112));
+
+      final scrollable = find.descendant(
+        of: find.byType(CustomScrollView),
+        matching: find.byType(Scrollable),
+      );
+      final position = tester.state<ScrollableState>(scrollable).position;
+      position.jumpTo(position.maxScrollExtent);
+      await tester.pump();
+      final beforeReturn = position.pixels;
+      await tester.tap(find.byKey(const Key('starpath-return-current')));
+      await tester.pumpAndSettle();
+      expect(position.pixels, lessThan(beforeReturn));
+    },
+  );
+
   testWidgets('keeps mythic mnemonic visibly separate from factual lesson', (
     tester,
   ) async {
@@ -48,12 +86,17 @@ void main() {
 
     await _openCurrentLesson(tester);
 
-    await tester.tap(find.byKey(const Key('starpath-reveal-card')));
-    await tester.pump();
+    await _tapActivityControl(tester, 'starpath-reveal-card');
+    expect(find.byKey(const Key('starpath-tarot-image')), findsOneWidget);
     expect(find.text('MYTHIC MEMORY AID'), findsOneWidget);
+    await _dragLessonUntilBuilt(
+      tester,
+      'This tarot and horoscope frame is a mnemonic—not evidence or a forecast.',
+    );
     expect(find.textContaining('not evidence or a forecast'), findsOneWidget);
+    expect(find.text('FACTUAL LESSON'), findsNothing);
 
-    await _dragLessonUntilBuilt(tester, 'FACTUAL LESSON');
+    await _tapActivityControl(tester, 'starpath-reveal-fact');
     expect(find.text('FACTUAL LESSON'), findsOneWidget);
 
     await _dragLessonUntilBuilt(tester, 'Investor.gov');
@@ -134,12 +177,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await _openCurrentLesson(tester);
-    await tester.tap(find.byKey(const Key('starpath-reveal-card')));
-    await tester.pump();
-    await _dragLessonUntilBuilt(
-      tester,
-      'A share guarantees a positive return.',
-    );
+    await _advanceToCheck(tester);
 
     final wrongOption = find.ancestor(
       of: find.text('A share guarantees a positive return.'),
@@ -159,8 +197,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await _openCurrentLesson(tester);
-      await tester.tap(find.byKey(const Key('starpath-reveal-card')));
-      await tester.pump();
+      await _tapActivityControl(tester, 'starpath-reveal-card');
+      await _tapActivityControl(tester, 'starpath-reveal-fact');
       await _dragLessonUntilBuilt(tester, 'Ask Rowan to restate this fact');
       await tester.tap(find.text('Ask Rowan to restate this fact'));
       await tester.pumpAndSettle();
@@ -177,10 +215,33 @@ void main() {
   );
 }
 
-Future<void> _openCurrentLesson(WidgetTester tester) async {
-  await tester.drag(find.byType(CustomScrollView), const Offset(0, -260));
+Future<void> _advanceToCheck(WidgetTester tester) async {
+  await _tapActivityControl(tester, 'starpath-reveal-card');
+  await _tapActivityControl(tester, 'starpath-reveal-fact');
+  await _dragLessonUntilBuilt(tester, 'Test what you understand');
+  await _tapActivityControl(tester, 'starpath-open-check');
+}
+
+Future<void> _tapActivityControl(WidgetTester tester, String key) async {
+  final control = find.byKey(Key(key));
+  for (var attempt = 0; attempt < 8 && control.evaluate().isEmpty; attempt++) {
+    await tester.drag(
+      find.byKey(const Key('starpath-activity-scroll')),
+      const Offset(0, -260),
+    );
+    await tester.pump();
+  }
+  expect(control, findsOneWidget);
+  await tester.ensureVisible(control);
   await tester.pumpAndSettle();
+  await tester.tap(control);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openCurrentLesson(WidgetTester tester) async {
   final node = find.byKey(const Key('starpath-node-3'));
+  await tester.ensureVisible(node);
+  await tester.pumpAndSettle();
   await tester.tap(find.descendant(of: node, matching: find.byType(InkWell)));
   await tester.pumpAndSettle();
   expect(find.byType(StarpathLessonScreen), findsOneWidget);
