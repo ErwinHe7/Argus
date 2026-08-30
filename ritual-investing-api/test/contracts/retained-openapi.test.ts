@@ -79,6 +79,10 @@ describe("Supabase retained OpenAPI contract", () => {
       "/v1/rituals/{assignment_id}",
       "/v1/rowan/{surface}/{context_key}",
       "/v1/search",
+      "/v1/starpath",
+      "/v1/starpath/sessions",
+      "/v1/starpath/answers",
+      "/v1/starpath/recall/skip",
       "/v1/admin/session",
       "/v1/admin/step-up",
       "/v1/admin/audit",
@@ -172,6 +176,47 @@ describe("Supabase retained OpenAPI contract", () => {
     expect(serialized).toContain("source_kind");
     expect(serialized).toContain("source_id");
     expect(serialized).not.toMatch(/provider_asset_id|provider_account_id/i);
+  });
+
+  it("locks the complete Starpath command and factual snapshot contract", () => {
+    const document = buildRetainedOpenApiDocument(contractApp());
+    const paths = document.paths as Record<string, Record<string, any>>;
+    const schemas = document.components?.schemas as Record<string, any>;
+
+    const start = paths["/v1/starpath/sessions"]?.post;
+    expect(start?.requestBody).toBeUndefined();
+    expect(JSON.stringify(start?.parameters)).toContain("idempotency-key");
+
+    for (const path of [
+      "/v1/starpath/answers",
+      "/v1/starpath/recall/skip",
+    ]) {
+      const operation = JSON.stringify(paths[path]?.post);
+      expect(operation, path).toContain("idempotency-key");
+      expect(operation, path).toContain("if-match");
+      expect(operation, path).toContain("StarpathSnapshotResponse");
+    }
+
+    expect(schemas.StarpathSnapshot.properties.nodes).toMatchObject({
+      minItems: 8,
+      maxItems: 8,
+    });
+    expect(schemas.StarpathNode.required).toEqual(expect.arrayContaining([
+      "revision_id",
+      "mythic_mnemonic",
+      "factual_sections",
+      "material_limitations",
+      "risk_context",
+      "rowan_explanation",
+    ]));
+    expect(schemas.StarpathEvidence.required).toEqual(expect.arrayContaining([
+      "source_observed_at",
+      "retrieved_at",
+      "current_until",
+    ]));
+    expect(schemas.StarpathKnowledgeCheckOption.properties).not.toHaveProperty(
+      "is_correct",
+    );
   });
 
   it("publishes explicit Webull connection envelopes instead of generic maps", () => {

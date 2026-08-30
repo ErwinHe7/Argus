@@ -1,3 +1,4 @@
+import 'package:ritual_investing_api_client/generated/model/answer_starpath_question.dart';
 import 'package:ritual_investing_api_client/generated/model/asset_codex_detail.dart';
 import 'package:ritual_investing_api_client/generated/model/asset_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/asset_comparison.dart';
@@ -142,6 +143,7 @@ import 'package:ritual_investing_api_client/generated/model/privacy_download_url
 import 'package:ritual_investing_api_client/generated/model/privacy_request.dart';
 import 'package:ritual_investing_api_client/generated/model/privacy_request_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/privacy_request_response.dart';
+import 'package:ritual_investing_api_client/generated/model/publish_admin_starpath_manifest_request.dart';
 import 'package:ritual_investing_api_client/generated/model/published_editorial.dart';
 import 'package:ritual_investing_api_client/generated/model/put_circle_asset_request.dart';
 import 'package:ritual_investing_api_client/generated/model/read_all_notifications_request.dart';
@@ -155,6 +157,7 @@ import 'package:ritual_investing_api_client/generated/model/report_content_reque
 import 'package:ritual_investing_api_client/generated/model/request_privacy_action_request.dart';
 import 'package:ritual_investing_api_client/generated/model/research_disclosure.dart';
 import 'package:ritual_investing_api_client/generated/model/retry_admin_job_request.dart';
+import 'package:ritual_investing_api_client/generated/model/review_admin_starpath_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/ritual_evidence_response.dart';
 import 'package:ritual_investing_api_client/generated/model/ritual_history_response.dart';
 import 'package:ritual_investing_api_client/generated/model/rowan_counsel.dart';
@@ -170,6 +173,22 @@ import 'package:ritual_investing_api_client/generated/model/session_bootstrap_re
 import 'package:ritual_investing_api_client/generated/model/session_member.dart';
 import 'package:ritual_investing_api_client/generated/model/set_briefing_read_state_request.dart';
 import 'package:ritual_investing_api_client/generated/model/set_notification_read_state_request.dart';
+import 'package:ritual_investing_api_client/generated/model/skip_starpath_recall.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_answer_feedback.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_authority.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_evidence.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_factual_section.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_knowledge_check.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_knowledge_check_option.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_node.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_node_guide.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_progress.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_recall.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_session.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_session_theme.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_snapshot.dart';
+import 'package:ritual_investing_api_client/generated/model/starpath_snapshot_response.dart';
+import 'package:ritual_investing_api_client/generated/model/submit_admin_starpath_revision_request.dart';
 import 'package:ritual_investing_api_client/generated/model/transition_ritual_request.dart';
 import 'package:ritual_investing_api_client/generated/model/update_astrology_profile_request.dart';
 import 'package:ritual_investing_api_client/generated/model/update_circle_request.dart';
@@ -209,6 +228,9 @@ ReturnType deserialize<ReturnType, BaseType>(
       return (valueString == 'true' || valueString == '1') as ReturnType;
     case 'double':
       return (value is double ? value : double.parse('$value')) as ReturnType;
+    case 'AnswerStarpathQuestion':
+      return AnswerStarpathQuestion.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'AssetCodexDetail':
       return AssetCodexDetail.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -697,6 +719,11 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'PrivacyRequestResponse':
       return PrivacyRequestResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'PublishAdminStarpathManifestRequest':
+      return PublishAdminStarpathManifestRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'PublishedEditorial':
       return PublishedEditorial.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -744,6 +771,11 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'RetryAdminJobRequest':
       return RetryAdminJobRequest.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'ReviewAdminStarpathRevisionRequest':
+      return ReviewAdminStarpathRevisionRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
     case 'RitualEvidenceResponse':
       return RitualEvidenceResponse.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -786,6 +818,57 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'SetNotificationReadStateRequest':
       return SetNotificationReadStateRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'SkipStarpathRecall':
+      return SkipStarpathRecall.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathAnswerFeedback':
+      return StarpathAnswerFeedback.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathAuthority':
+      return StarpathAuthority.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathEvidence':
+      return StarpathEvidence.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathFactualSection':
+      return StarpathFactualSection.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathKnowledgeCheck':
+      return StarpathKnowledgeCheck.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathKnowledgeCheckOption':
+      return StarpathKnowledgeCheckOption.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'StarpathNode':
+      return StarpathNode.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'StarpathNodeGuide':
+      return StarpathNodeGuide.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathProgress':
+      return StarpathProgress.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathRecall':
+      return StarpathRecall.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathSession':
+      return StarpathSession.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathSessionTheme':
+      return StarpathSessionTheme.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathSnapshot':
+      return StarpathSnapshot.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'StarpathSnapshotResponse':
+      return StarpathSnapshotResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'SubmitAdminStarpathRevisionRequest':
+      return SubmitAdminStarpathRevisionRequest.fromJson(
             value as Map<String, dynamic>,
           )
           as ReturnType;

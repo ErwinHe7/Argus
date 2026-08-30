@@ -6,12 +6,12 @@ import {
   starpathAnswerCommandSchema,
   starpathSkipRecallCommandSchema,
   starpathSnapshotResponseSchema,
-  starpathStartCommandSchema,
 } from "./schemas.ts";
 import {
   dataResponse,
   expectedVersion,
   parseBody,
+  rejectBody,
   retainedRoute,
   type RetainedRouteRegistrar,
 } from "../retained-http/boundary.ts";
@@ -56,14 +56,13 @@ export function registerStarpathRoutes(
     "Starpath",
     {
       headers: idempotencyHeaders,
-      body: starpathStartCommandSchema,
       description:
         "Start or resume one reviewed, non-personalized learning session.",
       response: starpathSnapshotResponseSchema,
     },
   );
   input.register(start, async (context) => {
-    await parseBody(context, starpathStartCommandSchema);
+    await rejectBody(context);
     return dataResponse(
       context,
       await input.repository(context).startOrResume(

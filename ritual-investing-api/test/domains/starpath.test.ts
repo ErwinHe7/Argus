@@ -184,10 +184,8 @@ describe("Starpath member API", () => {
         method: "POST",
         headers: {
           ...authHeaders,
-          "content-type": "application/json",
           "idempotency-key": "starpath-start-0001",
         },
-        body: "{}",
       },
       bindings,
     );
@@ -294,6 +292,25 @@ describe("Starpath member API", () => {
       option_id: optionId,
     });
     expect(parsed).not.toHaveProperty("attempt_kind");
+  });
+
+  it("rejects any start body before repository execution", async () => {
+    const startOrResume = vi.fn();
+    const response = await fixture({ startOrResume }).request(
+      "/v1/starpath/sessions",
+      {
+        method: "POST",
+        headers: {
+          ...authHeaders,
+          "content-type": "application/json",
+          "idempotency-key": "starpath-start-0002",
+        },
+        body: JSON.stringify({ member_id: userId }),
+      },
+      bindings,
+    );
+    expect(response.status).toBe(422);
+    expect(startOrResume).not.toHaveBeenCalled();
   });
 
   it("requires authentication, idempotency, and If-Match at the boundary", async () => {

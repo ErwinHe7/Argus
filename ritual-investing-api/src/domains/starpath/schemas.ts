@@ -140,7 +140,7 @@ export const starpathSnapshotSchema = z.object({
   session: starpathSessionSchema.nullable(),
   theme: starpathThemeSchema.nullable(),
   progress: starpathProgressSchema.nullable(),
-  nodes: z.array(starpathNodeSchema).length(8),
+  nodes: z.array(starpathNodeSchema).min(8).max(8),
   recall: starpathRecallSchema.nullable(),
   command_effect: starpathCommandEffectSchema.nullable(),
   answer: starpathAnswerFeedbackSchema.nullable(),

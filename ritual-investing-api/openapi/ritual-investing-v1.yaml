@@ -1,6 +1,36 @@
 components:
   parameters: {}
   schemas:
+    AnswerStarpathQuestion:
+      additionalProperties: false
+      properties:
+        attempt_kind:
+          enum:
+            - node
+            - recall
+          type: string
+        manifest_id:
+          format: uuid
+          type: string
+        option_id:
+          format: uuid
+          type: string
+        question_id:
+          format: uuid
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        session_id:
+          format: uuid
+          type: string
+      required:
+        - session_id
+        - manifest_id
+        - revision_id
+        - question_id
+        - option_id
+      type: object
     AssetCodexDetail:
       additionalProperties: false
       properties:
@@ -4311,6 +4341,483 @@ components:
           type: boolean
       required:
         - read
+      type: object
+    SkipStarpathRecall:
+      additionalProperties: false
+      properties:
+        session_id:
+          format: uuid
+          type: string
+      required:
+        - session_id
+      type: object
+    StarpathAnswerFeedback:
+      additionalProperties: false
+      nullable: true
+      properties:
+        explanation:
+          maxLength: 2400
+          minLength: 1
+          type: string
+        is_correct:
+          type: boolean
+      required:
+        - is_correct
+        - explanation
+      type: object
+    StarpathAuthority:
+      additionalProperties: false
+      properties:
+        capability_version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        environment:
+          enum:
+            - beta
+            - production
+          type: string
+        jurisdiction:
+          maxLength: 32
+          minLength: 2
+          type: string
+        manifest_id:
+          format: uuid
+          type: string
+        manifest_version:
+          maxLength: 128
+          minLength: 3
+          type: string
+        policy_version:
+          maxLength: 128
+          minLength: 3
+          type: string
+      required:
+        - capability_version
+        - manifest_id
+        - manifest_version
+        - policy_version
+        - environment
+        - jurisdiction
+      type: object
+    StarpathEvidence:
+      additionalProperties: false
+      properties:
+        canonical_url:
+          format: uri
+          type: string
+        claim_summary:
+          maxLength: 1200
+          minLength: 1
+          type: string
+        current_until:
+          format: date-time
+          type: string
+        effective_at:
+          format: date-time
+          nullable: true
+          type: string
+        ordinal:
+          maximum: 12
+          minimum: 1
+          type: integer
+        publisher:
+          maxLength: 200
+          minLength: 1
+          type: string
+        retrieved_at:
+          format: date-time
+          type: string
+        source_observed_at:
+          format: date-time
+          type: string
+        source_title:
+          maxLength: 300
+          minLength: 1
+          type: string
+      required:
+        - ordinal
+        - canonical_url
+        - source_title
+        - publisher
+        - source_observed_at
+        - effective_at
+        - retrieved_at
+        - current_until
+        - claim_summary
+      type: object
+    StarpathFactualSection:
+      additionalProperties: false
+      properties:
+        body:
+          maxLength: 4000
+          minLength: 1
+          type: string
+        evidence:
+          items:
+            $ref: "#/components/schemas/StarpathEvidence"
+          maxItems: 12
+          minItems: 1
+          type: array
+        heading:
+          maxLength: 160
+          minLength: 1
+          type: string
+        kind:
+          enum:
+            - fact
+            - neutral_example
+          type: string
+        observed_at:
+          format: date-time
+          type: string
+        ordinal:
+          maximum: 12
+          minimum: 1
+          type: integer
+        uncertainty:
+          maxLength: 1200
+          minLength: 1
+          type: string
+      required:
+        - ordinal
+        - kind
+        - heading
+        - body
+        - uncertainty
+        - observed_at
+        - evidence
+      type: object
+    StarpathKnowledgeCheck:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          type: string
+        options:
+          items:
+            $ref: "#/components/schemas/StarpathKnowledgeCheckOption"
+          maxItems: 5
+          minItems: 2
+          type: array
+        prompt:
+          maxLength: 1200
+          minLength: 1
+          type: string
+      required:
+        - id
+        - prompt
+        - options
+      type: object
+    StarpathKnowledgeCheckOption:
+      additionalProperties: false
+      properties:
+        id:
+          format: uuid
+          type: string
+        label:
+          maxLength: 600
+          minLength: 1
+          type: string
+        ordinal:
+          maximum: 5
+          minimum: 1
+          type: integer
+      required:
+        - id
+        - ordinal
+        - label
+      type: object
+    StarpathNode:
+      additionalProperties: false
+      properties:
+        factual_sections:
+          items:
+            $ref: "#/components/schemas/StarpathFactualSection"
+          maxItems: 12
+          minItems: 1
+          type: array
+        factual_summary:
+          maxLength: 2400
+          minLength: 1
+          type: string
+        guide:
+          additionalProperties: false
+          properties:
+            accessible_label:
+              maxLength: 240
+              minLength: 1
+              type: string
+            tarot_key:
+              pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+              type: string
+          required:
+            - tarot_key
+            - accessible_label
+          type: object
+        knowledge_check:
+          $ref: "#/components/schemas/StarpathKnowledgeCheck"
+        lesson_id:
+          format: uuid
+          type: string
+        material_limitations:
+          maxLength: 2400
+          minLength: 1
+          type: string
+        mythic_mnemonic:
+          maxLength: 1200
+          minLength: 1
+          type: string
+        node_ordinal:
+          maximum: 8
+          minimum: 1
+          type: integer
+        pathway_ordinal:
+          maximum: 4
+          minimum: 1
+          type: integer
+        pathway_position:
+          maximum: 2
+          minimum: 1
+          type: integer
+        recall_prompt:
+          maxLength: 800
+          minLength: 1
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        risk_context:
+          maxLength: 2400
+          minLength: 1
+          type: string
+        rowan_explanation:
+          maxLength: 2400
+          minLength: 1
+          type: string
+        state:
+          enum:
+            - completed
+            - current
+            - locked
+          type: string
+        title:
+          maxLength: 160
+          minLength: 1
+          type: string
+      required:
+        - node_ordinal
+        - pathway_ordinal
+        - pathway_position
+        - state
+        - lesson_id
+        - revision_id
+        - title
+        - guide
+        - mythic_mnemonic
+        - factual_summary
+        - factual_sections
+        - material_limitations
+        - risk_context
+        - recall_prompt
+        - rowan_explanation
+        - knowledge_check
+      type: object
+    StarpathProgress:
+      additionalProperties: false
+      nullable: true
+      properties:
+        current_node_ordinal:
+          maximum: 9
+          minimum: 1
+          type: integer
+        updated_at:
+          format: date-time
+          type: string
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - current_node_ordinal
+        - version
+        - updated_at
+      type: object
+    StarpathRecall:
+      additionalProperties: false
+      nullable: true
+      properties:
+        id:
+          format: uuid
+          type: string
+        knowledge_check:
+          $ref: "#/components/schemas/StarpathKnowledgeCheck"
+        lesson_id:
+          format: uuid
+          type: string
+        prompt:
+          maxLength: 800
+          minLength: 1
+          type: string
+        question_id:
+          format: uuid
+          type: string
+        revision_id:
+          format: uuid
+          type: string
+        status:
+          enum:
+            - presented
+          type: string
+      required:
+        - id
+        - lesson_id
+        - revision_id
+        - question_id
+        - status
+        - prompt
+        - knowledge_check
+      type: object
+    StarpathSession:
+      additionalProperties: false
+      nullable: true
+      properties:
+        explicit_start:
+          type: boolean
+        id:
+          format: uuid
+          type: string
+        last_action_at:
+          format: date-time
+          type: string
+        replacement_of_session_id:
+          format: uuid
+          nullable: true
+          type: string
+        started_at:
+          format: date-time
+          type: string
+        state:
+          enum:
+            - active
+            - closed
+            - replaced
+          type: string
+      required:
+        - id
+        - state
+        - started_at
+        - last_action_at
+        - explicit_start
+        - replacement_of_session_id
+      type: object
+    StarpathSessionTheme:
+      additionalProperties: false
+      nullable: true
+      properties:
+        accessible_label:
+          maxLength: 240
+          minLength: 1
+          type: string
+        factual_focus:
+          maxLength: 1200
+          minLength: 1
+          type: string
+        horoscope_frame:
+          maxLength: 1200
+          minLength: 1
+          type: string
+        id:
+          format: uuid
+          type: string
+        key:
+          pattern: ^[a-z0-9]+(?:-[a-z0-9]+)*$
+          type: string
+        title:
+          maxLength: 160
+          minLength: 1
+          type: string
+      required:
+        - id
+        - key
+        - title
+        - horoscope_frame
+        - factual_focus
+        - accessible_label
+      type: object
+    StarpathSnapshot:
+      additionalProperties: false
+      properties:
+        answer:
+          $ref: "#/components/schemas/StarpathAnswerFeedback"
+        authority:
+          $ref: "#/components/schemas/StarpathAuthority"
+        availability:
+          enum:
+            - available
+            - not_started
+          type: string
+        command_effect:
+          enum:
+            - started
+            - resumed
+            - content_replaced
+            - wrong_answer
+            - lesson_completed
+            - recall_completed
+            - recall_skipped
+            - semantic_replay
+            - idempotent_replay
+            - null
+          nullable: true
+          type: string
+        nodes:
+          items:
+            $ref: "#/components/schemas/StarpathNode"
+          maxItems: 8
+          minItems: 8
+          type: array
+        progress:
+          $ref: "#/components/schemas/StarpathProgress"
+        recall:
+          $ref: "#/components/schemas/StarpathRecall"
+        session:
+          $ref: "#/components/schemas/StarpathSession"
+        theme:
+          $ref: "#/components/schemas/StarpathSessionTheme"
+        version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+      required:
+        - availability
+        - version
+        - authority
+        - session
+        - theme
+        - progress
+        - nodes
+        - recall
+        - command_effect
+        - answer
+      type: object
+    StarpathSnapshotResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/StarpathSnapshot"
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
       type: object
     UpdateAstrologyProfileRequest:
       additionalProperties: false
@@ -30697,5 +31204,904 @@ paths:
         - SupabaseBearer: []
       tags:
         - Session
+  /v1/starpath:
+    get:
+      operationId: getStarpath
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarpathSnapshotResponse"
+          description: Read the signed-in member's server-authoritative factual Starpath.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Starpath
+  /v1/starpath/answers:
+    post:
+      operationId: answerStarpathQuestion
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7E]+$
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnswerStarpathQuestion"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarpathSnapshotResponse"
+          description: Submit one exact factual-comprehension answer for server scoring.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Starpath
+  /v1/starpath/recall/skip:
+    post:
+      operationId: skipStarpathRecall
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7E]+$
+            type: string
+        - in: header
+          name: if-match
+          required: true
+          schema:
+            pattern: ^"v[1-9]\d*"$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkipStarpathRecall"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarpathSnapshotResponse"
+          description: Skip the non-blocking recall prompt without changing node unlocks.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Starpath
+  /v1/starpath/sessions:
+    post:
+      operationId: startOrResumeStarpath
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7E]+$
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StarpathSnapshotResponse"
+          description: Start or resume one reviewed, non-personalized learning session.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Starpath
 servers:
   - url: https://PROJECT_REF.supabase.co/functions/v1/api

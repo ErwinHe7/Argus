@@ -36,6 +36,7 @@ ritual-investing-api-client/doc/AccountApi.md
 ritual-investing-api-client/doc/AdminApi.md
 ritual-investing-api-client/doc/AdminModerationApi.md
 ritual-investing-api-client/doc/AdminOperationsApi.md
+ritual-investing-api-client/doc/AdminStarpathApi.md
 ritual-investing-api-client/doc/AssetsApi.md
 ritual-investing-api-client/doc/BriefingsApi.md
 ritual-investing-api-client/doc/BrokerageConnectionsApi.md
@@ -59,11 +60,13 @@ ritual-investing-api-client/doc/RowanApi.md
 ritual-investing-api-client/doc/SavedApi.md
 ritual-investing-api-client/doc/SearchApi.md
 ritual-investing-api-client/doc/SessionApi.md
+ritual-investing-api-client/doc/StarpathApi.md
 ritual-investing-api-client/lib/generated/api.dart
 ritual-investing-api-client/lib/generated/api/account_api.dart
 ritual-investing-api-client/lib/generated/api/admin_api.dart
 ritual-investing-api-client/lib/generated/api/admin_moderation_api.dart
 ritual-investing-api-client/lib/generated/api/admin_operations_api.dart
+ritual-investing-api-client/lib/generated/api/admin_starpath_api.dart
 ritual-investing-api-client/lib/generated/api/assets_api.dart
 ritual-investing-api-client/lib/generated/api/briefings_api.dart
 ritual-investing-api-client/lib/generated/api/brokerage_connections_api.dart
@@ -85,6 +88,7 @@ ritual-investing-api-client/lib/generated/api/rowan_api.dart
 ritual-investing-api-client/lib/generated/api/saved_api.dart
 ritual-investing-api-client/lib/generated/api/search_api.dart
 ritual-investing-api-client/lib/generated/api/session_api.dart
+ritual-investing-api-client/lib/generated/api/starpath_api.dart
 ritual-investing-api-client/test/contract_client_test.dart
 ritual-investing-api/openapi/ritual-investing-v1.yaml
 ritual-investing-api/scripts/generate-openapi.ts

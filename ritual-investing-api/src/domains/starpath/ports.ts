@@ -58,8 +58,11 @@ export type StarpathErrorCode =
   | "starpath_recall_conflict";
 
 export class StarpathError extends Error {
-  constructor(readonly code: StarpathErrorCode) {
+  readonly code: StarpathErrorCode;
+
+  constructor(code: StarpathErrorCode) {
     super(code);
     this.name = "StarpathError";
+    this.code = code;
   }
 }
