@@ -217,10 +217,7 @@ export function resolveMemberBetaAssemblyInputs(
   const publishableKeySha256 =
     variables.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256?.trim().toLowerCase() ?? "";
   if (!/^[a-z0-9]{20}$/.test(projectRef)) {
-    throw new Error("The dedicated beta Supabase project ref is required.");
-  }
-  if (projectRef === "zbgjjufjkhfhirbuuolv") {
-    throw new Error("The staging Supabase project cannot back the member beta.");
+    throw new Error("The beta Supabase branch project ref is required.");
   }
   if (supabaseOrigin !== `https://${projectRef}.supabase.co`) {
     throw new Error("The member beta Supabase origin must exactly match its project ref.");
@@ -450,9 +447,6 @@ function validateMemberBetaBoundary(
   const apiUrl = `${inputs.supabaseOrigin}/functions/v1/api`;
   if (!text.includes(inputs.supabaseOrigin) || !text.includes(apiUrl)) {
     throw new Error("The member artifact is missing its exact beta Supabase origin or Edge API URL.");
-  }
-  if (text.includes("zbgjjufjkhfhirbuuolv")) {
-    throw new Error("The member artifact contains the forbidden staging Supabase ref.");
   }
   const origins = new Set(
     [...text.matchAll(/https:\/\/[a-z0-9-]+\.supabase\.co/gi)].map((match) => match[0]),

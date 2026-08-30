@@ -1,6 +1,8 @@
 {
-  "RITUAL_ENVIRONMENT": "staging",
+  "RITUAL_ENVIRONMENT": "beta",
   "RITUAL_API_BASE_URL": "https://zbgjjufjkhfhirbuuolv.supabase.co/functions/v1/api",
   "SUPABASE_URL": "https://zbgjjufjkhfhirbuuolv.supabase.co",
-  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_A4POPCI9WnO-VnSb1IQXFg_4GM58St0"
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_A4POPCI9WnO-VnSb1IQXFg_4GM58St0",
+  "BETA_SUPABASE_PROJECT_REF": "zbgjjufjkhfhirbuuolv",
+  "BETA_SUPABASE_PUBLISHABLE_KEY_SHA256": "52f52ef0f29b5bf24697e7d1f2c595f80234195f41860cd930d1944fb3b74cf7"
 }

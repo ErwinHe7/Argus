@@ -17,11 +17,19 @@ import {
 
 const MEMBER_PROJECT_REF = "abcdefghijklmnopqrst";
 const MEMBER_ORIGIN = `https://${MEMBER_PROJECT_REF}.supabase.co`;
+const RITUAL_BETA_BRANCH_REF = "zbgjjufjkhfhirbuuolv";
+const RITUAL_BETA_BRANCH_ORIGIN = `https://${RITUAL_BETA_BRANCH_REF}.supabase.co`;
+const RITUAL_BETA_KEY = "sb_publishable_A4POPCI9WnO-VnSb1IQXFg_4GM58St0";
 const MEMBER_KEY = "sb_publishable_member_beta_fixture_1234567890";
 const MEMBER_INPUTS = {
   projectRef: MEMBER_PROJECT_REF,
   publishableKeySha256: createHash("sha256").update(MEMBER_KEY).digest("hex"),
   supabaseOrigin: MEMBER_ORIGIN,
+} as const;
+const RITUAL_BETA_INPUTS = {
+  projectRef: RITUAL_BETA_BRANCH_REF,
+  publishableKeySha256: createHash("sha256").update(RITUAL_BETA_KEY).digest("hex"),
+  supabaseOrigin: RITUAL_BETA_BRANCH_ORIGIN,
 } as const;
 
 async function fixture(): Promise<{ source: string; destination: string }> {
@@ -154,26 +162,26 @@ describe("deterministic demo asset assembly", () => {
     );
   });
 
-  it("requires exact dedicated beta assembly inputs and rejects the staging project", () => {
+  it("requires exact beta assembly inputs and accepts the verified persistent beta branch", () => {
     expect(resolveMemberBetaAssemblyInputs({
       MEMBER_BETA_SUPABASE_PROJECT_REF: MEMBER_PROJECT_REF,
       MEMBER_BETA_SUPABASE_ORIGIN: MEMBER_ORIGIN,
       MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: MEMBER_INPUTS.publishableKeySha256,
     })).toEqual(MEMBER_INPUTS);
-    expect(() => resolveMemberBetaAssemblyInputs({
-      MEMBER_BETA_SUPABASE_PROJECT_REF: "zbgjjufjkhfhirbuuolv",
-      MEMBER_BETA_SUPABASE_ORIGIN: "https://zbgjjufjkhfhirbuuolv.supabase.co",
-      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: MEMBER_INPUTS.publishableKeySha256,
-    })).toThrow(/staging Supabase project/i);
+    expect(resolveMemberBetaAssemblyInputs({
+      MEMBER_BETA_SUPABASE_PROJECT_REF: RITUAL_BETA_BRANCH_REF,
+      MEMBER_BETA_SUPABASE_ORIGIN: RITUAL_BETA_BRANCH_ORIGIN,
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: RITUAL_BETA_INPUTS.publishableKeySha256,
+    })).toEqual(RITUAL_BETA_INPUTS);
   });
 
   it("assembles only the exact member beta Supabase origin, Edge URL, and key fingerprint", async () => {
     const paths = await fixture();
     await writeFile(
       join(paths.source, "main.dart.js"),
-      `${MEMBER_ORIGIN} ${MEMBER_ORIGIN}/functions/v1/api /v1/session/bootstrap ${MEMBER_KEY}`,
+      `${RITUAL_BETA_BRANCH_ORIGIN} ${RITUAL_BETA_BRANCH_ORIGIN}/functions/v1/api /v1/session/bootstrap ${RITUAL_BETA_KEY}`,
     );
-    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: MEMBER_INPUTS }))
+    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: RITUAL_BETA_INPUTS }))
       .resolves.toMatchObject({ algorithm: "sha256", fileCount: 2 });
 
     await writeFile(join(paths.source, "main.dart.js"), `${MEMBER_ORIGIN}/functions/v1/api ${MEMBER_KEY} https://otherprojectref00001.supabase.co`);

@@ -23,7 +23,7 @@ authority.
 | Legacy Worker/domain ID, deployment, version, tag | Cloudflare operator | Values above; domain ID `pending` |
 | New Worker landing/member versions and deployment IDs | Cloudflare operator | `pending` |
 | Before/after DNS and TLS captures | Cloudflare operator | `pending` |
-| Dedicated beta project/schema/Edge/Auth/CORS/content fingerprints | Supabase operator | `pending` |
+| Persistent beta branch/schema/Edge/Auth/CORS/content fingerprints | Supabase operator | Branch `beta`, ref `zbgjjufjkhfhirbuuolv`; remaining evidence `pending` |
 | Backup freshness, restore drill, approved RPO/RTO and quotas | Supabase operator | `pending` |
 | Durable counts, privacy queue/SLA, admission and fence states | Supabase operator | `pending` |
 
@@ -53,11 +53,11 @@ Wrangler alias origin,
 same exact origin must appear in Edge CORS and Supabase Auth redirects. Wildcard
 and per-version preview origins are forbidden.
 
-## Dedicated beta prerequisites
+## Persistent beta branch prerequisites
 
-Before domain cutover, the Supabase operator must prove the target is a
-dedicated durable beta project—not production or the replaceable staging
-branch—and record:
+Before domain cutover, the Supabase operator must prove the target is the
+healthy persistent `beta` branch under parent project `punuomgshlypbntanomz`,
+with branch project ref `zbgjjufjkhfhirbuuolv`, and record:
 
 - invite-only Auth with custom SMTP, resend, enumeration-resistant recovery,
   rate limits, exact apex/preview `/mobile/argus-auth/callback` redirects, a
@@ -142,7 +142,7 @@ brackets only from the reviewed record.
 
 | Boundary | Go only when | Status |
 | --- | --- | --- |
-| Backend | Dedicated-beta prerequisites and mixed-version checks have signed evidence | `NO-GO: exact project unknown` |
+| Backend | Persistent-beta prerequisites and mixed-version checks have signed evidence | `NO-GO: hosted acceptance pending` |
 | Preview | Auth/privacy/tenant/fence/mobile/cache/CSP/network acceptance passes | `NO-GO: not observed` |
 | Domain | New Worker landing is active and legacy recovery values are frozen | `NO-GO: not executed` |
 | Promotion | Domain soak and 0% apex override smoke pass unchanged manifest/backend checks | `NO-GO: not observed` |
@@ -192,8 +192,8 @@ reconciliation, and approvals in
 
 ## External blockers
 
-- Supabase login awaits user verification; the dedicated beta project,
-  hosted acceptance, backup, restore drill, and recovery posture are unknown.
+- Supabase CLI access and the persistent `beta` branch identity are verified;
+  hosted acceptance, backup, restore drill, and recovery posture remain pending.
 - Protected workflow runs and operator approvals have not been supplied.
 - No landing/member versions on `ritual-investing-member`, domain cutover,
   preview/apex acceptance, checkpoint, or recovery rehearsal is recorded.

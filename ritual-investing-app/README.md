@@ -55,7 +55,7 @@ flutter test integration_test/member_experience_test.dart -d <device-id> \
 ```
 
 For native development, launch the member app against the persistent `beta`
-staging branch of the hosted Ritual Investment Supabase project from the
+branch of the hosted Ritual Investment Supabase project from the
 repository root:
 
 ```sh
@@ -63,11 +63,12 @@ repository root:
 ```
 
 The script reads the committed public client configuration from
-`ritual-investing-app/config/beta.json`. It contains only the staging branch URL
-and Supabase publishable key; no server secret or database credential is
-shipped to Flutter. This native development helper is not public-beta release
-authority: the web artifact must bind to the exact dedicated beta project and
-versioned beta API recorded in its release manifest.
+`ritual-investing-app/config/beta.json`. It contains only the beta branch URL,
+branch ref, Supabase publishable key, and its SHA-256 fingerprint; no server
+secret or database credential is shipped to Flutter. The public web artifact
+binds to that same persistent beta branch and its versioned beta API after the
+release guard verifies the exact branch ref, origin, and publishable-key
+fingerprint.
 
 The visual baselines live under `test/goldens/`. Regenerate them only after comparing the result with the approved authority at `../docs/visual-references/standalone-ritual-investing/approved-light-dark-reference.html`.
 

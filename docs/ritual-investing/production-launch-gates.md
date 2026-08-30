@@ -8,8 +8,9 @@ redesign the retained landing artifact, standalone Demo, or member product
 behavior. The clearly labeled member Worker may own the apex while the
 unchanged landing stays available as the tested rollback and Pages-hosted
 recovery surface. Cloudflare's member role is limited to compiled static
-assets, and the browser uses only the dedicated beta Supabase project,
-versioned beta Argus API, and canonical private tables. Supported routes,
+assets, and the browser uses only the persistent `beta` branch of the Ritual
+Investment Supabase project, versioned beta Argus API, and canonical private
+tables. Supported routes,
 including authorized privacy export and API-backed or verified-manual-SLA
 deletion, are beta-backed launch requirements. Brokerage connection and reads,
 funding, and order mutations remain visibly unavailable and fail closed; any

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,6 +25,23 @@ void main() {
         'https://just-build-this.app/mobile/webull/complete,'
             'com.ritualinvesting.ritual-investing-app.webull://webull/complete',
   );
+
+  test('committed beta define file satisfies the runtime binding', () {
+    final values = jsonDecode(File('config/beta.json').readAsStringSync())
+        as Map<String, dynamic>;
+    final config = RuntimeConfig(
+      environment: values['RITUAL_ENVIRONMENT'] as String,
+      apiBaseUrl: values['RITUAL_API_BASE_URL'] as String,
+      supabaseUrl: values['SUPABASE_URL'] as String,
+      supabasePublishableKey: values['SUPABASE_PUBLISHABLE_KEY'] as String,
+      betaSupabaseProjectRef:
+          values['BETA_SUPABASE_PROJECT_REF'] as String,
+      betaSupabasePublishableKeySha256:
+          values['BETA_SUPABASE_PUBLISHABLE_KEY_SHA256'] as String,
+    );
+
+    expect(config.environment, 'beta');
+  });
 
   test('production configuration requires exact HTTPS Supabase values', () {
     expect(

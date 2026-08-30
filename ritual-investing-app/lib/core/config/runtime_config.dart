@@ -172,7 +172,7 @@ class RuntimeConfig {
     if (!RegExp(r'^[a-z]{20}$').hasMatch(betaProjectRef) ||
         supabaseUrl.host != '$betaProjectRef.supabase.co') {
       throw const RuntimeConfigException(
-        'The public beta requires its exact dedicated Supabase project ref.',
+        'The public beta requires its exact Supabase branch project ref.',
       );
     }
     final fingerprint = sha256.convert(utf8.encode(publishableKey)).toString();

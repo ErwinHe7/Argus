@@ -9,7 +9,8 @@ scanned.
 Before preview upload, build Flutter web without a service worker, source maps,
 remote web resources, or a WASM dry run. Assemble `dist/member-beta`, verify its
 manifest and provider scan, and run Wrangler's dry-run validation. The bundle
-may connect only to the exact dedicated beta Supabase origin.
+may connect only to the exact persistent `beta` branch origin of the Ritual
+Investment Supabase project.
 
 The protected release workflow uploads one immutable version with stable alias
 `beta`. Its exact origin is stored in `BETA_MEMBER_PREVIEW_ORIGIN` as

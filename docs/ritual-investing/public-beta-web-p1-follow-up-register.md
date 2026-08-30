@@ -17,9 +17,10 @@ feature exists or an authorization to enable it.
 - Cloudflare may deliver the compiled Flutter member artifact as static assets.
   It receives no Auth, application-data, database, provider, or stateful backend
   authority.
-- Member identity uses the dedicated beta Supabase project. Application data
-  uses the versioned beta Argus API and private beta schemas; the browser does
-  not query application tables through the Supabase Data API.
+- Member identity uses the persistent `beta` branch of the Ritual Investment
+  Supabase project. Application data uses the versioned beta Argus API and
+  private beta schemas; the browser does not query application tables through
+  the Supabase Data API.
 - Entry is invitation-only. Self-service signup remains disabled.
 - Brokerage reads and mutations, provider connection, funding, privacy export,
   privacy deletion, and every other unfinished sensitive capability remain
