@@ -1,4 +1,5 @@
 import '../bootstrap/app_runtime.dart';
+import '../bootstrap/member_bootstrap.dart';
 
 typedef MemberResourceAccess = bool Function(
   MemberRouteDefinition route,
@@ -52,6 +53,11 @@ abstract final class MemberRoutes {
     name: 'discover',
     path: '/discover',
     branch: MemberBranch.discover,
+  );
+  static const starpath = MemberRouteDefinition(
+    name: 'starpath',
+    path: '/starpath',
+    branch: MemberBranch.starpath,
   );
   static const coven = MemberRouteDefinition(
     name: 'coven',
@@ -113,7 +119,7 @@ abstract final class MemberRoutes {
     branch: MemberBranch.you,
   );
 
-  static const roots = [ritual, discover, coven, you];
+  static const roots = [ritual, starpath, discover, coven, you];
   static const resources = [
     ritualReading,
     discoverAsset,
@@ -215,5 +221,75 @@ abstract final class MemberRoutes {
       );
     }
     return '$ritualBriefingsPath/${Uri.encodeComponent(briefingId)}';
+  }
+}
+
+class MemberNavigationPolicy {
+  MemberNavigationPolicy._({
+    required List<MemberBranch> branches,
+    required this.isAuthoritative,
+    required this.capabilityVersion,
+  }) : branches = List.unmodifiable(branches);
+
+  factory MemberNavigationPolicy.fromBootstrap(MemberBootstrap? bootstrap) {
+    final capabilities = bootstrap?.branchCapabilities;
+    if (bootstrap == null ||
+        capabilities == null ||
+        !capabilities.isValidAt(bootstrap.serverTime)) {
+      return MemberNavigationPolicy._(
+        branches: const [MemberBranch.ritual],
+        isAuthoritative: false,
+        capabilityVersion: 0,
+      );
+    }
+    final enabled = capabilities.enabled;
+    final branches = <MemberBranch>[
+      for (final mapping in const [
+        (MemberBranchCapability.ritual, MemberBranch.ritual),
+        (MemberBranchCapability.starpath, MemberBranch.starpath),
+        (MemberBranchCapability.discover, MemberBranch.discover),
+        (MemberBranchCapability.coven, MemberBranch.coven),
+        (MemberBranchCapability.you, MemberBranch.you),
+      ])
+        if (enabled.contains(mapping.$1)) mapping.$2,
+    ];
+    if (branches.isEmpty || branches.first != MemberBranch.ritual) {
+      return MemberNavigationPolicy._(
+        branches: const [MemberBranch.ritual],
+        isAuthoritative: false,
+        capabilityVersion: 0,
+      );
+    }
+    return MemberNavigationPolicy._(
+      branches: branches,
+      isAuthoritative: true,
+      capabilityVersion: capabilities.capabilityVersion,
+    );
+  }
+
+  final List<MemberBranch> branches;
+  final bool isAuthoritative;
+  final int capabilityVersion;
+
+  bool contains(MemberBranch branch) => branches.contains(branch);
+
+  String? redirectFor(String path) {
+    final requested = switch (path) {
+      final value when value == '/ritual' || value.startsWith('/ritual/') =>
+        MemberBranch.ritual,
+      final value when value == '/starpath' || value.startsWith('/starpath/') =>
+        MemberBranch.starpath,
+      final value when value == '/discover' || value.startsWith('/discover/') =>
+        MemberBranch.discover,
+      final value when value == '/coven' || value.startsWith('/coven/') =>
+        MemberBranch.coven,
+      final value when value == '/you' || value.startsWith('/you/') =>
+        MemberBranch.you,
+      _ => null,
+    };
+    if (requested == null || contains(requested)) return null;
+    return contains(MemberBranch.starpath)
+        ? MemberRoutes.starpath.path
+        : MemberRoutes.ritual.path;
   }
 }

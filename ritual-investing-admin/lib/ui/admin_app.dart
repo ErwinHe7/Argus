@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../application/admin_session_controller.dart';
 import '../data/admin_gateway.dart';
 import '../domain/admin_models.dart';
+import '../features/starpath/presentation/starpath_workspace.dart';
 import 'admin_shell.dart';
 import 'workspace_screen.dart';
 
@@ -63,11 +64,17 @@ class _AdminAppState extends State<AdminApp> {
             for (final destination in adminDestinations)
               GoRoute(
                 path: destination.route,
-                builder: (context, state) => WorkspaceScreen(
-                  destination: destination,
-                  session: widget.session,
-                  gateway: widget.gateway,
-                ),
+                builder: (context, state) =>
+                    destination.editorialKind == 'starpath_lesson'
+                    ? StarpathWorkspace(
+                        session: widget.session,
+                        gateway: widget.gateway,
+                      )
+                    : WorkspaceScreen(
+                        destination: destination,
+                        session: widget.session,
+                        gateway: widget.gateway,
+                      ),
               ),
           ],
         ),

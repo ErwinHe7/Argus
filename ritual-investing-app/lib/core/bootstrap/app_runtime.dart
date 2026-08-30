@@ -23,6 +23,7 @@ import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
+import '../../features/starpath/application/starpath_controller.dart';
 import '../cache/read_cache.dart';
 import 'member_bootstrap.dart';
 import 'member_feature_scope.dart';
@@ -54,6 +55,8 @@ extension AppRuntimeFeatureAccess on AppRuntime {
 
   DailyRitualController get dailyRitualController =>
       _requireScope().dailyRitualController;
+  StarpathController get starpathController =>
+      _requireScope().starpathController;
   DiscoverController get discoverController =>
       _requireScope().discoverController;
   CovenController get covenController => _requireScope().covenController;

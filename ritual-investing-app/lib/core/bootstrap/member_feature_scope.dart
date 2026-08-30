@@ -19,11 +19,12 @@ import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
+import '../../features/starpath/application/starpath_controller.dart';
 import '../api/invalidation_bus.dart';
 import '../cache/read_cache.dart';
 import 'member_bootstrap.dart';
 
-enum MemberBranch { ritual, discover, coven, you }
+enum MemberBranch { ritual, starpath, discover, coven, you }
 
 typedef MemberFeatureScopeFactory = MemberFeatureScope Function(
   CacheScope scope,
@@ -35,6 +36,7 @@ class MemberFeatureScope {
   MemberFeatureScope({
     required this.scope,
     required this.dailyRitualController,
+    required this.starpathController,
     required this.discoverController,
     required this.covenController,
     required this.profileController,
@@ -58,6 +60,7 @@ class MemberFeatureScope {
 
   final CacheScope scope;
   final DailyRitualController dailyRitualController;
+  final StarpathController starpathController;
   final DiscoverController discoverController;
   final CovenController covenController;
   final ProfileController profileController;
@@ -104,6 +107,8 @@ class MemberFeatureScope {
       switch (branch) {
         case MemberBranch.ritual:
           await dailyRitualController.load();
+        case MemberBranch.starpath:
+          await starpathController.load();
         case MemberBranch.discover:
           await discoverController.load();
         case MemberBranch.coven:
@@ -126,6 +131,7 @@ class MemberFeatureScope {
     if (_isDisposed) return;
     _isDisposed = true;
     dailyRitualController.dispose();
+    starpathController.dispose();
     discoverController.dispose();
     covenController.dispose();
     profileController.dispose();

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
+import 'package:json_annotation/json_annotation.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:test/test.dart';
 
@@ -154,6 +155,178 @@ void main() {
       expect(adapter.requests.single.queryParameters['refresh'], 'true');
     },
   );
+
+  test('decodes the complete eight-node Starpath member snapshot', () {
+    final response = StarpathSnapshotResponse.fromJson({
+      'data': _starpathSnapshotData(),
+      'meta': {'request_id': requestId},
+    });
+
+    expect(response.data.nodes, hasLength(8));
+    expect(response.data.authority.manifestVersion, '2026.08.30.1');
+    expect(response.data.nodes.first.revisionId, 'revision-1');
+    expect(
+      response
+          .data
+          .nodes
+          .first
+          .factualSections
+          .single
+          .evidence
+          .single
+          .sourceObservedAt,
+      DateTime.parse('2026-08-29T12:00:00.000Z'),
+    );
+    expect(
+      response
+          .data
+          .nodes
+          .first
+          .factualSections
+          .single
+          .evidence
+          .single
+          .currentUntil,
+      DateTime.parse('2026-11-29T12:00:00.000Z'),
+    );
+    expect(
+      response.data.nodes.first.knowledgeCheck.options.first.toJson(),
+      isNot(contains('is_correct')),
+    );
+  });
+
+  test('preserves Starpath forward compatibility through enum fallbacks', () {
+    final data = _starpathSnapshotData();
+    data['availability'] = 'future_availability';
+    (data['authority']! as Map<String, Object?>)['environment'] =
+        'future_environment';
+    ((data['nodes']! as List<Object?>).first!
+            as Map<String, Object?>)['state'] =
+        'future_state';
+
+    final response = StarpathSnapshotResponse.fromJson({
+      'data': data,
+      'meta': {'request_id': requestId},
+    });
+
+    expect(
+      response.data.availability,
+      StarpathSnapshotAvailabilityEnum.unknownDefaultOpenApi,
+    );
+    expect(
+      response.data.authority.environment,
+      StarpathAuthorityEnvironmentEnum.unknownDefaultOpenApi,
+    );
+    expect(
+      response.data.nodes.first.state,
+      StarpathNodeStateEnum.unknownDefaultOpenApi,
+    );
+  });
+
+  test('rejects incomplete Starpath revision and evidence records', () {
+    final missingRevision = _starpathSnapshotData();
+    ((missingRevision['nodes']! as List<Object?>).first!
+            as Map<String, Object?>)
+        .remove('revision_id');
+
+    expect(
+      () => StarpathSnapshotResponse.fromJson({
+        'data': missingRevision,
+        'meta': {'request_id': requestId},
+      }),
+      throwsA(isA<CheckedFromJsonException>()),
+    );
+
+    final missingEvidenceDate = _starpathSnapshotData();
+    final firstNode =
+        (missingEvidenceDate['nodes']! as List<Object?>).first!
+            as Map<String, Object?>;
+    final firstSection =
+        (firstNode['factual_sections']! as List<Object?>).first!
+            as Map<String, Object?>;
+    ((firstSection['evidence']! as List<Object?>).first!
+            as Map<String, Object?>)
+        .remove('retrieved_at');
+
+    expect(
+      () => StarpathSnapshotResponse.fromJson({
+        'data': missingEvidenceDate,
+        'meta': {'request_id': requestId},
+      }),
+      throwsA(isA<CheckedFromJsonException>()),
+    );
+  });
+
+  test('starts Starpath without a body and sends an idempotency key', () async {
+    final adapter = _RecordingAdapter(data: _starpathSnapshotData());
+    final dio = Dio()..httpClientAdapter = adapter;
+
+    final response = await StarpathApi(
+      dio,
+    ).startOrResumeStarpath(idempotencyKey: 'starpath-start-0001');
+
+    expect(response.data?.data.nodes, hasLength(8));
+    expect(adapter.requests.single.path, '/v1/starpath/sessions');
+    expect(adapter.requests.single.method, 'POST');
+    expect(
+      adapter.requests.single.headers['idempotency-key'],
+      'starpath-start-0001',
+    );
+    expect(adapter.requests.single.data, isNull);
+  });
+
+  test('binds Starpath answers to idempotency and snapshot version', () async {
+    final adapter = _RecordingAdapter(data: _starpathSnapshotData());
+    final dio = Dio()..httpClientAdapter = adapter;
+    final command = AnswerStarpathQuestion(
+      attemptKind: AnswerStarpathQuestionAttemptKindEnum.node,
+      manifestId: 'manifest-1',
+      optionId: 'option-1-a',
+      questionId: 'question-1',
+      revisionId: 'revision-1',
+      sessionId: 'session-1',
+    );
+
+    await StarpathApi(dio).answerStarpathQuestion(
+      idempotencyKey: 'starpath-answer-0001',
+      ifMatch: '"v3"',
+      answerStarpathQuestion: command,
+    );
+
+    expect(adapter.requests.single.path, '/v1/starpath/answers');
+    expect(adapter.requests.single.headers['if-match'], '"v3"');
+    expect(
+      adapter.requests.single.headers['idempotency-key'],
+      'starpath-answer-0001',
+    );
+    expect(
+      jsonDecode(adapter.requests.single.data as String),
+      command.toJson(),
+    );
+  });
+
+  test('binds recall skips to idempotency and snapshot version', () async {
+    final adapter = _RecordingAdapter(data: _starpathSnapshotData());
+    final dio = Dio()..httpClientAdapter = adapter;
+    final command = SkipStarpathRecall(sessionId: 'session-1');
+
+    await StarpathApi(dio).skipStarpathRecall(
+      idempotencyKey: 'starpath-skip-0001',
+      ifMatch: '"v3"',
+      skipStarpathRecall: command,
+    );
+
+    expect(adapter.requests.single.path, '/v1/starpath/recall/skip');
+    expect(adapter.requests.single.headers['if-match'], '"v3"');
+    expect(
+      adapter.requests.single.headers['idempotency-key'],
+      'starpath-skip-0001',
+    );
+    expect(
+      jsonDecode(adapter.requests.single.data as String),
+      command.toJson(),
+    );
+  });
 }
 
 class _RecordingAdapter implements HttpClientAdapter {
@@ -216,4 +389,105 @@ Map<String, Object?> _defaultData(String path) {
     };
   }
   return const {};
+}
+
+Map<String, Object?> _starpathSnapshotData() {
+  return {
+    'availability': 'available',
+    'version': 3,
+    'authority': {
+      'capability_version': 9,
+      'manifest_id': 'manifest-1',
+      'manifest_version': '2026.08.30.1',
+      'policy_version': 'policy-1',
+      'environment': 'beta',
+      'jurisdiction': 'US',
+    },
+    'session': {
+      'id': 'session-1',
+      'state': 'active',
+      'started_at': '2026-08-30T12:00:00.000Z',
+      'last_action_at': '2026-08-30T12:01:00.000Z',
+      'explicit_start': true,
+      'replacement_of_session_id': null,
+    },
+    'theme': {
+      'id': 'theme-1',
+      'key': 'walk-the-stars',
+      'title': 'Walk the Stars',
+      'horoscope_frame': 'A mnemonic sky map, not a forecast.',
+      'factual_focus': 'How diversified funds work.',
+      'accessible_label': 'Constellation pathway',
+    },
+    'progress': {
+      'current_node_ordinal': 1,
+      'version': 3,
+      'updated_at': '2026-08-30T12:01:00.000Z',
+    },
+    'nodes': List<Object?>.generate(8, (index) {
+      final ordinal = index + 1;
+      return {
+        'node_ordinal': ordinal,
+        'pathway_ordinal': (index ~/ 2) + 1,
+        'pathway_position': (index % 2) + 1,
+        'state': ordinal == 1 ? 'current' : 'locked',
+        'lesson_id': 'lesson-$ordinal',
+        'revision_id': 'revision-$ordinal',
+        'title': 'Star lesson $ordinal',
+        'guide': {
+          'tarot_key': 'major-$ordinal',
+          'accessible_label': 'Guide card $ordinal',
+        },
+        'mythic_mnemonic': 'A memory aid only; it predicts nothing.',
+        'factual_summary': 'A factual description of the instrument.',
+        'factual_sections': [
+          {
+            'ordinal': 1,
+            'kind': 'fact',
+            'heading': 'What it is',
+            'body': 'A pooled investment holds underlying assets.',
+            'uncertainty': 'Holdings and prices change over time.',
+            'observed_at': '2026-08-29T12:00:00.000Z',
+            'evidence': [
+              {
+                'ordinal': 1,
+                'canonical_url': 'https://www.investor.gov/example',
+                'source_title': 'Investor bulletin',
+                'publisher': 'Investor.gov',
+                'source_observed_at': '2026-08-29T12:00:00.000Z',
+                'effective_at': '2026-08-01T00:00:00.000Z',
+                'retrieved_at': '2026-08-30T11:00:00.000Z',
+                'current_until': '2026-11-29T12:00:00.000Z',
+                'claim_summary': 'Defines the instrument and its limits.',
+              },
+            ],
+          },
+        ],
+        'material_limitations': 'Fees and tracking can vary.',
+        'risk_context': 'Market value can rise or fall.',
+        'recall_prompt': 'Recall one factual limitation.',
+        'rowan_explanation':
+            'Rowan explains the fact without a recommendation.',
+        'knowledge_check': {
+          'id': 'question-$ordinal',
+          'prompt': 'Which statement is factual?',
+          'options': [
+            {
+              'id': 'option-$ordinal-a',
+              'ordinal': 1,
+              'label': 'It pools assets.',
+            },
+            {
+              'id': 'option-$ordinal-b',
+              'ordinal': 2,
+              'label': 'It predicts returns.',
+            },
+          ],
+        },
+      };
+    }),
+    'recall': null,
+    'command_effect': null,
+    'answer': null,
+  };
 }

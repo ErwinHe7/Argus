@@ -36,6 +36,7 @@ ritual-investing-api-client/doc/AccountApi.md
 ritual-investing-api-client/doc/AdminApi.md
 ritual-investing-api-client/doc/AdminModerationApi.md
 ritual-investing-api-client/doc/AdminOperationsApi.md
+ritual-investing-api-client/doc/AdminStarpathApi.md
 ritual-investing-api-client/doc/AssetsApi.md
 ritual-investing-api-client/doc/BriefingsApi.md
 ritual-investing-api-client/doc/BrokerageConnectionsApi.md
@@ -59,11 +60,13 @@ ritual-investing-api-client/doc/RowanApi.md
 ritual-investing-api-client/doc/SavedApi.md
 ritual-investing-api-client/doc/SearchApi.md
 ritual-investing-api-client/doc/SessionApi.md
+ritual-investing-api-client/doc/StarpathApi.md
 ritual-investing-api-client/lib/generated/api.dart
 ritual-investing-api-client/lib/generated/api/account_api.dart
 ritual-investing-api-client/lib/generated/api/admin_api.dart
 ritual-investing-api-client/lib/generated/api/admin_moderation_api.dart
 ritual-investing-api-client/lib/generated/api/admin_operations_api.dart
+ritual-investing-api-client/lib/generated/api/admin_starpath_api.dart
 ritual-investing-api-client/lib/generated/api/assets_api.dart
 ritual-investing-api-client/lib/generated/api/briefings_api.dart
 ritual-investing-api-client/lib/generated/api/brokerage_connections_api.dart
@@ -85,6 +88,7 @@ ritual-investing-api-client/lib/generated/api/rowan_api.dart
 ritual-investing-api-client/lib/generated/api/saved_api.dart
 ritual-investing-api-client/lib/generated/api/search_api.dart
 ritual-investing-api-client/lib/generated/api/session_api.dart
+ritual-investing-api-client/lib/generated/api/starpath_api.dart
 ritual-investing-api-client/test/contract_client_test.dart
 ritual-investing-api/openapi/ritual-investing-v1.yaml
 ritual-investing-api/scripts/generate-openapi.ts
@@ -122,6 +126,8 @@ ritual-investing-api/src/domains/rowan/repository.ts
 ritual-investing-api/src/domains/search/repository.ts
 ritual-investing-api/src/domains/session/repository.ts
 ritual-investing-api/src/domains/session/supabase-schemas.ts
+ritual-investing-api/src/domains/starpath/editorial-repository.ts
+ritual-investing-api/src/domains/starpath/repository.ts
 ritual-investing-api/src/jobs/handlers.ts
 ritual-investing-api/src/jobs/privacy-export.ts
 ritual-investing-api/src/jobs/queue-runtime.ts
@@ -133,7 +139,9 @@ ritual-investing-api/test/architecture/runtime-import-boundary.test.ts
 ritual-investing-api/test/architecture/supabase-edge-role.test.ts
 ritual-investing-api/test/contracts/product-authority.test.ts
 ritual-investing-api/test/contracts/retained-openapi.test.ts
+ritual-investing-api/test/contracts/starpath-editorial-authority.test.ts
 ritual-investing-api/test/contracts/u8-pagination-routes.test.ts
+ritual-investing-api/test/db/starpath-repository-integration.test.ts
 ritual-investing-api/test/db/supabase-repository-integration.test.ts
 ritual-investing-api/test/db/u7-async-privacy-migration.test.ts
 ritual-investing-api/test/domains/briefing-read-state.test.ts
@@ -175,6 +183,7 @@ ritual-investing-app/lib/features/onboarding/data/onboarding_repository.dart
 ritual-investing-app/lib/main.dart
 ritual-investing-app/pubspec.yaml
 ritual-investing-app/test/auth_controller_test.dart
+ritual-investing-app/test/bootstrap_test.dart
 ritual-investing-app/test/demo_dependency_boundary_test.dart
 ritual-investing-app/test/member_brokerage_bootstrap_test.dart
 ritual-investing-app/test/native_auth_config_test.dart
@@ -260,12 +269,17 @@ supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
 supabase/migrations/20260829150000_u6_application_purge_owner.sql
 supabase/migrations/20260829160000_u7_member_event_scope.sql
 supabase/migrations/20260829170000_u8_normalized_query_contracts.sql
+supabase/migrations/20260829180000_u9_bootstrap_daily_ritual_content.sql
+supabase/migrations/20260830060327_starpath_editorial.sql
+supabase/migrations/20260830063238_starpath_member_state.sql
+supabase/migrations/20260830071000_starpath_member_api.sql
 supabase/seed.sql
 supabase/tests/application_purge_owner.test.sql
 supabase/tests/architecture_contract.test.sql
 supabase/tests/argus_domain_model.test.sql
 supabase/tests/brokerage_integrity.test.sql
 supabase/tests/brokerage_private.test.sql
+supabase/tests/daily_ritual_seed.test.sql
 supabase/tests/editorial_publication.test.sql
 supabase/tests/function_security.test.sql
 supabase/tests/grants_and_rls.test.sql
@@ -277,6 +291,8 @@ supabase/tests/queues_and_cron.test.sql
 supabase/tests/request_context.test.sql
 supabase/tests/request_context_concurrency.test.sh
 supabase/tests/schema.test.sql
+supabase/tests/starpath_editorial.test.sql
+supabase/tests/starpath_member_state.test.sql
 supabase/tests/storage_policies.test.sql
 supabase/tests/u10_privacy_jobs.test.sql
 supabase/tests/u11_admin_supabase_auth.test.sql

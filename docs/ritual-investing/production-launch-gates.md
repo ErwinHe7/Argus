@@ -45,7 +45,32 @@ these production gates, or unavailable financial capability fences.
 - Run `scripts/check-supabase-hosted-acceptance.sh` against the exact production
   target and retain its Auth, queue, Storage, schema, limit, fence, and Edge
   revision evidence.
+- Keep Starpath production capability disabled until RC1 proves the fresh,
+  server-authoritative production branch order Ritual → Starpath → You at both
+  bootstrap and protected APIs. Discover and Coven must be absent from tabs,
+  restored state, deep links, and protected resources. Missing, expired,
+  unknown, or downgraded capability data must fail closed, and the release
+  operator must retain a tested rollback/re-enable record.
+- Keep Starpath production capability disabled until all eight exact lesson
+  revisions have distinct factual and compliance attestations, the immutable
+  manifest projection matches `starpath-curriculum-v1.md`, and legal counsel has
+  approved the exact `starpath-no-advice-v1` document hash for production, US,
+  its effective/expiry window, and the current R20 trigger snapshot. Missing,
+  stale, superseded, invalidated, or differently scoped evidence is a NO-GO;
+  dashboard or beta completion is not production approval. Legal validates the
+  versioned policy boundary, not each routine factual lesson revision.
+- Confirm the served Starpath response, Rowan copy, telemetry, and aggregate
+  retention snapshot contain no holdings, balances, orders, investor-profile
+  answers, astrology profile, security preference, inferred investment intent,
+  recommendation, ranking, guarantee, urgency, or investment action. Record the
+  first `learning_retention_within_7d_v1` checksummed baseline without inventing
+  a target or exposing member-level output.
+- Exercise Starpath rollback by disabling its release capability without
+  reversing schema or weakening reads, export, purge, or deletion fencing.
+  Re-enable the same still-valid manifest and prove zero dangling references.
 
 Launch remains **NO-GO** while any item is missing. In particular, the current
-Webull partner protocol decision is unresolved, so real brokerage egress cannot
-be enabled.
+Webull partner protocol decision is unresolved, RC1 release-control evidence is
+external and not yet attached, and RC3 legal evidence has not been supplied in
+the repository. Therefore real brokerage egress and Starpath production
+enablement remain blocked.

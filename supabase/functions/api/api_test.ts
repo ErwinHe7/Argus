@@ -8,6 +8,9 @@ import {
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
 import { rewriteSupabaseFunctionRequest } from "../_shared/http.ts";
+import {
+  createBlockedStarpathCapabilityEvaluator,
+} from "../../../ritual-investing-api/src/domains/starpath/repository.ts";
 
 const supabaseUrl = "https://project-ref.supabase.co";
 const issuer = `${supabaseUrl}/auth/v1`;
@@ -124,4 +127,12 @@ Deno.test("database pool accepts only the dedicated Edge login", async () => {
     "postgresql://argus_edge.project-ref:secret@pooler.example.test:6543/postgres",
   );
   await pool.end();
+});
+
+Deno.test("Starpath stays fail-closed until RC1 supplies its evaluator", async () => {
+  await assertRejects(
+    () => createBlockedStarpathCapabilityEvaluator().evaluate("starpath.read"),
+    Error,
+    "starpath_unavailable",
+  );
 });

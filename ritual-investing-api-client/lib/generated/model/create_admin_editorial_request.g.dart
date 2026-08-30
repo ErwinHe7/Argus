@@ -119,6 +119,7 @@ const _$CreateAdminEditorialRequestKindEnumEnumMap = {
   CreateAdminEditorialRequestKindEnum.circleTemplate: 'circle_template',
   CreateAdminEditorialRequestKindEnum.rowan: 'rowan',
   CreateAdminEditorialRequestKindEnum.briefingTemplate: 'briefing_template',
+  CreateAdminEditorialRequestKindEnum.starpathLesson: 'starpath_lesson',
   CreateAdminEditorialRequestKindEnum.unknownDefaultOpenApi:
       'unknown_default_open_api',
 };

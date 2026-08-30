@@ -183,7 +183,20 @@ Depth comes primarily from tonal layering. The tarot card alone receives a compa
 
 ### Navigation
 
-Use four destinations—Ritual, Discover, Coven, You. iOS receives Cupertino tab behavior; Android receives Material navigation behavior. Both preserve the same information architecture, safe-area handling, 44pt/48dp targets, platform back behavior, and branded active color.
+Navigation is derived from the trusted member capability contract, never a client-side environment guess. Beta uses five destinations in this exact order: Ritual, Starpath, Discover, Coven, You. Production uses Ritual, Starpath, You; Discover and Coven are absent rather than disabled. Missing, expired, or unknown capability data falls back to Ritual only. iOS receives Cupertino tab behavior; Android receives Material navigation behavior. Both preserve the same information architecture, safe-area handling, 44pt/48dp targets, platform back behavior, and branded active color.
+
+### Starpath Learning Path
+
+Starpath is an original downward “Walk the Stars” progression with eight semantic waypoints grouped into four pathways. Alternate waypoints left and right to create a constellation rhythm, but preserve reading, focus, and screen-reader order from one through eight. The connecting line and decorative stars carry no semantics. Starpath waypoints are signature navigation objects rather than ordinary cards and may use the larger rounded constellation shape shown in the approved component.
+
+The hierarchy is fixed: celestial memory frame and no-recommendation boundary, current downward path, optional single recall, then the selected lesson. A lesson reveals one original tarot-style memory card before showing two unmistakable content zones:
+
+1. `MYTHIC MEMORY AID`, immediately followed by “mnemonic—not evidence or a forecast.”
+2. `FACTUAL LESSON`, with claim, observed/reviewed dates, source, uncertainty, limitations, risk context, and the definition check.
+
+Completed waypoints remain reviewable, the current waypoint is the only new lesson action, and locked waypoints explain the sequence. Wrong answers use calm factual feedback and retain the choices. Completion adds no streak pressure, lives, countdown, deposit, trade, or security-choice affordance. Rowan opens a bounded sheet containing only reviewed lesson copy, a no-recommendation boundary, and a dismiss action; it has no text field.
+
+At 200 percent text or narrow widths, let headers and waypoint heights grow and preserve downward scrolling. Reduced Motion and accessible navigation remove any nonessential movement; no meaning may depend on flip, bounce, shimmer, parallax, auto-scroll, or the left/right geometry. The visual language may learn from the clarity of guided-learning products but must not copy Alinea, Duolingo, Labyrinthos, or any proprietary character, wording, art, or path composition.
 
 ### Daily Ritual Stage
 
@@ -198,6 +211,7 @@ The generated Compass artwork is the dominant object. The order is fixed: date a
 - **Do** preserve system back gestures, safe areas, text scaling, VoiceOver, TalkBack, and reduced-motion behavior.
 - **Do** distinguish founder, owner, and chief-executive inclusion categories with a visible verification date.
 - **Do** let Rowan explain evidence and uncertainty while leaving the decision with the user.
+- **Do** keep Starpath mythic copy visually and semantically separate from its factual source, dates, limitations, and risk context.
 
 ### Don't:
 
@@ -207,3 +221,4 @@ The generated Compass artwork is the dominant object. The order is fixed: date a
 - **Don't** hide market influence, imply supernatural guarantees, or design disclosure language to escape notice.
 - **Don't** use romance, urgency, jealousy, exclusivity, or sexual pressure to influence a financial decision.
 - **Don't** add side-stripe accents, gradient text, decorative glassmorphism, nested card grids, or radii above `16px` on ordinary surfaces.
+- **Don't** add recommendations, rankings, guarantees, urgency, suitability, personalized security choices, or astrology presented as investment causation to Starpath.

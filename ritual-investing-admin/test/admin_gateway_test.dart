@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_admin/data/admin_gateway.dart';
 import 'package:ritual_investing_admin/domain/admin_models.dart';
+import 'package:ritual_investing_admin/features/starpath/domain/starpath_editorial_models.dart';
 
 void main() {
   test('intentional commands receive distinct replay keys', () {
@@ -121,6 +122,54 @@ void main() {
     expect(request.extra['secure'], isNotEmpty);
     expect(_jsonData(request.data), {
       'payload': {'title': 'Revised'},
+    });
+  });
+
+  test('Starpath submission binds the exact revision and policy', () async {
+    final capture = _CaptureAdapter();
+    final client = RitualInvestingApiClient(
+      basePathOverride: 'https://admin.ritual-investing.invalid',
+    );
+    client.dio.httpClientAdapter = capture;
+
+    await expectLater(
+      OpenApiAdminGateway(client).submitStarpathRevision(
+        revisionId: '11111111-1111-4111-8111-111111111111',
+        policyVersion: 'starpath-no-advice-v1',
+      ),
+      throwsA(isA<DioException>()),
+    );
+
+    expect(
+      capture.request!.path,
+      '/v1/admin/starpath/revisions/11111111-1111-4111-8111-111111111111/submit',
+    );
+    expect(_jsonData(capture.request!.data), {
+      'policy_version': 'starpath-no-advice-v1',
+    });
+  });
+
+  test('Starpath reviews send an explicit discipline and reason', () async {
+    final capture = _CaptureAdapter();
+    final client = RitualInvestingApiClient(
+      basePathOverride: 'https://admin.ritual-investing.invalid',
+    );
+    client.dio.httpClientAdapter = capture;
+
+    await expectLater(
+      OpenApiAdminGateway(client).reviewStarpathRevision(
+        revisionId: '11111111-1111-4111-8111-111111111111',
+        discipline: StarpathReviewDiscipline.factual,
+        decision: StarpathReviewDecision.approved,
+        reason: 'Every factual claim matches its dated primary source.',
+      ),
+      throwsA(isA<DioException>()),
+    );
+
+    expect(_jsonData(capture.request!.data), {
+      'discipline': 'factual',
+      'decision': 'approved',
+      'reason': 'Every factual claim matches its dated primary source.',
     });
   });
 

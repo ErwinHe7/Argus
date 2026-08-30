@@ -5,6 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 
 import '../domain/admin_models.dart';
+import '../features/starpath/data/starpath_admin_gateway.dart';
+import '../features/starpath/domain/starpath_editorial_models.dart';
 
 class AdminIdempotencyRetryInterceptor extends Interceptor {
   AdminIdempotencyRetryInterceptor(this._dio);
@@ -55,7 +57,7 @@ class AdminCommandKeyFactory {
   }
 }
 
-abstract interface class AdminGateway {
+abstract interface class AdminGateway implements StarpathAdminGateway {
   Future<AdminStaffSession> loadSession();
   Future<List<AdminRecord>> list(AdminDestination destination);
   Future<AdminRecord> getEditorial(AdminRecord record);
@@ -131,6 +133,111 @@ class OpenApiAdminGateway implements AdminGateway {
       {'type': 'http', 'scheme': 'bearer', 'name': 'SupabaseBearer'},
     ],
   };
+
+  AdminDestination get _starpathDestination => adminDestinations.firstWhere(
+    (destination) => destination.editorialKind == 'starpath_lesson',
+  );
+
+  @override
+  Future<List<AdminRecord>> listStarpathLessons() => list(_starpathDestination);
+
+  @override
+  Future<AdminRecord> loadStarpathRevision(AdminRecord record) async {
+    final detail = await getEditorial(record);
+    final revisionId = detail.revisionId;
+    if (revisionId == null) return detail;
+    final authority = await AdminStarpathApi(_client.dio)
+        .getAdminStarpathRevision(revisionId: revisionId);
+    final authorityData = authority.data?.data;
+    return AdminRecord(
+      id: detail.id,
+      title: detail.title,
+      status: detail.status,
+      version: detail.version,
+      revisionId: detail.revisionId,
+      etag: detail.etag,
+      payload: {
+        ...?detail.payload,
+        if (authorityData is Map)
+          '_authority': Map<String, Object?>.from(authorityData),
+      },
+    );
+  }
+
+  @override
+  Future<void> createStarpathLesson(
+    String slug,
+    Map<String, Object?> payload,
+  ) => createDraft(_starpathDestination, slug, payload);
+
+  @override
+  Future<void> createStarpathCorrection(
+    AdminRecord record,
+    Map<String, Object?> payload,
+  ) => createRevision(_starpathDestination, record, payload);
+
+  @override
+  Future<void> saveStarpathDraft(
+    AdminRecord record,
+    Map<String, Object?> payload,
+  ) => patchRevision(_starpathDestination, record, payload);
+
+  @override
+  Future<void> submitStarpathRevision({
+    required String revisionId,
+    required String policyVersion,
+  }) async {
+    await AdminStarpathApi(_client.dio).submitAdminStarpathRevision(
+      revisionId: revisionId,
+      submitAdminStarpathRevisionRequest: SubmitAdminStarpathRevisionRequest(
+        policyVersion: policyVersion,
+      ),
+    );
+  }
+
+  @override
+  Future<void> reviewStarpathRevision({
+    required String revisionId,
+    required StarpathReviewDiscipline discipline,
+    required StarpathReviewDecision decision,
+    required String reason,
+  }) async {
+    final generatedDiscipline = switch (discipline) {
+      StarpathReviewDiscipline.factual =>
+        ReviewAdminStarpathRevisionRequestDisciplineEnum.factual,
+      StarpathReviewDiscipline.compliance =>
+        ReviewAdminStarpathRevisionRequestDisciplineEnum.compliance,
+    };
+    final generatedDecision = switch (decision) {
+      StarpathReviewDecision.approved =>
+        ReviewAdminStarpathRevisionRequestDecisionEnum.approved,
+      StarpathReviewDecision.changesRequested =>
+        ReviewAdminStarpathRevisionRequestDecisionEnum.changesRequested,
+      StarpathReviewDecision.rejected =>
+        ReviewAdminStarpathRevisionRequestDecisionEnum.rejected,
+    };
+    await AdminStarpathApi(_client.dio).reviewAdminStarpathRevision(
+      revisionId: revisionId,
+      reviewAdminStarpathRevisionRequest: ReviewAdminStarpathRevisionRequest(
+        discipline: generatedDiscipline,
+        decision: generatedDecision,
+        reason: reason,
+      ),
+    );
+  }
+
+  @override
+  Future<void> publishStarpathManifest({
+    required String manifestId,
+    required String reason,
+  }) async {
+    await AdminStarpathApi(_client.dio).publishAdminStarpathManifest(
+      manifestId: manifestId,
+      publishAdminStarpathManifestRequest: PublishAdminStarpathManifestRequest(
+        reason: reason,
+      ),
+    );
+  }
 
   @override
   Future<AdminStaffSession> loadSession() async {
@@ -433,6 +540,61 @@ class FixtureAdminGateway implements AdminGateway {
   final List<String> transitions = [];
   Map<String, Object?>? lastPatchedPayload;
   Map<String, Object?>? lastDraftPayload;
+
+  @override
+  Future<List<AdminRecord>> listStarpathLessons() async => records;
+
+  @override
+  Future<AdminRecord> loadStarpathRevision(AdminRecord record) async => record;
+
+  @override
+  Future<void> createStarpathLesson(
+    String slug,
+    Map<String, Object?> payload,
+  ) async {
+    lastDraftPayload = payload;
+    transitions.add('starpath-draft:$slug');
+  }
+
+  @override
+  Future<void> createStarpathCorrection(
+    AdminRecord record,
+    Map<String, Object?> payload,
+  ) async {
+    lastDraftPayload = payload;
+    transitions.add('starpath-correction:${record.id}');
+  }
+
+  @override
+  Future<void> saveStarpathDraft(
+    AdminRecord record,
+    Map<String, Object?> payload,
+  ) async {
+    lastPatchedPayload = payload;
+    transitions.add('starpath-save:${record.id}');
+  }
+
+  @override
+  Future<void> submitStarpathRevision({
+    required String revisionId,
+    required String policyVersion,
+  }) async => transitions.add('starpath-submit:$revisionId:$policyVersion');
+
+  @override
+  Future<void> reviewStarpathRevision({
+    required String revisionId,
+    required StarpathReviewDiscipline discipline,
+    required StarpathReviewDecision decision,
+    required String reason,
+  }) async => transitions.add(
+    'starpath-review:${discipline.wireValue}:${decision.wireValue}:$revisionId',
+  );
+
+  @override
+  Future<void> publishStarpathManifest({
+    required String manifestId,
+    required String reason,
+  }) async => transitions.add('starpath-publish:$manifestId');
   @override
   Future<AdminStaffSession> loadSession() async => const AdminStaffSession(
     staffId: 'fixture-staff',

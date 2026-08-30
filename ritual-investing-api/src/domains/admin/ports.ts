@@ -1,4 +1,5 @@
 import type { JsonObject } from "../../db/repository-support.ts";
+import type { AdminEditorialKind } from "./schemas.ts";
 
 export interface AdminRepository {
   getStaffPrincipal(): Promise<JsonObject | null>;
@@ -10,14 +11,7 @@ export interface AdminRepository {
   listEditorial(limit: number, kind?: string): Promise<JsonObject[]>;
   getEditorial(itemId: string): Promise<{ revision: JsonObject }>;
   createEditorial(
-    kind:
-      | "ritual"
-      | "asset_codex"
-      | "coven"
-      | "grimoire"
-      | "circle_template"
-      | "rowan"
-      | "briefing_template",
+    kind: AdminEditorialKind,
     slug: string,
     payload: JsonObject,
     requestId: string,

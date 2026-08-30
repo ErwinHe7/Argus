@@ -3,6 +3,7 @@ import type { Context } from "hono";
 
 import { StaffAuthorizationError } from "../../db/request-transaction.ts";
 import type { AdminRepository } from "./ports.ts";
+import { adminEditorialKindSchema } from "./schemas.ts";
 import {
   dataResponse,
   errorResponse,
@@ -108,17 +109,8 @@ export function registerAdminRoutes(
         ),
       ),
   );
-  const adminEditorialKind = z.enum([
-    "ritual",
-    "asset_codex",
-    "coven",
-    "grimoire",
-    "circle_template",
-    "rowan",
-    "briefing_template",
-  ]);
   const adminEditorialCreateBody = z.object({
-    kind: adminEditorialKind,
+    kind: adminEditorialKindSchema,
     slug: z.string().min(1).max(120).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
     payload: jsonObjectSchema,
   }).strict();
@@ -145,7 +137,7 @@ export function registerAdminRoutes(
       transaction: { mode: "staff", permission: "editorial:read" },
       query: z.object({
         limit: pageLimitSchema.optional(),
-        kind: adminEditorialKind.optional(),
+        kind: adminEditorialKindSchema.optional(),
       }),
     },
   );

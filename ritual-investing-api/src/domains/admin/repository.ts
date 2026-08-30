@@ -5,19 +5,13 @@ import {
   RepositoryRevisionConflictError,
 } from "../../db/repository-support.ts";
 import { sha256TextHex } from "../../security/sha256.ts";
+import type { AdminEditorialKind } from "./schemas.ts";
 
 export function createSupabaseAdminRepository(
   database: DatabaseTransaction,
   actor: Readonly<{ userId: string; sessionId: string }>,
 ) {
-  type EditorialKind =
-    | "ritual"
-    | "asset_codex"
-    | "coven"
-    | "grimoire"
-    | "circle_template"
-    | "rowan"
-    | "briefing_template";
+  type EditorialKind = AdminEditorialKind;
 
   const createEditorialKindRecord = async (
     database: DatabaseTransaction,
@@ -31,6 +25,7 @@ export function createSupabaseAdminRepository(
       grimoire: "argus_private.create_grimoire_editorial_item",
       circle_template: "argus_private.create_circle_template_editorial_item",
       rowan: "argus_private.create_rowan_editorial_item",
+      starpath_lesson: "argus_private.create_starpath_editorial_item",
     };
     const functionName = functions[kind];
     if (functionName !== undefined) {
@@ -54,6 +49,7 @@ export function createSupabaseAdminRepository(
       grimoire: "argus_private.sync_grimoire_revision",
       circle_template: "argus_private.sync_circle_template_revision",
       rowan: "argus_private.sync_rowan_revision",
+      starpath_lesson: "argus_private.sync_starpath_revision",
     };
     const functionName = functions[kind];
     if (functionName !== undefined) {
@@ -185,14 +181,7 @@ export function createSupabaseAdminRepository(
       return { ...item, revision };
     },
     createEditorial: async (
-      kind:
-        | "ritual"
-        | "asset_codex"
-        | "coven"
-        | "grimoire"
-        | "circle_template"
-        | "rowan"
-        | "briefing_template",
+      kind: AdminEditorialKind,
       slug: string,
       payload: JsonObject,
       requestId: string,

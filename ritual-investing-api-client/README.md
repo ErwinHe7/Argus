@@ -87,6 +87,10 @@ Class | Method | HTTP request | Description
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**listAdminPrivacy**](doc/AdminOperationsApi.md#listadminprivacy) | **GET** /v1/admin/operations/privacy | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**retryAdminJob**](doc/AdminOperationsApi.md#retryadminjob) | **POST** /v1/admin/operations/jobs/{job_id}/retry | 
 [*AdminOperationsApi*](doc/AdminOperationsApi.md) | [**retryAdminPrivacy**](doc/AdminOperationsApi.md#retryadminprivacy) | **POST** /v1/admin/operations/privacy/{request_id}/retry | 
+[*AdminStarpathApi*](doc/AdminStarpathApi.md) | [**getAdminStarpathRevision**](doc/AdminStarpathApi.md#getadminstarpathrevision) | **GET** /v1/admin/starpath/revisions/{revision_id} | 
+[*AdminStarpathApi*](doc/AdminStarpathApi.md) | [**publishAdminStarpathManifest**](doc/AdminStarpathApi.md#publishadminstarpathmanifest) | **POST** /v1/admin/starpath/manifests/{manifest_id}/publish | 
+[*AdminStarpathApi*](doc/AdminStarpathApi.md) | [**reviewAdminStarpathRevision**](doc/AdminStarpathApi.md#reviewadminstarpathrevision) | **POST** /v1/admin/starpath/revisions/{revision_id}/reviews | 
+[*AdminStarpathApi*](doc/AdminStarpathApi.md) | [**submitAdminStarpathRevision**](doc/AdminStarpathApi.md#submitadminstarpathrevision) | **POST** /v1/admin/starpath/revisions/{revision_id}/submit | 
 [*AssetsApi*](doc/AssetsApi.md) | [**compareAssets**](doc/AssetsApi.md#compareassets) | **POST** /v1/assets/compare | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAsset**](doc/AssetsApi.md#getasset) | **GET** /v1/assets/{asset_id} | 
 [*AssetsApi*](doc/AssetsApi.md) | [**getAssetEvidence**](doc/AssetsApi.md#getassetevidence) | **GET** /v1/assets/{asset_id}/evidence | 
@@ -176,10 +180,15 @@ Class | Method | HTTP request | Description
 [*SearchApi*](doc/SearchApi.md) | [**search**](doc/SearchApi.md#search) | **GET** /v1/search | 
 [*SessionApi*](doc/SessionApi.md) | [**bootstrapSession**](doc/SessionApi.md#bootstrapsession) | **POST** /v1/session/bootstrap | 
 [*SessionApi*](doc/SessionApi.md) | [**finalizeOnboarding**](doc/SessionApi.md#finalizeonboarding) | **POST** /v1/session/onboarding/finalize | 
+[*StarpathApi*](doc/StarpathApi.md) | [**answerStarpathQuestion**](doc/StarpathApi.md#answerstarpathquestion) | **POST** /v1/starpath/answers | 
+[*StarpathApi*](doc/StarpathApi.md) | [**getStarpath**](doc/StarpathApi.md#getstarpath) | **GET** /v1/starpath | 
+[*StarpathApi*](doc/StarpathApi.md) | [**skipStarpathRecall**](doc/StarpathApi.md#skipstarpathrecall) | **POST** /v1/starpath/recall/skip | 
+[*StarpathApi*](doc/StarpathApi.md) | [**startOrResumeStarpath**](doc/StarpathApi.md#startorresumestarpath) | **POST** /v1/starpath/sessions | 
 
 
 ## Documentation For Models
 
+ - [AnswerStarpathQuestion](doc/AnswerStarpathQuestion.md)
  - [AssetCodexDetail](doc/AssetCodexDetail.md)
  - [AssetCollectionResponse](doc/AssetCollectionResponse.md)
  - [AssetComparison](doc/AssetComparison.md)
@@ -324,6 +333,7 @@ Class | Method | HTTP request | Description
  - [PrivacyRequest](doc/PrivacyRequest.md)
  - [PrivacyRequestCollectionResponse](doc/PrivacyRequestCollectionResponse.md)
  - [PrivacyRequestResponse](doc/PrivacyRequestResponse.md)
+ - [PublishAdminStarpathManifestRequest](doc/PublishAdminStarpathManifestRequest.md)
  - [PublishedEditorial](doc/PublishedEditorial.md)
  - [PutCircleAssetRequest](doc/PutCircleAssetRequest.md)
  - [ReadAllNotificationsRequest](doc/ReadAllNotificationsRequest.md)
@@ -337,6 +347,7 @@ Class | Method | HTTP request | Description
  - [RequestPrivacyActionRequest](doc/RequestPrivacyActionRequest.md)
  - [ResearchDisclosure](doc/ResearchDisclosure.md)
  - [RetryAdminJobRequest](doc/RetryAdminJobRequest.md)
+ - [ReviewAdminStarpathRevisionRequest](doc/ReviewAdminStarpathRevisionRequest.md)
  - [RitualEvidenceResponse](doc/RitualEvidenceResponse.md)
  - [RitualHistoryResponse](doc/RitualHistoryResponse.md)
  - [RowanCounsel](doc/RowanCounsel.md)
@@ -352,6 +363,22 @@ Class | Method | HTTP request | Description
  - [SessionMember](doc/SessionMember.md)
  - [SetBriefingReadStateRequest](doc/SetBriefingReadStateRequest.md)
  - [SetNotificationReadStateRequest](doc/SetNotificationReadStateRequest.md)
+ - [SkipStarpathRecall](doc/SkipStarpathRecall.md)
+ - [StarpathAnswerFeedback](doc/StarpathAnswerFeedback.md)
+ - [StarpathAuthority](doc/StarpathAuthority.md)
+ - [StarpathEvidence](doc/StarpathEvidence.md)
+ - [StarpathFactualSection](doc/StarpathFactualSection.md)
+ - [StarpathKnowledgeCheck](doc/StarpathKnowledgeCheck.md)
+ - [StarpathKnowledgeCheckOption](doc/StarpathKnowledgeCheckOption.md)
+ - [StarpathNode](doc/StarpathNode.md)
+ - [StarpathNodeGuide](doc/StarpathNodeGuide.md)
+ - [StarpathProgress](doc/StarpathProgress.md)
+ - [StarpathRecall](doc/StarpathRecall.md)
+ - [StarpathSession](doc/StarpathSession.md)
+ - [StarpathSessionTheme](doc/StarpathSessionTheme.md)
+ - [StarpathSnapshot](doc/StarpathSnapshot.md)
+ - [StarpathSnapshotResponse](doc/StarpathSnapshotResponse.md)
+ - [SubmitAdminStarpathRevisionRequest](doc/SubmitAdminStarpathRevisionRequest.md)
  - [TransitionRitualRequest](doc/TransitionRitualRequest.md)
  - [UpdateAstrologyProfileRequest](doc/UpdateAstrologyProfileRequest.md)
  - [UpdateCircleRequest](doc/UpdateCircleRequest.md)

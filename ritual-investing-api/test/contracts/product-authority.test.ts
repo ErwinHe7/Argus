@@ -98,6 +98,36 @@ function currentRoutes(): string[] {
 }
 
 describe("product authority contract", () => {
+  it("keeps Starpath factual learning separate from release-control and financial authority", () => {
+    const entries = inventoryEntries();
+    const starpath = entries.find(({ surface }) =>
+      surface === "api-domain:starpath"
+    );
+    expect(starpath).toMatchObject({ classification: "retained-argus" });
+    expect(starpath?.owner).toContain("Factual investment-literacy");
+
+    const repository = readRepo(
+      "ritual-investing-api/src/domains/starpath/repository.ts",
+    );
+    const ports = readRepo("ritual-investing-api/src/domains/starpath/ports.ts");
+    const memberProjection = readRepo(
+      "supabase/migrations/20260830071000_starpath_member_api.sql",
+    );
+    expect(ports).toContain("External RC1 consumer boundary");
+    expect(repository).toContain(
+      "argus_private.resolve_starpath_member_authority",
+    );
+    expect(repository).toContain(
+      "argus_private.read_starpath_curriculum_projection",
+    );
+    expect(repository).not.toMatch(
+      /argus_app\.(?:profiles|astrology_profiles|investor_profiles)|argus_brokerage/,
+    );
+    expect(memberProjection).not.toMatch(
+      /'isCorrect'\s*,\s*option_record\.is_correct/,
+    );
+  });
+
   it("states one Webull, Argus, Supabase, Demo, and Pages authority model", () => {
     const combined = productPaths.map(readRepo).join("\n");
 

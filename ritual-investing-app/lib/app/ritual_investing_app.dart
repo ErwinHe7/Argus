@@ -28,18 +28,58 @@ class RitualInvestingApp extends StatefulWidget {
 }
 
 class _RitualInvestingAppState extends State<RitualInvestingApp> {
-  late final GoRouter _router = createAppRouter(
-    container: widget.container,
-    resourceAccess: widget.resourceAccess,
-    allowSelfServiceSignup: widget.allowSelfServiceSignup,
-  );
+  late GoRouter _router;
+  late String _navigationSignature;
+  String? _pendingMemberPath;
+  bool _routerRefreshScheduled = false;
 
   @override
   void initState() {
     super.initState();
+    _navigationSignature = _signature;
+    _router = _createRouter();
+    widget.container.addListener(_scheduleRouterRefresh);
     if (widget.bootstrapOnStart) {
       unawaited(widget.container.bootstrap());
     }
+  }
+
+  String get _signature {
+    final policy = MemberNavigationPolicy.fromBootstrap(
+      widget.container.memberBootstrap,
+    );
+    return '${policy.capabilityVersion}:'
+        '${policy.isAuthoritative}:'
+        '${policy.branches.map((branch) => branch.name).join(',')}';
+  }
+
+  GoRouter _createRouter({String? initialLocation}) => createAppRouter(
+    container: widget.container,
+    resourceAccess: widget.resourceAccess,
+    allowSelfServiceSignup: widget.allowSelfServiceSignup,
+    initialLocation: initialLocation,
+    readPendingMemberPath: () => _pendingMemberPath,
+    writePendingMemberPath: (value) => _pendingMemberPath = value,
+  );
+
+  void _scheduleRouterRefresh() {
+    if (_routerRefreshScheduled || _signature == _navigationSignature) return;
+    _routerRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _routerRefreshScheduled = false;
+      if (!mounted || _signature == _navigationSignature) return;
+      final oldRouter = _router;
+      final policy = MemberNavigationPolicy.fromBootstrap(
+        widget.container.memberBootstrap,
+      );
+      final current = oldRouter.state.uri.toString();
+      final replacement = policy.redirectFor(oldRouter.state.uri.path);
+      _navigationSignature = _signature;
+      setState(() {
+        _router = _createRouter(initialLocation: replacement ?? current);
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => oldRouter.dispose());
+    });
   }
 
   ThemeMode get _themeMode {
@@ -66,6 +106,7 @@ class _RitualInvestingAppState extends State<RitualInvestingApp> {
 
   @override
   void dispose() {
+    widget.container.removeListener(_scheduleRouterRefresh);
     _router.dispose();
     widget.container.dispose();
     super.dispose();

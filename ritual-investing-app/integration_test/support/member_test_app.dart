@@ -23,6 +23,9 @@ import 'package:ritual_investing_app/features/profile/application/controller.dar
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
+import 'package:ritual_investing_app/features/starpath/application/starpath_controller.dart';
+import 'package:ritual_investing_app/features/starpath/data/generated_starpath_api_service.dart';
+import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
 
 class MemberTestHarness {
   MemberTestHarness._({required this.container, required this._server});
@@ -237,6 +240,13 @@ class GuidedMemberTestHarness {
               service: GeneratedRitualApiService(client),
               cache: cache,
             ),
+          ),
+          starpathController: StarpathController(
+            repository: StarpathRepository(
+              service: GeneratedStarpathApiService(client),
+              cache: cache,
+            ),
+            createKey: () => 'guided-starpath-command-key',
           ),
           discoverController: DiscoverController(
             repository: CachedDiscoverRepository(

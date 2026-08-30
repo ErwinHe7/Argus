@@ -27,3 +27,8 @@ export { createSupabaseRitualRepository } from "../domains/rituals/repository.ts
 export { createSupabaseRowanRepository } from "../domains/rowan/repository.ts";
 export { createSupabaseSearchRepository } from "../domains/search/repository.ts";
 export { createSupabaseSessionRepository } from "../domains/session/repository.ts";
+export { createSupabaseStarpathEditorialRepository } from "../domains/starpath/editorial-repository.ts";
+export {
+  createBlockedStarpathCapabilityEvaluator,
+  createSupabaseStarpathRepository,
+} from "../domains/starpath/repository.ts";

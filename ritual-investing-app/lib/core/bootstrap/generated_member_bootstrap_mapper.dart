@@ -78,7 +78,49 @@ MemberBootstrap mapSupabaseSessionBootstrap(
         _ => MemberRitualMode.unavailable,
       },
     ),
+    branchCapabilities: _branchCapabilities(data['branch_capabilities']),
   );
+}
+
+MemberNavigationCapabilities _branchCapabilities(Object? raw) {
+  if (raw is! Map) return const MemberNavigationCapabilities.unavailable();
+  try {
+    final value = _bootstrapObject(raw);
+    final evaluatedAt = DateTime.tryParse(
+      _bootstrapString(value, 'evaluated_at'),
+    )?.toUtc();
+    final expiresAt = DateTime.tryParse(_bootstrapString(value, 'expires_at'))
+        ?.toUtc();
+    final branches = value['branches'];
+    if (evaluatedAt == null || expiresAt == null || branches is! List) {
+      return const MemberNavigationCapabilities.unavailable();
+    }
+    final enabled = branches.map((branch) {
+      if (branch is! String) return MemberBranchCapability.unknown;
+      return switch (branch) {
+        'ritual' => MemberBranchCapability.ritual,
+        'starpath' => MemberBranchCapability.starpath,
+        'discover' => MemberBranchCapability.discover,
+        'coven' => MemberBranchCapability.coven,
+        'you' => MemberBranchCapability.you,
+        _ => MemberBranchCapability.unknown,
+      };
+    }).toSet();
+    return MemberNavigationCapabilities(
+      schemaVersion: _bootstrapString(value, 'schema_version'),
+      capabilityVersion: _bootstrapInt(value, 'capability_version'),
+      environment: switch (value['environment']) {
+        'beta' => MemberReleaseEnvironment.beta,
+        'production' => MemberReleaseEnvironment.production,
+        _ => MemberReleaseEnvironment.unknown,
+      },
+      evaluatedAt: evaluatedAt,
+      expiresAt: expiresAt,
+      enabled: enabled,
+    );
+  } on Object {
+    return const MemberNavigationCapabilities.unavailable();
+  }
 }
 
 Map<String, Object?> _bootstrapObject(Object? value) {

@@ -33,6 +33,11 @@ import { createSupabaseRowanRepository } from "../../../ritual-investing-api/src
 import { createSupabaseSearchRepository } from "../../../ritual-investing-api/src/domains/search/repository.ts";
 import { createSupabaseSessionRepository } from "../../../ritual-investing-api/src/domains/session/repository.ts";
 import { createSupabaseScenarioRepository } from "../../../ritual-investing-api/src/domains/intentions/repository.ts";
+import { createSupabaseStarpathEditorialRepository } from "../../../ritual-investing-api/src/domains/starpath/editorial-repository.ts";
+import {
+  createBlockedStarpathCapabilityEvaluator,
+  createSupabaseStarpathRepository,
+} from "../../../ritual-investing-api/src/domains/starpath/repository.ts";
 
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
@@ -94,6 +99,7 @@ const blockedWebullContract =
   "confirmationReference" in configuredWebullContract
     ? configuredWebullContract.publicContract
     : configuredWebullContract;
+const blockedStarpathCapability = createBlockedStarpathCapabilityEvaluator();
 
 function createRepositories(
   database: DatabaseTransaction,
@@ -114,6 +120,13 @@ function createRepositories(
     rituals: createSupabaseRitualRepository(database),
     rowan: createSupabaseRowanRepository(database),
     search: createSupabaseSearchRepository(database),
+    starpath: createSupabaseStarpathEditorialRepository(database),
+    // RC1 owns the evaluator and replaces this fail-closed adapter at
+    // composition time. Starpath never falls back to environment guessing.
+    starpathMember: createSupabaseStarpathRepository(
+      database,
+      blockedStarpathCapability,
+    ),
     admin: createSupabaseAdminRepository(database, claims),
     adminOperations: createSupabaseAdminOperationsRepository(
       database,

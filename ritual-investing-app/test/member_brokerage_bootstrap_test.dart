@@ -20,14 +20,45 @@ void main() {
         'preferences': {'theme_mode': 'dark', 'ritual_mode': 'tarot'},
         'investor_profile': {'experience': 'experienced'},
         'server_time': '2026-08-28T12:00:01Z',
+        'branch_capabilities': {
+          'schema_version': 'member-branch-capabilities-v1',
+          'capability_version': 9,
+          'environment': 'production',
+          'evaluated_at': '2026-08-28T12:00:00Z',
+          'expires_at': '2026-08-28T12:05:00Z',
+          'branches': ['ritual', 'starpath', 'you'],
+        },
       }, const BrokerageConnectionSnapshot.disconnected());
 
       expect(bootstrap.authorityEpoch, 4);
       expect(bootstrap.themePreference, MemberThemePreference.dark);
       expect(bootstrap.brokerage.phase, BrokerageConnectionPhase.disconnected);
       expect(bootstrap.canEnterMemberShell, isTrue);
+      expect(bootstrap.branchCapabilities.capabilityVersion, 9);
+      expect(
+        bootstrap.branchCapabilities.enabled,
+        contains(MemberBranchCapability.starpath),
+      );
     },
   );
+
+  test('unknown bootstrap branch capability fails closed', () {
+    final bootstrap = mapSupabaseSessionBootstrap({
+      'member': {'user_id': 'member-a', 'deletion_epoch': 0},
+      'onboarding': {'current_step': 'complete', 'version': 1},
+      'server_time': '2026-08-28T12:00:01Z',
+      'branch_capabilities': {
+        'schema_version': 'member-branch-capabilities-v1',
+        'capability_version': 9,
+        'environment': 'beta',
+        'evaluated_at': '2026-08-28T12:00:00Z',
+        'expires_at': '2026-08-28T12:05:00Z',
+        'branches': ['ritual', 'future-branch'],
+      },
+    }, const BrokerageConnectionSnapshot.disconnected());
+
+    expect(bootstrap.branchCapabilities.isAvailable, isFalse);
+  });
 
   test('disconnected brokerage never blocks a completed member shell', () {
     final bootstrap = MemberBootstrap(

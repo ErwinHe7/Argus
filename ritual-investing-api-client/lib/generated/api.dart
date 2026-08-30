@@ -11,6 +11,7 @@ import 'package:ritual_investing_api_client/generated/api/account_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_moderation_api.dart';
 import 'package:ritual_investing_api_client/generated/api/admin_operations_api.dart';
+import 'package:ritual_investing_api_client/generated/api/admin_starpath_api.dart';
 import 'package:ritual_investing_api_client/generated/api/assets_api.dart';
 import 'package:ritual_investing_api_client/generated/api/briefings_api.dart';
 import 'package:ritual_investing_api_client/generated/api/brokerage_connections_api.dart';
@@ -34,6 +35,7 @@ import 'package:ritual_investing_api_client/generated/api/rowan_api.dart';
 import 'package:ritual_investing_api_client/generated/api/saved_api.dart';
 import 'package:ritual_investing_api_client/generated/api/search_api.dart';
 import 'package:ritual_investing_api_client/generated/api/session_api.dart';
+import 'package:ritual_investing_api_client/generated/api/starpath_api.dart';
 
 class RitualInvestingApiClient {
   static const String basePath =
@@ -183,6 +185,12 @@ class RitualInvestingApiClient {
     return AdminOperationsApi(dio);
   }
 
+  /// Get AdminStarpathApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  AdminStarpathApi getAdminStarpathApi() {
+    return AdminStarpathApi(dio);
+  }
+
   /// Get AssetsApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   AssetsApi getAssetsApi() {
@@ -319,5 +327,11 @@ class RitualInvestingApiClient {
   /// by doing that all interceptors will not be executed
   SessionApi getSessionApi() {
     return SessionApi(dio);
+  }
+
+  /// Get StarpathApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  StarpathApi getStarpathApi() {
+    return StarpathApi(dio);
   }
 }

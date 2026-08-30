@@ -76,6 +76,8 @@ enum CreateAdminEditorialRequestKindEnum {
   rowan(r'rowan'),
   @JsonValue(r'briefing_template')
   briefingTemplate(r'briefing_template'),
+  @JsonValue(r'starpath_lesson')
+  starpathLesson(r'starpath_lesson'),
   @JsonValue(r'unknown_default_open_api')
   unknownDefaultOpenApi(r'unknown_default_open_api');
 

@@ -17,20 +17,38 @@ GoRouter createAppRouter({
   required DependencyContainer container,
   MemberResourceAccess? resourceAccess,
   bool allowSelfServiceSignup = true,
+  String? initialLocation,
+  String? Function()? readPendingMemberPath,
+  void Function(String?)? writePendingMemberPath,
 }) {
   final access = resourceAccess ?? (_, _) => false;
+  final navigation = MemberNavigationPolicy.fromBootstrap(
+    container.memberBootstrap,
+  );
   String? pendingMemberPath;
+  String? readPendingPath() => readPendingMemberPath != null
+      ? readPendingMemberPath()
+      : pendingMemberPath;
+  void writePendingPath(String? value) {
+    if (writePendingMemberPath != null) {
+      writePendingMemberPath(value);
+    } else {
+      pendingMemberPath = value;
+    }
+  }
+
   return GoRouter(
-    initialLocation: kIsWeb
-        ? null
-        : container.entryCoordinator == null
-        ? '/entry'
-        : '/welcome',
+    initialLocation:
+        initialLocation ??
+        (kIsWeb
+            ? null
+            : container.entryCoordinator == null
+            ? '/entry'
+            : '/welcome'),
     restorationScopeId: 'ritual-investing-router',
     refreshListenable: container,
     errorBuilder: (context, state) => const _NotFoundScreen(),
     redirect: (context, state) {
-      if (state.error != null) return null;
       final coordinator = container.entryCoordinator;
       if (coordinator != null) {
         final path = state.uri.path;
@@ -62,7 +80,7 @@ GoRouter createAppRouter({
             isOnboarding;
         final safeMemberPath = _safePendingMemberPath(state.uri);
         if (!isAuthenticated && !isEntry && safeMemberPath != null) {
-          pendingMemberPath = safeMemberPath;
+          writePendingPath(safeMemberPath);
         }
         return switch (coordinator.state.destination) {
           EntryDestination.restoring ||
@@ -93,12 +111,15 @@ GoRouter createAppRouter({
           EntryDestination.failure => path == '/entry' ? null : '/entry',
           EntryDestination.shell =>
             isEntry || path == '/'
-                ? _takePendingMemberPath(
-                        () => pendingMemberPath,
-                        () => pendingMemberPath = null,
-                      ) ??
-                      MemberRoutes.ritual.path
-                : null,
+                ? _restoreMemberPath(
+                    navigation,
+                    MemberNavigationPolicy.fromBootstrap(
+                      container.memberBootstrap,
+                    ),
+                    readPendingPath,
+                    () => writePendingPath(null),
+                  )
+                : navigation.redirectFor(path),
         };
       }
       final atEntry =
@@ -112,7 +133,8 @@ GoRouter createAppRouter({
         }
         return atEntry ? null : '/entry';
       }
-      return atEntry || state.uri.path == '/' ? MemberRoutes.ritual.path : null;
+      if (atEntry || state.uri.path == '/') return MemberRoutes.ritual.path;
+      return navigation.redirectFor(state.uri.path);
     },
     routes: [
       GoRoute(
@@ -286,11 +308,25 @@ String? _safePendingMemberPath(Uri uri) {
       : null;
 }
 
-String? _takePendingMemberPath(String? Function() read, void Function() clear) {
-  final value = read();
+String? _restoreMemberPath(
+  MemberNavigationPolicy routerNavigation,
+  MemberNavigationPolicy liveNavigation,
+  String? Function() read,
+  void Function() clear,
+) {
+  if (!_sameNavigation(routerNavigation, liveNavigation)) return null;
+  final path = read() ?? MemberRoutes.ritual.path;
   clear();
-  return value;
+  return routerNavigation.redirectFor(path) ?? path;
 }
+
+bool _sameNavigation(
+  MemberNavigationPolicy first,
+  MemberNavigationPolicy second,
+) =>
+    first.capabilityVersion == second.capabilityVersion &&
+    first.isAuthoritative == second.isAuthoritative &&
+    listEquals(first.branches, second.branches);
 
 class _RecoveryCallbackScreen extends StatelessWidget {
   const _RecoveryCallbackScreen();

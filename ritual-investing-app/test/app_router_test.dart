@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -19,6 +21,156 @@ import 'package:ritual_investing_app/features/privacy/domain/model.dart';
 import 'support/fixture_services.dart';
 
 void main() {
+  test('branch policy derives exact beta and production order', () {
+    final beta = MemberNavigationPolicy.fromBootstrap(
+      _bootstrapWithBranches(
+        environment: MemberReleaseEnvironment.beta,
+        enabled: const {
+          MemberBranchCapability.ritual,
+          MemberBranchCapability.starpath,
+          MemberBranchCapability.discover,
+          MemberBranchCapability.coven,
+          MemberBranchCapability.you,
+        },
+      ),
+    );
+    final production = MemberNavigationPolicy.fromBootstrap(
+      _bootstrapWithBranches(
+        environment: MemberReleaseEnvironment.production,
+        enabled: const {
+          MemberBranchCapability.ritual,
+          MemberBranchCapability.starpath,
+          MemberBranchCapability.you,
+        },
+      ),
+    );
+
+    expect(beta.branches, [
+      MemberBranch.ritual,
+      MemberBranch.starpath,
+      MemberBranch.discover,
+      MemberBranch.coven,
+      MemberBranch.you,
+    ]);
+    expect(production.branches, [
+      MemberBranch.ritual,
+      MemberBranch.starpath,
+      MemberBranch.you,
+    ]);
+  });
+
+  test('expired or unknown branch authority fails closed', () {
+    for (final authority in [
+      MemberNavigationCapabilities(
+        schemaVersion: 'member-branch-capabilities-v1',
+        capabilityVersion: 3,
+        environment: MemberReleaseEnvironment.beta,
+        evaluatedAt: DateTime.utc(2026, 8, 20),
+        expiresAt: DateTime.utc(2026, 8, 23),
+        enabled: const {MemberBranchCapability.ritual},
+      ),
+      MemberNavigationCapabilities(
+        schemaVersion: 'member-branch-capabilities-v1',
+        capabilityVersion: 3,
+        environment: MemberReleaseEnvironment.beta,
+        evaluatedAt: DateTime.utc(2026, 8, 20),
+        expiresAt: DateTime.utc(2026, 8, 30),
+        enabled: const {
+          MemberBranchCapability.ritual,
+          MemberBranchCapability.unknown,
+        },
+      ),
+    ]) {
+      final policy = MemberNavigationPolicy.fromBootstrap(
+        _bootstrapWithAuthority(authority),
+      );
+      expect(policy.branches, [MemberBranch.ritual]);
+      expect(policy.isAuthoritative, isFalse);
+    }
+  });
+
+  test('hidden route fallback prefers Starpath then Ritual', () {
+    final withStarpath = MemberNavigationPolicy.fromBootstrap(
+      _bootstrapWithBranches(
+        environment: MemberReleaseEnvironment.production,
+        enabled: const {
+          MemberBranchCapability.ritual,
+          MemberBranchCapability.starpath,
+          MemberBranchCapability.you,
+        },
+      ),
+    );
+    final rollback = MemberNavigationPolicy.fromBootstrap(
+      _bootstrapWithBranches(
+        environment: MemberReleaseEnvironment.production,
+        enabled: const {
+          MemberBranchCapability.ritual,
+          MemberBranchCapability.you,
+        },
+      ),
+    );
+
+    expect(withStarpath.redirectFor('/discover/assets/id'), '/starpath');
+    expect(rollback.redirectFor('/coven/entries/id'), '/ritual');
+    expect(withStarpath.redirectFor('/you/account'), isNull);
+  });
+
+  testWidgets('production shell renders Ritual, Starpath, You only', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      RitualInvestingApp(
+        container: fixtureContainer(
+          sessionBootstrapService: _ProductionBootstrapService(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
+    final shell = router.configuration.routes
+        .whereType<StatefulShellRoute>()
+        .single;
+    expect(shell.branches, hasLength(3));
+    final destinations = tester
+        .widgetList<NavigationDestination>(find.byType(NavigationDestination))
+        .map((destination) => destination.label)
+        .toList();
+    expect(destinations, ['Ritual', 'Starpath', 'You']);
+
+    router.go('/discover/assets/hidden-id');
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.starpath.path);
+    expect(find.byKey(const Key('starpath-root')), findsOneWidget);
+  });
+
+  testWidgets('iOS beta tab bar preserves the same five-branch order', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      await tester.pumpWidget(
+        RitualInvestingApp(container: fixtureContainer()),
+      );
+      await tester.pumpAndSettle();
+
+      final tabBar = tester.widget<CupertinoTabBar>(
+        find.byType(CupertinoTabBar),
+      );
+      expect(tabBar.items.map((item) => item.label), [
+        'Ritual',
+        'Starpath',
+        'Discover',
+        'Coven',
+        'You',
+      ]);
+    } finally {
+      debugDefaultTargetPlatformOverride = null;
+    }
+  });
+
   testWidgets('clean install cannot deep-link past guided welcome', (
     tester,
   ) async {
@@ -181,7 +333,10 @@ void main() {
       (email: 'beta@example.com', password: 'correct horse battery staple'),
     ]);
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
-    expect(router.state.uri.path, MemberRoutes.youPrivacyPath);
+    final signedInRouter = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
+    expect(signedInRouter.state.uri.path, MemberRoutes.youPrivacyPath);
   });
 
   testWidgets(
@@ -537,7 +692,7 @@ void main() {
   );
 
   testWidgets(
-    'restored shell has four lazy branches with independent back stacks',
+    'beta shell has five lazy branches with independent back stacks',
     (tester) async {
       final loads = FeatureLoadTracker();
       await tester.pumpWidget(
@@ -554,9 +709,10 @@ void main() {
       final shell = router.configuration.routes
           .whereType<StatefulShellRoute>()
           .single;
-      expect(shell.branches, hasLength(4));
+      expect(shell.branches, hasLength(5));
       expect(shell.restorationScopeId, 'member-shell');
       expect(loads.count(MemberBranch.ritual), 1);
+      expect(loads.count(MemberBranch.starpath), 0);
       expect(loads.count(MemberBranch.discover), 0);
       expect(loads.count(MemberBranch.coven), 0);
       expect(loads.count(MemberBranch.you), 0);
@@ -835,6 +991,36 @@ void main() {
   });
 }
 
+MemberBootstrap _bootstrapWithBranches({
+  required MemberReleaseEnvironment environment,
+  required Set<MemberBranchCapability> enabled,
+}) => MemberBootstrap(
+  accountId: 'navigation-member',
+  onboarding: const MemberOnboardingGate.complete(),
+  serverTime: DateTime.utc(2026, 8, 24),
+  contractVersion: 'member-branch-capabilities-v1',
+  themePreference: MemberThemePreference.system,
+  branchCapabilities: MemberNavigationCapabilities(
+    schemaVersion: 'member-branch-capabilities-v1',
+    capabilityVersion: 3,
+    environment: environment,
+    evaluatedAt: DateTime.utc(2026, 8, 23),
+    expiresAt: DateTime.utc(2026, 8, 25),
+    enabled: enabled,
+  ),
+);
+
+MemberBootstrap _bootstrapWithAuthority(
+  MemberNavigationCapabilities authority,
+) => MemberBootstrap(
+  accountId: 'navigation-member',
+  onboarding: const MemberOnboardingGate.complete(),
+  serverTime: DateTime.utc(2026, 8, 24),
+  contractVersion: 'member-branch-capabilities-v1',
+  themePreference: MemberThemePreference.system,
+  branchCapabilities: authority,
+);
+
 Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
   final scrollable = find.byWidgetPredicate(
     (widget) =>
@@ -964,6 +1150,19 @@ class _CompletedBootstrapService implements SessionBootstrapService {
     serverTime: DateTime.utc(2026, 8, 28),
     contractVersion: '1.0.0',
     themePreference: MemberThemePreference.system,
+    branchCapabilities: fixtureBetaNavigationCapabilities(),
+  );
+}
+
+class _ProductionBootstrapService implements SessionBootstrapService {
+  @override
+  Future<MemberBootstrap> bootstrap() async => _bootstrapWithBranches(
+    environment: MemberReleaseEnvironment.production,
+    enabled: const {
+      MemberBranchCapability.ritual,
+      MemberBranchCapability.starpath,
+      MemberBranchCapability.you,
+    },
   );
 }
 

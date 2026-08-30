@@ -5,6 +5,8 @@ abstract final class AdminPermission {
   static const editorialWrite = 'editorial:write';
   static const editorialReview = 'editorial:review';
   static const editorialPublish = 'editorial:publish';
+  static const starpathFactualReview = 'editorial:review:factual';
+  static const starpathComplianceReview = 'editorial:review:compliance';
   static const catalogRead = 'editorial:read';
   static const catalogWrite = 'editorial:write';
   static const covenVerify = 'editorial:review';
@@ -24,6 +26,8 @@ abstract final class AdminPermission {
     editorialWrite,
     editorialReview,
     editorialPublish,
+    starpathFactualReview,
+    starpathComplianceReview,
     moderationRead,
     moderationWrite,
     mediaRead,
@@ -82,6 +86,17 @@ const adminDestinations = <AdminDestination>[
     writePermission: AdminPermission.editorialWrite,
     kind: AdminWorkspaceKind.editorial,
     editorialKind: 'ritual',
+    highTrust: true,
+  ),
+  AdminDestination(
+    route: '/editorial/starpath',
+    title: 'Starpath curriculum',
+    subtitle: 'Author eight sourced lessons, inspect separated mythic and factual copy, and record exact-revision dual review.',
+    apiPath: '/v1/admin/editorial',
+    readPermission: AdminPermission.editorialRead,
+    writePermission: AdminPermission.editorialWrite,
+    kind: AdminWorkspaceKind.editorial,
+    editorialKind: 'starpath_lesson',
     highTrust: true,
   ),
   AdminDestination(
