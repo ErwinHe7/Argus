@@ -3,7 +3,7 @@ import { z } from "@hono/zod-openapi";
 export const uuidSchema = z.string().uuid();
 export const pageLimitSchema = z.coerce.number().int().min(1).max(100).default(25);
 export const jsonObjectSchema = z.record(z.string(), z.unknown());
-export const nullableTimestampSchema = z.string().datetime().nullable();
+export const nullableTimestampSchema = z.string().datetime({ offset: true }).nullable();
 export const responseMetaSchema = z.object({ request_id: uuidSchema }).strict();
 export const collectionMetaSchema = responseMetaSchema.extend({
   next_cursor: z.string().min(1).max(2048).nullable(),
