@@ -1,6 +1,11 @@
-export type SessionRepositorySnapshot = Readonly<
-  Record<string, unknown> & { server_time: string }
->;
+import type { MemberBranchCapabilities } from "./schemas.ts";
+import type { SupabaseSessionSnapshot } from "./supabase-schemas.ts";
+
+export type SessionRepositorySnapshot = SupabaseSessionSnapshot;
+
+export interface MemberBranchCapabilityEvaluator {
+  evaluate(serverTime: string): Promise<MemberBranchCapabilities>;
+}
 
 export interface SessionRepository {
   bootstrap(): Promise<SessionRepositorySnapshot>;

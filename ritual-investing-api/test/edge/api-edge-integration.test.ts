@@ -11,6 +11,7 @@ import {
 import { StaffAuthorizationError } from "../../src/db/request-transaction.ts";
 import type { BrokerageOrderService } from "../../src/domains/brokerage-orders/service.ts";
 import type { BrokerageConnectionRouteService } from "../../src/domains/brokerage/routes.ts";
+import type { MemberBranchCapabilities } from "../../src/domains/session/schemas.ts";
 import type { RateLimitPort } from "../../src/ports/infrastructure.ts";
 import { rewriteSupabaseFunctionRequest } from "../../../supabase/functions/_shared/http.ts";
 
@@ -45,15 +46,39 @@ type FixtureOptions = Readonly<{
   updatePreferences?: ReturnType<typeof vi.fn>;
   brokerageOrderService?: BrokerageOrderService;
   brokerageConnectionService?: BrokerageConnectionRouteService;
+  branchCapabilities?: MemberBranchCapabilities;
 }>;
 
 function fixture(options: FixtureOptions = {}) {
   const verifyAccessToken = options.verifyAccessToken ??
     vi.fn(async () => principal());
   const bootstrap = vi.fn(async () => ({
-    member: { user_id: userId },
+    member: {
+      user_id: userId,
+      status: "active" as const,
+      deletion_epoch: 0,
+      deletion_requested_at: null,
+      created_at: null,
+      updated_at: null,
+    },
+    profile: null,
+    preferences: null,
+    onboarding: null,
+    investor_profile: null,
+    astrology_profile: null,
     server_time: "2026-08-30T12:00:00.000Z",
   }));
+  const defaultBranchCapabilities: MemberBranchCapabilities = {
+    schema_version: "member-branch-capabilities-v1",
+    capability_version: 1,
+    environment: "beta",
+    evaluated_at: "2026-08-30T12:00:00.000Z",
+    expires_at: "2026-08-30T12:05:00.000Z",
+    branches: ["ritual", "starpath", "discover", "coven", "you"],
+  };
+  const evaluateMemberBranches = vi.fn(async () =>
+    options.branchCapabilities ?? defaultBranchCapabilities
+  );
   const getStaffPrincipal = vi.fn(async () =>
     options.staffPrincipal === undefined
       ? {
@@ -82,6 +107,7 @@ function fixture(options: FixtureOptions = {}) {
   );
   const repositories = {
     session: { bootstrap },
+    memberBranchCapabilities: { evaluate: evaluateMemberBranches },
     accounts: { get: getAccount, updatePreferences },
     circles: {
       list: vi.fn(async () => []),
@@ -142,6 +168,7 @@ function fixture(options: FixtureOptions = {}) {
   return {
     app,
     bootstrap,
+    evaluateMemberBranches,
     withRepositories,
     getStaffPrincipal,
     getAccount,
@@ -182,6 +209,9 @@ describe("Supabase Edge retained API adapter", () => {
       apexOrigin,
     );
     expect(test.bootstrap).toHaveBeenCalledOnce();
+    expect(test.evaluateMemberBranches).toHaveBeenCalledWith(
+      "2026-08-30T12:00:00.000Z",
+    );
     expect(test.withRepositories).toHaveBeenCalledWith(
       { userId, sessionId, aal: "aal1" },
       "member",
@@ -203,7 +233,16 @@ describe("Supabase Edge retained API adapter", () => {
   });
 
   it("limits production navigation to the production branch set", async () => {
-    const test = fixture();
+    const test = fixture({
+      branchCapabilities: {
+        schema_version: "member-branch-capabilities-v1",
+        capability_version: 7,
+        environment: "production",
+        evaluated_at: "2026-08-30T12:00:00.000Z",
+        expires_at: "2026-08-30T12:05:00.000Z",
+        branches: ["ritual", "starpath", "you"],
+      },
+    });
     const response = await test.app.request(
       "/v1/session/bootstrap",
       {

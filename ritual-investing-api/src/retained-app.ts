@@ -118,6 +118,7 @@ import {
   registerStarpathRoutes,
   type StarpathRouteRepository,
 } from "./domains/starpath/routes.ts";
+import type { MemberBranchCapabilityEvaluator } from "./domains/session/ports.ts";
 import { registerSessionRoutes } from "./domains/session/routes.ts";
 import {
   createSessionService,
@@ -133,6 +134,7 @@ export type {
 
 export type RetainedRepositorySet = Readonly<{
   session: SessionServiceRepository;
+  memberBranchCapabilities: MemberBranchCapabilityEvaluator;
   accounts: AccountRouteRepository;
   assets: AssetRouteRepository;
   editorial: EditorialRouteRepository;
@@ -676,7 +678,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     service: (context) =>
       createSessionService(
         repositories(context).session,
-        context.env.environment,
+        repositories(context).memberBranchCapabilities,
       ),
   });
 

@@ -1,65 +1,38 @@
 import { z } from "@hono/zod-openapi";
 
-import type { RetainedRuntimeBindings } from "../retained-http/types.ts";
 import type {
+  MemberBranchCapabilityEvaluator,
   SessionRepository,
   SessionRepositorySnapshot,
 } from "./ports.ts";
-import { onboardingFinalizeBodySchema } from "./schemas.ts";
+import {
+  memberBranchCapabilitiesSchema,
+  onboardingFinalizeBodySchema,
+} from "./schemas.ts";
 
 export type SessionServiceRepository = SessionRepository;
 type FinalizeOnboardingBody = z.infer<typeof onboardingFinalizeBodySchema>;
-type RuntimeEnvironment = RetainedRuntimeBindings["environment"];
 
-const branchCapabilityTtlMs = 5 * 60 * 1_000;
-const betaBranches = Object.freeze([
-  "ritual",
-  "starpath",
-  "discover",
-  "coven",
-  "you",
-] as const);
-const productionBranches = Object.freeze([
-  "ritual",
-  "starpath",
-  "you",
-] as const);
-
-function withBranchCapabilities(
+async function withBranchCapabilities(
   snapshot: SessionRepositorySnapshot,
-  runtimeEnvironment: RuntimeEnvironment,
+  evaluator: MemberBranchCapabilityEvaluator,
 ) {
-  const evaluatedAt = new Date(snapshot.server_time);
-  if (Number.isNaN(evaluatedAt.getTime())) {
-    throw new Error("invalid_session_server_time");
-  }
-  const environment = runtimeEnvironment === "production"
-    ? "production"
-    : "beta";
+  const branchCapabilities = memberBranchCapabilitiesSchema.parse(
+    await evaluator.evaluate(snapshot.server_time),
+  );
   return Object.freeze({
     ...snapshot,
-    branch_capabilities: Object.freeze({
-      schema_version: "member-branch-capabilities-v1",
-      capability_version: 1,
-      environment,
-      evaluated_at: evaluatedAt.toISOString(),
-      expires_at: new Date(
-        evaluatedAt.getTime() + branchCapabilityTtlMs,
-      ).toISOString(),
-      branches: environment === "production"
-        ? productionBranches
-        : betaBranches,
-    }),
+    branch_capabilities: Object.freeze(branchCapabilities),
   });
 }
 
 export function createSessionService(
   repository: SessionServiceRepository,
-  runtimeEnvironment: RuntimeEnvironment,
+  evaluator: MemberBranchCapabilityEvaluator,
 ) {
   return Object.freeze({
     bootstrap: async () =>
-      withBranchCapabilities(await repository.bootstrap(), runtimeEnvironment),
+      await withBranchCapabilities(await repository.bootstrap(), evaluator),
     finalizeOnboarding: async (
       input: FinalizeOnboardingBody,
       idempotencyKey: string,
@@ -91,7 +64,7 @@ export function createSessionService(
           },
           idempotencyKey,
         ),
-        runtimeEnvironment,
+        evaluator,
       ),
   });
 }

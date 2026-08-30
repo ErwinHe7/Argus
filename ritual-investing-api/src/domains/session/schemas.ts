@@ -20,7 +20,7 @@ const sessionMemberSchema = z.object({
   created_at: nullableTimestampSchema,
   updated_at: nullableTimestampSchema,
 }).passthrough().openapi("SessionMember");
-const memberBranchCapabilitiesSchema = z.object({
+export const memberBranchCapabilitiesSchema = z.object({
   schema_version: z.literal("member-branch-capabilities-v1"),
   capability_version: z.number().int().positive(),
   environment: z.enum(["beta", "production"]),
@@ -30,6 +30,9 @@ const memberBranchCapabilitiesSchema = z.object({
     z.string().regex(/^(ritual|starpath|discover|coven|you)$/),
   ).min(1).max(5),
 }).strict().openapi("MemberBranchCapabilities");
+export type MemberBranchCapabilities = z.infer<
+  typeof memberBranchCapabilitiesSchema
+>;
 const sessionBootstrapSchema = z.object({
   member: sessionMemberSchema,
   profile: memberProfileSchema.nullable(),

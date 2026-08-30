@@ -38,6 +38,7 @@ import {
   createBlockedStarpathCapabilityEvaluator,
   createSupabaseStarpathRepository,
 } from "../../../ritual-investing-api/src/domains/starpath/repository.ts";
+import { createMemberBranchCapabilityEvaluator } from "./member-branch-capabilities.ts";
 
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
@@ -100,6 +101,10 @@ const blockedWebullContract =
     ? configuredWebullContract.publicContract
     : configuredWebullContract;
 const blockedStarpathCapability = createBlockedStarpathCapabilityEvaluator();
+const memberBranchCapabilities = createMemberBranchCapabilityEvaluator({
+  runtimeEnvironment: environment,
+  starpath: blockedStarpathCapability,
+});
 
 function createRepositories(
   database: DatabaseTransaction,
@@ -107,6 +112,7 @@ function createRepositories(
 ): RetainedRepositorySet {
   return Object.freeze({
     session: createSupabaseSessionRepository(database, claims.userId),
+    memberBranchCapabilities,
     accounts: createSupabaseAccountRepository(database),
     assets: createSupabaseAssetRepository(database),
     editorial: createSupabaseEditorialRepository(database),
