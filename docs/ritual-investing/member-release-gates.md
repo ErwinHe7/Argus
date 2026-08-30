@@ -100,6 +100,41 @@ Funding, account opening, recurring financial execution, autonomous trading,
 and rebalance execution have no enablement gate because they are outside the
 product.
 
+## Starpath release contract
+
+Starpath consumes, but does not own, the separate release-control system. That
+system must provide a server-authoritative, versioned branch-capability set in
+authenticated bootstrap and enforce the same decision at protected APIs. Its
+Supabase feature-flag table, evaluation engine, cache, administration, and
+operator workflow remain RC1 work outside the Starpath change set.
+
+| Environment | Required branch order | Starpath content gate |
+| --- | --- | --- |
+| Beta | Ritual → Starpath → Discover → Coven → You | Exactly eight functional nodes in four pathways, each bound to one immutable manifest and distinct factual/compliance attestations |
+| Production | Ritual → Starpath → You | Beta gate plus current legal approval for the exact no-advice policy hash, `US` jurisdiction, effective/expiry window, and R20 trigger snapshot |
+| Missing, expired, unknown, or rollback | Ritual only unless a fresh capability set explicitly retains Starpath | Starpath protected reads and commands deny access; cached UI is never API authority |
+
+Before beta enablement, retain sanitized evidence for the capability schema and
+version, trusted environment, evaluation/expiry timestamps, exact branch set,
+protected-route mapping, eight-node manifest identity, API revision, source
+dates, dual reviews, export/purge coverage, and rollback owner. Direct and
+restored production locations under Discover or Coven must replace to Starpath
+when Starpath remains enabled and to Ritual when it does not; no hidden resource
+response may be fetched first.
+
+Rollback changes release-control capability only. It does not reverse Starpath
+schema, delete historical learning state, weaken export or purge, or unpublish
+the approved manifest. Re-enable must use the same still-valid capability and
+manifest identities and prove no dangling manifest, session, attempt, recall,
+or idempotency reference.
+
+The first `learning_retention_within_7d_v1` baseline is captured only after a
+matured hosted cohort exists. It records one fixed server `as_of`, cohort
+bounds, matured denominator, retained count, definition version, and checksum;
+it exposes no member rows, joins no profile or financial data, and sets no
+success target. Lawful deletion may change a later live recomputation without
+changing the recorded non-identifying snapshot.
+
 ## Roll forward and rollback
 
 1. Turn on the narrow affected kill switch and stop new producers.
