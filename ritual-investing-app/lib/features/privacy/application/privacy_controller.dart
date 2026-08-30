@@ -257,8 +257,15 @@ class PrivacyController extends ChangeNotifier {
         _setExportPhase(latest);
         return;
       }
-      await _withRecentAuth(() => _repository.downloadAndShare(requestId));
+      final delivery = await _withRecentAuth(
+        () => _repository.downloadAndShare(requestId),
+      );
       if (_deactivated) return;
+      if (delivery == PrivateExportDelivery.requested) {
+        _phase = PrivacyPhase.downloadReady;
+        _message = 'Download requested. Check your browser, then retry if it did not start.';
+        return;
+      }
       await _repository.forgetExportId(requestId);
       if (_deactivated) return;
       _knownExportRequestId = null;

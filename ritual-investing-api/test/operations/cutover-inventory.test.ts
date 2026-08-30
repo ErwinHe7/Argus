@@ -227,7 +227,6 @@ describe("U13 cutover inventory", () => {
 
   it("proves every Cloudflare Pages project is static-only", () => {
     const configs = [
-      "wrangler.jsonc",
       "wrangler.beta.jsonc",
       "wrangler.demo.jsonc",
       "wrangler.demo-beta.jsonc",

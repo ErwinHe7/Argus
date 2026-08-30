@@ -298,7 +298,7 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       );
       context.header(
         "access-control-expose-headers",
-        "etag, retry-after, x-request-id",
+        "content-disposition, content-length, etag, retry-after, x-content-sha256, x-request-id",
       );
       context.header("access-control-max-age", "600");
       context.header("vary", "origin");
@@ -325,9 +325,9 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     }
 
     const path = context.req.path;
-    const isPrivacyCapability = path.startsWith("/v1/privacy/");
-    const sensitiveCapability = path === "/v1/member/step-up" ||
-      path.startsWith("/v1/brokerage/");
+    const isPrivacyCapability = path.startsWith("/v1/privacy/") ||
+      path === "/v1/member/step-up";
+    const sensitiveCapability = path.startsWith("/v1/brokerage/");
     if (sensitiveCapability) {
       throw new HttpBoundaryError(
         503,

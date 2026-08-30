@@ -15,6 +15,8 @@ void main() {
     expect(source, isNot(contains('package:path_provider/path_provider.dart')));
     expect(source, isNot(contains('AppLinks()')));
     expect(source, isNot(contains('FlutterPrivateExportFiles()')));
+    expect(source, isNot(contains('FlutterProtectedStorage()')));
+    expect(source, contains('createProductionProtectedStorage()'));
   });
 
   test('web scaffold is local-only and has no service-worker bootstrap', () {

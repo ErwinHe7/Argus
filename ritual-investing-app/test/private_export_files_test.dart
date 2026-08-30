@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/privacy/data/private_export_files.dart';
+import 'package:ritual_investing_app/features/privacy/data/repository.dart';
 
 void main() {
   late Directory root;
@@ -30,7 +31,10 @@ void main() {
         },
       );
 
-      await gateway.share(_scope, _requestId, Uint8List.fromList([1, 2, 3]));
+      expect(
+        await gateway.share(_scope, _requestId, Uint8List.fromList([1, 2, 3])),
+        PrivateExportDelivery.completed,
+      );
 
       expect(observed, hasLength(1));
       expect(observed.single, endsWith('ritual-privacy-$_requestId.zip'));

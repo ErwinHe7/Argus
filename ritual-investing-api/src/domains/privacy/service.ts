@@ -46,6 +46,8 @@ export type PrivacyRequestRepository = Readonly<{
       bucket_id: string;
       object_path: string;
       expires_in_seconds: number;
+      content_checksum: string;
+      byte_size: string | number;
     }>
   >;
   confirmDownload(accessLeaseId: string): Promise<void>;
@@ -57,6 +59,20 @@ export type PrivacySignedStorage = Readonly<{
     path: string,
     expiresInSeconds: number,
   ): Promise<string>;
+  getStream(
+    bucket: string,
+    path: string,
+  ): Promise<Readonly<{
+    body: ReadableStream<Uint8Array>;
+    contentType: string;
+  }> | null>;
+}>;
+
+export type PrivacyDownload = Readonly<{
+  body: ReadableStream<Uint8Array>;
+  contentType: "application/zip";
+  contentChecksum: string;
+  byteSize: number;
 }>;
 
 export type PrivacyRequestService = Readonly<{
@@ -73,6 +89,7 @@ export type PrivacyRequestService = Readonly<{
       expires_at: string;
     }>
   >;
+  download(requestId: string): Promise<PrivacyDownload>;
 }>;
 
 export type CreatePrivacyRequestServiceInput = Readonly<{
@@ -156,6 +173,35 @@ export function createPrivacyRequestService(
         expires_at: new Date(
           issuedAt + artifact.expires_in_seconds * 1_000,
         ).toISOString(),
+      };
+    },
+    download: async (requestId: string) => {
+      const artifact = await withRepository((repository) =>
+        repository.prepareDownload(requestId)
+      );
+      const byteSize = Number(artifact.byte_size);
+      if (
+        !/^[a-f0-9]{64}$/.test(artifact.content_checksum) ||
+        !Number.isSafeInteger(byteSize) ||
+        byteSize < 1
+      ) {
+        throw new Error("storage_unavailable");
+      }
+      const object = await input.signedStorage.getStream(
+        artifact.bucket_id,
+        artifact.object_path,
+      );
+      if (object === null || object.contentType !== "application/zip") {
+        throw new Error("storage_unavailable");
+      }
+      await withRepository((repository) =>
+        repository.confirmDownload(artifact.access_lease_id)
+      );
+      return {
+        body: object.body,
+        contentType: "application/zip" as const,
+        contentChecksum: artifact.content_checksum,
+        byteSize,
       };
     },
   });

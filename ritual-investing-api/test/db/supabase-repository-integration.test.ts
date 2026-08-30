@@ -168,6 +168,9 @@ function privacyService(
     createSignedUrl: async () => {
       throw new Error("storage_not_configured");
     },
+    getStream: async () => {
+      throw new Error("storage_not_configured");
+    },
   },
   now?: () => number,
 ) {
@@ -587,7 +590,10 @@ describe("Supabase transaction-pooler repository boundary", () => {
     const service = privacyService(
       recorded.pool,
       claims(),
-      { createSignedUrl: signed },
+      {
+        createSignedUrl: signed,
+        getStream: async () => null,
+      },
       () => 1_000,
     );
     const result = await service.createDownloadUrl(

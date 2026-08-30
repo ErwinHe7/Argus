@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ritual-investing-release
+  group: ritual-investing-release-supabase-remediation
   cancel-in-progress: false
 
 env:
@@ -38,7 +38,7 @@ jobs:
       RITUAL_EXPECTED_BETA_PROJECT_ID: ${{ vars.BETA_SUPABASE_PROJECT_ID }}
       RITUAL_EXPECTED_SUPABASE_DB_HOST: ${{ vars.EXPECTED_SUPABASE_DB_HOST }}
       RITUAL_HOSTED_API_URL: ${{ vars.RITUAL_HOSTED_API_URL }}
-      RITUAL_BETA_CONSUMER_ORIGINS: https://just-build-this.app,https://beta.just-build-this.app
+      RITUAL_BETA_PREVIEW_ORIGIN: ${{ vars.BETA_MEMBER_PREVIEW_ORIGIN }}
       RITUAL_BETA_ADMIN_ORIGIN: ${{ vars.BETA_ADMIN_ORIGIN }}
       RITUAL_BETA_WEB_ADMISSION: ${{ vars.BETA_WEB_ADMISSION }}
       RITUAL_APPROVED_MANIFEST_SHA256: ${{ vars.APPROVED_MANIFEST_SHA256 }}
@@ -136,7 +136,8 @@ jobs:
         run: |
           set -eu
           test "$SUPABASE_PROJECT_ID" = "$RITUAL_EXPECTED_BETA_PROJECT_ID"
-          test "$RITUAL_BETA_CONSUMER_ORIGINS" = "https://just-build-this.app,https://beta.just-build-this.app"
+          node -e 'const value=process.env.RITUAL_BETA_PREVIEW_ORIGIN; const url=new URL(value); if (url.origin !== value || url.protocol !== "https:" || !/^beta-[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/.test(url.hostname)) process.exit(1)'
+          echo "RITUAL_BETA_CONSUMER_ORIGINS=https://just-build-this.app,$RITUAL_BETA_PREVIEW_ORIGIN" >>"$GITHUB_ENV"
           test "$RITUAL_BETA_WEB_ADMISSION" = "open" || test "$RITUAL_BETA_WEB_ADMISSION" = "contained"
           node -e 'const value=process.env.RITUAL_BETA_ADMIN_ORIGIN; const url=new URL(value); if (url.origin !== value || !["http:", "https:"].includes(url.protocol)) process.exit(1)'
           ./scripts/check-supabase-migration-inventory.sh --check-cli

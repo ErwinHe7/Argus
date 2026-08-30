@@ -14,7 +14,7 @@ abstract interface class PrivacyRepository {
   Future<void> forgetExportId(String requestId);
   Future<PrivacyExport> requestExport(String idempotencyKey);
   Future<PrivacyExport> getExport(String requestId);
-  Future<void> downloadAndShare(String requestId);
+  Future<PrivateExportDelivery> downloadAndShare(String requestId);
   Future<PrivacyDeletionReceipt> requestDeletion(
     String idempotencyKey,
     String stepUpReceipt,
@@ -22,6 +22,8 @@ abstract interface class PrivacyRepository {
   Future<bool> accountInactive();
   Future<void> cancelAndClearLocal();
 }
+
+enum PrivateExportDelivery { completed, requested }
 
 abstract interface class PrivacyService {
   Future<PrivacyExport> requestExport(String idempotencyKey);
@@ -36,7 +38,11 @@ abstract interface class PrivacyService {
 }
 
 abstract interface class PrivateExportFiles {
-  Future<void> share(CacheScope scope, String requestId, Uint8List bytes);
+  Future<PrivateExportDelivery> share(
+    CacheScope scope,
+    String requestId,
+    Uint8List bytes,
+  );
   Future<void> clear(CacheScope scope);
 }
 
@@ -78,10 +84,10 @@ class ScopedPrivacyRepository implements PrivacyRepository {
       _service.getExport(requestId);
 
   @override
-  Future<void> downloadAndShare(String requestId) async {
+  Future<PrivateExportDelivery> downloadAndShare(String requestId) async {
     final bytes = await _service.downloadLatest(requestId);
     try {
-      await _files.share(scope, requestId, bytes);
+      return await _files.share(scope, requestId, bytes);
     } on FormatException {
       throw const PrivacyFailure(PrivacyFailureKind.terminal);
     } on PrivacyFailure {

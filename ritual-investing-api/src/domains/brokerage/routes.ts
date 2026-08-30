@@ -139,6 +139,19 @@ export function registerBrokerageRoutes(
     },
   );
   input.register(issueStepUp, async (context) => {
+    const body = await parseBody(context, stepUpBodySchema);
+    const origin = context.req.header("origin");
+    if (
+      origin !== undefined &&
+      context.env.consumerOrigins.includes(origin) &&
+      body.action !== "argus_delete"
+    ) {
+      throw new HttpBoundaryError(
+        503,
+        "web_capability_unavailable",
+        "This capability is not available on the public beta website.",
+      );
+    }
     const authenticatedAt = context.get("principal").authenticatedAt;
     const currentSeconds = Math.floor(Date.now() / 1_000);
     if (
@@ -152,7 +165,6 @@ export function registerBrokerageRoutes(
         "Recent authentication is required.",
       );
     }
-    const body = await parseBody(context, stepUpBodySchema);
     return dataResponse(
       context,
       await connections(context, input).issueStepUp(body.action),

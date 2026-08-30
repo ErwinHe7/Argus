@@ -19,6 +19,7 @@ GoRouter createAppRouter({
   bool allowSelfServiceSignup = true,
 }) {
   final access = resourceAccess ?? (_, _) => false;
+  String? pendingMemberPath;
   return GoRouter(
     initialLocation: kIsWeb
         ? null
@@ -41,7 +42,17 @@ GoRouter createAppRouter({
             _questionStep(stepName) != null || path == '/onboarding/review';
         final isAuthenticated =
             container.authController.state.phase == AuthPhase.signedIn;
-        if (path == '/auth/recovery' && isAuthenticated) return null;
+        final isPasswordRecovery =
+            container.authController.state.isPasswordRecovery;
+        if (path == '/mobile/argus-auth/callback' && isPasswordRecovery) {
+          return '/auth/recovery';
+        }
+        if (path == '/auth/recovery') {
+          if (isAuthenticated && isPasswordRecovery) return null;
+          return isAuthenticated
+              ? MemberRoutes.ritual.path
+              : '/forgot-password';
+        }
         if (path == '/forgot-password' && !isAuthenticated) return null;
         final isEntry =
             path == '/welcome' ||
@@ -49,6 +60,10 @@ GoRouter createAppRouter({
             path == '/create-account' ||
             path == '/entry' ||
             isOnboarding;
+        final safeMemberPath = _safePendingMemberPath(state.uri);
+        if (!isAuthenticated && !isEntry && safeMemberPath != null) {
+          pendingMemberPath = safeMemberPath;
+        }
         return switch (coordinator.state.destination) {
           EntryDestination.restoring ||
           EntryDestination.finalizing => path == '/entry' ? null : '/entry',
@@ -77,7 +92,13 @@ GoRouter createAppRouter({
             path == '/onboarding/recovery' ? null : '/onboarding/recovery',
           EntryDestination.failure => path == '/entry' ? null : '/entry',
           EntryDestination.shell =>
-            isEntry || path == '/' ? MemberRoutes.ritual.path : null,
+            isEntry || path == '/'
+                ? _takePendingMemberPath(
+                        () => pendingMemberPath,
+                        () => pendingMemberPath = null,
+                      ) ??
+                      MemberRoutes.ritual.path
+                : null,
         };
       }
       final atEntry =
@@ -126,6 +147,10 @@ GoRouter createAppRouter({
             }
           },
         ),
+      ),
+      GoRoute(
+        path: '/mobile/argus-auth/callback',
+        builder: (context, state) => const _RecoveryCallbackScreen(),
       ),
       GoRoute(
         path: '/create-account',
@@ -250,6 +275,29 @@ GoRouter createAppRouter({
         onLogout: container.logout,
       ),
     ],
+  );
+}
+
+String? _safePendingMemberPath(Uri uri) {
+  if (uri.hasQuery || uri.hasFragment || uri.path.length > 512) return null;
+  return RegExp(r'^/(ritual|discover|coven|you)(/[A-Za-z0-9._~-]+)*$')
+          .hasMatch(uri.path)
+      ? uri.path
+      : null;
+}
+
+String? _takePendingMemberPath(String? Function() read, void Function() clear) {
+  final value = read();
+  clear();
+  return value;
+}
+
+class _RecoveryCallbackScreen extends StatelessWidget {
+  const _RecoveryCallbackScreen();
+
+  @override
+  Widget build(BuildContext context) => const Scaffold(
+    body: SafeArea(child: Center(child: CircularProgressIndicator())),
   );
 }
 

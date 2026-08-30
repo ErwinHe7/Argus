@@ -67,6 +67,9 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       _recoveryPending = true;
       _drainRecoveredSession();
     });
+    _invalidationSubscription = authController.invalidatedSessions.listen((_) {
+      unawaited(_clearAfterRemoteLogout());
+    });
   }
 
   final AuthController authController;
@@ -75,6 +78,7 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
   final EntryCoordinator? entryCoordinator;
   final OnboardingController onboardingController;
   late final StreamSubscription<void> _recoverySubscription;
+  late final StreamSubscription<void> _invalidationSubscription;
   bool _isRestoring = false;
   bool _recoveryPending = false;
 
@@ -352,6 +356,16 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
     notifyListeners();
   }
 
+  Future<void> _clearAfterRemoteLogout() async {
+    final coordinator = entryCoordinator;
+    if (coordinator != null) {
+      await coordinator.clearAfterRemoteLogout();
+    } else {
+      await _transitionTo(null);
+      notifyListeners();
+    }
+  }
+
   @override
   Future<void> ensureBranchLoaded(MemberBranch branch) =>
       _requireScope().load(branch);
@@ -461,6 +475,7 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
   @override
   void dispose() {
     unawaited(_recoverySubscription.cancel());
+    unawaited(_invalidationSubscription.cancel());
     entryCoordinator?.removeListener(_handleEntryCoordinator);
     _memberShellRuntime.removeListener(_handleMemberShellRuntime);
     _memberShellRuntime.dispose();

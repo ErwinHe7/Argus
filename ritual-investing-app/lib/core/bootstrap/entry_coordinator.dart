@@ -305,6 +305,11 @@ class EntryCoordinator extends ChangeNotifier {
   }
 
   Future<void> logout() async {
+    await clearAfterRemoteLogout();
+    await authController.logout();
+  }
+
+  Future<void> clearAfterRemoteLogout() async {
     _draft = null;
     _draftStatus = DraftReadStatus.empty;
     _bootstrap = null;
@@ -314,7 +319,6 @@ class EntryCoordinator extends ChangeNotifier {
     } on Object {
       // Authentication authority still wins over local feature cleanup.
     }
-    await authController.logout();
     _set(EntryDestination.welcome);
   }
 

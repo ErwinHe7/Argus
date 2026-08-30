@@ -159,6 +159,7 @@ Class | Method | HTTP request | Description
 [*PlatformApi*](doc/PlatformApi.md) | [**getLiveHealth**](doc/PlatformApi.md#getlivehealth) | **GET** /v1/health/live | 
 [*PlatformApi*](doc/PlatformApi.md) | [**getOpenApiDocument**](doc/PlatformApi.md#getopenapidocument) | **GET** /v1/openapi.json | 
 [*PrivacyApi*](doc/PrivacyApi.md) | [**createPrivacyDownloadUrl**](doc/PrivacyApi.md#createprivacydownloadurl) | **POST** /v1/privacy/requests/{request_id}/download-url | 
+[*PrivacyApi*](doc/PrivacyApi.md) | [**downloadPrivacyExport**](doc/PrivacyApi.md#downloadprivacyexport) | **GET** /v1/privacy/requests/{request_id}/download | 
 [*PrivacyApi*](doc/PrivacyApi.md) | [**listPrivacyRequests**](doc/PrivacyApi.md#listprivacyrequests) | **GET** /v1/privacy/requests | 
 [*PrivacyApi*](doc/PrivacyApi.md) | [**requestPrivacyAction**](doc/PrivacyApi.md#requestprivacyaction) | **POST** /v1/privacy/requests | 
 [*PublicApi*](doc/PublicApi.md) | [**getPublicEditorial**](doc/PublicApi.md#getpubliceditorial) | **GET** /v1/public/editorial/items/{slug} | 

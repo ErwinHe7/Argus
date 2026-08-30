@@ -25,6 +25,13 @@ export type PrivacySignedStorage = Readonly<{
     path: string,
     expiresInSeconds: number,
   ): Promise<string>;
+  getStream(
+    bucket: string,
+    path: string,
+  ): Promise<Readonly<{
+    body: ReadableStream<Uint8Array>;
+    contentType: string;
+  }> | null>;
 }>;
 
 export type SupabaseRepositoryBinding = Readonly<{

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 
 import 'member_auth.dart';
+import 'member_auth_signal_base.dart';
 import 'member_step_up.dart';
 
 enum AuthPhase { signedOut, loading, signedIn, failure }
@@ -31,8 +32,10 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
     required SessionRepository repository,
     StepUpReceiptRepository stepUpReceipts =
         const UnavailableStepUpReceiptRepository(),
+    MemberAuthSignal authSignal = const NoopMemberAuthSignal(),
   }) : _repository = repository,
-       _stepUpReceipts = stepUpReceipts {
+       _stepUpReceipts = stepUpReceipts,
+       _authSignal = authSignal {
     final source = repository is SessionChangeRepository
         ? (repository as SessionChangeRepository).sessionChanges
         : repository.recoveredSessions.map(
@@ -45,13 +48,22 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       _acceptSessionChange,
       onError: _acceptSessionStreamError,
     );
+    _logoutSignalSubscription = _authSignal.logoutEvents.listen((_) {
+      unawaited(_acceptRemoteLogout());
+    });
   }
   final SessionRepository _repository;
   final StepUpReceiptRepository _stepUpReceipts;
+  final MemberAuthSignal _authSignal;
   late final StreamSubscription<MemberSessionChange> _recoverySubscription;
+  late final StreamSubscription<void> _logoutSignalSubscription;
   final StreamController<void> _recoveries = StreamController.broadcast(
     sync: true,
   );
+  final StreamController<void> _invalidations = StreamController.broadcast(
+    sync: true,
+  );
+  bool _acceptingRemoteLogout = false;
   int _recoveryVersion = 0;
   AuthSession? _activeSession;
   AuthState _state = const AuthState(phase: AuthPhase.signedOut);
@@ -60,7 +72,9 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
   MemberClientExpectation get memberClientExpectation =>
       _repository.memberClientExpectation;
   Stream<void> get recoveredSessions => _recoveries.stream;
-  Future<void> restore() => _run(_repository.recover);
+  Stream<void> get invalidatedSessions => _invalidations.stream;
+  Future<void> restore() =>
+      _run(_repository.recover, useInitialPasswordRecovery: true);
   Future<MemberAuthResult> signInWithPassword({
     required String email,
     required String password,
@@ -164,6 +178,9 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
   }
 
   Future<bool> updatePassword(String password) async {
+    if (_state.phase != AuthPhase.signedIn || !_state.isPasswordRecovery) {
+      return false;
+    }
     if (_repository case final PasswordRecoverySessionRepository supported) {
       try {
         await supported.updatePassword(password: password);
@@ -237,7 +254,10 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
     return receipt;
   }
 
-  Future<void> _run(Future<AuthSession?> Function() action) async {
+  Future<void> _run(
+    Future<AuthSession?> Function() action, {
+    bool useInitialPasswordRecovery = false,
+  }) async {
     final recoveryVersion = _recoveryVersion;
     _set(const AuthState(phase: AuthPhase.loading));
     try {
@@ -246,7 +266,12 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       if (s == null) {
         _clearSession();
       } else {
-        _adoptSession(s);
+        final isPasswordRecovery =
+            useInitialPasswordRecovery &&
+            _repository is InitialPasswordRecoveryRepository &&
+            (_repository as InitialPasswordRecoveryRepository)
+                .consumeInitialPasswordRecovery();
+        _adoptSession(s, isPasswordRecovery: isPasswordRecovery);
       }
     } catch (_) {
       _set(
@@ -262,6 +287,7 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
     switch (change.event) {
       case MemberSessionEvent.signedOut || MemberSessionEvent.userDeleted:
         _clearSession();
+        if (!_acceptingRemoteLogout) _authSignal.publishLogout();
       case MemberSessionEvent.initialSession when change.session == null:
         if (_state.phase != AuthPhase.loading) _clearSession();
       case MemberSessionEvent.initialSession ||
@@ -276,8 +302,8 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
             _adoptSession(session);
             _recoveries.add(null);
           } on MemberAccountMismatch {
-            // A callback for a different user is rejected without becoming an
-            // unhandled auth-stream exception.
+            _clearSession();
+            _authSignal.publishLogout();
           }
         }
       case MemberSessionEvent.passwordRecovery:
@@ -288,7 +314,8 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
             _adoptSession(session, isPasswordRecovery: true);
             _recoveries.add(null);
           } on MemberAccountMismatch {
-            // Keep the existing app identity bound until an explicit logout.
+            _clearSession();
+            _authSignal.publishLogout();
           }
         }
     }
@@ -353,6 +380,27 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       // A remote logout failure must not trap the user in an authenticated UI.
     }
     _clearSession();
+    _authSignal.publishLogout();
+  }
+
+  Future<void> _acceptRemoteLogout() async {
+    if (_acceptingRemoteLogout) return;
+    _acceptingRemoteLogout = true;
+    try {
+      try {
+        if (_repository case final ScopedSessionLogout repository) {
+          await repository.logoutWithScope(MemberLogoutScope.local);
+        } else {
+          await _repository.logout();
+        }
+      } on Object {
+        // The signal still invalidates local private UI if SDK cleanup fails.
+      }
+      _clearSession();
+      _invalidations.add(null);
+    } finally {
+      _acceptingRemoteLogout = false;
+    }
   }
 
   void markBootstrapFailure() {
@@ -382,7 +430,10 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
   @override
   void dispose() {
     unawaited(_recoverySubscription.cancel());
+    unawaited(_logoutSignalSubscription.cancel());
     unawaited(_recoveries.close());
+    unawaited(_invalidations.close());
+    _authSignal.close();
     super.dispose();
   }
 }

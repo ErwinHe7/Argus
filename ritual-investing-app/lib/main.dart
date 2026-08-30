@@ -9,14 +9,17 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     final config = RuntimeConfig.fromEnvironment();
-    await initializeMemberSupabase(
+    final memberSupabase = await initializeMemberSupabase(
       url: config.supabaseUrl,
       publishableKey: config.supabasePublishableKey,
       nativeLinks: config.nativeLinks,
     );
     runApp(
       RitualInvestingApp(
-        container: createProductionDependencyContainer(config),
+        container: createProductionDependencyContainer(
+          config,
+          initialPasswordRecovery: memberSupabase.initialPasswordRecovery,
+        ),
         allowSelfServiceSignup: config.allowSelfServiceSignup,
       ),
     );

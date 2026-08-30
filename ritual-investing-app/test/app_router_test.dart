@@ -148,12 +148,21 @@ void main() {
       authController: auth,
       entryCoordinator: coordinator,
       sessionBootstrapService: bootstrap,
+      includeU11: true,
+      privacyRepository: _RouterPrivacyRepository(),
     );
     await coordinator.restore();
     await tester.pumpWidget(
       RitualInvestingApp(container: container, bootstrapOnStart: false),
     );
     await tester.pumpAndSettle();
+
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('welcome-sign-in'))),
+    );
+    router.go(MemberRoutes.youPrivacyPath);
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, '/welcome');
 
     await tester.tap(find.byKey(const Key('welcome-sign-in')));
     await tester.pumpAndSettle();
@@ -172,7 +181,55 @@ void main() {
       (email: 'beta@example.com', password: 'correct horse battery staple'),
     ]);
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
+    expect(router.state.uri.path, MemberRoutes.youPrivacyPath);
   });
+
+  testWidgets(
+    'exact recovery callback permits one recovery-bound password update',
+    (tester) async {
+      final sessions = _RecoverySessionRepository();
+      final auth = AuthController(repository: sessions);
+      final bootstrap = _CompletedBootstrapService();
+      final coordinator = EntryCoordinator(
+        authController: auth,
+        bootstrapService: bootstrap,
+        draftStore: OnboardingDraftStore(
+          storage: _MemoryProtectedStorage(),
+          installation: const FixedInstallationBinding('install-recovery'),
+          now: () => DateTime.utc(2026, 8, 30),
+        ),
+        onboardingRepository: _UnusedOnboardingRepository(),
+      );
+      final container = fixtureContainer(
+        authController: auth,
+        entryCoordinator: coordinator,
+        sessionBootstrapService: bootstrap,
+      );
+      await coordinator.restore();
+      await tester.pumpWidget(
+        RitualInvestingApp(container: container, bootstrapOnStart: false),
+      );
+      await tester.pumpAndSettle();
+      final router = GoRouter.of(
+        tester.element(find.byKey(const Key('app-shell-scaffold'))),
+      );
+
+      router.go('/mobile/argus-auth/callback');
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/auth/recovery');
+      expect(find.byKey(const Key('member-new-password')), findsOneWidget);
+
+      await tester.enterText(
+        find.byKey(const Key('member-new-password')),
+        'new-password',
+      );
+      await tester.tap(find.byKey(const Key('member-password-submit')));
+      await tester.pumpAndSettle();
+
+      expect(sessions.passwordUpdates, 1);
+      expect(router.state.uri.path, MemberRoutes.ritual.path);
+    },
+  );
 
   testWidgets(
     'authenticated onboarding finishes setup without creating another account',
@@ -837,6 +894,42 @@ class _SignedOutSessionRepository
   Future<void> logout() async {}
 }
 
+class _RecoverySessionRepository
+    implements
+        SessionRepository,
+        PasswordRecoverySessionRepository,
+        InitialPasswordRecoveryRepository {
+  bool _initialRecovery = true;
+  int passwordUpdates = 0;
+
+  @override
+  MemberClientExpectation get memberClientExpectation =>
+      const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
+  @override
+  Stream<AuthSession> get recoveredSessions => const Stream.empty();
+  @override
+  Future<AuthSession?> recover() async => const AuthSession(
+    accessToken: 'recovery-token',
+    userId: '11111111-1111-4111-8111-111111111111',
+  );
+  @override
+  bool consumeInitialPasswordRecovery() {
+    final value = _initialRecovery;
+    _initialRecovery = false;
+    return value;
+  }
+
+  @override
+  Future<void> requestPasswordRecovery({required String email}) async {}
+  @override
+  Future<void> updatePassword({required String password}) async {
+    passwordUpdates += 1;
+  }
+
+  @override
+  Future<void> logout() async {}
+}
+
 OnboardingDraft _reviewedDraft() => const OnboardingDraft(
   experience: InvestingExperience.newToInvesting,
   goal: InvestmentGoal.longTermGrowth,
@@ -935,7 +1028,8 @@ class _RouterPrivacyRepository implements PrivacyRepository {
   @override
   Future<void> cancelAndClearLocal() async {}
   @override
-  Future<void> downloadAndShare(String requestId) async {}
+  Future<PrivateExportDelivery> downloadAndShare(String requestId) async =>
+      PrivateExportDelivery.completed;
   @override
   Future<void> forgetExportId(String requestId) async {}
   @override

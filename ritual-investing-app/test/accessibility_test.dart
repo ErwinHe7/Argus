@@ -154,7 +154,8 @@ class _AccessibilityPrivacyRepository implements PrivacyRepository {
       throw UnimplementedError();
 
   @override
-  Future<void> downloadAndShare(String requestId) => throw UnimplementedError();
+  Future<PrivateExportDelivery> downloadAndShare(String requestId) =>
+      throw UnimplementedError();
 
   @override
   Future<PrivacyDeletionReceipt> requestDeletion(

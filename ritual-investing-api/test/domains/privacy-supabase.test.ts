@@ -26,6 +26,17 @@ function fixture(overrides: Record<string, unknown> = {}) {
       url: "https://project.supabase.co/storage/v1/object/sign/opaque-token",
       expires_at: new Date(Date.now() + 300_000).toISOString(),
     })),
+    download: vi.fn(async () => ({
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(Uint8Array.from([1, 2, 3]));
+          controller.close();
+        },
+      }),
+      contentType: "application/zip" as const,
+      contentChecksum: "a".repeat(64),
+      byteSize: 3,
+    })),
     ...overrides,
   };
   const app = createRetainedApp({
@@ -80,6 +91,26 @@ describe("Supabase privacy boundary", () => {
     });
     expect(JSON.stringify(payload)).not.toMatch(
       /privacy-exports|\.zip|sb_secret/i,
+    );
+  });
+
+  it("streams an authenticated export through Edge with fixed metadata", async () => {
+    const test = fixture();
+    const response = await test.app.request(
+      `/v1/privacy/requests/${requestId}/download`,
+      { method: "GET", headers: authenticatedHeaders },
+      bindings,
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/zip");
+    expect(response.headers.get("content-length")).toBe("3");
+    expect(response.headers.get("x-content-sha256")).toBe("a".repeat(64));
+    expect(response.headers.get("content-disposition")).toBe(
+      'attachment; filename="ritual-private-export.zip"',
+    );
+    expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+      Uint8Array.from([1, 2, 3]),
     );
   });
 

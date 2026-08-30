@@ -31,7 +31,7 @@ class FlutterPrivateExportFiles implements PrivateExportFiles {
   final CreateBrowserPrivateExportDownload _createDownload;
 
   @override
-  Future<void> share(
+  Future<PrivateExportDelivery> share(
     CacheScope scope,
     String requestId,
     Uint8List bytes,
@@ -55,6 +55,7 @@ class FlutterPrivateExportFiles implements PrivateExportFiles {
         throw const PrivateExportDownloadIncomplete();
       }
       await Future<void>.delayed(Duration.zero);
+      return PrivateExportDelivery.requested;
     } finally {
       download?.close();
       payload.fillRange(0, payload.length, 0);

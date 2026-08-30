@@ -111,4 +111,33 @@ export function registerPrivacyRoutes(input: Readonly<{
       ),
     );
   });
+
+  const download = retainedRoute(
+    "get",
+    "/v1/privacy/requests/{request_id}/download",
+    "downloadPrivacyExport",
+    "Privacy",
+    {
+      transaction: "none",
+      pathParams: z.object({ request_id: uuidSchema }),
+      description: "Stream the current owner-scoped privacy export.",
+      responseMediaType: "application/zip",
+      response: z.string().openapi({ format: "binary" }),
+    },
+  );
+  input.register(download, async (context) => {
+    await rejectBody(context);
+    const artifact = await input.service(context).download(
+      uuidSchema.parse(context.req.param("request_id")),
+    );
+    context.header("cache-control", "private, no-store");
+    context.header(
+      "content-disposition",
+      'attachment; filename="ritual-private-export.zip"',
+    );
+    context.header("content-length", String(artifact.byteSize));
+    context.header("content-type", artifact.contentType);
+    context.header("x-content-sha256", artifact.contentChecksum);
+    return context.body(artifact.body);
+  });
 }

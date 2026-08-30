@@ -1,6 +1,15 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
+import 'package:ritual_investing_app/core/api/pending_command_store.dart';
+import 'package:ritual_investing_app/core/auth/auth_controller.dart';
+import 'package:ritual_investing_app/core/auth/member_auth.dart';
+import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
+import 'package:ritual_investing_app/core/bootstrap/production_member_feature_scope_factory.dart';
+import 'package:ritual_investing_app/core/cache/read_cache.dart';
+import 'package:ritual_investing_app/features/privacy/data/repository.dart';
 import 'package:ritual_investing_app/features/public_beta/domain/member_capability_policy.dart';
 
 void main() {
@@ -45,6 +54,43 @@ void main() {
       factory,
       contains('capabilityPolicy.permits(MemberCapability.brokerageOrders)'),
     );
+  });
+
+  test('public web beta scope constructs no brokerage controllers', () {
+    final storage = _MemoryProtectedStorage();
+    final repository = _SessionRepository();
+    const cacheScope = CacheScope(accountId: 'member-a', resetGeneration: 0);
+    final scope =
+        ProductionMemberFeatureScopeFactory(
+          client: RitualInvestingApiClient(
+            basePathOverride: 'https://project.supabase.co/functions/v1/api',
+          ),
+          pendingCommandStore: PendingCommandStore(storage: storage),
+          authController: AuthController(repository: repository),
+          privacyExportRequestStore: PrivacyExportRequestStore(
+            storage: storage,
+          ),
+          privateExportFiles: const _PrivateExportFiles(),
+          createCommandKey: () => 'command-key',
+          now: () => DateTime.utc(2026, 8, 30),
+          openBrokerageAuthorization: (_) async => false,
+          capabilityPolicy: MemberCapabilityPolicy.publicWebBeta,
+        ).call(
+          cacheScope,
+          ScopedReadCache(storage: MemoryReadCache(), scope: cacheScope),
+          MemberBootstrap(
+            accountId: 'member-a',
+            onboarding: const MemberOnboardingGate.complete(),
+            serverTime: DateTime.utc(2026, 8, 30),
+            contractVersion: 'argus-member-v1',
+            themePreference: MemberThemePreference.system,
+          ),
+        );
+    addTearDown(scope.dispose);
+
+    expect(scope.brokerageConnectionController, isNull);
+    expect(scope.brokeragePortfolioController, isNull);
+    expect(scope.brokerageOrderController, isNull);
   });
 
   test(
@@ -101,4 +147,40 @@ void main() {
       expect(factory, isNot(contains('rowanController: brokerage')));
     },
   );
+}
+
+class _MemoryProtectedStorage implements ProtectedStorage {
+  final Map<String, String> values = {};
+  @override
+  Future<void> delete(String key) async => values.remove(key);
+  @override
+  Future<Map<String, String>> readAll() async => Map.of(values);
+  @override
+  Future<void> write(String key, String value) async => values[key] = value;
+}
+
+class _PrivateExportFiles implements PrivateExportFiles {
+  const _PrivateExportFiles();
+  @override
+  Future<void> clear(CacheScope scope) async {}
+  @override
+  Future<PrivateExportDelivery> share(
+    CacheScope scope,
+    String requestId,
+    Uint8List bytes,
+  ) async => PrivateExportDelivery.completed;
+}
+
+class _SessionRepository implements SessionRepository {
+  @override
+  MemberClientExpectation get memberClientExpectation =>
+      const MemberClientExpectation(
+        issuer: 'https://project.supabase.co/auth/v1',
+      );
+  @override
+  Stream<AuthSession> get recoveredSessions => const Stream.empty();
+  @override
+  Future<AuthSession?> recover() async => null;
+  @override
+  Future<void> logout() async {}
 }

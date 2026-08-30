@@ -139,6 +139,25 @@ void main() {
     expect(repository.forgottenExportIds, isEmpty);
   });
 
+  test('browser download request remains available for retry', () async {
+    final repository = _FakePrivacyRepository()
+      ..restoredExportId = _exportId
+      ..delivery = PrivateExportDelivery.requested
+      ..getResults.addAll([
+        _export(PrivacyExportStatus.completed),
+        _export(PrivacyExportStatus.completed),
+      ]);
+    final controller = _controller(repository);
+
+    await controller.load();
+    await controller.downloadAndShare();
+
+    expect(controller.phase, PrivacyPhase.downloadReady);
+    expect(controller.message, contains('Download requested'));
+    expect(repository.restoredExportId, _exportId);
+    expect(repository.forgottenExportIds, isEmpty);
+  });
+
   test(
     'terminal export state survives relaunch without polling or download',
     () async {
@@ -410,6 +429,7 @@ class _FakePrivacyRepository implements PrivacyRepository {
   final List<String> requestIds = [];
   final List<String> sharedIds = [];
   final List<Object?> shareResults = [];
+  PrivateExportDelivery delivery = PrivateExportDelivery.completed;
   final List<String> forgottenExportIds = [];
   final List<String> rememberedExportIds = [];
   final List<String> exportKeys = [];
@@ -464,12 +484,13 @@ class _FakePrivacyRepository implements PrivacyRepository {
   }
 
   @override
-  Future<void> downloadAndShare(String requestId) async {
+  Future<PrivateExportDelivery> downloadAndShare(String requestId) async {
     sharedIds.add(requestId);
     if (shareResults.isNotEmpty) {
       final result = shareResults.removeAt(0);
       if (result case final error?) throw error;
     }
+    return delivery;
   }
 
   @override

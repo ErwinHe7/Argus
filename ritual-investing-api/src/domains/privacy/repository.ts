@@ -69,6 +69,8 @@ export function createSupabasePrivacyRepository(
         bucket_id: string;
         object_path: string;
         expires_in_seconds: number;
+        content_checksum: string;
+        byte_size: string | number;
       }>(
         `select * from argus_private.prepare_privacy_export_download($1)`,
         [requestId],

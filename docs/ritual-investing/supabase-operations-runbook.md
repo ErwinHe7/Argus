@@ -23,9 +23,10 @@ ordinary `.github/workflows/ritual-investing.yml` workflow has no hosted schema,
 Edge, secret, fence, or deployment mutation authority. Approved remediation
 promotions use only the separate
 `.github/workflows/ritual-investing-supabase-remediation.yml` workflow and
-target the persistent Supabase `beta` branch under the Ritual Investment
-project. That branch has its own database, Auth, API credentials, Edge secrets,
-Cron, Queues, and Storage boundary; it is not a Git-only environment label.
+target the dedicated Supabase beta project. The replaceable staging branch and
+the production project are both forbidden release targets. The beta project
+has its own database, Auth, API credentials, Edge secrets, Cron, Queues, and
+Storage boundary.
 
 ## Hosted-development promotion
 

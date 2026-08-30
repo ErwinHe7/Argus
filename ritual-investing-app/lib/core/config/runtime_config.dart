@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../auth/member_auth.dart';
+import 'runtime_platform.dart';
 
 class RuntimeConfigException implements Exception {
   const RuntimeConfigException(this.message);
@@ -22,7 +23,6 @@ class RuntimeConfig {
     this.allowSelfServiceSignup = false,
     String argusAuthRedirectAllowlist =
         'https://just-build-this.app/mobile/argus-auth/callback,'
-        'https://just-build-this.app/auth/recovery,'
         'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
     String webullCompletionAllowlist =
         'https://just-build-this.app/mobile/webull/complete,'
@@ -52,10 +52,8 @@ class RuntimeConfig {
   final MemberNativeLinkPolicy nativeLinks;
   final bool allowSelfServiceSignup;
 
-  Uri get passwordRecoveryRedirect => nativeLinks.argusAuthTargets.firstWhere(
-    (target) => target.scheme == 'https' && target.path == '/auth/recovery',
-    orElse: () => nativeLinks.preferredArgusAuthRedirect,
-  );
+  Uri get passwordRecoveryRedirect =>
+      selectArgusAuthRedirect(nativeLinks.argusAuthTargets);
 
   factory RuntimeConfig.fromEnvironment() => RuntimeConfig(
     environment: const String.fromEnvironment(
@@ -80,7 +78,6 @@ class RuntimeConfig {
       'ARGUS_AUTH_REDIRECT_ALLOWLIST',
       defaultValue:
           'https://just-build-this.app/mobile/argus-auth/callback,'
-          'https://just-build-this.app/auth/recovery,'
           'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
     ),
     webullCompletionAllowlist: const String.fromEnvironment(

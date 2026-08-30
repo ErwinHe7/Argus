@@ -228,8 +228,9 @@ class _UiRepository implements PrivacyRepository {
   Future<PrivacyExport> getExport(String requestId) async =>
       restoredExport ?? (throw UnimplementedError());
   @override
-  Future<void> downloadAndShare(String requestId) async {
+  Future<PrivateExportDelivery> downloadAndShare(String requestId) async {
     if (shareError case final error?) throw error;
+    return PrivateExportDelivery.completed;
   }
 
   @override

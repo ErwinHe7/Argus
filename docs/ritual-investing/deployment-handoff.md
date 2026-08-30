@@ -47,6 +47,12 @@ snapshots, workflow artifacts, browser/accessibility/network evidence,
 observations, and approvals beside the manifest, without credentials or member
 identifiers.
 
+The protected variable `BETA_MEMBER_PREVIEW_ORIGIN` must be the exact stable
+Wrangler alias origin,
+`https://beta-ritual-investing-member.<account-subdomain>.workers.dev`. The
+same exact origin must appear in Edge CORS and Supabase Auth redirects. Wildcard
+and per-version preview origins are forbidden.
+
 ## Dedicated beta prerequisites
 
 Before domain cutover, the Supabase operator must prove the target is a
@@ -54,7 +60,9 @@ dedicated durable beta project—not production or the replaceable staging
 branch—and record:
 
 - invite-only Auth with custom SMTP, resend, enumeration-resistant recovery,
-  rate limits, exact apex/preview redirects, and the accepted deletion path;
+  rate limits, exact apex/preview `/mobile/argus-auth/callback` redirects, a
+  recovery email template that sends `token_hash` with `type=recovery`, and the
+  accepted deletion path;
 - the reviewed publishable-key digest and exact `/functions/v1/api` URL on the
   same beta Supabase origin; no elevated key in the bundle;
 - exact apex/preview/admin CORS, no browser application-table grants, private

@@ -10,6 +10,7 @@ import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_draft_store.dart';
 import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
 import 'package:ritual_investing_app/features/privacy/data/private_export_files_web.dart';
+import 'package:ritual_investing_app/features/privacy/data/repository.dart';
 
 void main() {
   test(
@@ -53,7 +54,7 @@ void main() {
         },
       );
 
-      await files.share(
+      final delivery = await files.share(
         const CacheScope(accountId: 'account-a', resetGeneration: 1),
         '018f3c2a-4b67-7a89-8abc-123456789020',
         Uint8List.fromList([1, 2, 3]),
@@ -62,6 +63,7 @@ void main() {
       expect(download!.fileName, 'ritual-private-export.zip');
       expect(download!.started, isTrue);
       expect(download!.closed, isTrue);
+      expect(delivery, PrivateExportDelivery.requested);
     },
   );
 
@@ -96,7 +98,7 @@ void main() {
           '018f3c2a-4b67-7a89-8abc-123456789020',
           Uint8List.fromList([1, 2, 3]),
         ),
-        completes,
+        completion(PrivateExportDelivery.requested),
       );
       expect(downloads, hasLength(2));
       expect(downloads.last.closed, isTrue);

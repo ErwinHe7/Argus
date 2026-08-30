@@ -34,10 +34,12 @@ describe("public-beta API promotion evidence", () => {
     expect(promotion?.env).toMatchObject({
       RITUAL_EXPECTED_BETA_PROJECT_ID: expect.any(String),
       RITUAL_BETA_ADMIN_ORIGIN: expect.any(String),
+      RITUAL_BETA_PREVIEW_ORIGIN: expect.any(String),
     });
     expect(runText).toContain(
-      "https://just-build-this.app,https://beta.just-build-this.app",
+      "RITUAL_BETA_CONSUMER_ORIGINS=https://just-build-this.app,$RITUAL_BETA_PREVIEW_ORIGIN",
     );
+    expect(runText).toContain("workers\\.dev");
     expect(runText).toMatch(
       /SUPABASE_PROJECT_ID[^\n]*RITUAL_EXPECTED_BETA_PROJECT_ID/,
     );

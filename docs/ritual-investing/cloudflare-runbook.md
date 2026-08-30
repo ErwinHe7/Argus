@@ -1,21 +1,25 @@
-# Cloudflare Pages runbook
+# Cloudflare static publication runbook
 
-Cloudflare is a static publication boundary only. The four Pages projects serve
-the landing and Demo artifacts from `ritual-investing-site/dist/*`. Their
-Wrangler files may contain only a project name, compatibility date, and
-`pages_build_output_dir`.
+Cloudflare is a static publication boundary only. The public member beta is an
+asset-only Worker named `ritual-investing-member`; it has no script, binding,
+secret, database, queue, object-storage, Auth, provider, or scheduled-compute
+authority. The landing and Demo artifacts remain independently assembled and
+scanned.
 
-Before promotion, run the site typecheck/tests, build the static assets, and run
-`npm run pages:config:check` plus `scripts/check-legacy-backend-removal.sh`.
-Reject any artifact or configuration containing a Pages Function, `_worker.js`,
-Worker entrypoint, route, variable, Queue, R2, D1, service binding, Durable
-Object, cron trigger, authentication secret, or database credential.
+Before preview upload, build Flutter web without a service worker, source maps,
+remote web resources, or a WASM dry run. Assemble `dist/member-beta`, verify its
+manifest and provider scan, and run Wrangler's dry-run validation. The bundle
+may connect only to the exact dedicated beta Supabase origin.
 
-The browser waitlist calls the narrow Supabase `waitlist` Edge Function. The
-Demo remains fixture-backed and does not call Supabase, Webull, or any
-Cloudflare compute. Preview deployments ship with waitlist writes disabled.
+The protected release workflow uploads one immutable version with stable alias
+`beta`. Its exact origin is stored in `BETA_MEMBER_PREVIEW_ORIGIN` as
+`https://beta-ritual-investing-member.<account-subdomain>.workers.dev`; Edge
+CORS and Supabase Auth must use that same exact origin. Generic Workers preview
+origins and wildcards remain blocked.
 
-Cloudflare rollback means promoting the prior immutable static artifact. It
-never restores an API Worker, Auth0 authority, Neon database, Queue, R2 bucket,
-or any other legacy backend. Keep domain/DNS changes separate and verify unknown
-routes remain static 404 responses after every promotion.
+Promotion deploys the accepted version at 100 percent without rebuilding.
+Frontend rollback restores the recorded landing Worker version. Reattaching a
+different Worker or a retained Pages domain is a separate propagation-sensitive
+domain rollback. Neither action changes or restores Supabase data, Auth, Edge,
+Storage, or background work. Follow `deployment-handoff.md` for the exact
+landing soak, apex override smoke, observation, and recovery sequence.

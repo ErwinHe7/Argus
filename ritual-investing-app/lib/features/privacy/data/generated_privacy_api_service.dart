@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart'
     as api;
@@ -14,13 +15,18 @@ class GeneratedPrivacyService implements PrivacyService {
   GeneratedPrivacyService(api.RitualInvestingApiClient client)
     : _privacy = api.PrivacyApi(client.dio),
       _session = api.SessionApi(client.dio),
-      _download = Dio(),
-      _apiOrigin = Uri.parse(client.dio.options.baseUrl);
+      _download = client.dio,
+      _apiBaseUrl = client.dio.options.baseUrl.endsWith('/')
+          ? client.dio.options.baseUrl.substring(
+              0,
+              client.dio.options.baseUrl.length - 1,
+            )
+          : client.dio.options.baseUrl;
 
   final api.PrivacyApi _privacy;
   final api.SessionApi _session;
   final Dio _download;
-  final Uri _apiOrigin;
+  final String _apiBaseUrl;
   CancelToken? _downloadCancellation;
 
   @override
@@ -69,30 +75,34 @@ class GeneratedPrivacyService implements PrivacyService {
     _downloadCancellation?.cancel('superseded');
     _downloadCancellation = cancellation;
     try {
-      final grant = (await _privacy.createPrivacyDownloadUrl(
-        requestId: requestId,
-        cancelToken: cancellation,
-      )).data?.data;
-      if (grant == null || !grant.expiresAt.isAfter(DateTime.now().toUtc())) {
-        _terminal();
-      }
-      final uri = Uri.tryParse(grant.url);
-      if (uri == null ||
-          uri.scheme != _apiOrigin.scheme ||
-          uri.host != _apiOrigin.host ||
-          uri.port != _apiOrigin.port ||
-          uri.userInfo.isNotEmpty ||
-          uri.fragment.isNotEmpty) {
-        _terminal();
-      }
       final response = await _download.get<List<int>>(
-        uri.toString(),
+        '$_apiBaseUrl/v1/privacy/requests/$requestId/download',
         options: Options(responseType: ResponseType.bytes),
         cancelToken: cancellation,
       );
       final bytes = response.data;
       if (bytes == null || bytes.isEmpty) _terminal();
-      return Uint8List.fromList(bytes);
+      final expectedLength = int.tryParse(
+        response.headers.value('content-length') ?? '',
+      );
+      final expectedChecksum = response.headers
+          .value('x-content-sha256')
+          ?.toLowerCase();
+      final contentType = response.headers
+          .value('content-type')
+          ?.split(';')
+          .first;
+      final payload = Uint8List.fromList(bytes);
+      if (contentType != 'application/zip' ||
+          expectedLength == null ||
+          expectedLength != payload.length ||
+          expectedChecksum == null ||
+          !RegExp(r'^[a-f0-9]{64}$').hasMatch(expectedChecksum) ||
+          sha256.convert(payload).toString() != expectedChecksum) {
+        payload.fillRange(0, payload.length, 0);
+        _terminal();
+      }
+      return payload;
     } on DioException catch (error) {
       final code = _errorCode(error);
       if (code == 'recent_auth_required' || error.response?.statusCode == 403) {

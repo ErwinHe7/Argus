@@ -6,9 +6,13 @@ import '../../features/onboarding/data/onboarding_draft_store.dart';
 import '../../features/onboarding/data/onboarding_installation_binding_io.dart';
 import '../../features/privacy/data/private_export_files_io.dart';
 import '../../features/privacy/data/repository.dart';
+import '../api/flutter_protected_storage.dart';
 import '../api/pending_command_store.dart';
 import '../auth/member_auth.dart';
 import 'entry_coordinator.dart';
+
+ProtectedStorage createProductionProtectedStorage() =>
+    FlutterProtectedStorage();
 
 OnboardingDraftStore createProductionOnboardingDraftStore({
   required ProtectedStorage nativeStorage,

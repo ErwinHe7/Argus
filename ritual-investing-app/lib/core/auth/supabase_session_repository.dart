@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'member_auth.dart';
+import 'member_auth_callback.dart';
 import 'member_auth_storage.dart';
 
 export 'member_auth_storage.dart' show MemberAuthSecureStorage;
@@ -168,6 +169,7 @@ class SupabaseSessionRepository
         SessionRepository,
         PasswordSessionRepository,
         PasswordRecoverySessionRepository,
+        InitialPasswordRecoveryRepository,
         SessionChangeRepository,
         ScopedSessionLogout {
   SupabaseSessionRepository({
@@ -175,9 +177,11 @@ class SupabaseSessionRepository
     required Uri supabaseUrl,
     this.passwordRecoveryRedirect =
         'https://just-build-this.app/mobile/argus-auth/callback',
+    bool initialPasswordRecovery = false,
     DateTime Function()? now,
   }) : _client = client,
        _now = now ?? DateTime.now,
+       _initialPasswordRecovery = initialPasswordRecovery,
        memberClientExpectation = MemberClientExpectation(
          issuer: '${_withoutTrailingSlash(supabaseUrl.toString())}/auth/v1',
          audience: 'authenticated',
@@ -187,27 +191,40 @@ class SupabaseSessionRepository
     required SupabaseClient client,
     required Uri supabaseUrl,
     required Uri passwordRecoveryRedirect,
+    bool initialPasswordRecovery = false,
   }) => SupabaseSessionRepository(
     client: SupabaseFlutterAuthClient(client),
     supabaseUrl: supabaseUrl,
     passwordRecoveryRedirect: passwordRecoveryRedirect.toString(),
+    initialPasswordRecovery: initialPasswordRecovery,
   );
 
   final MemberSupabaseAuthClient _client;
   final DateTime Function() _now;
   final String passwordRecoveryRedirect;
+  bool _initialPasswordRecovery;
   Future<AuthSession?>? _activeRecovery;
 
   @override
   final MemberClientExpectation memberClientExpectation;
 
   @override
-  Stream<MemberSessionChange> get sessionChanges => _client.events.asyncMap(
-    (change) async => MemberSessionChange(
-      event: change.event,
-      session: change.session == null ? null : _validated(change.session!),
-    ),
-  );
+  Stream<MemberSessionChange> get sessionChanges => _client.events.asyncMap((
+    change,
+  ) async {
+    final session = change.session == null ? null : _validated(change.session!);
+    final event = session != null && consumeInitialPasswordRecovery()
+        ? MemberSessionEvent.passwordRecovery
+        : change.event;
+    return MemberSessionChange(event: event, session: session);
+  });
+
+  @override
+  bool consumeInitialPasswordRecovery() {
+    final value = _initialPasswordRecovery;
+    _initialPasswordRecovery = false;
+    return value;
+  }
 
   @override
   Stream<AuthSession> get recoveredSessions => sessionChanges
@@ -421,13 +438,28 @@ class SecureSupabasePkceStorage extends GotrueAsyncStorage {
   }
 }
 
-Future<SupabaseClient> initializeMemberSupabase({
+class MemberSupabaseInitialization {
+  const MemberSupabaseInitialization({
+    required this.client,
+    required this.initialPasswordRecovery,
+  });
+
+  final SupabaseClient client;
+  final bool initialPasswordRecovery;
+}
+
+Future<MemberSupabaseInitialization> initializeMemberSupabase({
   required Uri url,
   required String publishableKey,
   required MemberNativeLinkPolicy nativeLinks,
   MemberAuthSecureStorage? secureStorage,
+  Uri? initialCallbackUri,
 }) async {
   final storage = secureStorage ?? ProductionMemberAuthSecureStorage();
+  final callbackUri = initialCallbackUri ?? currentMemberAuthCallbackUri();
+  final recoveryTokenHash = callbackUri == null
+      ? null
+      : nativeLinks.recoveryTokenHash(callbackUri);
   final instance = await Supabase.initialize(
     url: url.toString(),
     publishableKey: publishableKey,
@@ -438,9 +470,19 @@ Future<SupabaseClient> initializeMemberSupabase({
       persistSession: true,
       localStorage: SecureSupabaseLocalStorage(storage),
       pkceAsyncStorage: SecureSupabasePkceStorage(storage),
-      detectSessionInUri: true,
+      detectSessionInUri: recoveryTokenHash == null,
       detectSessionInUriPredicate: nativeLinks.acceptsArgusAuthCallback,
     ),
   );
-  return instance.client;
+  if (recoveryTokenHash != null && callbackUri != null) {
+    await instance.client.auth.verifyOTP(
+      tokenHash: recoveryTokenHash,
+      type: OtpType.recovery,
+    );
+    clearMemberAuthCallbackParameters(callbackUri);
+  }
+  return MemberSupabaseInitialization(
+    client: instance.client,
+    initialPasswordRecovery: recoveryTokenHash != null,
+  );
 }

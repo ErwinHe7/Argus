@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/core/auth/auth_controller.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
+import 'package:ritual_investing_app/core/auth/member_auth_signal_base.dart';
 import 'package:ritual_investing_app/core/auth/member_step_up.dart';
 
 void main() {
@@ -19,6 +20,58 @@ void main() {
       expect(repository.credentialReads, 3);
     },
   );
+
+  test('password update requires a recovery session', () async {
+    final repository = _RecoverySessionRepository();
+    final controller = AuthController(repository: repository);
+    addTearDown(controller.dispose);
+    repository.emit(
+      const MemberSessionChange(
+        event: MemberSessionEvent.signedIn,
+        session: AuthSession(accessToken: 'normal'),
+      ),
+    );
+
+    expect(await controller.updatePassword('new-password'), isFalse);
+    expect(repository.passwordUpdates, 0);
+
+    repository.emit(
+      const MemberSessionChange(
+        event: MemberSessionEvent.passwordRecovery,
+        session: AuthSession(accessToken: 'recovery'),
+      ),
+    );
+    expect(await controller.updatePassword('new-password'), isTrue);
+    expect(repository.passwordUpdates, 1);
+    expect(controller.state.isPasswordRecovery, isFalse);
+  });
+
+  test('token-free logout signal invalidates a sibling tab', () async {
+    final repository = _StreamingSessionRepository();
+    final signal = _FakeAuthSignal();
+    final controller = AuthController(
+      repository: repository,
+      authSignal: signal,
+    );
+    addTearDown(controller.dispose);
+    repository.emit(
+      const MemberSessionChange(
+        event: MemberSessionEvent.signedIn,
+        session: AuthSession(accessToken: 'private-token'),
+      ),
+    );
+    final invalidated = expectLater(
+      controller.invalidatedSessions,
+      emits(null),
+    );
+
+    signal.emitLogout();
+    await invalidated;
+
+    expect(controller.state.phase, AuthPhase.signedOut);
+    expect(repository.logoutScopes, [MemberLogoutScope.local]);
+    expect(signal.published, 0);
+  });
 
   test('password sign in adopts the credential session', () async {
     final repository = _FakeSessionRepository(
@@ -187,9 +240,8 @@ void main() {
         ),
       );
 
-      expect(controller.state.phase, AuthPhase.failure);
-      expect(controller.activeSession?.accessToken, 'first');
-      expect(controller.state.message, contains('did not match'));
+      expect(controller.state.phase, AuthPhase.signedOut);
+      expect(controller.activeSession, isNull);
     },
   );
 
@@ -314,4 +366,31 @@ class _StreamingSessionRepository
     if (failLogout) throw StateError('offline');
     current = null;
   }
+}
+
+class _RecoverySessionRepository extends _StreamingSessionRepository
+    implements PasswordRecoverySessionRepository {
+  int passwordUpdates = 0;
+
+  @override
+  Future<void> requestPasswordRecovery({required String email}) async {}
+
+  @override
+  Future<void> updatePassword({required String password}) async {
+    passwordUpdates += 1;
+  }
+}
+
+class _FakeAuthSignal implements MemberAuthSignal {
+  final StreamController<void> _events = StreamController.broadcast(sync: true);
+  int published = 0;
+
+  void emitLogout() => _events.add(null);
+
+  @override
+  Stream<void> get logoutEvents => _events.stream;
+  @override
+  void publishLogout() => published += 1;
+  @override
+  void close() => _events.close();
 }

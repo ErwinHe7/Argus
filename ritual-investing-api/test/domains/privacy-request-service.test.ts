@@ -58,6 +58,8 @@ function fixture(options: FixtureOptions = {}) {
       bucket_id: "privacy-exports",
       object_path: `${userId}/export.zip`,
       expires_in_seconds: options.expiresInSeconds ?? 30,
+      content_checksum: "a".repeat(64),
+      byte_size: 3,
     };
   });
   const confirmDownload = vi.fn(async (preparedLeaseId: string) => {
@@ -113,6 +115,19 @@ function fixture(options: FixtureOptions = {}) {
         "https://cdn.example.test/storage/v1/object/sign/opaque-token";
     },
   );
+  const getStream = vi.fn(async (bucket: string, path: string) => {
+    storageCalls.push([bucket, path]);
+    events.push("storage:get-stream");
+    return {
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(Uint8Array.from([1, 2, 3]));
+          controller.close();
+        },
+      }),
+      contentType: "application/zip",
+    };
+  });
 
   return {
     service: createPrivacyRequestService({
@@ -123,7 +138,7 @@ function fixture(options: FixtureOptions = {}) {
       },
       withMemberTransaction,
       repository,
-      signedStorage: { createSignedUrl },
+      signedStorage: { createSignedUrl, getStream },
       ...(options.now === undefined ? {} : { now: options.now }),
     }),
     events,
@@ -137,6 +152,7 @@ function fixture(options: FixtureOptions = {}) {
     prepareDownload,
     confirmDownload,
     createSignedUrl,
+    getStream,
   };
 }
 
@@ -234,6 +250,27 @@ describe("privacy request service", () => {
         test.transactions.includes(argument as DatabaseTransaction)
       ),
     ).toBe(false);
+  });
+
+  it("streams a privacy export through Edge with authoritative metadata", async () => {
+    const test = fixture();
+
+    const result = await test.service.download(requestId);
+
+    expect(result.contentType).toBe("application/zip");
+    expect(result.contentChecksum).toBe("a".repeat(64));
+    expect(result.byteSize).toBe(3);
+    expect(test.events).toEqual([
+      "transaction:1:begin",
+      "transaction:1:repository-bound",
+      "repository:prepare-download",
+      "transaction:1:commit",
+      "storage:get-stream",
+      "transaction:2:begin",
+      "transaction:2:repository-bound",
+      "repository:confirm-download",
+      "transaction:2:commit",
+    ]);
   });
 
   it.each([

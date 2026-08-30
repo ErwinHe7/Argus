@@ -189,6 +189,7 @@ export type RouteOptions = Readonly<{
   headers?: z.ZodType;
   description?: string;
   response?: z.ZodType;
+  responseMediaType?: string;
   acceptedResponse?: z.ZodType;
 }>;
 
@@ -237,7 +238,9 @@ export function retainedRoute(
       200: {
         description: options.description ?? "Argus response.",
         content: {
-          "application/json": { schema: options.response ?? responseSchema },
+          [options.responseMediaType ?? "application/json"]: {
+            schema: options.response ?? responseSchema,
+          },
         },
       },
       ...(options.acceptedResponse === undefined ? {} : {

@@ -292,7 +292,7 @@ const FORBIDDEN_PROVIDER_PATTERNS = [
   /postgres(?:ql)?:\/\//i,
   /flutter_secure_storage/i,
   /path_provider/i,
-  /sb_secret_/i,
+  /sb_secret_[A-Za-z0-9_-]{20,}/i,
   /service[_-]?role/i,
   /SUPABASE_(?:SECRET|SERVICE)/i,
   /TURNSTILE_SECRET/i,

@@ -10,6 +10,7 @@ import {
 } from "../../src/retained-app.ts";
 import { StaffAuthorizationError } from "../../src/db/request-transaction.ts";
 import type { BrokerageOrderService } from "../../src/domains/brokerage-orders/service.ts";
+import type { BrokerageConnectionRouteService } from "../../src/domains/brokerage/routes.ts";
 import type { RateLimitPort } from "../../src/ports/infrastructure.ts";
 import { rewriteSupabaseFunctionRequest } from "../../../supabase/functions/_shared/http.ts";
 
@@ -43,6 +44,7 @@ type FixtureOptions = Readonly<{
   account?: unknown;
   updatePreferences?: ReturnType<typeof vi.fn>;
   brokerageOrderService?: BrokerageOrderService;
+  brokerageConnectionService?: BrokerageConnectionRouteService;
 }>;
 
 function fixture(options: FixtureOptions = {}) {
@@ -112,8 +114,20 @@ function fixture(options: FixtureOptions = {}) {
         url: "https://project.supabase.co/storage/v1/object/sign/opaque-token",
         expires_at: "2026-08-30T12:00:00.000Z",
       })),
+      download: vi.fn(async () => ({
+        body: new ReadableStream<Uint8Array>(),
+        contentType: "application/zip" as const,
+        contentChecksum: "a".repeat(64),
+        byteSize: 3,
+      })),
     }),
     rateLimit,
+    ...(options.brokerageConnectionService === undefined
+      ? {}
+      : {
+        createBrokerageConnections: () =>
+          options.brokerageConnectionService!,
+      }),
     requestId: () => "018f3c2a-4b67-7a89-8abc-123456789077",
     ...(options.telemetry === undefined
       ? {}
@@ -312,10 +326,7 @@ describe("Supabase Edge retained API adapter", () => {
   it("keeps financial and provider capabilities unavailable to web origins", async () => {
     const test = fixture();
 
-    for (const path of [
-      "/v1/brokerage/connection",
-      "/v1/member/step-up",
-    ]) {
+    for (const path of ["/v1/brokerage/connection"]) {
       const response = await test.app.request(
         path,
         {
@@ -329,6 +340,63 @@ describe("Supabase Edge retained API adapter", () => {
       });
     }
     expect(test.withRepositories).not.toHaveBeenCalled();
+  });
+
+  it("allows only deletion step-up for web origins, including containment", async () => {
+    const issueStepUp = vi.fn(async (action: "webull_disconnect" | "argus_delete") => ({
+      action,
+      receipt: "a".repeat(32),
+    }));
+    const service = {
+      issueStepUp,
+      start: vi.fn(),
+      reconnect: vi.fn(),
+      status: vi.fn(),
+      selectAccount: vi.fn(),
+      redeemCompletion: vi.fn(),
+      disconnect: vi.fn(),
+    } as BrokerageConnectionRouteService;
+    const test = fixture({
+      brokerageConnectionService: service,
+      verifyAccessToken: vi.fn(async () => ({
+        ...principal(),
+        authenticatedAt: Math.floor(Date.now() / 1_000) - 5,
+      })),
+    });
+    for (const runtimeBindings of [bindings, { ...bindings, webAdmission: "contained" as const }]) {
+      const deletion = await test.app.request(
+        "/v1/member/step-up",
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer valid-token",
+            "content-type": "application/json",
+            origin: betaOrigin,
+          },
+          body: JSON.stringify({ action: "argus_delete" }),
+        },
+        runtimeBindings,
+      );
+      expect(deletion.status).toBe(200);
+    }
+    const brokerage = await test.app.request(
+      "/v1/member/step-up",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer valid-token",
+          "content-type": "application/json",
+          origin: betaOrigin,
+        },
+        body: JSON.stringify({ action: "webull_disconnect" }),
+      },
+      bindings,
+    );
+    expect(brokerage.status).toBe(503);
+    expect(await brokerage.json()).toMatchObject({
+      error: { code: "web_capability_unavailable" },
+    });
+    expect(issueStepUp).toHaveBeenCalledTimes(2);
   });
 
   it("denies invalid tokens and untrusted origins before repository access", async () => {

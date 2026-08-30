@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
@@ -25,6 +26,13 @@ void main() {
     expect(requested.status, PrivacyExportStatus.queued);
     final refreshed = await service.getExport(_exportId);
     expect(refreshed.status, PrivacyExportStatus.completed);
+    expect(await service.downloadLatest(_exportId), [1, 2, 3]);
+    expect(
+      harness
+          .single('GET', '/v1/privacy/requests/$_exportId/download')
+          .authorization,
+      'Bearer u11-member-token',
+    );
 
     const receipt = 'delete_step_up_receipt_000000000001';
     final deletion = await service.requestDeletion(
@@ -135,6 +143,19 @@ class _Harness {
           ],
           'meta': _meta,
         });
+      } else if (request.method == 'GET' &&
+          request.uri.path == '/v1/privacy/requests/$_exportId/download') {
+        final bytes = <int>[1, 2, 3];
+        request.response.headers.contentType = ContentType(
+          'application',
+          'zip',
+        );
+        request.response.headers.set(
+          'x-content-sha256',
+          sha256.convert(bytes).toString(),
+        );
+        request.response.headers.contentLength = bytes.length;
+        request.response.add(bytes);
       } else if (request.method == 'POST' &&
           request.uri.path == '/v1/session/bootstrap' &&
           accountInactive) {

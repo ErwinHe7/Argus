@@ -11,12 +11,12 @@ import '../../features/brokerage_connection/data/repository.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
 import '../../features/privacy/data/repository.dart';
 import '../../features/public_beta/domain/member_capability_policy.dart';
-import '../api/flutter_protected_storage.dart';
 import '../api/pending_command_store.dart';
 import '../api/ritual_api.dart';
 import '../auth/auth_controller.dart';
 import '../auth/supabase_session_repository.dart';
 import '../auth/member_step_up.dart';
+import '../auth/member_auth_signal.dart';
 import '../cache/read_cache.dart';
 import '../config/runtime_config.dart';
 import 'dependency_container.dart';
@@ -24,9 +24,12 @@ import 'entry_coordinator.dart';
 import 'production_member_feature_scope_factory.dart';
 import 'production_platform_adapters.dart';
 
-DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
+DependencyContainer createProductionDependencyContainer(
+  RuntimeConfig config, {
+  bool initialPasswordRecovery = false,
+}) {
   final cache = MemoryReadCache();
-  final protectedStorage = FlutterProtectedStorage();
+  final protectedStorage = createProductionProtectedStorage();
   final pendingCommandStore = PendingCommandStore(storage: protectedStorage);
   late final RitualInvestingApiClient client;
   final auth = AuthController(
@@ -34,8 +37,10 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
       client: Supabase.instance.client,
       supabaseUrl: config.supabaseUrl,
       passwordRecoveryRedirect: config.passwordRecoveryRedirect,
+      initialPasswordRecovery: initialPasswordRecovery,
     ),
     stepUpReceipts: ApiStepUpReceiptRepository.fromClientProvider(() => client),
+    authSignal: createProductionMemberAuthSignal(),
   );
   client = RitualInvestingApiClient(
     basePathOverride: config.apiBaseUrl,

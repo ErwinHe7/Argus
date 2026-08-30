@@ -26,7 +26,7 @@ class FlutterPrivateExportFiles implements PrivateExportFiles {
   final SharePrivateFile _shareFile;
 
   @override
-  Future<void> share(
+  Future<PrivateExportDelivery> share(
     CacheScope scope,
     String requestId,
     Uint8List bytes,
@@ -42,6 +42,7 @@ class FlutterPrivateExportFiles implements PrivateExportFiles {
       if (!await _shareFile(file.path)) {
         throw const PrivateExportShareIncomplete();
       }
+      return PrivateExportDelivery.completed;
     } finally {
       if (await file.exists()) await file.delete();
       if (await directory.exists() && await directory.list().isEmpty) {

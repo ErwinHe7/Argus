@@ -171,6 +171,22 @@ void main() {
       expect(
         policy.acceptsArgusAuthCallback(
           Uri.parse(
+            'https://just-build-this.app/mobile/argus-auth/callback?token_hash=abcdefghijklmnop&type=recovery',
+          ),
+        ),
+        isTrue,
+      );
+      expect(
+        policy.recoveryTokenHash(
+          Uri.parse(
+            'https://just-build-this.app/mobile/argus-auth/callback?token_hash=abcdefghijklmnop&type=recovery',
+          ),
+        ),
+        'abcdefghijklmnop',
+      );
+      expect(
+        policy.acceptsArgusAuthCallback(
+          Uri.parse(
             'https://just-build-this.app/mobile/argus-auth/callback?code=abcdefgh',
           ),
         ),

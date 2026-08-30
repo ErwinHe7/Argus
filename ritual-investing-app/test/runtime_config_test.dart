@@ -18,7 +18,6 @@ void main() {
     argusAuthRedirectAllowlist:
         authLinks ??
         'https://just-build-this.app/mobile/argus-auth/callback,'
-            'https://just-build-this.app/auth/recovery,'
             'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
     webullCompletionAllowlist:
         webullLinks ??
@@ -59,7 +58,7 @@ void main() {
     );
     expect(
       value.passwordRecoveryRedirect,
-      Uri.parse('https://just-build-this.app/auth/recovery'),
+      Uri.parse('https://just-build-this.app/mobile/argus-auth/callback'),
     );
   });
 

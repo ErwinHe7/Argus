@@ -72,8 +72,8 @@ describe("Ritual release workflow contract", () => {
 
     expect(release).toContain("environment: ritual-investing-web-release");
     expect(release).toMatch(/options:\n\s+- preview\n\s+- promote\n\s+- rollback/);
-    expect(release).toContain("group: ritual-investing-release");
-    expect(remediation).toContain("group: ritual-investing-release");
+    expect(release).toContain("group: ritual-investing-release-supabase-remediation");
+    expect(remediation).toContain("group: ritual-investing-release-supabase-remediation");
     expect(release).toContain("APPROVED_MEMBER_WEB_RELEASE_MANIFEST_SHA256");
     expect(release).toContain("EXPECTED_MEMBER_WORKER_NAME");
     expect(release).toContain("EXPECTED_BETA_SUPABASE_PROJECT_ID");
@@ -83,6 +83,18 @@ describe("Ritual release workflow contract", () => {
     expect(release).toContain('if: inputs.action == \'promote\'');
     expect(release).toContain('"$RITUAL_WORKER_VERSION_ID@100%"');
     expect(release).toContain("wrangler rollback");
+    expect(release).toContain("BETA_MEMBER_PREVIEW_ORIGIN");
+    expect(release).toContain("$RITUAL_BETA_PREVIEW_ORIGIN/mobile/argus-auth/callback");
+
+    const releaseJob = job(release, "release");
+    const jobEnvironment = releaseJob.slice(0, releaseJob.indexOf("\n    steps:"));
+    expect(jobEnvironment).not.toMatch(
+      /CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID|MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY:/,
+    );
+    expect(release).toMatch(/actions\/checkout@[a-f0-9]{40}/);
+    expect(release).toMatch(/actions\/setup-node@[a-f0-9]{40}/);
+    expect(release).toMatch(/subosito\/flutter-action@[a-f0-9]{40}/);
+    expect(release).toMatch(/actions\/upload-artifact@[a-f0-9]{40}/);
 
     const promote = release.slice(release.indexOf("Verify the recorded preview version before promotion"));
     expect(promote).not.toContain("flutter build web");
@@ -90,15 +102,15 @@ describe("Ritual release workflow contract", () => {
 
   it("keeps normal PR proof local and reserves hosted Supabase credentials for protected deployment", async () => {
     const source = await workflow();
+    const remediation = await remediationWorkflow();
     const browser = job(source, "site-browser");
-    const hosted = job(source, "supabase-hosted-development");
+    const hosted = job(remediation, "promote");
 
     expect(browser).not.toMatch(/secrets\.|RITUAL_SITE_STAGING/);
-    expect(hosted).toContain("github.event_name == 'push'");
-    expect(hosted).toContain("github.ref == 'refs/heads/main'");
-    expect(hosted).toContain("environment: ritual-supabase-development");
+    expect(remediation).toMatch(/on:\n\s+workflow_dispatch:/);
+    expect(hosted).toContain("environment: ritual-supabase-remediation");
     expect(hosted).toContain("SUPABASE_ACCESS_TOKEN");
-    expect(hosted).toContain("cancel-in-progress: false");
+    expect(remediation).toContain("cancel-in-progress: false");
   });
 
   it("preserves the established mobile, API, contract, member, and admin regression jobs", async () => {
