@@ -16,6 +16,8 @@ import 'package:ritual_investing_app/features/discover/data/generated_discover_a
 import 'package:ritual_investing_app/features/grimoires/data/generated_grimoire_api_service.dart';
 import 'package:ritual_investing_app/features/search/data/generated_search_api_service.dart';
 import 'package:ritual_investing_app/features/search/domain/model.dart';
+import 'package:ritual_investing_app/features/starpath/data/generated_starpath_api_service.dart';
+import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
 
 void main() {
   test('retained content adapters decode the current typed client', () async {
@@ -43,6 +45,7 @@ void main() {
         cancellation: SearchCancellation(),
       ),
     );
+    final starpath = await GeneratedStarpathApiService(client).fetch();
 
     expect(asset.kind, AssetKind.marketIndex);
     expect(assetEvidence.single.sourceUrl.scheme, 'https');
@@ -54,6 +57,7 @@ void main() {
     expect(discover.items, hasLength(4));
     expect(grimoire.assets.single.id, _assetId);
     expect(search.items.single.id, _assetId);
+    expect(starpath.nodes, hasLength(8));
 
     expect(
       adapter.requests.map((request) => request.path),
@@ -69,6 +73,7 @@ void main() {
         '/v1/discover',
         '/v1/discover/grimoires/$_grimoireId',
         '/v1/search',
+        '/v1/starpath',
       ]),
     );
     final searchRequest = adapter.single('GET', '/v1/search');
@@ -147,6 +152,14 @@ void main() {
       );
     }
   });
+
+  test('unknown Starpath enum values fail closed after generated decoding', () {
+    final service = GeneratedStarpathApiService(
+      _client(_ContentAdapter(starpathAvailability: 'future_state')),
+    );
+
+    expect(service.fetch(), throwsA(isA<StarpathUnsupportedContract>()));
+  });
 }
 
 RitualInvestingApiClient _client(HttpClientAdapter adapter) {
@@ -201,9 +214,13 @@ class _Request {
 }
 
 class _ContentAdapter implements HttpClientAdapter {
-  _ContentAdapter({this.evidenceUrl = 'https://example.invalid/evidence'});
+  _ContentAdapter({
+    this.evidenceUrl = 'https://example.invalid/evidence',
+    this.starpathAvailability = 'available',
+  });
 
   final String? evidenceUrl;
+  final String starpathAvailability;
   final List<_Request> requests = [];
 
   _Request single(String method, String path) => requests.singleWhere(
@@ -284,6 +301,10 @@ class _ContentAdapter implements HttpClientAdapter {
           {'kind': 'asset', 'asset': _assetSummary},
         ],
         'meta': _collectionMeta,
+      },
+      '/v1/starpath' => {
+        'data': _starpathSnapshot(starpathAvailability),
+        'meta': _meta,
       },
       _ => {
         'error': {'code': 'not_found', 'message': 'Not found.'},
@@ -497,4 +518,102 @@ const _collectionMeta = {
   'request_id': _requestId,
   'has_more': false,
   'next_cursor': null,
+};
+
+Map<String, Object?> _starpathSnapshot(String availability) => {
+  'availability': availability,
+  'version': 1,
+  'authority': {
+    'capability_version': 7,
+    'manifest_id': 'manifest-1',
+    'manifest_version': 'starpath-beta-v1',
+    'policy_version': 'starpath-no-advice-v1',
+    'environment': 'beta',
+    'jurisdiction': 'US',
+  },
+  'session': {
+    'id': 'session-1',
+    'state': 'active',
+    'started_at': '2026-08-30T10:00:00.000Z',
+    'last_action_at': '2026-08-30T10:01:00.000Z',
+    'explicit_start': true,
+    'replacement_of_session_id': null,
+  },
+  'theme': {
+    'id': 'theme-1',
+    'key': 'steady-orbit',
+    'title': 'Steady orbit',
+    'horoscope_frame': 'A memory frame, not a forecast.',
+    'factual_focus': 'Learn what a share represents.',
+    'accessible_label': 'A non-predictive celestial learning theme.',
+  },
+  'progress': {
+    'current_node_ordinal': 1,
+    'version': 1,
+    'updated_at': '2026-08-30T10:01:00.000Z',
+  },
+  'nodes': List.generate(8, (index) {
+    final ordinal = index + 1;
+    return {
+      'node_ordinal': ordinal,
+      'pathway_ordinal': (index ~/ 2) + 1,
+      'pathway_position': (index % 2) + 1,
+      'state': index == 0 ? 'current' : 'locked',
+      'lesson_id': 'lesson-$ordinal',
+      'revision_id': 'revision-$ordinal',
+      'title': 'Lesson $ordinal',
+      'guide': {
+        'tarot_key': 'the-star',
+        'accessible_label': 'The Star as a memory aid, not market evidence.',
+      },
+      'mythic_mnemonic': 'A celestial mnemonic.',
+      'factual_summary': 'A factual investment definition.',
+      'factual_sections': [
+        {
+          'ordinal': 1,
+          'kind': 'fact',
+          'heading': 'Definition',
+          'body': 'Common stock generally represents an ownership interest.',
+          'uncertainty': 'Rights vary by security and governing documents.',
+          'observed_at': '2026-08-29T00:00:00.000Z',
+          'evidence': [
+            {
+              'ordinal': 1,
+              'canonical_url': 'https://www.investor.gov/',
+              'source_title': 'Stocks',
+              'publisher': 'Investor.gov',
+              'source_observed_at': '2026-08-29T00:00:00.000Z',
+              'effective_at': null,
+              'retrieved_at': '2026-08-29T00:00:00.000Z',
+              'current_until': '2027-08-29T00:00:00.000Z',
+              'claim_summary': 'A stock can represent an ownership interest.',
+            },
+          ],
+        },
+      ],
+      'material_limitations': 'Share classes and rights differ.',
+      'risk_context': 'Market value may fall, including to zero.',
+      'recall_prompt': 'What does a share generally represent?',
+      'rowan_explanation': 'A reviewed restatement of the definition.',
+      'knowledge_check': {
+        'id': 'question-$ordinal',
+        'prompt': 'Which statement is factual?',
+        'options': [
+          {
+            'id': 'option-a-$ordinal',
+            'ordinal': 1,
+            'label': 'Ownership interest',
+          },
+          {
+            'id': 'option-b-$ordinal',
+            'ordinal': 2,
+            'label': 'Guaranteed return',
+          },
+        ],
+      },
+    };
+  }),
+  'recall': null,
+  'command_effect': null,
+  'answer': null,
 };

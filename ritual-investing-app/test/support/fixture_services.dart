@@ -32,6 +32,9 @@ import 'package:ritual_investing_app/features/profile/application/controller.dar
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/domain/model.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
+import 'package:ritual_investing_app/features/starpath/application/starpath_controller.dart';
+import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
+import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/search/application/controller.dart';
@@ -134,6 +137,13 @@ DependencyContainer fixtureContainer({
             cache: scopedCache,
           ),
         ),
+        starpathController: StarpathController(
+          repository: StarpathRepository(
+            service: _FixtureStarpathService(tracker),
+            cache: scopedCache,
+          ),
+          createKey: () => 'fixture-starpath-key',
+        ),
         discoverController: DiscoverController(
           repository: CachedDiscoverRepository(
             service: _FixtureDiscoverService(tracker),
@@ -177,6 +187,153 @@ DependencyContainer fixtureContainer({
         ),
       );
     },
+  );
+}
+
+class _FixtureStarpathService implements StarpathService {
+  _FixtureStarpathService(this.tracker);
+
+  final FeatureLoadTracker tracker;
+  int _version = 0;
+  int _currentOrdinal = 1;
+
+  @override
+  Future<StarpathSnapshot> fetch() async {
+    tracker.hit(MemberBranch.starpath);
+    return _snapshot();
+  }
+
+  @override
+  Future<StarpathSnapshot> start({required String idempotencyKey}) async {
+    _version = _version == 0 ? 1 : _version;
+    return _snapshot();
+  }
+
+  @override
+  Future<StarpathSnapshot> answer({
+    required String idempotencyKey,
+    required int version,
+    required StarpathAnswerCommand command,
+  }) async {
+    _version = version + 1;
+    _currentOrdinal = (_currentOrdinal + 1).clamp(1, 9);
+    return _snapshot();
+  }
+
+  @override
+  Future<StarpathSnapshot> skipRecall({
+    required String idempotencyKey,
+    required int version,
+    required String sessionId,
+  }) async {
+    _version = version + 1;
+    return _snapshot();
+  }
+
+  StarpathSnapshot _snapshot() => StarpathSnapshot(
+    availability: _version == 0
+        ? StarpathAvailability.notStarted
+        : StarpathAvailability.available,
+    version: _version,
+    authority: const StarpathAuthority(
+      environment: StarpathEnvironment.beta,
+      jurisdiction: 'US',
+      capabilityVersion: 1,
+      policyVersion: 'starpath-no-advice-v1',
+      manifestId: 'fixture-manifest',
+      manifestVersion: 'fixture-v1',
+    ),
+    nodes: List.generate(8, (index) {
+      final ordinal = index + 1;
+      return StarpathNode(
+        lessonId: 'fixture-lesson-$ordinal',
+        revisionId: 'fixture-revision-$ordinal',
+        nodeOrdinal: ordinal,
+        pathwayOrdinal: (index ~/ 2) + 1,
+        pathwayPosition: (index % 2) + 1,
+        title: 'Star lesson $ordinal',
+        mythicMnemonic: 'A celestial memory image for lesson $ordinal.',
+        factualSummary: 'A factual investment concept for lesson $ordinal.',
+        materialLimitations: 'Definitions and terms can vary.',
+        riskContext: 'Investment values and outcomes can change.',
+        recallPrompt: 'Recall the factual concept.',
+        rowanExplanation: 'A reviewed factual restatement.',
+        guide: const StarpathGuide(
+          tarotKey: 'the-star',
+          accessibleLabel: 'The Star, used only as a memory aid.',
+        ),
+        factualSections: [
+          StarpathFactualSection(
+            ordinal: 1,
+            kind: StarpathFactualSectionKind.fact,
+            heading: 'What it means',
+            body: 'This section explains an objective investment term.',
+            observedAt: DateTime.utc(2026, 8, 29),
+            uncertainty: 'Terms may differ across products and issuers.',
+            evidence: [
+              StarpathEvidence(
+                ordinal: 1,
+                publisher: 'Investor.gov',
+                sourceTitle: 'Investor education',
+                canonicalUrl: Uri.parse('https://www.investor.gov/'),
+                claimSummary: 'Primary investor-education source.',
+                retrievedAt: DateTime.utc(2026, 8, 29),
+                sourceObservedAt: DateTime.utc(2026, 8, 29),
+                currentUntil: DateTime.utc(2027, 8, 29),
+              ),
+            ],
+          ),
+        ],
+        knowledgeCheck: StarpathKnowledgeCheck(
+          id: 'fixture-question-$ordinal',
+          prompt: 'Which answer repeats the factual definition?',
+          options: [
+            StarpathKnowledgeCheckOption(
+              id: 'fixture-option-$ordinal-a',
+              ordinal: 1,
+              label: 'The factual definition',
+            ),
+            StarpathKnowledgeCheckOption(
+              id: 'fixture-option-$ordinal-b',
+              ordinal: 2,
+              label: 'A guaranteed outcome',
+            ),
+          ],
+        ),
+        state: ordinal < _currentOrdinal
+            ? StarpathNodeState.completed
+            : ordinal == _currentOrdinal
+            ? StarpathNodeState.current
+            : StarpathNodeState.locked,
+      );
+    }),
+    session: _version == 0
+        ? null
+        : StarpathSession(
+            id: 'fixture-session',
+            explicitStart: true,
+            startedAt: DateTime.utc(2026, 8, 30),
+            lastActionAt: DateTime.utc(2026, 8, 30),
+            state: StarpathSessionState.active,
+          ),
+    progress: _version == 0
+        ? null
+        : StarpathProgress(
+            currentNodeOrdinal: _currentOrdinal,
+            version: _version,
+            updatedAt: DateTime.utc(2026, 8, 30),
+          ),
+    theme: _version == 0
+        ? null
+        : const StarpathTheme(
+            id: 'fixture-theme',
+            key: 'walk-the-stars',
+            title: 'Walk the Stars',
+            horoscopeFrame: 'A memory frame, not a prediction.',
+            factualFocus: 'Learn one objective concept at a time.',
+            accessibleLabel: 'A celestial learning path.',
+          ),
+    recall: null,
   );
 }
 
@@ -261,8 +418,8 @@ class _FixtureRitualService implements DailyRitualService {
       ),
       title: 'Direction, not urgency.',
       art: const RitualArt(
-        key: 'the_compass',
-        alt: 'The Compass tarot card: a woman holding a lantern at a celestial crossroads',
+        key: 'the_emperor',
+        alt: 'The Emperor tarot card: a ruler sits on a ram-carved throne before mountains',
       ),
       interpretation: 'The strongest path today rewards patience. Favor durable momentum; let noisy names pass without you.',
       guidance: 'Inspect the evidence, compare risks, and choose whether any research path deserves more attention.',

@@ -41,6 +41,9 @@ import '../../features/rowan/data/repository.dart';
 import '../../features/search/application/controller.dart';
 import '../../features/search/data/generated_search_api_service.dart';
 import '../../features/search/data/repository.dart';
+import '../../features/starpath/application/starpath_controller.dart';
+import '../../features/starpath/data/generated_starpath_api_service.dart';
+import '../../features/starpath/data/starpath_repository.dart';
 import '../api/invalidation_bus.dart';
 import '../api/pending_command_store.dart';
 import '../api/ritual_api.dart';
@@ -184,6 +187,13 @@ class ProductionMemberFeatureScopeFactory {
           service: GeneratedRitualApiService(client),
           cache: scopedCache,
         ),
+      ),
+      starpathController: StarpathController(
+        repository: StarpathRepository(
+          service: GeneratedStarpathApiService(client),
+          cache: scopedCache,
+        ),
+        createKey: createCommandKey,
       ),
       discoverController: DiscoverController(
         repository: CachedDiscoverRepository(
