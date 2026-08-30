@@ -325,8 +325,8 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     }
 
     const path = context.req.path;
+    const isPrivacyCapability = path.startsWith("/v1/privacy/");
     const sensitiveCapability = path === "/v1/member/step-up" ||
-      path.startsWith("/v1/privacy/") ||
       path.startsWith("/v1/brokerage/");
     if (sensitiveCapability) {
       throw new HttpBoundaryError(
@@ -341,7 +341,8 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     );
     if (
       context.env.webAdmission === "contained" &&
-      (path === "/v1/session/bootstrap" || isMutation)
+      (path === "/v1/session/bootstrap" ||
+        (isMutation && !isPrivacyCapability))
     ) {
       throw new HttpBoundaryError(
         503,

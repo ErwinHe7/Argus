@@ -63,6 +63,11 @@ function fixture(options: FixtureOptions = {}) {
     vi.fn(async (_patch: unknown, version: number) => ({
       version: version + 1,
     }));
+  const privacyRequest = vi.fn(async (requestType: "export" | "deletion") => ({
+    id: requestType === "export"
+      ? "018f3c2a-4b67-7a89-8abc-123456789081"
+      : "018f3c2a-4b67-7a89-8abc-123456789082",
+  }));
   const getCircle = vi.fn(async (id: string) => ({ id, version: 1 }));
   const updateCircle = vi.fn(
     async (id: string, _patch: unknown, version: number) => ({
@@ -99,7 +104,15 @@ function fixture(options: FixtureOptions = {}) {
         listPublished: vi.fn(async () => []),
         getPublished: vi.fn(async () => null),
       }),
-    createPrivacyService: () => ({} as never),
+    createPrivacyService: () => ({
+      list: vi.fn(async () => []),
+      request: privacyRequest,
+      getDeletionTombstone: vi.fn(async () => null),
+      createDownloadUrl: vi.fn(async () => ({
+        url: "https://project.supabase.co/storage/v1/object/sign/opaque-token",
+        expires_at: "2026-08-30T12:00:00.000Z",
+      })),
+    }),
     rateLimit,
     requestId: () => "018f3c2a-4b67-7a89-8abc-123456789077",
     ...(options.telemetry === undefined
@@ -117,6 +130,7 @@ function fixture(options: FixtureOptions = {}) {
     getAccount,
     getCircle,
     listAudit,
+    privacyRequest,
     rateLimit,
     updateCircle,
     updatePreferences,
@@ -222,7 +236,7 @@ describe("Supabase Edge retained API adapter", () => {
     expect(test.bootstrap).not.toHaveBeenCalled();
   });
 
-  it("contains matched web traffic without changing authenticated originless native behavior", async () => {
+  it("contains bootstrap and non-privacy mutations while preserving privacy and originless native behavior", async () => {
     const test = fixture();
     const containedBindings = { ...bindings, webAdmission: "contained" as const };
 
@@ -240,6 +254,52 @@ describe("Supabase Edge retained API adapter", () => {
     });
     expect(test.bootstrap).not.toHaveBeenCalled();
 
+    const memberMutation = await test.app.request(
+      "/v1/preferences",
+      {
+        method: "PATCH",
+        headers: {
+          authorization: "Bearer valid-token",
+          "content-type": "application/json",
+          "if-match": '"v3"',
+          origin: apexOrigin,
+        },
+        body: JSON.stringify({ themeMode: "dark" }),
+      },
+      containedBindings,
+    );
+    expect(memberMutation.status).toBe(503);
+    expect(test.updatePreferences).not.toHaveBeenCalled();
+
+    for (
+      const [requestType, stepUpReceipt] of [
+        ["export", undefined],
+        ["deletion", "R".repeat(43)],
+      ] as const
+    ) {
+      const privacy = await test.app.request(
+        "/v1/privacy/requests",
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer valid-token",
+            "content-type": "application/json",
+            "idempotency-key": `contained-${requestType}`,
+            origin: apexOrigin,
+          },
+          body: JSON.stringify({
+            requestType,
+            ...(stepUpReceipt === undefined
+              ? {}
+              : { step_up_receipt: stepUpReceipt }),
+          }),
+        },
+        containedBindings,
+      );
+      expect(privacy.status).toBe(200);
+    }
+    expect(test.privacyRequest).toHaveBeenCalledTimes(2);
+
     const nativeBootstrap = await test.app.request(
       "/v1/session/bootstrap",
       { method: "POST", headers: { authorization: "Bearer valid-token" } },
@@ -249,11 +309,10 @@ describe("Supabase Edge retained API adapter", () => {
     expect(test.bootstrap).toHaveBeenCalledOnce();
   });
 
-  it("keeps privacy, financial, and provider capabilities unavailable to web origins", async () => {
+  it("keeps financial and provider capabilities unavailable to web origins", async () => {
     const test = fixture();
 
     for (const path of [
-      "/v1/privacy/requests",
       "/v1/brokerage/connection",
       "/v1/member/step-up",
     ]) {

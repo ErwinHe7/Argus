@@ -211,7 +211,6 @@ describe("product authority contract", () => {
     for (const provider of [
       "auth0",
       "neon",
-      "cloudflare-workers",
       "cloudflare-queues",
       "r2",
       "cloudflare-access",
@@ -223,6 +222,9 @@ describe("product authority contract", () => {
       "replaced-webull",
     );
     expect(classificationFor("provider-dependency:supabase")).toBe("retained-argus");
+    expect(classificationFor("provider-dependency:cloudflare-workers")).toBe(
+      "retained-argus",
+    );
 
     const requiredOperationTypes = [
       "storage-object:",
