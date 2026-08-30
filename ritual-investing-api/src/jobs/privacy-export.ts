@@ -29,6 +29,14 @@ export const applicationPrivacyExportCollections = Object.freeze([
   { name: "notification_quiet_hours", sourceRelation: "argus_app.notification_quiet_hours" },
   { name: "briefing_read_states", sourceRelation: "argus_app.briefing_read_states" },
   { name: "content_report_targets", sourceRelation: "argus_app.content_report_targets" },
+  { name: "starpath_sessions", sourceRelation: "argus_app.starpath_sessions" },
+  { name: "starpath_progress", sourceRelation: "argus_app.starpath_progress_states" },
+  {
+    name: "starpath_completions",
+    sourceRelation: "argus_app.starpath_lesson_completions",
+  },
+  { name: "starpath_attempts", sourceRelation: "argus_app.starpath_attempts" },
+  { name: "starpath_recall_states", sourceRelation: "argus_app.starpath_recall_states" },
 ] as const satisfies readonly PrivacyExportCollectionRegistration[]);
 
 /**

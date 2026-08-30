@@ -14,6 +14,13 @@ expiry, and one-use download flow. Verify the manifest, checksum, snapshot
 coherence, expiry, replay denial, and owner isolation in the local pgTAP/worker
 suite and hosted evidence run.
 
+Starpath exports contain five normalized member collections: sessions,
+progress, stable completions, exact selected-answer attempts, and recall state.
+They exclude idempotency keys, internal request hashes, typed command receipts,
+and free-form answer rationale (which Starpath does not store). The
+`learning_retention_within_7d_v1` report is an aggregate, non-identifying
+fixed-`as_of` record rather than a member export row.
+
 ## Deletion order
 
 1. Commit the deletion epoch/tombstone and immediately fence callbacks, leases,
@@ -40,3 +47,9 @@ object paths, bearer tokens, Webull credentials, or provider bodies in logs.
 Exercise failures before and after Storage deletion, credential destruction,
 Auth deletion, and receipt persistence. Recovery must converge without dual
 authority or restoration from a legacy Neon/R2 path.
+
+For Starpath, application purge deletes attempts and recall state first, then
+stable completions and progress, then sessions, before the retained application
+inventory and member command receipts. Retention snapshots remain because they
+contain no member identity or arbitrary member filter; lawful deletion can make
+a later live recomputation differ from the recorded aggregate.

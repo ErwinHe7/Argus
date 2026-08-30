@@ -14,7 +14,7 @@ select plan(18);
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_app' and relation.relkind in ('r','p')),
-  71::bigint,'the reviewed application relation inventory is complete');
+  76::bigint,'the reviewed application relation inventory is complete');
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_brokerage' and relation.relkind in ('r','p')),
@@ -22,7 +22,7 @@ select is((select count(*)::bigint from pg_class relation
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_private' and relation.relkind in ('r','p')),
-  56::bigint,'the reviewed private relation inventory is complete');
+  57::bigint,'the reviewed private relation inventory is complete');
 
 select is(
   (select jsonb_agg(qualified_name order by qualified_name) from (
@@ -51,6 +51,7 @@ select is(
     ('argus_brokerage.order_projection_generations.normalized_payload'),
     ('argus_brokerage.projection_generations.normalized_payload'),
     ('argus_private.admin_audit_events.details'),
+    ('argus_private.member_idempotency_records.typed_result'),
     ('argus_private.order_projection_generation_snapshots.snapshot_payload'),
     ('argus_private.order_previews.normalized_payload'),
     ('argus_private.projection_generation_snapshots.snapshot_payload'),
@@ -80,7 +81,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  226::bigint,'the reviewed routine-name inventory is complete');
+  238::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace

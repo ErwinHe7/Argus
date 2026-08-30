@@ -70,12 +70,12 @@ select is(
 select ok(
   not has_table_privilege(
     'argus_app_owner','argus_private.deletion_tombstones','SELECT'
-  ) and not has_table_privilege(
-    'argus_app_owner','argus_private.member_idempotency_records','SELECT'
+  ) and has_table_privilege(
+    'argus_app_owner','argus_private.member_idempotency_records','SELECT,INSERT,UPDATE'
   ) and not has_table_privilege(
     'argus_app_owner','argus_private.member_idempotency_records','DELETE'
   ),
-  'application owner retains no private purge-table grant'
+  'application owner has scoped command receipts but no private purge grant'
 );
 select set_eq(
   $$select relation.relname||':'||privilege.privilege_type
@@ -118,7 +118,9 @@ select set_eq(
           'notification_preferences','notifications','member_saved_items',
           'saved_items','daily_ritual_assignments','consent_records',
           'investor_profiles','astrology_profiles','preferences','profiles',
-          'privacy_requests'
+          'privacy_requests','starpath_attempts','starpath_recall_states',
+          'starpath_lesson_completions','starpath_progress_states',
+          'starpath_sessions'
         ]) relation_name
     )
     select namespace.nspname||'.'||relation.relname||':'||policy.polcmd::text
@@ -144,7 +146,9 @@ select set_eq(
         'notification_preferences','notifications','member_saved_items',
         'saved_items','daily_ritual_assignments','consent_records',
         'investor_profiles','astrology_profiles','preferences','profiles',
-        'privacy_requests'
+        'privacy_requests','starpath_attempts','starpath_recall_states',
+        'starpath_lesson_completions','starpath_progress_states',
+        'starpath_sessions'
       ]) relation_name
       cross join (values ('r'),('d')) action(command)$$,
   'application purge owner has one exact SELECT/DELETE policy matrix'
@@ -183,7 +187,9 @@ select set_eq(
         'notification_preferences','notifications','member_saved_items',
         'saved_items','daily_ritual_assignments','consent_records',
         'investor_profiles','astrology_profiles','preferences','profiles',
-        'privacy_requests'
+        'privacy_requests','starpath_attempts','starpath_recall_states',
+        'starpath_lesson_completions','starpath_progress_states',
+        'starpath_sessions'
       ]) relation_name
       cross join (values ('SELECT'),('DELETE')) action(privilege_type)$$,
   'application purge owner has the exact supporting relation privileges'

@@ -34,7 +34,7 @@ describe("Supabase privacy export inventory", () => {
     expect(inventory).toContain("argus_brokerage.projection_position_facts");
     expect(inventory).toContain("argus_brokerage.order_projection_generations");
     expect(inventory).not.toMatch(
-      /argus_private|credential|oauth|token|mapping|snapshot|refresh_lease|provider_command|attempt|reconciliation|raw_response|authorization/i,
+      /argus_private|credential|oauth|token|mapping|snapshot|refresh_lease|provider_command_attempt|reconciliation|raw_response|authorization/i,
     );
   });
 

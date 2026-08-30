@@ -48,8 +48,8 @@ select ok(
 );
 select is(
   (select count(*)::bigint
-     from argus_private.privacy_export_collection_registry),34::bigint,
-  'privacy inventory has 34 reviewed normalized collections'
+     from argus_private.privacy_export_collection_registry),39::bigint,
+  'privacy inventory has 39 reviewed normalized collections'
 );
 select set_eq(
   $$select collection_name from argus_private.privacy_export_collection_registry$$,
@@ -62,6 +62,8 @@ select set_eq(
     ('notifications'),('privacy_requests'),('content_reports'),
     ('onboarding_step_completions'),('notification_quiet_hours'),
     ('briefing_read_states'),('content_report_targets'),
+    ('starpath_sessions'),('starpath_progress'),('starpath_completions'),
+    ('starpath_attempts'),('starpath_recall_states'),
     ('brokerage_connections'),('brokerage_accounts'),
     ('brokerage_active_account_selections'),
     ('brokerage_account_capabilities'),
@@ -191,7 +193,7 @@ select is(
      from argus_private.privacy_export_generation_collections collection
     where collection.generation_id=(
       select generation_id from privacy_test_generation
-    )),34::bigint,
+    )),39::bigint,
   'every registered collection is present even when it has zero rows'
 );
 select is(
@@ -336,7 +338,7 @@ select is(
      from argus_private.privacy_export_generation_collections collection
     where collection.generation_id=(
       select generation_id from privacy_test_generation_retry
-    )),34::bigint,
+    )),39::bigint,
   'retry generation independently seals every collection disposition'
 );
 reset role;

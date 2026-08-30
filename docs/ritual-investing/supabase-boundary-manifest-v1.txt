@@ -264,6 +264,7 @@ supabase/migrations/20260829160000_u7_member_event_scope.sql
 supabase/migrations/20260829170000_u8_normalized_query_contracts.sql
 supabase/migrations/20260829180000_u9_bootstrap_daily_ritual_content.sql
 supabase/migrations/20260830060327_starpath_editorial.sql
+supabase/migrations/20260830063238_starpath_member_state.sql
 supabase/seed.sql
 supabase/tests/application_purge_owner.test.sql
 supabase/tests/architecture_contract.test.sql
@@ -283,6 +284,7 @@ supabase/tests/request_context.test.sql
 supabase/tests/request_context_concurrency.test.sh
 supabase/tests/schema.test.sql
 supabase/tests/starpath_editorial.test.sql
+supabase/tests/starpath_member_state.test.sql
 supabase/tests/storage_policies.test.sql
 supabase/tests/u10_privacy_jobs.test.sql
 supabase/tests/u11_admin_supabase_auth.test.sql
