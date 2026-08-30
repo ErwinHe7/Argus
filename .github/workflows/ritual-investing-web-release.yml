@@ -1,0 +1,273 @@
+name: Ritual Investing Member Web Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: Explicit member Worker release action
+        required: true
+        type: choice
+        options:
+          - preview
+          - promote
+          - rollback
+      git_revision:
+        description: Exact reviewed 40-character Git revision
+        required: true
+        type: string
+      release_manifest:
+        description: Canonical argus-member-web-release/v1 JSON for this action
+        required: true
+        type: string
+      release_manifest_sha256:
+        description: SHA-256 of the sorted compact release manifest JSON
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ritual-investing-release
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22.22.0
+  FLUTTER_VERSION: 3.47.1
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: ritual-investing-web-release
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY }}
+      MEMBER_BETA_SUPABASE_PROJECT_REF: ${{ vars.BETA_SUPABASE_PROJECT_ID }}
+      MEMBER_BETA_SUPABASE_ORIGIN: ${{ vars.BETA_SUPABASE_PROJECT_URL }}
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: ${{ vars.BETA_SUPABASE_PUBLISHABLE_KEY_SHA256 }}
+      RITUAL_MEMBER_WORKER_NAME: ${{ vars.MEMBER_WORKER_NAME }}
+      RITUAL_EXPECTED_MEMBER_WORKER_NAME: ${{ vars.EXPECTED_MEMBER_WORKER_NAME }}
+      RITUAL_EXPECTED_BETA_PROJECT_ID: ${{ vars.EXPECTED_BETA_SUPABASE_PROJECT_ID }}
+      RITUAL_APPROVED_RELEASE_MANIFEST_SHA256: ${{ vars.APPROVED_MEMBER_WEB_RELEASE_MANIFEST_SHA256 }}
+      RITUAL_APPROVED_ARTIFACT_SHA256: ${{ vars.APPROVED_MEMBER_WEB_ARTIFACT_SHA256 }}
+      RITUAL_APPROVED_SCHEMA_SHA256: ${{ vars.APPROVED_MEMBER_WEB_SCHEMA_SHA256 }}
+      RITUAL_APPROVED_EDGE_REVISION: ${{ vars.APPROVED_MEMBER_WEB_EDGE_REVISION }}
+      RITUAL_APPROVED_AUTH_SHA256: ${{ vars.APPROVED_MEMBER_WEB_AUTH_SHA256 }}
+      RITUAL_APPROVED_CORS_SHA256: ${{ vars.APPROVED_MEMBER_WEB_CORS_SHA256 }}
+      RITUAL_APPROVED_CONTENT_SHA256: ${{ vars.APPROVED_MEMBER_WEB_CONTENT_SHA256 }}
+      RITUAL_APPROVED_LANDING_ARTIFACT_SHA256: ${{ vars.APPROVED_LANDING_ARTIFACT_SHA256 }}
+      RITUAL_APPROVED_BACKUP_ID: ${{ vars.APPROVED_MEMBER_WEB_BACKUP_ID }}
+      RITUAL_APPROVED_RESTORE_DRILL_ID: ${{ vars.APPROVED_MEMBER_WEB_RESTORE_DRILL_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_revision }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+
+      - name: Install the pinned Wrangler 4.125.0 toolchain
+        working-directory: ritual-investing-site
+        run: npm ci
+
+      - name: Bind the immutable manifest to the exact protected targets
+        env:
+          RELEASE_ACTION: ${{ inputs.action }}
+          RELEASE_GIT_REVISION: ${{ inputs.git_revision }}
+          RELEASE_MANIFEST_INPUT: ${{ inputs.release_manifest }}
+          RELEASE_MANIFEST_SHA256_INPUT: ${{ inputs.release_manifest_sha256 }}
+        run: |
+          set -eu
+          test "$(git rev-parse HEAD)" = "$RELEASE_GIT_REVISION"
+          raw="$RUNNER_TEMP/member-web-release.raw.json"
+          canonical="$RUNNER_TEMP/member-web-release.json"
+          printf '%s' "$RELEASE_MANIFEST_INPUT" >"$raw"
+          jq -S -c . "$raw" >"$canonical"
+          actual_manifest_sha256="$(sha256sum "$canonical" | cut -d' ' -f1)"
+          test "$actual_manifest_sha256" = "$RELEASE_MANIFEST_SHA256_INPUT"
+          test "$actual_manifest_sha256" = "$RITUAL_APPROVED_RELEASE_MANIFEST_SHA256"
+          test "$(jq -r '.contract_version' "$canonical")" = "argus-member-web-release/v1"
+          jq -e '
+            keys == [
+              "artifact_manifest_sha256", "auth_sha256", "background_workers",
+              "backup_id", "content_sha256", "contract_version", "cors_sha256",
+              "edge_revision", "git_revision", "landing_artifact_sha256",
+              "landing_rollback_version_id", "order_mutations", "preview_accepted",
+              "provider_egress", "restore_drill_id", "schema_sha256",
+              "supabase_project_ref", "worker_name", "worker_version_id"
+            ] and
+            (.git_revision | test("^[a-f0-9]{40}$")) and
+            ([.artifact_manifest_sha256, .auth_sha256, .content_sha256,
+              .cors_sha256, .landing_artifact_sha256, .schema_sha256] |
+              all(test("^[a-f0-9]{64}$"))) and
+            (.edge_revision | test("^[a-f0-9]{40}$")) and
+            (.landing_rollback_version_id | test("^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$")) and
+            (.worker_version_id == null or (.worker_version_id | test("^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"))) and
+            ([.backup_id, .restore_drill_id] |
+              all(test("^[A-Za-z0-9][A-Za-z0-9._:@/-]{2,127}$"))) and
+            .background_workers == true and .provider_egress == true and
+            .order_mutations == true
+          ' "$canonical" >/dev/null
+          test "$(jq -r '.git_revision' "$canonical")" = "$RELEASE_GIT_REVISION"
+          test "$RITUAL_MEMBER_WORKER_NAME" = "$RITUAL_EXPECTED_MEMBER_WORKER_NAME"
+          test "$(jq -r '.worker_name' "$canonical")" = "$RITUAL_MEMBER_WORKER_NAME"
+          test "$(jq -r '.supabase_project_ref' "$canonical")" = "$MEMBER_BETA_SUPABASE_PROJECT_REF"
+          test "$MEMBER_BETA_SUPABASE_PROJECT_REF" = "$RITUAL_EXPECTED_BETA_PROJECT_ID"
+          test "$MEMBER_BETA_SUPABASE_ORIGIN" = "https://$MEMBER_BETA_SUPABASE_PROJECT_REF.supabase.co"
+          test "$(jq -r '.artifact_manifest_sha256' "$canonical")" = "$RITUAL_APPROVED_ARTIFACT_SHA256"
+          test "$(jq -r '.schema_sha256' "$canonical")" = "$RITUAL_APPROVED_SCHEMA_SHA256"
+          test "$(jq -r '.edge_revision' "$canonical")" = "$RITUAL_APPROVED_EDGE_REVISION"
+          test "$(jq -r '.auth_sha256' "$canonical")" = "$RITUAL_APPROVED_AUTH_SHA256"
+          test "$(jq -r '.cors_sha256' "$canonical")" = "$RITUAL_APPROVED_CORS_SHA256"
+          test "$(jq -r '.content_sha256' "$canonical")" = "$RITUAL_APPROVED_CONTENT_SHA256"
+          test "$(jq -r '.landing_artifact_sha256' "$canonical")" = "$RITUAL_APPROVED_LANDING_ARTIFACT_SHA256"
+          test "$(jq -r '.backup_id' "$canonical")" = "$RITUAL_APPROVED_BACKUP_ID"
+          test "$(jq -r '.restore_drill_id' "$canonical")" = "$RITUAL_APPROVED_RESTORE_DRILL_ID"
+          test "$(jq -r '.name' ritual-investing-site/wrangler.jsonc)" = "$RITUAL_MEMBER_WORKER_NAME"
+          case "$RELEASE_ACTION" in
+            preview)
+              test "$(jq -r '.worker_version_id' "$canonical")" = "null"
+              test "$(jq -r '.preview_accepted' "$canonical")" = "false"
+              ;;
+            promote)
+              test "$(jq -r '.worker_version_id' "$canonical")" != "null"
+              test "$(jq -r '.preview_accepted' "$canonical")" = "true"
+              ;;
+            rollback)
+              ;;
+            *) exit 1 ;;
+          esac
+          {
+            echo "RITUAL_RELEASE_MANIFEST_PATH=$canonical"
+            echo "RITUAL_RELEASE_MANIFEST_SHA256=$actual_manifest_sha256"
+            echo "RITUAL_ARTIFACT_MANIFEST_SHA256=$(jq -r '.artifact_manifest_sha256' "$canonical")"
+            echo "RITUAL_WORKER_VERSION_ID=$(jq -r '.worker_version_id // empty' "$canonical")"
+            echo "RITUAL_LANDING_VERSION_ID=$(jq -r '.landing_rollback_version_id' "$canonical")"
+            echo "RITUAL_LANDING_ARTIFACT_SHA256=$(jq -r '.landing_artifact_sha256' "$canonical")"
+          } >>"$GITHUB_ENV"
+
+      - uses: subosito/flutter-action@v2
+        if: inputs.action == 'preview'
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Build the exact reviewed member artifact for preview
+        if: inputs.action == 'preview'
+        run: |
+          set -eu
+          test "$(printf '%s' "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY" | sha256sum | cut -d' ' -f1)" = "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256"
+          jq -n \
+            --arg environment beta \
+            --arg api "$MEMBER_BETA_SUPABASE_ORIGIN/functions/v1/api" \
+            --arg url "$MEMBER_BETA_SUPABASE_ORIGIN" \
+            --arg key "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY" \
+            --arg project_ref "$MEMBER_BETA_SUPABASE_PROJECT_REF" \
+            --arg key_sha256 "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256" \
+            '{RITUAL_ENVIRONMENT:$environment,RITUAL_API_BASE_URL:$api,SUPABASE_URL:$url,SUPABASE_PUBLISHABLE_KEY:$key,BETA_SUPABASE_PROJECT_REF:$project_ref,BETA_SUPABASE_PUBLISHABLE_KEY_SHA256:$key_sha256}' \
+            >"$RUNNER_TEMP/member-beta-defines.json"
+          cd ritual-investing-app
+          flutter pub get --enforce-lockfile
+          flutter build web --release \
+            --no-web-resources-cdn \
+            --no-source-maps \
+            --no-wasm-dry-run \
+            --pwa-strategy=none \
+            --dart-define-from-file="$RUNNER_TEMP/member-beta-defines.json"
+          cd ../ritual-investing-site
+          npm run assets:build:member-beta
+          test "$(sha256sum dist/member-beta/asset-manifest.json | cut -d' ' -f1)" = "$RITUAL_ARTIFACT_MANIFEST_SHA256"
+
+      - name: Upload the reviewed version to the stable beta preview alias
+        if: inputs.action == 'preview'
+        working-directory: ritual-investing-site
+        run: |
+          set -eu
+          npx --no-install wrangler versions view "$RITUAL_LANDING_VERSION_ID" \
+            --name "$RITUAL_MEMBER_WORKER_NAME" --json \
+            >"$RUNNER_TEMP/landing-version.json"
+          test "$(jq -r '.annotations["workers/tag"]' "$RUNNER_TEMP/landing-version.json")" = "$RITUAL_LANDING_ARTIFACT_SHA256"
+          npx --no-install wrangler versions list \
+            --name "$RITUAL_MEMBER_WORKER_NAME" --json \
+            >"$RUNNER_TEMP/member-web-versions-before.json"
+          test "$(jq --arg tag "$RITUAL_ARTIFACT_MANIFEST_SHA256" \
+            '[.[] | select(.annotations["workers/tag"] == $tag)] | length' \
+            "$RUNNER_TEMP/member-web-versions-before.json")" = "0"
+          npx --no-install wrangler versions upload \
+            --config wrangler.jsonc \
+            --name "$RITUAL_MEMBER_WORKER_NAME" \
+            --preview-alias beta \
+            --tag "$RITUAL_ARTIFACT_MANIFEST_SHA256" \
+            --message "manifest:$RITUAL_RELEASE_MANIFEST_SHA256" \
+            --strict
+          npx --no-install wrangler versions list \
+            --name "$RITUAL_MEMBER_WORKER_NAME" --json \
+            >"$RUNNER_TEMP/member-web-versions.json"
+          version_id="$(jq -er --arg tag "$RITUAL_ARTIFACT_MANIFEST_SHA256" \
+            '[.[] | select(.annotations["workers/tag"] == $tag)] |
+             if length == 1 then .[0].id else error("expected one uploaded version") end' \
+            "$RUNNER_TEMP/member-web-versions.json")"
+          jq --arg version_id "$version_id" \
+            '.worker_version_id=$version_id' \
+            "$RITUAL_RELEASE_MANIFEST_PATH" | jq -S -c . \
+            >"$RUNNER_TEMP/member-web-frozen-release.json"
+          sha256sum "$RUNNER_TEMP/member-web-frozen-release.json" \
+            >"$RUNNER_TEMP/member-web-frozen-release.sha256"
+
+      - name: Verify the recorded preview version before promotion
+        if: inputs.action == 'promote'
+        working-directory: ritual-investing-site
+        run: |
+          set -eu
+          npx --no-install wrangler versions view "$RITUAL_WORKER_VERSION_ID" \
+            --name "$RITUAL_MEMBER_WORKER_NAME" --json \
+            >"$RUNNER_TEMP/member-web-version.json"
+          test "$(jq -r '.id' "$RUNNER_TEMP/member-web-version.json")" = "$RITUAL_WORKER_VERSION_ID"
+          test "$(jq -r '.annotations["workers/tag"]' "$RUNNER_TEMP/member-web-version.json")" = "$RITUAL_ARTIFACT_MANIFEST_SHA256"
+
+      - name: Promote only the recorded version at 100 percent
+        if: inputs.action == 'promote'
+        working-directory: ritual-investing-site
+        run: >-
+          npx --no-install wrangler versions deploy
+          "$RITUAL_WORKER_VERSION_ID@100%"
+          --name "$RITUAL_MEMBER_WORKER_NAME"
+          --message "manifest:$RITUAL_RELEASE_MANIFEST_SHA256"
+          --yes
+
+      - name: Restore the recorded landing version
+        if: inputs.action == 'rollback'
+        working-directory: ritual-investing-site
+        run: |
+          set -eu
+          npx --no-install wrangler versions view "$RITUAL_LANDING_VERSION_ID" \
+            --name "$RITUAL_MEMBER_WORKER_NAME" --json \
+            >"$RUNNER_TEMP/landing-version.json"
+          test "$(jq -r '.id' "$RUNNER_TEMP/landing-version.json")" = "$RITUAL_LANDING_VERSION_ID"
+          test "$(jq -r '.annotations["workers/tag"]' "$RUNNER_TEMP/landing-version.json")" = "$RITUAL_LANDING_ARTIFACT_SHA256"
+          npx --no-install wrangler rollback "$RITUAL_LANDING_VERSION_ID" \
+            --name "$RITUAL_MEMBER_WORKER_NAME" \
+            --message "rollback-manifest:$RITUAL_RELEASE_MANIFEST_SHA256" \
+            --yes
+
+      - name: Upload checksum-bound web release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: member-web-release-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/member-web-release.json
+            ${{ runner.temp }}/member-web-versions.json
+            ${{ runner.temp }}/member-web-frozen-release.json
+            ${{ runner.temp }}/member-web-frozen-release.sha256
+            ${{ runner.temp }}/member-web-version.json
+            ${{ runner.temp }}/landing-version.json
+          if-no-files-found: warn
+          retention-days: 30

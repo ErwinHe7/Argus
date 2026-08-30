@@ -74,7 +74,6 @@ then
 fi
 
 for pages_config in \
-  ritual-investing-site/wrangler.jsonc \
   ritual-investing-site/wrangler.beta.jsonc \
   ritual-investing-site/wrangler.demo.jsonc \
   ritual-investing-site/wrangler.demo-beta.jsonc
@@ -87,7 +86,19 @@ do
   ' "$pages_config" || fail "Cloudflare Pages config is not static-only: $pages_config"
 done
 
+for worker_config in \
+  ritual-investing-site/wrangler.jsonc \
+  ritual-investing-site/wrangler.landing.jsonc
+do
+  node --input-type=module -e '
+    import { readFileSync } from "node:fs";
+    const config = JSON.parse(readFileSync(process.argv[1], "utf8"));
+    const forbidden = ["main", "routes", "route", "pages_build_output_dir", "r2_buckets", "queues", "services", "durable_objects", "triggers", "vars"];
+    if (typeof config.assets?.directory !== "string" || "binding" in config.assets || forbidden.some((key) => key in config)) process.exit(1);
+  ' "$worker_config" || fail "Cloudflare Worker config is not asset-only: $worker_config"
+done
+
 test ! -e ritual-investing-site/functions || fail "Pages Functions directory remains"
 test ! -e ritual-investing-site/_worker.js || fail "Pages _worker.js remains"
 
-printf '%s\n' "Legacy backend removal and static Pages boundary verified."
+printf '%s\n' "Legacy backend removal and static Cloudflare boundary verified."

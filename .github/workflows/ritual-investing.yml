@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/ritual-investing.yml"
       - ".github/workflows/ritual-investing-supabase-remediation.yml"
+      - ".github/workflows/ritual-investing-web-release.yml"
       - "ritual-investing-*/**"
       - "supabase/**"
       - "docs/ritual-investing/**"
@@ -27,6 +28,7 @@ on:
     paths:
       - ".github/workflows/ritual-investing.yml"
       - ".github/workflows/ritual-investing-supabase-remediation.yml"
+      - ".github/workflows/ritual-investing-web-release.yml"
       - "ritual-investing-*/**"
       - "supabase/**"
       - "docs/ritual-investing/**"
@@ -74,6 +76,60 @@ jobs:
         run: ./scripts/test-check-member-provider-boundaries.sh
       - name: Audit member dependencies, hosts, egress, and worker effects
         run: ./scripts/check-member-provider-boundaries.sh
+
+  member-web:
+    needs: member-provider-boundary
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      MEMBER_BETA_SUPABASE_PROJECT_REF: abcdefghijklmnopqrst
+      MEMBER_BETA_SUPABASE_ORIGIN: https://abcdefghijklmnopqrst.supabase.co
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY: sb_publishable_member_beta_ci_fixture_1234567890
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: 683352f53f2be1470cf5e6b4404d57df12e4ae981eb0e5ac8f9a043e63aaba12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - name: Build the synthetic non-production member web release
+        working-directory: ritual-investing-app
+        run: >-
+          flutter build web --release
+          --no-web-resources-cdn
+          --no-source-maps
+          --no-wasm-dry-run
+          --pwa-strategy=none
+          --dart-define=RITUAL_ENVIRONMENT=beta
+          --dart-define=RITUAL_API_BASE_URL=${{ env.MEMBER_BETA_SUPABASE_ORIGIN }}/functions/v1/api
+          --dart-define=SUPABASE_URL=${{ env.MEMBER_BETA_SUPABASE_ORIGIN }}
+          --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ env.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY }}
+          --dart-define=BETA_SUPABASE_PROJECT_REF=${{ env.MEMBER_BETA_SUPABASE_PROJECT_REF }}
+          --dart-define=BETA_SUPABASE_PUBLISHABLE_KEY_SHA256=${{ env.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256 }}
+      - working-directory: ritual-investing-site
+        run: npm ci
+      - name: Assemble and scan the asset-only member Worker
+        working-directory: ritual-investing-site
+        run: npm run assets:build:member-beta
+      - name: Validate the pinned Wrangler release shape without remote credentials
+        working-directory: ritual-investing-site
+        run: npx --no-install wrangler versions upload --config wrangler.jsonc --dry-run
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ritual-member-web-${{ github.sha }}
+          path: ritual-investing-site/dist/member-beta
+          if-no-files-found: error
+          retention-days: 7
 
   demo-web:
     runs-on: ubuntu-24.04
@@ -281,6 +337,38 @@ jobs:
         run: deno task check && deno task test
       - working-directory: supabase/functions/waitlist
         run: deno task check && deno task test
+
+  supabase-hosted-development:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [api-security, supabase-local, supabase-edge]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: ritual-supabase-development
+    concurrency:
+      group: ritual-supabase-development
+      cancel-in-progress: false
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
+      SUPABASE_PROJECT_URL: ${{ vars.SUPABASE_PROJECT_URL }}
+      RITUAL_EXPECTED_REPOSITORY: ErwinHe7/Argus
+      RITUAL_EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.EXPECTED_SUPABASE_PROJECT_ID }}
+      RITUAL_EXPECTED_SUPABASE_DB_HOST: ${{ vars.EXPECTED_SUPABASE_DB_HOST }}
+      RITUAL_HOSTED_API_URL: ${{ vars.RITUAL_HOSTED_API_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: supabase/setup-cli@v1
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - name: Verify the protected exact hosted target
+        run: node --experimental-strip-types scripts/check-supabase-deploy-target.ts
+      - name: Run the read-only hosted readiness contract
+        run: supabase test db supabase/tests/hosted_readiness.test.sql --db-url "$SUPABASE_DB_URL"
+      - name: Read hosted Auth, Edge, schema, and fence readiness
+        run: ./scripts/check-supabase-hosted-acceptance.sh --acceptance
 
   contract-client:
     runs-on: ubuntu-24.04

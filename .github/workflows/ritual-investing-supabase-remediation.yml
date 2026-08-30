@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ritual-supabase-remediation
+  group: ritual-investing-release
   cancel-in-progress: false
 
 env:
@@ -27,9 +27,6 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     environment: ritual-supabase-remediation
-    concurrency:
-      group: ritual-supabase-remediation
-      cancel-in-progress: false
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
