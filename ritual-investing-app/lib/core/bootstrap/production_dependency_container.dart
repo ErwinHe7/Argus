@@ -1,17 +1,13 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:app_links/app_links.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:ritual_investing_api_client/generated/api.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../features/brokerage_connection/data/repository.dart';
-import '../../features/onboarding/data/onboarding_draft_store.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
-import '../../features/privacy/data/private_export_files.dart';
 import '../../features/privacy/data/repository.dart';
 import '../api/flutter_protected_storage.dart';
 import '../api/pending_command_store.dart';
@@ -24,6 +20,7 @@ import '../config/runtime_config.dart';
 import 'dependency_container.dart';
 import 'entry_coordinator.dart';
 import 'production_member_feature_scope_factory.dart';
+import 'production_platform_adapters.dart';
 
 DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
   final cache = MemoryReadCache();
@@ -33,8 +30,6 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
   final auth = AuthController(
     repository: SupabaseSessionRepository.production(
       client: Supabase.instance.client,
-      provider: config.memberAuthProviders.primary,
-      nativeLinks: config.nativeLinks,
       supabaseUrl: config.supabaseUrl,
     ),
     stepUpReceipts: ApiStepUpReceiptRepository.fromClientProvider(() => client),
@@ -43,32 +38,26 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
     basePathOverride: config.apiBaseUrl,
     interceptors: [RitualAuthInterceptor(tokenProvider: auth)],
   );
-  final onboardingDraftStore = OnboardingDraftStore(
-    storage: protectedStorage,
-    installation: AppContainerInstallationBinding(
-      cacheDirectoryProvider: getTemporaryDirectory,
-    ),
+  final onboardingDraftStore = createProductionOnboardingDraftStore(
+    nativeStorage: protectedStorage,
     now: DateTime.now,
   );
   final privacyExportRequestStore = PrivacyExportRequestStore(
     storage: protectedStorage,
   );
-  final privateExportFiles = FlutterPrivateExportFiles();
+  final privateExportFiles = createProductionPrivateExportFiles();
   final entryCoordinator = EntryCoordinator(
     authController: auth,
     bootstrapService: GeneratedSessionBootstrapService(client),
     draftStore: onboardingDraftStore,
     onboardingRepository: GeneratedOnboardingRepository(client),
   );
-  final brokerageConnections = BrokerageConnectionRepository(
-    service: GeneratedBrokerageConnectionApiService(client),
-  );
-  final appLinks = AppLinks();
-  entryCoordinator.bindBrokerageNativeLinks(
+  bindProductionBrokerageNativeLinks(
+    coordinator: entryCoordinator,
     policy: config.nativeLinks,
-    initialLink: appLinks.getInitialLink,
-    links: appLinks.uriLinkStream,
-    redeemCompletion: brokerageConnections.redeemCompletion,
+    brokerageConnections: () => BrokerageConnectionRepository(
+      service: GeneratedBrokerageConnectionApiService(client),
+    ),
   );
   return DependencyContainer(
     authController: auth,

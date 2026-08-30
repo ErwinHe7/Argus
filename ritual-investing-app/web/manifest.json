@@ -1,0 +1,12 @@
+{
+  "name": "Ritual Investing Beta",
+  "short_name": "Ritual",
+  "start_url": ".",
+  "display": "browser",
+  "background_color": "#11100f",
+  "theme_color": "#11100f",
+  "description": "Ritual Investing public beta",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}

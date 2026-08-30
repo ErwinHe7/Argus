@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/core/api/pending_command_store.dart';
+import 'package:ritual_investing_app/features/onboarding/data/onboarding_installation_binding_io.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_draft_store.dart';
 import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
 
