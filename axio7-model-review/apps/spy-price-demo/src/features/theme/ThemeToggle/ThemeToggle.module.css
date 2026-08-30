@@ -1,0 +1,23 @@
+:global(:root) {
+  --spy-bg: #ffffff;
+  --spy-fg: #000000;
+}
+
+:global(:root[data-theme="dark"]) {
+  --spy-bg: #000000;
+  --spy-fg: #ffffff;
+}
+
+.toggle {
+  appearance: none;
+  border: 1px solid var(--spy-fg);
+  background: var(--spy-bg);
+  color: var(--spy-fg);
+  font: inherit;
+  padding: 0.4rem 0.65rem;
+}
+
+.toggle:focus-visible {
+  outline: 2px solid var(--spy-fg);
+  outline-offset: 2px;
+}

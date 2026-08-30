@@ -12,6 +12,18 @@ python -m venv .venv
 .\.venv\Scripts\python.exe -m intraday_quant.cli run-all --config configs/default.yaml
 ```
 
+## SPY five-minute demo artifact
+
+From `axio7-model-review`, use the offline demo builder to create the validated
+static bundle consumed by `apps/spy-price-demo`:
+
+```bash
+python -m intraday_quant.demo.cli build --input source/intraday_quant/data/normalized/databento_SPY_ohlcv-1m_2024-07-18_2026-07-25_rth.parquet --output apps/spy-price-demo/public/generated
+```
+
+The normalized market-data input and generated artifacts are local, ignored
+files. This command does not change the full research pipeline described below.
+
 ## Full product: frontend + backend + database
 
 From the repository root, one command starts the FastAPI research service, initializes/imports the DuckDB registry, and starts the Next.js dashboard:

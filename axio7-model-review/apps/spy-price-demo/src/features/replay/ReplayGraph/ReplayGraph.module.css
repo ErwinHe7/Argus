@@ -1,0 +1,53 @@
+.wrap {
+  position: relative;
+  min-width: 0;
+  background: var(--spy-bg);
+}
+
+.chart {
+  width: 100%;
+  height: min(590px, 66vh);
+  min-height: 420px;
+}
+
+.cutoff {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  left: 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  color: var(--spy-fg);
+  pointer-events: none;
+}
+
+.cutoff strong {
+  font-size: 24px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.035em;
+}
+
+.cutoff span {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 620px) {
+  .chart {
+    height: 450px;
+    min-height: 360px;
+  }
+
+  .cutoff {
+    top: 10px;
+    left: 12px;
+  }
+
+  .cutoff strong {
+    font-size: 20px;
+  }
+}

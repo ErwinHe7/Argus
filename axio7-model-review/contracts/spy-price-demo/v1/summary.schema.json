@@ -1,0 +1,198 @@
+{
+  "$defs": {
+    "DirectionMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "accuracy": {
+          "$ref": "#/$defs/MetricValue"
+        },
+        "brier_score": {
+          "$ref": "#/$defs/MetricValue"
+        },
+        "calibration_error": {
+          "$ref": "#/$defs/MetricValue"
+        },
+        "log_loss": {
+          "$ref": "#/$defs/MetricValue"
+        },
+        "roc_auc": {
+          "$ref": "#/$defs/MetricValue"
+        }
+      },
+      "required": [
+        "roc_auc",
+        "brier_score",
+        "log_loss",
+        "calibration_error",
+        "accuracy"
+      ],
+      "title": "DirectionMetrics",
+      "type": "object"
+    },
+    "MetricValue": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Baseline"
+        },
+        "delta": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Delta"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "baseline",
+        "delta"
+      ],
+      "title": "MetricValue",
+      "type": "object"
+    },
+    "QualitySummary": {
+      "additionalProperties": false,
+      "properties": {
+        "causal_fill_rows": {
+          "minimum": 0,
+          "title": "Causal Fill Rows",
+          "type": "integer"
+        },
+        "eligible_examples": {
+          "minimum": 0,
+          "title": "Eligible Examples",
+          "type": "integer"
+        },
+        "excluded_examples": {
+          "minimum": 0,
+          "title": "Excluded Examples",
+          "type": "integer"
+        },
+        "normalized_rows": {
+          "minimum": 0,
+          "title": "Normalized Rows",
+          "type": "integer"
+        },
+        "source_rows": {
+          "minimum": 0,
+          "title": "Source Rows",
+          "type": "integer"
+        },
+        "unresolved_gap_rows": {
+          "minimum": 0,
+          "title": "Unresolved Gap Rows",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_rows",
+        "normalized_rows",
+        "eligible_examples",
+        "excluded_examples",
+        "causal_fill_rows",
+        "unresolved_gap_rows"
+      ],
+      "title": "QualitySummary",
+      "type": "object"
+    },
+    "ReturnMetricValue": {
+      "additionalProperties": false,
+      "properties": {
+        "momentum_baseline": {
+          "title": "Momentum Baseline",
+          "type": "number"
+        },
+        "momentum_delta": {
+          "title": "Momentum Delta",
+          "type": "number"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        },
+        "zero_return_baseline": {
+          "title": "Zero Return Baseline",
+          "type": "number"
+        },
+        "zero_return_delta": {
+          "title": "Zero Return Delta",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "zero_return_baseline",
+        "zero_return_delta",
+        "momentum_baseline",
+        "momentum_delta"
+      ],
+      "title": "ReturnMetricValue",
+      "type": "object"
+    },
+    "ReturnMetrics": {
+      "additionalProperties": false,
+      "properties": {
+        "mae": {
+          "$ref": "#/$defs/ReturnMetricValue"
+        },
+        "rmse": {
+          "$ref": "#/$defs/ReturnMetricValue"
+        }
+      },
+      "required": [
+        "mae",
+        "rmse"
+      ],
+      "title": "ReturnMetrics",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifact_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Artifact Sha256",
+      "type": "string"
+    },
+    "contract_version": {
+      "const": "1.0.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "coverage": {
+      "$ref": "#/$defs/QualitySummary"
+    },
+    "direction_metrics": {
+      "$ref": "#/$defs/DirectionMetrics"
+    },
+    "return_metrics": {
+      "$ref": "#/$defs/ReturnMetrics"
+    }
+  },
+  "required": [
+    "contract_version",
+    "artifact_sha256",
+    "direction_metrics",
+    "return_metrics",
+    "coverage"
+  ],
+  "title": "SummaryArtifact",
+  "type": "object"
+}

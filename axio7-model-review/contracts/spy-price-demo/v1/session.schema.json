@@ -1,0 +1,410 @@
+{
+  "$defs": {
+    "ChartBar": {
+      "additionalProperties": false,
+      "properties": {
+        "available_at": {
+          "format": "date-time",
+          "title": "Available At",
+          "type": "string"
+        },
+        "close": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Close"
+        },
+        "direction": {
+          "enum": [
+            "UP",
+            "DOWN",
+            "FLAT"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "high": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "High"
+        },
+        "low": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Low"
+        },
+        "open": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0.0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Open"
+        },
+        "quality_flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Quality Flags",
+          "type": "array"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "volume": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Volume"
+        }
+      },
+      "required": [
+        "timestamp",
+        "available_at",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "direction",
+        "quality_flags"
+      ],
+      "title": "ChartBar",
+      "type": "object"
+    },
+    "Forecast": {
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "enum": [
+            "UP",
+            "DOWN",
+            "FLAT"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "expected_return_bps": {
+          "title": "Expected Return Bps",
+          "type": "number"
+        },
+        "interval_high": {
+          "exclusiveMinimum": 0.0,
+          "title": "Interval High",
+          "type": "number"
+        },
+        "interval_low": {
+          "exclusiveMinimum": 0.0,
+          "title": "Interval Low",
+          "type": "number"
+        },
+        "interval_status": {
+          "const": "EXPLORATORY_VALIDATION_RESIDUAL_INTERVAL",
+          "title": "Interval Status",
+          "type": "string"
+        },
+        "probability_status": {
+          "const": "RAW_EXPERIMENTAL_PROBABILITY",
+          "title": "Probability Status",
+          "type": "string"
+        },
+        "probability_up": {
+          "maximum": 1.0,
+          "minimum": 0.0,
+          "title": "Probability Up",
+          "type": "number"
+        },
+        "scenario_price": {
+          "exclusiveMinimum": 0.0,
+          "title": "Scenario Price",
+          "type": "number"
+        }
+      },
+      "required": [
+        "probability_up",
+        "probability_status",
+        "expected_return_bps",
+        "scenario_price",
+        "interval_low",
+        "interval_high",
+        "interval_status",
+        "direction"
+      ],
+      "title": "Forecast",
+      "type": "object"
+    },
+    "Outcome": {
+      "additionalProperties": false,
+      "properties": {
+        "available_at": {
+          "format": "date-time",
+          "title": "Available At",
+          "type": "string"
+        },
+        "bar_index": {
+          "minimum": 0,
+          "title": "Bar Index",
+          "type": "integer"
+        },
+        "close": {
+          "exclusiveMinimum": 0.0,
+          "title": "Close",
+          "type": "number"
+        },
+        "return_bps": {
+          "title": "Return Bps",
+          "type": "number"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        }
+      },
+      "required": [
+        "bar_index",
+        "timestamp",
+        "available_at",
+        "close",
+        "return_bps"
+      ],
+      "title": "Outcome",
+      "type": "object"
+    },
+    "ReplayRow": {
+      "additionalProperties": false,
+      "properties": {
+        "available_at": {
+          "format": "date-time",
+          "title": "Available At",
+          "type": "string"
+        },
+        "bar_index": {
+          "minimum": 0,
+          "title": "Bar Index",
+          "type": "integer"
+        },
+        "close": {
+          "exclusiveMinimum": 0.0,
+          "title": "Close",
+          "type": "number"
+        },
+        "forecast": {
+          "$ref": "#/$defs/Forecast"
+        },
+        "high": {
+          "exclusiveMinimum": 0.0,
+          "title": "High",
+          "type": "number"
+        },
+        "low": {
+          "exclusiveMinimum": 0.0,
+          "title": "Low",
+          "type": "number"
+        },
+        "open": {
+          "exclusiveMinimum": 0.0,
+          "title": "Open",
+          "type": "number"
+        },
+        "outcome": {
+          "$ref": "#/$defs/Outcome"
+        },
+        "quality_flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Quality Flags",
+          "type": "array"
+        },
+        "timestamp": {
+          "format": "date-time",
+          "title": "Timestamp",
+          "type": "string"
+        },
+        "volume": {
+          "minimum": 0,
+          "title": "Volume",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bar_index",
+        "timestamp",
+        "available_at",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "forecast",
+        "outcome",
+        "quality_flags"
+      ],
+      "title": "ReplayRow",
+      "type": "object"
+    },
+    "SessionProvenance": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Artifact Sha256",
+          "type": "string"
+        },
+        "availability_cutoff": {
+          "format": "date-time",
+          "title": "Availability Cutoff",
+          "type": "string"
+        },
+        "calendar_version": {
+          "title": "Calendar Version",
+          "type": "string"
+        },
+        "caveat_codes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Caveat Codes",
+          "type": "array"
+        },
+        "coverage": {
+          "title": "Coverage",
+          "type": "string"
+        },
+        "dataset": {
+          "title": "Dataset",
+          "type": "string"
+        },
+        "dataset_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dataset Sha256",
+          "type": "string"
+        },
+        "direction_model_version": {
+          "title": "Direction Model Version",
+          "type": "string"
+        },
+        "feature_version": {
+          "title": "Feature Version",
+          "type": "string"
+        },
+        "return_model_version": {
+          "title": "Return Model Version",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "source_cutoff": {
+          "format": "date-time",
+          "title": "Source Cutoff",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source",
+        "dataset",
+        "dataset_sha256",
+        "artifact_sha256",
+        "source_cutoff",
+        "availability_cutoff",
+        "calendar_version",
+        "feature_version",
+        "direction_model_version",
+        "return_model_version",
+        "coverage",
+        "caveat_codes"
+      ],
+      "title": "SessionProvenance",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "bars": {
+      "items": {
+        "$ref": "#/$defs/ChartBar"
+      },
+      "title": "Bars",
+      "type": "array"
+    },
+    "contract_version": {
+      "const": "1.0.0",
+      "title": "Contract Version",
+      "type": "string"
+    },
+    "provenance": {
+      "$ref": "#/$defs/SessionProvenance"
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/ReplayRow"
+      },
+      "title": "Rows",
+      "type": "array"
+    },
+    "session_date": {
+      "format": "date",
+      "title": "Session Date",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "HISTORICAL_OOS",
+        "UI_FIXTURE"
+      ],
+      "title": "Status",
+      "type": "string"
+    },
+    "symbol": {
+      "const": "SPY",
+      "title": "Symbol",
+      "type": "string"
+    }
+  },
+  "required": [
+    "contract_version",
+    "status",
+    "symbol",
+    "session_date",
+    "provenance",
+    "bars",
+    "rows"
+  ],
+  "title": "SessionArtifact",
+  "type": "object"
+}

@@ -1,0 +1,42 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  color-scheme: light;
+  --spy-bg: #ffffff;
+  --spy-fg: #000000;
+  --spy-up: #00a36c;
+  --spy-down: #e2382f;
+  color: var(--spy-fg);
+  background: var(--spy-bg);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --spy-bg: #000000;
+  --spy-fg: #ffffff;
+}
+
+body {
+  margin: 0;
+  color: var(--spy-fg);
+  background: var(--spy-bg);
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+#root,
+#root *,
+#root *::before,
+#root *::after {
+  animation: none !important;
+  transition: none !important;
+}

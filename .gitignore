@@ -75,3 +75,10 @@ logs/
 !**/fixtures/**/*.jsonl
 
 *.egg-info/
+axio7-model-review/.venv-spy-demo/
+axio7-model-review/apps/spy-price-demo/node_modules/
+axio7-model-review/apps/spy-price-demo/dist/
+axio7-model-review/apps/spy-price-demo/playwright-report/
+axio7-model-review/apps/spy-price-demo/test-results/
+axio7-model-review/apps/spy-price-demo/public/generated/
+axio7-model-review/apps/spy-price-demo/src/features/replay/artifact/generated/
