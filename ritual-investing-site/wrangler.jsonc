@@ -1,6 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ritual-investing-site",
+  "name": "ritual-investing-member",
   "compatibility_date": "2026-08-25",
-  "pages_build_output_dir": "./dist/landing"
+  "assets": {
+    "directory": "./dist/member-beta",
+    "html_handling": "none",
+    "not_found_handling": "single-page-application"
+  }
 }

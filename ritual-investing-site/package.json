@@ -16,6 +16,7 @@
     "test": "vitest run",
     "test:browser": "playwright test",
     "assets:build": "node --experimental-strip-types scripts/build-assets.ts",
+    "assets:build:member-beta": "node --experimental-strip-types scripts/build-assets.ts member-beta",
     "assets:build:release": "REQUIRE_WAITLIST_CONFIGURATION=true node --experimental-strip-types scripts/build-assets.ts",
     "pages:config:check": "vitest run test/config.test.ts test/build-assets.test.ts"
   },

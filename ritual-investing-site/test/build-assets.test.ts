@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -8,9 +9,20 @@ import {
   injectWaitlistConfiguration,
   injectTurnstileSiteKey,
   MAX_ASSET_BYTES,
+  renderMemberHeaders,
+  resolveMemberBetaAssemblyInputs,
   resolveWaitlistFunctionUrl,
   resolveTurnstileSiteKey,
 } from "../scripts/build-assets.ts";
+
+const MEMBER_PROJECT_REF = "abcdefghijklmnopqrst";
+const MEMBER_ORIGIN = `https://${MEMBER_PROJECT_REF}.supabase.co`;
+const MEMBER_KEY = "sb_publishable_member_beta_fixture_1234567890";
+const MEMBER_INPUTS = {
+  projectRef: MEMBER_PROJECT_REF,
+  publishableKeySha256: createHash("sha256").update(MEMBER_KEY).digest("hex"),
+  supabaseOrigin: MEMBER_ORIGIN,
+} as const;
 
 async function fixture(): Promise<{ source: string; destination: string }> {
   const root = await mkdtemp(join(tmpdir(), "ritual-site-assets-"));
@@ -126,16 +138,63 @@ describe("deterministic demo asset assembly", () => {
   });
 
   it("rejects every Pages compute entrypoint and keeps Supabase out of demo artifacts", async () => {
-    for (const name of ["_worker.js", "_routes.json", "functions/index.js"]) {
+    for (const name of ["_worker.js", "_routes.json", "_redirects", "functions/index.js"]) {
       const paths = await fixture();
       await mkdir(join(paths.source, "functions"), { recursive: true });
       await writeFile(join(paths.source, name), "export default {};");
       await expect(assembleAssets(paths)).rejects.toThrow(/compute artifact/i);
     }
+    const serviceWorker = await fixture();
+    await writeFile(join(serviceWorker.source, "service-worker.js"), "");
+    await expect(assembleAssets(serviceWorker)).rejects.toThrow(/service worker/i);
     const paths = await fixture();
     await writeFile(join(paths.source, "main.dart.js"), "https://project.supabase.co");
     await expect(assembleAssets({ ...paths, surface: "demo" })).rejects.toThrow(
       /demo provider boundary/i,
     );
+  });
+
+  it("requires exact dedicated beta assembly inputs and rejects the staging project", () => {
+    expect(resolveMemberBetaAssemblyInputs({
+      MEMBER_BETA_SUPABASE_PROJECT_REF: MEMBER_PROJECT_REF,
+      MEMBER_BETA_SUPABASE_ORIGIN: MEMBER_ORIGIN,
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: MEMBER_INPUTS.publishableKeySha256,
+    })).toEqual(MEMBER_INPUTS);
+    expect(() => resolveMemberBetaAssemblyInputs({
+      MEMBER_BETA_SUPABASE_PROJECT_REF: "zbgjjufjkhfhirbuuolv",
+      MEMBER_BETA_SUPABASE_ORIGIN: "https://zbgjjufjkhfhirbuuolv.supabase.co",
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: MEMBER_INPUTS.publishableKeySha256,
+    })).toThrow(/staging Supabase project/i);
+  });
+
+  it("assembles only the exact member beta Supabase origin, Edge URL, and key fingerprint", async () => {
+    const paths = await fixture();
+    await writeFile(
+      join(paths.source, "main.dart.js"),
+      `${MEMBER_ORIGIN} ${MEMBER_ORIGIN}/functions/v1/api /v1/session/bootstrap ${MEMBER_KEY}`,
+    );
+    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: MEMBER_INPUTS }))
+      .resolves.toMatchObject({ algorithm: "sha256", fileCount: 2 });
+
+    await writeFile(join(paths.source, "main.dart.js"), `${MEMBER_ORIGIN}/functions/v1/api ${MEMBER_KEY} https://otherprojectref00001.supabase.co`);
+    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: MEMBER_INPUTS }))
+      .rejects.toThrow(/unapproved Supabase origin/i);
+
+    await writeFile(join(paths.source, "main.dart.js"), `${MEMBER_ORIGIN}/functions/v1/api sb_publishable_wrong_key_1234567890`);
+    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: MEMBER_INPUTS }))
+      .rejects.toThrow(/fingerprint/i);
+  });
+
+  it("renders deny-first member headers with callback no-store and only named immutable assets", () => {
+    const headers = renderMemberHeaders(MEMBER_ORIGIN, ["assets/app.1234abcd.js"]);
+    expect(headers).toContain("default-src 'none'");
+    expect(headers).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(headers).toContain(`connect-src 'self' ${MEMBER_ORIGIN}`);
+    expect(headers).toContain("X-Frame-Options: DENY");
+    expect(headers).toContain("X-Robots-Tag: noindex, nofollow, noarchive");
+    expect(headers).toContain("/mobile/argus-auth/callback\n  Cache-Control: no-store");
+    expect(headers).toContain("/auth/recovery\n  Cache-Control: no-store");
+    expect(headers).toContain("/assets/app.1234abcd.js\n  Cache-Control: public, max-age=31536000, immutable");
+    expect(headers).not.toMatch(/(^|[ '])\*($|[ ;'])|unsafe-inline|(?<!wasm-)unsafe-eval|data:/);
   });
 });

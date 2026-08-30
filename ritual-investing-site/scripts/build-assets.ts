@@ -17,7 +17,13 @@ import { pathToFileURL } from "node:url";
 export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
 
 type DeploymentEnvironment = "production" | "beta";
-type DeploymentSurface = "landing" | "demo";
+type DeploymentSurface = "landing" | "demo" | "member";
+
+export type MemberBetaAssemblyInputs = {
+  projectRef: string;
+  publishableKeySha256: string;
+  supabaseOrigin: string;
+};
 
 const HOSTS = {
   production: {
@@ -203,13 +209,84 @@ ${entryCacheRules(["/", "/index.html", "/flutter.js", "/flutter_bootstrap.js", "
 `;
 }
 
+export function resolveMemberBetaAssemblyInputs(
+  variables: Record<string, string | undefined>,
+): MemberBetaAssemblyInputs {
+  const projectRef = variables.MEMBER_BETA_SUPABASE_PROJECT_REF?.trim() ?? "";
+  const supabaseOrigin = variables.MEMBER_BETA_SUPABASE_ORIGIN?.trim() ?? "";
+  const publishableKeySha256 =
+    variables.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256?.trim().toLowerCase() ?? "";
+  if (!/^[a-z0-9]{20}$/.test(projectRef)) {
+    throw new Error("The dedicated beta Supabase project ref is required.");
+  }
+  if (projectRef === "zbgjjufjkhfhirbuuolv") {
+    throw new Error("The staging Supabase project cannot back the member beta.");
+  }
+  if (supabaseOrigin !== `https://${projectRef}.supabase.co`) {
+    throw new Error("The member beta Supabase origin must exactly match its project ref.");
+  }
+  if (!/^[a-f0-9]{64}$/.test(publishableKeySha256)) {
+    throw new Error("The member beta publishable-key SHA-256 fingerprint is required.");
+  }
+  return { projectRef, publishableKeySha256, supabaseOrigin };
+}
+
+export function renderMemberHeaders(
+  supabaseOrigin: string,
+  immutablePaths: readonly string[] = [],
+): string {
+  const csp = [
+    "default-src 'none'",
+    "base-uri 'none'",
+    "form-action 'none'",
+    "frame-ancestors 'none'",
+    "script-src 'self' 'wasm-unsafe-eval'",
+    "style-src 'self'",
+    "font-src 'self'",
+    "img-src 'self'",
+    `connect-src 'self' ${supabaseOrigin}`,
+    "object-src 'none'",
+    "media-src 'none'",
+    "manifest-src 'self'",
+    "worker-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+  const immutable = immutablePaths
+    .map((path) => `/${path}\n  Cache-Control: public, max-age=31536000, immutable`)
+    .join("\n\n");
+  const revalidating = [
+    "/", "/index.html", "/flutter.js", "/flutter_bootstrap.js", "/main.dart.js",
+    "/manifest.json", "/version.json", "/asset-manifest.json", "/canvaskit/*",
+    "/assets/*",
+  ];
+  return `/*
+  Content-Security-Policy: ${csp}
+  Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Resource-Policy: same-origin
+  ${NOINDEX}
+
+${entryCacheRules(revalidating)}
+
+/mobile/argus-auth/callback
+  Cache-Control: no-store
+  Referrer-Policy: no-referrer
+
+/auth/recovery
+  Cache-Control: no-store
+  Referrer-Policy: no-referrer${immutable === "" ? "" : `\n\n${immutable}`}
+`;
+}
+
 const HASH_MANIFEST = "asset-manifest.json";
 const EXCLUDED_BUILD_MARKERS = new Set([".last_build_id"]);
 const TEXT_EXTENSIONS = new Set([".css", ".html", ".js", ".json", ".webmanifest"]);
 const FORBIDDEN_PROVIDER_PATTERNS = [
   /auth0/i,
   /api(?:-beta)?\.just-build-this\.app/i,
-  /\/v1\/session\/bootstrap/i,
   /@neondatabase\/serverless/i,
   /drizzle-orm/i,
   /postgres(?:ql)?:\/\//i,
@@ -225,6 +302,7 @@ const FORBIDDEN_PROVIDER_PATTERNS = [
   /createWebullClient/i,
   /WebullTokenVault/i,
 ];
+const NON_MEMBER_FORBIDDEN_PROVIDER_PATTERNS = [/\/v1\/session\/bootstrap/i];
 const DEMO_ONLY_FORBIDDEN_PROVIDER_PATTERNS = [
   /supabase/i,
   /\/functions\/v1\//i,
@@ -244,6 +322,7 @@ type AssembleOptions = {
   source: string;
   destination: string;
   surface?: DeploymentSurface;
+  memberBeta?: MemberBetaAssemblyInputs;
 };
 
 function posixPath(path: string): string {
@@ -346,12 +425,54 @@ function validateProviderBoundary(
   for (const pattern of FORBIDDEN_PROVIDER_PATTERNS) {
     if (pattern.test(text)) throw new Error(`provider boundary violation in ${path}.`);
   }
+  if (surface !== "member") {
+    for (const pattern of NON_MEMBER_FORBIDDEN_PROVIDER_PATTERNS) {
+      if (pattern.test(text)) throw new Error(`provider boundary violation in ${path}.`);
+    }
+  }
   if (surface === "demo") {
     for (const pattern of DEMO_ONLY_FORBIDDEN_PROVIDER_PATTERNS) {
       if (pattern.test(text)) {
         throw new Error(`demo provider boundary violation in ${path}.`);
       }
     }
+  }
+}
+
+function validateMemberBetaBoundary(
+  assets: ReadonlyArray<{ path: string; contents: Uint8Array }>,
+  inputs: MemberBetaAssemblyInputs,
+): void {
+  const text = assets
+    .filter((asset) => TEXT_EXTENSIONS.has(extension(asset.path)))
+    .map((asset) => UTF8.decode(asset.contents))
+    .join("\n");
+  const apiUrl = `${inputs.supabaseOrigin}/functions/v1/api`;
+  if (!text.includes(inputs.supabaseOrigin) || !text.includes(apiUrl)) {
+    throw new Error("The member artifact is missing its exact beta Supabase origin or Edge API URL.");
+  }
+  if (text.includes("zbgjjufjkhfhirbuuolv")) {
+    throw new Error("The member artifact contains the forbidden staging Supabase ref.");
+  }
+  const origins = new Set(
+    [...text.matchAll(/https:\/\/[a-z0-9-]+\.supabase\.co/gi)].map((match) => match[0]),
+  );
+  if (origins.size !== 1 || !origins.has(inputs.supabaseOrigin)) {
+    throw new Error("The member artifact contains an unapproved Supabase origin.");
+  }
+  if (/https:\/\/[a-z0-9-]+\.supabase\.co\/(?:rest|graphql|realtime|storage)\/v1/gi.test(text)) {
+    throw new Error("The member artifact contains a direct Supabase application-data endpoint.");
+  }
+  const keys = new Set(text.match(/sb_publishable_[A-Za-z0-9_-]+/g) ?? []);
+  if (keys.size !== 1) {
+    throw new Error("The member artifact must contain exactly one publishable key.");
+  }
+  const key = [...keys][0];
+  if (key === undefined || createHash("sha256").update(key).digest("hex") !== inputs.publishableKeySha256) {
+    throw new Error("The member artifact publishable-key fingerprint does not match.");
+  }
+  if (/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/.test(text)) {
+    throw new Error("Legacy JWT-shaped keys are forbidden in the member artifact.");
   }
 }
 
@@ -373,6 +494,9 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
   const source = resolve(options.source);
   const destination = resolve(options.destination);
   const surface = options.surface ?? "demo";
+  if (surface === "member" && options.memberBeta === undefined) {
+    throw new Error("Member beta assembly requires exact Supabase inputs.");
+  }
   if (source === destination || source.startsWith(`${destination}${sep}`)) {
     throw new Error("Asset source and destination must be separate directories.");
   }
@@ -382,7 +506,7 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
   for (const path of sourceFiles) {
     if (EXCLUDED_BUILD_MARKERS.has(path)) continue;
     if (
-      path === "_worker.js" || path === "_routes.json" ||
+      path === "_worker.js" || path === "_routes.json" || path === "_redirects" ||
       path === "functions" || path.startsWith("functions/")
     ) {
       throw new Error(`Cloudflare compute artifact is forbidden: ${path}`);
@@ -390,7 +514,10 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
     if (path.endsWith(".map")) throw new Error(`source map output is forbidden: ${path}`);
     if (path.endsWith(".symbols")) continue;
     const contents = await readFile(join(source, path));
-    if (path === "flutter_service_worker.js") {
+    if (/(?:^|\/)(?:flutter_service_worker|service[-_]?worker|sw)\.js$/i.test(path)) {
+      if (path !== "flutter_service_worker.js") {
+        throw new Error(`service worker output is forbidden: ${path}`);
+      }
       if (contents.byteLength === 0) continue;
       throw new Error("service worker output is forbidden.");
     }
@@ -400,6 +527,8 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
     validateProviderBoundary(path, contents, surface);
     deployable.push({ path, contents });
   }
+
+  if (surface === "member") validateMemberBetaBoundary(deployable, options.memberBeta!);
 
   const deployablePaths = new Set(deployable.map((asset) => asset.path));
   for (const file of deployable) {
@@ -529,6 +658,46 @@ async function prepareDemoStage(
   await writeFile(join(stage, "robots.txt"), "User-agent: *\nDisallow: /\n");
 }
 
+async function prepareMemberStage(
+  memberSource: string,
+  stage: string,
+  inputs: MemberBetaAssemblyInputs,
+): Promise<void> {
+  await cp(memberSource, stage, { recursive: true });
+  const paths = await walk(stage);
+  if (paths.includes("_headers")) {
+    throw new Error("The Flutter member build cannot supply its own _headers file.");
+  }
+  const immutablePaths: string[] = [];
+  for (const path of paths) {
+    const claimedHash = path.match(/(?:^|\/)[^/]*[.-]([a-f0-9]{8,64})\.[^/]+$/i)?.[1];
+    if (claimedHash === undefined) continue;
+    const digest = createHash("sha256").update(await readFile(join(stage, path))).digest("hex");
+    if (digest.startsWith(claimedHash.toLowerCase())) immutablePaths.push(path);
+  }
+  await writeFile(join(stage, "_headers"), renderMemberHeaders(inputs.supabaseOrigin, immutablePaths));
+  await writeFile(join(stage, "robots.txt"), "User-agent: *\nDisallow: /\n");
+}
+
+export async function buildMemberBetaAssets(
+  inputs: MemberBetaAssemblyInputs,
+): Promise<AssetManifest> {
+  const packageRoot = resolve(import.meta.dirname, "..");
+  const memberSource = resolve(packageRoot, "../ritual-investing-app/build/web");
+  const stage = await mkdtemp(join(tmpdir(), "ritual-member-assets-"));
+  try {
+    await prepareMemberStage(memberSource, stage, inputs);
+    return await assembleAssets({
+      source: stage,
+      destination: resolve(packageRoot, "dist/member-beta"),
+      surface: "member",
+      memberBeta: inputs,
+    });
+  } finally {
+    await rm(stage, { recursive: true, force: true });
+  }
+}
+
 export async function buildDeploymentAssets(): Promise<void> {
   const packageRoot = resolve(import.meta.dirname, "..");
   const demoSource = resolve(packageRoot, "../ritual-investing-demo/build/web");
@@ -567,5 +736,10 @@ export async function buildDeploymentAssets(): Promise<void> {
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  await buildDeploymentAssets();
+  if (process.argv[2] === "member-beta") {
+    const manifest = await buildMemberBetaAssets(resolveMemberBetaAssemblyInputs(process.env));
+    process.stdout.write(`member-beta: ${manifest.fileCount} files (${manifest.totalBytes} bytes)\n`);
+  } else {
+    await buildDeploymentAssets();
+  }
 }
