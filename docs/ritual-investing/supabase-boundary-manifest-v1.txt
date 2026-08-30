@@ -122,6 +122,7 @@ ritual-investing-api/src/domains/rowan/repository.ts
 ritual-investing-api/src/domains/search/repository.ts
 ritual-investing-api/src/domains/session/repository.ts
 ritual-investing-api/src/domains/session/supabase-schemas.ts
+ritual-investing-api/src/domains/starpath/editorial-repository.ts
 ritual-investing-api/src/jobs/handlers.ts
 ritual-investing-api/src/jobs/privacy-export.ts
 ritual-investing-api/src/jobs/queue-runtime.ts
@@ -133,6 +134,7 @@ ritual-investing-api/test/architecture/runtime-import-boundary.test.ts
 ritual-investing-api/test/architecture/supabase-edge-role.test.ts
 ritual-investing-api/test/contracts/product-authority.test.ts
 ritual-investing-api/test/contracts/retained-openapi.test.ts
+ritual-investing-api/test/contracts/starpath-editorial-authority.test.ts
 ritual-investing-api/test/contracts/u8-pagination-routes.test.ts
 ritual-investing-api/test/db/supabase-repository-integration.test.ts
 ritual-investing-api/test/db/u7-async-privacy-migration.test.ts
@@ -260,12 +262,15 @@ supabase/migrations/20260829140000_u6_compose_durable_external_work.sql
 supabase/migrations/20260829150000_u6_application_purge_owner.sql
 supabase/migrations/20260829160000_u7_member_event_scope.sql
 supabase/migrations/20260829170000_u8_normalized_query_contracts.sql
+supabase/migrations/20260829180000_u9_bootstrap_daily_ritual_content.sql
+supabase/migrations/20260830060327_starpath_editorial.sql
 supabase/seed.sql
 supabase/tests/application_purge_owner.test.sql
 supabase/tests/architecture_contract.test.sql
 supabase/tests/argus_domain_model.test.sql
 supabase/tests/brokerage_integrity.test.sql
 supabase/tests/brokerage_private.test.sql
+supabase/tests/daily_ritual_seed.test.sql
 supabase/tests/editorial_publication.test.sql
 supabase/tests/function_security.test.sql
 supabase/tests/grants_and_rls.test.sql
@@ -277,6 +282,7 @@ supabase/tests/queues_and_cron.test.sql
 supabase/tests/request_context.test.sql
 supabase/tests/request_context_concurrency.test.sh
 supabase/tests/schema.test.sql
+supabase/tests/starpath_editorial.test.sql
 supabase/tests/storage_policies.test.sql
 supabase/tests/u10_privacy_jobs.test.sql
 supabase/tests/u11_admin_supabase_auth.test.sql

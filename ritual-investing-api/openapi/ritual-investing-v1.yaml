@@ -5052,6 +5052,7 @@ paths:
               - circle_template
               - rowan
               - briefing_template
+              - starpath_lesson
             type: string
       responses:
         "200":
@@ -5294,6 +5295,7 @@ paths:
                     - circle_template
                     - rowan
                     - briefing_template
+                    - starpath_lesson
                   type: string
                 payload:
                   additionalProperties:
@@ -8252,6 +8254,998 @@ paths:
         - SupabaseBearer: []
       tags:
         - Admin
+  /v1/admin/starpath/manifests/{manifest_id}/publish:
+    post:
+      operationId: publishAdminStarpathManifest
+      parameters:
+        - in: path
+          name: manifest_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                reason:
+                  maxLength: 500
+                  minLength: 8
+                  type: string
+              required:
+                - reason
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    nullable: true
+                  meta:
+                    additionalProperties: false
+                    properties:
+                      request_id:
+                        format: uuid
+                        type: string
+                    required:
+                      - request_id
+                    type: object
+                required:
+                  - meta
+                type: object
+          description: Argus response.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Admin Starpath
+  /v1/admin/starpath/revisions/{revision_id}:
+    get:
+      operationId: getAdminStarpathRevision
+      parameters:
+        - in: path
+          name: revision_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    nullable: true
+                  meta:
+                    additionalProperties: false
+                    properties:
+                      request_id:
+                        format: uuid
+                        type: string
+                    required:
+                      - request_id
+                    type: object
+                required:
+                  - meta
+                type: object
+          description: Argus response.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Admin Starpath
+  /v1/admin/starpath/revisions/{revision_id}/reviews:
+    post:
+      operationId: reviewAdminStarpathRevision
+      parameters:
+        - in: path
+          name: revision_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                decision:
+                  enum:
+                    - approved
+                    - changes_requested
+                    - rejected
+                  type: string
+                discipline:
+                  enum:
+                    - factual
+                    - compliance
+                  type: string
+                reason:
+                  maxLength: 500
+                  minLength: 8
+                  type: string
+              required:
+                - discipline
+                - decision
+                - reason
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    nullable: true
+                  meta:
+                    additionalProperties: false
+                    properties:
+                      request_id:
+                        format: uuid
+                        type: string
+                    required:
+                      - request_id
+                    type: object
+                required:
+                  - meta
+                type: object
+          description: Argus response.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Admin Starpath
+  /v1/admin/starpath/revisions/{revision_id}/submit:
+    post:
+      operationId: submitAdminStarpathRevision
+      parameters:
+        - in: path
+          name: revision_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              additionalProperties: false
+              properties:
+                policy_version:
+                  maxLength: 128
+                  minLength: 3
+                  pattern: ^[a-z0-9][a-z0-9._-]+$
+                  type: string
+              required:
+                - policy_version
+              type: object
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  data:
+                    nullable: true
+                  meta:
+                    additionalProperties: false
+                    properties:
+                      request_id:
+                        format: uuid
+                        type: string
+                    required:
+                      - request_id
+                    type: object
+                required:
+                  - meta
+                type: object
+          description: Argus response.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Admin Starpath
   /v1/admin/step-up:
     post:
       operationId: issueAdminStepUp

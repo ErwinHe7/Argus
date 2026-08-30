@@ -109,6 +109,10 @@ import {
 } from "./domains/rowan/routes.ts";
 import { registerSearchRoutes } from "./domains/search/routes.ts";
 import type { SearchRepository } from "./domains/search/ports.ts";
+import {
+  registerStarpathEditorialRoutes,
+  type StarpathEditorialRouteRepository,
+} from "./domains/starpath/editorial-routes.ts";
 import { registerSessionRoutes } from "./domains/session/routes.ts";
 import {
   createSessionService,
@@ -137,6 +141,7 @@ export type RetainedRepositorySet = Readonly<{
   rituals: RitualRouteRepository;
   rowan: RowanRouteRepository;
   search: SearchRepository;
+  starpath: StarpathEditorialRouteRepository;
   admin: AdminRouteRepository;
   adminOperations: AdminOperationsRouteService;
   scenarios: IntentionRouteRepository;
@@ -774,6 +779,11 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
   registerPublicPreviewRoutes({
     register,
     repository: (context) => publicPreviewRepository(context),
+  });
+
+  registerStarpathEditorialRoutes({
+    register,
+    repository: (context) => repositories(context).starpath,
   });
 
   registerAdminRoutes({

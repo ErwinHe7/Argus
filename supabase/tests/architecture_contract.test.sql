@@ -14,7 +14,7 @@ select plan(18);
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_app' and relation.relkind in ('r','p')),
-  59::bigint,'the reviewed application relation inventory is complete');
+  71::bigint,'the reviewed application relation inventory is complete');
 select is((select count(*)::bigint from pg_class relation
   join pg_namespace namespace on namespace.oid=relation.relnamespace
   where namespace.nspname='argus_brokerage' and relation.relkind in ('r','p')),
@@ -45,6 +45,8 @@ select is(
     ('argus_app.ritual_scenario_revisions.evidence_claim_ids'),
     ('argus_app.ritual_scenario_revisions.idea_asset_ids'),
     ('argus_app.rowan_script_revisions.allowed_tokens'),
+    ('argus_app.starpath_policies.r20_trigger_snapshot'),
+    ('argus_app.starpath_policies.supported_jurisdictions'),
     ('argus_brokerage.accounts.capabilities'),
     ('argus_brokerage.order_projection_generations.normalized_payload'),
     ('argus_brokerage.projection_generations.normalized_payload'),
@@ -78,7 +80,7 @@ select is((select count(distinct function_row.proname)::bigint
   from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace
   where namespace.nspname in ('argus_app','argus_brokerage','argus_private')),
-  215::bigint,'the reviewed routine-name inventory is complete');
+  226::bigint,'the reviewed routine-name inventory is complete');
 
 select is((select count(*)::bigint from pg_proc function_row
   join pg_namespace namespace on namespace.oid=function_row.pronamespace

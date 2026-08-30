@@ -33,6 +33,7 @@ import { createSupabaseRowanRepository } from "../../../ritual-investing-api/src
 import { createSupabaseSearchRepository } from "../../../ritual-investing-api/src/domains/search/repository.ts";
 import { createSupabaseSessionRepository } from "../../../ritual-investing-api/src/domains/session/repository.ts";
 import { createSupabaseScenarioRepository } from "../../../ritual-investing-api/src/domains/intentions/repository.ts";
+import { createSupabaseStarpathEditorialRepository } from "../../../ritual-investing-api/src/domains/starpath/editorial-repository.ts";
 
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
@@ -114,6 +115,7 @@ function createRepositories(
     rituals: createSupabaseRitualRepository(database),
     rowan: createSupabaseRowanRepository(database),
     search: createSupabaseSearchRepository(database),
+    starpath: createSupabaseStarpathEditorialRepository(database),
     admin: createSupabaseAdminRepository(database, claims),
     adminOperations: createSupabaseAdminOperationsRepository(
       database,

@@ -235,6 +235,18 @@ Each surface below appears exactly once. The contract test derives current table
 | `database-table:storage_access_leases` | retained-argus | Single-use URL-issuance receipt; the issued Supabase signed URL has a disclosed residual lifetime of at most 30 seconds |
 | `database-table:staff_principals` | retained-argus | Supabase Auth plus private staff authorization |
 | `database-table:staff_step_up_receipts` | retained-argus | Supabase staff AAL2 proof receipts |
+| `database-table:starpath_curriculum_manifests` | retained-argus | Atomic reviewed eight-node Starpath curriculum releases |
+| `database-table:starpath_evidence_bindings` | retained-argus | Dated source evidence bound to exact factual lesson sections |
+| `database-table:starpath_factual_sections` | retained-argus | Factual education kept structurally separate from mythic mnemonics |
+| `database-table:starpath_knowledge_check_options` | retained-argus | Revision-qualified factual comprehension answers and feedback |
+| `database-table:starpath_knowledge_checks` | retained-argus | Revision-qualified factual comprehension prompts |
+| `database-table:starpath_lesson_revisions` | retained-argus | Policy-bound reviewed Starpath lesson content |
+| `database-table:starpath_lessons` | retained-argus | Stable ordered Starpath lesson identities |
+| `database-table:starpath_manifest_events` | retained-argus | Immutable Starpath publication, supersession, and withdrawal history |
+| `database-table:starpath_manifest_nodes` | retained-argus | Exact lesson revisions pinned to an ordered curriculum manifest |
+| `database-table:starpath_manifest_themes` | retained-argus | Reviewed non-predictive learning themes pinned to a manifest |
+| `database-table:starpath_policies` | retained-argus | Versioned legal no-advice policy approval evidence |
+| `database-table:starpath_session_themes` | retained-argus | Reviewed horoscope-framed learning themes without member birth data |
 | `database-table:step_up_receipts` | retained-argus | Supabase member recent-auth proof receipts |
 | `database-table:tenant_demo_states` | deleted | Production Demo state is removed |
 | `database-table:tenant_entitlements` | deleted | Production Demo membership is removed |
@@ -283,6 +295,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `api-domain:search` | retained-argus | Argus search API |
 | `api-domain:session` | retained-argus | Supabase Auth-backed Argus bootstrap |
 | `api-domain:simulation` | replaced-webull | Delete ledger/reset/membership; replace reads and manual orders |
+| `api-domain:starpath` | retained-argus | Factual investment-literacy editorial and learning lifecycle API |
 | `background-handler:briefing-builder` | deleted | Replaced by truthful briefing-generation coordination |
 | `background-handler:briefing-generation-coordinator` | retained-argus | Registry-backed internal briefing coordination |
 | `background-handler:notification-writer` | deleted | Replaced by idempotent notification-record writer |
