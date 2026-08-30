@@ -1,8 +1,52 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ritual_investing_app/features/public_beta/domain/member_capability_policy.dart';
 
 void main() {
+  test('public web beta policy keeps financial capabilities unavailable', () {
+    const policy = MemberCapabilityPolicy.publicWebBeta;
+
+    for (final capability in const [
+      MemberCapability.ritual,
+      MemberCapability.discover,
+      MemberCapability.coven,
+      MemberCapability.you,
+      MemberCapability.community,
+      MemberCapability.identity,
+      MemberCapability.privacy,
+    ]) {
+      expect(policy.stateOf(capability), MemberCapabilityState.betaBacked);
+    }
+    for (final capability in const [
+      MemberCapability.brokerageConnection,
+      MemberCapability.brokeragePortfolio,
+      MemberCapability.funding,
+      MemberCapability.brokerageOrders,
+    ]) {
+      expect(policy.stateOf(capability), MemberCapabilityState.unavailable);
+      expect(policy.permits(capability), isFalse);
+    }
+    expect(
+      policy.stateOf(MemberCapability.standaloneDemo),
+      MemberCapabilityState.standaloneDemoHandoff,
+    );
+
+    final factory = File(
+      'lib/core/bootstrap/production_member_feature_scope_factory.dart',
+    ).readAsStringSync();
+    expect(
+      factory,
+      contains(
+        'capabilityPolicy.permits(MemberCapability.brokerageConnection)',
+      ),
+    );
+    expect(
+      factory,
+      contains('capabilityPolicy.permits(MemberCapability.brokerageOrders)'),
+    );
+  });
+
   test(
     'production composition contains Webull commands but no live simulation',
     () {

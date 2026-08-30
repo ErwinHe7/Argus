@@ -15,6 +15,7 @@ import '../../features/orders/application/brokerage_order_controller.dart';
 import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/profile/application/controller.dart';
+import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
@@ -38,6 +39,7 @@ class MemberFeatureScope {
     required this.covenController,
     required this.profileController,
     required this.invalidationBus,
+    this.capabilityPolicy = MemberCapabilityPolicy.native,
     this.brokerageConnectionController,
     this.brokeragePortfolioController,
     this.assetCodexRepository,
@@ -59,6 +61,7 @@ class MemberFeatureScope {
   final DiscoverController discoverController;
   final CovenController covenController;
   final ProfileController profileController;
+  final MemberCapabilityPolicy capabilityPolicy;
   final BrokerageConnectionController? brokerageConnectionController;
   final BrokeragePortfolioController? brokeragePortfolioController;
   final InvalidationBus invalidationBus;

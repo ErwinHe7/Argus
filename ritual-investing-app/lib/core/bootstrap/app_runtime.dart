@@ -19,6 +19,7 @@ import '../../features/portfolio/application/brokerage_controller.dart';
 import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/domain/model.dart';
+import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
@@ -48,6 +49,9 @@ abstract interface class AppRuntime implements Listenable {
 }
 
 extension AppRuntimeFeatureAccess on AppRuntime {
+  MemberCapabilityPolicy get capabilityPolicy =>
+      featureScope?.capabilityPolicy ?? MemberCapabilityPolicy.native;
+
   DailyRitualController get dailyRitualController =>
       _requireScope().dailyRitualController;
   DiscoverController get discoverController =>

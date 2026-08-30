@@ -41,8 +41,10 @@ StatefulShellRoute buildMemberShellRoute({
         restorationEnabled: restorationEnabled,
       ),
     ],
-    builder: (context, state, navigationShell) =>
-        AppShell(navigationShell: navigationShell),
+    builder: (context, state, navigationShell) => AppShell(
+      navigationShell: navigationShell,
+      capabilityPolicy: runtime.capabilityPolicy,
+    ),
   );
 }
 

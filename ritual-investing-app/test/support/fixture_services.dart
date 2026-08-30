@@ -31,6 +31,7 @@ import 'package:ritual_investing_app/features/privacy/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/application/controller.dart';
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/domain/model.dart';
+import 'package:ritual_investing_app/features/public_beta/domain/member_capability_policy.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
@@ -59,6 +60,7 @@ DependencyContainer fixtureContainer({
   bool includeU11 = false,
   bool includeSearch = false,
   PrivacyRepository? privacyRepository,
+  MemberCapabilityPolicy capabilityPolicy = MemberCapabilityPolicy.native,
 }) {
   final storage = cache ?? MemoryReadCache();
   final tracker = loadTracker ?? FeatureLoadTracker();
@@ -128,6 +130,7 @@ DependencyContainer fixtureContainer({
           : null;
       return MemberFeatureScope(
         scope: scope,
+        capabilityPolicy: capabilityPolicy,
         dailyRitualController: DailyRitualController(
           repository: DailyRitualRepository(
             service: _FixtureRitualService(tracker),

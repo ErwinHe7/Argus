@@ -33,6 +33,7 @@ import '../../features/privacy/data/repository.dart';
 import '../../features/privacy/domain/model.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/profile/data/repository.dart';
+import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/ritual/data/daily_ritual_repository.dart';
 import '../../features/rowan/application/controller.dart';
@@ -61,6 +62,7 @@ class ProductionMemberFeatureScopeFactory {
     required this.createCommandKey,
     required this.now,
     required this.openBrokerageAuthorization,
+    this.capabilityPolicy = MemberCapabilityPolicy.native,
   });
 
   final RitualInvestingApiClient client;
@@ -71,6 +73,7 @@ class ProductionMemberFeatureScopeFactory {
   final String Function() createCommandKey;
   final DateTime Function() now;
   final OpenBrokerageAuthorization openBrokerageAuthorization;
+  final MemberCapabilityPolicy capabilityPolicy;
 
   MemberFeatureScope call(
     CacheScope scope,
@@ -88,30 +91,38 @@ class ProductionMemberFeatureScopeFactory {
       ),
       createKey: createCommandKey,
     );
-    final brokeragePortfolioController = BrokeragePortfolioController(
-      repository: BrokeragePortfolioRepository(
-        service: GeneratedBrokeragePortfolioApiService(client),
-      ),
-      initialAccountId: bootstrap.brokerage.activeAccountId,
-    );
-    final brokerageOrderController = BrokerageOrderController(
-      repository: BrokerageOrderRepository(
-        service: GeneratedBrokerageOrderApiService(client),
-      ),
-      portfolioController: brokeragePortfolioController,
-      pendingStore: pendingCommandStore,
-      scope: scope,
-      createKey: createCommandKey,
-      now: now,
-    );
-    final brokerageConnectionController = BrokerageConnectionController(
-      repository: BrokerageConnectionRepository(
-        service: GeneratedBrokerageConnectionApiService(client),
-      ),
-      openAuthorization: openBrokerageAuthorization,
-      initial: bootstrap.brokerage,
-      onAccountChanging: () async => brokeragePortfolioController.clear(),
-    );
+    BrokeragePortfolioController? brokeragePortfolioController;
+    BrokerageOrderController? brokerageOrderController;
+    BrokerageConnectionController? brokerageConnectionController;
+    if (capabilityPolicy.permits(MemberCapability.brokerageConnection) &&
+        capabilityPolicy.permits(MemberCapability.brokeragePortfolio)) {
+      brokeragePortfolioController = BrokeragePortfolioController(
+        repository: BrokeragePortfolioRepository(
+          service: GeneratedBrokeragePortfolioApiService(client),
+        ),
+        initialAccountId: bootstrap.brokerage.activeAccountId,
+      );
+      brokerageConnectionController = BrokerageConnectionController(
+        repository: BrokerageConnectionRepository(
+          service: GeneratedBrokerageConnectionApiService(client),
+        ),
+        openAuthorization: openBrokerageAuthorization,
+        initial: bootstrap.brokerage,
+        onAccountChanging: () async => brokeragePortfolioController!.clear(),
+      );
+      if (capabilityPolicy.permits(MemberCapability.brokerageOrders)) {
+        brokerageOrderController = BrokerageOrderController(
+          repository: BrokerageOrderRepository(
+            service: GeneratedBrokerageOrderApiService(client),
+          ),
+          portfolioController: brokeragePortfolioController,
+          pendingStore: pendingCommandStore,
+          scope: scope,
+          createKey: createCommandKey,
+          now: now,
+        );
+      }
+    }
     final briefingController = BriefingController(
       repository: CachedBriefingRepository(
         service: GeneratedBriefingService(client),
@@ -179,6 +190,7 @@ class ProductionMemberFeatureScopeFactory {
     );
     return MemberFeatureScope(
       scope: scope,
+      capabilityPolicy: capabilityPolicy,
       dailyRitualController: DailyRitualController(
         repository: DailyRitualRepository(
           service: GeneratedRitualApiService(client),

@@ -3,12 +3,14 @@ import 'dart:math';
 
 import 'package:ritual_investing_api_client/generated/api.dart';
 import 'package:ritual_investing_api_client/ritual_auth_interceptor.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../features/brokerage_connection/data/repository.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
 import '../../features/privacy/data/repository.dart';
+import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../api/flutter_protected_storage.dart';
 import '../api/pending_command_store.dart';
 import '../api/ritual_api.dart';
@@ -76,6 +78,9 @@ DependencyContainer createProductionDependencyContainer(RuntimeConfig config) {
       now: DateTime.now,
       openBrokerageAuthorization: (uri) =>
           launchUrl(uri, mode: LaunchMode.externalApplication),
+      capabilityPolicy: kIsWeb && config.environment == 'beta'
+          ? MemberCapabilityPolicy.publicWebBeta
+          : MemberCapabilityPolicy.native,
     ).call,
   );
 }

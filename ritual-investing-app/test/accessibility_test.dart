@@ -5,10 +5,45 @@ import 'package:ritual_investing_app/app/ritual_investing_app.dart';
 import 'package:ritual_investing_app/core/navigation/member_routes.dart';
 import 'package:ritual_investing_app/features/privacy/data/repository.dart';
 import 'package:ritual_investing_app/features/privacy/domain/model.dart';
+import 'package:ritual_investing_app/features/public_beta/domain/member_capability_policy.dart';
 
 import 'support/fixture_services.dart';
 
 void main() {
+  testWidgets(
+    'public web beta shell stays mobile-width and keeps its financial disclosure visible',
+    (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        RitualInvestingApp(
+          container: fixtureContainer(
+            capabilityPolicy: MemberCapabilityPolicy.publicWebBeta,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('public-beta-disclosure')), findsOneWidget);
+      expect(
+        find.textContaining(
+          'Live brokerage, funding, and orders are unavailable',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .getSize(find.byKey(const Key('public-beta-mobile-envelope')))
+            .width,
+        480,
+      );
+      expect(find.byKey(const Key('you-brokerage')), findsNothing);
+    },
+  );
+
   for (final brightness in Brightness.values) {
     testWidgets(
       'major member routes remain semantic and operable at 2x in ${brightness.name}',
