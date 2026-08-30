@@ -19,12 +19,12 @@ import 'package:ritual_investing_app/features/search/domain/model.dart';
 import 'package:ritual_investing_app/features/search/presentation/search_screen.dart';
 
 void main() {
-  testWidgets('daily ritual renders the date-selected Major Arcana artwork', (
+  testWidgets('assigned ritual conceals its artwork until reveal succeeds', (
     tester,
   ) async {
     final controller = DailyRitualController(
       repository: DailyRitualRepository(
-        service: _RitualService(),
+        service: _RitualService(state: DailyRitualState.assigned),
         cache: MemoryReadCache(),
       ),
     );
@@ -39,38 +39,152 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.bySemanticsLabel('Unrevealed ritual card'), findsOneWidget);
+    expect(find.byKey(const Key('daily-ritual-card-art')), findsNothing);
+    expect(
+      find.bySemanticsLabel(
+        'The Hermit tarot card: an elder holds a star lantern on a snowy mountain',
+      ),
+      findsNothing,
+    );
+
+    await tester.tap(find.byKey(const Key('ritual-reveal')));
+    await tester.pumpAndSettle();
+
+    expect(find.bySemanticsLabel('Unrevealed ritual card'), findsNothing);
+    expect(find.byKey(const Key('daily-ritual-card-art')), findsOneWidget);
     expect(
       find.bySemanticsLabel(
         'The Hermit tarot card: an elder holds a star lantern on a snowy mountain',
       ),
       findsOneWidget,
     );
-    final image = tester.widget<Image>(
-      find.byKey(const Key('daily-ritual-card-art')),
-    );
-    final provider = image.image as AssetImage;
-    expect(
-      provider.assetName,
-      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
-    );
-    expect(provider.package, isNull);
-    expect(
-      provider.keyName,
-      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
-    );
-    final artworkBytes = await rootBundle.load(provider.keyName);
-    expect(artworkBytes.lengthInBytes, greaterThan(100000));
-    final renderedSize = tester.getSize(
-      find.byKey(const Key('daily-ritual-card-art')),
-    );
-    expect(renderedSize.height, greaterThan(260));
-    expect(renderedSize.aspectRatio, closeTo(950 / 1655, 0.01));
   });
+
+  testWidgets('failed reveal remains actionable and announces the failure', (
+    tester,
+  ) async {
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: _RitualService(
+          state: DailyRitualState.assigned,
+          failReveal: true,
+        ),
+        cache: MemoryReadCache(),
+      ),
+    );
+    await controller.load();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: DailyRitualScreen(controller: controller, onOpenCoven: () {}),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('ritual-reveal')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('This ritual could not be updated. Refresh and try again.'),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('ritual-reveal')), findsOneWidget);
+  });
+
+  testWidgets('production ritual shows only content for the drawn card', (
+    tester,
+  ) async {
+    final ritual = _deathRitual();
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: _SingleRitualService(ritual),
+        cache: MemoryReadCache(),
+      ),
+    );
+    await controller.load();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: DailyRitualScreen(controller: controller, onOpenCoven: () {}),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Death'), findsOneWidget);
+    expect(find.text(ritual.interpretation), findsOneWidget);
+    expect(find.text(ritual.guidance), findsOneWidget);
+    expect(
+      find.bySemanticsLabel(
+        'Death tarot card: a skeletal rider advances on a white horse at sunrise',
+      ),
+      findsOneWidget,
+    );
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -1000));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Demo'), findsNothing);
+    expect(find.textContaining('demo'), findsNothing);
+    expect(find.text("THE CARD'S CONSTELLATION"), findsNothing);
+    expect(find.text('Market-informed Demo'), findsNothing);
+  });
+
+  testWidgets(
+    'daily ritual renders the explicitly assigned Major Arcana artwork',
+    (tester) async {
+      final controller = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: _RitualService(),
+          cache: MemoryReadCache(),
+        ),
+      );
+      await controller.load();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: DailyRitualScreen(controller: controller, onOpenCoven: () {}),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.bySemanticsLabel(
+          'The Hermit tarot card: an elder holds a star lantern on a snowy mountain',
+        ),
+        findsOneWidget,
+      );
+      final image = tester.widget<Image>(
+        find.byKey(const Key('daily-ritual-card-art')),
+      );
+      final provider = image.image as AssetImage;
+      expect(
+        provider.assetName,
+        'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+      );
+      expect(provider.package, isNull);
+      expect(
+        provider.keyName,
+        'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+      );
+      final artworkBytes = await rootBundle.load(provider.keyName);
+      expect(artworkBytes.lengthInBytes, greaterThan(100000));
+      final renderedSize = tester.getSize(
+        find.byKey(const Key('daily-ritual-card-art')),
+      );
+      expect(renderedSize.height, greaterThan(260));
+      expect(renderedSize.aspectRatio, closeTo(950 / 1655, 0.01));
+    },
+  );
 
   testWidgets(
     'evidence opens while loading, retries live, and uses evidence Rowan context',
     (tester) async {
-      final service = _RitualService(evidenceFailures: 1);
+      final service = _RitualService(evidenceFailures: 1, hasEvidence: true);
       final ritual = DailyRitualController(
         repository: DailyRitualRepository(
           service: service,
@@ -102,6 +216,11 @@ void main() {
         ),
       );
 
+      await tester.scrollUntilVisible(
+        find.text('Market-informed Demo evidence'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.text('Market-informed Demo evidence'));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('ritual-evidence-sheet')), findsOneWidget);
@@ -125,7 +244,12 @@ void main() {
 
       evidencePosition.jumpTo(evidencePosition.maxScrollExtent);
       await tester.pump();
-      await tester.tap(find.byKey(const Key('rowan-explain')));
+      await tester.tap(
+        find.descendant(
+          of: find.byKey(const Key('ritual-evidence-sheet')),
+          matching: find.byKey(const Key('rowan-explain')),
+        ),
+      );
       await tester.pumpAndSettle();
       expect(rowanService.request?.surface, RowanSurface.evidence);
       expect(rowanService.request?.resourceId, _assignmentId);
@@ -209,15 +333,25 @@ const _assignmentId = '00000000-0000-4000-8000-000000000501';
 const _assetId = '00000000-0000-4000-8000-000000000502';
 
 class _RitualService implements DailyRitualService {
-  _RitualService({this.evidenceFailures = 0});
+  _RitualService({
+    this.evidenceFailures = 0,
+    this.state = DailyRitualState.completed,
+    this.failReveal = false,
+    this.hasEvidence = false,
+  });
 
   int evidenceFailures;
+  DailyRitualState state;
+  final bool failReveal;
+  final bool hasEvidence;
 
   @override
-  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async => _ritual();
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async =>
+      _ritual(state: state, hasEvidence: hasEvidence);
 
   @override
-  Future<DailyRitual> fetchAssignment(String assignmentId) async => _ritual();
+  Future<DailyRitual> fetchAssignment(String assignmentId) async =>
+      _ritual(state: state, hasEvidence: hasEvidence);
 
   @override
   Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) async {
@@ -245,18 +379,38 @@ class _RitualService implements DailyRitualService {
   @override
   Future<RitualHistoryPage> fetchHistory({String? cursor}) async =>
       RitualHistoryPage(
-        items: [RitualHistoryEntry.fromRitual(_ritual())],
+        items: [
+          RitualHistoryEntry.fromRitual(
+            _ritual(state: state, hasEvidence: hasEvidence),
+          ),
+        ],
         nextCursor: null,
         hasMore: false,
       );
 
   @override
-  Future<DailyRitual> reveal(String assignmentId, int version) async =>
-      _ritual();
+  Future<DailyRitual> reveal(String assignmentId, int version) async {
+    if (failReveal) {
+      throw const LoadFailure(LoadPhase.terminalFailure);
+    }
+    state = DailyRitualState.revealed;
+    return _ritual(state: state, hasEvidence: hasEvidence);
+  }
 
   @override
-  Future<DailyRitual> complete(String assignmentId, int version) async =>
-      _ritual();
+  Future<DailyRitual> complete(String assignmentId, int version) async {
+    state = DailyRitualState.completed;
+    return _ritual(state: state, hasEvidence: hasEvidence);
+  }
+}
+
+class _SingleRitualService extends _RitualService {
+  _SingleRitualService(this.ritual) : super(state: ritual.state);
+
+  final DailyRitual ritual;
+
+  @override
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async => ritual;
 }
 
 class _RowanService implements RowanService {
@@ -293,7 +447,10 @@ class _SearchService implements SearchService {
   );
 }
 
-DailyRitual _ritual() => DailyRitual(
+DailyRitual _ritual({
+  DailyRitualState state = DailyRitualState.completed,
+  bool hasEvidence = false,
+}) => DailyRitual(
   assignmentId: _assignmentId,
   date: DateTime.utc(2026, 8, 25),
   mode: DailyRitualMode.tarot,
@@ -302,7 +459,10 @@ DailyRitual _ritual() => DailyRitual(
     number: 1,
   ),
   title: 'Direction, not urgency.',
-  art: const RitualArt(key: 'the_compass', alt: 'The Compass'),
+  art: const RitualArt(
+    key: 'the_hermit',
+    alt: 'The Hermit tarot card: an elder holds a star lantern on a snowy mountain',
+  ),
   interpretation: 'Direction is an invitation, not an instruction.',
   guidance: 'Inspect sources before choosing what to research.',
   marketLabel: 'Market-informed Demo evidence',
@@ -315,7 +475,17 @@ DailyRitual _ritual() => DailyRitual(
       riskSummary: 'The scenario can reverse.',
     ),
   ],
-  evidence: const [],
+  evidence: hasEvidence
+      ? [
+          RitualEvidence(
+            claimId: '00000000-0000-4000-8000-000000000503',
+            factorLabel: 'Provider-free durability',
+            observedAt: DateTime.utc(2026, 8, 25, 12),
+            summary: 'The Demo scenario held its fictional range.',
+            uncertainty: 'It can reverse.',
+          ),
+        ]
+      : const [],
   rowan: const RitualCounsel(
     scriptRevisionId: '00000000-0000-4000-8000-000000000507',
     surface: 'daily_ritual',
@@ -323,13 +493,53 @@ DailyRitual _ritual() => DailyRitual(
     riskFooter: 'Demo counsel; not advice.',
   ),
   version: 3,
-  state: DailyRitualState.completed,
-  revealedAt: null,
-  completedAt: null,
+  state: state,
+  revealedAt: state == DailyRitualState.assigned
+      ? null
+      : DateTime.utc(2026, 8, 25, 12, 10),
+  completedAt: state == DailyRitualState.completed
+      ? DateTime.utc(2026, 8, 25, 12, 20)
+      : null,
   demo: RitualDisclosure(
     isDemo: true,
     observedAt: DateTime.utc(2026, 8, 25, 12),
     sourceLabel: 'Deterministic fixture',
     limitations: const ['Fictional scenario; no live provider.'],
+  ),
+);
+
+DailyRitual _deathRitual() => DailyRitual(
+  assignmentId: _assignmentId,
+  date: DateTime.utc(2026, 8, 29),
+  mode: DailyRitualMode.tarot,
+  revision: const RitualRevision(
+    id: '00000000-0000-4000-8000-000000000506',
+    number: 1,
+  ),
+  title: 'Death',
+  art: const RitualArt(
+    key: 'death',
+    alt: 'Death tarot card: a skeletal rider advances on a white horse at sunrise',
+  ),
+  interpretation: 'Death marks a necessary ending: a pattern has run its course, creating room for a cleaner beginning.',
+  guidance: 'Name one assumption you are ready to release. Write down the evidence that would show an old thesis no longer fits.',
+  marketLabel: 'Tarot reflection',
+  ideas: const [],
+  evidence: const [],
+  rowan: const RitualCounsel(
+    scriptRevisionId: '00000000-0000-4000-8000-000000000507',
+    surface: 'daily_ritual',
+    body: 'Let the ending be information, not catastrophe. Clearing an expired story can make your next question more honest.',
+    riskFooter: 'Tarot is a reflection tool, not a prediction or financial recommendation.',
+  ),
+  version: 3,
+  state: DailyRitualState.completed,
+  revealedAt: DateTime.utc(2026, 8, 29, 12, 10),
+  completedAt: DateTime.utc(2026, 8, 29, 12, 20),
+  demo: RitualDisclosure(
+    isDemo: false,
+    observedAt: DateTime.utc(2026, 8, 29, 12),
+    sourceLabel: 'Argus editorial',
+    limitations: const ['Educational context only.'],
   ),
 );

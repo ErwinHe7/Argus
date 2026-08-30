@@ -60,7 +60,7 @@ void main() {
     expect(second, same(first));
   });
 
-  test('the legacy compass key deterministically rotates by calendar date', () {
+  test('the legacy compass key cannot synthesize a second card assignment', () {
     final morning = resolveRitualTarotArtwork(
       art: const RitualArt(key: 'the_compass', alt: 'The Compass'),
       date: DateTime(2026, 8, 26, 8),
@@ -77,9 +77,9 @@ void main() {
       mode: DailyRitualMode.tarot,
     );
 
-    expect(morning, isNotNull);
-    expect(evening, same(morning));
-    expect(nextDay, isNot(same(morning)));
+    expect(morning, isNull);
+    expect(evening, isNull);
+    expect(nextDay, isNull);
   });
 
   test('unknown keys and non-tarot rituals retain the existing fallback', () {
