@@ -9,6 +9,8 @@ import {
   injectWaitlistConfiguration,
   injectTurnstileSiteKey,
   MAX_ASSET_BYTES,
+  renderDemoHeaders,
+  renderLandingHeaders,
   renderMemberHeaders,
   resolveMemberBetaAssemblyInputs,
   resolveWaitlistFunctionUrl,
@@ -31,6 +33,11 @@ const RITUAL_BETA_INPUTS = {
   publishableKeySha256: createHash("sha256").update(RITUAL_BETA_KEY).digest("hex"),
   supabaseOrigin: RITUAL_BETA_BRANCH_ORIGIN,
 } as const;
+
+function contentSecurityPolicyDirective(headers: string, name: string): string | undefined {
+  const policy = /^  Content-Security-Policy: (.+)$/m.exec(headers)?.[1];
+  return policy?.split("; ").find((directive) => directive.startsWith(`${name} `));
+}
 
 async function fixture(): Promise<{ source: string; destination: string }> {
   const root = await mkdtemp(join(tmpdir(), "ritual-site-assets-"));
@@ -197,6 +204,11 @@ describe("deterministic demo asset assembly", () => {
     const headers = renderMemberHeaders(MEMBER_ORIGIN, ["assets/app.1234abcd.js"]);
     expect(headers).toContain("default-src 'none'");
     expect(headers).toContain("script-src 'self' 'wasm-unsafe-eval'");
+    expect(contentSecurityPolicyDirective(headers, "img-src")).toBe("img-src 'self' blob:");
+    expect(contentSecurityPolicyDirective(renderLandingHeaders("beta"), "img-src"))
+      .toBe("img-src 'self'");
+    expect(contentSecurityPolicyDirective(renderDemoHeaders("beta"), "img-src"))
+      .toBe("img-src 'self' data: blob:");
     expect(headers).toContain(`connect-src 'self' ${MEMBER_ORIGIN}`);
     expect(headers).toContain("X-Frame-Options: DENY");
     expect(headers).toContain("X-Robots-Tag: noindex, nofollow, noarchive");

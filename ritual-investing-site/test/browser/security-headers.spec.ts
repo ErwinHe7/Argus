@@ -1,11 +1,26 @@
 import { expect, test } from "@playwright/test";
 
+import { renderMemberHeaders } from "../../scripts/build-assets.ts";
 import {
   DEMO_ORIGIN,
   installLocalProductionSurface,
   LANDING_ORIGIN,
   WAITLIST_ORIGIN,
 } from "./support.ts";
+
+const MEMBER_WEB_ORIGIN = "https://member.just-build-this.app/";
+const MEMBER_SUPABASE_ORIGIN = "https://abcdefghijklmnopqrst.supabase.co";
+const ARTWORK_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64",
+);
+
+function memberContentSecurityPolicy(): string {
+  const headers = renderMemberHeaders(MEMBER_SUPABASE_ORIGIN);
+  const policy = /^  Content-Security-Policy: (.+)$/m.exec(headers)?.[1];
+  if (policy === undefined) throw new Error("member CSP is missing");
+  return policy;
+}
 
 test("effective landing and demo headers enforce the exact pairwise frame policy", async ({ page }) => {
   await installLocalProductionSurface(page);
@@ -33,6 +48,50 @@ test("effective landing and demo headers enforce the exact pairwise frame policy
   expect(demo.headers()["x-frame-options"]).toBeUndefined();
   expect(demo.headers()["x-robots-tag"]).toContain("noindex");
   expect(await page.context().cookies()).toEqual([]);
+});
+
+test("member CSP permits browser blob-backed artwork decoding", async ({ page }) => {
+  const policy = memberContentSecurityPolicy();
+  await page.route(`${MEMBER_WEB_ORIGIN}**`, async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname === "/decode-artwork.js") {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/javascript",
+        body: `void (async () => {
+const image = document.querySelector("img");
+image.addEventListener("load", () => {
+  document.body.dataset.artwork = "loaded";
+  URL.revokeObjectURL(image.src);
+});
+image.addEventListener("error", () => { document.body.dataset.artwork = "blocked"; });
+const response = await fetch("/artwork.png");
+image.src = URL.createObjectURL(await response.blob());
+})().catch(() => { document.body.dataset.artwork = "error"; });`,
+      });
+      return;
+    }
+    if (pathname === "/artwork.png") {
+      await route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: ARTWORK_PNG,
+      });
+      return;
+    }
+    await route.fulfill({
+      status: 200,
+      headers: {
+        "content-security-policy": policy,
+        "content-type": "text/html; charset=utf-8",
+      },
+      body: '<!doctype html><html><body><img alt="Ritual artwork"><script src="/decode-artwork.js"></script></body></html>',
+    });
+  });
+
+  await page.goto(MEMBER_WEB_ORIGIN);
+
+  await expect(page.locator("body")).toHaveAttribute("data-artwork", "loaded");
 });
 
 test("hostile and stale frame messages cannot advance the current demo", async ({ page }) => {

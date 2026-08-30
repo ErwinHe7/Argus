@@ -240,7 +240,7 @@ export function renderMemberHeaders(
     "script-src 'self' 'wasm-unsafe-eval'",
     "style-src 'self'",
     "font-src 'self'",
-    "img-src 'self'",
+    "img-src 'self' blob:",
     `connect-src 'self' ${supabaseOrigin}`,
     "object-src 'none'",
     "media-src 'none'",
