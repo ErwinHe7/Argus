@@ -183,6 +183,7 @@ ritual-investing-app/lib/features/onboarding/data/onboarding_repository.dart
 ritual-investing-app/lib/main.dart
 ritual-investing-app/pubspec.yaml
 ritual-investing-app/test/auth_controller_test.dart
+ritual-investing-app/test/bootstrap_test.dart
 ritual-investing-app/test/demo_dependency_boundary_test.dart
 ritual-investing-app/test/member_brokerage_bootstrap_test.dart
 ritual-investing-app/test/native_auth_config_test.dart
