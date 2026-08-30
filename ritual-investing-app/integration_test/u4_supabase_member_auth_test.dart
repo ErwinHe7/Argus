@@ -9,7 +9,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'member auth preserves restore, hosted sign-in, recovery, and global logout states',
+    'member auth preserves restore, password sign-in, recovery, and global logout states',
     (tester) async {
       final repository = _IntegrationSessionRepository();
       final controller = AuthController(repository: repository);
@@ -19,7 +19,13 @@ void main() {
       await controller.restore();
       expect(controller.state.phase, AuthPhase.signedOut);
 
-      expect(await controller.signIn(), MemberAuthResult.authenticated);
+      expect(
+        await controller.signInWithPassword(
+          email: 'member@example.com',
+          password: 'local-test-password',
+        ),
+        MemberAuthResult.authenticated,
+      );
       expect(controller.state.phase, AuthPhase.signedIn);
       expect(
         controller.activeSession?.userId,
@@ -38,7 +44,11 @@ void main() {
 }
 
 class _IntegrationSessionRepository
-    implements SessionRepository, SessionChangeRepository, ScopedSessionLogout {
+    implements
+        SessionRepository,
+        PasswordSessionRepository,
+        SessionChangeRepository,
+        ScopedSessionLogout {
   static const userId = '11111111-1111-4111-8111-111111111111';
   static const sessionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
   static const session = AuthSession(
@@ -65,7 +75,10 @@ class _IntegrationSessionRepository
   Stream<MemberSessionChange> get sessionChanges => _changes.stream;
 
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async {
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
     current = session;
     _changes.add(
       const MemberSessionChange(
@@ -75,6 +88,12 @@ class _IntegrationSessionRepository
     );
     return session;
   }
+
+  @override
+  Future<AuthSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) => signInWithPassword(email: email, password: password);
 
   void emitRecovery() => _changes.add(
     const MemberSessionChange(

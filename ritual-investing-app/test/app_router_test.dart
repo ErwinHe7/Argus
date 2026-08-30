@@ -66,6 +66,248 @@ void main() {
     expect(find.byKey(const Key('welcome-get-started')), findsOneWidget);
   });
 
+  testWidgets('existing account opens credential sign in without OAuth', (
+    tester,
+  ) async {
+    final sessions = _SignedOutSessionRepository();
+    final auth = AuthController(repository: sessions);
+    final coordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: _UnusedBootstrapService(),
+      draftStore: OnboardingDraftStore(
+        storage: _MemoryProtectedStorage(),
+        installation: const FixedInstallationBinding('install-a'),
+        now: () => DateTime.utc(2026, 8, 24),
+      ),
+      onboardingRepository: _UnusedOnboardingRepository(),
+    );
+    final container = fixtureContainer(
+      authController: auth,
+      entryCoordinator: coordinator,
+    );
+    await coordinator.restore();
+    await tester.pumpWidget(
+      RitualInvestingApp(container: container, bootstrapOnStart: false),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('I have an account'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('welcome-sign-in')));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('member-sign-in-email'))),
+    );
+    expect(router.state.uri.path, '/sign-in');
+    expect(find.byKey(const Key('member-sign-in-password')), findsOneWidget);
+    expect(sessions.passwordCredentials, isEmpty);
+  });
+
+  testWidgets('fallback signed-out gate opens password form without OAuth', (
+    tester,
+  ) async {
+    final sessions = _SignedOutSessionRepository();
+    await tester.pumpWidget(
+      RitualInvestingApp(
+        container: fixtureContainer(sessionRepository: sessions),
+        bootstrapOnStart: false,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('member-sign-in-email')), findsOneWidget);
+    expect(find.byKey(const Key('member-sign-in-password')), findsOneWidget);
+    expect(sessions.passwordCredentials, isEmpty);
+  });
+
+  testWidgets('valid credentials enter the completed member shell', (
+    tester,
+  ) async {
+    final sessions = _SignedOutSessionRepository(
+      passwordSession: const AuthSession(
+        accessToken: 'password-token',
+        userId: '11111111-1111-4111-8111-111111111111',
+      ),
+    );
+    final auth = AuthController(repository: sessions);
+    final bootstrap = _CompletedBootstrapService();
+    final coordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: bootstrap,
+      draftStore: OnboardingDraftStore(
+        storage: _MemoryProtectedStorage(),
+        installation: const FixedInstallationBinding('install-a'),
+        now: () => DateTime.utc(2026, 8, 24),
+      ),
+      onboardingRepository: _UnusedOnboardingRepository(),
+    );
+    final container = fixtureContainer(
+      authController: auth,
+      entryCoordinator: coordinator,
+      sessionBootstrapService: bootstrap,
+    );
+    await coordinator.restore();
+    await tester.pumpWidget(
+      RitualInvestingApp(container: container, bootstrapOnStart: false),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('welcome-sign-in')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-email')),
+      'beta@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-password')),
+      'correct horse battery staple',
+    );
+    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.pumpAndSettle();
+
+    expect(sessions.passwordCredentials, [
+      (email: 'beta@example.com', password: 'correct horse battery staple'),
+    ]);
+    expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
+  });
+
+  testWidgets(
+    'authenticated onboarding finishes setup without creating another account',
+    (tester) async {
+      final sessions = _SignedOutSessionRepository(
+        restoredSession: const AuthSession(
+          accessToken: 'password-token',
+          userId: '11111111-1111-4111-8111-111111111111',
+        ),
+      );
+      final auth = AuthController(repository: sessions);
+      final bootstrap = _IncompleteBootstrapService();
+      final onboarding = _CompletingOnboardingRepository();
+      final coordinator = EntryCoordinator(
+        authController: auth,
+        bootstrapService: bootstrap,
+        draftStore: OnboardingDraftStore(
+          storage: _MemoryProtectedStorage(),
+          installation: const FixedInstallationBinding('install-a'),
+          now: () => DateTime.utc(2026, 8, 24),
+        ),
+        onboardingRepository: onboarding,
+      );
+      final container = fixtureContainer(
+        authController: auth,
+        entryCoordinator: coordinator,
+        sessionBootstrapService: bootstrap,
+      );
+      await coordinator.restore();
+      container.onboardingController.replaceDraft(_reviewedDraft());
+      await tester.pumpWidget(
+        RitualInvestingApp(container: container, bootstrapOnStart: false),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('recovery-continue')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('recovery-continue')));
+      await tester.pumpAndSettle();
+      expect(container.entryGate, MemberEntryGate.onboarding);
+
+      final router = GoRouter.of(
+        tester.element(find.text('How familiar are you with investing?')),
+      );
+      router.go('/onboarding/review');
+      await tester.pumpAndSettle();
+
+      final finishSetup = find.widgetWithText(FilledButton, 'Finish setup');
+      await _scrollTo(tester, finishSetup);
+      expect(finishSetup, findsOneWidget);
+
+      router.go('/create-account');
+      await tester.pumpAndSettle();
+      expect(router.state.uri.path, '/onboarding/review');
+      expect(find.byKey(const Key('member-sign-in-email')), findsNothing);
+
+      await _scrollTo(tester, finishSetup);
+      await tester.tap(finishSetup);
+      await tester.pumpAndSettle();
+
+      expect(onboarding.commands, hasLength(1));
+      expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
+      expect(sessions.passwordSignUpCredentials, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'onboarding account creation uses password credentials without OAuth',
+    (tester) async {
+      final sessions = _SignedOutSessionRepository(
+        authenticationError: const MemberAuthCancelled(),
+      );
+      final auth = AuthController(repository: sessions);
+      final coordinator = EntryCoordinator(
+        authController: auth,
+        bootstrapService: _UnusedBootstrapService(),
+        draftStore: OnboardingDraftStore(
+          storage: _MemoryProtectedStorage(),
+          installation: const FixedInstallationBinding('install-a'),
+          now: () => DateTime.utc(2026, 8, 24),
+        ),
+        onboardingRepository: _UnusedOnboardingRepository(),
+      );
+      final container = fixtureContainer(
+        authController: auth,
+        entryCoordinator: coordinator,
+      );
+      final reviewedDraft = _reviewedDraft();
+      await coordinator.beginQuestionnaire(reviewedDraft);
+      container.onboardingController.replaceDraft(reviewedDraft);
+      await tester.pumpWidget(
+        RitualInvestingApp(container: container, bootstrapOnStart: false),
+      );
+      await tester.pumpAndSettle();
+
+      final questionnaireRouter = GoRouter.of(
+        tester.element(find.text('How familiar are you with investing?')),
+      );
+      questionnaireRouter.go('/onboarding/review');
+      await tester.pumpAndSettle();
+
+      final createAccount = find.byKey(const Key('review-create-account'));
+      await _scrollTo(tester, createAccount);
+      await tester.tap(createAccount);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('member-sign-in-email')), findsOneWidget);
+      expect(find.byKey(const Key('member-sign-in-password')), findsOneWidget);
+      expect(
+        find.widgetWithText(FilledButton, 'Create account'),
+        findsOneWidget,
+      );
+      final router = GoRouter.of(
+        tester.element(find.byKey(const Key('member-sign-in-email'))),
+      );
+      expect(router.state.uri.path, '/create-account');
+      await tester.enterText(
+        find.byKey(const Key('member-sign-in-email')),
+        'new-member@example.com',
+      );
+      await tester.enterText(
+        find.byKey(const Key('member-sign-in-password')),
+        'correct horse battery staple',
+      );
+      await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+      await tester.pumpAndSettle();
+
+      expect(sessions.passwordSignUpCredentials, [
+        (
+          email: 'new-member@example.com',
+          password: 'correct horse battery staple',
+        ),
+      ]);
+    },
+  );
+
   testWidgets('locked draft save remains editable and exposes retry', (
     tester,
   ) async {
@@ -122,7 +364,11 @@ void main() {
       authController: auth,
       entryCoordinator: coordinator,
     );
-    await coordinator.createAccount(_reviewedDraft());
+    await coordinator.createAccountWithPassword(
+      reviewedDraft: _reviewedDraft(),
+      email: 'setup@example.com',
+      password: 'setup-password',
+    );
     await tester.pumpWidget(
       RitualInvestingApp(container: container, bootstrapOnStart: false),
     );
@@ -133,7 +379,7 @@ void main() {
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
 
-    expect(sessions.intents, isEmpty);
+    expect(sessions.passwordSignUpCredentials, isEmpty);
     expect(storage.values, contains(OnboardingDraftStore.storageKey));
     expect(coordinator.state.destination, EntryDestination.review);
     expect(router.state.uri.path, '/onboarding/review');
@@ -162,7 +408,11 @@ void main() {
         entryCoordinator: coordinator,
       );
       final draft = _reviewedDraft();
-      await coordinator.createAccount(draft);
+      await coordinator.createAccountWithPassword(
+        reviewedDraft: draft,
+        email: 'setup@example.com',
+        password: 'setup-password',
+      );
       await tester.pumpWidget(
         RitualInvestingApp(container: container, bootstrapOnStart: false),
       );
@@ -203,7 +453,11 @@ void main() {
         entryCoordinator: coordinator,
       );
       final draft = _reviewedDraft();
-      await coordinator.createAccount(draft);
+      await coordinator.createAccountWithPassword(
+        reviewedDraft: draft,
+        email: 'setup@example.com',
+        password: 'setup-password',
+      );
       await tester.pumpWidget(
         RitualInvestingApp(container: container, bootstrapOnStart: false),
       );
@@ -537,26 +791,48 @@ Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
   expect(finder.hitTestable(), findsOneWidget);
 }
 
-class _SignedOutSessionRepository implements SessionRepository {
-  _SignedOutSessionRepository({this.authenticationError});
+class _SignedOutSessionRepository
+    implements SessionRepository, PasswordSessionRepository {
+  _SignedOutSessionRepository({
+    this.authenticationError,
+    this.passwordSession,
+    this.restoredSession,
+  });
 
   final Object? authenticationError;
-  final List<MemberAuthIntent> intents = [];
+  final AuthSession? passwordSession;
+  final AuthSession? restoredSession;
+  final List<({String email, String password})> passwordCredentials = [];
+  final List<({String email, String password})> passwordSignUpCredentials = [];
   @override
   MemberClientExpectation get memberClientExpectation =>
       const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async {
-    intents.add(intent);
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    passwordCredentials.add((email: email, password: password));
     final error = authenticationError;
     if (error != null) throw error;
-    return const AuthSession(accessToken: 'token');
+    return passwordSession ?? const AuthSession(accessToken: 'password-token');
   }
 
   @override
-  Future<AuthSession?> recover() async => null;
+  Future<AuthSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    passwordSignUpCredentials.add((email: email, password: password));
+    final error = authenticationError;
+    if (error != null) throw error;
+    return passwordSession ?? const AuthSession(accessToken: 'password-token');
+  }
+
+  @override
+  Future<AuthSession?> recover() async => restoredSession;
   @override
   Future<void> logout() async {}
 }
@@ -579,6 +855,55 @@ OnboardingDraft _reviewedDraft() => const OnboardingDraft(
 class _UnusedBootstrapService implements SessionBootstrapService {
   @override
   Future<MemberBootstrap> bootstrap() => throw StateError('unused');
+}
+
+class _CompletedBootstrapService implements SessionBootstrapService {
+  @override
+  Future<MemberBootstrap> bootstrap() async => MemberBootstrap(
+    accountId: 'fixture-account',
+    resetGeneration: 0,
+    onboarding: const MemberOnboardingGate.complete(),
+    entitlement: const MemberEntitlement(
+      planCode: 'demo-free',
+      status: MemberEntitlementStatus.active,
+    ),
+    defaultPortfolioId: 'fixture-portfolio',
+    serverTime: DateTime.utc(2026, 8, 28),
+    contractVersion: '1.0.0',
+    themePreference: MemberThemePreference.system,
+  );
+}
+
+class _IncompleteBootstrapService implements SessionBootstrapService {
+  @override
+  Future<MemberBootstrap> bootstrap() async => MemberBootstrap(
+    accountId: 'fixture-account',
+    resetGeneration: 0,
+    onboarding: MemberOnboardingGate.incomplete(
+      nextStep: 'welcome',
+      version: 1,
+    ),
+    entitlement: const MemberEntitlement(
+      planCode: 'demo-free',
+      status: MemberEntitlementStatus.active,
+    ),
+    defaultPortfolioId: 'fixture-portfolio',
+    serverTime: DateTime.utc(2026, 8, 28),
+    contractVersion: '1.0.0',
+    themePreference: MemberThemePreference.system,
+  );
+}
+
+class _CompletingOnboardingRepository implements OnboardingRepository {
+  final List<OnboardingFinalizationCommand> commands = [];
+
+  @override
+  Future<MemberBootstrap> finalize(
+    OnboardingFinalizationCommand command,
+  ) async {
+    commands.add(command);
+    return _CompletedBootstrapService().bootstrap();
+  }
 }
 
 class _UnusedOnboardingRepository implements OnboardingRepository {

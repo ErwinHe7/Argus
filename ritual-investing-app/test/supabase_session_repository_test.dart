@@ -2,141 +2,99 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/auth/member_step_up.dart';
 import 'package:ritual_investing_app/core/auth/supabase_session_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _userId = '11111111-1111-4111-8111-111111111111';
-const _otherUserId = '22222222-2222-4222-8222-222222222222';
 const _sessionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 const _newSessionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 final _now = DateTime.utc(2026, 8, 28, 12);
 
 void main() {
-  group('SupabaseSessionRepository', () {
+  group('SupabaseFlutterAuthClient', () {
     test(
-      'sign-in and sign-up use the same allowlisted PKCE OAuth seam',
+      'translates hosted invalid credentials into a safe domain reason',
       () async {
-        final client = _FakeAuthClient();
-        final repository = _repository(client);
-        client.onLaunch = () => client.emit(
-          MemberSessionEvent.signedIn,
-          _session(authenticatedAt: _now),
-        );
-
-        final signIn = await repository.authenticate(
-          const MemberAuthIntent.signIn(),
-        );
-        final signUp = await repository.authenticate(
-          const MemberAuthIntent.signUp(),
-        );
-
-        expect(signIn.userId, _userId);
-        expect(signUp.sessionId, _sessionId);
-        expect(client.launches, hasLength(2));
-        for (final launch in client.launches) {
-          expect(launch.provider, MemberAuthProvider.google);
-          expect(
-            launch.redirectTo,
-            Uri.parse('https://just-build-this.app/mobile/argus-auth/callback'),
-          );
-          expect(launch.scopes, 'openid email profile');
-          expect(launch.queryParameters, isEmpty);
-        }
-        expect(
-          repository.memberClientExpectation.issuer,
-          'https://project.supabase.co/auth/v1',
-        );
-        expect(repository.memberClientExpectation.audience, 'authenticated');
-      },
-    );
-
-    test('cancelled hosted auth does not retain a callback listener', () async {
-      final client = _FakeAuthClient(launchResult: false);
-
-      await expectLater(
-        _repository(client).authenticate(const MemberAuthIntent.signIn()),
-        throwsA(isA<MemberAuthCancelled>()),
-      );
-
-      expect(client.hasEventListener, isFalse);
-    });
-
-    test(
-      'recent auth requests a Google account prompt and proves fresh AMR',
-      () async {
-        final client = _FakeAuthClient(
-          current: _session(
-            authenticatedAt: _now.subtract(const Duration(hours: 2)),
+        final supabase = SupabaseClient(
+          'https://project.supabase.co',
+          'publishable-key',
+          httpClient: MockClient(
+            (_) async => http.Response(
+              jsonEncode({
+                'code': 'invalid_credentials',
+                'error_code': 'invalid_credentials',
+                'msg': 'Invalid login credentials',
+              }),
+              400,
+              headers: {
+                'content-type': 'application/json',
+                'x-supabase-api-version': '2024-01-01',
+              },
+            ),
           ),
         );
-        final repository = _repository(client);
-        client.onLaunch = () => client.emit(
-          MemberSessionEvent.signedIn,
-          _session(sessionId: _newSessionId, authenticatedAt: _now),
-        );
-
-        final result = await repository.authenticate(
-          const MemberAuthIntent.recentAuth(maxAge: Duration(minutes: 5)),
-        );
-
-        expect(result.userId, _userId);
-        expect(result.sessionId, _newSessionId);
-        expect(
-          client.launches.single.queryParameters['prompt'],
-          'select_account',
-        );
-        expect(client.launches.single.queryParameters['max_age'], '300');
-        expect(
-          client.launches.single.queryParameters['claims'],
-          contains('auth_time'),
-        );
-      },
-    );
-
-    test('recent auth rejects a different returned Supabase user', () async {
-      final client = _FakeAuthClient(current: _session(authenticatedAt: _now));
-      final repository = _repository(client);
-      client.onLaunch = () => client.emit(
-        MemberSessionEvent.signedIn,
-        _session(userId: _otherUserId, authenticatedAt: _now),
-      );
-
-      await expectLater(
-        repository.authenticate(
-          const MemberAuthIntent.recentAuth(maxAge: Duration(minutes: 5)),
-        ),
-        throwsA(isA<MemberAccountMismatch>()),
-      );
-    });
-
-    test(
-      'Apple recent auth fails closed because freshness is not provable',
-      () async {
-        final client = _FakeAuthClient(
-          current: _session(authenticatedAt: _now),
-        );
-        final repository = _repository(
-          client,
-          provider: MemberAuthProvider.apple,
-        );
+        addTearDown(supabase.dispose);
 
         await expectLater(
-          repository.authenticate(
-            const MemberAuthIntent.recentAuth(maxAge: Duration(minutes: 5)),
+          SupabaseFlutterAuthClient(supabase).signInWithPassword(
+            email: 'beta@example.com',
+            password: 'incorrect',
           ),
           throwsA(
             isA<MemberAuthUnavailable>().having(
               (error) => error.reason,
               'reason',
-              'recent_auth_not_supported_by_provider',
+              'invalid_credentials',
             ),
           ),
         );
-        expect(client.launches, isEmpty);
       },
     );
+  });
+
+  group('SupabaseSessionRepository', () {
+    test('password sign in validates the returned Supabase session', () async {
+      final client = _FakeAuthClient(passwordResult: _session());
+      final repository = _repository(client);
+
+      final result = await repository.signInWithPassword(
+        email: 'beta@example.com',
+        password: 'correct horse battery staple',
+      );
+
+      expect(result.userId, _userId);
+      expect(result.sessionId, _sessionId);
+      expect(client.passwordSignIns, [
+        const _PasswordSignIn(
+          email: 'beta@example.com',
+          password: 'correct horse battery staple',
+        ),
+      ]);
+    });
+
+    test('password sign up validates the returned Supabase session', () async {
+      final client = _FakeAuthClient(passwordResult: _session());
+      final repository = _repository(client);
+
+      final result = await repository.signUpWithPassword(
+        email: 'new-member@example.com',
+        password: 'correct horse battery staple',
+      );
+
+      expect(result.userId, _userId);
+      expect(result.sessionId, _sessionId);
+      expect(client.passwordSignUps, [
+        const _PasswordSignIn(
+          email: 'new-member@example.com',
+          password: 'correct horse battery staple',
+        ),
+      ]);
+    });
 
     test(
       'restore refreshes an expired or near-expiry stored session first',
@@ -488,17 +446,12 @@ void main() {
   });
 }
 
-SupabaseSessionRepository _repository(
-  _FakeAuthClient client, {
-  MemberAuthProvider provider = MemberAuthProvider.google,
-}) => SupabaseSessionRepository(
-  client: client,
-  provider: provider,
-  nativeLinks: _links(),
-  supabaseUrl: Uri.parse('https://project.supabase.co'),
-  now: () => _now,
-  oauthCompletionTimeout: const Duration(seconds: 1),
-);
+SupabaseSessionRepository _repository(_FakeAuthClient client) =>
+    SupabaseSessionRepository(
+      client: client,
+      supabaseUrl: Uri.parse('https://project.supabase.co'),
+      now: () => _now,
+    );
 
 MemberNativeLinkPolicy _links() => MemberNativeLinkPolicy.parse(
   argusAuthAllowlist:
@@ -529,7 +482,7 @@ MemberSupabaseSession _session({
     if (authenticatedAt != null)
       'amr': [
         {
-          'method': 'oauth',
+          'method': 'password',
           'timestamp': authenticatedAt.millisecondsSinceEpoch ~/ 1000,
         },
       ],
@@ -543,17 +496,20 @@ MemberSupabaseSession _session({
   );
 }
 
-class _OAuthLaunch {
-  const _OAuthLaunch({
-    required this.provider,
-    required this.redirectTo,
-    required this.scopes,
-    required this.queryParameters,
-  });
-  final MemberAuthProvider provider;
-  final Uri redirectTo;
-  final String scopes;
-  final Map<String, String> queryParameters;
+class _PasswordSignIn {
+  const _PasswordSignIn({required this.email, required this.password});
+
+  final String email;
+  final String password;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _PasswordSignIn &&
+      other.email == email &&
+      other.password == password;
+
+  @override
+  int get hashCode => Object.hash(email, password);
 }
 
 class _FakeAuthClient implements MemberSupabaseAuthClient {
@@ -561,7 +517,7 @@ class _FakeAuthClient implements MemberSupabaseAuthClient {
     this.current,
     this.refreshed,
     this.refreshError,
-    this.launchResult = true,
+    this.passwordResult,
   });
 
   final StreamController<MemberSupabaseAuthChange> _events =
@@ -569,16 +525,14 @@ class _FakeAuthClient implements MemberSupabaseAuthClient {
   MemberSupabaseSession? current;
   MemberSupabaseSession? refreshed;
   Object? refreshError;
-  bool launchResult;
-  void Function()? onLaunch;
-  final List<_OAuthLaunch> launches = [];
+  MemberSupabaseSession? passwordResult;
+  final List<_PasswordSignIn> passwordSignIns = [];
+  final List<_PasswordSignIn> passwordSignUps = [];
   final List<MemberLogoutScope> logoutScopes = [];
   int refreshCalls = 0;
 
   @override
   Stream<MemberSupabaseAuthChange> get events => _events.stream;
-
-  bool get hasEventListener => _events.hasListener;
 
   void emit(MemberSessionEvent event, MemberSupabaseSession? session) {
     current = session;
@@ -596,22 +550,21 @@ class _FakeAuthClient implements MemberSupabaseAuthClient {
   }
 
   @override
-  Future<bool> launchOAuth({
-    required MemberAuthProvider provider,
-    required Uri redirectTo,
-    required String scopes,
-    required Map<String, String> queryParameters,
+  Future<MemberSupabaseSession> signInWithPassword({
+    required String email,
+    required String password,
   }) async {
-    launches.add(
-      _OAuthLaunch(
-        provider: provider,
-        redirectTo: redirectTo,
-        scopes: scopes,
-        queryParameters: queryParameters,
-      ),
-    );
-    onLaunch?.call();
-    return launchResult;
+    passwordSignIns.add(_PasswordSignIn(email: email, password: password));
+    return passwordResult ?? (throw StateError('No password result.'));
+  }
+
+  @override
+  Future<MemberSupabaseSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    passwordSignUps.add(_PasswordSignIn(email: email, password: password));
+    return passwordResult ?? (throw StateError('No password result.'));
   }
 
   @override

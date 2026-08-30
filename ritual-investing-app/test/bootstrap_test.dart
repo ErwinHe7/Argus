@@ -584,10 +584,6 @@ class _RecoveringSessionRepository implements SessionRepository {
       _recoveries.add(const AuthSession(accessToken: 'recovered-access-token'));
 
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async =>
-      const AuthSession(accessToken: 'access-token');
-
-  @override
   Future<AuthSession?> recover() async => null;
 
   @override
@@ -614,10 +610,6 @@ class _SequencedRecoveryRepository implements SessionRepository {
       _stream.add(const AuthSession(accessToken: 'recovered-access-token'));
 
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async =>
-      const AuthSession(accessToken: 'access-token');
-
-  @override
   Future<AuthSession?> recover() => recoveries[_recoveryIndex++];
 
   @override
@@ -633,10 +625,6 @@ class _SignedInSessionRepository implements SessionRepository {
 
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
-
-  @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async =>
-      const AuthSession(accessToken: 'access-token');
 
   @override
   Future<AuthSession?> recover() async =>

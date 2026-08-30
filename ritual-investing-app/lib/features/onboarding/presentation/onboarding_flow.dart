@@ -43,7 +43,7 @@ class WelcomeScreen extends StatelessWidget {
           TextButton(
             key: const Key('welcome-sign-in'),
             onPressed: onSignIn,
-            child: const Text('Sign in'),
+            child: const Text('I have an account'),
           ),
         ],
       ),
@@ -288,7 +288,8 @@ class OnboardingReviewScreen extends StatelessWidget {
     super.key,
     required this.controller,
     required this.onEdit,
-    required this.onCreateAccount,
+    required this.onPrimaryAction,
+    this.primaryActionLabel = 'Create account',
     this.onBack,
     this.onDraftChanged,
     this.persistenceMessage,
@@ -297,7 +298,8 @@ class OnboardingReviewScreen extends StatelessWidget {
 
   final OnboardingController controller;
   final ValueChanged<OnboardingStep> onEdit;
-  final VoidCallback onCreateAccount;
+  final VoidCallback onPrimaryAction;
+  final String primaryActionLabel;
   final VoidCallback? onBack;
   final ValueChanged<OnboardingDraft>? onDraftChanged;
   final String? persistenceMessage;
@@ -388,9 +390,9 @@ class OnboardingReviewScreen extends StatelessWidget {
               FilledButton(
                 key: const Key('review-create-account'),
                 onPressed: controller.isReadyForAuthentication
-                    ? onCreateAccount
+                    ? onPrimaryAction
                     : null,
-                child: const Text('Create account'),
+                child: Text(primaryActionLabel),
               ),
             ],
           ),

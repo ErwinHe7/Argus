@@ -96,9 +96,11 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       return switch (entry.state.destination) {
         EntryDestination.restoring ||
         EntryDestination.finalizing => MemberEntryGate.restoring,
-        EntryDestination.welcome ||
-        EntryDestination.questionnaire ||
-        EntryDestination.review => MemberEntryGate.signedOut,
+        EntryDestination.welcome => MemberEntryGate.signedOut,
+        EntryDestination.questionnaire || EntryDestination.review =>
+          authController.state.phase == AuthPhase.signedIn
+              ? MemberEntryGate.onboarding
+              : MemberEntryGate.signedOut,
         EntryDestination.failure => MemberEntryGate.failure,
         EntryDestination.reconcile ||
         EntryDestination.authenticatedRecovery => MemberEntryGate.onboarding,
@@ -267,11 +269,16 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
     });
   }
 
-  Future<void> login() {
+  Future<void> signInWithPassword({
+    required String email,
+    required String password,
+  }) {
     final coordinator = entryCoordinator;
-    if (coordinator != null) return coordinator.signIn();
+    if (coordinator != null) {
+      return coordinator.signInWithPassword(email: email, password: password);
+    }
     return _runRestoration(() async {
-      await authController.login();
+      await authController.signInWithPassword(email: email, password: password);
       await _loadAuthenticatedState();
     });
   }
@@ -288,12 +295,19 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
     await coordinator.beginQuestionnaire(onboardingController.draft);
   }
 
-  Future<void> createAccount() async {
+  Future<void> createAccountWithPassword({
+    required String email,
+    required String password,
+  }) async {
     final coordinator = entryCoordinator;
     if (coordinator == null) {
       throw StateError('Guided onboarding is unavailable.');
     }
-    await coordinator.createAccount(onboardingController.draft);
+    await coordinator.createAccountWithPassword(
+      reviewedDraft: onboardingController.draft,
+      email: email,
+      password: password,
+    );
   }
 
   Future<void> attachOnboardingDraft() async {

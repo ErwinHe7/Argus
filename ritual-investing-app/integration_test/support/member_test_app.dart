@@ -154,8 +154,10 @@ class GuidedMemberTestHarness {
   final List<Map<String, dynamic>> finalizationPayloads = [];
   final List<String> idempotencyKeys = [];
 
-  List<MemberAuthIntent> get authIntents =>
-      List.unmodifiable(_sessions.intents);
+  List<({String email, String password})> get passwordSignIns =>
+      List.unmodifiable(_sessions.passwordSignIns);
+  List<({String email, String password})> get passwordSignUps =>
+      List.unmodifiable(_sessions.passwordSignUps);
   Map<String, String> get protectedValues => Map.unmodifiable(_storage.values);
   List<String> get financeOrBankingRequests => requestPaths
       .where(
@@ -383,10 +385,6 @@ class _LocalMemberSessionRepository implements SessionRepository {
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
 
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async =>
-      const AuthSession(accessToken: MemberTestHarness._accessToken);
-
-  @override
   Future<AuthSession?> recover() async =>
       const AuthSession(accessToken: MemberTestHarness._accessToken);
 
@@ -407,8 +405,10 @@ class _LocalProtectedStorage implements ProtectedStorage {
   Future<void> write(String key, String value) async => values[key] = value;
 }
 
-class _GuidedSessionRepository implements SessionRepository {
-  final List<MemberAuthIntent> intents = [];
+class _GuidedSessionRepository
+    implements SessionRepository, PasswordSessionRepository {
+  final List<({String email, String password})> passwordSignIns = [];
+  final List<({String email, String password})> passwordSignUps = [];
   AuthSession? _session;
 
   @override
@@ -419,8 +419,22 @@ class _GuidedSessionRepository implements SessionRepository {
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
 
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async {
-    intents.add(intent);
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    passwordSignIns.add((email: email, password: password));
+    return _session = const AuthSession(
+      accessToken: GuidedMemberTestHarness._accessToken,
+    );
+  }
+
+  @override
+  Future<AuthSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    passwordSignUps.add((email: email, password: password));
     return _session = const AuthSession(
       accessToken: GuidedMemberTestHarness._accessToken,
     );

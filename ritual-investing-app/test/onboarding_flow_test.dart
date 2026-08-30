@@ -204,7 +204,7 @@ void main() {
         home: OnboardingReviewScreen(
           controller: controller,
           onEdit: (_) {},
-          onCreateAccount: () => createCalls++,
+          onPrimaryAction: () => createCalls++,
         ),
       ),
     );

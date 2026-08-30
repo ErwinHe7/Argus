@@ -164,10 +164,16 @@ class EntryCoordinator extends ChangeNotifier {
     await _startBrokerageNativeLinks();
   }
 
-  Future<void> signIn() async {
+  Future<void> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
     await _readDraft();
     _set(EntryDestination.restoring);
-    final result = await authController.signIn();
+    final result = await authController.signInWithPassword(
+      email: email,
+      password: password,
+    );
     switch (result) {
       case MemberAuthResult.authenticated:
         await _reconcileAuthenticated();
@@ -177,14 +183,20 @@ class EntryCoordinator extends ChangeNotifier {
       case MemberAuthResult.unavailable:
         _set(
           EntryDestination.failure,
-          message: 'Sign-in is temporarily unavailable.',
+          message:
+              authController.state.message ??
+              'Sign-in is temporarily unavailable.',
           canRetry: true,
           retryAction: EntryRetryAction.restore,
         );
     }
   }
 
-  Future<void> createAccount(OnboardingDraft reviewedDraft) async {
+  Future<void> createAccountWithPassword({
+    required OnboardingDraft reviewedDraft,
+    required String email,
+    required String password,
+  }) async {
     _draft = reviewedDraft;
     _draftStatus = DraftReadStatus.available;
     try {
@@ -194,7 +206,10 @@ class EntryCoordinator extends ChangeNotifier {
       return;
     }
     _set(EntryDestination.restoring);
-    final result = await authController.signUp();
+    final result = await authController.signUpWithPassword(
+      email: email,
+      password: password,
+    );
     switch (result) {
       case MemberAuthResult.authenticated:
         await _reconcileAuthenticated();
@@ -204,7 +219,9 @@ class EntryCoordinator extends ChangeNotifier {
       case MemberAuthResult.unavailable:
         _set(
           EntryDestination.review,
-          message: 'The connection was interrupted. Your answers are safe.',
+          message:
+              authController.state.message ??
+              'Account creation is temporarily unavailable.',
           canRetry: true,
         );
     }

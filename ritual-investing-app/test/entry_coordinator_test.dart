@@ -39,15 +39,39 @@ void main() {
         bootstraps: [_bootstrap(complete: false, version: 4)],
       );
 
-      await fixture.coordinator.signIn();
+      await fixture.coordinator.signInWithPassword(
+        email: 'beta@example.com',
+        password: 'correct horse battery staple',
+      );
 
-      expect(sessions.intents, [const MemberAuthIntent.signIn()]);
+      expect(sessions.passwordSignIns, [
+        (email: 'beta@example.com', password: 'correct horse battery staple'),
+      ]);
       expect(
         fixture.coordinator.state.destination,
         EntryDestination.authenticatedRecovery,
       );
     },
   );
+
+  test('password sign in preserves the actionable auth failure', () async {
+    final sessions = _SessionRepository(
+      restoredSession: null,
+      authenticationError: const MemberAuthUnavailable('email_not_confirmed'),
+    );
+    final fixture = await _fixture(sessionRepository: sessions, bootstraps: []);
+
+    await fixture.coordinator.signInWithPassword(
+      email: 'beta@example.com',
+      password: 'correct horse battery staple',
+    );
+
+    expect(fixture.coordinator.state.destination, EntryDestination.failure);
+    expect(
+      fixture.coordinator.state.message,
+      'Confirm your email before signing in.',
+    );
+  });
 
   test(
     'Auth cancellation returns to editable review with draft intact',
@@ -61,7 +85,11 @@ void main() {
         bootstraps: [],
       );
 
-      await fixture.coordinator.createAccount(_draft());
+      await fixture.coordinator.createAccountWithPassword(
+        reviewedDraft: _draft(),
+        email: 'new-member@example.com',
+        password: 'correct horse battery staple',
+      );
 
       expect(fixture.coordinator.state.destination, EntryDestination.review);
       expect(fixture.coordinator.state.message, isNull);
@@ -184,12 +212,19 @@ void main() {
     final fixture = await _fixture(sessionRepository: sessions, bootstraps: []);
     fixture.storage.writeError = const ProtectedStorageLocked();
 
-    await expectLater(fixture.coordinator.createAccount(_draft()), completes);
+    await expectLater(
+      fixture.coordinator.createAccountWithPassword(
+        reviewedDraft: _draft(),
+        email: 'new-member@example.com',
+        password: 'correct horse battery staple',
+      ),
+      completes,
+    );
 
     expect(fixture.coordinator.state.destination, EntryDestination.review);
     expect(fixture.coordinator.state.draft, _draft());
     expect(fixture.coordinator.state.message, contains('device'));
-    expect(sessions.intents, isEmpty);
+    expect(sessions.passwordSignUps, isEmpty);
   });
 
   test('discard failure becomes a safe actionable state', () async {
@@ -381,11 +416,13 @@ class _Fixture {
   final List<MemberBootstrap> applied;
 }
 
-class _SessionRepository implements SessionRepository {
+class _SessionRepository
+    implements SessionRepository, PasswordSessionRepository {
   _SessionRepository({required this.restoredSession, this.authenticationError});
   final AuthSession? restoredSession;
   final Object? authenticationError;
-  final List<MemberAuthIntent> intents = [];
+  final List<({String email, String password})> passwordSignIns = [];
+  final List<({String email, String password})> passwordSignUps = [];
   int logoutCalls = 0;
 
   @override
@@ -394,8 +431,22 @@ class _SessionRepository implements SessionRepository {
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async {
-    intents.add(intent);
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    passwordSignIns.add((email: email, password: password));
+    final error = authenticationError;
+    if (error != null) throw error;
+    return const AuthSession(accessToken: 'token');
+  }
+
+  @override
+  Future<AuthSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    passwordSignUps.add((email: email, password: password));
     final error = authenticationError;
     if (error != null) throw error;
     return const AuthSession(accessToken: 'token');

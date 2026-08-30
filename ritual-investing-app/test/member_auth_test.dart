@@ -3,16 +3,25 @@ import 'package:ritual_investing_app/core/auth/auth_controller.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 
 void main() {
-  test('controller preserves SDK-free sign-in and sign-up intent', () async {
+  test('controller delegates sign-in and sign-up credentials', () async {
     final repository = _RecordingMemberAuthRepository();
     final controller = AuthController(repository: repository);
+    addTearDown(controller.dispose);
 
-    await controller.signIn();
-    await controller.signUp();
+    await controller.signInWithPassword(
+      email: 'member@example.com',
+      password: 'sign-in-password',
+    );
+    await controller.signUpWithPassword(
+      email: 'new-member@example.com',
+      password: 'sign-up-password',
+    );
 
-    expect(repository.intents, const [
-      MemberAuthIntent.signIn(),
-      MemberAuthIntent.signUp(),
+    expect(repository.signIns, const [
+      (email: 'member@example.com', password: 'sign-in-password'),
+    ]);
+    expect(repository.signUps, const [
+      (email: 'new-member@example.com', password: 'sign-up-password'),
     ]);
     expect(
       controller.memberClientExpectation.issuer,
@@ -20,16 +29,20 @@ void main() {
     );
   });
 
-  test('recent authentication retains the exact maxAge boundary', () async {
-    final repository = _RecordingMemberAuthRepository();
-    final controller = AuthController(repository: repository);
-
-    await controller.reauthenticate(const Duration(minutes: 5));
-
-    expect(
-      repository.intents.single,
-      const MemberAuthIntent.recentAuth(maxAge: Duration(minutes: 5)),
+  test('recent authentication accepts a fresh password session', () async {
+    final repository = _RecordingMemberAuthRepository(
+      recoveredSession: AuthSession(
+        accessToken: 'fresh-access-token',
+        authenticatedAt: DateTime.now().toUtc(),
+      ),
     );
+    final controller = AuthController(repository: repository);
+    addTearDown(controller.dispose);
+
+    final session = await controller.reauthenticate(const Duration(minutes: 5));
+
+    expect(session.accessToken, 'fresh-access-token');
+    expect(repository.recoveryCalls, 1);
   });
 
   test(
@@ -46,8 +59,16 @@ void main() {
   );
 }
 
-class _RecordingMemberAuthRepository implements SessionRepository {
-  final List<MemberAuthIntent> intents = [];
+class _RecordingMemberAuthRepository
+    implements SessionRepository, PasswordSessionRepository {
+  _RecordingMemberAuthRepository({AuthSession? recoveredSession})
+    : recoveredSession =
+          recoveredSession ??
+          const AuthSession(accessToken: 'recovered-access-token');
+
+  final AuthSession recoveredSession;
+  final List<({String email, String password})> signIns = [];
+  final List<({String email, String password})> signUps = [];
   int recoveryCalls = 0;
 
   @override
@@ -58,15 +79,27 @@ class _RecordingMemberAuthRepository implements SessionRepository {
       const MemberClientExpectation(issuer: 'https://member-auth.test/auth/v1');
 
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async {
-    intents.add(intent);
-    return const AuthSession(accessToken: 'access-token');
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    signIns.add((email: email, password: password));
+    return const AuthSession(accessToken: 'sign-in-access-token');
+  }
+
+  @override
+  Future<AuthSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    signUps.add((email: email, password: password));
+    return const AuthSession(accessToken: 'sign-up-access-token');
   }
 
   @override
   Future<AuthSession?> recover() async {
     recoveryCalls++;
-    return const AuthSession(accessToken: 'recovered-access-token');
+    return recoveredSession;
   }
 
   @override

@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/member_sign_in_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
+import '../auth/auth_controller.dart';
 import '../bootstrap/dependency_container.dart';
 import '../bootstrap/entry_coordinator.dart';
 import 'member_app_router.dart';
@@ -29,15 +31,31 @@ GoRouter createAppRouter({
             : null;
         final isQuestionnaire =
             _questionStep(stepName) != null || path == '/onboarding/review';
-        final isEntry = path == '/welcome' || path == '/entry' || isOnboarding;
+        final isAuthenticated =
+            container.authController.state.phase == AuthPhase.signedIn;
+        final isEntry =
+            path == '/welcome' ||
+            path == '/sign-in' ||
+            path == '/create-account' ||
+            path == '/entry' ||
+            isOnboarding;
         return switch (coordinator.state.destination) {
           EntryDestination.restoring ||
           EntryDestination.finalizing => path == '/entry' ? null : '/entry',
-          EntryDestination.welcome => path == '/welcome' ? null : '/welcome',
+          EntryDestination.welcome =>
+            path == '/welcome' || path == '/sign-in' ? null : '/welcome',
           EntryDestination.questionnaire =>
-            isQuestionnaire ? null : '/onboarding/experience',
+            path == '/create-account' && isAuthenticated
+                ? '/onboarding/review'
+                : isQuestionnaire || path == '/create-account'
+                ? null
+                : '/onboarding/experience',
           EntryDestination.review =>
-            path == '/onboarding/review' ? null : '/onboarding/review',
+            path == '/create-account' && isAuthenticated
+                ? '/onboarding/review'
+                : path == '/onboarding/review' || path == '/create-account'
+                ? null
+                : '/onboarding/review',
           EntryDestination.reconcile =>
             path == '/onboarding/reconcile' ? null : '/onboarding/reconcile',
           EntryDestination.authenticatedRecovery =>
@@ -47,8 +65,13 @@ GoRouter createAppRouter({
             isEntry || path == '/' ? MemberRoutes.ritual.path : null,
         };
       }
-      final atEntry = state.uri.path == '/entry';
+      final atEntry =
+          state.uri.path == '/entry' || state.uri.path == '/sign-in';
       if (container.entryGate != MemberEntryGate.member) {
+        if (container.entryGate == MemberEntryGate.signedOut &&
+            state.uri.path == '/sign-in') {
+          return null;
+        }
         return atEntry ? null : '/entry';
       }
       return atEntry || state.uri.path == '/' ? MemberRoutes.ritual.path : null;
@@ -59,7 +82,26 @@ GoRouter createAppRouter({
         builder: (context, state) => WelcomeScreen(
           onGetStarted: () =>
               _runUiAction(context, container.beginQuestionnaire),
-          onSignIn: () => _runUiAction(context, container.login),
+          onSignIn: () => context.push('/sign-in'),
+        ),
+      ),
+      GoRoute(
+        path: '/sign-in',
+        builder: (context, state) => MemberSignInScreen(
+          onSubmit: (email, password) =>
+              container.signInWithPassword(email: email, password: password),
+        ),
+      ),
+      GoRoute(
+        path: '/create-account',
+        builder: (context, state) => MemberSignInScreen(
+          title: 'Create account',
+          submitLabel: 'Create account',
+          submittingLabel: 'Creating account…',
+          onSubmit: (email, password) => container.createAccountWithPassword(
+            email: email,
+            password: password,
+          ),
         ),
       ),
       GoRoute(
@@ -80,7 +122,14 @@ GoRouter createAppRouter({
             container.onboardingController.goTo(previous);
             context.go('/onboarding/${previous.name}');
           },
-          onCreateAccount: () => _runUiAction(context, container.createAccount),
+          primaryActionLabel:
+              container.authController.state.phase == AuthPhase.signedIn
+              ? 'Finish setup'
+              : 'Create account',
+          onPrimaryAction:
+              container.authController.state.phase == AuthPhase.signedIn
+              ? () => _runUiAction(context, container.attachOnboardingDraft)
+              : () => context.push('/create-account'),
           onDraftChanged: (draft) => _runUiAction(
             context,
             () => container.persistOnboardingDraft(draft),
@@ -305,7 +354,7 @@ class _EntryGate extends StatelessWidget {
       MemberEntryGate.signedOut => (
         'Sign in to continue your private ritual.',
         'Sign in',
-        container.login,
+        () async => context.go('/sign-in'),
         null,
         null,
       ),

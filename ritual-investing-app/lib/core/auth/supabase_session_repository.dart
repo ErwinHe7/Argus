@@ -32,11 +32,14 @@ abstract interface class MemberSupabaseAuthClient {
 
   Future<MemberSupabaseSession> refreshCurrentSession();
 
-  Future<bool> launchOAuth({
-    required MemberAuthProvider provider,
-    required Uri redirectTo,
-    required String scopes,
-    required Map<String, String> queryParameters,
+  Future<MemberSupabaseSession> signInWithPassword({
+    required String email,
+    required String password,
+  });
+
+  Future<MemberSupabaseSession> signUpWithPassword({
+    required String email,
+    required String password,
   });
 
   Future<void> signOut(MemberLogoutScope scope);
@@ -68,21 +71,49 @@ class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
   }
 
   @override
-  Future<bool> launchOAuth({
-    required MemberAuthProvider provider,
-    required Uri redirectTo,
-    required String scopes,
-    required Map<String, String> queryParameters,
-  }) => _client.auth.signInWithOAuth(
-    switch (provider) {
-      MemberAuthProvider.apple => OAuthProvider.apple,
-      MemberAuthProvider.google => OAuthProvider.google,
-    },
-    redirectTo: redirectTo.toString(),
-    scopes: scopes,
-    queryParams: queryParameters,
-    authScreenLaunchMode: LaunchMode.externalApplication,
-  );
+  Future<MemberSupabaseSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final AuthResponse response;
+    try {
+      response = await _client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+    } on AuthException catch (error) {
+      final reason = error.code?.trim();
+      throw MemberAuthUnavailable(
+        reason == null || reason.isEmpty ? 'auth_request_failed' : reason,
+      );
+    }
+    final session = _snapshot(response.session);
+    if (session == null) {
+      throw const MemberAuthUnavailable('password_session_missing');
+    }
+    return session;
+  }
+
+  @override
+  Future<MemberSupabaseSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final AuthResponse response;
+    try {
+      response = await _client.auth.signUp(email: email, password: password);
+    } on AuthException catch (error) {
+      final reason = error.code?.trim();
+      throw MemberAuthUnavailable(
+        reason == null || reason.isEmpty ? 'auth_request_failed' : reason,
+      );
+    }
+    final session = _snapshot(response.session);
+    if (session == null) {
+      throw const MemberAuthUnavailable('email_confirmation_required');
+    }
+    return session;
+  }
 
   @override
   Future<void> signOut(MemberLogoutScope scope) => _client.auth.signOut(
@@ -113,14 +144,15 @@ class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
 }
 
 class SupabaseSessionRepository
-    implements SessionRepository, SessionChangeRepository, ScopedSessionLogout {
+    implements
+        SessionRepository,
+        PasswordSessionRepository,
+        SessionChangeRepository,
+        ScopedSessionLogout {
   SupabaseSessionRepository({
     required MemberSupabaseAuthClient client,
-    required this.provider,
-    required this.nativeLinks,
     required Uri supabaseUrl,
     DateTime Function()? now,
-    this.oauthCompletionTimeout = const Duration(minutes: 5),
   }) : _client = client,
        _now = now ?? DateTime.now,
        memberClientExpectation = MemberClientExpectation(
@@ -130,21 +162,14 @@ class SupabaseSessionRepository
 
   factory SupabaseSessionRepository.production({
     required SupabaseClient client,
-    required MemberAuthProvider provider,
-    required MemberNativeLinkPolicy nativeLinks,
     required Uri supabaseUrl,
   }) => SupabaseSessionRepository(
     client: SupabaseFlutterAuthClient(client),
-    provider: provider,
-    nativeLinks: nativeLinks,
     supabaseUrl: supabaseUrl,
   );
 
   final MemberSupabaseAuthClient _client;
   final DateTime Function() _now;
-  final MemberAuthProvider provider;
-  final MemberNativeLinkPolicy nativeLinks;
-  final Duration oauthCompletionTimeout;
 
   @override
   final MemberClientExpectation memberClientExpectation;
@@ -163,68 +188,20 @@ class SupabaseSessionRepository
       .map((change) => change.session!);
 
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async {
-    AuthSession? existing;
-    if (intent.kind == MemberAuthIntentKind.recentAuth) {
-      existing = await recover();
-      if (existing == null) throw const MemberAuthUnavailable('no_session');
-      if (provider != MemberAuthProvider.google) {
-        throw const MemberAuthUnavailable(
-          'recent_auth_not_supported_by_provider',
-        );
-      }
-    }
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async => _validated(
+    await _client.signInWithPassword(email: email, password: password),
+  );
 
-    final completion = Completer<MemberSupabaseAuthChange>();
-    final subscription = _client.events.listen(
-      (change) {
-        if (!completion.isCompleted &&
-            change.event == MemberSessionEvent.signedIn &&
-            change.session != null) {
-          completion.complete(change);
-        }
-      },
-      onError: (Object error, StackTrace stackTrace) {
-        if (!completion.isCompleted) {
-          completion.completeError(error, stackTrace);
-        }
-      },
-    );
-    try {
-      final launched = await _client.launchOAuth(
-        provider: provider,
-        redirectTo: nativeLinks.preferredArgusAuthRedirect,
-        scopes: _scopes(provider),
-        queryParameters: _queryParameters(intent),
-      );
-      if (!launched) throw const MemberAuthCancelled();
-
-      late final MemberSupabaseAuthChange change;
-      try {
-        change = await completion.future.timeout(oauthCompletionTimeout);
-      } on TimeoutException {
-        throw const MemberAuthCancelled();
-      }
-      final session = _validated(change.session!);
-      if (existing != null) {
-        if (existing.userId != session.userId) {
-          throw const MemberAccountMismatch();
-        }
-        final authenticatedAt = session.authenticatedAt;
-        final maximumAge = intent.maxAge!;
-        if (authenticatedAt == null ||
-            authenticatedAt.isAfter(
-              _now().toUtc().add(const Duration(seconds: 30)),
-            ) ||
-            _now().toUtc().difference(authenticatedAt) > maximumAge) {
-          throw const MemberAuthUnavailable('recent_auth_not_proven');
-        }
-      }
-      return session;
-    } finally {
-      await subscription.cancel();
-    }
-  }
+  @override
+  Future<AuthSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async => _validated(
+    await _client.signUpWithPassword(email: email, password: password),
+  );
 
   @override
   Future<AuthSession?> recover() async {
@@ -285,24 +262,6 @@ class SupabaseSessionRepository
       expiresAt: expiresAt,
     );
   }
-
-  Map<String, String> _queryParameters(MemberAuthIntent intent) {
-    if (intent.kind != MemberAuthIntentKind.recentAuth) return const {};
-    return {
-      'prompt': 'select_account',
-      'max_age': intent.maxAge!.inSeconds.toString(),
-      'claims': jsonEncode({
-        'id_token': {
-          'auth_time': {'essential': true},
-        },
-      }),
-    };
-  }
-
-  static String _scopes(MemberAuthProvider provider) => switch (provider) {
-    MemberAuthProvider.apple => 'email name',
-    MemberAuthProvider.google => 'openid email profile',
-  };
 
   static DateTime? _authenticationTime(Object? raw) {
     if (raw is! List<dynamic>) return null;

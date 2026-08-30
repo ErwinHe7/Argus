@@ -148,6 +148,8 @@ class ProductionMemberFeatureScopeFactory {
           await authController.reauthenticate(const Duration(minutes: 5));
         } on MemberAuthCancelled {
           throw const RecentAuthCancelled();
+        } on MemberAuthUnavailable {
+          throw const RecentAuthRequired();
         }
       },
       authorizeDeletion: () async {
@@ -164,6 +166,8 @@ class ProductionMemberFeatureScopeFactory {
           );
         } on MemberAuthCancelled {
           throw const RecentAuthCancelled();
+        } on MemberAuthUnavailable {
+          throw const RecentAuthRequired();
         } on InvalidStepUpReceipt {
           throw const RecentAuthRequired();
         } on StepUpUnavailable {

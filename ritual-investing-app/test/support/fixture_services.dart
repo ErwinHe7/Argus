@@ -228,9 +228,6 @@ class _FixtureSessionRepository implements SessionRepository {
   Future<AuthSession?> recover() async =>
       const AuthSession(accessToken: 'fixture');
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async =>
-      const AuthSession(accessToken: 'fixture');
-  @override
   Future<void> logout() async {}
 }
 

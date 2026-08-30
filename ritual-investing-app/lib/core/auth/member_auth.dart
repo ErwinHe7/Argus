@@ -2,10 +2,6 @@
 
 import 'package:flutter/foundation.dart';
 
-enum MemberAuthIntentKind { signIn, signUp, recentAuth }
-
-enum MemberAuthProvider { apple, google }
-
 enum MemberLogoutScope { local, global }
 
 enum MemberSessionEvent {
@@ -20,39 +16,6 @@ enum MemberSessionEvent {
 }
 
 enum MemberNativeLinkKind { argusAuth, webullCompletion }
-
-class MemberAuthProviderAllowlist {
-  MemberAuthProviderAllowlist._(this.values);
-
-  factory MemberAuthProviderAllowlist.parse(String raw) {
-    final entries = raw.split(',').map((value) => value.trim()).toList();
-    if (entries.isEmpty || entries.any((value) => value.isEmpty)) {
-      throw const FormatException(
-        'The member Auth provider allowlist is empty.',
-      );
-    }
-    final providers = <MemberAuthProvider>[];
-    for (final entry in entries) {
-      final provider = switch (entry) {
-        'apple' => MemberAuthProvider.apple,
-        'google' => MemberAuthProvider.google,
-        _ => throw const FormatException(
-          'The member Auth provider allowlist contains an unsupported provider.',
-        ),
-      };
-      if (providers.contains(provider)) {
-        throw const FormatException(
-          'The member Auth provider allowlist contains a duplicate.',
-        );
-      }
-      providers.add(provider);
-    }
-    return MemberAuthProviderAllowlist._(List.unmodifiable(providers));
-  }
-
-  final List<MemberAuthProvider> values;
-  MemberAuthProvider get primary => values.first;
-}
 
 /// Exact native-link routing policy shared by SDK callback detection and the
 /// future Webull completion handler. It intentionally accepts no wildcards.
@@ -242,31 +205,6 @@ class MemberAccountMismatch implements Exception {
 }
 
 @immutable
-class MemberAuthIntent {
-  const MemberAuthIntent.signIn()
-    : kind = MemberAuthIntentKind.signIn,
-      maxAge = null;
-
-  const MemberAuthIntent.signUp()
-    : kind = MemberAuthIntentKind.signUp,
-      maxAge = null;
-
-  const MemberAuthIntent.recentAuth({required Duration maxAge})
-    : maxAge = maxAge,
-      kind = MemberAuthIntentKind.recentAuth;
-
-  final MemberAuthIntentKind kind;
-  final Duration? maxAge;
-
-  @override
-  bool operator ==(Object other) =>
-      other is MemberAuthIntent && other.kind == kind && other.maxAge == maxAge;
-
-  @override
-  int get hashCode => Object.hash(kind, maxAge);
-}
-
-@immutable
 class MemberClientExpectation {
   const MemberClientExpectation({
     required this.issuer,
@@ -305,9 +243,22 @@ class MemberSessionChange {
 abstract interface class SessionRepository {
   MemberClientExpectation get memberClientExpectation;
   Stream<AuthSession> get recoveredSessions;
-  Future<AuthSession> authenticate(MemberAuthIntent intent);
   Future<AuthSession?> recover();
   Future<void> logout();
+}
+
+/// Direct email/password authentication. Production repositories must never
+/// launch a hosted provider or external browser from these methods.
+abstract interface class PasswordSessionRepository {
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  });
+
+  Future<AuthSession> signUpWithPassword({
+    required String email,
+    required String password,
+  });
 }
 
 /// Optional richer session stream implemented by providers that expose

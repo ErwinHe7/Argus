@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:ritual_investing_app/app/ritual_investing_app.dart';
-import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/features/onboarding/data/onboarding_draft_store.dart';
 
 import 'support/member_test_app.dart';
@@ -31,9 +30,11 @@ void main() {
         'Reflection prompts',
       ]);
       await _answer(tester, 'Keep astrology general');
-      await _acceptReviewAndCreate(tester);
+      await _acceptReviewAndCreate(tester, harness);
 
-      expect(harness.authIntents, [const MemberAuthIntent.signUp()]);
+      expect(harness.passwordSignUps, const [
+        (email: 'new-member@example.com', password: 'test-password'),
+      ]);
       expect(find.byKey(const Key('app-shell-scaffold')), findsNothing);
       expect(find.text('Use these reviewed answers?'), findsOneWidget);
       expect(
@@ -113,7 +114,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('onboarding-next')));
     await tester.pumpAndSettle();
-    await _acceptReviewAndCreate(tester);
+    await _acceptReviewAndCreate(tester, harness);
 
     expect(find.text('Use these reviewed answers?'), findsOneWidget);
     await tester.tap(find.byKey(const Key('reconcile-attach')));
@@ -152,12 +153,24 @@ void main() {
 
     await tester.tap(find.byKey(const Key('welcome-sign-in')));
     await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-email')),
+      'returning-member@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-password')),
+      'local-test-password',
+    );
+    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.pumpAndSettle();
     await _pumpUntil(
       tester,
       () => find.text('YOUR DAILY SIGNAL').evaluate().isNotEmpty,
     );
 
-    expect(harness.authIntents, [const MemberAuthIntent.signIn()]);
+    expect(harness.passwordSignIns, const [
+      (email: 'returning-member@example.com', password: 'local-test-password'),
+    ]);
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
     expect(find.text('YOUR DAILY SIGNAL'), findsOneWidget);
     expect(find.text('How familiar are you with investing?'), findsNothing);
@@ -205,7 +218,10 @@ Future<void> _chooseInterests(
   await tester.pumpAndSettle();
 }
 
-Future<void> _acceptReviewAndCreate(WidgetTester tester) async {
+Future<void> _acceptReviewAndCreate(
+  WidgetTester tester,
+  GuidedMemberTestHarness harness,
+) async {
   for (final key in const [
     Key('consent-terms'),
     Key('consent-privacy'),
@@ -213,11 +229,43 @@ Future<void> _acceptReviewAndCreate(WidgetTester tester) async {
   ]) {
     await tester.ensureVisible(find.byKey(key));
     await tester.tap(find.byKey(key));
-    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(tester.widget<CheckboxListTile>(find.byKey(key)).value, isTrue);
   }
-  await tester.ensureVisible(find.byKey(const Key('review-create-account')));
-  await tester.tap(find.byKey(const Key('review-create-account')));
+  final createAccount = find.byKey(const Key('review-create-account'));
+  await _scrollTo(tester, createAccount);
+  final onCreateAccount = tester.widget<FilledButton>(createAccount).onPressed;
+  expect(onCreateAccount, isNotNull);
+  onCreateAccount!();
+  await _pumpUntil(
+    tester,
+    () => find.byKey(const Key('member-sign-in-email')).evaluate().isNotEmpty,
+    diagnostics: () =>
+        'destination=${harness.container.entryCoordinator!.state.destination}',
+  );
+  await tester.enterText(
+    find.byKey(const Key('member-sign-in-email')),
+    'new-member@example.com',
+  );
+  await tester.enterText(
+    find.byKey(const Key('member-sign-in-password')),
+    'test-password',
+  );
+  await tester.tap(find.byKey(const Key('member-sign-in-submit')));
   await tester.pumpAndSettle();
+}
+
+Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
+  final scrollable = find.byWidgetPredicate(
+    (widget) =>
+        widget is Scrollable && widget.axisDirection == AxisDirection.down,
+  );
+  for (var attempt = 0; attempt < 12; attempt++) {
+    if (finder.hitTestable().evaluate().isNotEmpty) return;
+    await tester.drag(scrollable, const Offset(0, -360));
+    await tester.pumpAndSettle();
+  }
+  expect(finder.hitTestable(), findsOneWidget);
 }
 
 Future<void> _pumpUntil(

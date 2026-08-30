@@ -61,20 +61,135 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       _repository.memberClientExpectation;
   Stream<void> get recoveredSessions => _recoveries.stream;
   Future<void> restore() => _run(_repository.recover);
-  Future<MemberAuthResult> login() => signIn();
-  Future<MemberAuthResult> signIn() =>
-      _authenticate(const MemberAuthIntent.signIn());
-  Future<MemberAuthResult> signUp() =>
-      _authenticate(const MemberAuthIntent.signUp());
-  Future<AuthSession> reauthenticate(Duration maxAge) async {
-    final expectedUser = _activeSession?.userId;
-    final session = await _repository.authenticate(
-      MemberAuthIntent.recentAuth(maxAge: maxAge),
-    );
-    if (expectedUser != null && session.userId != expectedUser) {
-      throw const MemberAccountMismatch();
+  Future<MemberAuthResult> signInWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final PasswordSessionRepository repository;
+    if (_repository case final PasswordSessionRepository supported) {
+      repository = supported;
+    } else {
+      _set(
+        const AuthState(
+          phase: AuthPhase.failure,
+          message: 'Sign-in is temporarily unavailable.',
+        ),
+      );
+      return MemberAuthResult.unavailable;
     }
-    _adoptSession(session);
+    _set(const AuthState(phase: AuthPhase.loading));
+    try {
+      final session = await repository.signInWithPassword(
+        email: email,
+        password: password,
+      );
+      _adoptSession(session);
+      return MemberAuthResult.authenticated;
+    } on MemberAuthCancelled {
+      _set(const AuthState(phase: AuthPhase.signedOut));
+      return MemberAuthResult.cancelled;
+    } on MemberAuthUnavailable catch (error) {
+      _set(
+        AuthState(
+          phase: AuthPhase.failure,
+          message: _passwordSignInMessage(error.reason),
+        ),
+      );
+      return MemberAuthResult.unavailable;
+    } on Object {
+      _set(
+        const AuthState(
+          phase: AuthPhase.failure,
+          message: 'Sign-in is temporarily unavailable.',
+        ),
+      );
+      return MemberAuthResult.unavailable;
+    }
+  }
+
+  Future<MemberAuthResult> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final PasswordSessionRepository repository;
+    if (_repository case final PasswordSessionRepository supported) {
+      repository = supported;
+    } else {
+      _set(
+        const AuthState(
+          phase: AuthPhase.failure,
+          message: 'Account creation is temporarily unavailable.',
+        ),
+      );
+      return MemberAuthResult.unavailable;
+    }
+    _set(const AuthState(phase: AuthPhase.loading));
+    try {
+      final session = await repository.signUpWithPassword(
+        email: email,
+        password: password,
+      );
+      _adoptSession(session);
+      return MemberAuthResult.authenticated;
+    } on MemberAuthCancelled {
+      _set(const AuthState(phase: AuthPhase.signedOut));
+      return MemberAuthResult.cancelled;
+    } on MemberAuthUnavailable catch (error) {
+      _set(
+        AuthState(
+          phase: AuthPhase.failure,
+          message: _passwordSignUpMessage(error.reason),
+        ),
+      );
+      return MemberAuthResult.unavailable;
+    } on Object {
+      _set(
+        const AuthState(
+          phase: AuthPhase.failure,
+          message: 'Account creation is temporarily unavailable.',
+        ),
+      );
+      return MemberAuthResult.unavailable;
+    }
+  }
+
+  static String _passwordSignInMessage(String reason) => switch (reason) {
+    'invalid_credentials' ||
+    'user_not_found' => 'Email or password is incorrect.',
+    'email_not_confirmed' => 'Confirm your email before signing in.',
+    'email_provider_disabled' => 'Email sign-in is not enabled for this beta.',
+    'user_banned' => 'This account cannot sign in.',
+    'over_request_rate_limit' ||
+    'over_email_send_rate_limit' ||
+    'over_sms_send_rate_limit' => 'Too many sign-in attempts. Try again later.',
+    _ => 'Sign-in is temporarily unavailable.',
+  };
+
+  static String _passwordSignUpMessage(String reason) => switch (reason) {
+    'email_confirmation_required' =>
+      'Check your email to confirm your account, then sign in.',
+    'email_exists' ||
+    'user_already_exists' => 'An account already exists for this email.',
+    'weak_password' => 'Choose a stronger password and try again.',
+    'email_provider_disabled' => 'Email account creation is not enabled.',
+    'over_request_rate_limit' ||
+    'over_email_send_rate_limit' => 'Too many attempts. Try again later.',
+    _ => 'Account creation is temporarily unavailable.',
+  };
+
+  Future<AuthSession> reauthenticate(Duration maxAge) async {
+    final session = _activeSession ?? await _repository.recover();
+    if (session == null) {
+      throw const MemberAuthUnavailable('password_credentials_required');
+    }
+    final authenticatedAt = session.authenticatedAt;
+    final now = DateTime.now().toUtc();
+    if (authenticatedAt == null ||
+        authenticatedAt.isAfter(now.add(const Duration(seconds: 30))) ||
+        now.difference(authenticatedAt) > maxAge) {
+      throw const MemberAuthUnavailable('password_credentials_required');
+    }
+    if (_activeSession == null) _adoptSession(session);
     return session;
   }
 
@@ -116,26 +231,6 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
           message: 'Sign-in is temporarily unavailable.',
         ),
       );
-    }
-  }
-
-  Future<MemberAuthResult> _authenticate(MemberAuthIntent intent) async {
-    _set(const AuthState(phase: AuthPhase.loading));
-    try {
-      final session = await _repository.authenticate(intent);
-      _adoptSession(session);
-      return MemberAuthResult.authenticated;
-    } on MemberAuthCancelled {
-      _set(const AuthState(phase: AuthPhase.signedOut));
-      return MemberAuthResult.cancelled;
-    } on Object {
-      _set(
-        const AuthState(
-          phase: AuthPhase.failure,
-          message: 'Sign-in is temporarily unavailable.',
-        ),
-      );
-      return MemberAuthResult.unavailable;
     }
   }
 

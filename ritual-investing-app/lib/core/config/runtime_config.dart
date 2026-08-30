@@ -12,7 +12,6 @@ class RuntimeConfig {
     required String apiBaseUrl,
     required String supabaseUrl,
     required String supabasePublishableKey,
-    String memberAuthProviders = 'google,apple',
     String argusAuthRedirectAllowlist =
         'https://just-build-this.app/mobile/argus-auth/callback,'
         'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
@@ -22,7 +21,6 @@ class RuntimeConfig {
   }) : apiBaseUrl = _httpsUrl(apiBaseUrl, 'RITUAL_API_BASE_URL'),
        supabaseUrl = _supabaseUrl(supabaseUrl),
        supabasePublishableKey = _publishableKey(supabasePublishableKey),
-       memberAuthProviders = _providers(memberAuthProviders),
        nativeLinks = _nativeLinks(
          argusAuthRedirectAllowlist,
          webullCompletionAllowlist,
@@ -31,7 +29,6 @@ class RuntimeConfig {
   final String apiBaseUrl;
   final Uri supabaseUrl;
   final String supabasePublishableKey;
-  final MemberAuthProviderAllowlist memberAuthProviders;
   final MemberNativeLinkPolicy nativeLinks;
 
   factory RuntimeConfig.fromEnvironment() => RuntimeConfig(
@@ -39,10 +36,6 @@ class RuntimeConfig {
     supabaseUrl: const String.fromEnvironment('SUPABASE_URL'),
     supabasePublishableKey: const String.fromEnvironment(
       'SUPABASE_PUBLISHABLE_KEY',
-    ),
-    memberAuthProviders: const String.fromEnvironment(
-      'SUPABASE_AUTH_PROVIDERS',
-      defaultValue: 'google,apple',
     ),
     argusAuthRedirectAllowlist: const String.fromEnvironment(
       'ARGUS_AUTH_REDIRECT_ALLOWLIST',
@@ -100,16 +93,6 @@ class RuntimeConfig {
       );
     }
     return normalized;
-  }
-
-  static MemberAuthProviderAllowlist _providers(String value) {
-    try {
-      return MemberAuthProviderAllowlist.parse(value);
-    } on FormatException {
-      throw const RuntimeConfigException(
-        'SUPABASE_AUTH_PROVIDERS must contain only apple and google.',
-      );
-    }
   }
 
   static MemberNativeLinkPolicy _nativeLinks(

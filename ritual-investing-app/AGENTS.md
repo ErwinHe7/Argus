@@ -30,21 +30,21 @@
     --dart-define=RITUAL_API_BASE_URL=https://YOUR_PROJECT.supabase.co/functions/v1/api \
     --dart-define=SUPABASE_URL=https://YOUR_PROJECT.supabase.co \
     --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLISHABLE_KEY \
-    --dart-define=SUPABASE_AUTH_PROVIDERS=google,apple \
     --dart-define=ARGUS_AUTH_REDIRECT_ALLOWLIST=https://just-build-this.app/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback \
     --dart-define=WEBULL_COMPLETION_ALLOWLIST=https://just-build-this.app/mobile/webull/complete,com.ritualinvesting.ritual-investing-app.webull://webull/complete
   ```
 
-- Supabase OAuth uses PKCE, secure device-only session and verifier storage, and
-  the first exact Argus HTTPS callback above. Register that exact URL in the
-  Supabase redirect allowlist. The Webull completion targets are a separate
+- Supabase member authentication uses email and password only, with secure
+  device-only session and verifier storage. Email confirmation and password
+  recovery use the first exact Argus HTTPS callback above; register it in the
+  Supabase redirect allowlist. Webull completion targets are a separate
   lifecycle and must never be accepted by the Supabase callback predicate.
-- Hosted OAuth runs in a system-owned browser surface and may be absent from the
-  app's ordinary UI snapshot. Inspect the fresh system accessibility state;
-  never use stale coordinates or capture credential-bearing screenshots.
+- Email confirmation and recovery may run in a system-owned browser surface
+  and be absent from the app's ordinary UI snapshot. Inspect fresh system
+  accessibility state; never use stale coordinates or capture credentials.
 - Exercise cold start, warm return, expired-session refresh, offline refresh,
   recovery events, local logout, global logout, wrong-account return, and every
   malformed or cross-lifecycle link. Never print or preserve access, refresh,
-  provider, callback, or step-up tokens in screenshots, logs, or test evidence.
+  callback, or step-up tokens in screenshots, logs, or test evidence.
 - U13 removed the Auth0 native rollback path. Member authentication uses only
-  Supabase PKCE and the exact Argus callback allowlist above.
+  Supabase email/password and the exact Argus callback allowlist above.

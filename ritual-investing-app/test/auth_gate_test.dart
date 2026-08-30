@@ -77,21 +77,30 @@ void main() {
   testWidgets('sign-in transitions from the gate to the authenticated shell', (
     tester,
   ) async {
-    await tester.pumpWidget(
-      RitualInvestingApp(
-        container: fixtureContainer(
-          sessionRepository: _GateSessionRepository.signedOut(),
-        ),
-      ),
+    final container = fixtureContainer(
+      sessionRepository: _GateSessionRepository.signedOut(),
     );
+    await tester.pumpWidget(RitualInvestingApp(container: container));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
-    expect(find.text('Direction, not urgency.'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-email')),
+      'member@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-password')),
+      'local-test-password',
+    );
+    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.pumpAndSettle();
+    expect(container.memberBootstrap, isNotNull);
+    expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
   });
 }
 
-class _GateSessionRepository implements SessionRepository {
+class _GateSessionRepository
+    implements SessionRepository, PasswordSessionRepository {
   _GateSessionRepository._({required this.restore, this.failRestore = false});
 
   factory _GateSessionRepository.pending() =>
@@ -131,8 +140,16 @@ class _GateSessionRepository implements SessionRepository {
   }
 
   @override
-  Future<AuthSession> authenticate(MemberAuthIntent intent) async =>
-      const AuthSession(accessToken: 'access-token');
+  Future<AuthSession> signInWithPassword({
+    required String email,
+    required String password,
+  }) async => const AuthSession(accessToken: 'access-token');
+
+  @override
+  Future<AuthSession> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async => const AuthSession(accessToken: 'access-token');
 
   @override
   Future<void> logout() async {

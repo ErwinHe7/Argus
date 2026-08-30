@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/config/runtime_config.dart';
 
 void main() {
@@ -7,14 +6,12 @@ void main() {
     String apiBaseUrl = 'https://project.supabase.co/functions/v1/api',
     String supabaseUrl = 'https://project.supabase.co',
     String publishableKey = 'sb_publishable_abcdefghijklmnop',
-    String providers = 'google,apple',
     String? authLinks,
     String? webullLinks,
   }) => RuntimeConfig(
     apiBaseUrl: apiBaseUrl,
     supabaseUrl: supabaseUrl,
     supabasePublishableKey: publishableKey,
-    memberAuthProviders: providers,
     argusAuthRedirectAllowlist:
         authLinks ??
         'https://just-build-this.app/mobile/argus-auth/callback,'
@@ -40,24 +37,6 @@ void main() {
     );
     expect(
       () => valid(publishableKey: 'legacy-service-role-jwt'),
-      throwsA(isA<RuntimeConfigException>()),
-    );
-  });
-
-  test('provider allowlist defaults to Google recent-auth support', () {
-    final value = valid();
-
-    expect(value.memberAuthProviders.values, [
-      MemberAuthProvider.google,
-      MemberAuthProvider.apple,
-    ]);
-    expect(value.memberAuthProviders.primary, MemberAuthProvider.google);
-    expect(
-      () => valid(providers: 'google,github'),
-      throwsA(isA<RuntimeConfigException>()),
-    );
-    expect(
-      () => valid(providers: 'google,google'),
       throwsA(isA<RuntimeConfigException>()),
     );
   });
