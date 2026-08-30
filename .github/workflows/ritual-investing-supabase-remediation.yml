@@ -38,8 +38,12 @@ jobs:
       SUPABASE_PROJECT_URL: ${{ vars.SUPABASE_PROJECT_URL }}
       RITUAL_EXPECTED_REPOSITORY: ErwinHe7/Argus
       RITUAL_EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.EXPECTED_SUPABASE_PROJECT_ID }}
+      RITUAL_EXPECTED_BETA_PROJECT_ID: ${{ vars.BETA_SUPABASE_PROJECT_ID }}
       RITUAL_EXPECTED_SUPABASE_DB_HOST: ${{ vars.EXPECTED_SUPABASE_DB_HOST }}
       RITUAL_HOSTED_API_URL: ${{ vars.RITUAL_HOSTED_API_URL }}
+      RITUAL_BETA_CONSUMER_ORIGINS: https://just-build-this.app,https://beta.just-build-this.app
+      RITUAL_BETA_ADMIN_ORIGIN: ${{ vars.BETA_ADMIN_ORIGIN }}
+      RITUAL_BETA_WEB_ADMISSION: ${{ vars.BETA_WEB_ADMISSION }}
       RITUAL_APPROVED_MANIFEST_SHA256: ${{ vars.APPROVED_MANIFEST_SHA256 }}
       RITUAL_APPROVED_MIGRATION_CHECKSUM: ${{ vars.APPROVED_MIGRATION_CHECKSUM }}
       RITUAL_APPROVED_SOURCE_FINGERPRINT: ${{ vars.APPROVED_SOURCE_FINGERPRINT }}
@@ -134,6 +138,10 @@ jobs:
       - name: Rebind exact target, Git revision, migration checksum, target fingerprint, inventory, recovery, and approvals
         run: |
           set -eu
+          test "$SUPABASE_PROJECT_ID" = "$RITUAL_EXPECTED_BETA_PROJECT_ID"
+          test "$RITUAL_BETA_CONSUMER_ORIGINS" = "https://just-build-this.app,https://beta.just-build-this.app"
+          test "$RITUAL_BETA_WEB_ADMISSION" = "open" || test "$RITUAL_BETA_WEB_ADMISSION" = "contained"
+          node -e 'const value=process.env.RITUAL_BETA_ADMIN_ORIGIN; const url=new URL(value); if (url.origin !== value || !["http:", "https:"].includes(url.protocol)) process.exit(1)'
           ./scripts/check-supabase-migration-inventory.sh --check-cli
           test "$(sha256sum docs/ritual-investing/supabase-migration-inventory-v1.txt | cut -d' ' -f1)" = "$RITUAL_MIGRATION_CHECKSUM"
           test "$(sha256sum docs/ritual-investing/supabase-boundary-manifest-v1.txt | cut -d' ' -f1)" = "$RITUAL_INVENTORY_SHA256"
@@ -186,11 +194,23 @@ jobs:
 
       - name: Bind the new Edge revision and deploy new Edge functions
         run: |
-          supabase secrets set --project-ref "$SUPABASE_PROJECT_ID" ARGUS_BUILD_REVISION="$GITHUB_SHA"
+          supabase secrets set --project-ref "$SUPABASE_PROJECT_ID" \
+            ARGUS_BUILD_REVISION="$GITHUB_SHA" \
+            ARGUS_CONSUMER_ORIGINS="$RITUAL_BETA_CONSUMER_ORIGINS" \
+            ARGUS_ADMIN_ORIGIN="$RITUAL_BETA_ADMIN_ORIGIN" \
+            ARGUS_WEB_ADMISSION="$RITUAL_BETA_WEB_ADMISSION"
           supabase functions deploy webull-callback --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
           supabase functions deploy worker --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
           supabase functions deploy waitlist --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
           supabase functions deploy api --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
+          {
+            echo "contract_version=argus-public-beta-api/v1"
+            echo "project_ref=$SUPABASE_PROJECT_ID"
+            echo "git_revision=$GITHUB_SHA"
+            echo "consumer_origins=$RITUAL_BETA_CONSUMER_ORIGINS"
+            echo "admin_origin=$RITUAL_BETA_ADMIN_ORIGIN"
+            echo "web_admission=$RITUAL_BETA_WEB_ADMISSION"
+          } >"$RUNNER_TEMP/public-beta-api-evidence.txt"
 
       - name: Prove new Edge/new schema hosted acceptance
         run: ./scripts/check-supabase-hosted-acceptance.sh --new-edge-new-schema
@@ -229,6 +249,7 @@ jobs:
             ${{ runner.temp }}/supabase-fixture-inventory-before.txt
             ${{ runner.temp }}/supabase-fixture-inventory-after.txt
             ${{ runner.temp }}/supabase-observation-evidence.txt
+            ${{ runner.temp }}/public-beta-api-evidence.txt
             docs/ritual-investing/supabase-recovery-coverage.md
           if-no-files-found: warn
           retention-days: 30

@@ -273,18 +273,21 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     next,
   ) => {
     const origin = context.req.header("origin");
-    const expectedOrigin = context.req.path.startsWith("/v1/admin/")
-      ? context.env.adminOrigin
-      : context.env.consumerOrigin;
-    if (origin !== undefined && origin !== expectedOrigin) {
+    const allowedOrigins = context.req.path.startsWith("/v1/admin/")
+      ? [context.env.adminOrigin]
+      : context.env.consumerOrigins;
+    const matchedOrigin = origin !== undefined && allowedOrigins.includes(origin)
+      ? origin
+      : undefined;
+    if (origin !== undefined && matchedOrigin === undefined) {
       throw new HttpBoundaryError(
         403,
         "origin_denied",
         "The request origin is not allowed.",
       );
     }
-    if (origin === expectedOrigin) {
-      context.header("access-control-allow-origin", expectedOrigin);
+    if (matchedOrigin !== undefined) {
+      context.header("access-control-allow-origin", matchedOrigin);
       context.header(
         "access-control-allow-methods",
         "GET, POST, PUT, PATCH, DELETE, OPTIONS",
@@ -307,6 +310,49 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     await next();
   };
   app.use("*", exactOriginCors);
+
+  const webOriginBoundary: MiddlewareHandler<RetainedAppEnvironment> = async (
+    context,
+    next,
+  ) => {
+    const origin = context.req.header("origin");
+    const isConsumerWebRequest = origin !== undefined &&
+      context.env.consumerOrigins.includes(origin) &&
+      !context.req.path.startsWith("/v1/admin/");
+    if (!isConsumerWebRequest) {
+      await next();
+      return;
+    }
+
+    const path = context.req.path;
+    const sensitiveCapability = path === "/v1/member/step-up" ||
+      path.startsWith("/v1/privacy/") ||
+      path.startsWith("/v1/brokerage/");
+    if (sensitiveCapability) {
+      throw new HttpBoundaryError(
+        503,
+        "web_capability_unavailable",
+        "This capability is not available on the public beta website.",
+      );
+    }
+
+    const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(
+      context.req.method,
+    );
+    if (
+      context.env.webAdmission === "contained" &&
+      (path === "/v1/session/bootstrap" || isMutation)
+    ) {
+      throw new HttpBoundaryError(
+        503,
+        "web_admission_closed",
+        "Public beta web traffic is temporarily contained.",
+        true,
+      );
+    }
+    await next();
+  };
+  app.use("*", webOriginBoundary);
 
   const enforceJsonBoundary: MiddlewareHandler<RetainedAppEnvironment> = async (
     context,

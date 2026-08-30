@@ -11,8 +11,9 @@ export type VerifiedSupabasePrincipal = Readonly<{
 export type RetainedRuntimeBindings = Readonly<{
   environment: "development" | "test" | "staging" | "production";
   buildRevision: string;
-  consumerOrigin: string;
+  consumerOrigins: readonly string[];
   adminOrigin: string;
+  webAdmission: "open" | "contained";
 }>;
 
 export type RetainedVariables = {

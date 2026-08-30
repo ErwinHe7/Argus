@@ -17,11 +17,13 @@ const userId = "018f3c2a-4b67-7a89-8abc-123456789001";
 const sessionId = "018f3c2a-4b67-7a89-8abc-123456789011";
 const intentionId = "018f3c2a-4b67-7a89-8abc-123456789020";
 const runId = "018f3c2a-4b67-7a89-8abc-123456789021";
+const consumerOrigin = "https://app.ritual-investing.test";
 const bindings = {
   environment: "test" as const,
   buildRevision: "u9b-test",
-  consumerOrigin: "https://app.ritual-investing.test",
+  consumerOrigins: Object.freeze([consumerOrigin]),
   adminOrigin: "https://admin.ritual-investing.test",
+  webAdmission: "open" as const,
 };
 
 function fixture(
@@ -131,7 +133,7 @@ describe("retained Intentions and hypothetical Future Mirror", () => {
           authorization: "Bearer valid-token",
           "content-type": "application/json",
           "idempotency-key": "future-mirror-reviewed-0001",
-          origin: bindings.consumerOrigin,
+          origin: consumerOrigin,
         },
         body: JSON.stringify({
           name: "Steady path",
@@ -168,7 +170,7 @@ describe("retained Intentions and hypothetical Future Mirror", () => {
           authorization: "Bearer valid-token",
           "content-type": "application/json",
           "idempotency-key": "intention-reviewed-000001",
-          origin: bindings.consumerOrigin,
+          origin: consumerOrigin,
         },
         body: JSON.stringify({
           title: "A private intention",
@@ -200,7 +202,7 @@ describe("retained Intentions and hypothetical Future Mirror", () => {
             authorization: "Bearer valid-token",
             "content-type": "application/json",
             "idempotency-key": "intention-port-error-000001",
-            origin: bindings.consumerOrigin,
+            origin: consumerOrigin,
           },
           body: JSON.stringify({
             title: "A private intention",
@@ -230,7 +232,7 @@ describe("retained Intentions and hypothetical Future Mirror", () => {
           authorization: "Bearer valid-token",
           "content-type": "application/json",
           "idempotency-key": "future-mirror-currency-0001",
-          origin: bindings.consumerOrigin,
+          origin: consumerOrigin,
         },
         body: JSON.stringify({
           ...reviewedInput,
@@ -255,7 +257,7 @@ describe("retained Intentions and hypothetical Future Mirror", () => {
       {
         headers: {
           authorization: "Bearer valid-token",
-          origin: bindings.consumerOrigin,
+          origin: consumerOrigin,
         },
       },
       bindings,

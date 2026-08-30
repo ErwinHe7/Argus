@@ -225,8 +225,9 @@ describe("Supabase retained OpenAPI contract", () => {
     const bindings = {
       environment: "test" as const,
       buildRevision: "must-not-enter-contract",
-      consumerOrigin: "https://app.ritual-investing.test",
+      consumerOrigins: Object.freeze(["https://app.ritual-investing.test"]),
       adminOrigin: "https://admin.ritual-investing.test",
+      webAdmission: "open" as const,
     };
     const first = await app.request("/v1/openapi.json", undefined, bindings);
     expect(first.status).toBe(200);

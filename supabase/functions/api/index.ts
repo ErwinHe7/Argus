@@ -37,7 +37,10 @@ import { createSupabaseScenarioRepository } from "../../../ritual-investing-api/
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
 import { createSupabaseDatabasePool } from "../_shared/database.ts";
 import {
+  requiredConsumerOrigins,
   requiredEnvironment,
+  requiredExactOrigin,
+  requiredWebAdmission,
   supabaseSecretKey,
 } from "../_shared/environment.ts";
 import { rewriteSupabaseFunctionRequest } from "../_shared/http.ts";
@@ -219,10 +222,13 @@ const app = createRetainedApp({
 const bindings = Object.freeze({
   environment,
   buildRevision: Deno.env.get("ARGUS_BUILD_REVISION") ?? "local",
-  consumerOrigin: requiredEnvironment("ARGUS_CONSUMER_ORIGIN"),
-  adminOrigin: requiredEnvironment("ARGUS_ADMIN_ORIGIN"),
+  consumerOrigins: requiredConsumerOrigins(),
+  adminOrigin: requiredExactOrigin("ARGUS_ADMIN_ORIGIN"),
+  webAdmission: requiredWebAdmission(),
 });
 
-Deno.serve(withBuildRevisionHeader((request) =>
-  app.fetch(rewriteSupabaseFunctionRequest(request, "api"), bindings)
-));
+Deno.serve(
+  withBuildRevisionHeader((request) =>
+    app.fetch(rewriteSupabaseFunctionRequest(request, "api"), bindings)
+  ),
+);

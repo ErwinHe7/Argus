@@ -15,11 +15,14 @@ import { rewriteSupabaseFunctionRequest } from "../../../supabase/functions/_sha
 
 const userId = "018f3c2a-4b67-7a89-8abc-123456789001";
 const sessionId = "018f3c2a-4b67-7a89-8abc-123456789011";
+const apexOrigin = "https://just-build-this.app";
+const betaOrigin = "https://beta.just-build-this.app";
 const bindings = {
   environment: "test" as const,
   buildRevision: "u3-test",
-  consumerOrigin: "https://app.ritual-investing.test",
+  consumerOrigins: Object.freeze([apexOrigin, betaOrigin]),
   adminOrigin: "https://admin.ritual-investing.test",
+  webAdmission: "open" as const,
 };
 
 function principal(aal: "aal1" | "aal2" = "aal1"): VerifiedSupabasePrincipal {
@@ -131,7 +134,7 @@ describe("Supabase Edge retained API adapter", () => {
         headers: {
           authorization: "Bearer verified-supabase-token",
           "content-length": "0",
-          origin: bindings.consumerOrigin,
+          origin: apexOrigin,
         },
         body: new Uint8Array(0),
       },
@@ -145,7 +148,7 @@ describe("Supabase Edge retained API adapter", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("application/json");
     expect(response.headers.get("access-control-allow-origin")).toBe(
-      bindings.consumerOrigin,
+      apexOrigin,
     );
     expect(test.bootstrap).toHaveBeenCalledOnce();
     expect(test.withRepositories).toHaveBeenCalledWith(
@@ -156,6 +159,117 @@ describe("Supabase Edge retained API adapter", () => {
     expect(await response.json()).toMatchObject({
       data: { member: { user_id: userId } },
     });
+  });
+
+  it("reflects only the matched apex or stable-beta origin with fixed credential-free CORS", async () => {
+    const test = fixture();
+
+    for (const origin of [apexOrigin, betaOrigin]) {
+      const response = await test.app.request(
+        "/v1/session/bootstrap",
+        {
+          method: "OPTIONS",
+          headers: {
+            origin,
+            "access-control-request-method": "POST",
+            "access-control-request-headers": "authorization, content-type",
+          },
+        },
+        bindings,
+      );
+
+      expect(response.status).toBe(204);
+      expect(response.headers.get("access-control-allow-origin")).toBe(origin);
+      expect(response.headers.get("access-control-allow-methods")).toBe(
+        "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      );
+      expect(response.headers.get("access-control-allow-headers")).toBe(
+        "authorization, content-type, if-match, idempotency-key, x-request-id",
+      );
+      expect(response.headers.get("vary")).toBe("origin");
+      expect(response.headers.has("access-control-allow-credentials")).toBe(
+        false,
+      );
+    }
+  });
+
+  it("rejects null, wildcard-like, foreign, and generic preview origins without CORS", async () => {
+    const test = fixture();
+
+    for (
+      const origin of [
+        "null",
+        "*",
+        "https://attacker.example",
+        "https://branch-123.just-build-this.pages.dev",
+      ]
+    ) {
+      const response = await test.app.request(
+        "/v1/session/bootstrap",
+        {
+          method: "POST",
+          headers: {
+            authorization: "Bearer valid-token",
+            origin,
+          },
+        },
+        bindings,
+      );
+
+      expect(response.status).toBe(403);
+      expect(response.headers.has("access-control-allow-origin")).toBe(false);
+    }
+    expect(test.bootstrap).not.toHaveBeenCalled();
+  });
+
+  it("contains matched web traffic without changing authenticated originless native behavior", async () => {
+    const test = fixture();
+    const containedBindings = { ...bindings, webAdmission: "contained" as const };
+
+    const webBootstrap = await test.app.request(
+      "/v1/session/bootstrap",
+      {
+        method: "POST",
+        headers: { authorization: "Bearer valid-token", origin: apexOrigin },
+      },
+      containedBindings,
+    );
+    expect(webBootstrap.status).toBe(503);
+    expect(await webBootstrap.json()).toMatchObject({
+      error: { code: "web_admission_closed", retryable: true },
+    });
+    expect(test.bootstrap).not.toHaveBeenCalled();
+
+    const nativeBootstrap = await test.app.request(
+      "/v1/session/bootstrap",
+      { method: "POST", headers: { authorization: "Bearer valid-token" } },
+      containedBindings,
+    );
+    expect(nativeBootstrap.status).toBe(200);
+    expect(test.bootstrap).toHaveBeenCalledOnce();
+  });
+
+  it("keeps privacy, financial, and provider capabilities unavailable to web origins", async () => {
+    const test = fixture();
+
+    for (const path of [
+      "/v1/privacy/requests",
+      "/v1/brokerage/connection",
+      "/v1/member/step-up",
+    ]) {
+      const response = await test.app.request(
+        path,
+        {
+          headers: { authorization: "Bearer valid-token", origin: betaOrigin },
+        },
+        bindings,
+      );
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        error: { code: "web_capability_unavailable", retryable: false },
+      });
+    }
+    expect(test.withRepositories).not.toHaveBeenCalled();
   });
 
   it("denies invalid tokens and untrusted origins before repository access", async () => {

@@ -1,9 +1,12 @@
-import {
-  assertEquals,
-  assertThrows,
-} from "jsr:@std/assert@1.0.15";
+import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.15";
 
-import { requiredEnvironment, supabaseSecretKey } from "./environment.ts";
+import {
+  requiredConsumerOrigins,
+  requiredEnvironment,
+  requiredExactOrigin,
+  requiredWebAdmission,
+  supabaseSecretKey,
+} from "./environment.ts";
 
 function reader(values: Readonly<Record<string, string>>) {
   return (name: string) => values[name];
@@ -37,4 +40,69 @@ Deno.test("missing or malformed environment fails closed", () => {
     Error,
     "missing_supabase_secret_keys_default",
   );
+});
+
+Deno.test("public-beta consumer origins are an exact bounded set", () => {
+  assertEquals(
+    requiredConsumerOrigins(reader({
+      ARGUS_CONSUMER_ORIGINS:
+        "https://just-build-this.app,https://beta.just-build-this.app",
+    })),
+    ["https://just-build-this.app", "https://beta.just-build-this.app"],
+  );
+
+  for (
+    const value of [
+      "",
+      "*",
+      "null",
+      "https://just-build-this.app",
+      "https://just-build-this.app,https://branch.pages.dev",
+      "https://just-build-this.app,https://beta.just-build-this.app/route",
+    ]
+  ) {
+    assertThrows(
+      () => requiredConsumerOrigins(reader({ ARGUS_CONSUMER_ORIGINS: value })),
+      Error,
+      "invalid_argus_consumer_origins",
+    );
+  }
+});
+
+Deno.test("web admission accepts only explicit open or contained states", () => {
+  assertEquals(
+    requiredWebAdmission(reader({ ARGUS_WEB_ADMISSION: "open" })),
+    "open",
+  );
+  assertEquals(
+    requiredWebAdmission(reader({ ARGUS_WEB_ADMISSION: "contained" })),
+    "contained",
+  );
+  for (const value of ["", "enabled", "maintenance", "OPEN"]) {
+    assertThrows(
+      () => requiredWebAdmission(reader({ ARGUS_WEB_ADMISSION: value })),
+      Error,
+      "invalid_argus_web_admission",
+    );
+  }
+});
+
+Deno.test("admin origin is independent and must be one exact origin", () => {
+  assertEquals(
+    requiredExactOrigin(
+      "ARGUS_ADMIN_ORIGIN",
+      reader({ ARGUS_ADMIN_ORIGIN: "https://admin.just-build-this.app" }),
+    ),
+    "https://admin.just-build-this.app",
+  );
+  for (const value of ["", "*", "null", "https://admin.example.test/path"]) {
+    assertThrows(
+      () =>
+        requiredExactOrigin(
+          "ARGUS_ADMIN_ORIGIN",
+          reader({ ARGUS_ADMIN_ORIGIN: value }),
+        ),
+      Error,
+    );
+  }
 });

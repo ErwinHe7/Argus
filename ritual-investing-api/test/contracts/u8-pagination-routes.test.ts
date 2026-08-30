@@ -13,15 +13,17 @@ const briefingIds = [
   "018f3c2a-4b67-7a89-8abc-123456789102",
   "018f3c2a-4b67-7a89-8abc-123456789101",
 ] as const;
+const consumerOrigin = "https://app.ritual-investing.test";
 const bindings = {
   environment: "test" as const,
   buildRevision: "u8-pagination-test",
-  consumerOrigin: "https://app.ritual-investing.test",
+  consumerOrigins: Object.freeze([consumerOrigin]),
   adminOrigin: "https://admin.ritual-investing.test",
+  webAdmission: "open" as const,
 };
 const headers = {
   authorization: "Bearer verified-supabase-token",
-  origin: bindings.consumerOrigin,
+  origin: consumerOrigin,
 };
 
 function createTestApp(

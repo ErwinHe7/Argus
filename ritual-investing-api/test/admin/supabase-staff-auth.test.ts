@@ -67,8 +67,9 @@ function fixture(input: {
   const bindings = {
     environment: "test" as const,
     buildRevision: "test",
-    consumerOrigin: "https://app.example.test",
+    consumerOrigins: Object.freeze(["https://app.example.test"]),
     adminOrigin: "https://admin.example.test",
+    webAdmission: "open" as const,
   };
   return { app, bindings, repositories };
 }

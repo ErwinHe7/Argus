@@ -21,11 +21,13 @@ import {
 
 const userId = "018f3c2a-4b67-7a89-8abc-123456789001";
 const sessionId = "018f3c2a-4b67-7a89-8abc-123456789002";
+const consumerOrigin = "https://app.ritual-investing.test";
 const bindings = {
   environment: "test" as const,
   buildRevision: "u5-test",
-  consumerOrigin: "https://app.ritual-investing.test",
+  consumerOrigins: Object.freeze([consumerOrigin]),
   adminOrigin: "https://admin.ritual-investing.test",
+  webAdmission: "open" as const,
 };
 
 function fixture(authenticatedAt?: number) {
@@ -81,7 +83,6 @@ function fixture(authenticatedAt?: number) {
 
 const headers = {
   authorization: "Bearer signed-supabase-token",
-  origin: bindings.consumerOrigin,
   "content-type": "application/json",
 };
 

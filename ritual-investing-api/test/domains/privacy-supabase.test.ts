@@ -12,8 +12,9 @@ const requestId = "018f3c2a-4b67-7a89-8abc-123456789041";
 const bindings = {
   environment: "test" as const,
   buildRevision: "u10-test",
-  consumerOrigin: "https://app.ritual-investing.test",
+  consumerOrigins: Object.freeze(["https://app.ritual-investing.test"]),
   adminOrigin: "https://admin.ritual-investing.test",
+  webAdmission: "open" as const,
 };
 
 function fixture(overrides: Record<string, unknown> = {}) {
@@ -51,7 +52,6 @@ function fixture(overrides: Record<string, unknown> = {}) {
 
 const authenticatedHeaders = {
   authorization: "Bearer verified-supabase-token",
-  origin: bindings.consumerOrigin,
 };
 
 describe("Supabase privacy boundary", () => {
