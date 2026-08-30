@@ -15,10 +15,16 @@ import 'member_routes.dart';
 GoRouter createAppRouter({
   required DependencyContainer container,
   MemberResourceAccess? resourceAccess,
+  String? initialLocation,
 }) {
   final access = resourceAccess ?? (_, _) => false;
+  final navigation = MemberNavigationPolicy.fromBootstrap(
+    container.memberBootstrap,
+  );
   return GoRouter(
-    initialLocation: container.entryCoordinator == null ? '/entry' : '/welcome',
+    initialLocation:
+        initialLocation ??
+        (container.entryCoordinator == null ? '/entry' : '/welcome'),
     restorationScopeId: 'ritual-investing-router',
     refreshListenable: container,
     redirect: (context, state) {
@@ -62,7 +68,9 @@ GoRouter createAppRouter({
             path == '/onboarding/recovery' ? null : '/onboarding/recovery',
           EntryDestination.failure => path == '/entry' ? null : '/entry',
           EntryDestination.shell =>
-            isEntry || path == '/' ? MemberRoutes.ritual.path : null,
+            isEntry || path == '/'
+                ? MemberRoutes.ritual.path
+                : navigation.redirectFor(path),
         };
       }
       final atEntry =
@@ -74,7 +82,8 @@ GoRouter createAppRouter({
         }
         return atEntry ? null : '/entry';
       }
-      return atEntry || state.uri.path == '/' ? MemberRoutes.ritual.path : null;
+      if (atEntry || state.uri.path == '/') return MemberRoutes.ritual.path;
+      return navigation.redirectFor(state.uri.path);
     },
     routes: [
       GoRoute(

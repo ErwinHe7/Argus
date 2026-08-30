@@ -39,6 +39,18 @@ void main() {
     );
   });
 
+  test('missing release-control capability authority is unavailable', () {
+    final bootstrap = MemberBootstrap(
+      accountId: 'member-without-rc1',
+      onboarding: const MemberOnboardingGate.complete(),
+      serverTime: DateTime.utc(2026, 8, 24),
+      contractVersion: 'supabase-member-v1',
+      themePreference: MemberThemePreference.system,
+    );
+
+    expect(bootstrap.branchCapabilities.isAvailable, isFalse);
+  });
+
   test('onboarding completion alone gates the production member shell', () {
     final envelope = MemberBootstrap(
       accountId: 'account-a',

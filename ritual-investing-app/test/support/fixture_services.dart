@@ -49,6 +49,23 @@ class FeatureLoadTracker {
       _counts.update(branch, (value) => value + 1, ifAbsent: () => 1);
 }
 
+MemberNavigationCapabilities fixtureBetaNavigationCapabilities({
+  int version = 1,
+}) => MemberNavigationCapabilities(
+  schemaVersion: 'member-branch-capabilities-v1',
+  capabilityVersion: version,
+  environment: MemberReleaseEnvironment.beta,
+  evaluatedAt: DateTime.utc(2026, 8, 23),
+  expiresAt: DateTime.utc(2026, 8, 29),
+  enabled: const {
+    MemberBranchCapability.ritual,
+    MemberBranchCapability.starpath,
+    MemberBranchCapability.discover,
+    MemberBranchCapability.coven,
+    MemberBranchCapability.you,
+  },
+);
+
 DependencyContainer fixtureContainer({
   ScopedReadCacheStorage? cache,
   void Function(ReadCache cache)? onScopedCacheCreated,
@@ -368,6 +385,7 @@ class _FixtureSessionBootstrapService implements SessionBootstrapService {
       ProfileTheme.light => MemberThemePreference.light,
       ProfileTheme.dark => MemberThemePreference.dark,
     },
+    branchCapabilities: fixtureBetaNavigationCapabilities(),
   );
 }
 
