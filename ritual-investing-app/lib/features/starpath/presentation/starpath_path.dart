@@ -22,12 +22,14 @@ class StarpathPath extends StatelessWidget {
     required this.nodes,
     required this.onOpenNode,
     required this.readOnly,
+    this.preview = false,
     this.currentNodeKey,
   });
 
   final List<StarpathNode> nodes;
   final ValueChanged<StarpathNode> onOpenNode;
   final bool readOnly;
+  final bool preview;
   final GlobalKey? currentNodeKey;
 
   @override
@@ -65,6 +67,7 @@ class StarpathPath extends StatelessWidget {
                     .toList(growable: false),
                 height: zoneHeight,
                 readOnly: readOnly,
+                preview: preview,
                 onOpenNode: onOpenNode,
                 currentNodeKey: currentNodeKey,
               ),
@@ -82,6 +85,7 @@ class _PathwayZone extends StatelessWidget {
     required this.nodes,
     required this.height,
     required this.readOnly,
+    required this.preview,
     required this.onOpenNode,
     required this.currentNodeKey,
   });
@@ -90,6 +94,7 @@ class _PathwayZone extends StatelessWidget {
   final List<StarpathNode> nodes;
   final double height;
   final bool readOnly;
+  final bool preview;
   final ValueChanged<StarpathNode> onOpenNode;
   final GlobalKey? currentNodeKey;
 
@@ -100,16 +105,17 @@ class _PathwayZone extends StatelessWidget {
       final nodeWidth = compact ? 144.0 : 156.0;
       final firstTop = compact ? 152.0 : 150.0;
       final secondTop = compact ? 292.0 : 286.0;
-      final locked = nodes.every(
-        (node) => node.state == StarpathNodeState.locked,
-      );
+      final locked =
+          !preview &&
+          nodes.every((node) => node.state == StarpathNodeState.locked);
       Widget nodeWidget(StarpathNode node) => KeyedSubtree(
         key: Key('starpath-node-${node.nodeOrdinal}'),
         child: _StarNode(
           key: node.state == StarpathNodeState.current ? currentNodeKey : null,
           node: node,
           readOnly: readOnly,
-          onPressed: node.state == StarpathNodeState.locked
+          preview: preview,
+          onPressed: !preview && node.state == StarpathNodeState.locked
               ? null
               : () => onOpenNode(node),
         ),
@@ -223,32 +229,40 @@ class _StarNode extends StatelessWidget {
     required this.node,
     required this.onPressed,
     required this.readOnly,
+    required this.preview,
   });
 
   final StarpathNode node;
   final VoidCallback? onPressed;
   final bool readOnly;
+  final bool preview;
 
   @override
   Widget build(BuildContext context) {
-    final stateLabel = switch (node.state) {
-      StarpathNodeState.completed => 'completed',
-      StarpathNodeState.current => 'current',
-      StarpathNodeState.locked => 'locked',
-    };
-    final fill = switch (node.state) {
-      StarpathNodeState.completed => _learnedGreen,
-      StarpathNodeState.current => _softGold,
-      StarpathNodeState.locked => _plum,
-    };
-    final foreground = node.state == StarpathNodeState.locked
+    final stateLabel = preview
+        ? 'draft preview'
+        : switch (node.state) {
+            StarpathNodeState.completed => 'completed',
+            StarpathNodeState.current => 'current',
+            StarpathNodeState.locked => 'locked',
+          };
+    final fill = preview
+        ? _softGold
+        : switch (node.state) {
+            StarpathNodeState.completed => _learnedGreen,
+            StarpathNodeState.current => _softGold,
+            StarpathNodeState.locked => _plum,
+          };
+    final foreground = !preview && node.state == StarpathNodeState.locked
         ? _faintMoon
         : const Color(0xFF28102B);
-    final glow = switch (node.state) {
-      StarpathNodeState.completed => _learnedGreen,
-      StarpathNodeState.current => _candleGold,
-      StarpathNodeState.locked => Colors.white,
-    };
+    final glow = preview
+        ? _candleGold
+        : switch (node.state) {
+            StarpathNodeState.completed => _learnedGreen,
+            StarpathNodeState.current => _candleGold,
+            StarpathNodeState.locked => Colors.white,
+          };
     return Semantics(
       sortKey: OrdinalSortKey(node.nodeOrdinal.toDouble()),
       button: onPressed != null,
@@ -267,9 +281,11 @@ class _StarNode extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: glow.withValues(
-                  alpha: node.state == StarpathNodeState.locked ? 0.04 : 0.14,
+                  alpha: !preview && node.state == StarpathNodeState.locked
+                      ? 0.04
+                      : 0.14,
                 ),
-                boxShadow: node.state == StarpathNodeState.current
+                boxShadow: preview || node.state == StarpathNodeState.current
                     ? [
                         BoxShadow(
                           color: _candleGold.withValues(alpha: 0.34),
@@ -282,7 +298,7 @@ class _StarNode extends StatelessWidget {
                 color: fill,
                 shape: CircleBorder(
                   side: BorderSide(
-                    color: node.state == StarpathNodeState.locked
+                    color: !preview && node.state == StarpathNodeState.locked
                         ? Colors.white.withValues(alpha: 0.18)
                         : _softGold.withValues(alpha: 0.7),
                   ),
@@ -293,13 +309,16 @@ class _StarNode extends StatelessWidget {
                   customBorder: const CircleBorder(),
                   child: Center(
                     child: Icon(
-                      switch (node.state) {
-                        StarpathNodeState.completed => Icons.check_rounded,
-                        StarpathNodeState.current => Icons.auto_awesome,
-                        StarpathNodeState.locked => _sigilIcon(
-                          node.nodeOrdinal,
-                        ),
-                      },
+                      preview
+                          ? Icons.visibility_outlined
+                          : switch (node.state) {
+                              StarpathNodeState.completed =>
+                                Icons.check_rounded,
+                              StarpathNodeState.current => Icons.auto_awesome,
+                              StarpathNodeState.locked => _sigilIcon(
+                                node.nodeOrdinal,
+                              ),
+                            },
                       color: foreground,
                       size: 32,
                     ),
@@ -323,16 +342,18 @@ class _StarNode extends StatelessWidget {
             ),
             const SizedBox(height: 3),
             Text(
-              switch (node.state) {
-                StarpathNodeState.completed => 'Concept demonstrated',
-                StarpathNodeState.current =>
-                  readOnly
-                      ? 'Available to review offline'
-                      : 'Draw ${starpathTarotName(node.guide.tarotKey)}',
-                StarpathNodeState.locked => starpathTarotName(
-                  node.guide.tarotKey,
-                ),
-              },
+              preview
+                  ? 'Open draft lesson'
+                  : switch (node.state) {
+                      StarpathNodeState.completed => 'Concept demonstrated',
+                      StarpathNodeState.current =>
+                        readOnly
+                            ? 'Available to review offline'
+                            : 'Draw ${starpathTarotName(node.guide.tarotKey)}',
+                      StarpathNodeState.locked => starpathTarotName(
+                        node.guide.tarotKey,
+                      ),
+                    },
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

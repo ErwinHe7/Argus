@@ -125,6 +125,48 @@ void main() {
     expect(find.byKey(const Key('starpath-node-3')), findsOneWidget);
   });
 
+  testWidgets('draft beta preview opens all eight nodes without progress', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final controller = starpathFixtureController(
+      currentOrdinal: 1,
+      draftPreview: true,
+    );
+    await controller.load();
+    await tester.pumpWidget(_app(controller));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const Key('starpath-draft-preview-banner')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('All eight lessons are open'), findsOneWidget);
+    expect(
+      tester.getSemantics(find.byKey(const Key('starpath-node-8'))).label,
+      contains('draft preview'),
+    );
+
+    final node = find.byKey(const Key('starpath-node-8'));
+    await tester.ensureVisible(node);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: node, matching: find.byType(InkWell)));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(StarpathLessonScreen), findsOneWidget);
+    await _tapActivityControl(tester, 'starpath-reveal-card');
+    await _tapActivityControl(tester, 'starpath-reveal-fact');
+    expect(find.text('DRAFT FINANCIAL LESSON'), findsOneWidget);
+    expect(find.text('VERIFIED FINANCIAL FACT'), findsNothing);
+    await _dragLessonUntilBuilt(tester, 'Test what you understand');
+    await _tapActivityControl(tester, 'starpath-open-check');
+    await _dragLessonUntilBuilt(
+      tester,
+      'Draft preview only. Checks do not record answers or progress.',
+    );
+    semantics.dispose();
+  });
+
   testWidgets(
     'large text and reduced motion preserve the path without overflow',
     (tester) async {
