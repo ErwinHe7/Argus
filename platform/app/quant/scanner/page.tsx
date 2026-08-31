@@ -12,34 +12,34 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export const metadata: Metadata = {
-  title: 'AXIO7 多因子影子模型',
+  title: 'AXIO7 Multi-factor Shadow Model',
   description:
-    '40% 动量、20% 流动性代理、40% 市场状态与量价因子的独立研究候选。',
+    'An independent research candidate using 40% momentum, 20% liquidity proxy, and 40% regime-conditioned price-volume factors.',
 };
 
 const groups = [
   {
     weight: '40%',
-    title: '动量',
-    detail: '只使用观测截止时点已经完成的价格与成交量窗口。',
+    title: 'Momentum',
+    detail: 'Uses only completed price and volume windows available by the observation cutoff.',
   },
   {
     weight: '20%',
-    title: '流动性代理',
-    detail: '当前定义是 OHLCV 成交额代理；没有报价数据时不声称价差、深度或冲击成本。',
+    title: 'Liquidity proxy',
+    detail: 'Currently defined as an OHLCV turnover proxy. It does not claim spread, depth, or impact cost without quote data.',
   },
   {
     weight: '40%',
     title: 'Regime-conditioned PV',
-    detail: '用因果市场状态门控量价因子，避免把同一个 regime 常数当作横截面信号。',
+    detail: 'Uses a causal market-state gate for price-volume factors instead of treating one regime constant as a cross-sectional signal.',
   },
 ] as const;
 
 const blockers = [
-  '将获授权的 point-in-time 股票池、复权日线、退市与公司行动数据绑定到不可变清单',
-  '完成 purged walk-forward、成本、换手、容量、负向对照和 untouched holdout',
-  '完成真实 forward-shadow，并由人工审核精确 artifact hash',
-  '把通过验证的 Rust 服务接入网站；在此之前不发布排名或概率',
+  'Bind licensed point-in-time universe, adjusted daily bars, delistings, and corporate actions to an immutable manifest.',
+  'Complete purged walk-forward, cost, turnover, capacity, negative-control, and untouched-holdout tests.',
+  'Complete a real forward shadow and have an operator review the exact artifact hash.',
+  'Connect the validated Rust service to the site. Until then, publish no rankings or probabilities.',
 ] as const;
 
 export default function ScannerPage() {
@@ -48,11 +48,11 @@ export default function ScannerPage() {
       <div className="mx-auto max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
-            href="/quant"
+            href="/#research-workspace"
             className="inline-flex items-center gap-2 text-sm font-semibold text-slate-300 hover:text-white"
           >
             <ArrowLeft className="h-4 w-4" />
-            返回量化研究
+            Back to quantitative research
           </Link>
           <span className="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-bold tracking-wide text-amber-200">
             SHADOW · CANDIDATE_NOT_PROMOTED
@@ -66,15 +66,16 @@ export default function ScannerPage() {
             </div>
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.14em] text-sky-300">
-                独立多因子研究模型
+                Independent multi-factor research model
               </p>
               <h1 className="mt-2 text-3xl font-black tracking-tight">
-                排名暂未公开：验证仍在进行
+                Rankings withheld while validation continues
               </h1>
               <p className="mt-3 max-w-3xl text-base leading-7 text-slate-300">
-                旧页面使用 Yahoo 数据并在 TypeScript 中即时计算，无法证明授权、时点一致性或完整覆盖，
-                因此已经停止。新版本由 Rust 生成确定性研究排名；缺失、过期或未授权数据会整体失败关闭，
-                不会跳过标的后继续展示一个看似完整的榜单。
+                The retired page calculated rankings from Yahoo data in TypeScript without proving
+                licensing, point-in-time integrity, or complete coverage. The replacement is a deterministic
+                Rust research ranking. Missing, stale, or unlicensed data fails the entire request closed
+                instead of silently skipping symbols and showing a deceptively complete list.
               </p>
             </div>
           </div>
@@ -96,7 +97,7 @@ export default function ScannerPage() {
         <section className="mt-6 rounded-xl border border-slate-700 bg-slate-900/70 p-6">
           <div className="flex items-center gap-3">
             <LockKeyhole className="h-5 w-5 text-amber-300" />
-            <h2 className="text-xl font-bold">公开前必须完成</h2>
+            <h2 className="text-xl font-bold">Required before publication</h2>
           </div>
           <ol className="mt-4 space-y-3 text-sm leading-6 text-slate-300">
             {blockers.map((blocker, index) => (
@@ -113,28 +114,30 @@ export default function ScannerPage() {
         <section className="mt-6 grid gap-4 sm:grid-cols-2">
           <article className="rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-5">
             <ShieldCheck className="h-5 w-5 text-emerald-300" />
-            <h2 className="mt-3 font-bold">输出边界</h2>
+            <h2 className="mt-3 font-bold">Output boundary</h2>
             <p className="mt-2 text-sm leading-6 text-slate-300">
-              仅输出研究分数、因子贡献、数据时点和限制；不输出 BUY/SELL、目标仓位或订单。
+              Output is limited to research scores, factor contributions, data cutoffs, and constraints.
+              It never emits BUY/SELL labels, target positions, or orders.
             </p>
           </article>
           <article className="rounded-xl border border-violet-400/30 bg-violet-400/5 p-5">
             <Database className="h-5 w-5 text-violet-300" />
-            <h2 className="mt-3 font-bold">当前可用功能</h2>
+            <h2 className="mt-3 font-bold">Currently available</h2>
             <p className="mt-2 text-sm leading-6 text-slate-300">
-              日内 HMM / SDE / kernel 模型的实时研究入口保持独立。它不会被这个影子模型的验证状态阻塞。
+              The intraday HMM, SDE, and kernel research entry remains independent. This candidate&apos;s
+              validation state does not block that separate workflow.
             </p>
             <Link
               href="/"
               className="mt-4 inline-flex rounded-lg border border-violet-300/40 bg-violet-300/10 px-3 py-2 text-sm font-bold text-violet-100 hover:bg-violet-300/20"
             >
-              打开 AXIO7 Research
+              Open AXIO7 Research
             </Link>
           </article>
         </section>
 
         <p className="mt-6 text-xs leading-5 text-slate-500">
-          这是非个性化市场研究，不构成投资建议。自动执行始终关闭。
+          This is impersonal market research, not investment advice. Automatic execution remains disabled.
         </p>
       </div>
     </main>

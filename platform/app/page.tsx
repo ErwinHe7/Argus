@@ -1,18 +1,20 @@
 import type { Metadata } from 'next';
 import { AxioChat } from '@/components/AxioChat';
+import { CosmicHero } from '@/components/home/CosmicHero';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
 import { billingAccountHasAccess, getBillingAccount } from '@/lib/billing';
+import cosmicStyles from '@/components/home/CosmicHero.module.css';
 
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'AXIO7 — Research market conditions with evidence',
+  title: 'AXIO7 — Navigate uncertainty',
   description:
-    'Ask AXIO7 to scan, backtest, or monitor an impersonal market condition with source coverage, model limits, and a reproducible audit trail.',
+    'Explore evidence-first market research and a private celestial reflection practice in one English-first product.',
   openGraph: {
-    title: 'AXIO7 — Research market conditions with evidence',
+    title: 'AXIO7 — Navigate uncertainty',
     description:
-      'Impersonal quantitative market research with point-in-time data, deterministic Rust inference, and explicit caveats.',
+      'Evidence-first market research and private celestial reflection, held in one coherent product.',
     images: [
       {
         url: '/og-formal.png',
@@ -24,9 +26,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AXIO7 — Research market conditions with evidence',
+    title: 'AXIO7 — Navigate uncertainty',
     description:
-      'Impersonal quantitative market research with point-in-time data, deterministic Rust inference, and explicit caveats.',
+      'Evidence-first market research and private celestial reflection, held in one coherent product.',
     images: ['/og-formal.png'],
   },
 };
@@ -39,14 +41,19 @@ export default async function HomePage() {
     (user.authenticated &&
       billingAccountHasAccess(await getBillingAccount(user.id).catch(() => null)));
   return (
-    <AxioChat
-      initialUser={{
-        authenticated: user.authenticated,
-        name: user.name,
-        email: user.email,
-        privateMarketDataAccess: administrator,
-        researchAccess,
-      }}
-    />
+    <>
+      <CosmicHero />
+      <div id="research-workspace" className={cosmicStyles.researchStage}>
+        <AxioChat
+          initialUser={{
+            authenticated: user.authenticated,
+            name: user.name,
+            email: user.email,
+            privateMarketDataAccess: administrator,
+            researchAccess,
+          }}
+        />
+      </div>
+    </>
   );
 }

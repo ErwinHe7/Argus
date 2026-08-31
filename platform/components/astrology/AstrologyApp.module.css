@@ -1,0 +1,997 @@
+.page {
+  --astro-bg: #140d18;
+  --astro-bg-deep: #0d0911;
+  --astro-surface: #1d1423;
+  --astro-surface-raised: #271b2e;
+  --astro-line: rgba(229, 208, 239, 0.16);
+  --astro-line-strong: rgba(229, 208, 239, 0.28);
+  --astro-ink: #fbf8fc;
+  --astro-muted: #d0bfd7;
+  --astro-quiet: #a893b1;
+  --astro-lilac: #c9a8dc;
+  --astro-lilac-strong: #e8cff4;
+  --astro-gold: #dfb86b;
+  --astro-gold-soft: #f4dca8;
+  position: relative;
+  width: 100vw;
+  min-height: calc(100svh - 72px);
+  margin: 0 calc(50% - 50vw) -6rem;
+  overflow: hidden;
+  color: var(--astro-ink);
+  background:
+    radial-gradient(circle at 12% 12%, rgba(137, 91, 155, 0.2), transparent 31rem),
+    radial-gradient(circle at 87% 44%, rgba(223, 184, 107, 0.08), transparent 28rem),
+    var(--astro-bg-deep);
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+}
+
+.page *,
+.page *::before,
+.page *::after {
+  box-sizing: border-box;
+}
+
+.shell {
+  width: min(1120px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 64px 0 96px;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(420px, 1.14fr);
+  gap: 56px;
+  align-items: center;
+}
+
+.heroCopy {
+  max-width: 570px;
+}
+
+.productLabel,
+.today,
+.stageIntro > p,
+.promptLabel,
+.savedHeading p {
+  margin: 0;
+  color: var(--astro-gold-soft);
+  font-size: 0.75rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  max-width: 9ch;
+  margin: 16px 0 18px;
+  color: var(--astro-ink);
+  font-size: 3.8rem;
+  font-weight: 720;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.heroDescription {
+  max-width: 58ch;
+  margin: 0;
+  color: var(--astro-muted);
+  font-size: 1.05rem;
+  line-height: 1.75;
+  text-wrap: pretty;
+}
+
+.heroAssurances {
+  display: flex;
+  margin: 30px 0 0;
+  padding: 0;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  color: var(--astro-muted);
+  font-size: 0.84rem;
+  list-style: none;
+}
+
+.heroAssurances li {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 9px;
+}
+
+.heroAssurances svg {
+  color: var(--astro-gold);
+}
+
+.artwork {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--astro-line-strong);
+  border-radius: 14px;
+  background: #090712;
+}
+
+.artwork img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
+
+.artwork figcaption {
+  padding: 11px 14px 12px;
+  color: var(--astro-quiet);
+  background: var(--astro-surface);
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+.workspace {
+  margin-top: 64px;
+  overflow: hidden;
+  border: 1px solid var(--astro-line-strong);
+  border-radius: 14px;
+  background: var(--astro-surface);
+}
+
+.workspaceHeader {
+  display: flex;
+  min-height: 112px;
+  padding: 24px 28px;
+  border-bottom: 1px solid var(--astro-line);
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.workspaceHeader h2 {
+  margin: 7px 0 0;
+  font-size: 1.35rem;
+  font-weight: 680;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.localStatus {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--astro-line);
+  border-radius: 999px;
+  align-items: center;
+  gap: 8px;
+  color: var(--astro-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.localStatus svg {
+  color: var(--astro-lilac);
+}
+
+.progress {
+  padding: 0 28px;
+  border-bottom: 1px solid var(--astro-line);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.progress ol {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+}
+
+.progress li {
+  position: relative;
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  gap: 10px;
+  color: var(--astro-quiet);
+  font-size: 0.8rem;
+  font-weight: 620;
+}
+
+.progress li:not(:last-child)::after {
+  position: absolute;
+  right: 18px;
+  left: 52px;
+  bottom: 0;
+  height: 2px;
+  content: '';
+  background: transparent;
+}
+
+.stepMark {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid var(--astro-line-strong);
+  border-radius: 50%;
+  place-items: center;
+  font-size: 0.72rem;
+}
+
+.currentStep {
+  color: var(--astro-ink) !important;
+}
+
+.currentStep .stepMark {
+  border-color: var(--astro-gold);
+  color: #1a111e;
+  background: var(--astro-gold);
+}
+
+.completeStep {
+  color: var(--astro-lilac-strong) !important;
+}
+
+.completeStep .stepMark {
+  border-color: rgba(201, 168, 220, 0.55);
+  color: var(--astro-lilac-strong);
+  background: rgba(201, 168, 220, 0.12);
+}
+
+.stepShort {
+  display: none;
+}
+
+.boundary {
+  display: flex;
+  margin: 28px 28px 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(223, 184, 107, 0.3);
+  border-radius: 10px;
+  align-items: flex-start;
+  gap: 13px;
+  color: var(--astro-muted);
+  background: rgba(223, 184, 107, 0.075);
+}
+
+.boundary > svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--astro-gold-soft);
+}
+
+.boundary strong {
+  display: block;
+  color: var(--astro-gold-soft);
+  font-size: 0.88rem;
+}
+
+.boundary p {
+  max-width: 72ch;
+  margin: 5px 0 0;
+  color: var(--astro-muted);
+  font-size: 0.82rem;
+  line-height: 1.6;
+}
+
+.profileBar {
+  display: flex;
+  min-height: 66px;
+  margin: 0 28px;
+  border-bottom: 1px solid var(--astro-line);
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.profileBar > div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.profileBar svg {
+  flex: 0 0 auto;
+  color: var(--astro-lilac);
+}
+
+.profileBar p {
+  margin: 0;
+  color: var(--astro-muted);
+  font-size: 0.79rem;
+  line-height: 1.5;
+}
+
+.profileBar strong {
+  color: var(--astro-ink);
+}
+
+.stage {
+  min-height: 480px;
+}
+
+.stagePanel {
+  padding: 36px 28px 30px;
+  animation: stage-in 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.stageIntro {
+  max-width: 680px;
+}
+
+.stageIntro h2,
+.savedHeading h2 {
+  margin: 7px 0 6px;
+  color: var(--astro-ink);
+  font-size: 1.6rem;
+  font-weight: 680;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.stageIntro h2:focus,
+.savedHeading h2:focus {
+  outline: none;
+}
+
+.stageIntro h2:focus-visible,
+.savedHeading h2:focus-visible {
+  outline: 2px solid var(--astro-gold);
+  outline-offset: 5px;
+}
+
+.stageIntro > span,
+.savedHeading span {
+  color: var(--astro-quiet);
+  font-size: 0.82rem;
+}
+
+.setupForm {
+  margin-top: 30px;
+}
+
+.birthField {
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--astro-line);
+}
+
+.fieldHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fieldHeading label,
+.focusFieldset legend,
+.reflectionField label {
+  color: var(--astro-ink);
+  font-size: 0.9rem;
+  font-weight: 680;
+}
+
+.fieldHeading span {
+  color: var(--astro-quiet);
+  font-size: 0.75rem;
+}
+
+.birthRow {
+  display: grid;
+  margin-top: 12px;
+  grid-template-columns: minmax(210px, 0.72fr) minmax(260px, 1.28fr);
+  gap: 14px;
+}
+
+.birthRow input {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 13px;
+  border: 1px solid var(--astro-line-strong);
+  border-radius: 8px;
+  color: var(--astro-ink);
+  color-scheme: dark;
+  background: var(--astro-bg);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.signReadout {
+  display: flex;
+  min-height: 48px;
+  padding: 0 14px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--astro-surface-raised);
+}
+
+.signReadout span {
+  color: var(--astro-quiet);
+  font-size: 0.77rem;
+}
+
+.signReadout strong {
+  color: var(--astro-lilac-strong);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.privacyCopy,
+.limitCopy {
+  max-width: 75ch;
+  margin: 11px 0 0;
+  color: var(--astro-muted);
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+.privacyCopy {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.privacyCopy svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--astro-lilac);
+}
+
+.limitCopy {
+  color: var(--astro-quiet);
+}
+
+.focusFieldset {
+  min-width: 0;
+  margin: 30px 0 0;
+  padding: 0;
+  border: 0;
+}
+
+.focusOptions {
+  display: grid;
+  margin-top: 13px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.focusOption {
+  position: relative;
+  display: grid;
+  min-height: 86px;
+  padding: 14px;
+  border: 1px solid var(--astro-line);
+  border-radius: 10px;
+  grid-template-columns: 38px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 11px;
+  color: var(--astro-muted);
+  background: rgba(255, 255, 255, 0.018);
+  cursor: pointer;
+  transition: border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.focusOption:hover {
+  border-color: var(--astro-line-strong);
+  background: rgba(201, 168, 220, 0.055);
+  transform: translateY(-1px);
+}
+
+.focusOption input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.focusOption:has(input:focus-visible) {
+  outline: 2px solid var(--astro-gold);
+  outline-offset: 3px;
+}
+
+.focusOption:has(input:checked) {
+  border-color: rgba(223, 184, 107, 0.55);
+  color: var(--astro-ink);
+  background: rgba(223, 184, 107, 0.075);
+}
+
+.focusIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  place-items: center;
+  color: var(--astro-lilac-strong);
+  background: rgba(201, 168, 220, 0.1);
+}
+
+.focusOption strong,
+.focusOption small {
+  display: block;
+}
+
+.focusOption strong {
+  color: var(--astro-ink);
+  font-size: 0.86rem;
+}
+
+.focusOption small {
+  margin-top: 4px;
+  color: var(--astro-quiet);
+  font-size: 0.73rem;
+  line-height: 1.45;
+}
+
+.radioMark {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--astro-line-strong);
+  border-radius: 50%;
+}
+
+.focusOption:has(input:checked) .radioMark {
+  border: 5px solid var(--astro-gold);
+  background: var(--astro-bg);
+}
+
+.actionRow,
+.savedActions {
+  display: flex;
+  margin-top: 30px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.actionRow > p {
+  margin: 0;
+  color: var(--astro-quiet);
+  font-size: 0.77rem;
+}
+
+.primaryButton,
+.secondaryButton,
+.deleteButton {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 720;
+  cursor: pointer;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.primaryButton {
+  border: 1px solid var(--astro-gold);
+  color: #201526;
+  background: var(--astro-gold);
+}
+
+.primaryButton:hover:not(:disabled) {
+  border-color: var(--astro-gold-soft);
+  background: var(--astro-gold-soft);
+  transform: translateY(-1px);
+}
+
+.primaryButton:disabled {
+  border-color: var(--astro-line);
+  color: #84758a;
+  background: #2b2230;
+  cursor: not-allowed;
+}
+
+.secondaryButton {
+  border: 1px solid var(--astro-line-strong);
+  color: var(--astro-muted);
+  background: transparent;
+}
+
+.secondaryButton:hover {
+  border-color: rgba(201, 168, 220, 0.55);
+  color: var(--astro-ink);
+  background: rgba(201, 168, 220, 0.075);
+}
+
+.deleteButton {
+  border: 1px solid transparent;
+  color: #e9bac3;
+  background: transparent;
+}
+
+.deleteButton:hover {
+  border-color: rgba(224, 140, 157, 0.34);
+  color: #ffd6de;
+  background: rgba(224, 140, 157, 0.075);
+}
+
+.primaryButton:focus-visible,
+.secondaryButton:focus-visible,
+.deleteButton:focus-visible,
+.birthRow input:focus-visible,
+.reflectionField textarea:focus-visible {
+  outline: 2px solid var(--astro-gold-soft);
+  outline-offset: 3px;
+}
+
+.promptBlock {
+  display: grid;
+  margin-top: 30px;
+  padding: 24px;
+  border: 1px solid rgba(201, 168, 220, 0.25);
+  border-radius: 12px;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 14px;
+  background: var(--astro-surface-raised);
+}
+
+.promptBlock > svg {
+  color: var(--astro-gold);
+}
+
+.promptText {
+  max-width: 66ch;
+  margin: 11px 0 0;
+  color: var(--astro-ink);
+  font-size: 1.2rem;
+  line-height: 1.65;
+  text-wrap: pretty;
+}
+
+.promptRecap {
+  margin-top: 28px;
+  padding: 18px 20px;
+  border-top: 1px solid var(--astro-line);
+  border-bottom: 1px solid var(--astro-line);
+  background: rgba(255, 255, 255, 0.018);
+}
+
+.promptRecap span {
+  color: var(--astro-gold-soft);
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.promptRecap p {
+  max-width: 72ch;
+  margin: 7px 0 0;
+  color: var(--astro-muted);
+  font-size: 0.87rem;
+  line-height: 1.6;
+}
+
+.reflectionField {
+  margin-top: 24px;
+}
+
+.reflectionField label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.reflectionField textarea {
+  display: block;
+  width: 100%;
+  min-height: 190px;
+  resize: vertical;
+  padding: 15px 16px;
+  border: 1px solid var(--astro-line-strong);
+  border-radius: 10px;
+  color: var(--astro-ink);
+  background: var(--astro-bg);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.65;
+}
+
+.reflectionField textarea::placeholder {
+  color: #ab99b3;
+  opacity: 1;
+}
+
+.textareaMeta {
+  display: flex;
+  margin-top: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.textareaMeta p {
+  margin: 0;
+  color: var(--astro-quiet);
+  font-size: 0.72rem;
+}
+
+.savedHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.savedHeading > svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--astro-gold);
+}
+
+.savedReflection {
+  margin-top: 28px;
+  padding: 24px;
+  border: 1px solid var(--astro-line);
+  border-radius: 12px;
+  background: var(--astro-surface-raised);
+}
+
+.savedPrompt {
+  max-width: 70ch;
+  margin: 9px 0 0;
+  color: var(--astro-muted);
+  font-size: 0.84rem;
+  line-height: 1.6;
+}
+
+.savedReflection blockquote {
+  max-width: 68ch;
+  margin: 20px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid var(--astro-line);
+  color: var(--astro-ink);
+  font-size: 1rem;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.savedActions {
+  justify-content: flex-start;
+}
+
+.savedActions .deleteButton {
+  margin-left: auto;
+}
+
+.storageWarning {
+  margin: 0;
+  padding: 14px 28px;
+  border-top: 1px solid rgba(224, 140, 157, 0.24);
+  color: #f0c3cc;
+  background: rgba(224, 140, 157, 0.075);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  white-space: nowrap;
+}
+
+@keyframes stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 860px) {
+  .shell {
+    width: min(100% - 32px, 720px);
+    padding-top: 40px;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .heroCopy {
+    max-width: 660px;
+  }
+
+  .hero h1 {
+    max-width: none;
+    font-size: 3.15rem;
+  }
+
+  .artwork img {
+    max-height: 410px;
+  }
+}
+
+@media (max-width: 640px) {
+  .page {
+    min-height: calc(100svh - 64px);
+  }
+
+  .shell {
+    width: min(100% - 24px, 560px);
+    padding: 28px 0 72px;
+  }
+
+  .hero h1 {
+    margin-top: 12px;
+    font-size: 2.65rem;
+    line-height: 1.02;
+  }
+
+  .heroDescription {
+    font-size: 0.96rem;
+    line-height: 1.65;
+  }
+
+  .heroAssurances {
+    display: block;
+    margin-top: 20px;
+  }
+
+  .artwork img {
+    aspect-ratio: 4 / 3;
+  }
+
+  .workspace {
+    margin-top: 40px;
+  }
+
+  .workspaceHeader {
+    min-height: 0;
+    padding: 20px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .workspaceHeader h2 {
+    font-size: 1.18rem;
+  }
+
+  .progress {
+    padding: 0 20px;
+  }
+
+  .progress li {
+    min-height: 62px;
+    gap: 7px;
+    font-size: 0.72rem;
+  }
+
+  .stepLong {
+    display: none;
+  }
+
+  .stepShort {
+    display: inline;
+  }
+
+  .boundary {
+    margin: 20px 20px 0;
+    padding: 14px;
+  }
+
+  .profileBar {
+    min-height: 0;
+    margin: 0 20px;
+    padding: 16px 0;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .profileBar .deleteButton {
+    margin-left: 28px;
+  }
+
+  .stage {
+    min-height: 440px;
+  }
+
+  .stagePanel {
+    padding: 28px 20px 24px;
+  }
+
+  .stageIntro h2,
+  .savedHeading h2 {
+    font-size: 1.35rem;
+  }
+
+  .fieldHeading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .birthRow,
+  .focusOptions {
+    grid-template-columns: 1fr;
+  }
+
+  .signReadout {
+    align-items: flex-start;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .focusOption {
+    min-height: 78px;
+  }
+
+  .actionRow,
+  .savedActions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .actionRow > p {
+    text-align: center;
+  }
+
+  .primaryButton,
+  .secondaryButton,
+  .savedActions .deleteButton {
+    width: 100%;
+  }
+
+  .savedActions .deleteButton {
+    margin-left: 0;
+  }
+
+  .promptBlock {
+    padding: 19px;
+    grid-template-columns: 1fr;
+  }
+
+  .promptText {
+    font-size: 1.05rem;
+  }
+
+  .promptRecap,
+  .savedReflection {
+    padding: 17px;
+  }
+
+  .textareaMeta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .storageWarning {
+    padding: 14px 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagePanel {
+    animation: none;
+  }
+
+  .focusOption,
+  .primaryButton,
+  .secondaryButton,
+  .deleteButton {
+    transition: none;
+  }
+
+  .focusOption:hover,
+  .primaryButton:hover:not(:disabled) {
+    transform: none;
+  }
+}

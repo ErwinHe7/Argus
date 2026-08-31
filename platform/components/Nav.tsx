@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowRight, CircleUserRound, CreditCard, LogIn, LogOut } from 'lucide-react';
+import { ArrowRight, CircleUserRound, CreditCard, LogIn, LogOut, Sparkles } from 'lucide-react';
 import { getCurrentUser } from '@/lib/auth';
 import styles from './SiteChrome.module.css';
 
@@ -11,15 +11,16 @@ export async function Nav() {
       <Link href="/" className={styles.brand} aria-label="AXIO7 home">
         <span className={styles.brandMark}>A7</span>
         <span>AXIO7</span>
-        <span className={styles.brandMeta}>RESEARCH</span>
+        <span className={styles.brandMeta}>SYSTEM</span>
       </Link>
 
       <nav className={styles.links} aria-label="Primary navigation">
-        <Link href="/" className={`${styles.link} ${styles.researchLink}`}>
+        <Link href="/#research-workspace" className={`${styles.link} ${styles.researchLink}`}>
           Research
         </Link>
-        <Link href="/quant/intraday" className={`${styles.link} ${styles.desktopLink}`}>
-          Intraday
+        <Link href="/apps/astrology" className={`${styles.link} ${styles.astrologyLink}`}>
+          <Sparkles size={15} aria-hidden="true" />
+          <span>Astrology</span>
         </Link>
         <Link
           href="/billing"

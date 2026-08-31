@@ -7,6 +7,12 @@ dist
 .env.local
 .env*.local
 .vercel
+.open-next/
+.wrangler/
+.dev.vars
+.dev.vars.*
+cloudflare-env.d.ts
+bundled/
 .DS_Store
 *.log
 *.orig

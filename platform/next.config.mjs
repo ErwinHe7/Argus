@@ -1,8 +1,17 @@
 import { withSentryConfig } from '@sentry/nextjs';
 
+const sentryEnabled = Boolean(
+  process.env.SENTRY_DSN?.trim() || process.env.NEXT_PUBLIC_SENTRY_DSN?.trim()
+);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  env: {
+    // Make the build-time choice explicit so an unconfigured preview does not
+    // carry the Sentry server SDK into a size-constrained edge bundle.
+    AXIO7_SENTRY_BUNDLED: sentryEnabled ? 'true' : 'false',
+  },
   // Keep validation/dev instances from racing over `.next` when the operator
   // already has a long-running dashboard process. Production keeps `.next`
   // unless an explicit server-side build directory is supplied.
@@ -21,11 +30,13 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: true,
-  widenClientFileUpload: true,
-  disableLogger: true,
-  hideSourceMaps: true,
-});
+export default sentryEnabled
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: true,
+      widenClientFileUpload: true,
+      disableLogger: true,
+      hideSourceMaps: true,
+    })
+  : nextConfig;

@@ -12,12 +12,12 @@ export function Footer() {
             <span>AXIO7</span>
           </Link>
           <p className={styles.footerCopy}>
-            Evidence-first market research for inspecting deterministic conditions,
-            source coverage, model limits, and reproducible results.
+            One English-first system for evidence-led market research and private
+            celestial reflection.
           </p>
           <div className={styles.assurance}>
             <ShieldCheck size={15} />
-            No investment advice or trade recommendations
+            Reflection is not a forecast. Research is not investment advice.
           </div>
         </div>
 
@@ -25,7 +25,8 @@ export function Footer() {
           <FooterGroup
             title="PRODUCT"
             links={[
-              { href: '/', label: 'Research workspace' },
+              { href: '/#research-workspace', label: 'Research workspace' },
+              { href: '/apps/astrology', label: 'Astrology app' },
               { href: '/pricing', label: 'Plans' },
               { href: '/billing', label: 'Membership' },
               { href: '/auth/signin?next=%2F', label: 'Sign in' },
@@ -44,8 +45,8 @@ export function Footer() {
       </div>
 
       <div className={styles.footerBottom}>
-        <span>&copy; 2026 AXIO7 &middot; IMPERSONAL MARKET RESEARCH</span>
-        <span>INSPECT THE METHOD &middot; REVIEW THE EVIDENCE</span>
+        <span>&copy; 2026 AXIO7 &middot; EVIDENCE AND REFLECTION</span>
+        <span>INSPECT THE METHOD &middot; KEEP THE BOUNDARIES</span>
       </div>
     </footer>
   );

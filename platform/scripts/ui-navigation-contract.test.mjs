@@ -5,7 +5,7 @@ import test from 'node:test';
 const repositoryRoot = new URL('../', import.meta.url);
 const source = (relativePath) => readFile(new URL(relativePath, repositoryRoot), 'utf8');
 
-test('research, plans, and membership routes are connected without dead anchors', async () => {
+test('research, astrology, plans, and membership routes are connected without dead anchors', async () => {
   const [shell, nav, footer, chat] = await Promise.all([
     source('components/AppShell.tsx'),
     source('components/Nav.tsx'),
@@ -17,10 +17,11 @@ test('research, plans, and membership routes are connected without dead anchors'
     shell,
     /const isResearchHome =[\s\S]*pathname === '\/'[\s\S]*pathname === '\/acceptance\/research'/
   );
-  for (const route of ['/', '/pricing', '/billing']) {
+  for (const route of ['/', '/#research-workspace', '/apps/astrology', '/pricing', '/billing']) {
     assert.ok(nav.includes(`href="${route}"`), `Nav is missing ${route}`);
   }
-  assert.match(footer, /\{ href: '\/', label: 'Research workspace' \}/);
+  assert.match(footer, /\{ href: '\/#research-workspace', label: 'Research workspace' \}/);
+  assert.match(footer, /\{ href: '\/apps\/astrology', label: 'Astrology app' \}/);
   assert.match(footer, /\{ href: '\/pricing', label: 'Plans' \}/);
   assert.match(footer, /\{ href: '\/billing', label: 'Membership' \}/);
   assert.doesNotMatch(`${nav}\n${footer}`, /\/#(?:overview|pricing)/);
@@ -157,10 +158,11 @@ test('fail-closed research is readable and mobile-safe without hiding the audit 
   );
 });
 
-test('public copy consistently describes impersonal quantitative market research', async () => {
+test('public copy keeps research boundaries within the unified AXIO7 product', async () => {
   const [
     layout,
     home,
+    cosmicHero,
     chat,
     pricing,
     paddleCatalog,
@@ -171,6 +173,7 @@ test('public copy consistently describes impersonal quantitative market research
   ] = await Promise.all([
     source('app/layout.tsx'),
     source('app/page.tsx'),
+    source('components/home/CosmicHero.tsx'),
     source('components/AxioChat.tsx'),
     source('app/pricing/page.tsx'),
     source('lib/paddle-catalog.ts'),
@@ -180,8 +183,10 @@ test('public copy consistently describes impersonal quantitative market research
     source('app/account/delete/page.tsx'),
   ]);
 
-  assert.match(layout, /AXIO7 — Impersonal quantitative market research/);
-  assert.match(home, /Research market conditions with evidence/);
+  assert.match(layout, /AXIO7 — Evidence and reflection/);
+  assert.match(home, /AXIO7 — Navigate uncertainty/);
+  assert.match(cosmicHero, /Navigate[\s\S]*uncertainty\./);
+  assert.match(cosmicHero, /Evidence-first Research/);
   assert.match(
     chat,
     /What would you like to predict or research\?/
@@ -215,6 +220,7 @@ test('public copy consistently describes impersonal quantitative market research
   const retiredEducationCopy = [
     layout,
     home,
+    cosmicHero,
     pricing,
     paddleCatalog,
     terms,
@@ -226,6 +232,40 @@ test('public copy consistently describes impersonal quantitative market research
     retiredEducationCopy,
     /guided lessons|historical case reviews|learning membership|curriculum content|lesson progress/i
   );
+});
+
+test('cosmic homepage and private astrology practice keep their product boundaries', async () => {
+  const [hero, heroStyles, astrologyPage, astrology, astrologyStyles, nav, sitemap] =
+    await Promise.all([
+      source('components/home/CosmicHero.tsx'),
+      source('components/home/CosmicHero.module.css'),
+      source('app/apps/astrology/page.tsx'),
+      source('components/astrology/AstrologyApp.tsx'),
+      source('components/astrology/AstrologyApp.module.css'),
+      source('components/Nav.tsx'),
+      source('app/sitemap.ts'),
+    ]);
+
+  assert.match(hero, /href="\/apps\/astrology"/);
+  assert.match(hero, /href="#research-workspace"/);
+  assert.match(hero, /requestAnimationFrame/);
+  assert.match(hero, /prefers-reduced-motion/);
+  assert.match(heroStyles, /@media \(prefers-reduced-motion: reduce\)/);
+
+  assert.match(astrologyPage, /Daily Star Map — AXIO7 Astrology/);
+  assert.match(astrology, /localStorage\.setItem/);
+  assert.match(astrology, /localStorage\.removeItem/);
+  assert.match(astrology, /Approximate Western sun sign/);
+  assert.match(astrology, /Reflection prompt — not a forecast/);
+  assert.match(astrology, /never sent to AXIO7/);
+  assert.match(astrology, /Delete birth date/);
+  assert.match(astrologyStyles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(nav, /href="\/apps\/astrology"/);
+  assert.match(sitemap, /path: '\/apps\/astrology'/);
+
+  for (const launchSurface of [hero, astrologyPage, astrology]) {
+    assert.doesNotMatch(launchSurface, /[\u3400-\u9fff]/);
+  }
 });
 
 test('legacy education and overview routes redirect to active research surfaces', async () => {

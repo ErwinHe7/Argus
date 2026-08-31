@@ -19,14 +19,14 @@ export type ConversationResult = {
   locale: 'en-US' | 'zh-CN';
 };
 
-function conversationLocale(question: string): ConversationResult['locale'] {
-  return /[\u3400-\u9fff]/.test(question) ? 'zh-CN' : 'en-US';
+function conversationLocale(_question: string): ConversationResult['locale'] {
+  return 'en-US';
 }
 
-const SYSTEM_BOUNDARY = `You are AXIO7, a formal bilingual market-research copilot.
+const SYSTEM_BOUNDARY = `You are AXIO7, a formal English-language market-research copilot.
 
 Hard rules:
-- Reply in the user's language.
+- Always reply in clear English, even when the user writes in another language.
 - Be concise, professional, and conversational.
 - You may explain only the supplied AXIO7 knowledge and Rust evidence.
 - Never invent a quote, market observation, data source, timestamp, probability, historical result, option position, model status, or model capability.
@@ -134,19 +134,9 @@ function hasUnsupportedNumber(answer: string, grounding: string) {
 }
 
 function knowledgeFallback(
-  question: string,
+  _question: string,
   sections: ReturnType<typeof retrieveModelKnowledge>['sections']
 ) {
-  if (/[\u3400-\u9fff]/.test(question)) {
-    return sections
-      .map((section) => {
-        const translated = CHINESE_KNOWLEDGE[section.id];
-        return translated
-          ? `${translated.title}\n${translated.body}`
-          : `${section.title}\n${section.body}`;
-      })
-      .join('\n\n');
-  }
   return sections
     .map((section) => `${section.title}\n${section.body}`)
     .join('\n\n');

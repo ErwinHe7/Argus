@@ -4,8 +4,8 @@ import type {
   QuantResearchCandidate,
 } from '@/lib/forecast-chat-types';
 
-function isChinese(text: string) {
-  return /[\u3400-\u9fff]/.test(text);
+function isChinese(_text: string) {
+  return false;
 }
 
 function pct(value: unknown, digits = 1) {

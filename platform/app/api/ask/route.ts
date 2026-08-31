@@ -553,9 +553,7 @@ export async function POST(req: NextRequest) {
           (symbol) => !configured.has(symbol)
         );
         if (hasUnconfiguredTarget && preloadedTickerRag) {
-          const locale = /[\u3400-\u9fff]/.test(parsed.data.query)
-            ? 'zh-CN'
-            : 'en-US';
+          const locale = 'en-US' as const;
           const answer = tickerRagAnswer(preloadedTickerRag, locale);
           const forecast = tickerRagForecast(
             preloadedTickerRag,

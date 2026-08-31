@@ -32,14 +32,14 @@ const instrumentSerif = Instrument_Serif({
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://axio7.com';
 
 export const metadata: Metadata = {
-  title: 'AXIO7 — Impersonal quantitative market research',
+  title: 'AXIO7 — Evidence and reflection',
   description:
-    'Research deterministic market conditions with point-in-time data, Rust inference, evidence, readiness gates, and reproducible audit trails.',
+    'Navigate uncertainty with evidence-first market research and a private celestial reflection practice.',
   metadataBase: new URL(siteUrl),
   openGraph: {
-    title: 'AXIO7 — Impersonal quantitative market research',
+    title: 'AXIO7 — Evidence and reflection',
     description:
-      'Evidence-first research for deterministic market conditions, historical evaluation, monitored setups, and reproducible model output.',
+      'Evidence-first market research and private celestial reflection in one English-first product.',
     siteName: 'AXIO7',
     url: siteUrl,
     type: 'website',
@@ -48,15 +48,15 @@ export const metadata: Metadata = {
         url: '/og.png',
         width: 1745,
         height: 873,
-        alt: 'AXIO7 — Impersonal quantitative market research',
+        alt: 'AXIO7 — Evidence and reflection',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'AXIO7 — Impersonal quantitative market research',
+    title: 'AXIO7 — Evidence and reflection',
     description:
-      'Evidence-first research for deterministic market conditions, historical evaluation, monitored setups, and reproducible model output.',
+      'Evidence-first market research and private celestial reflection in one English-first product.',
     images: ['/og.png'],
   },
   icons: {

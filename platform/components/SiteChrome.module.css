@@ -371,13 +371,15 @@
 @media (max-width: 460px) {
   .payLink span,
   .accountLink span,
-  .membershipLink span {
+  .membershipLink span,
+  .astrologyLink span {
     display: none;
   }
 
   .payLink,
   .accountLink,
   .membershipLink,
+  .astrologyLink,
   .signOutLink {
     width: 38px;
     padding: 0;
