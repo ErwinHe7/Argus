@@ -2,8 +2,8 @@
   "RITUAL_ENVIRONMENT": "beta",
   "RITUAL_API_BASE_URL": "https://rbqkuyjknoaqwnetbcst.supabase.co/functions/v1/api",
   "SUPABASE_URL": "https://rbqkuyjknoaqwnetbcst.supabase.co",
-  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_ltaNA7nnVozoSCOcZIjg",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_a1CYogdPesbRqND5GRKa8A_F9zHQ-KI",
   "BETA_SUPABASE_PROJECT_REF": "rbqkuyjknoaqwnetbcst",
-  "BETA_SUPABASE_PUBLISHABLE_KEY_SHA256": "fa84781c4d6405af7a56de23d504c971dc5827f2e86d70ba3820892a3279a8df",
+  "BETA_SUPABASE_PUBLISHABLE_KEY_SHA256": "f8b3fc78ee94cb553c4c90bcd72374d0e0d982f48ce46cee17c6729f3dcc1aea",
   "ARGUS_AUTH_REDIRECT_ALLOWLIST": "https://leo.axio7.workers.dev/app/,https://just-build-this.app/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback"
 }

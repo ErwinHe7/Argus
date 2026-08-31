@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'member_auth.dart';
 import 'member_auth_callback.dart';
 import 'member_auth_storage.dart';
+import 'member_oauth_navigation.dart';
 
 export 'member_auth_storage.dart' show MemberAuthSecureStorage;
 
@@ -69,12 +70,18 @@ class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
   @override
   Future<bool> signInWithGoogle({required String redirectTo}) async {
     try {
+      if (kIsWeb) {
+        final response = await _client.auth.getOAuthSignInUrl(
+          provider: OAuthProvider.google,
+          redirectTo: redirectTo,
+        );
+        navigateMemberOAuth(response.url);
+        return true;
+      }
       return await _client.auth.signInWithOAuth(
         OAuthProvider.google,
         redirectTo: redirectTo,
-        authScreenLaunchMode: kIsWeb
-            ? LaunchMode.platformDefault
-            : LaunchMode.externalApplication,
+        authScreenLaunchMode: LaunchMode.externalApplication,
       );
     } on AuthException catch (error) {
       final reason = error.code?.trim();
