@@ -125,6 +125,22 @@ jobs:
       - working-directory: ritual-investing-site
         run: npm run pages:config:check
 
+  terraform-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.1
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive infra/terraform/ritual-investing
+      - run: terraform -chdir=infra/terraform/ritual-investing/environments/staging init -backend=false -input=false
+      - run: terraform -chdir=infra/terraform/ritual-investing/environments/staging validate
+      - run: terraform -chdir=infra/terraform/ritual-investing/environments/prod init -backend=false -input=false
+      - run: terraform -chdir=infra/terraform/ritual-investing/environments/prod validate
+
   site-waitlist-edge:
     runs-on: ubuntu-24.04
     steps:
@@ -208,7 +224,7 @@ jobs:
 
   release-bundle:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.fork == false
-    needs: [source-guard, member-provider-boundary, demo-web-fast, demo-provider-boundary, site, site-waitlist-edge, api-security, supabase-edge, contract-client]
+    needs: [source-guard, member-provider-boundary, demo-web-fast, demo-provider-boundary, site, terraform-contract, site-waitlist-edge, api-security, supabase-edge, contract-client]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

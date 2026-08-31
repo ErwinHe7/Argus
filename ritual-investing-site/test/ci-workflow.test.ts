@@ -30,11 +30,23 @@ describe("Ritual fast CI", () => {
     expect(source).toMatch(/\n\s+push:\n\s+branches: \[main\]/);
     expect(source).not.toMatch(/workflow_dispatch|workflow_run|secrets\.|environment:\s+(staging|prod)/);
     expect(source).toContain("cancel-in-progress: true");
-    for (const name of ["source-guard", "member-provider-boundary", "demo-web-fast", "demo-provider-boundary", "site", "site-waitlist-edge", "api-security", "supabase-edge", "contract-client", "release-bundle"]) {
+    for (const name of ["source-guard", "member-provider-boundary", "demo-web-fast", "demo-provider-boundary", "site", "terraform-contract", "site-waitlist-edge", "api-security", "supabase-edge", "contract-client", "release-bundle"]) {
       expect(job(source, name).length).toBeGreaterThan(100);
     }
     expect(source).not.toMatch(/playwright|flutter\s+drive|integration_test|chromedriver|emulator|simulator|hosted[- ]acceptance|supabase\s+(start|link)|supabase\s+db\s+reset|--linked|restore|terraform\s+(plan|apply)|wrangler\s+(pages\s+deploy|versions\s+upload)/i);
     expectPinned(source);
+  });
+
+  it("validates both isolated Terraform roots without backend or mutation authority", async () => {
+    const source = await readWorkflow("ritual-investing-ci.yml");
+    const terraform = job(source, "terraform-contract");
+    expect(terraform).toContain("terraform fmt -check -recursive infra/terraform/ritual-investing");
+    for (const environment of ["staging", "prod"]) {
+      expect(terraform).toContain(`environments/${environment} init -backend=false -input=false`);
+      expect(terraform).toContain(`environments/${environment} validate`);
+    }
+    expect(terraform).not.toMatch(/secrets\.|environment:|terraform\s+(?:plan|apply)|-backend-config/);
+    expect(job(source, "release-bundle")).toContain("terraform-contract");
   });
 
   it("uploads the immutable release only for a canonical main push", async () => {
