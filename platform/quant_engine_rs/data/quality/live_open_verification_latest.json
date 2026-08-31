@@ -1,0 +1,16 @@
+﻿{
+    "finalized_bar_count":  500,
+    "latest_bar_timestamp":  "2026-07-21T15:48:00Z",
+    "failure":  null,
+    "session_date":  "2026-07-21",
+    "market_coverage":  "NASDAQ_BASIC_TOTALVIEW_PLUS_ARCABOOK",
+    "status":  "WAITING_FOR_FIRST_FINALIZED_BAR_AND_FORECAST",
+    "passed":  false,
+    "forecast_status":  "NO_TRADE",
+    "verified_live_prediction_count":  4,
+    "checked_at_et":  "2026-07-21T11:50:51.3082965-04:00",
+    "latest_bar_is_current_session":  true,
+    "quote_login":  "UNVERIFIED",
+    "consolidated_nbbo":  false,
+    "quote_protocol":  "CONNECTED_PROTOCOL_CHECK_REQUIRED"
+}

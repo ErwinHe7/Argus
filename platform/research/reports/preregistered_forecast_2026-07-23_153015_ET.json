@@ -1,0 +1,96 @@
+{
+  "record_type": "PREREGISTERED_RESEARCH_FORECAST",
+  "immutable_after_cutoff": true,
+  "cutoff_et": "2026-07-23T15:30:15-04:00",
+  "created_before_target_window": true,
+  "data_source": {
+    "provider": "Moomoo OpenD 10.9.6908",
+    "entitlement": "US equities L3",
+    "consolidated_nbbo": false,
+    "spx_proxy": "SPY",
+    "notes": [
+      "SPX direct index data is unavailable under the current OpenD entitlement.",
+      "VXX and USO are volatility and oil proxies, not VIX and spot crude.",
+      "Probabilities are research estimates and are not promoted OOS-calibrated probabilities."
+    ]
+  },
+  "live_snapshot": {
+    "SPY": {"last": 737.45, "day_return_pct": -1.3326, "intraday_range_position": 0.3048},
+    "QQQ": {"last": 691.21, "day_return_pct": -2.0047, "intraday_range_position": 0.3140},
+    "IWM": {"last": 291.78, "day_return_pct": -0.6842, "intraday_range_position": 0.5669},
+    "SOXX": {"last": 549.86, "day_return_pct": -1.0189, "intraday_range_position": 0.4237},
+    "TLT": {"last": 83.185, "day_return_pct": -0.3056, "intraday_range_position": 0.7759},
+    "HYG": {"last": 79.225, "day_return_pct": -0.3710, "intraday_range_position": 0.3409},
+    "USO": {"last": 139.4929, "day_return_pct": 5.9332, "intraday_range_position": 0.3221},
+    "VXX": {"last": 22.70, "day_return_pct": 5.3364, "intraday_range_position": 0.3490}
+  },
+  "model_committee": {
+    "members": [
+      "causal CV-selected Gaussian HMM plus same-regime kernel analog",
+      "tail-aligned historical analog replay",
+      "discrete-time closing short-cover hazard research layer",
+      "cross-asset confirmation and macro stress veto"
+    ],
+    "known_disagreement": {
+      "main_kernel": "bearish-to-flat",
+      "tail_aligned_analogs": "modestly positive",
+      "committee_action": "shrink toward 0.50 and fail closed for trading"
+    },
+    "calibration_status": "OOS_PROBABILITY_CALIBRATION_NOT_PROMOTED",
+    "decision_status": "NO_TRADE"
+  },
+  "forecast": {
+    "SPY_1550_to_close": {
+      "probability_positive_return_research_estimate": 0.54,
+      "uncertainty_interval": [0.45, 0.62],
+      "expected_return_bp_range": [-2.0, 5.0]
+    },
+    "QQQ_1550_to_close": {
+      "probability_positive_return_research_estimate": 0.50,
+      "uncertainty_interval": [0.42, 0.59],
+      "expected_return_bp_range": [-4.0, 6.0]
+    },
+    "jul02_or_jul16_style_broad_squeeze": {
+      "probability_research_estimate": 0.25,
+      "uncertainty_interval": [0.18, 0.33]
+    },
+    "next_session_SPY_close_up": {
+      "raw_analog_up_frequency": 0.684,
+      "shrunk_research_estimate": 0.56,
+      "uncertainty_interval": [0.50, 0.62],
+      "raw_analog_return_quantiles_pct": {"q10": -0.73, "median": 0.42, "q90": 1.51}
+    },
+    "next_session_QQQ_close_up": {
+      "raw_analog_up_frequency": 0.643,
+      "shrunk_research_estimate": 0.55,
+      "uncertainty_interval": [0.48, 0.61],
+      "raw_analog_return_quantiles_pct": {"q10": -1.10, "median": 0.36, "q90": 1.85}
+    },
+    "INTC_post_earnings": {
+      "directional_view": "slight_negative_skew",
+      "probability_next_regular_close_up_research_estimate": 0.45,
+      "expected_one_day_move_is_two_sided": true,
+      "market_implied_absolute_move_pct_approx": 12.2,
+      "confidence": "low"
+    },
+    "MXL_post_earnings": {
+      "directional_view": "two_sided_with_slight_negative_skew_after_pre_event_runup",
+      "probability_next_regular_close_up_research_estimate": 0.46,
+      "expected_one_day_move_is_two_sided": true,
+      "confidence": "low"
+    }
+  },
+  "conditional_updates_not_part_of_base_forecast": {
+    "raise_short_cover_probability_if": [
+      "SPY and QQQ regain session VWAP",
+      "HYG stops making new lows",
+      "USO and VXX continue retreating from session highs"
+    ],
+    "lower_short_cover_probability_if": [
+      "HYG makes a new session low",
+      "USO or VXX returns to the session high",
+      "SPY and QQQ lose the 15:30 local low on expanding volume"
+    ]
+  },
+  "disclaimer": "Objective statistical research output only; not personalized investment advice or an order recommendation."
+}

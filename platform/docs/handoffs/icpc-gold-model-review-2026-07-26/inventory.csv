@@ -1,0 +1,26 @@
+category,model_or_algorithm,implementation,role,current_status,key_risk
+core,Diagonal Gaussian HMM,Rust and C++,regime inference,CANDIDATE_NOT_PROMOTED,all v2 artifacts select boundary K=8
+training,Baum-Welch soft EM,Rust and C++,HMM parameter estimation,IMPLEMENTED,local optimum and initialization stability
+inference,Scaled forward-backward,Rust and C++,gamma xi and likelihood,IMPLEMENTED,numerical convention requires independent review
+inference,Causal forward filter,Rust,online regime posterior,IMPLEMENTED,must remain isolated from smoothing
+diagnostic,Log-space Viterbi,Rust and C++,offline state path,DIAGNOSTIC_ONLY,future path must never become online feature
+core,Same-regime Gaussian kernel regression,Rust Python and C++,conditional historical distribution,CANDIDATE_NOT_PROMOTED,raw frequency is not calibrated probability
+metric,Shrinkage Mahalanobis,Rust,analog distance,IMPLEMENTED,inverse fallback and conditioning
+shadow,Markov-switching log-return diffusion,Rust,short-horizon moments,SHADOW_ONLY,parameter uncertainty and fixed-dt assumptions
+shadow,VWAP residual Ornstein-Uhlenbeck,Rust,mean-reversion moments,SHADOW_ONLY,AR1 conversion and irregular intervals
+shadow,Regime-conditioned momentum,Rust,baseline comparison,SHADOW_ONLY,must not affect decision
+supervised,Regularized Logistic,Python Rust and C++,direction classification,OFFLINE_OR_UNPROMOTED,calibration artifact unavailable
+supervised,Ridge regression,Python,continuous targets,OFFLINE_RESEARCH,no Rust immutable runtime artifact
+supervised,Histogram Gradient Boosting,Python,classification and regression,OFFLINE_RESEARCH,not LightGBM or XGBoost
+neural,Causal TCN,Python PyTorch CUDA,multi-horizon challenger,OFFLINE_CANDIDATE,no Rust runtime
+neural,Regime-gated TCN Mixture-of-Experts,Python PyTorch CUDA,distribution and VWAP-event heads,OFFLINE_CANDIDATE,directional OOS results weak
+distribution,Student-t output,Python PyTorch,heavy-tail return head,OFFLINE_CANDIDATE,not promoted
+calibration,Platt scaling,Rust Python and C++,probability calibration,IMPLEMENTED_BUT_NOT_PROMOTED,no matching immutable live artifact
+calibration,Isotonic regression,Python,probability calibration,OFFLINE_ONLY,sample stability
+research,TVTP-HMM,Rust,regime competition,RESEARCH_ONLY,not connected to production API
+research,Student-t HMM and minimum-duration HSMM,Rust,regime competition,RESEARCH_ONLY,not promoted
+specialized,Closing short-cover hazard,Rust,late-session research,RESEARCH_ONLY,proxy features and calibration
+specialized,Unsigned gamma convexity aggregation,Rust,options research,DATA_BLOCKED,point-in-time OPRA and OI incomplete
+baseline,Clock momentum reversal VWAP baselines,Rust and Python,benchmark,IMPLEMENTED,must remain comparison set
+missing,Bayesian or PyMC Stan models,None,none,NOT_IMPLEMENTED,do not claim as current stack
+missing,LSTM GRU LightGBM XGBoost CatBoost,None,none,NOT_IMPLEMENTED,do not claim as current stack

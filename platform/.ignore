@@ -1,0 +1,14 @@
+# Local test sandboxes may be created with restrictive Windows ACLs. They are
+# disposable runtime artifacts and must never participate in source scans.
+intraday_quant/.test_tmp/
+intraday_quant/.test_tmp2/
+intraday_quant/.test_tmp3/
+intraday_quant/.test_tmp_backend/
+intraday_quant/.test_tmp_final/
+intraday_quant/.test_tmp_full/
+intraday_quant/.test_tmp_release/
+
+# Generated/runtime artifacts.
+quant_engine_rs/target/
+.next/
+node_modules/

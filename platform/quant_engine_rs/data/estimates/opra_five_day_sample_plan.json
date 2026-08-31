@@ -1,0 +1,67 @@
+{
+  "status": "PLAN_ONLY_AWAITING_COST_ESTIMATE_AND_CONFIRMATION",
+  "source": "MASSIVE_SPY_UNDERLYING_PROXY_ONLY",
+  "target_parent": "SPXW",
+  "requested_schemas": [
+    "definition",
+    "cbbo-1m"
+  ],
+  "requested_dte": [
+    0,
+    1
+  ],
+  "strike_window_pct": 0.05,
+  "days": [
+    {
+      "date": "2024-09-04",
+      "role": "NEUTRAL_DAY_EVENT_SLOT_UNVERIFIED",
+      "proxy_return": 0.0011632133769539088,
+      "proxy_range": 0.009045244421795884,
+      "proxy_volume": 39262988.0,
+      "bars": 390,
+      "selection_note": "no verified event calendar/date was supplied; this is not labeled as CPI/FOMC"
+    },
+    {
+      "date": "2025-04-07",
+      "role": "LARGE_UP_DAY",
+      "proxy_return": 0.03139884298534312,
+      "proxy_range": 0.08586550435865492,
+      "proxy_volume": 220202526.0,
+      "bars": 390,
+      "selection_note": "selected from complete SPY RTH proxy bars"
+    },
+    {
+      "date": "2025-04-08",
+      "role": "LARGE_DOWN_DAY",
+      "proxy_return": -0.048135515272295204,
+      "proxy_range": 0.07322757379998368,
+      "proxy_volume": 143596198.0,
+      "bars": 390,
+      "selection_note": "selected from complete SPY RTH proxy bars"
+    },
+    {
+      "date": "2025-04-09",
+      "role": "HIGH_VOLATILITY",
+      "proxy_return": 0.10118758106355386,
+      "proxy_range": 0.10806206267112883,
+      "proxy_volume": 199168623.0,
+      "bars": 390,
+      "selection_note": "selected from complete SPY RTH proxy bars"
+    },
+    {
+      "date": "2025-09-15",
+      "role": "LOW_VOLATILITY",
+      "proxy_return": 0.0018343338790856034,
+      "proxy_range": 0.0025783359116691162,
+      "proxy_volume": 57475617.0,
+      "bars": 390,
+      "selection_note": "selected from complete SPY RTH proxy bars"
+    }
+  ],
+  "event_calendar_status": "NOT_CONFIGURED",
+  "warnings": [
+    "SPY only selects diverse QA dates; it is never stored or represented as SPX.",
+    "Full-day proxy statistics are used only to plan a data QA sample, never as live model features or strike-selection inputs.",
+    "No OPRA data is downloaded until account-specific cost estimates pass an explicit maximum-cost confirmation."
+  ]
+}

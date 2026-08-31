@@ -1,0 +1,192 @@
+.page {
+  --quant-amber: #f4c95d;
+  --quant-amber-soft: #ffe8a3;
+  --quant-ink: #f6f4ec;
+  --quant-muted: #9b9b93;
+  position: relative;
+  min-height: calc(100vh - 72px);
+  overflow: hidden;
+  padding: 24px clamp(16px, 2.4vw, 42px) 72px;
+  color: var(--quant-ink);
+  background:
+    radial-gradient(circle at 50% -8%, rgba(244, 201, 93, .075), transparent 28rem),
+    linear-gradient(180deg, #080906 0%, #050605 58%, #070806 100%);
+  isolation: isolate;
+}
+
+.page::before {
+  position: fixed;
+  z-index: -3;
+  inset: 72px 0 0;
+  content: '';
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .022) 1px, transparent 1px);
+  background-size: 72px 72px;
+  mask-image: radial-gradient(ellipse 78% 64% at 50% 8%, #000 20%, transparent 82%);
+  -webkit-mask-image: radial-gradient(ellipse 78% 64% at 50% 8%, #000 20%, transparent 82%);
+}
+
+.page::after {
+  position: fixed;
+  z-index: -2;
+  inset: 72px 0 0;
+  content: '';
+  pointer-events: none;
+  opacity: .045;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 220 220' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitchTiles'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 190px 190px;
+  mix-blend-mode: screen;
+}
+
+.ambientOne,
+.ambientTwo {
+  position: fixed;
+  z-index: -1;
+  border-radius: 999px;
+  pointer-events: none;
+  filter: blur(90px);
+  will-change: transform, opacity;
+}
+
+.ambientOne {
+  top: 13vh;
+  right: -13rem;
+  width: 34rem;
+  height: 34rem;
+  opacity: .16;
+  background: rgba(244, 201, 93, .55);
+  animation: ambient-one 18s ease-in-out infinite;
+}
+
+.ambientTwo {
+  bottom: -20rem;
+  left: 9vw;
+  width: 42rem;
+  height: 42rem;
+  opacity: .08;
+  background: rgba(128, 173, 148, .48);
+  animation: ambient-two 24s ease-in-out infinite;
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1600px);
+  margin: 0 auto;
+}
+
+.contextBar {
+  display: flex;
+  min-height: 44px;
+  margin-bottom: 18px;
+  padding: 0 2px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, .075);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: rgba(246, 244, 236, .6);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: .015em;
+  text-decoration: none;
+  transition: color .18s ease, transform .18s ease;
+}
+
+.backLink:hover {
+  color: var(--quant-amber-soft);
+  transform: translateX(-2px);
+}
+
+.evidence {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  color: rgba(246, 244, 236, .42);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.evidence span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.evidence svg {
+  color: var(--quant-amber);
+}
+
+.footer {
+  display: grid;
+  margin-top: 22px;
+  padding: 22px 2px 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+  border-top: 1px solid rgba(255, 255, 255, .075);
+  color: rgba(246, 244, 236, .42);
+  font-size: 10px;
+  line-height: 1.8;
+}
+
+.footerMark {
+  display: grid;
+  width: 31px;
+  height: 31px;
+  border: 1px solid rgba(244, 201, 93, .35);
+  border-radius: 50%;
+  place-items: center;
+  color: var(--quant-amber);
+}
+
+@keyframes ambient-one {
+  0%,
+  100% { transform: translate3d(0, 0, 0) scale(1); opacity: .13; }
+  50% { transform: translate3d(-7rem, 4rem, 0) scale(1.12); opacity: .2; }
+}
+
+@keyframes ambient-two {
+  0%,
+  100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(9rem, -5rem, 0) scale(1.15); }
+}
+
+@media (max-width: 760px) {
+  .page {
+    min-height: calc(100vh - 64px);
+    padding: 16px 12px 52px;
+  }
+
+  .contextBar {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-bottom: 14px;
+  }
+
+  .evidence {
+    justify-content: flex-start;
+  }
+
+  .footer {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambientOne,
+  .ambientTwo {
+    animation: none;
+  }
+}

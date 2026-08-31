@@ -1,0 +1,237 @@
+{
+  "capability_audit": [
+    {
+      "capability": "external_context_point_in_time",
+      "evidence": "DISABLED; eligible_fields=0",
+      "status": "BLOCKED_BY_PROVENANCE_OR_HISTORY"
+    },
+    {
+      "capability": "point_in_time_feature_pipeline",
+      "evidence": "Rust feature tests reject future mutation and unfinished 5m bars",
+      "status": "PRESENT"
+    },
+    {
+      "capability": "multi_horizon_executable_labels",
+      "evidence": "independent horizons exist; richer distribution/path labels pending",
+      "status": "PARTIAL"
+    },
+    {
+      "capability": "purged_walk_forward",
+      "evidence": "day folds exist; four-way calibration fold added separately",
+      "status": "PARTIAL"
+    },
+    {
+      "capability": "logistic_platt_hgb",
+      "evidence": "native Rust implementations and tests",
+      "status": "PRESENT"
+    },
+    {
+      "capability": "kernel_analog",
+      "evidence": "train-past-only, MAD, adaptive bandwidth, one neighbor/day, effective N",
+      "status": "PRESENT"
+    },
+    {
+      "capability": "hmm_math_toolbox",
+      "evidence": "scaled forward/backward, gamma/xi, Viterbi, soft EM, causal filtering",
+      "status": "PRESENT"
+    },
+    {
+      "capability": "ar_hmm_gated_experts",
+      "evidence": "no independent OOS promotion evidence",
+      "status": "MISSING"
+    },
+    {
+      "capability": "sticky_hmm_hsmm",
+      "evidence": "challenger not implemented",
+      "status": "MISSING"
+    },
+    {
+      "capability": "kalman_change_point_har_rv",
+      "evidence": "challengers not implemented",
+      "status": "MISSING"
+    },
+    {
+      "capability": "prediction_ledger",
+      "evidence": "append-only SQLite predictions and settlements",
+      "status": "PRESENT"
+    },
+    {
+      "capability": "real_quote_execution",
+      "evidence": "D2 hard gate",
+      "status": "BLOCKED_BY_DATA"
+    },
+    {
+      "capability": "spxw_definitions_opra",
+      "evidence": "Data Doctor",
+      "status": "BLOCKED_BY_DATA"
+    },
+    {
+      "capability": "ibkr_live_archive",
+      "evidence": "IBKR variables absent",
+      "status": "BLOCKED_BY_CREDENTIAL"
+    },
+    {
+      "capability": "append_only_double_entry_ledger",
+      "evidence": "SQLite balance/idempotency tests",
+      "status": "PRESENT"
+    },
+    {
+      "capability": "risk_oms",
+      "evidence": "paper-only runtime and kill switch",
+      "status": "PRESENT"
+    },
+    {
+      "capability": "evidence",
+      "evidence": "Massive history has been repeatedly inspected; not untouched holdout",
+      "status": "CONTAMINATED"
+    }
+  ],
+  "data": {
+    "adjusted_status": "VENDOR_ADJUSTED",
+    "allowed_claims": [
+      "underlying return/distribution engineering research",
+      "bar-level causal regime diagnostics"
+    ],
+    "context_model_eligible_fields": [],
+    "context_observation_count": 0,
+    "context_status": "DISABLED",
+    "coverage_end": "2026-07-17T23:59:00Z",
+    "coverage_start": "2024-07-18T08:00:00Z",
+    "d0_underlying_bars": true,
+    "d1_trades_quotes": false,
+    "d2_option_nbbo": false,
+    "d3_option_analytics": false,
+    "evidence_grade": "CONTAMINATED_EXPLORATORY",
+    "generated_at": "2026-07-21T13:18:04.102465400Z",
+    "highest_level": "D0",
+    "manifest_hashes": [
+      "a1de7efe3165adbb767d001c0c32488381a1b919c95e4fbaae9cd03d1b6ee103",
+      "96cb56649484fc67611e8dd1664bfba00ac78e78834517d9a7de81c5887abec3",
+      "2802a7a350d9831f6b7c132be2f156796c28878067aeb83821d42c111b45bdec",
+      "bef15329203505c55c131049bebab6e80f65ffc29795275b4365a7e04dbaf2d2"
+    ],
+    "missing_data": [
+      {
+        "acquisition": "Massive licensed/account-entitled aggregates or licensed equivalent",
+        "capability_level": "D0",
+        "coverage": "2024-07-18 08:00:00 UTC..2026-07-17 23:59:00 UTC",
+        "field": "underlying_1m_ohlcv",
+        "impact": "available for contaminated exploratory research",
+        "precision": "1 minute aggregate",
+        "present": true,
+        "required_by": [
+          "underlying_distribution",
+          "HMM",
+          "Kernel Analog"
+        ],
+        "source": "MASSIVE_STOCKS_AGG_1M"
+      },
+      {
+        "acquisition": "licensed SIP trades and NBBO",
+        "capability_level": "D1",
+        "coverage": null,
+        "field": "consolidated_equity_trades_quotes",
+        "impact": "microstructure features disabled",
+        "precision": "event",
+        "present": false,
+        "required_by": [
+          "microprice",
+          "order imbalance"
+        ],
+        "source": "NONE"
+      },
+      {
+        "acquisition": "archive Alva/exported observations point-in-time with event_time, available_time, and upstream vendor",
+        "capability_level": "D0-CONTEXT",
+        "coverage": null,
+        "field": "point_in_time_macro_and_daily_context",
+        "impact": "context remains display/research-only and is excluded from model features",
+        "precision": "snapshot/minute/daily with explicit availability timestamp",
+        "present": false,
+        "required_by": [
+          "regime context",
+          "daily technical context"
+        ],
+        "source": "alva"
+      },
+      {
+        "acquisition": "licensed Cboe index history",
+        "capability_level": "D2",
+        "coverage": null,
+        "field": "spx_index_values",
+        "impact": "SPY remains proxy; SPX claims prohibited",
+        "precision": "event/interval unknown until supplied",
+        "present": false,
+        "required_by": [
+          "SPX forecast",
+          "SPXW alignment"
+        ],
+        "source": "CBOE_CGIF_OR_LICENSED_EQUIVALENT"
+      },
+      {
+        "acquisition": "OPRA definitions after cost/entitlement confirmation",
+        "capability_level": "D2",
+        "coverage": null,
+        "field": "spxw_point_in_time_definitions",
+        "impact": "SPXW contract selection blocked",
+        "precision": "definition event",
+        "present": false,
+        "required_by": [
+          "contract lifecycle",
+          "strike selection"
+        ],
+        "source": "DATABENTO_OPRA_OR_CBOE"
+      },
+      {
+        "acquisition": "licensed OPRA historical quote data",
+        "capability_level": "D2",
+        "coverage": null,
+        "field": "spxw_consolidated_nbbo_with_size",
+        "impact": "real SPXW PnL prohibited",
+        "precision": "event preferred; minute sample must be labeled",
+        "present": false,
+        "required_by": [
+          "tradable option return",
+          "execution"
+        ],
+        "source": "DATABENTO_OPRA_OR_CBOE"
+      },
+      {
+        "acquisition": "licensed point-in-time D3 dataset or auditable internal calculation over D2",
+        "capability_level": "D3",
+        "coverage": null,
+        "field": "iv_greeks_oi_surface",
+        "impact": "IV/skew/GEX claims prohibited",
+        "precision": "point-in-time",
+        "present": false,
+        "required_by": [
+          "IV surface forecast",
+          "option attribution"
+        ],
+        "source": "NONE"
+      }
+    ],
+    "normalized_file_sha256": "bef15329203505c55c131049bebab6e80f65ffc29795275b4365a7e04dbaf2d2",
+    "prohibited_claims": [
+      "untouched OOS edge",
+      "SPX equals SPY",
+      "order flow from OHLCV",
+      "real SPXW PnL without D2",
+      "IV/GEX without D3"
+    ],
+    "row_count": 1523307,
+    "source": "MASSIVE_STOCKS_AGG_1M",
+    "symbols": [
+      "GLD",
+      "HYG",
+      "IWM",
+      "QQQ",
+      "SOXX",
+      "SPY",
+      "TLT",
+      "UUP"
+    ],
+    "timestamp_precision": "1_MINUTE_AGGREGATE"
+  },
+  "report_hash": "2c2d0c5c9096d04fe84054bc0fd3108ffe9293a82e0050eb039fd36d609668d3"
+}

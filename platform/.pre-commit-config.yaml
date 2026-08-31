@@ -1,0 +1,19 @@
+minimum_pre_commit_version: "3.5.0"
+repos:
+  - repo: local
+    hooks:
+      - id: check-no-ignored-sources
+        name: Check that source files are not ignored
+        entry: >-
+          python -c "import pathlib, shutil, subprocess, sys;
+          candidates = (['C:/Program Files/Git/bin/bash.exe',
+          'C:/msys64/usr/bin/bash.exe'] if sys.platform == 'win32' else
+          [shutil.which('bash')]); bash = next((candidate for candidate in
+          candidates if candidate and pathlib.Path(candidate).is_file()), None);
+          sys.exit('bash is required for the source-integrity hook') if bash is
+          None else sys.exit(subprocess.call([bash,
+          'scripts/check-no-ignored-sources.sh']))"
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit, pre-push]

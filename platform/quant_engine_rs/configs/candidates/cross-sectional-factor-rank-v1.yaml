@@ -1,0 +1,30 @@
+schema_version: axio7.factor-rank-candidate.v1
+candidate_status: CANDIDATE_NOT_PROMOTED
+output_type: DETERMINISTIC_FACTOR_RESEARCH_RANK
+runtime_scope: OFFLINE_SHADOW_ONLY
+production_publication_disabled: true
+execution_disabled: true
+
+universe_policy:
+  frozen_exact_universe_required: true
+  exact_point_in_time_cutoff_required: true
+  fail_on_missing_or_incomplete_symbol: true
+  selected_inputs_with_future_availability_rejected: true
+
+fixed_group_weights:
+  momentum_percent: 40
+  liquidity_proxy_percent: 20
+  regime_conditioned_price_volume_percent: 40
+  caller_overrides_allowed: false
+
+liquidity_policy:
+  default_label: OHLCV_DOLLAR_VOLUME_PROXY
+  quote_label_requires_content_hashed_quote_or_spread_evidence: true
+
+output_policy:
+  deterministic_tie_break: COMPOSITE_DESC_THEN_SYMBOL_ASC
+  calibrated_probability_allowed: false
+  expected_return_allowed: false
+  portfolio_target_allowed: false
+  broker_order_allowed: false
+  deterministic_json_sha256_seal_required: true

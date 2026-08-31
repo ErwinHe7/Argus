@@ -1,4 +1,16 @@
-# Argus — AXIO7 model review handoff
+# Argus — live platform and model integration
+
+The complete customer website and quantitative-model platform now lives under
+[`platform/`](platform/) on branch `codex/live-model-integration`. It includes
+the Next.js website, Rust live-inference service, Python training/validation
+stack, C++ research components, nine current frozen model artifacts, tests, and
+production Docker tooling.
+
+Website engineers should start with
+[`PLATFORM_START_HERE.md`](PLATFORM_START_HERE.md) and
+[Issue #5](https://github.com/ErwinHe7/Argus/issues/5).
+
+## Preserved review snapshot
 
 This repository currently contains a focused, data-free AXIO7 model and
 real-time inference review snapshot. It is intended for an external engineer to

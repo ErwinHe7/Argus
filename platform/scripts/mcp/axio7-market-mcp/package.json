@@ -1,0 +1,27 @@
+{
+  "name": "axio7-market-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local MCP server exposing AXIO7 market intelligence + options analytics to Claude Desktop / Claude Code / Codex / any MCP client. Read-only wrapper around the AXIO7 HTTP API. No vendor secrets stored; no live broker execution exposed.",
+  "type": "module",
+  "bin": {
+    "axio7-market-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}
