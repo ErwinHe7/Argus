@@ -39,6 +39,35 @@ A static deployment receipt is not production-readiness evidence. A frozen
 Supabase migration/function inventory proves source provenance only; it does
 not prove that the hosted backend is deployed or healthy.
 
+## External readiness receipt bindings
+
+Readiness receipts live outside the repository as GitHub environment variables;
+they must not contain credentials or member data. Store the compact JSON and
+its SHA-256 separately in the matching `staging` or `prod` environment.
+
+- `RITUAL_<ENV>_INFRASTRUCTURE_RECEIPT` uses `schemaVersion: 2` and the exact
+  key set enforced by the deployment workflow. Its
+  `terraformSnapshotSha256` must equal the release manifest's `terraform`
+  snapshot SHA-256, while `terraformPlanDigest` identifies the reviewed
+  current no-op plan for that source. Set the matching
+  `RITUAL_<ENV>_INFRASTRUCTURE_RECEIPT_SHA256` to the compact JSON's SHA-256.
+- `RITUAL_<ENV>_BACKEND_RECEIPT` uses `schemaVersion: 2` and the exact keys
+  `environment`, `expiresAt`, `fingerprint`, `observedAt`, `schemaVersion`,
+  `sourceSha256`, and `status`. `sourceSha256` must equal the landing
+  dependency's `requiredSourceSha256` in the release manifest, which binds the
+  receipt to the immutable Supabase migration and function snapshots. Set the
+  matching receipt SHA-256 variable to the compact JSON's SHA-256.
+- When a release profile explicitly withholds a landing target, both backend
+  receipt variables must be absent. A Demo-only staging deployment may still
+  proceed and records `withheld-dependency`; it is not promotable to prod.
+- `AXIO7_PROD_READINESS_URL` is a trusted `prod` environment variable and must
+  be the exact HTTPS `/api/v1/system/readiness` URL. It is never accepted as a
+  workflow-dispatch input because the manual evidence probe carries a
+  production research token.
+
+An expired receipt, a source/snapshot mismatch, an extra or missing JSON key,
+or a receipt placed in the wrong environment fails before content mutation.
+
 ## Failure and recovery
 
 - **Artifact expired or missing:** terminal NO-GO. Build a new canonical main

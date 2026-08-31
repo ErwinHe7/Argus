@@ -161,6 +161,15 @@ lineage/serial, operator, UTC window, and recovery owner in the versioned
 readiness receipt. Only then may an operator select `ready` and explicitly set
 `enable_remote_changes = true`. Repeat the GitHub checker for the after receipt.
 
+The workflow-facing infrastructure receipt uses `schemaVersion: 2`. In
+addition to the live no-op, inventory, lock, state, Pages, profile, and expiry
+fields enforced by the workflow, it must include `terraformSnapshotSha256`
+equal to the `terraform` snapshot SHA-256 in the exact immutable release
+manifest. This prevents a receipt for one Terraform source tree from
+authorizing another. Store the compact receipt and its SHA-256 only in the
+matching GitHub `staging` or `prod` environment variables described in
+`docs/ritual-investing/production-release-runbook.md`.
+
 ## Plans and destructive-change gate
 
 Plans are transient and must not be committed. Render a saved plan with
