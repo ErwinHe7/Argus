@@ -373,7 +373,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `storage-object:DELETION_DENY_JOURNAL` | retained-argus | Supabase private deletion recovery state |
 | `provider-dependency:auth0` | deleted | Replace member and staff identity with Supabase Auth |
 | `provider-dependency:neon` | deleted | Replace synthetic Neon schema with clean Supabase Postgres baseline |
-| `provider-dependency:cloudflare-workers` | retained-argus | Static member-beta asset delivery only; API/site compute remains deleted in favor of Supabase Edge |
+| `provider-dependency:cloudflare-workers` | retained-argus | Static member-staging asset delivery only; API/site compute remains deleted in favor of Supabase Edge |
 | `provider-dependency:cloudflare-queues` | deleted | Replace with private Supabase Queues |
 | `provider-dependency:r2` | deleted | Replace retained objects with private Supabase Storage |
 | `provider-dependency:cloudflare-access` | deleted | Replace staff gate with Supabase Auth and database authorization |
@@ -389,7 +389,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `secret-family:Supabase runtime role and worker secret` | retained-argus | Vault/Edge-secret custody and rotation; never client-exposed |
 | `secret-family:Webull client, signing, token-wrapping keys` | replaced-webull | Edge-secret custody with versioned rotation and redaction |
 | `runbook:admin-operations-runbook.md` | retained-argus | Rewrite for Supabase staff auth and redacted brokerage diagnostics |
-| `runbook:cloudflare-runbook.md` | retained-argus | Static Pages plus static member-beta delivery guidance; no Cloudflare backend authority |
+| `runbook:cloudflare-runbook.md` | retained-argus | Static Pages plus static member-staging delivery guidance; no Cloudflare backend authority |
 | `runbook:member-release-gates.md` | retained-argus | Rewrite for Supabase/Auth/Webull hosted evidence |
 | `runbook:neon-runbook.md` | deleted | Replace with Supabase local/hosted database operations |
 | `runbook:privacy-runbook.md` | retained-argus | Rewrite for deletion epoch and Supabase Storage |

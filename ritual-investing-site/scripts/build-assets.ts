@@ -32,7 +32,7 @@ export const DEPLOYMENT_TARGETS = [
   },
 ] as const;
 
-export type MemberBetaAssemblyInputs = {
+export type MemberStagingAssemblyInputs = {
   projectRef: string;
   publishableKeySha256: string;
   supabaseOrigin: string;
@@ -234,9 +234,9 @@ ${entryCacheRules(["/", "/index.html", "/flutter.js", "/flutter_bootstrap.js", "
 `;
 }
 
-export function resolveMemberBetaAssemblyInputs(
+export function resolveMemberStagingAssemblyInputs(
   variables: Record<string, string | undefined>,
-): MemberBetaAssemblyInputs {
+): MemberStagingAssemblyInputs {
   const projectRef = variables.MEMBER_BETA_SUPABASE_PROJECT_REF?.trim() ?? "";
   const supabaseOrigin = variables.MEMBER_BETA_SUPABASE_ORIGIN?.trim() ?? "";
   const publishableKeySha256 =
@@ -344,7 +344,7 @@ type AssembleOptions = {
   source: string;
   destination: string;
   surface?: DeploymentSurface;
-  memberBeta?: MemberBetaAssemblyInputs;
+  memberStaging?: MemberStagingAssemblyInputs;
 };
 
 function posixPath(path: string): string {
@@ -461,9 +461,9 @@ function validateProviderBoundary(
   }
 }
 
-function validateMemberBetaBoundary(
+function validateMemberStagingBoundary(
   assets: ReadonlyArray<{ path: string; contents: Uint8Array }>,
-  inputs: MemberBetaAssemblyInputs,
+  inputs: MemberStagingAssemblyInputs,
 ): void {
   const text = assets
     .filter((asset) => TEXT_EXTENSIONS.has(extension(asset.path)))
@@ -513,8 +513,8 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
   const source = resolve(options.source);
   const destination = resolve(options.destination);
   const surface = options.surface ?? "demo";
-  if (surface === "member" && options.memberBeta === undefined) {
-    throw new Error("Member beta assembly requires exact Supabase inputs.");
+  if (surface === "member" && options.memberStaging === undefined) {
+    throw new Error("Member staging assembly requires exact beta Supabase inputs.");
   }
   if (source === destination || source.startsWith(`${destination}${sep}`)) {
     throw new Error("Asset source and destination must be separate directories.");
@@ -547,7 +547,7 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
     deployable.push({ path, contents });
   }
 
-  if (surface === "member") validateMemberBetaBoundary(deployable, options.memberBeta!);
+  if (surface === "member") validateMemberStagingBoundary(deployable, options.memberStaging!);
 
   const deployablePaths = new Set(deployable.map((asset) => asset.path));
   for (const file of deployable) {
@@ -680,7 +680,7 @@ async function prepareDemoStage(
 async function prepareMemberStage(
   memberSource: string,
   stage: string,
-  inputs: MemberBetaAssemblyInputs,
+  inputs: MemberStagingAssemblyInputs,
 ): Promise<void> {
   await cp(memberSource, stage, { recursive: true });
   const paths = await walk(stage);
@@ -698,8 +698,8 @@ async function prepareMemberStage(
   await writeFile(join(stage, "robots.txt"), "User-agent: *\nDisallow: /\n");
 }
 
-export async function buildMemberBetaAssets(
-  inputs: MemberBetaAssemblyInputs,
+export async function buildMemberStagingAssets(
+  inputs: MemberStagingAssemblyInputs,
 ): Promise<AssetManifest> {
   const packageRoot = resolve(import.meta.dirname, "..");
   const memberSource = resolve(packageRoot, "../ritual-investing-app/build/web");
@@ -708,9 +708,9 @@ export async function buildMemberBetaAssets(
     await prepareMemberStage(memberSource, stage, inputs);
     return await assembleAssets({
       source: stage,
-      destination: resolve(packageRoot, "dist/member-beta"),
+      destination: resolve(packageRoot, "dist/member-staging"),
       surface: "member",
-      memberBeta: inputs,
+      memberStaging: inputs,
     });
   } finally {
     await rm(stage, { recursive: true, force: true });
@@ -756,9 +756,9 @@ export async function buildDeploymentAssets(): Promise<void> {
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  if (process.argv[2] === "member-beta") {
-    const manifest = await buildMemberBetaAssets(resolveMemberBetaAssemblyInputs(process.env));
-    process.stdout.write(`member-beta: ${manifest.fileCount} files (${manifest.totalBytes} bytes)\n`);
+  if (process.argv[2] === "member-staging") {
+    const manifest = await buildMemberStagingAssets(resolveMemberStagingAssemblyInputs(process.env));
+    process.stdout.write(`member-staging: ${manifest.fileCount} files (${manifest.totalBytes} bytes)\n`);
   } else {
     await buildDeploymentAssets();
   }

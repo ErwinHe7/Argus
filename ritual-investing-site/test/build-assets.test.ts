@@ -13,7 +13,7 @@ import {
   renderDemoHeaders,
   renderLandingHeaders,
   renderMemberHeaders,
-  resolveMemberBetaAssemblyInputs,
+  resolveMemberStagingAssemblyInputs,
   resolveWaitlistFunctionUrl,
   resolveTurnstileSiteKey,
 } from "../scripts/build-assets.ts";
@@ -186,12 +186,12 @@ describe("deterministic demo asset assembly", () => {
   });
 
   it("requires exact beta assembly inputs and accepts the verified persistent beta branch", () => {
-    expect(resolveMemberBetaAssemblyInputs({
+    expect(resolveMemberStagingAssemblyInputs({
       MEMBER_BETA_SUPABASE_PROJECT_REF: MEMBER_PROJECT_REF,
       MEMBER_BETA_SUPABASE_ORIGIN: MEMBER_ORIGIN,
       MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: MEMBER_INPUTS.publishableKeySha256,
     })).toEqual(MEMBER_INPUTS);
-    expect(resolveMemberBetaAssemblyInputs({
+    expect(resolveMemberStagingAssemblyInputs({
       MEMBER_BETA_SUPABASE_PROJECT_REF: RITUAL_BETA_BRANCH_REF,
       MEMBER_BETA_SUPABASE_ORIGIN: RITUAL_BETA_BRANCH_ORIGIN,
       MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: RITUAL_BETA_INPUTS.publishableKeySha256,
@@ -204,15 +204,15 @@ describe("deterministic demo asset assembly", () => {
       join(paths.source, "main.dart.js"),
       `${RITUAL_BETA_BRANCH_ORIGIN} ${RITUAL_BETA_BRANCH_ORIGIN}/functions/v1/api /v1/session/bootstrap ${RITUAL_BETA_KEY}`,
     );
-    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: RITUAL_BETA_INPUTS }))
+    await expect(assembleAssets({ ...paths, surface: "member", memberStaging: RITUAL_BETA_INPUTS }))
       .resolves.toMatchObject({ algorithm: "sha256", fileCount: 2 });
 
     await writeFile(join(paths.source, "main.dart.js"), `${MEMBER_ORIGIN}/functions/v1/api ${MEMBER_KEY} https://otherprojectref00001.supabase.co`);
-    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: MEMBER_INPUTS }))
+    await expect(assembleAssets({ ...paths, surface: "member", memberStaging: MEMBER_INPUTS }))
       .rejects.toThrow(/unapproved Supabase origin/i);
 
     await writeFile(join(paths.source, "main.dart.js"), `${MEMBER_ORIGIN}/functions/v1/api sb_publishable_wrong_key_1234567890`);
-    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: MEMBER_INPUTS }))
+    await expect(assembleAssets({ ...paths, surface: "member", memberStaging: MEMBER_INPUTS }))
       .rejects.toThrow(/fingerprint/i);
   });
 

@@ -1,132 +1,71 @@
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const repositoryRoot = resolve(import.meta.dirname, "../..");
+const root = resolve(import.meta.dirname, "../..");
 
-async function workflow(): Promise<string> {
-  return readFile(resolve(repositoryRoot, ".github/workflows/ritual-investing.yml"), "utf8");
-}
-
-async function releaseWorkflow(): Promise<string> {
-  return readFile(
-    resolve(repositoryRoot, ".github/workflows/ritual-investing-web-release.yml"),
-    "utf8",
-  );
-}
-
-async function remediationWorkflow(): Promise<string> {
-  return readFile(
-    resolve(repositoryRoot, ".github/workflows/ritual-investing-supabase-remediation.yml"),
-    "utf8",
-  );
+async function readWorkflow(name: string): Promise<string> {
+  return readFile(resolve(root, `.github/workflows/${name}`), "utf8");
 }
 
 function job(source: string, name: string): string {
   const start = source.indexOf(`\n  ${name}:\n`);
   if (start < 0) throw new Error(`Missing required workflow job: ${name}`);
   const remainder = source.slice(start + name.length + 5);
-  const nextMatch = /\n  (?=[A-Za-z0-9_-]+:\n)/.exec(remainder);
-  const next = nextMatch === null ? -1 : start + name.length + 5 + nextMatch.index;
-  return source.slice(start, next < 0 ? source.length : next);
+  const next = /\n  (?=[A-Za-z0-9_-]+:\n)/.exec(remainder)?.index;
+  return source.slice(start, next === undefined ? source.length : start + name.length + 5 + next);
 }
 
-describe("Ritual release workflow contract", () => {
-  it("makes provider, member web, demo web, static site, waitlist Edge, and cross-browser proof required PR jobs", async () => {
-    const source = await workflow();
+function expectPinned(source: string): void {
+  for (const line of source.split("\n").filter((entry) => entry.includes("uses:"))) {
+    expect(line).toMatch(/uses:\s+[\w.-]+\/[\w.-]+@[a-f0-9]{40}\s+#\s+\S+/);
+  }
+}
 
-    for (const name of [
-      "demo-provider-boundary",
-      "demo-web",
-      "member-web",
-      "site",
-      "site-waitlist-edge",
-      "site-browser",
-    ]) {
-      expect(job(source, name)).not.toContain("if: github.event_name == 'workflow_dispatch'");
-    }
-
-    expect(job(source, "demo-provider-boundary")).toContain("test-check-demo-provider-boundaries.sh");
-    expect(job(source, "demo-web")).toContain("flutter build web --release");
-    const memberWeb = job(source, "member-web");
-    expect(memberWeb).toContain("flutter build web --release");
-    expect(memberWeb).toContain("--no-web-resources-cdn");
-    expect(memberWeb).toContain("--no-source-maps");
-    expect(memberWeb).toContain("--no-wasm-dry-run");
-    expect(memberWeb).toContain("--pwa-strategy=none");
-    expect(memberWeb).toContain("--dart-define=BETA_SUPABASE_PROJECT_REF=");
-    expect(memberWeb).toContain("--dart-define=BETA_SUPABASE_PUBLISHABLE_KEY_SHA256=");
-    expect(memberWeb).toContain("npm run assets:build:member-beta");
-    expect(memberWeb).toContain("wrangler versions upload --config wrangler.jsonc --dry-run");
-    expect(memberWeb).not.toMatch(/secrets\.|CLOUDFLARE_API_TOKEN|SUPABASE_ACCESS_TOKEN/);
-    expect(job(source, "site")).toContain("npm run pages:config:check");
-    expect(job(source, "site")).not.toMatch(/types:check|resources:check|deploy:dry-run/);
-    expect(job(source, "site-waitlist-edge")).toContain("deno task check");
-    expect(job(source, "site-waitlist-edge")).toContain("deno task test");
-    expect(job(source, "site-browser")).toContain("playwright install --with-deps chromium firefox webkit");
-  });
-
-  it("serializes preview, promotion, rollback, and Supabase remediation under one protected lock", async () => {
-    const release = await releaseWorkflow();
-    const remediation = await remediationWorkflow();
-
-    expect(release).toContain("environment: ritual-investing-web-release");
-    expect(release).toMatch(/options:\n\s+- preview\n\s+- promote\n\s+- rollback/);
-    expect(release).toContain("group: ritual-investing-release-supabase-remediation");
-    expect(remediation).toContain("group: ritual-investing-release-supabase-remediation");
-    expect(release).toContain("APPROVED_MEMBER_WEB_RELEASE_MANIFEST_SHA256");
-    expect(release).toContain("EXPECTED_MEMBER_WORKER_NAME");
-    expect(release).toContain("EXPECTED_BETA_SUPABASE_PROJECT_ID");
-    expect(release).toContain("wrangler versions upload");
-    expect(release).toContain("--preview-alias beta");
-    expect(release).not.toContain(".preview_accepted=true");
-    expect(release).toContain('if: inputs.action == \'promote\'');
-    expect(release).toContain('"$RITUAL_WORKER_VERSION_ID@100%"');
-    expect(release).toContain("wrangler rollback");
-    expect(release).toContain("BETA_MEMBER_PREVIEW_ORIGIN");
-    expect(release).toContain("$RITUAL_BETA_PREVIEW_ORIGIN/mobile/argus-auth/callback");
-
-    const releaseJob = job(release, "release");
-    const jobEnvironment = releaseJob.slice(0, releaseJob.indexOf("\n    steps:"));
-    expect(jobEnvironment).not.toMatch(
-      /CLOUDFLARE_API_TOKEN|CLOUDFLARE_ACCOUNT_ID|MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY:/,
-    );
-    expect(release).toMatch(/actions\/checkout@[a-f0-9]{40}/);
-    expect(release).toMatch(/actions\/setup-node@[a-f0-9]{40}/);
-    expect(release).toMatch(/subosito\/flutter-action@[a-f0-9]{40}/);
-    expect(release).toMatch(/actions\/upload-artifact@[a-f0-9]{40}/);
-
-    const promote = release.slice(release.indexOf("Verify the recorded preview version before promotion"));
-    expect(promote).not.toContain("flutter build web");
-  });
-
-  it("keeps normal PR proof local and reserves hosted Supabase credentials for protected deployment", async () => {
-    const source = await workflow();
-    const remediation = await remediationWorkflow();
-    const browser = job(source, "site-browser");
-    const hosted = job(remediation, "promote");
-
-    expect(browser).not.toMatch(/secrets\.|RITUAL_SITE_STAGING/);
-    expect(remediation).toMatch(/on:\n\s+workflow_dispatch:/);
-    expect(hosted).toContain("environment: ritual-supabase-remediation");
-    expect(hosted).toContain("SUPABASE_ACCESS_TOKEN");
-    expect(remediation).toContain("cancel-in-progress: false");
-  });
-
-  it("preserves the established mobile, API, contract, member, and admin regression jobs", async () => {
-    const source = await workflow();
-    for (const name of [
-      "api-security",
-      "supabase-local",
-      "supabase-edge",
-      "contract-client",
-      "mobile-android",
-      "mobile-ios",
-      "member-integration-android",
-      "member-integration-ios",
-      "admin-web-browser",
-    ]) {
+describe("Ritual fast CI", () => {
+  it("is secret-free, cancelable, and contains only fast checks", async () => {
+    const source = await readWorkflow("ritual-investing-ci.yml");
+    expect(source).toMatch(/on:\n\s+pull_request:/);
+    expect(source).toMatch(/\n\s+push:\n\s+branches: \[main\]/);
+    expect(source).not.toMatch(/workflow_dispatch|workflow_run|secrets\.|environment:\s+(staging|prod)/);
+    expect(source).toContain("cancel-in-progress: true");
+    for (const name of ["source-guard", "member-provider-boundary", "demo-web-fast", "demo-provider-boundary", "site", "site-waitlist-edge", "api-security", "supabase-edge", "contract-client", "release-bundle"]) {
       expect(job(source, name).length).toBeGreaterThan(100);
     }
+    expect(source).not.toMatch(/playwright|flutter\s+drive|integration_test|chromedriver|emulator|simulator|hosted[- ]acceptance|supabase\s+(start|link)|supabase\s+db\s+reset|--linked|restore|terraform\s+(plan|apply)|wrangler\s+(pages\s+deploy|versions\s+upload)/i);
+    expectPinned(source);
+  });
+
+  it("uploads the immutable release only for a canonical main push", async () => {
+    const source = await readWorkflow("ritual-investing-ci.yml");
+    const release = job(source, "release-bundle");
+    expect(release).toContain("if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.fork == false");
+    expect(release).toContain("npm run --silent release:bundle");
+    expect(release).toContain("npm run --silent release:verify -- release/release-bundle");
+    expect(release).toContain("retention-days: 30");
+    expect(release).toContain("include-hidden-files: true");
+    expect(source.match(/actions\/upload-artifact@/g)).toHaveLength(1);
+  });
+
+  it("uses staging terminology and removes the mixed predecessor", async () => {
+    const source = await readWorkflow("ritual-investing-ci.yml");
+    const memberRelease = await readWorkflow("ritual-investing-web-release.yml");
+    expect(source).not.toMatch(/RITUAL_ENVIRONMENT[=:]\s*beta|landing-beta|demo-beta|beta\.just-build-this\.app/i);
+    expect(source).toContain("RITUAL_ENVIRONMENT: staging");
+    expect(memberRelease).toContain("--arg environment staging");
+    expect(memberRelease).toContain("assets:build:member-staging");
+    expect(memberRelease).not.toMatch(/member-beta|--arg environment beta/);
+    expect(existsSync(resolve(root, ".github/workflows/ritual-investing.yml"))).toBe(false);
+  });
+
+  it("path-scopes the AXIO7 matrix away from Ritual-only changes", async () => {
+    const source = await readWorkflow("ci.yml");
+    expect(source).toMatch(/push:\n\s+branches: \["\*\*"\]\n\s+paths:/);
+    expect(source).toMatch(/pull_request:\n\s+paths:/);
+    expect(source).toContain('"axio7-model-review/**"');
+    expect(source).not.toContain('"ritual-investing-*/**"');
+    expect(source).toMatch(/\n\s+workflow_dispatch:/);
+    expectPinned(source);
   });
 });

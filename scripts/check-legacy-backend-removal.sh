@@ -65,7 +65,10 @@ if rg -n -i \
   ritual-investing-admin/pubspec.yaml \
   ritual-investing-admin/pubspec.lock \
   ritual-investing-admin/lib \
-  .github/workflows/ritual-investing.yml \
+  .github/workflows/ritual-investing-ci.yml \
+  .github/workflows/ritual-investing-release-evidence.yml \
+  .github/workflows/ritual-investing-web-release.yml \
+  .github/workflows/ritual-investing-supabase-remediation.yml \
   docs/ritual-investing \
   --glob '!**/Pods/**' \
   --glob '!**/GeneratedPluginRegistrant.*' >/dev/null
@@ -97,16 +100,21 @@ do
 done
 
 if rg -n \
-  'RITUAL_ENVIRONMENT["[:space:]:=]+beta|DemoEnvironment\.(beta|production)|data-demo-environment="(beta|production)"|environment=(beta|production)|landing-beta|demo-beta|beta\.just-build-this\.app|TURNSTILE_SITE_KEY_(BETA|PRODUCTION)|WAITLIST_FUNCTION_URL_(BETA|PRODUCTION)' \
+  'RITUAL_ENVIRONMENT["[:space:]:=]+beta|DemoEnvironment\.(beta|production)|data-demo-environment="(beta|production)"|environment=(beta|production)|landing-beta|demo-beta|member-beta|assets:build:member-beta|beta\.just-build-this\.app|TURNSTILE_SITE_KEY_(BETA|PRODUCTION)|WAITLIST_FUNCTION_URL_(BETA|PRODUCTION)' \
   ritual-investing-app/config \
   ritual-investing-app/lib/core/config/runtime_config.dart \
   ritual-investing-demo/lib/demo_bootstrap.dart \
   ritual-investing-site/public \
   ritual-investing-site/scripts/build-assets.ts \
   ritual-investing-site/scripts/check-staging-evidence.ts \
+  ritual-investing-site/package.json \
   ritual-investing-site/wrangler.staging.jsonc \
   ritual-investing-site/wrangler.demo.jsonc \
   ritual-investing-site/wrangler.demo-staging.jsonc \
+  ritual-investing-site/wrangler.jsonc \
+  .github/workflows/ritual-investing-ci.yml \
+  .github/workflows/ritual-investing-release-evidence.yml \
+  .github/workflows/ritual-investing-web-release.yml \
   scripts/run-ritual-investing-dev.sh \
   scripts/run-ritual-investing-staging.sh
 then

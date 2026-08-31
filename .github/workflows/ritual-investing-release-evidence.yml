@@ -1,0 +1,411 @@
+name: Ritual Investing Manual Release Evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Ritual Investing Fast CI run ID from a canonical main push
+        required: true
+        type: string
+      artifact_id:
+        description: Exact retained release artifact ID from that source run
+        required: true
+        type: string
+      source_sha:
+        description: Exact 40-character release subject SHA
+        required: true
+        type: string
+      archive_sha256:
+        description: Expected release-bundle.tar SHA-256
+        required: true
+        type: string
+      manifest_sha256:
+        description: Expected release-manifest.json SHA-256
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ritual-investing-evidence-${{ inputs.source_run_id }}-${{ inputs.artifact_id }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: 22.22.0
+  FLUTTER_VERSION: 3.47.1
+  SUPABASE_CLI_VERSION: 2.115.0
+
+jobs:
+  source-release:
+    runs-on: ubuntu-24.04
+    outputs:
+      source_attempt: ${{ steps.verify.outputs.source_attempt }}
+    steps:
+      - name: Validate the selected source run and artifact metadata
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" >"$RUNNER_TEMP/source-run.json"
+          jq -e --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --argjson run_id "$SOURCE_RUN_ID" '
+            .id == $run_id and
+            .repository.full_name == $repository and
+            .head_repository.full_name == $repository and
+            .event == "push" and
+            .head_branch == "main" and
+            .head_sha == $sha and
+            .conclusion == "success" and
+            .path == ".github/workflows/ritual-investing-ci.yml"
+          ' "$RUNNER_TEMP/source-run.json" >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" >"$RUNNER_TEMP/source-artifact.json"
+          jq -e --slurpfile source_run "$RUNNER_TEMP/source-run.json" --arg sha "$SOURCE_SHA" --argjson run_id "$SOURCE_RUN_ID" --argjson artifact_id "$ARTIFACT_ID" '
+            .id == $artifact_id and
+            .workflow_run.id == $run_id and
+            .workflow_run.repository_id == $source_run[0].repository.id and
+            .workflow_run.head_repository_id == $source_run[0].head_repository.id and
+            .workflow_run.head_branch == "main" and
+            .workflow_run.head_sha == $sha and
+            (.name | startswith("ritual-release-" + $sha + "-" + ($run_id | tostring) + "-")) and
+            .expired == false
+          ' "$RUNNER_TEMP/source-artifact.json" >/dev/null
+          echo "source_attempt=$(jq -er '.run_attempt' "$RUNNER_TEMP/source-run.json")" >>"$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.artifact_id }}
+          path: ${{ runner.temp }}/source-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - name: Verify the downloaded bundle and both caller-supplied digests
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          EXPECTED_ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+          SOURCE_ATTEMPT: ${{ steps.verify.outputs.source_attempt }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$EXPECTED_MANIFEST_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          artifact="$RUNNER_TEMP/source-artifact"
+          actual_archive_sha256="$(sha256sum "$artifact/release-bundle.tar" | cut -d' ' -f1)"
+          actual_manifest_sha256="$(sha256sum "$artifact/release-bundle/release-manifest.json" | cut -d' ' -f1)"
+          test "$actual_archive_sha256" = "$EXPECTED_ARCHIVE_SHA256"
+          test "$actual_manifest_sha256" = "$EXPECTED_MANIFEST_SHA256"
+          test "$(cut -d' ' -f1 "$artifact/archive.sha256")" = "$EXPECTED_ARCHIVE_SHA256"
+          test "$(cut -d' ' -f1 "$artifact/manifest.sha256")" = "$EXPECTED_MANIFEST_SHA256"
+          npm --prefix ritual-investing-site ci
+          npm --prefix ritual-investing-site run --silent release:verify -- "$artifact/release-bundle" | tee "$RUNNER_TEMP/verified-release.json"
+          jq -e --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --arg run_id "$SOURCE_RUN_ID" --argjson attempt "$SOURCE_ATTEMPT" '
+            .subject.repository == $repository and
+            .subject.sha == $sha and
+            .subject.runId == $run_id and
+            .subject.attempt == $attempt and
+            .controller.workflow == "Ritual Investing Fast CI" and
+            .controller.ref == "refs/heads/main" and
+            .controller.sha == $sha and
+            .controller.runId == $run_id and
+            .controller.attempt == $attempt
+          ' "$RUNNER_TEMP/verified-release.json" >/dev/null
+
+  member-web-build:
+    needs: source-release
+    runs-on: ubuntu-24.04
+    env:
+      MEMBER_BETA_SUPABASE_PROJECT_REF: abcdefghijklmnopqrst
+      MEMBER_BETA_SUPABASE_ORIGIN: https://abcdefghijklmnopqrst.supabase.co
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY: sb_publishable_member_beta_ci_fixture_1234567890
+      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: 683352f53f2be1470cf5e6b4404d57df12e4ae981eb0e5ac8f9a043e63aaba12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - name: Build the non-production public-beta member artifact in staging
+        working-directory: ritual-investing-app
+        run: >-
+          flutter build web --release
+          --no-web-resources-cdn
+          --no-source-maps
+          --no-wasm-dry-run
+          --pwa-strategy=none
+          --dart-define=RITUAL_ENVIRONMENT=staging
+          --dart-define=RITUAL_API_BASE_URL=${{ env.MEMBER_BETA_SUPABASE_ORIGIN }}/functions/v1/api
+          --dart-define=SUPABASE_URL=${{ env.MEMBER_BETA_SUPABASE_ORIGIN }}
+          --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ env.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY }}
+          --dart-define=BETA_SUPABASE_PROJECT_REF=${{ env.MEMBER_BETA_SUPABASE_PROJECT_REF }}
+          --dart-define=BETA_SUPABASE_PUBLISHABLE_KEY_SHA256=${{ env.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256 }}
+      - working-directory: ritual-investing-site
+        run: npm ci
+      - working-directory: ritual-investing-site
+        run: npm run assets:build:member-staging
+      - working-directory: ritual-investing-site
+        run: npx --no-install wrangler versions upload --config wrangler.jsonc --dry-run
+
+  demo-browser:
+    needs: source-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-demo
+        run: flutter pub get --enforce-lockfile
+      - name: Fixture-backed Chrome curated journey and reset
+        working-directory: ritual-investing-demo
+        run: |
+          chromedriver --port=4444 &
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/demo_browser_workflows_test.dart -d chrome
+
+  site-browser:
+    needs: source-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-demo
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-demo
+        run: flutter build web --release --no-web-resources-cdn --no-source-maps --no-wasm-dry-run --pwa-strategy=none
+      - working-directory: ritual-investing-site
+        run: npm ci
+      - working-directory: ritual-investing-site
+        run: npm run assets:build
+      - working-directory: ritual-investing-site
+        run: npx playwright install --with-deps chromium firefox webkit
+      - working-directory: ritual-investing-site
+        run: npm run test:browser
+
+  supabase-local:
+    needs: source-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - run: ./scripts/test-check-supabase-architecture-contract.sh
+      - run: ./scripts/test-check-supabase-migration-inventory.sh
+      - run: ./scripts/check-supabase-architecture-contract.sh --offline
+      - uses: supabase/setup-cli@b60b5899c73b63a2d2d651b1e90db8d4c9392f51 # v1.6.0
+        with:
+          version: ${{ env.SUPABASE_CLI_VERSION }}
+      - run: ./scripts/check-supabase-migration-inventory.sh --check-cli
+      - run: supabase start
+      - run: supabase db reset
+      - run: supabase test db
+      - run: supabase db lint --local --level error --fail-on error
+      - run: supabase db advisors --local --type security --fail-on error
+      - run: supabase db advisors --local --type performance --fail-on error
+      - name: Prove replay-safe local restore
+        run: supabase db reset
+
+  mobile-android:
+    needs: source-release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-app
+        run: flutter build apk --debug --dart-define=RITUAL_ENVIRONMENT=staging --dart-define=RITUAL_API_BASE_URL=https://abcdefghijklmnopqrst.supabase.co/functions/v1/api --dart-define=SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_local_fixture_1234567890
+
+  mobile-ios:
+    needs: source-release
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-app
+        run: flutter build ios --debug --no-codesign --dart-define=RITUAL_ENVIRONMENT=staging --dart-define=RITUAL_API_BASE_URL=https://abcdefghijklmnopqrst.supabase.co/functions/v1/api --dart-define=SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_local_fixture_1234567890
+
+  member-integration-android:
+    needs: source-release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165 # v5.0.0
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - name: Generated-Dio member flow with ephemeral Android identity
+        uses: reactivecircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed # v2.34.0
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: >-
+            cd ritual-investing-app && flutter test integration_test/member_experience_test.dart -d emulator-5554
+            --dart-define=RITUAL_ENVIRONMENT=staging
+            --dart-define=RITUAL_API_BASE_URL=https://abcdefghijklmnopqrst.supabase.co/functions/v1/api
+            --dart-define=SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co
+            --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_local_fixture_1234567890
+
+  member-integration-ios:
+    needs: source-release
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - name: Boot an available iPhone simulator
+        id: simulator
+        shell: bash
+        run: |
+          device_id="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ { print $2; exit }')"
+          test -n "$device_id"
+          xcrun simctl boot "$device_id" || true
+          xcrun simctl bootstatus "$device_id" -b
+          echo "device_id=$device_id" >>"$GITHUB_OUTPUT"
+      - working-directory: ritual-investing-app
+        run: flutter test integration_test/member_experience_test.dart -d ${{ steps.simulator.outputs.device_id }} --dart-define=RITUAL_ENVIRONMENT=staging --dart-define=RITUAL_API_BASE_URL=https://abcdefghijklmnopqrst.supabase.co/functions/v1/api --dart-define=SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_local_fixture_1234567890
+
+  admin-web-browser:
+    needs: source-release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-admin
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-admin
+        run: flutter analyze
+      - working-directory: ritual-investing-admin
+        run: flutter test
+      - working-directory: ritual-investing-admin
+        run: flutter build web --release --dart-define=ADMIN_API_BASE_URL=https://abcdefghijklmnopqrst.supabase.co/functions/v1/api --dart-define=SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_local_fixture_1234567890
+      - name: Fixture-backed Chrome dashboard interaction
+        working-directory: ritual-investing-admin
+        run: |
+          chromedriver --port=4444 &
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/admin_browser_workflows_test.dart -d chrome --dart-define=ADMIN_API_BASE_URL=https://abcdefghijklmnopqrst.supabase.co/functions/v1/api --dart-define=SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_local_fixture_1234567890
+
+  evidence-summary:
+    needs: [source-release, member-web-build, demo-browser, site-browser, supabase-local, mobile-android, mobile-ios, member-integration-android, member-integration-ios, admin-web-browser]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Record exact-source manual evidence
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ATTEMPT: ${{ needs.source-release.outputs.source_attempt }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+        run: |
+          jq -n -S \
+            --arg source_run_id "$SOURCE_RUN_ID" \
+            --arg source_attempt "$SOURCE_ATTEMPT" \
+            --arg artifact_id "$ARTIFACT_ID" \
+            --arg source_sha "$SOURCE_SHA" \
+            --arg archive_sha256 "$ARCHIVE_SHA256" \
+            --arg manifest_sha256 "$MANIFEST_SHA256" \
+            --arg evidence_run_id "$GITHUB_RUN_ID" \
+            --arg evidence_attempt "$GITHUB_RUN_ATTEMPT" \
+            '{schemaVersion:1, status:"passed", source_run_id:$source_run_id, source_attempt:$source_attempt, artifact_id:$artifact_id, source_sha:$source_sha, archive_sha256:$archive_sha256, manifest_sha256:$manifest_sha256, evidence_run_id:$evidence_run_id, evidence_attempt:$evidence_attempt}' \
+            >"$RUNNER_TEMP/release-evidence.json"
+          sha256sum "$RUNNER_TEMP/release-evidence.json" >"$RUNNER_TEMP/release-evidence.sha256"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ritual-release-evidence-${{ inputs.source_sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-evidence.json
+            ${{ runner.temp }}/release-evidence.sha256
+          if-no-files-found: error
+          retention-days: 30

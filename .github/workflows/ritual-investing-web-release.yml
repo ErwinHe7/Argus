@@ -166,7 +166,7 @@ jobs:
           set -eu
           test "$(printf '%s' "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY" | sha256sum | cut -d' ' -f1)" = "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256"
           jq -n \
-            --arg environment beta \
+            --arg environment staging \
             --arg api "$MEMBER_BETA_SUPABASE_ORIGIN/functions/v1/api" \
             --arg url "$MEMBER_BETA_SUPABASE_ORIGIN" \
             --arg key "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY" \
@@ -174,7 +174,7 @@ jobs:
             --arg key_sha256 "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256" \
             --arg auth_redirects "https://just-build-this.app/mobile/argus-auth/callback,$RITUAL_BETA_PREVIEW_ORIGIN/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback" \
             '{RITUAL_ENVIRONMENT:$environment,RITUAL_API_BASE_URL:$api,SUPABASE_URL:$url,SUPABASE_PUBLISHABLE_KEY:$key,BETA_SUPABASE_PROJECT_REF:$project_ref,BETA_SUPABASE_PUBLISHABLE_KEY_SHA256:$key_sha256,ARGUS_AUTH_REDIRECT_ALLOWLIST:$auth_redirects}' \
-            >"$RUNNER_TEMP/member-beta-defines.json"
+            >"$RUNNER_TEMP/member-staging-defines.json"
           cd ritual-investing-app
           flutter pub get --enforce-lockfile
           flutter build web --release \
@@ -182,10 +182,10 @@ jobs:
             --no-source-maps \
             --no-wasm-dry-run \
             --pwa-strategy=none \
-            --dart-define-from-file="$RUNNER_TEMP/member-beta-defines.json"
+            --dart-define-from-file="$RUNNER_TEMP/member-staging-defines.json"
           cd ../ritual-investing-site
-          npm run assets:build:member-beta
-          test "$(sha256sum dist/member-beta/asset-manifest.json | cut -d' ' -f1)" = "$RITUAL_ARTIFACT_MANIFEST_SHA256"
+          npm run assets:build:member-staging
+          test "$(sha256sum dist/member-staging/asset-manifest.json | cut -d' ' -f1)" = "$RITUAL_ARTIFACT_MANIFEST_SHA256"
 
       - name: Upload the reviewed version to the stable beta preview alias
         if: inputs.action == 'preview'

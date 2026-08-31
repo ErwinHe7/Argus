@@ -9,7 +9,7 @@ const PAGES_CONFIGS = [
   ["wrangler.demo-staging.jsonc", "./dist/demo-staging"],
 ] as const;
 const WORKER_CONFIGS = [
-  ["wrangler.jsonc", "./dist/member-beta", "single-page-application"],
+  ["wrangler.jsonc", "./dist/member-staging", "single-page-application"],
   ["wrangler.landing.jsonc", "./dist/landing-prod", "none"],
 ] as const;
 

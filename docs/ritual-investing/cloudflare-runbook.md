@@ -7,7 +7,7 @@ authority. The landing and Demo artifacts remain independently assembled and
 scanned.
 
 Before preview upload, build Flutter web without a service worker, source maps,
-remote web resources, or a WASM dry run. Assemble `dist/member-beta`, verify its
+remote web resources, or a WASM dry run. Assemble `dist/member-staging`, verify its
 manifest and provider scan, and run Wrangler's dry-run validation. The bundle
 may connect only to the exact persistent `beta` branch origin of the Ritual
 Investment Supabase project.

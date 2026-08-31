@@ -11,7 +11,16 @@ name: CI
 on:
   push:
     branches: ["**"]
+    paths:
+      - ".github/workflows/ci.yml"
+      - "axio7-model-review/**"
+      - "scripts/check-no-ignored-sources.sh"
   pull_request:
+    paths:
+      - ".github/workflows/ci.yml"
+      - "axio7-model-review/**"
+      - "scripts/check-no-ignored-sources.sh"
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -22,7 +31,7 @@ jobs:
     name: 源码目录未被 gitignore 误伤
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: 检查 src/ 下是否有被忽略的路径
         run: bash scripts/check-no-ignored-sources.sh
 
@@ -33,11 +42,11 @@ jobs:
       run:
         working-directory: axio7-model-review/source/quant_engine_rs
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # stable reviewed 2026-08-31
         with:
           components: rustfmt, clippy
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@f13886b937689c021905a6b90929199931d60db1 # v2.8.1
         with:
           workspaces: axio7-model-review/source/quant_engine_rs
       - run: cargo fmt --check
@@ -54,8 +63,8 @@ jobs:
       run:
         working-directory: axio7-model-review/source/intraday_quant
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
         with:
           python-version: "3.11"
           cache: pip
@@ -77,7 +86,7 @@ jobs:
       run:
         working-directory: axio7-model-review/source/quant_core_cpp
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: 安装依赖
         run: |
           sudo apt-get update
@@ -93,11 +102,11 @@ jobs:
     name: Docker 镜像可从 clean checkout 构建
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # 构建上下文是 source/ 而非 quant_engine_rs/：src/ledger.rs:10 的
       # include_str!("../../ledger/schema.sql") 引用了 crate 之外的兄弟目录。
       # 这个 job 第一次运行就抓到了该问题 —— 此前这个镜像从未构建成功过。
-      - uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
         with:
           context: axio7-model-review/source
           file: axio7-model-review/source/quant_engine_rs/Dockerfile
