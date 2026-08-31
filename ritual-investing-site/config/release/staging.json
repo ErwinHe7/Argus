@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "identity": "ritual-release-staging-v1",
+  "environment": "staging",
+  "targets": {
+    "landing": {
+      "pagesProject": "ritual-investing-site-staging",
+      "host": "staging.just-build-this.app",
+      "backendDependency": {
+        "classification": "compatible-with",
+        "requiredFingerprint": "0cad737319cba650c0c5778802f02541f298886ab2c35338edf3c317e149568e",
+        "target": {
+          "status": "approved",
+          "supabaseProjectRef": "zbgjjufjkhfhirbuuolv",
+          "waitlistUrl": "https://zbgjjufjkhfhirbuuolv.supabase.co/functions/v1/waitlist"
+        }
+      }
+    },
+    "demo": {
+      "pagesProject": "ritual-investing-demo-staging",
+      "host": "demo-staging.just-build-this.app",
+      "backendDependency": {
+        "classification": "backend-independent",
+        "requiredFingerprint": null,
+        "target": {
+          "status": "not-applicable"
+        }
+      }
+    }
+  }
+}

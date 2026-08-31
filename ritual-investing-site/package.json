@@ -18,7 +18,12 @@
     "assets:build": "node --experimental-strip-types scripts/build-assets.ts",
     "assets:build:member-beta": "node --experimental-strip-types scripts/build-assets.ts member-beta",
     "assets:build:release": "REQUIRE_WAITLIST_CONFIGURATION=true node --experimental-strip-types scripts/build-assets.ts",
-    "pages:config:check": "vitest run test/config.test.ts test/build-assets.test.ts"
+    "release:bundle": "node --experimental-strip-types scripts/release/build-release-bundle.ts",
+    "release:verify": "node --experimental-strip-types scripts/release/verify-release-bundle.ts",
+    "release:receipt:verify": "node --experimental-strip-types scripts/release/verify-deployment-receipt.ts",
+    "release:probe": "node --experimental-strip-types scripts/release/probe-pages-deployment.ts",
+    "release:contracts": "vitest run test/release/release-bundle.test.ts test/release/deployment-receipt.test.ts",
+    "pages:config:check": "vitest run test/config.test.ts test/build-assets.test.ts test/release/release-bundle.test.ts"
   },
   "dependencies": {},
   "devDependencies": {
