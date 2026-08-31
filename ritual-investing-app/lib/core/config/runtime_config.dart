@@ -187,7 +187,6 @@ class RuntimeConfig {
         'Auth and Edge API must use the same Supabase project and exact API path.',
       );
     }
-    if (environment == 'dev') return;
     if (environment != 'staging') return;
     if (!RegExp(r'^[a-z]{20}$').hasMatch(stagingProjectRef) ||
         supabaseUrl.host != '$stagingProjectRef.supabase.co') {

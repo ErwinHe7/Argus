@@ -8,6 +8,10 @@ import 'package:ritual_investing_app/core/navigation/member_app_router.dart';
 
 const demoCurrentProtocolVersion = 2;
 const demoPreviousProtocolVersion = 1;
+const demoSupportedProtocolVersions = [
+  demoCurrentProtocolVersion,
+  demoPreviousProtocolVersion,
+];
 
 enum DemoEnvironment { prod, staging }
 
@@ -139,10 +143,7 @@ class _DemoRitualInvestingAppState extends State<DemoRitualInvestingApp> {
   }
 
   void _sendCompatible(DemoFrameEventType type) {
-    for (final version in const [
-      demoCurrentProtocolVersion,
-      demoPreviousProtocolVersion,
-    ]) {
+    for (final version in demoSupportedProtocolVersions) {
       widget.frameChannel.send(
         DemoFrameEvent(
           type: type,
@@ -202,10 +203,7 @@ class _DemoStartupFailureAppState extends State<DemoStartupFailureApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (final version in const [
-        demoCurrentProtocolVersion,
-        demoPreviousProtocolVersion,
-      ]) {
+      for (final version in demoSupportedProtocolVersions) {
         widget.frameChannel.send(
           DemoFrameEvent(
             type: DemoFrameEventType.error,
