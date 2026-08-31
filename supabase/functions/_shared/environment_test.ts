@@ -45,10 +45,9 @@ Deno.test("missing or malformed environment fails closed", () => {
 Deno.test("public-beta consumer origins are an exact bounded set", () => {
   assertEquals(
     requiredConsumerOrigins(reader({
-      ARGUS_CONSUMER_ORIGINS:
-        "https://just-build-this.app,https://beta.just-build-this.app",
+      ARGUS_CONSUMER_ORIGINS: "https://leo.axio7.workers.dev",
     })),
-    ["https://just-build-this.app", "https://beta.just-build-this.app"],
+    ["https://leo.axio7.workers.dev"],
   );
 
   for (
@@ -57,8 +56,8 @@ Deno.test("public-beta consumer origins are an exact bounded set", () => {
       "*",
       "null",
       "https://just-build-this.app",
-      "https://just-build-this.app,https://branch.pages.dev",
-      "https://just-build-this.app,https://beta.just-build-this.app/route",
+      "https://leo.axio7.workers.dev,https://branch.pages.dev",
+      "https://leo.axio7.workers.dev/app/",
     ]
   ) {
     assertThrows(

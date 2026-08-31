@@ -4,9 +4,14 @@ import 'app/ritual_investing_app.dart';
 import 'core/auth/supabase_session_repository.dart';
 import 'core/bootstrap/production_dependency_container.dart';
 import 'core/config/runtime_config.dart';
+import 'internal_preview/internal_preview.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  if (shouldLaunchInternalPreview(Uri.base)) {
+    runApp(createInternalPreviewApp());
+    return;
+  }
   try {
     final config = RuntimeConfig.fromEnvironment();
     final memberSupabase = await initializeMemberSupabase(

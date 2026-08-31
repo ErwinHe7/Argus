@@ -16,12 +16,14 @@ class RitualInvestingApp extends StatefulWidget {
     this.resourceAccess,
     this.bootstrapOnStart = true,
     this.allowSelfServiceSignup = true,
+    this.appBuilder,
   });
 
   final DependencyContainer container;
   final MemberResourceAccess? resourceAccess;
   final bool bootstrapOnStart;
   final bool allowSelfServiceSignup;
+  final TransitionBuilder? appBuilder;
 
   @override
   State<RitualInvestingApp> createState() => _RitualInvestingAppState();
@@ -101,6 +103,7 @@ class _RitualInvestingAppState extends State<RitualInvestingApp> {
       darkTheme: AppTheme.dark,
       themeMode: _themeMode,
       routerConfig: _router,
+      builder: widget.appBuilder,
     ),
   );
 

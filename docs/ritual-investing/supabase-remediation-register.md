@@ -130,6 +130,10 @@ those modules still changes the exact path manifest and fails closed.
 
 <!-- scope:CONCEPTS.md -->
 <!-- scope:MODEL_SOURCE_MAP.zh-CN.md -->
+<!-- scope:PLATFORM_START_HERE.md -->
+<!-- scope:adversarial-review-brief.md -->
+<!-- scope:.github/workflows/platform-ci.yml -->
+<!-- scope:.github/workflows/ritual-investing-web-release.yml -->
 <!-- scope:.github/workflows/ritual-investing-supabase-remediation.yml -->
 <!-- scope:.github/workflows/ritual-investing.yml -->
 <!-- scope:docs/ritual-investing/* -->
@@ -159,6 +163,7 @@ those modules still changes the exact path manifest and fails closed.
 <!-- scope:ritual-investing-admin/pubspec.yaml -->
 <!-- scope:ritual-investing-demo/* -->
 <!-- scope:ritual-investing-site/* -->
+<!-- scope:platform/* -->
 
 | Surface | Current composition and consumers | Disposition / owner |
 |---|---|---|
