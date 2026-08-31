@@ -2,7 +2,7 @@ type EnvironmentReader = (name: string) => string | undefined;
 
 const publicBetaConsumerOrigins = Object.freeze([
   "https://just-build-this.app",
-  "https://beta.just-build-this.app",
+  "https://staging.just-build-this.app",
 ]);
 
 export function requiredEnvironment(

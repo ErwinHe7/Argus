@@ -35,7 +35,7 @@ contract_version: supabase-remediation-register-v1
 <!-- scope:supabase/tests/* -->
 <!-- scope:scripts/* -->
 <!-- scope:docs/ritual-investing/* -->
-<!-- scope:.github/workflows/ritual-investing.yml -->
+<!-- scope:.github/workflows/ritual-investing-supabase-remediation.yml -->
 <!-- transitive:supabase/functions/api -->
 
 ### api ingress
@@ -114,7 +114,7 @@ EOF
   cat >"$fixture/supabase/functions/api/index.ts" <<'EOF'
 // Supabase-facing fixture entrypoint.
 EOF
-  cat >"$fixture/.github/workflows/ritual-investing.yml" <<'EOF'
+  cat >"$fixture/.github/workflows/ritual-investing-supabase-remediation.yml" <<'EOF'
 env:
   SUPABASE_CLI_VERSION: 2.115.0
 EOF

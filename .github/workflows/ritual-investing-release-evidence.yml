@@ -230,7 +230,7 @@ jobs:
         run: ctest --test-dir axio7-model-review/source/quant_core_cpp/build --output-on-failure
 
   prod_readiness:
-    needs: [source-release, axio7_rust, axio7_python, axio7_typescript, axio7_docker, axio7_native]
+    needs: [source-release, axio7_rust, axio7_python, axio7_typescript, axio7_docker, axio7_native, member-web-build, demo-browser, site-browser, supabase-local, mobile-android, mobile-ios, member-integration-android, member-integration-ios, admin-web-browser]
     runs-on: ubuntu-24.04
     environment: prod
     outputs:
@@ -279,10 +279,10 @@ jobs:
     needs: source-release
     runs-on: ubuntu-24.04
     env:
-      MEMBER_BETA_SUPABASE_PROJECT_REF: abcdefghijklmnopqrst
-      MEMBER_BETA_SUPABASE_ORIGIN: https://abcdefghijklmnopqrst.supabase.co
-      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY: sb_publishable_member_beta_ci_fixture_1234567890
-      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: 683352f53f2be1470cf5e6b4404d57df12e4ae981eb0e5ac8f9a043e63aaba12
+      MEMBER_STAGING_SUPABASE_PROJECT_REF: abcdefghijklmnopqrst
+      MEMBER_STAGING_SUPABASE_ORIGIN: https://abcdefghijklmnopqrst.supabase.co
+      MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY: sb_publishable_member_staging_ci_fixture_1234567890
+      MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256: aaa109e1f7178b8a5d1b92c201fff33df7a9c5eb890bc3de0352e72cd873fd25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -309,11 +309,11 @@ jobs:
           --no-wasm-dry-run
           --pwa-strategy=none
           --dart-define=RITUAL_ENVIRONMENT=staging
-          --dart-define=RITUAL_API_BASE_URL=${{ env.MEMBER_BETA_SUPABASE_ORIGIN }}/functions/v1/api
-          --dart-define=SUPABASE_URL=${{ env.MEMBER_BETA_SUPABASE_ORIGIN }}
-          --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ env.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY }}
-          --dart-define=BETA_SUPABASE_PROJECT_REF=${{ env.MEMBER_BETA_SUPABASE_PROJECT_REF }}
-          --dart-define=BETA_SUPABASE_PUBLISHABLE_KEY_SHA256=${{ env.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256 }}
+          --dart-define=RITUAL_API_BASE_URL=${{ env.MEMBER_STAGING_SUPABASE_ORIGIN }}/functions/v1/api
+          --dart-define=SUPABASE_URL=${{ env.MEMBER_STAGING_SUPABASE_ORIGIN }}
+          --dart-define=SUPABASE_PUBLISHABLE_KEY=${{ env.MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY }}
+          --dart-define=STAGING_SUPABASE_PROJECT_REF=${{ env.MEMBER_STAGING_SUPABASE_PROJECT_REF }}
+          --dart-define=STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256=${{ env.MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256 }}
       - working-directory: ritual-investing-site
         run: npm ci
       - working-directory: ritual-investing-site

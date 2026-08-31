@@ -237,18 +237,18 @@ ${entryCacheRules(["/", "/index.html", "/flutter.js", "/flutter_bootstrap.js", "
 export function resolveMemberStagingAssemblyInputs(
   variables: Record<string, string | undefined>,
 ): MemberStagingAssemblyInputs {
-  const projectRef = variables.MEMBER_BETA_SUPABASE_PROJECT_REF?.trim() ?? "";
-  const supabaseOrigin = variables.MEMBER_BETA_SUPABASE_ORIGIN?.trim() ?? "";
+  const projectRef = variables.MEMBER_STAGING_SUPABASE_PROJECT_REF?.trim() ?? "";
+  const supabaseOrigin = variables.MEMBER_STAGING_SUPABASE_ORIGIN?.trim() ?? "";
   const publishableKeySha256 =
-    variables.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256?.trim().toLowerCase() ?? "";
+    variables.MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256?.trim().toLowerCase() ?? "";
   if (!/^[a-z0-9]{20}$/.test(projectRef)) {
-    throw new Error("The beta Supabase branch project ref is required.");
+    throw new Error("The staging Supabase project ref is required.");
   }
   if (supabaseOrigin !== `https://${projectRef}.supabase.co`) {
-    throw new Error("The member beta Supabase origin must exactly match its project ref.");
+    throw new Error("The member staging Supabase origin must exactly match its project ref.");
   }
   if (!/^[a-f0-9]{64}$/.test(publishableKeySha256)) {
-    throw new Error("The member beta publishable-key SHA-256 fingerprint is required.");
+    throw new Error("The member staging publishable-key SHA-256 fingerprint is required.");
   }
   return { projectRef, publishableKeySha256, supabaseOrigin };
 }
@@ -471,7 +471,7 @@ function validateMemberStagingBoundary(
     .join("\n");
   const apiUrl = `${inputs.supabaseOrigin}/functions/v1/api`;
   if (!text.includes(inputs.supabaseOrigin) || !text.includes(apiUrl)) {
-    throw new Error("The member artifact is missing its exact beta Supabase origin or Edge API URL.");
+    throw new Error("The member artifact is missing its exact staging Supabase origin or Edge API URL.");
   }
   const origins = new Set(
     [...text.matchAll(/https:\/\/[a-z0-9-]+\.supabase\.co/gi)].map((match) => match[0]),
@@ -514,7 +514,7 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
   const destination = resolve(options.destination);
   const surface = options.surface ?? "demo";
   if (surface === "member" && options.memberStaging === undefined) {
-    throw new Error("Member staging assembly requires exact beta Supabase inputs.");
+    throw new Error("Member staging assembly requires exact staging Supabase inputs.");
   }
   if (source === destination || source.startsWith(`${destination}${sep}`)) {
     throw new Error("Asset source and destination must be separate directories.");

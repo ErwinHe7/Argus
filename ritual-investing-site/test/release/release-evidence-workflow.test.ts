@@ -49,7 +49,9 @@ describe("Ritual manual release evidence", () => {
 
   it("records evidence only after all manual checks and pins every action", async () => {
     const source = await readWorkflow();
+    const readiness = job(source, "prod_readiness");
     const summary = job(source, "evidence-summary");
+    for (const name of heavyJobs) expect(readiness).toContain(name);
     for (const name of heavyJobs) expect(summary).toContain(name);
     for (const name of ["axio7_rust", "axio7_python", "axio7_typescript", "axio7_docker", "axio7_native", "prod_readiness"]) {
       expect(summary).toContain(name);
@@ -58,6 +60,7 @@ describe("Ritual manual release evidence", () => {
     expect(source.match(/environment: prod/g)).toHaveLength(1);
     expect(source.match(/secrets\.AXIO7_PROD_RESEARCH_TOKEN/g)).toHaveLength(1);
     expect(source).not.toMatch(/reviewers:|wait_timer:|deployment_branch_policy:/);
+    expect(source).not.toMatch(/MEMBER_BETA|BETA_SUPABASE/);
     for (const line of source.split("\n").filter((entry) => entry.includes("uses:"))) expect(line).toMatch(/uses:\s+[\w.-]+\/[\w.-]+@[a-f0-9]{40}\s+#\s+\S+/);
   });
 });

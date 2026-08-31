@@ -55,8 +55,34 @@ describe("Ritual fast CI", () => {
     expect(source).toContain("RITUAL_ENVIRONMENT: staging");
     expect(memberRelease).toContain("--arg environment staging");
     expect(memberRelease).toContain("assets:build:member-staging");
-    expect(memberRelease).not.toMatch(/member-beta|--arg environment beta/);
+    expect(memberRelease).not.toMatch(/member-beta|--arg environment beta|MEMBER_BETA|BETA_SUPABASE|preview-alias beta|beta\.just-build-this\.app/i);
+    expect(memberRelease).toContain("environment: ritual-investing-web-release");
+    expect(memberRelease).toContain("--preview-alias staging");
     expect(existsSync(resolve(root, ".github/workflows/ritual-investing.yml"))).toBe(false);
+  });
+
+  it("binds manual Supabase remediation to one retained release before staging credentials", async () => {
+    const source = await readWorkflow("ritual-investing-supabase-remediation.yml");
+    expect(source).toMatch(/on:\n\s+workflow_dispatch:/);
+    expect(source).not.toMatch(/\n  (push|pull_request|workflow_run):/);
+    for (const input of ["source_run_id", "source_attempt", "artifact_id", "source_sha", "archive_sha256", "manifest_sha256", "promotion_manifest", "promotion_manifest_sha256"]) {
+      expect(source).toContain(`${input}:`);
+    }
+    const preflight = job(source, "preflight");
+    expect(preflight).not.toMatch(/\n\s{4}environment:|secrets\.|SUPABASE_ACCESS_TOKEN|SUPABASE_DB_PASSWORD|SUPABASE_DB_URL/);
+    for (const proof of [".run_attempt == $attempt", ".expired == false", "merge-multiple: true", "release:verify", "snapshots/supabase/migrations", "snapshots/supabase/functions", "supabase-boundary-manifest-v1.txt", "supabase-migration-inventory-v1.txt", "controller-source"]) {
+      expect(preflight).toContain(proof);
+    }
+    const promote = job(source, "promote");
+    expect(promote).toContain("environment: ritual-supabase-remediation");
+    expect(promote).toContain("needs.preflight.outputs.mutation_ready == 'true'");
+    expect(promote).toContain("working-directory: release-source");
+    expect(source).toContain("SUPABASE_CLI_VERSION: 2.115.0");
+    expect(promote).toContain('supabase link --project-ref "$SUPABASE_PROJECT_ID"');
+    expect(promote).toContain("supabase db push --include-all");
+    expect(promote).toContain('supabase functions deploy api --project-ref "$SUPABASE_PROJECT_ID"');
+    expect(promote).not.toMatch(/RITUAL_BETA|BETA_SUPABASE|beta\.just-build-this\.app/);
+    expectPinned(source);
   });
 
   it("path-scopes the AXIO7 matrix away from Ritual-only changes", async () => {

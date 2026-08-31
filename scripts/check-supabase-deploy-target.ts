@@ -42,7 +42,10 @@ function validatePromotionBindings(): void {
   }
 
   const revision = required("RITUAL_PROMOTION_GIT_REVISION");
-  if (!/^[a-f0-9]{40}$/.test(revision) || revision !== required("GITHUB_SHA")) {
+  if (
+    !/^[a-f0-9]{40}$/.test(revision) ||
+    revision !== required("RITUAL_SOURCE_SHA")
+  ) {
     reject("git_revision");
   }
   if (
@@ -50,7 +53,7 @@ function validatePromotionBindings(): void {
       "argus-supabase-promotion/v1" ||
     required("RITUAL_PROMOTION_PROJECT_ID") !==
       required("SUPABASE_PROJECT_ID") ||
-    required("RITUAL_PROMOTION_BRANCH_REF") !== required("GITHUB_REF")
+    required("RITUAL_PROMOTION_BRANCH_REF") !== required("RITUAL_SOURCE_REF")
   ) {
     reject("manifest_identity");
   }
@@ -137,7 +140,11 @@ function validatePromotionBindings(): void {
 function validate(): void {
   const event = required("GITHUB_EVENT_NAME");
   if (event !== "push" && event !== "workflow_dispatch") reject("event");
-  if (required("GITHUB_REF") !== "refs/heads/main") reject("ref");
+  const promotionMode = process.env.RITUAL_PROMOTION_MODE?.trim();
+  const sourceRef = promotionMode === "remediation"
+    ? required("RITUAL_SOURCE_REF")
+    : required("GITHUB_REF");
+  if (sourceRef !== "refs/heads/main") reject("ref");
   if (
     required("GITHUB_REPOSITORY") !== required("RITUAL_EXPECTED_REPOSITORY")
   ) {
@@ -185,7 +192,6 @@ function validate(): void {
     reject("database_target");
   }
 
-  const promotionMode = process.env.RITUAL_PROMOTION_MODE?.trim();
   if (
     promotionMode !== undefined && promotionMode !== "" &&
     promotionMode !== "remediation"

@@ -12,11 +12,11 @@ The standalone Demo is synthetic, memory-only, auth-free, provider-free, credent
 
 ## Public web beta
 
-The clearly labeled apex member beta uses regular email-and-password signup and binds only to the persistent `beta` branch's non-production Supabase Auth, the versioned beta Argus API, and canonical private tables. It does not use invitation-only entry, production endpoints, public Data API tables, or a parallel browser-owned application-data path. The current landing artifact remains the rollback target, and the standalone Demo remains independent.
+The clearly labeled apex member public beta uses regular email-and-password signup and binds only to staging Supabase Auth, the public-beta Argus API, and canonical private tables. The provider's historical physical branch label `beta` for project ref `zbgjjufjkhfhirbuuolv` is retained only as an external identity for logical staging. It does not use invitation-only entry, production endpoints, public Data API tables, or a parallel browser-owned application-data path. The current landing artifact remains the rollback target, and the standalone Demo remains independent.
 
 Capability labels have one meaning across the member app and release evidence:
 
-- `beta-backed` means the supported member behavior uses the versioned beta Argus API and private beta data boundary. Privacy export is beta-backed; deletion is beta-backed through the idempotent deletion path or a request/status path with a verified manual completion SLA.
+- `beta-backed` is a product-lifecycle capability label: supported public-beta behavior uses the staging Argus API and private staging data boundary. Privacy export is beta-backed; deletion is beta-backed through the idempotent deletion path or a request/status path with a verified manual completion SLA.
 - `unavailable` means the control is visibly incomplete and performs no provider or financial request. Brokerage connection and reads, funding, and order mutations remain in this state for the beta.
 - `standalone Demo handoff` means an explicit, visibly labeled navigation to the independent synthetic Demo; Demo fixtures never fill gaps in the member app.
 
@@ -54,20 +54,19 @@ flutter test integration_test/member_experience_test.dart -d <device-id> \
 ../scripts/check-member-provider-boundaries.sh
 ```
 
-For native development, launch the member app against the persistent `beta`
-branch of the hosted Ritual Investment Supabase project from the
-repository root:
+For native development, launch the member app against the hosted staging
+Supabase project from the repository root:
 
 ```sh
-./scripts/run-ritual-investing-beta.sh -d <device-id>
+./scripts/run-ritual-investing-staging.sh -d <device-id>
 ```
 
 The script reads the committed public client configuration from
-`ritual-investing-app/config/beta.json`. It contains only the beta branch URL,
-branch ref, Supabase publishable key, and its SHA-256 fingerprint; no server
+`ritual-investing-app/config/staging.json`. It contains only the staging URL,
+project ref, Supabase publishable key, and its SHA-256 fingerprint; no server
 secret or database credential is shipped to Flutter. The public web artifact
-binds to that same persistent beta branch and its versioned beta API after the
-release guard verifies the exact branch ref, origin, and publishable-key
+binds to that same staging project and public-beta API after the release guard
+verifies the exact project ref, origin, and publishable-key
 fingerprint.
 
 The visual baselines live under `test/goldens/`. Regenerate them only after comparing the result with the approved authority at `../docs/visual-references/standalone-ritual-investing/approved-light-dark-reference.html`.

@@ -44,7 +44,7 @@ write_fixture() {
   checksum=$(shasum -a 256 \
     "$fixture/supabase/migrations/20260828000000_baseline.sql" | awk '{print $1}')
 
-  cat >"$fixture/.github/workflows/ritual-investing.yml" <<'EOF'
+  cat >"$fixture/.github/workflows/ritual-investing-supabase-remediation.yml" <<'EOF'
 env:
   SUPABASE_CLI_VERSION: 2.115.0
 EOF
@@ -119,10 +119,10 @@ expect_failure "a second declarative schema authority" --offline
 
 write_fixture
 sed 's/SUPABASE_CLI_VERSION: 2.115.0/SUPABASE_CLI_VERSION: 2.114.0/' \
-  "$fixture/.github/workflows/ritual-investing.yml" \
+  "$fixture/.github/workflows/ritual-investing-supabase-remediation.yml" \
   >"$fixture/.github/workflows/ritual-investing.next"
 mv "$fixture/.github/workflows/ritual-investing.next" \
-  "$fixture/.github/workflows/ritual-investing.yml"
+  "$fixture/.github/workflows/ritual-investing-supabase-remediation.yml"
 expect_failure "a mismatched CI CLI pin" --offline
 
 write_fixture

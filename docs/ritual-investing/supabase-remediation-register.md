@@ -130,8 +130,10 @@ those modules still changes the exact path manifest and fails closed.
 
 <!-- scope:CONCEPTS.md -->
 <!-- scope:MODEL_SOURCE_MAP.zh-CN.md -->
+<!-- scope:adversarial-review-brief.md -->
 <!-- scope:.github/workflows/ritual-investing-supabase-remediation.yml -->
-<!-- scope:.github/workflows/ritual-investing.yml -->
+<!-- scope:.github/workflows/ritual-investing-*.yml -->
+<!-- scope:infra/terraform/ritual-investing/* -->
 <!-- scope:docs/ritual-investing/* -->
 <!-- scope:docs/solutions/architecture-patterns/* -->
 <!-- scope:scripts/* -->
@@ -337,7 +339,7 @@ against the upgraded runtime before promotion.
 
 ### waitlist ingress
 
-- Control: exact configured production/beta origin, POST/OPTIONS only, JSON and
+- Control: exact configured prod/staging origin, POST/OPTIONS only, JSON and
   4,096-byte body, strict shape/consent/notice version, pseudonymous source and
   route rate limits, Turnstile hostname proof, dedicated role/function, and
   non-enumerating responses.

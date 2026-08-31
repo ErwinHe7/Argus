@@ -5,6 +5,10 @@ on:
     paths:
       - ".github/workflows/ritual-investing-ci.yml"
       - ".github/workflows/ritual-investing-release-evidence.yml"
+      - ".github/workflows/ritual-investing-staging.yml"
+      - ".github/workflows/ritual-investing-prod.yml"
+      - ".github/workflows/ritual-investing-supabase-remediation.yml"
+      - ".github/workflows/ritual-investing-web-release.yml"
       - "infra/terraform/ritual-investing/**"
       - "ritual-investing-*/**"
       - "supabase/**"
@@ -15,6 +19,10 @@ on:
     paths:
       - ".github/workflows/ritual-investing-ci.yml"
       - ".github/workflows/ritual-investing-release-evidence.yml"
+      - ".github/workflows/ritual-investing-staging.yml"
+      - ".github/workflows/ritual-investing-prod.yml"
+      - ".github/workflows/ritual-investing-supabase-remediation.yml"
+      - ".github/workflows/ritual-investing-web-release.yml"
       - "infra/terraform/ritual-investing/**"
       - "ritual-investing-*/**"
       - "supabase/**"

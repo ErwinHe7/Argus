@@ -16,7 +16,7 @@ hosted state or enabling a fence. The canonical object has exactly these keys:
 | `contract_version` | Literal `argus-supabase-promotion/v1` |
 | `project_ref` | Exact protected Supabase project ID/project ref |
 | `branch_ref` | Literal `refs/heads/main` |
-| `git_revision` | Exact 40-character `GITHUB_SHA` checked out for the run |
+| `git_revision` | Exact selected 40-character source SHA independently checked out from the retained release |
 | `migration_checksum` | SHA-256 of the reviewed migration-checksum inventory; the offline inventory checker also verifies every migration |
 | `source_target_fingerprint` | SHA-256 of the normalized hosted target manifest captured before mutation |
 | `target_fingerprint` | Approved SHA-256 of the normalized new-schema target manifest, rechecked after migration |

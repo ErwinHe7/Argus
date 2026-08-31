@@ -9,12 +9,13 @@ scanned.
 Before preview upload, build Flutter web without a service worker, source maps,
 remote web resources, or a WASM dry run. Assemble `dist/member-staging`, verify its
 manifest and provider scan, and run Wrangler's dry-run validation. The bundle
-may connect only to the exact persistent `beta` branch origin of the Ritual
-Investment Supabase project.
+may connect only to the exact logical staging Supabase origin. The provider's
+legacy physical branch label `beta` is retained only as the external identity
+for staging project ref `zbgjjufjkhfhirbuuolv`.
 
 The protected release workflow uploads one immutable version with stable alias
-`beta`. Its exact origin is stored in `BETA_MEMBER_PREVIEW_ORIGIN` as
-`https://beta-ritual-investing-member.<account-subdomain>.workers.dev`; Edge
+`staging`. Its exact origin is stored in `STAGING_MEMBER_PREVIEW_ORIGIN` as
+`https://staging-ritual-investing-member.<account-subdomain>.workers.dev`; Edge
 CORS and Supabase Auth must use that same exact origin. Generic Workers preview
 origins and wildcards remain blocked.
 

@@ -72,7 +72,7 @@ done
 
 inventory="$repository_root/docs/ritual-investing/supabase-migration-inventory-v1.txt"
 authoring_contract="$repository_root/docs/ritual-investing/supabase-schema-authoring.md"
-workflow="$repository_root/.github/workflows/ritual-investing.yml"
+workflow="$repository_root/.github/workflows/ritual-investing-supabase-remediation.yml"
 config="$repository_root/supabase/config.toml"
 target_sql="$repository_root/scripts/render-supabase-target-manifest.sql"
 architecture_test="$repository_root/supabase/tests/architecture_contract.test.sql"

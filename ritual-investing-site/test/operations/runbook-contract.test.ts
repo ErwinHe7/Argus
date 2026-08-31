@@ -14,8 +14,8 @@ describe("static Pages and Supabase waitlist runbook", () => {
       "Cloudflare Pages",
       "static assets only",
       "Supabase Edge Function",
-      "WAITLIST_FUNCTION_URL_PRODUCTION",
-      "WAITLIST_FUNCTION_URL_BETA",
+      "WAITLIST_FUNCTION_URL_PROD",
+      "WAITLIST_FUNCTION_URL_STAGING",
       "WAITLIST_SUBMISSIONS=off",
       "exact landing origin",
       "Turnstile",
@@ -24,6 +24,24 @@ describe("static Pages and Supabase waitlist runbook", () => {
       "privacy@just-build-this.app",
     ]) expect(runbook).toContain(phrase);
     expect(runbook).not.toMatch(/WAITLIST_NEON_URL|waitlist_runtime|Neon project/i);
+  });
+
+  it("documents the velocity-first dev, staging, prod release and recovery contract", async () => {
+    const runbook = await readFile(
+      resolve(repositoryRoot, "docs/ritual-investing/production-release-runbook.md"),
+      "utf8",
+    );
+    for (const phrase of [
+      "`dev`, `staging`, and `prod`",
+      "Direct pushes remain allowed",
+      "downloads the same artifact",
+      "Artifact expired or missing",
+      "automatic schema rollback",
+      "Terraform state/backend",
+      "Evidence custody",
+      "Production remains NO-GO",
+    ]) expect(runbook).toContain(phrase);
+    expect(runbook).toContain("does not configure branch protection");
   });
 
   it("moves the route and retention proof to Supabase and keeps Pages free of backend bindings", async () => {

@@ -15,15 +15,16 @@ behavior. The compiled Flutter artifact may replace the landing at the apex
 through Cloudflare Workers Static Assets; the unchanged landing remains the
 tested rollback artifact and Pages-hosted recovery surface. Cloudflare gains no
 request handler, binding, authentication, database, provider, or stateful
-backend authority. The browser uses Supabase directly only for beta Auth and
-sends application data through the versioned beta Argus API backed by private
-beta schemas.
+backend authority. The browser uses Supabase directly only for staging Auth and
+sends application data through the public-beta Argus API backed by the private
+staging data boundary. `beta` in capability labels below describes product
+lifecycle; deployment environments remain exactly `dev`, `staging`, and `prod`.
 
 The release manifest uses one central capability state:
 
 | State | Public-beta meaning |
 | --- | --- |
-| `beta-backed` | Supported member behavior uses the exact beta API and private beta data boundary; privacy deletion may use an API-backed request/status path with a verified manual completion SLA. |
+| `beta-backed` | Supported public-beta behavior uses the exact staging API and private staging data boundary; privacy deletion may use an API-backed request/status path with a verified manual completion SLA. |
 | `unavailable` | The surface is visibly incomplete and issues no provider or financial request. |
 | `standalone Demo handoff` | The member leaves through an explicit Demo-labeled link to the independent synthetic artifact. |
 
@@ -72,7 +73,7 @@ credentials are available only to the protected serialized deployment job.
 
 ## Hosted Supabase gates
 
-The protected hosted-development promotion must pass the exact project/ref/DB
+The protected staging remediation must pass the exact project/ref/DB
 target guard before mutation. It fences `background_workers`,
 `provider_egress`, and `order_mutations`, applies migrations, deploys the four
 Edge Functions, and then runs

@@ -18,10 +18,10 @@ Pages previews and ordinary repository builds have no endpoint or Turnstile
 site key injected. Their form remains visibly disabled. A release build must
 provide all four public values together:
 
-- `TURNSTILE_SITE_KEY_PRODUCTION`
-- `TURNSTILE_SITE_KEY_BETA`
-- `WAITLIST_FUNCTION_URL_PRODUCTION`
-- `WAITLIST_FUNCTION_URL_BETA`
+- `TURNSTILE_SITE_KEY_PROD`
+- `TURNSTILE_SITE_KEY_STAGING`
+- `WAITLIST_FUNCTION_URL_PROD`
+- `WAITLIST_FUNCTION_URL_STAGING`
 
 Each URL must be the exact HTTPS Supabase Edge Function path
 `/functions/v1/waitlist`; query strings, fragments, credentials, alternate
@@ -87,11 +87,11 @@ published 24-month limit.
 ## Deploy and promote
 
 Deploy the four `dist` directories to their matching Pages projects. Pages
-preview deployments must use the default disabled artifact. Promote beta Demo,
-beta landing, production Demo, and production landing in that order. Custom
+preview deployments must use the default disabled artifact. Promote staging
+Demo, staging landing, production Demo, and production landing in that order. Custom
 domain setup must preserve:
 
-- `beta.just-build-this.app` and `demo-beta.just-build-this.app`;
+- `staging.just-build-this.app` and `demo-staging.just-build-this.app`;
 - `just-build-this.app` and `demo.just-build-this.app`; and
 - `www.just-build-this.app` as an exact `308` redirect to the apex path/query.
 
@@ -100,7 +100,7 @@ no cookies, pairwise iframe CSP, no service worker, and no unexpected network
 request. A fresh Demo session may use memory only and must not contact
 Supabase, Webull, Auth0, Neon, or Cloudflare compute.
 
-Enable beta writes first. Prove trusted-origin success and duplicate parity,
+Enable staging writes first. Prove trusted-origin success and duplicate parity,
 then prove foreign origin, stale notice, missing consent, invalid Turnstile,
 rate breach, and database failure. Inspect only aggregate provider evidence.
 If any response reveals an address or dependency detail, or any rejected case
