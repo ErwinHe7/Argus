@@ -149,7 +149,7 @@ const EXPECTED_TARGETS = {
     demo: { pagesProject: "ritual-investing-demo-staging", host: "demo-staging.just-build-this.app" },
   },
   prod: {
-    landing: { pagesProject: "ritual-investing-member", host: "just-build-this.app" },
+    landing: { pagesProject: "ritual-investing-site", host: "just-build-this.app" },
     demo: { pagesProject: "ritual-investing-demo", host: "demo.just-build-this.app" },
   },
 } as const;
@@ -502,6 +502,10 @@ function validateOutcome(receipt: DeploymentReceipt): void {
     const expected = EXPECTED_TARGETS[receipt.environment][surfaceName];
     if (surface.target.pagesProject !== expected.pagesProject || surface.target.host !== expected.host) {
       throw new Error(`${receipt.environment} ${surfaceName} receipt target does not match the reviewed profile`);
+    }
+    if (receipt.environment === "prod" &&
+        (surface.prior.deploymentId === null) !== (surface.prior.artifactDigest === null)) {
+      throw new Error(`Prod ${surfaceName} prior deployment ID and artifact digest must be recorded together`);
     }
     if (surface.probes.some(({ url }) => new URL(url).hostname !== surface.target.host)) {
       throw new Error(`${receipt.environment} ${surfaceName} probe escaped its exact target host`);

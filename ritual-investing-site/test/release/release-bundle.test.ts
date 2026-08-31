@@ -65,7 +65,7 @@ function prodProfile(): Record<string, unknown> {
     environment: "prod",
     targets: {
       landing: {
-        pagesProject: "ritual-investing-member",
+        pagesProject: "ritual-investing-site",
         host: "just-build-this.app",
         backendDependency: {
           classification: "requires",

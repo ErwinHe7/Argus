@@ -102,7 +102,7 @@ const EXPECTED_TARGETS = {
     demo: { pagesProject: "ritual-investing-demo-staging", host: "demo-staging.just-build-this.app" },
   },
   prod: {
-    landing: { pagesProject: "ritual-investing-member", host: "just-build-this.app" },
+    landing: { pagesProject: "ritual-investing-site", host: "just-build-this.app" },
     demo: { pagesProject: "ritual-investing-demo", host: "demo.just-build-this.app" },
   },
 } as const;

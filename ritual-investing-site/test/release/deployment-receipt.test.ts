@@ -164,7 +164,7 @@ describe("deployment receipt contract", () => {
     const candidate = receipt();
     candidate.environment = "prod";
     candidate.surfaces.landing.target = {
-      pagesProject: "ritual-investing-member",
+      pagesProject: "ritual-investing-site",
       host: "just-build-this.app",
     };
     candidate.surfaces.landing.probes[0]!.url = "https://just-build-this.app/";
@@ -175,5 +175,24 @@ describe("deployment receipt contract", () => {
     candidate.surfaces.demo.probes[0]!.url = "https://demo.just-build-this.app/";
     expect(() => validateDeploymentReceipt(candidate, { ...context, prodLandingEligible: false }))
       .toThrow(/approved prod target|withheld/i);
+  });
+
+  it("rejects a prod prior deployment without its exact artifact digest", () => {
+    const candidate = receipt();
+    candidate.environment = "prod";
+    candidate.surfaces.landing.target = {
+      pagesProject: "ritual-investing-site",
+      host: "just-build-this.app",
+    };
+    candidate.surfaces.landing.probes[0]!.url = "https://just-build-this.app/";
+    candidate.surfaces.demo.target = {
+      pagesProject: "ritual-investing-demo",
+      host: "demo.just-build-this.app",
+    };
+    candidate.surfaces.demo.probes[0]!.url = "https://demo.just-build-this.app/";
+    candidate.surfaces.demo.prior.artifactDigest = null;
+
+    expect(() => validateDeploymentReceipt(candidate, { ...context, prodLandingEligible: true }))
+      .toThrow(/prior deployment ID and artifact digest/i);
   });
 });
