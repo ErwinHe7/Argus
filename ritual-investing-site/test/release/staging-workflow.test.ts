@@ -62,6 +62,7 @@ describe("Ritual automatic staging workflow", () => {
 
   it("serializes exact-tree content publication and keeps credentials separate", async () => {
     const source = await readWorkflow();
+    expect(source).toMatch(/concurrency:\n\s+group: ritual-investing-staging-deployment\n\s+cancel-in-progress: false/);
     const content = job(source, "staging-content");
     expect(content).toContain("group: ritual-investing-staging-content");
     expect(content).toContain("cancel-in-progress: false");
@@ -79,6 +80,10 @@ describe("Ritual automatic staging workflow", () => {
     expect(content).toContain('test "$BACKEND_RECEIPT_SHA256" = "$EXPECTED_BACKEND_RECEIPT_SHA256"');
     expect(content).toContain(".fingerprint == $fingerprint");
     expect(content).toContain('select(.environment == "production")');
+    expect(content).toContain("DEMO_PRIOR_DIGEST");
+    expect(content).toContain("LANDING_PRIOR_DIGEST");
+    expect(content).toContain("/version.json");
+    expect(content).toContain("expectedProfileIdentity");
     expect(content).toContain('select(.environment == "production" and .deployment_trigger.metadata.commit_hash == $sha)');
     expect(content).toContain('/deployments/$prior_id/rollback');
     expect(content).toContain(".success == true");

@@ -10,6 +10,10 @@ permissions:
   actions: read
   contents: read
 
+concurrency:
+  group: ritual-investing-staging-deployment
+  cancel-in-progress: false
+
 env:
   NODE_VERSION: 22.22.0
 
@@ -305,15 +309,26 @@ jobs:
           set -euo pipefail
           for surface in demo landing; do
             project="ritual-investing-${surface}-staging"
+            host="demo-staging.just-build-this.app"
             [[ "$surface" == "landing" ]] && project="ritual-investing-site-staging"
+            [[ "$surface" == "landing" ]] && host="staging.just-build-this.app"
             curl --silent --show-error --fail \
               -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" \
               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments" \
               >"$RUNNER_TEMP/$surface-before.json"
             jq -e '.success == true' "$RUNNER_TEMP/$surface-before.json" >/dev/null
             prior_id="$(jq -r '[.result[] | select(.environment == "production")][0].id // empty' "$RUNNER_TEMP/$surface-before.json")"
+            prior_digest=
             echo "${surface^^}_PRIOR_ID=$prior_id" >>"$GITHUB_ENV"
+            echo "${surface^^}_PRIOR_DIGEST=" >>"$GITHUB_ENV"
             echo "${surface^^}_FINAL_ID=$prior_id" >>"$GITHUB_ENV"
+            if [[ -n "$prior_id" ]]; then
+              http_status="$(curl --silent --show-error --fail --connect-timeout 10 --max-time 30 --output "$RUNNER_TEMP/$surface-prior-version.json" --write-out '%{http_code}' "https://$host/version.json")"
+              test "$http_status" = "200"
+              jq -e 'keys == ["manifestSha256","revision","schemaVersion"] and .schemaVersion == 1 and (.revision | test("^[a-f0-9]{40}$")) and (.manifestSha256 | test("^[a-f0-9]{64}$"))' "$RUNNER_TEMP/$surface-prior-version.json" >/dev/null
+              prior_digest="$(jq -er '.manifestSha256' "$RUNNER_TEMP/$surface-prior-version.json")"
+            fi
+            echo "${surface^^}_PRIOR_DIGEST=$prior_digest" >>"$GITHUB_ENV"
           done
 
       - name: Deploy exact immutable staging Demo subtree
@@ -471,8 +486,8 @@ jobs:
             --arg repository "$GITHUB_REPOSITORY" --arg sourceSha "$SOURCE_SHA" --arg sourceRunId "$SOURCE_RUN_ID" \
             --arg sourceAttempt "$SOURCE_ATTEMPT" --arg outcome "$outcome" --arg scope "$scope" \
             --argjson promotable "$promotable" --argjson reasons "$reasons" \
-            --arg demoPrior "${DEMO_PRIOR_ID:-}" --arg demoNew "${DEMO_NEW_ID:-}" \
-            --arg landingPrior "${LANDING_PRIOR_ID:-}" --arg landingNew "${LANDING_NEW_ID:-}" \
+            --arg demoPrior "${DEMO_PRIOR_ID:-}" --arg demoPriorDigest "${DEMO_PRIOR_DIGEST:-}" --arg demoNew "${DEMO_NEW_ID:-}" \
+            --arg landingPrior "${LANDING_PRIOR_ID:-}" --arg landingPriorDigest "${LANDING_PRIOR_DIGEST:-}" --arg landingNew "${LANDING_NEW_ID:-}" \
             --arg demoFinal "${DEMO_FINAL_ID:-}" --arg landingFinal "${LANDING_FINAL_ID:-}" \
             --arg demoProbeAt "${DEMO_PROBE_AT:-}" --arg landingProbeAt "${LANDING_PROBE_AT:-}" \
             --arg demoRollback "$demo_rollback" --arg landingRollback "$landing_rollback" \
@@ -483,9 +498,9 @@ jobs:
             --arg controllerRunId "$GITHUB_RUN_ID" --argjson controllerAttempt "$GITHUB_RUN_ATTEMPT" --arg nextAction "$next_action" '
             def nullIfEmpty: if . == "" then null else . end;
             def probes($host; $at): if $at == "" then [] else [{url:("https://"+$host+"/"),status:200,passed:true,observedAt:$at}] end;
-            {schemaVersion:1,environment:"staging",artifact:{id:$artifactId,digest:$releaseDigest,availability:"retained"},subject:{repository:$repository,sha:$sourceSha,runId:$sourceRunId,attempt:($sourceAttempt|tonumber)},controller:{workflow:$controllerWorkflow,ref:$controllerRef,sha:$controllerSha,runId:$controllerRunId,attempt:$controllerAttempt},manifestSha256:$manifestSha256,releaseDigest:$releaseDigest,profileIdentity:"ritual-release-staging-v1",infrastructure:{terraformPlanDigest:$plan,liveInventoryDigest:$inventory,lockProofDigest:$lock,beforeState:{lineage:$lineage,serial:$serial},afterState:{lineage:$lineage,serial:$serial}},surfaces:{demo:{target:{pagesProject:"ritual-investing-demo-staging",host:"demo-staging.just-build-this.app"},prior:{deploymentId:($demoPrior|nullIfEmpty),artifactDigest:null},attemptedDeploymentId:($demoNew|nullIfEmpty),resultingDeploymentId:($demoNew|nullIfEmpty),finalDeploymentId:($demoFinal|nullIfEmpty),probes:probes("demo-staging.just-build-this.app";$demoProbeAt),rollback:{outcome:$demoRollback,deploymentId:(if $demoRollback=="recovered" then ($demoPrior|nullIfEmpty) else null end)}},landing:{target:{pagesProject:"ritual-investing-site-staging",host:"staging.just-build-this.app"},prior:{deploymentId:($landingPrior|nullIfEmpty),artifactDigest:null},attemptedDeploymentId:($landingNew|nullIfEmpty),resultingDeploymentId:($landingNew|nullIfEmpty),finalDeploymentId:($landingFinal|nullIfEmpty),probes:probes("staging.just-build-this.app";$landingProbeAt),rollback:{outcome:$landingRollback,deploymentId:(if $landingRollback=="recovered" then ($landingPrior|nullIfEmpty) else null end)}}},actor:$actor,startedAt:$startedAt,completedAt:$completedAt,recoveryOwner:"ritual-staging-operator",nextAction:$nextAction,outcome:$outcome,eligibility:{scope:$scope,promotable:$promotable,reasons:$reasons}}
+            {schemaVersion:1,environment:"staging",artifact:{id:$artifactId,digest:$releaseDigest,availability:"retained"},subject:{repository:$repository,sha:$sourceSha,runId:$sourceRunId,attempt:($sourceAttempt|tonumber)},controller:{workflow:$controllerWorkflow,ref:$controllerRef,sha:$controllerSha,runId:$controllerRunId,attempt:$controllerAttempt},manifestSha256:$manifestSha256,releaseDigest:$releaseDigest,profileIdentity:"ritual-release-staging-v1",infrastructure:{terraformPlanDigest:$plan,liveInventoryDigest:$inventory,lockProofDigest:$lock,beforeState:{lineage:$lineage,serial:$serial},afterState:{lineage:$lineage,serial:$serial}},surfaces:{demo:{target:{pagesProject:"ritual-investing-demo-staging",host:"demo-staging.just-build-this.app"},prior:{deploymentId:($demoPrior|nullIfEmpty),artifactDigest:($demoPriorDigest|nullIfEmpty)},attemptedDeploymentId:($demoNew|nullIfEmpty),resultingDeploymentId:($demoNew|nullIfEmpty),finalDeploymentId:($demoFinal|nullIfEmpty),probes:probes("demo-staging.just-build-this.app";$demoProbeAt),rollback:{outcome:$demoRollback,deploymentId:(if $demoRollback=="recovered" then ($demoPrior|nullIfEmpty) else null end)}},landing:{target:{pagesProject:"ritual-investing-site-staging",host:"staging.just-build-this.app"},prior:{deploymentId:($landingPrior|nullIfEmpty),artifactDigest:($landingPriorDigest|nullIfEmpty)},attemptedDeploymentId:($landingNew|nullIfEmpty),resultingDeploymentId:($landingNew|nullIfEmpty),finalDeploymentId:($landingFinal|nullIfEmpty),probes:probes("staging.just-build-this.app";$landingProbeAt),rollback:{outcome:$landingRollback,deploymentId:(if $landingRollback=="recovered" then ($landingPrior|nullIfEmpty) else null end)}}},actor:$actor,startedAt:$startedAt,completedAt:$completedAt,recoveryOwner:"ritual-staging-operator",nextAction:$nextAction,outcome:$outcome,eligibility:{scope:$scope,promotable:$promotable,reasons:$reasons}}
           ' >"$RUNNER_TEMP/staging-receipt.json"
-          export RELEASE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sourceSha "$SOURCE_SHA" --arg sourceRunId "$SOURCE_RUN_ID" --argjson sourceAttempt "$SOURCE_ATTEMPT" --arg controllerWorkflow "$GITHUB_WORKFLOW" --arg controllerRef "$GITHUB_REF" --arg controllerSha "$GITHUB_WORKFLOW_SHA" --arg controllerRunId "$GITHUB_RUN_ID" --argjson controllerAttempt "$GITHUB_RUN_ATTEMPT" --arg manifest "$EXPECTED_MANIFEST_SHA256" --arg release "$EXPECTED_ARCHIVE_SHA256" '{expectedSubject:{repository:$repository,sha:$sourceSha,runId:$sourceRunId,attempt:$sourceAttempt},expectedController:{workflow:$controllerWorkflow,ref:$controllerRef,sha:$controllerSha,runId:$controllerRunId,attempt:$controllerAttempt},expectedManifestSha256:$manifest,expectedReleaseDigest:$release,prodLandingEligible:false}')"
+          export RELEASE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sourceSha "$SOURCE_SHA" --arg sourceRunId "$SOURCE_RUN_ID" --argjson sourceAttempt "$SOURCE_ATTEMPT" --arg controllerWorkflow "$GITHUB_WORKFLOW" --arg controllerRef "$GITHUB_REF" --arg controllerSha "$GITHUB_WORKFLOW_SHA" --arg controllerRunId "$GITHUB_RUN_ID" --argjson controllerAttempt "$GITHUB_RUN_ATTEMPT" --arg manifest "$EXPECTED_MANIFEST_SHA256" --arg release "$EXPECTED_ARCHIVE_SHA256" '{expectedSubject:{repository:$repository,sha:$sourceSha,runId:$sourceRunId,attempt:$sourceAttempt},expectedController:{workflow:$controllerWorkflow,ref:$controllerRef,sha:$controllerSha,runId:$controllerRunId,attempt:$controllerAttempt},expectedManifestSha256:$manifest,expectedReleaseDigest:$release,expectedProfileIdentity:"ritual-release-staging-v1",prodLandingEligible:false}')"
           npm --prefix ritual-investing-site run --silent release:receipt:verify -- "$RUNNER_TEMP/staging-receipt.json"
 
       - name: Publish checksum-bound staging receipt

@@ -23,6 +23,7 @@ const context: ReceiptVerificationContext = {
   },
   expectedManifestSha256: DIGEST,
   expectedReleaseDigest: OTHER_DIGEST,
+  expectedProfileIdentity: "ritual-release-staging-v1",
   prodLandingEligible: true,
 };
 
@@ -89,6 +90,10 @@ describe("deployment receipt contract", () => {
 
     const unknown = { ...receipt(), extra: true };
     expect(() => validateDeploymentReceipt(unknown, context)).toThrow(/unknown/i);
+
+    const wrongProfile = receipt();
+    wrongProfile.profileIdentity = "ritual-release-prod-withheld-v1";
+    expect(() => validateDeploymentReceipt(wrongProfile, context)).toThrow(/profile identity/i);
   });
 
   it.each(["withheld-dependency", "partial", "recovered", "rollback-failed"] as const)(
@@ -177,22 +182,11 @@ describe("deployment receipt contract", () => {
       .toThrow(/approved prod target|withheld/i);
   });
 
-  it("rejects a prod prior deployment without its exact artifact digest", () => {
+  it("rejects any prior deployment without its exact artifact digest", () => {
     const candidate = receipt();
-    candidate.environment = "prod";
-    candidate.surfaces.landing.target = {
-      pagesProject: "ritual-investing-site",
-      host: "just-build-this.app",
-    };
-    candidate.surfaces.landing.probes[0]!.url = "https://just-build-this.app/";
-    candidate.surfaces.demo.target = {
-      pagesProject: "ritual-investing-demo",
-      host: "demo.just-build-this.app",
-    };
-    candidate.surfaces.demo.probes[0]!.url = "https://demo.just-build-this.app/";
     candidate.surfaces.demo.prior.artifactDigest = null;
 
-    expect(() => validateDeploymentReceipt(candidate, { ...context, prodLandingEligible: true }))
+    expect(() => validateDeploymentReceipt(candidate, context))
       .toThrow(/prior deployment ID and artifact digest/i);
   });
 });

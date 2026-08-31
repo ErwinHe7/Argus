@@ -62,6 +62,7 @@ export type ReceiptVerificationContext = {
   expectedController: ReleaseControllerIdentity;
   expectedManifestSha256: string;
   expectedReleaseDigest: string;
+  expectedProfileIdentity: string;
   prodLandingEligible: boolean;
 };
 
@@ -503,9 +504,8 @@ function validateOutcome(receipt: DeploymentReceipt): void {
     if (surface.target.pagesProject !== expected.pagesProject || surface.target.host !== expected.host) {
       throw new Error(`${receipt.environment} ${surfaceName} receipt target does not match the reviewed profile`);
     }
-    if (receipt.environment === "prod" &&
-        (surface.prior.deploymentId === null) !== (surface.prior.artifactDigest === null)) {
-      throw new Error(`Prod ${surfaceName} prior deployment ID and artifact digest must be recorded together`);
+    if ((surface.prior.deploymentId === null) !== (surface.prior.artifactDigest === null)) {
+      throw new Error(`${receipt.environment} ${surfaceName} prior deployment ID and artifact digest must be recorded together`);
     }
     if (surface.probes.some(({ url }) => new URL(url).hostname !== surface.target.host)) {
       throw new Error(`${receipt.environment} ${surfaceName} probe escaped its exact target host`);
@@ -577,6 +577,7 @@ export function validateDeploymentReceipt(
   if (receipt.releaseDigest !== context.expectedReleaseDigest || receipt.artifact.digest !== context.expectedReleaseDigest) {
     throw new Error("Release artifact digest mismatch");
   }
+  if (receipt.profileIdentity !== context.expectedProfileIdentity) throw new Error("Release profile identity mismatch");
   if (receipt.environment === "prod" && receipt.outcome === "success" &&
       receipt.eligibility.scope === "full" && !context.prodLandingEligible) {
     throw new Error("Prod landing remains withheld because no approved prod target is configured");
