@@ -52,6 +52,9 @@ describe("Ritual automatic staging workflow", () => {
     expect(preflight).toContain("staging infrastructure readiness is not enabled");
     expect(preflight).toContain("status == \"ready\"");
     expect(preflight).toContain("expiresAt");
+    expect(preflight).toContain("terraformSnapshotSha256");
+    expect(preflight).toContain('.snapshots[] | select(.name == "terraform") | .sha256');
+    expect(preflight).toContain(".schemaVersion == 2");
     expect(source).not.toContain("terraform apply");
     expect(source).not.toContain("setup-terraform");
 
@@ -73,12 +76,20 @@ describe("Ritual automatic staging workflow", () => {
     expect(content.indexOf("Deploy exact immutable staging Demo subtree"))
       .toBeLessThan(content.indexOf("Deploy exact immutable staging landing subtree"));
     expect(content).toContain("landing_eligible");
+    expect(content).toContain("LANDING_TARGET_STATUS");
     expect(content).toContain("withheld-dependency");
+    const preflight = job(source, "preflight");
+    expect(preflight).toContain('$landing_target_status" == "approved"');
+    expect(preflight).toContain('$landing_target_status" == "withheld"');
+    expect(content).toContain("reviewed public waitlist configuration is absent");
     expect(content).toContain("EXPECTED_INFRASTRUCTURE_RECEIPT_SHA256");
     expect(content).toContain("EXPECTED_BACKEND_RECEIPT_SHA256");
+    expect(content).toContain("EXPECTED_TERRAFORM_SNAPSHOT_SHA256");
     expect(content).toContain('test "$INFRASTRUCTURE_RECEIPT_SHA256" = "$EXPECTED_INFRASTRUCTURE_RECEIPT_SHA256"');
     expect(content).toContain('test "$BACKEND_RECEIPT_SHA256" = "$EXPECTED_BACKEND_RECEIPT_SHA256"');
     expect(content).toContain(".fingerprint == $fingerprint");
+    expect(content).toContain(".sourceSha256 == $source");
+    expect(content).toContain("requiredSourceSha256");
     expect(content).toContain('select(.environment == "production")');
     expect(content).toContain("DEMO_PRIOR_DIGEST");
     expect(content).toContain("LANDING_PRIOR_DIGEST");
@@ -110,6 +121,28 @@ describe("Ritual automatic staging workflow", () => {
       "RELEASE_PROBE_UNKNOWN_ROUTE_POLICY",
     ]) expect(content).toContain(value);
     expect(content).toContain("retention-days: 30");
+  });
+
+  it("fails closed when recovery deployment state is unavailable or malformed", async () => {
+    const source = await readWorkflow();
+    const content = job(source, "staging-content");
+    const recovery = content.slice(
+      content.indexOf("- name: Restore prior content after a deploy or probe failure"),
+      content.indexOf("- name: Record attempted, final, and rollback facts"),
+    );
+    const listGuard = recovery.indexOf("if ! curl --silent --show-error --fail");
+    const responseGuard = recovery.indexOf(".success == true and (.result | type == \"array\")");
+    const parseGuard = recovery.indexOf('if ! observed_id="$(jq -er --arg sha "$SOURCE_SHA"');
+    const noDeployment = recovery.indexOf('if [[ -z "$observed_id" || "$observed_id" == "$prior_id" ]]');
+
+    expect(listGuard).toBeGreaterThanOrEqual(0);
+    expect(responseGuard).toBeGreaterThan(listGuard);
+    expect(parseGuard).toBeGreaterThan(responseGuard);
+    expect(noDeployment).toBeGreaterThan(parseGuard);
+    expect(recovery.match(/\$\{surface\^\^\}_ROLLBACK_OUTCOME=failed/g)).toHaveLength(2);
+    expect(recovery.match(/\$\{surface\^\^\}_FINAL_ID=" >>"\$GITHUB_ENV"/g)).toHaveLength(2);
+    expect(recovery).toContain('error("matching deployment id must be a string")');
+    expect(recovery.indexOf("ROLLBACK_OUTCOME=not-attempted")).toBeGreaterThan(noDeployment);
   });
 
   it("contains no heavy automatic checks and pins every action", async () => {

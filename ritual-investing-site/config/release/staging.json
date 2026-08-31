@@ -7,12 +7,11 @@
       "pagesProject": "ritual-investing-site-staging",
       "host": "staging.just-build-this.app",
       "backendDependency": {
-        "classification": "compatible-with",
-        "requiredFingerprint": "0cad737319cba650c0c5778802f02541f298886ab2c35338edf3c317e149568e",
+        "classification": "requires",
+        "requiredFingerprint": null,
         "target": {
-          "status": "approved",
-          "supabaseProjectRef": "zbgjjufjkhfhirbuuolv",
-          "waitlistUrl": "https://zbgjjufjkhfhirbuuolv.supabase.co/functions/v1/waitlist"
+          "status": "withheld",
+          "reason": "public-waitlist-configuration-not-configured"
         }
       }
     },

@@ -96,6 +96,15 @@ describe("deployment receipt contract", () => {
     expect(() => validateDeploymentReceipt(wrongProfile, context)).toThrow(/profile identity/i);
   });
 
+  it("keeps the staging workflow controller SHA independent from the release subject SHA", () => {
+    expect(context.expectedSubject.sha).not.toBe(context.expectedController.sha);
+    expect(validateDeploymentReceipt(receipt(), context)).toMatchObject({ promotable: true });
+
+    const sourceShaAsController = receipt();
+    sourceShaAsController.controller = { ...sourceShaAsController.controller, sha: SUBJECT_SHA };
+    expect(() => validateDeploymentReceipt(sourceShaAsController, context)).toThrow(/controller.*SHA/i);
+  });
+
   it.each(["withheld-dependency", "partial", "recovered", "rollback-failed"] as const)(
     "accepts %s as evidence but never as promotable",
     (outcome) => {

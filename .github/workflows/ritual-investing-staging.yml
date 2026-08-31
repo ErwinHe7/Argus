@@ -35,7 +35,9 @@ jobs:
       landing_probe_manifest_sha256: ${{ steps.bundle.outputs.landing_probe_manifest_sha256 }}
       mutation_ready: ${{ steps.readiness.outputs.mutation_ready }}
       landing_eligible: ${{ steps.readiness.outputs.landing_eligible }}
+      landing_target_status: ${{ steps.readiness.outputs.landing_target_status }}
       infrastructure_receipt_sha256: ${{ steps.readiness.outputs.infrastructure_receipt_sha256 }}
+      terraform_snapshot_sha256: ${{ steps.readiness.outputs.terraform_snapshot_sha256 }}
       backend_receipt_sha256: ${{ steps.readiness.outputs.backend_receipt_sha256 }}
     steps:
       - name: Validate the exact source run and release artifact
@@ -149,10 +151,13 @@ jobs:
           test "$(printf '%s' "$INFRASTRUCTURE_RECEIPT" | sha256sum | cut -d' ' -f1)" = "$INFRASTRUCTURE_RECEIPT_SHA256"
           printf '%s' "$INFRASTRUCTURE_RECEIPT" >"$RUNNER_TEMP/staging-infrastructure-receipt.json"
           lock_sha256="$(sha256sum infra/terraform/ritual-investing/environments/staging/.terraform.lock.hcl | cut -d' ' -f1)"
-          jq -e --arg lock "$lock_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
-            keys == ["environment","expiresAt","liveInventoryDigest","lockProofDigest","pages","profileIdentity","providerLockSha256","schemaVersion","state","status","terraformPlanDigest"] and
-            .schemaVersion == 1 and .environment == "staging" and .status == "ready" and
+          manifest="$RUNNER_TEMP/source-artifact/release-bundle/release-manifest.json"
+          terraform_snapshot_sha256="$(jq -er '.snapshots[] | select(.name == "terraform") | .sha256' "$manifest")"
+          jq -e --arg lock "$lock_sha256" --arg snapshot "$terraform_snapshot_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+            keys == ["environment","expiresAt","liveInventoryDigest","lockProofDigest","pages","profileIdentity","providerLockSha256","schemaVersion","state","status","terraformPlanDigest","terraformSnapshotSha256"] and
+            .schemaVersion == 2 and .environment == "staging" and .status == "ready" and
             .profileIdentity == "ritual-release-staging-v1" and .providerLockSha256 == $lock and
+            .terraformSnapshotSha256 == $snapshot and
             (.terraformPlanDigest | test("^[a-f0-9]{64}$")) and
             (.liveInventoryDigest | test("^[a-f0-9]{64}$")) and
             (.lockProofDigest | test("^[a-f0-9]{64}$")) and
@@ -164,22 +169,34 @@ jobs:
 
           landing_eligible=false
           backend_receipt_sha256=
-          required_fingerprint="$(jq -er '.backendDependencies[] | select(.environment == "staging" and .surface == "landing") | .requiredFingerprint' "$RUNNER_TEMP/source-artifact/release-bundle/release-manifest.json")"
-          if [[ -n "$BACKEND_RECEIPT" || -n "$BACKEND_RECEIPT_SHA256" ]]; then
-            [[ -n "$BACKEND_RECEIPT" && "$BACKEND_RECEIPT_SHA256" =~ ^[a-f0-9]{64}$ ]]
-            test "$(printf '%s' "$BACKEND_RECEIPT" | sha256sum | cut -d' ' -f1)" = "$BACKEND_RECEIPT_SHA256"
-            printf '%s' "$BACKEND_RECEIPT" >"$RUNNER_TEMP/staging-backend-receipt.json"
-            jq -e --arg fingerprint "$required_fingerprint" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
-              keys == ["environment","expiresAt","fingerprint","observedAt","schemaVersion","status"] and
-              .schemaVersion == 1 and .environment == "staging" and .status == "ready" and
-              .fingerprint == $fingerprint and
-              (.observedAt | type == "string" and length > 0) and .expiresAt > $now
-            ' "$RUNNER_TEMP/staging-backend-receipt.json" >/dev/null
-            landing_eligible=true
-            backend_receipt_sha256="$BACKEND_RECEIPT_SHA256"
+          landing_target_status="$(jq -er '.backendDependencies[] | select(.environment == "staging" and .surface == "landing") | .targetStatus' "$manifest")"
+          required_fingerprint="$(jq -r '.backendDependencies[] | select(.environment == "staging" and .surface == "landing") | .requiredFingerprint // empty' "$manifest")"
+          required_source_sha256="$(jq -er '.backendDependencies[] | select(.environment == "staging" and .surface == "landing") | .requiredSourceSha256' "$manifest")"
+          if [[ "$landing_target_status" == "approved" ]]; then
+            [[ "$required_fingerprint" =~ ^[a-f0-9]{64}$ ]]
+            if [[ -n "$BACKEND_RECEIPT" || -n "$BACKEND_RECEIPT_SHA256" ]]; then
+              [[ -n "$BACKEND_RECEIPT" && "$BACKEND_RECEIPT_SHA256" =~ ^[a-f0-9]{64}$ ]]
+              test "$(printf '%s' "$BACKEND_RECEIPT" | sha256sum | cut -d' ' -f1)" = "$BACKEND_RECEIPT_SHA256"
+              printf '%s' "$BACKEND_RECEIPT" >"$RUNNER_TEMP/staging-backend-receipt.json"
+              jq -e --arg fingerprint "$required_fingerprint" --arg source "$required_source_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+                keys == ["environment","expiresAt","fingerprint","observedAt","schemaVersion","sourceSha256","status"] and
+                .schemaVersion == 2 and .environment == "staging" and .status == "ready" and
+                .fingerprint == $fingerprint and .sourceSha256 == $source and
+                (.observedAt | type == "string" and length > 0) and .expiresAt > $now
+              ' "$RUNNER_TEMP/staging-backend-receipt.json" >/dev/null
+              landing_eligible=true
+              backend_receipt_sha256="$BACKEND_RECEIPT_SHA256"
+            fi
+          elif [[ "$landing_target_status" == "withheld" ]]; then
+            [[ -z "$required_fingerprint" && -z "$BACKEND_RECEIPT" && -z "$BACKEND_RECEIPT_SHA256" ]]
+          else
+            echo "::error::staging landing release target is neither approved nor explicitly withheld"
+            exit 1
           fi
           echo "landing_eligible=$landing_eligible" >>"$GITHUB_OUTPUT"
+          echo "landing_target_status=$landing_target_status" >>"$GITHUB_OUTPUT"
           echo "infrastructure_receipt_sha256=$INFRASTRUCTURE_RECEIPT_SHA256" >>"$GITHUB_OUTPUT"
+          echo "terraform_snapshot_sha256=$terraform_snapshot_sha256" >>"$GITHUB_OUTPUT"
           echo "backend_receipt_sha256=$backend_receipt_sha256" >>"$GITHUB_OUTPUT"
           echo "mutation_ready=true" >>"$GITHUB_OUTPUT"
 
@@ -224,7 +241,9 @@ jobs:
       DEMO_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.demo_probe_manifest_sha256 }}
       LANDING_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.landing_probe_manifest_sha256 }}
       LANDING_ELIGIBLE: ${{ needs.preflight.outputs.landing_eligible }}
+      LANDING_TARGET_STATUS: ${{ needs.preflight.outputs.landing_target_status }}
       EXPECTED_INFRASTRUCTURE_RECEIPT_SHA256: ${{ needs.preflight.outputs.infrastructure_receipt_sha256 }}
+      EXPECTED_TERRAFORM_SNAPSHOT_SHA256: ${{ needs.preflight.outputs.terraform_snapshot_sha256 }}
       EXPECTED_BACKEND_RECEIPT_SHA256: ${{ needs.preflight.outputs.backend_receipt_sha256 }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_CONTENT_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTENT_API_TOKEN }}
@@ -279,10 +298,13 @@ jobs:
           fi
           printf '%s' "$INFRASTRUCTURE_RECEIPT" >"$RUNNER_TEMP/current-infrastructure-receipt.json"
           lock_sha256="$(sha256sum infra/terraform/ritual-investing/environments/staging/.terraform.lock.hcl | cut -d' ' -f1)"
-          jq -e --arg lock "$lock_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
-            keys == ["environment","expiresAt","liveInventoryDigest","lockProofDigest","pages","profileIdentity","providerLockSha256","schemaVersion","state","status","terraformPlanDigest"] and
-            .schemaVersion == 1 and .environment == "staging" and .status == "ready" and
+          terraform_snapshot_sha256="$(jq -er '.snapshots[] | select(.name == "terraform") | .sha256' "$artifact/release-bundle/release-manifest.json")"
+          test "$terraform_snapshot_sha256" = "$EXPECTED_TERRAFORM_SNAPSHOT_SHA256"
+          jq -e --arg lock "$lock_sha256" --arg snapshot "$terraform_snapshot_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+            keys == ["environment","expiresAt","liveInventoryDigest","lockProofDigest","pages","profileIdentity","providerLockSha256","schemaVersion","state","status","terraformPlanDigest","terraformSnapshotSha256"] and
+            .schemaVersion == 2 and .environment == "staging" and .status == "ready" and
             .profileIdentity == "ritual-release-staging-v1" and .providerLockSha256 == $lock and
+            .terraformSnapshotSha256 == $snapshot and
             (.terraformPlanDigest | test("^[a-f0-9]{64}$")) and
             (.liveInventoryDigest | test("^[a-f0-9]{64}$")) and
             (.lockProofDigest | test("^[a-f0-9]{64}$")) and
@@ -294,11 +316,14 @@ jobs:
           if [[ "$LANDING_ELIGIBLE" == "true" ]]; then
             printf '%s' "$BACKEND_RECEIPT" >"$RUNNER_TEMP/current-backend-receipt.json"
             required_fingerprint="$(jq -er '.backendDependencies[] | select(.environment == "staging" and .surface == "landing") | .requiredFingerprint' "$artifact/release-bundle/release-manifest.json")"
-            jq -e --arg fingerprint "$required_fingerprint" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
-              keys == ["environment","expiresAt","fingerprint","observedAt","schemaVersion","status"] and
-              .schemaVersion == 1 and .environment == "staging" and .status == "ready" and
-              .fingerprint == $fingerprint and .expiresAt > $now
+            required_source_sha256="$(jq -er '.backendDependencies[] | select(.environment == "staging" and .surface == "landing") | .requiredSourceSha256' "$artifact/release-bundle/release-manifest.json")"
+            jq -e --arg fingerprint "$required_fingerprint" --arg source "$required_source_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+              keys == ["environment","expiresAt","fingerprint","observedAt","schemaVersion","sourceSha256","status"] and
+              .schemaVersion == 2 and .environment == "staging" and .status == "ready" and
+              .fingerprint == $fingerprint and .sourceSha256 == $source and .expiresAt > $now
             ' "$RUNNER_TEMP/current-backend-receipt.json" >/dev/null
+          else
+            test "$(jq -er '.backendDependencies[] | select(.environment == "staging" and .surface == "landing") | .targetStatus' "$artifact/release-bundle/release-manifest.json")" = "$LANDING_TARGET_STATUS"
           fi
           jq -r '"INFRA_PLAN_DIGEST=" + .terraformPlanDigest, "INFRA_INVENTORY_DIGEST=" + .liveInventoryDigest, "INFRA_LOCK_DIGEST=" + .lockProofDigest, "INFRA_STATE_LINEAGE=" + .state.lineage, "INFRA_STATE_SERIAL=" + (.state.serial|tostring)' "$RUNNER_TEMP/current-infrastructure-receipt.json" >>"$GITHUB_ENV"
           echo "DEPLOYMENT_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$GITHUB_ENV"
@@ -312,7 +337,7 @@ jobs:
             host="demo-staging.just-build-this.app"
             [[ "$surface" == "landing" ]] && project="ritual-investing-site-staging"
             [[ "$surface" == "landing" ]] && host="staging.just-build-this.app"
-            curl --silent --show-error --fail \
+            curl --silent --show-error --fail --connect-timeout 10 --max-time 30 \
               -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" \
               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments" \
               >"$RUNNER_TEMP/$surface-before.json"
@@ -342,7 +367,7 @@ jobs:
 
       - name: Capture exact Demo deployment identity
         run: |
-          curl --silent --show-error --fail \
+          curl --silent --show-error --fail --connect-timeout 10 --max-time 30 \
             -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/ritual-investing-demo-staging/deployments" \
             >"$RUNNER_TEMP/demo-after.json"
@@ -376,7 +401,7 @@ jobs:
       - name: Capture exact landing deployment identity
         if: env.LANDING_ELIGIBLE == 'true'
         run: |
-          curl --silent --show-error --fail \
+          curl --silent --show-error --fail --connect-timeout 10 --max-time 30 \
             -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/ritual-investing-site-staging/deployments" \
             >"$RUNNER_TEMP/landing-after.json"
@@ -407,11 +432,23 @@ jobs:
             [[ "$surface" == "landing" ]] && project="ritual-investing-site-staging"
             prior_name="${surface^^}_PRIOR_ID"
             prior_id="${!prior_name:-}"
-            curl --silent --show-error --fail \
+            if ! curl --silent --show-error --fail --connect-timeout 10 --max-time 30 \
               -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" \
               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments" \
-              >"$RUNNER_TEMP/$surface-failure-state.json"
-            observed_id="$(jq -r --arg sha "$SOURCE_SHA" '[.result[] | select(.environment == "production" and .deployment_trigger.metadata.commit_hash == $sha)][0].id // empty' "$RUNNER_TEMP/$surface-failure-state.json")"
+              >"$RUNNER_TEMP/$surface-failure-state.json" || \
+              ! jq -e '.success == true and (.result | type == "array")' "$RUNNER_TEMP/$surface-failure-state.json" >/dev/null; then
+              echo "${surface^^}_ROLLBACK_OUTCOME=failed" >>"$GITHUB_ENV"
+              echo "${surface^^}_FINAL_ID=" >>"$GITHUB_ENV"
+              continue
+            fi
+            if ! observed_id="$(jq -er --arg sha "$SOURCE_SHA" '
+              ([.result[] | select(.environment == "production" and .deployment_trigger.metadata.commit_hash == $sha)][0].id // "") |
+              if type == "string" then . else error("matching deployment id must be a string") end
+            ' "$RUNNER_TEMP/$surface-failure-state.json")"; then
+              echo "${surface^^}_ROLLBACK_OUTCOME=failed" >>"$GITHUB_ENV"
+              echo "${surface^^}_FINAL_ID=" >>"$GITHUB_ENV"
+              continue
+            fi
             if [[ -z "$observed_id" || "$observed_id" == "$prior_id" ]]; then
               echo "${surface^^}_ROLLBACK_OUTCOME=not-attempted" >>"$GITHUB_ENV"
               echo "${surface^^}_FINAL_ID=$prior_id" >>"$GITHUB_ENV"
@@ -421,13 +458,13 @@ jobs:
             rollback_outcome=failed
             rollback_response_valid=false
             if [[ -n "$prior_id" ]]; then
-              curl --silent --show-error --fail -X POST \
+              curl --silent --show-error --fail --connect-timeout 10 --max-time 30 -X POST \
                 -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" \
                 "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments/$prior_id/rollback" \
                 >"$RUNNER_TEMP/$surface-rollback.json"
               [[ $? == 0 ]] && jq -e '.success == true' "$RUNNER_TEMP/$surface-rollback.json" >/dev/null && rollback_response_valid=true
             fi
-            curl --silent --show-error --fail \
+            curl --silent --show-error --fail --connect-timeout 10 --max-time 30 \
               -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" \
               "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments" \
               >"$RUNNER_TEMP/$surface-final.json"
@@ -466,8 +503,13 @@ jobs:
             outcome=withheld-dependency
             scope=demo-only
             promotable=false
-            reasons='["matching current staging backend receipt is absent"]'
-            next_action=publish-current-backend-readiness
+            if [[ "$LANDING_TARGET_STATUS" == "withheld" ]]; then
+              reasons='["reviewed public waitlist configuration is absent"]'
+              next_action=provision-and-review-public-waitlist-configuration
+            else
+              reasons='["matching current staging backend receipt is absent"]'
+              next_action=publish-current-backend-readiness
+            fi
           fi
           demo_rollback="${DEMO_ROLLBACK_OUTCOME:-not-needed}"
           landing_rollback="${LANDING_ROLLBACK_OUTCOME:-not-needed}"

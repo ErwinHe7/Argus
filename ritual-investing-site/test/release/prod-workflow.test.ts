@@ -31,8 +31,9 @@ describe("Ritual manual prod promotion workflow", () => {
       "staging_receipt_artifact_id",
       "evidence_run_id",
       "evidence_artifact_id",
-      "prod_readiness_url",
     ]) expect(source).toContain(`${input}:`);
+    expect(source).not.toContain("prod_readiness_url:");
+    expect(source).not.toContain("inputs.prod_readiness_url");
     expect(source).not.toMatch(/reviewers:|wait_timer:|deployment_branch_policy:|branch_protection|ruleset|required_status_checks/);
     expect(source).toContain("group: ritual-investing-prod-promotion");
     expect(source).toContain("cancel-in-progress: false");
@@ -42,8 +43,9 @@ describe("Ritual manual prod promotion workflow", () => {
     const source = await readWorkflow();
     const preflight = job(source, "preflight");
     expect(preflight).toContain("if: github.ref == 'refs/heads/main'");
-    expect(preflight).not.toMatch(/\n\s{4}environment:/);
+    expect(preflight).toContain("environment: prod");
     expect(preflight).not.toMatch(/secrets\./);
+    expect(preflight).toContain("PROD_READINESS_URL: ${{ vars.AXIO7_PROD_READINESS_URL }}");
     for (const path of [
       '.path == ".github/workflows/ritual-investing-ci.yml"',
       '.path == ".github/workflows/ritual-investing-staging.yml"',
@@ -73,7 +75,18 @@ describe("Ritual manual prod promotion workflow", () => {
     expect(preflight).toContain("prod_target_fingerprint");
   });
 
-  it("fails before environment scheduling without current infrastructure and an exact backend decision", async () => {
+  it("revalidates the immutable staging workflow controller independently of the source head", async () => {
+    const source = await readWorkflow();
+    const preflight = job(source, "preflight");
+    expect(preflight).not.toContain('staging_controller_sha="$(jq -er \'.head_sha\' "$RUNNER_TEMP/staging-run.json")"');
+    expect(preflight).toContain('staging_controller_sha="$(jq -er \'.controller.sha\' "$RUNNER_TEMP/staging-artifact/staging-receipt.json")"');
+    expect(preflight).toContain('[[ "$staging_controller_sha" =~ ^[a-f0-9]{40}$ ]]');
+    expect(preflight).toContain('git -C main-source merge-base --is-ancestor "$staging_controller_sha" HEAD');
+    expect(preflight).toContain('git -C main-source show "$staging_controller_sha:.github/workflows/ritual-investing-staging.yml"');
+    expect(preflight).toContain('--arg stagingSha "$staging_controller_sha"');
+  });
+
+  it("fails before mutation without current infrastructure and an exact backend decision", async () => {
     const source = await readWorkflow();
     const preflight = job(source, "preflight");
     expect(preflight).toContain("RITUAL_PROD_INFRASTRUCTURE_RECEIPT");
@@ -82,6 +95,10 @@ describe("Ritual manual prod promotion workflow", () => {
     expect(preflight).toContain('$target_status" == "approved"');
     expect(preflight).toContain('$target_status" == "withheld"');
     expect(preflight).toContain("RITUAL_PROD_BACKEND_RECEIPT");
+    expect(preflight).toContain("terraformSnapshotSha256");
+    expect(preflight).toContain('.snapshots[] | select(.name == "terraform") | .sha256');
+    expect(preflight).toContain("requiredSourceSha256");
+    expect(preflight).toContain(".sourceSha256 == $source");
     expect(preflight).toContain("landing_eligible=false");
     expect(preflight).toContain("mutationScheduled:false");
     expect(job(source, "prod-infrastructure")).toContain("needs.preflight.outputs.mutation_ready == 'true'");
@@ -104,6 +121,8 @@ describe("Ritual manual prod promotion workflow", () => {
     expect(infrastructure).toContain('.change.actions == ["no-op"]');
     expect(infrastructure).toContain("attributes:.change.before");
     expect(infrastructure).toContain("live_inventory_digest");
+    expect(infrastructure).toContain("EXPECTED_TERRAFORM_SNAPSHOT_SHA256");
+    expect(infrastructure).toContain(".terraformSnapshotSha256");
     expect(infrastructure).not.toContain("terraform apply");
     expect(infrastructure).not.toContain("CLOUDFLARE_CONTENT_API_TOKEN");
   });
@@ -111,6 +130,8 @@ describe("Ritual manual prod promotion workflow", () => {
   it("revalidates freshness and target immediately before serialized exact-tree publication", async () => {
     const source = await readWorkflow();
     const content = job(source, "prod-content");
+    expect(source.match(/PROD_READINESS_URL: \$\{\{ vars\.AXIO7_PROD_READINESS_URL \}\}/g)).toHaveLength(2);
+    expect(source.match(/secrets\.AXIO7_PROD_RESEARCH_TOKEN/g)).toHaveLength(1);
     expect(content).toContain("needs.prod-infrastructure.outputs.no_op_ready == 'true'");
     expect(content).toContain("environment: prod");
     expect(content).toContain("group: ritual-investing-prod-content");
@@ -124,6 +145,8 @@ describe("Ritual manual prod promotion workflow", () => {
     expect(content).toContain("PROD_EVIDENCE_VERIFICATION_CONTEXT");
     expect(content).toContain("revalidation_started_at");
     expect(content).toContain('test "$target_fingerprint" = "$PROD_TARGET_FINGERPRINT"');
+    expect(content).toContain('test "$terraform_snapshot_sha256" = "$EXPECTED_TERRAFORM_SNAPSHOT_SHA256"');
+    expect(content).toContain(".sourceSha256 == $source");
     expect(content).toContain('.status == "READY" and .public_realtime_research_ready == true');
     expect(content).toContain('test "$running_revision" = "$SOURCE_SHA"');
     expect(content).toContain("release-bundle/trees/prod/demo");

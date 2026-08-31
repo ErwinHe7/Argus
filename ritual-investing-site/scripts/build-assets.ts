@@ -19,6 +19,16 @@ export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
 type DeploymentEnvironment = "dev" | "staging" | "prod";
 type DeploymentSurface = "landing" | "demo" | "member";
 
+export type DeploymentWaitlistConfiguration = {
+  functionUrl: string;
+  turnstileSiteKey: string;
+};
+
+export type DeploymentWaitlistConfigurations = Record<
+  "staging" | "prod",
+  DeploymentWaitlistConfiguration | null
+>;
+
 export const DEPLOYMENT_TARGETS = [
   {
     environment: "staging",
@@ -620,19 +630,28 @@ async function prepareLandingStage(
   packageRoot: string,
   stage: string,
   environment: DeploymentEnvironment,
+  reviewedConfiguration?: DeploymentWaitlistConfiguration | null,
 ): Promise<void> {
   await cp(resolve(packageRoot, "public"), stage, { recursive: true });
   await addLandingIdentityAssets(packageRoot, stage);
-  const publicSiteKey = resolveTurnstileSiteKey(
-    environment,
-    process.env,
-    process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
-  );
-  const waitlistFunctionUrl = resolveWaitlistFunctionUrl(
-    environment,
-    process.env,
-    process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
-  );
+  const publicSiteKey = reviewedConfiguration === null
+    ? undefined
+    : resolveTurnstileSiteKey(
+      environment,
+      reviewedConfiguration === undefined
+        ? process.env
+        : { [`TURNSTILE_SITE_KEY_${environment.toUpperCase()}`]: reviewedConfiguration.turnstileSiteKey },
+      reviewedConfiguration !== undefined || process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
+    );
+  const waitlistFunctionUrl = reviewedConfiguration === null
+    ? undefined
+    : resolveWaitlistFunctionUrl(
+      environment,
+      reviewedConfiguration === undefined
+        ? process.env
+        : { [`WAITLIST_FUNCTION_URL_${environment.toUpperCase()}`]: reviewedConfiguration.functionUrl },
+      reviewedConfiguration !== undefined || process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
+    );
   if ((publicSiteKey === undefined) !== (waitlistFunctionUrl === undefined)) {
     throw new Error(
       `${environment} waitlist activation requires both the public Turnstile key and function URL.`,
@@ -717,7 +736,9 @@ export async function buildMemberStagingAssets(
   }
 }
 
-export async function buildDeploymentAssets(): Promise<void> {
+export async function buildDeploymentAssets(
+  reviewedConfigurations?: DeploymentWaitlistConfigurations,
+): Promise<void> {
   const packageRoot = resolve(import.meta.dirname, "..");
   const demoSource = resolve(packageRoot, "../ritual-investing-demo/build/web");
   const stagingRoot = await mkdtemp(join(tmpdir(), "ritual-site-assets-"));
@@ -726,7 +747,12 @@ export async function buildDeploymentAssets(): Promise<void> {
     for (const target of DEPLOYMENT_TARGETS) {
       const { environment } = target;
       const landingStage = join(stagingRoot, `landing-${environment}`);
-      await prepareLandingStage(packageRoot, landingStage, environment);
+      await prepareLandingStage(
+        packageRoot,
+        landingStage,
+        environment,
+        reviewedConfigurations?.[environment],
+      );
       manifests.push({
         surface: `landing-${environment}`,
         manifest: await assembleAssets({

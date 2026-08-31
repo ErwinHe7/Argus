@@ -12,9 +12,13 @@ import {
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { buildDeploymentAssets } from "../build-assets.ts";
+import {
+  buildDeploymentAssets,
+  type DeploymentWaitlistConfigurations,
+} from "../build-assets.ts";
 import {
   assertReleaseContentsSafe,
+  calculateBackendSourceSha256,
   calculateProbeManifestSha256,
   isExcludedReleaseSource,
   isSecretShapedReleasePath,
@@ -43,7 +47,7 @@ export type ReleaseBuildOptions = {
   sourceDateEpoch: number;
   provenance: ReleaseProvenance;
   toolVersions: ReleaseToolVersions;
-  buildAssets?: () => Promise<void>;
+  buildAssets?: (configurations: DeploymentWaitlistConfigurations) => Promise<void>;
 };
 
 export type ReleaseBuildResult = {
@@ -280,7 +284,16 @@ export async function buildReleaseBundle(options: ReleaseBuildOptions): Promise<
   const loadedProfiles = await Promise.all(ENVIRONMENTS.map((environment) =>
     loadProfile(packageRoot, environment),
   ));
-  await (options.buildAssets ?? buildDeploymentAssets)();
+  const waitlistConfigurations = Object.fromEntries(loadedProfiles.map(({ profile }) => {
+    const target = profile.targets.landing.backendDependency.target;
+    return [
+      profile.environment,
+      target.status === "approved"
+        ? { functionUrl: target.waitlistUrl, turnstileSiteKey: target.turnstileSiteKey }
+        : null,
+    ];
+  })) as DeploymentWaitlistConfigurations;
+  await (options.buildAssets ?? buildDeploymentAssets)(waitlistConfigurations);
   await rm(outputDirectory, { recursive: true, force: true });
   const bundleDirectory = join(outputDirectory, "release-bundle");
   await mkdir(bundleDirectory, { recursive: true });
@@ -350,6 +363,10 @@ export async function buildReleaseBundle(options: ReleaseBuildOptions): Promise<
     { ...digestEntries(files, "snapshots/supabase/functions"), name: "supabase-functions" },
     { ...digestEntries(files, "snapshots/docs/ritual-investing"), name: "ritual-inventories" },
   ];
+  const requiredBackendSourceSha256 = calculateBackendSourceSha256(
+    snapshots[1]!.sha256,
+    snapshots[2]!.sha256,
+  );
   const backendDependencies: ReleaseManifest["backendDependencies"] = [];
   for (let environmentIndex = 0; environmentIndex < ENVIRONMENTS.length; environmentIndex += 1) {
     const environment = ENVIRONMENTS[environmentIndex]!;
@@ -362,6 +379,7 @@ export async function buildReleaseBundle(options: ReleaseBuildOptions): Promise<
         surface,
         classification: dependency.classification,
         requiredFingerprint: dependency.requiredFingerprint,
+        requiredSourceSha256: surface === "landing" ? requiredBackendSourceSha256 : null,
         targetStatus: dependency.target.status,
         profileSha256,
       });
@@ -369,7 +387,7 @@ export async function buildReleaseBundle(options: ReleaseBuildOptions): Promise<
   }
 
   const manifest = parseReleaseManifest({
-    schemaVersion: 1,
+    schemaVersion: 2,
     sourceDateEpoch: options.sourceDateEpoch,
     createdAt: new Date(options.sourceDateEpoch * 1000).toISOString(),
     subject: options.provenance.subject,

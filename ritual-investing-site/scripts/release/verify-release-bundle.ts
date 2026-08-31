@@ -23,8 +23,16 @@ export type ReleaseControllerIdentity = {
 };
 
 export type BackendTarget =
-  | { status: "approved"; supabaseProjectRef: string; waitlistUrl: string }
-  | { status: "withheld"; reason: "approved-prod-target-not-configured" }
+  | {
+    status: "approved";
+    supabaseProjectRef: string;
+    waitlistUrl: string;
+    turnstileSiteKey: string;
+  }
+  | {
+    status: "withheld";
+    reason: "approved-prod-target-not-configured" | "public-waitlist-configuration-not-configured";
+  }
   | { status: "not-applicable" };
 
 export type BackendDependency = {
@@ -55,7 +63,7 @@ export type ReleaseDigestEntry = {
 };
 
 export type ReleaseManifest = {
-  schemaVersion: 1;
+  schemaVersion: 2;
   sourceDateEpoch: number;
   createdAt: string;
   subject: ReleaseSubjectIdentity;
@@ -84,6 +92,7 @@ export type ReleaseManifest = {
     surface: ReleaseSurface;
     classification: BackendDependencyClass;
     requiredFingerprint: string | null;
+    requiredSourceSha256: string | null;
     targetStatus: BackendTarget["status"];
     profileSha256: string;
   }>;
@@ -109,7 +118,19 @@ const EXPECTED_TARGETS = {
 
 function backendTargetFingerprint(target: Extract<BackendTarget, { status: "approved" }>): string {
   return createHash("sha256")
-    .update(`${target.supabaseProjectRef}\n${target.waitlistUrl}\n`)
+    .update(`${target.supabaseProjectRef}\n${target.waitlistUrl}\n${target.turnstileSiteKey}\n`)
+    .digest("hex");
+}
+
+export function calculateBackendSourceSha256(
+  migrationsSha256: string,
+  functionsSha256: string,
+): string {
+  if (!SHA256.test(migrationsSha256) || !SHA256.test(functionsSha256)) {
+    throw new Error("Backend source inputs must be SHA-256 digests");
+  }
+  return createHash("sha256")
+    .update(`supabase-migrations ${migrationsSha256}\nsupabase-functions ${functionsSha256}\n`)
     .digest("hex");
 }
 
@@ -218,9 +239,13 @@ function parseBackendTarget(value: unknown, environment: ReleaseEnvironment, lab
   const candidate = object(value, label);
   const status = candidate.status;
   if (status === "approved") {
-    exactKeys(candidate, ["status", "supabaseProjectRef", "waitlistUrl"], label);
+    exactKeys(candidate, ["status", "supabaseProjectRef", "waitlistUrl", "turnstileSiteKey"], label);
     const supabaseProjectRef = nonempty(candidate.supabaseProjectRef, `${label} Supabase project ref`);
     const waitlistUrl = nonempty(candidate.waitlistUrl, `${label} waitlist URL`);
+    const turnstileSiteKey = nonempty(candidate.turnstileSiteKey, `${label} Turnstile site key`);
+    if (!/^[A-Za-z0-9_-]{20,128}$/.test(turnstileSiteKey)) {
+      throw new Error(`${label} Turnstile site key has an invalid public-key shape`);
+    }
     if (environment === "prod") {
       throw new Error("No approved prod Supabase target is configured; prod landing must remain withheld");
     }
@@ -228,14 +253,17 @@ function parseBackendTarget(value: unknown, environment: ReleaseEnvironment, lab
     if (supabaseProjectRef !== STAGING_SUPABASE_REF || waitlistUrl !== exactUrl) {
       throw new Error("Staging release profile contains an unapproved waitlist target");
     }
-    return { status, supabaseProjectRef, waitlistUrl };
+    return { status, supabaseProjectRef, waitlistUrl, turnstileSiteKey };
   }
   if (status === "withheld") {
     exactKeys(candidate, ["status", "reason"], label);
-    if (environment !== "prod" || candidate.reason !== "approved-prod-target-not-configured") {
-      throw new Error(`${label} may be withheld only for the unconfigured approved prod target`);
+    const expectedReason = environment === "prod"
+      ? "approved-prod-target-not-configured"
+      : "public-waitlist-configuration-not-configured";
+    if (candidate.reason !== expectedReason) {
+      throw new Error(`${label} must use the reviewed ${environment} withholding reason`);
     }
-    return { status, reason: "approved-prod-target-not-configured" };
+    return { status, reason: expectedReason };
   }
   if (status === "not-applicable") {
     exactKeys(candidate, ["status"], label);
@@ -408,7 +436,7 @@ export function parseReleaseManifest(value: unknown): ReleaseManifest {
     "schemaVersion", "sourceDateEpoch", "createdAt", "subject", "controller", "tools",
     "profiles", "trees", "snapshots", "backendDependencies", "files",
   ], "release manifest");
-  if (candidate.schemaVersion !== 1) throw new Error("Release manifest schemaVersion must be 1");
+  if (candidate.schemaVersion !== 2) throw new Error("Release manifest schemaVersion must be 2");
   const sourceDateEpoch = integer(candidate.sourceDateEpoch, "release manifest sourceDateEpoch");
   const createdAt = nonempty(candidate.createdAt, "release manifest createdAt");
   if (createdAt !== new Date(sourceDateEpoch * 1000).toISOString()) {
@@ -503,6 +531,10 @@ export function parseReleaseManifest(value: unknown): ReleaseManifest {
       name: parsed.name as (typeof snapshotNames)[number],
     };
   });
+  const requiredBackendSourceSha256 = calculateBackendSourceSha256(
+    snapshots[1]!.sha256,
+    snapshots[2]!.sha256,
+  );
 
   if (!Array.isArray(candidate.backendDependencies) || candidate.backendDependencies.length !== 4) {
     throw new Error("Release manifest backend dependency inventory is incomplete");
@@ -510,7 +542,8 @@ export function parseReleaseManifest(value: unknown): ReleaseManifest {
   const backendDependencies = candidate.backendDependencies.map((entry, index) => {
     const dependency = object(entry, `backend dependency ${index}`);
     exactKeys(dependency, [
-      "environment", "surface", "classification", "requiredFingerprint", "targetStatus", "profileSha256",
+      "environment", "surface", "classification", "requiredFingerprint", "requiredSourceSha256",
+      "targetStatus", "profileSha256",
     ], `backend dependency ${index}`);
     const environment = ENVIRONMENTS[Math.floor(index / 2)];
     const surface = SURFACES[index % 2];
@@ -526,6 +559,15 @@ export function parseReleaseManifest(value: unknown): ReleaseManifest {
     if (!(["approved", "withheld", "not-applicable"] as unknown[]).includes(dependency.targetStatus)) {
       throw new Error(`Backend dependency ${index} target status is unknown`);
     }
+    const requiredSourceSha256 = dependency.requiredSourceSha256 === null
+      ? null
+      : hex(dependency.requiredSourceSha256, SHA256, `backend dependency ${index} source SHA-256`);
+    if (surface === "demo" && requiredSourceSha256 !== null) {
+      throw new Error(`Backend dependency ${index} backend-independent source must be null`);
+    }
+    if (surface === "landing" && requiredSourceSha256 !== requiredBackendSourceSha256) {
+      throw new Error(`Backend dependency ${index} source SHA-256 does not match the immutable Supabase snapshots`);
+    }
     return {
       environment,
       surface,
@@ -533,13 +575,14 @@ export function parseReleaseManifest(value: unknown): ReleaseManifest {
       requiredFingerprint: dependency.requiredFingerprint === null
         ? null
         : hex(dependency.requiredFingerprint, SHA256, `backend dependency ${index} fingerprint`),
+      requiredSourceSha256,
       targetStatus: dependency.targetStatus as BackendTarget["status"],
       profileSha256: hex(dependency.profileSha256, SHA256, `backend dependency ${index} profile SHA-256`),
     };
   });
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     sourceDateEpoch,
     createdAt,
     subject: parseSubject(candidate.subject),
@@ -646,6 +689,40 @@ function sameFileInventory(
   }
 }
 
+function assertExactOccurrence(contents: string, value: string, label: string): void {
+  if (contents.split(value).length !== 2) {
+    throw new Error(`${label} must occur exactly once in the immutable landing tree`);
+  }
+}
+
+function assertLandingConfiguration(contents: string, target: BackendTarget, label: string): void {
+  const disabledForm = 'action="" method="post" data-waitlist-form data-waitlist-enabled="false"';
+  const emptySiteKey = 'data-turnstile-site-key=""';
+  if (target.status === "approved") {
+    assertExactOccurrence(
+      contents,
+      `action="${target.waitlistUrl}" method="post" data-waitlist-form data-waitlist-enabled="true"`,
+      `${label} approved waitlist form`,
+    );
+    assertExactOccurrence(
+      contents,
+      `data-turnstile-site-key="${target.turnstileSiteKey}"`,
+      `${label} approved Turnstile site key`,
+    );
+    if (contents.includes(disabledForm) || contents.includes(emptySiteKey)) {
+      throw new Error(`${label} approved landing cannot contain disabled public waitlist configuration`);
+    }
+    return;
+  }
+  if (target.status === "withheld") {
+    assertExactOccurrence(contents, disabledForm, `${label} withheld waitlist form`);
+    assertExactOccurrence(contents, emptySiteKey, `${label} withheld Turnstile site key`);
+    if (contents.includes('data-waitlist-enabled="true"')) {
+      throw new Error(`${label} withheld landing cannot enable the public waitlist`);
+    }
+  }
+}
+
 export type BundleVerificationContext = {
   expectedSubject?: ReleaseSubjectIdentity;
   expectedController?: ReleaseControllerIdentity;
@@ -722,6 +799,15 @@ export async function verifyReleaseBundle(
         throw new Error(`${label} asset manifest omits the version marker`);
       }
       sameFileInventory(assetManifest.files, expectedAssetFiles, `${label} asset manifest`);
+      if (surface.surface === "landing") {
+        const profile = verifiedProfiles.get(tree.environment);
+        if (profile === undefined) throw new Error(`${tree.environment} release profile is missing`);
+        assertLandingConfiguration(
+          await readFile(join(root, surface.root, "index.html"), "utf8"),
+          profile.targets.landing.backendDependency.target,
+          label,
+        );
+      }
     }
   }
   for (const snapshot of manifest.snapshots) {

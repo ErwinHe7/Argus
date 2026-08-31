@@ -22,8 +22,9 @@ const SHA = "a".repeat(40);
 const CONTROLLER_SHA = "b".repeat(40);
 const DIGEST = "c".repeat(64);
 const STAGING_REF = "zbgjjufjkhfhirbuuolv";
+const STAGING_SITE_KEY = "0x4AAAAAAAsyntheticStagingPublicKey";
 const STAGING_BACKEND_FINGERPRINT =
-  "0cad737319cba650c0c5778802f02541f298886ab2c35338edf3c317e149568e";
+  "7b1449f71dde7fb697afcb7087500c85288c3c0fd8e4b71afc780cc7f1153503";
 const execFileAsync = promisify(execFile);
 
 function stagingProfile(): Record<string, unknown> {
@@ -36,12 +37,11 @@ function stagingProfile(): Record<string, unknown> {
         pagesProject: "ritual-investing-site-staging",
         host: "staging.just-build-this.app",
         backendDependency: {
-          classification: "compatible-with",
-          requiredFingerprint: STAGING_BACKEND_FINGERPRINT,
+          classification: "requires",
+          requiredFingerprint: null,
           target: {
-            status: "approved",
-            supabaseProjectRef: STAGING_REF,
-            waitlistUrl: `https://${STAGING_REF}.supabase.co/functions/v1/waitlist`,
+            status: "withheld",
+            reason: "public-waitlist-configuration-not-configured",
           },
         },
       },
@@ -56,6 +56,28 @@ function stagingProfile(): Record<string, unknown> {
       },
     },
   };
+}
+
+function approvedStagingProfile(): Record<string, unknown> {
+  const profile = stagingProfile();
+  (profile.targets as Record<string, any>).landing.backendDependency = {
+    classification: "compatible-with",
+    requiredFingerprint: STAGING_BACKEND_FINGERPRINT,
+    target: {
+      status: "approved",
+      supabaseProjectRef: STAGING_REF,
+      waitlistUrl: `https://${STAGING_REF}.supabase.co/functions/v1/waitlist`,
+      turnstileSiteKey: STAGING_SITE_KEY,
+    },
+  };
+  return profile;
+}
+
+function landingHtml(enabled: boolean): string {
+  const waitlistUrl = `https://${STAGING_REF}.supabase.co/functions/v1/waitlist`;
+  return enabled
+    ? `<form action="${waitlistUrl}" method="post" data-waitlist-form data-waitlist-enabled="true"></form><div data-turnstile-site-key="${STAGING_SITE_KEY}"></div>\n`
+    : '<form action="" method="post" data-waitlist-form data-waitlist-enabled="false"></form><div data-turnstile-site-key=""></div>\n';
 }
 
 function prodProfile(): Record<string, unknown> {
@@ -109,11 +131,10 @@ async function fixture(): Promise<ReleaseBuildOptions> {
   await Promise.all([
     writeFile(join(packageRoot, "config/release/staging.json"), `${JSON.stringify(stagingProfile(), null, 2)}\n`),
     writeFile(join(packageRoot, "config/release/prod.json"), `${JSON.stringify(prodProfile(), null, 2)}\n`),
-    ...["staging", "prod"].flatMap((environment) =>
-      ["landing", "demo"].map((surface) =>
-        writeFile(join(packageRoot, `dist/${surface}-${environment}/index.html`), `${surface}-${environment}\n`),
-      )
-    ),
+    ...["staging", "prod"].flatMap((environment) => [
+      writeFile(join(packageRoot, `dist/landing-${environment}/index.html`), landingHtml(false)),
+      writeFile(join(packageRoot, `dist/demo-${environment}/index.html`), `demo-${environment}\n`),
+    ]),
     writeFile(join(repositoryRoot, "infra/terraform/ritual-investing/environments/staging/main.tf"), "terraform {}\n"),
     writeFile(join(repositoryRoot, "supabase/migrations/20260830_release.sql"), "select 1;\n"),
     writeFile(join(repositoryRoot, "supabase/functions/waitlist/index.ts"), "export default {};\n"),
@@ -161,6 +182,7 @@ describe("immutable Ritual release bundle", () => {
     expect(await readFile(first.archivePath)).toEqual(await readFile(second.archivePath));
     expect(first.archiveSha256).toBe(second.archiveSha256);
     expect(first.manifestSha256).toBe(second.manifestSha256);
+    expect(first.manifest.schemaVersion).toBe(2);
     expect(first.manifest.trees.map(({ environment, sha256 }) => ({ environment, sha256 })))
       .toEqual(second.manifest.trees.map(({ environment, sha256 }) => ({ environment, sha256 })));
     expect(first.manifest.trees.map(({ environment, surfaces }) => ({
@@ -174,6 +196,14 @@ describe("immutable Ritual release bundle", () => {
     expect(first.manifest.files.map(({ path }) => path)).toEqual(
       [...first.manifest.files.map(({ path }) => path)].sort(),
     );
+    const landingSourceDigests = first.manifest.backendDependencies
+      .filter(({ surface }) => surface === "landing")
+      .map(({ requiredSourceSha256 }) => requiredSourceSha256);
+    expect(new Set(landingSourceDigests).size).toBe(1);
+    expect(landingSourceDigests[0]).toMatch(/^[a-f0-9]{64}$/);
+    expect(first.manifest.backendDependencies
+      .filter(({ surface }) => surface === "demo")
+      .every(({ requiredSourceSha256 }) => requiredSourceSha256 === null)).toBe(true);
     const listed = (await execFileAsync("tar", ["-tf", first.archivePath])).stdout;
     expect(listed).toContain("release-bundle/release-manifest.json");
     expect(listed).toContain("release-bundle/snapshots/infra/terraform/ritual-investing/environments/staging/main.tf");
@@ -209,6 +239,13 @@ describe("immutable Ritual release bundle", () => {
     expect(() => parseReleaseManifest(malformed)).toThrow(/probe manifest SHA-256|digest shape/i);
   });
 
+  it("rejects a backend dependency not bound to the immutable Supabase source", async () => {
+    const built = await buildReleaseBundle(await fixture());
+    const stale = structuredClone(built.manifest) as unknown as Record<string, any>;
+    stale.backendDependencies[0].requiredSourceSha256 = DIGEST;
+    expect(() => parseReleaseManifest(stale)).toThrow(/source SHA-256.*immutable Supabase snapshots/i);
+  });
+
   it.each([
     "trees/staging/landing/index.html",
     "snapshots/infra/terraform/ritual-investing/environments/staging/main.tf",
@@ -242,10 +279,12 @@ describe("immutable Ritual release bundle", () => {
     })).rejects.toThrow(/secret|private key|credential/i);
   });
 
-  it("strictly validates canonical profiles and keeps prod landing withheld", async () => {
+  it("strictly validates canonical profiles and keeps unconfigured landings withheld", async () => {
     const staging = parseReleaseProfile(stagingProfile(), "staging");
+    const approvedStaging = parseReleaseProfile(approvedStagingProfile(), "staging");
     const prod = parseReleaseProfile(prodProfile(), "prod");
-    expect(profileReleaseEligibility(staging)).toEqual({ demo: true, landing: true, full: true });
+    expect(profileReleaseEligibility(staging)).toEqual({ demo: true, landing: false, full: false });
+    expect(profileReleaseEligibility(approvedStaging)).toEqual({ demo: true, landing: true, full: true });
     expect(profileReleaseEligibility(prod)).toEqual({ demo: true, landing: false, full: false });
     const packageRoot = resolve(import.meta.dirname, "../..");
     await expect(Promise.all(["staging", "prod"].map(async (environment) =>
@@ -270,7 +309,7 @@ describe("immutable Ritual release bundle", () => {
     delete (missingTarget.targets as Record<string, any>).landing.backendDependency.target;
     expect(() => parseReleaseProfile(missingTarget, "staging")).toThrow(/target/i);
 
-    const wrongFingerprint = structuredClone(stagingProfile());
+    const wrongFingerprint = structuredClone(approvedStagingProfile());
     (wrongFingerprint.targets as Record<string, any>).landing.backendDependency.requiredFingerprint = DIGEST;
     expect(() => parseReleaseProfile(wrongFingerprint, "staging")).toThrow(/fingerprint/i);
 
@@ -286,9 +325,39 @@ describe("immutable Ritual release bundle", () => {
         status: "approved",
         supabaseProjectRef: STAGING_REF,
         waitlistUrl: `https://${STAGING_REF}.supabase.co/functions/v1/waitlist`,
+        turnstileSiteKey: STAGING_SITE_KEY,
       },
     };
     expect(() => parseReleaseProfile(unapprovedProd, "prod")).toThrow(/approved prod|staging/i);
+  });
+
+  it("binds approved landing configuration and rejects mismatched immutable trees", async () => {
+    const options = await fixture();
+    await writeFile(
+      join(options.packageRoot, "config/release/staging.json"),
+      `${JSON.stringify(approvedStagingProfile(), null, 2)}\n`,
+    );
+    const disabled = await buildReleaseBundle(options);
+    await expect(verifyReleaseBundle(disabled.bundleDirectory)).rejects.toThrow(/approved waitlist form/i);
+
+    await writeFile(join(options.packageRoot, "dist/landing-staging/index.html"), landingHtml(true));
+    const enabled = await buildReleaseBundle({
+      ...options,
+      outputDirectory: join(options.repositoryRoot, "out-enabled"),
+    });
+    await expect(verifyReleaseBundle(enabled.bundleDirectory)).resolves.toMatchObject({
+      manifestSha256: enabled.manifestSha256,
+    });
+
+    await writeFile(
+      join(options.packageRoot, "config/release/staging.json"),
+      `${JSON.stringify(stagingProfile(), null, 2)}\n`,
+    );
+    const falselyEnabled = await buildReleaseBundle({
+      ...options,
+      outputDirectory: join(options.repositoryRoot, "out-falsely-enabled"),
+    });
+    await expect(verifyReleaseBundle(falselyEnabled.bundleDirectory)).rejects.toThrow(/withheld.*form/i);
   });
 
   it("probes only exact identity, revision, manifest, headers, and unknown-route policy", async () => {

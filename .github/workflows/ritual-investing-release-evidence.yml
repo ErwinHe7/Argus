@@ -23,11 +23,6 @@ on:
         description: Expected release-manifest.json SHA-256
         required: true
         type: string
-      prod_readiness_url:
-        description: Exact prod HTTPS target ending in /api/v1/system/readiness
-        required: true
-        type: string
-
 permissions:
   actions: read
   contents: read
@@ -242,7 +237,7 @@ jobs:
       - name: Query the exact prod readiness target without logging its response
         id: probe
         env:
-          PROD_READINESS_URL: ${{ inputs.prod_readiness_url }}
+          PROD_READINESS_URL: ${{ vars.AXIO7_PROD_READINESS_URL }}
           PROD_RESEARCH_TOKEN: ${{ secrets.AXIO7_PROD_RESEARCH_TOKEN }}
           SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
