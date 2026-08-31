@@ -26,9 +26,19 @@ const retiredAuthorityPaths = [
   "ritual-investing-api/scripts/render-beta-role-sql.ts",
 ] as const;
 
-function workflow(): string {
+function fastWorkflow(): string {
   return readFileSync(
-    resolve(repositoryRoot, ".github/workflows/ritual-investing.yml"),
+    resolve(repositoryRoot, ".github/workflows/ritual-investing-ci.yml"),
+    "utf8",
+  );
+}
+
+function releaseEvidenceWorkflow(): string {
+  return readFileSync(
+    resolve(
+      repositoryRoot,
+      ".github/workflows/ritual-investing-release-evidence.yml",
+    ),
     "utf8",
   );
 }
@@ -108,7 +118,7 @@ describe("U13 cutover inventory", () => {
     const scripts = JSON.parse(
       readFileSync(resolve(apiRoot, "package.json"), "utf8"),
     ) as { scripts: Record<string, string> };
-    const apiJob = workflowJob(workflow(), "api-security");
+    const apiJob = workflowJob(fastWorkflow(), "api-security");
     const invoked = [...apiJob.matchAll(/npm run ([\w:-]+)/g)].map(
       ([, name]) => name!,
     );
@@ -119,8 +129,8 @@ describe("U13 cutover inventory", () => {
   });
 
   it("keeps ordinary CI secret-free and without hosted mutation authority", () => {
-    const source = workflow();
-    const local = workflowJob(source, "supabase-local");
+    const source = fastWorkflow();
+    const local = workflowJob(releaseEvidenceWorkflow(), "supabase-local");
 
     expect(local).toContain("supabase db reset");
     expect(local).toContain("supabase test db");
@@ -227,9 +237,9 @@ describe("U13 cutover inventory", () => {
 
   it("proves every Cloudflare Pages project is static-only", () => {
     const configs = [
-      "wrangler.beta.jsonc",
+      "wrangler.staging.jsonc",
       "wrangler.demo.jsonc",
-      "wrangler.demo-beta.jsonc",
+      "wrangler.demo-staging.jsonc",
     ];
     for (const file of configs) {
       const value = JSON.parse(

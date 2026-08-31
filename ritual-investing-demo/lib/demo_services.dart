@@ -20,6 +20,9 @@ import 'package:ritual_investing_app/features/profile/domain/model.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
+import 'package:ritual_investing_app/features/starpath/application/starpath_controller.dart';
+import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
+import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
 
 /// A fresh, memory-only set of deterministic services for one demo document.
 class DemoServices {
@@ -57,6 +60,13 @@ class DemoServices {
           service: _DemoRitualService(),
           cache: cache,
         ),
+      ),
+      starpathController: StarpathController(
+        repository: StarpathRepository(
+          service: _DemoStarpathService(),
+          cache: cache,
+        ),
+        createKey: () => 'demo-starpath-command-key',
       ),
       discoverController: DiscoverController(
         repository: CachedDiscoverRepository(
@@ -103,6 +113,142 @@ final _demoDate = DateTime.utc(2026, 8, 25, 12);
 const _assetId = '20000000-0000-4000-8000-000000000001';
 const _grimoireId = '00000000-0000-4000-8000-000000000541';
 const _covenId = '00000000-0000-4000-8000-000000000510';
+
+class _DemoStarpathService implements StarpathService {
+  int _version = 1;
+  int _currentOrdinal = 1;
+
+  @override
+  Future<StarpathSnapshot> fetch() async => _snapshot();
+
+  @override
+  Future<StarpathSnapshot> start({required String idempotencyKey}) async =>
+      _snapshot();
+
+  @override
+  Future<StarpathSnapshot> answer({
+    required String idempotencyKey,
+    required int version,
+    required StarpathAnswerCommand command,
+  }) async {
+    _version = version + 1;
+    _currentOrdinal = (_currentOrdinal + 1).clamp(1, 8);
+    return _snapshot();
+  }
+
+  @override
+  Future<StarpathSnapshot> skipRecall({
+    required String idempotencyKey,
+    required int version,
+    required String sessionId,
+  }) async {
+    _version = version + 1;
+    return _snapshot();
+  }
+
+  StarpathSnapshot _snapshot() => StarpathSnapshot(
+    availability: StarpathAvailability.available,
+    version: _version,
+    authority: const StarpathAuthority(
+      environment: StarpathEnvironment.beta,
+      jurisdiction: 'US',
+      capabilityVersion: 1,
+      policyVersion: 'starpath-no-advice-v1',
+      manifestId: 'demo-starpath-manifest',
+      manifestVersion: 'demo-v1',
+    ),
+    nodes: List.generate(8, (index) {
+      final ordinal = index + 1;
+      return StarpathNode(
+        lessonId: 'demo-starpath-lesson-$ordinal',
+        revisionId: 'demo-starpath-revision-$ordinal',
+        nodeOrdinal: ordinal,
+        pathwayOrdinal: (index ~/ 2) + 1,
+        pathwayPosition: (index % 2) + 1,
+        title: 'Star lesson $ordinal',
+        mythicMnemonic:
+            'Picture a steady star marking the definition, never an outcome.',
+        factualSummary:
+            'This lesson introduces an objective investing definition.',
+        materialLimitations:
+            'Definitions and contractual rights can vary by product.',
+        riskContext: 'Investments can lose value, including principal.',
+        recallPrompt: 'Recall the objective definition from this lesson.',
+        rowanExplanation:
+            'The star is only a memory aid for the reviewed definition.',
+        guide: const StarpathGuide(
+          tarotKey: 'the-star',
+          accessibleLabel: 'The Star, used only as a memory aid.',
+        ),
+        factualSections: [
+          StarpathFactualSection(
+            ordinal: 1,
+            kind: StarpathFactualSectionKind.fact,
+            heading: 'What it means',
+            body: 'The reviewed definition describes a concept without predicting returns.',
+            observedAt: _demoDate,
+            uncertainty:
+                'Terms and rights can differ across products and issuers.',
+            evidence: [
+              StarpathEvidence(
+                ordinal: 1,
+                publisher: 'Investor.gov',
+                sourceTitle: 'Investor education',
+                canonicalUrl: Uri.parse('https://www.investor.gov/'),
+                claimSummary: 'Primary public investor-education source.',
+                retrievedAt: _demoDate,
+                sourceObservedAt: _demoDate,
+                currentUntil: DateTime.utc(2027, 8, 25, 12),
+              ),
+            ],
+          ),
+        ],
+        knowledgeCheck: StarpathKnowledgeCheck(
+          id: 'demo-starpath-question-$ordinal',
+          prompt: 'Which answer restates the objective definition?',
+          options: [
+            StarpathKnowledgeCheckOption(
+              id: 'demo-starpath-option-$ordinal-a',
+              ordinal: 1,
+              label: 'The reviewed definition',
+            ),
+            StarpathKnowledgeCheckOption(
+              id: 'demo-starpath-option-$ordinal-b',
+              ordinal: 2,
+              label: 'A guaranteed investment outcome',
+            ),
+          ],
+        ),
+        state: ordinal < _currentOrdinal
+            ? StarpathNodeState.completed
+            : ordinal == _currentOrdinal
+            ? StarpathNodeState.current
+            : StarpathNodeState.locked,
+      );
+    }),
+    session: StarpathSession(
+      id: 'demo-starpath-session',
+      explicitStart: true,
+      startedAt: _demoDate,
+      lastActionAt: _demoDate,
+      state: StarpathSessionState.active,
+    ),
+    progress: StarpathProgress(
+      currentNodeOrdinal: _currentOrdinal,
+      version: _version,
+      updatedAt: _demoDate,
+    ),
+    theme: const StarpathTheme(
+      id: 'demo-starpath-theme',
+      key: 'walk-the-stars',
+      title: 'Walk the Stars',
+      horoscopeFrame: 'A memory frame, not a prediction.',
+      factualFocus: 'Learn one objective concept at a time.',
+      accessibleLabel: 'A celestial learning path.',
+    ),
+    recall: null,
+  );
+}
 
 final _researchDisclosure = ResearchDemoDisclosure(
   isDemo: true,
