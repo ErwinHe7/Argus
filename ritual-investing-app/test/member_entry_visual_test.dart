@@ -28,7 +28,7 @@ void main() {
           theme: brightness == Brightness.light
               ? AppTheme.light
               : AppTheme.dark,
-          home: WelcomeScreen(onCreateAccount: () {}, onSignIn: () {}),
+          home: WelcomeScreen(onContinueWithGoogle: () async {}),
         ),
       );
       await tester.runAsync(() async {

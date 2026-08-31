@@ -3,15 +3,32 @@ import 'package:flutter/material.dart';
 import '../application/onboarding_controller.dart';
 import '../domain/onboarding_draft.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({
     super.key,
-    required this.onCreateAccount,
-    required this.onSignIn,
+    required this.onContinueWithGoogle,
+    this.message,
   });
 
-  final VoidCallback onCreateAccount;
-  final VoidCallback onSignIn;
+  final Future<void> Function() onContinueWithGoogle;
+  final String? message;
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  bool _isSubmitting = false;
+
+  Future<void> _continueWithGoogle() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await widget.onContinueWithGoogle();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -50,36 +67,50 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Tell us how you invest and how you want Leo to speak. Your answers shape explanations and research defaults, and you can change them later.',
+                        'Continue with Google to enter Leo. Your Tarot readings, Starpath, saved research, and preferences stay together across devices.',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'This takes about 3 minutes. Personalized astrology is optional.',
+                        'Google is the only sign-in method. No separate password is needed.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
+                      if (widget.message != null) ...[
+                        const SizedBox(height: 16),
+                        _WelcomeAuthMessage(message: widget.message!),
+                      ],
                       SizedBox(height: spacious ? 28 : 16),
-                      FilledButton(
-                        key: const Key('welcome-create-account'),
-                        onPressed: onCreateAccount,
-                        child: const Text('Create account'),
-                      ),
-                      const SizedBox(height: 4),
-                      TextButton(
-                        key: const Key('welcome-sign-in'),
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(48, 48),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          textStyle: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w700,
+                      SizedBox(
+                        height: 52,
+                        child: FilledButton(
+                          key: const Key('welcome-google-sign-in'),
+                          onPressed: _isSubmitting ? null : _continueWithGoogle,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (_isSubmitting)
+                                const SizedBox.square(
+                                  dimension: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              else
+                                Text(
+                                  'G',
+                                  semanticsLabel: 'Google',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                              const SizedBox(width: 12),
+                              Text(
+                                _isSubmitting
+                                    ? 'Opening Google…'
+                                    : 'Continue with Google',
+                              ),
+                            ],
                           ),
                         ),
-                        onPressed: onSignIn,
-                        child: const Text('I have an account'),
                       ),
                       SizedBox(height: spacious ? 24 : 16),
                       const _TrustLine(
@@ -101,6 +132,46 @@ class WelcomeScreen extends StatelessWidget {
       ),
     ),
   );
+}
+
+class _WelcomeAuthMessage extends StatelessWidget {
+  const _WelcomeAuthMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      child: Material(
+        key: const Key('welcome-auth-message'),
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: scheme.onErrorContainer,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onErrorContainer),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _LeoBrandLockup extends StatelessWidget {

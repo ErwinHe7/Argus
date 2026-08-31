@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/features/onboarding/application/onboarding_controller.dart';
@@ -5,32 +7,65 @@ import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft
 import 'package:ritual_investing_app/features/onboarding/presentation/onboarding_flow.dart';
 
 void main() {
-  testWidgets('welcome leads with value, regular signup, and direct sign in', (
+  testWidgets('welcome offers one direct Google sign-in action', (
     tester,
   ) async {
-    var accountCreationOpened = false;
-    var signedIn = false;
+    var googleSignInCalls = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: WelcomeScreen(
-          onCreateAccount: () => accountCreationOpened = true,
-          onSignIn: () => signedIn = true,
+          onContinueWithGoogle: () async => googleSignInCalls++,
         ),
       ),
     );
 
     expect(find.textContaining('personal ritual'), findsOneWidget);
-    expect(find.textContaining('about 3 minutes'), findsOneWidget);
+    expect(find.textContaining('only sign-in method'), findsOneWidget);
     expect(find.byKey(const Key('welcome-artwork')), findsOneWidget);
     expect(
       find.text('Evidence and uncertainty stay within reach.'),
       findsOneWidget,
     );
-    expect(find.text('Create account'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('welcome-create-account')));
-    await tester.tap(find.byKey(const Key('welcome-sign-in')));
-    expect(accountCreationOpened, isTrue);
-    expect(signedIn, isTrue);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Create account'), findsNothing);
+    expect(find.text('I have an account'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
+    await tester.pumpAndSettle();
+
+    expect(googleSignInCalls, 1);
+  });
+
+  testWidgets('welcome reports Google progress and auth failures', (
+    tester,
+  ) async {
+    final barrier = Completer<void>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: WelcomeScreen(
+          message: 'Google sign-in is temporarily unavailable.',
+          onContinueWithGoogle: () => barrier.future,
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('welcome-auth-message')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('welcome-google-sign-in')));
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
+    await tester.pump();
+
+    expect(find.text('Opening Google…'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('welcome-google-sign-in')))
+          .onPressed,
+      isNull,
+    );
+
+    barrier.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Continue with Google'), findsOneWidget);
   });
 
   testWidgets('risk has no default and announces semantic progress', (

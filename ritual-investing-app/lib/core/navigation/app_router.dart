@@ -126,10 +126,14 @@ GoRouter createAppRouter({
     routes: [
       GoRoute(
         path: '/welcome',
-        builder: (context, state) => WelcomeScreen(
-          onCreateAccount: () =>
-              _runUiAction(context, container.beginQuestionnaire),
-          onSignIn: () => context.push('/sign-in'),
+        builder: (context, state) => ListenableBuilder(
+          listenable: container,
+          builder: (context, _) => WelcomeScreen(
+            message:
+                container.entryCoordinator?.state.message ??
+                container.authController.state.message,
+            onContinueWithGoogle: container.signInWithGoogle,
+          ),
         ),
       ),
       GoRoute(

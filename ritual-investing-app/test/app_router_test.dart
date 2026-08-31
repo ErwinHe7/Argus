@@ -173,7 +173,7 @@ void main() {
     }
   });
 
-  testWidgets('clean install starts a private draft before Google sign-in', (
+  testWidgets('clean install authenticates with Google before onboarding', (
     tester,
   ) async {
     final sessions = _SignedOutSessionRepository(
@@ -203,9 +203,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('welcome-create-account')), findsOneWidget);
+    expect(find.byKey(const Key('welcome-google-sign-in')), findsOneWidget);
+    expect(find.text('Create account'), findsNothing);
+    expect(find.text('I have an account'), findsNothing);
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('welcome-create-account'))),
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
     );
     router.go(MemberRoutes.ritual.path);
     await tester.pumpAndSettle();
@@ -214,24 +216,26 @@ void main() {
     await tester.pumpAndSettle();
     expect(router.state.uri.path, '/welcome');
 
-    await tester.tap(find.byKey(const Key('welcome-create-account')));
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
     await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/onboarding/experience');
-    expect(find.text('How familiar are you with investing?'), findsOneWidget);
+
+    expect(router.state.uri.path, '/onboarding/recovery');
+    expect(find.byKey(const Key('recovery-continue')), findsOneWidget);
     expect(sessions.passwordSignUpCredentials, isEmpty);
     expect(sessions.passwordCredentials, isEmpty);
 
-    await tester.tap(find.byKey(const Key('onboarding-back')));
+    await tester.tap(find.byKey(const Key('recovery-continue')));
     await tester.pumpAndSettle();
-
-    expect(router.state.uri.path, '/welcome');
-    expect(find.byKey(const Key('welcome-create-account')), findsOneWidget);
+    expect(router.state.uri.path, '/onboarding/experience');
+    expect(find.text('How familiar are you with investing?'), findsOneWidget);
   });
 
-  testWidgets('existing account opens the single Google entry screen', (
+  testWidgets('cancelled Google sign-in stays on the direct welcome entry', (
     tester,
   ) async {
-    final sessions = _SignedOutSessionRepository();
+    final sessions = _SignedOutSessionRepository(
+      authenticationError: const MemberAuthCancelled(),
+    );
     final auth = AuthController(repository: sessions);
     final coordinator = EntryCoordinator(
       authController: auth,
@@ -253,14 +257,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('I have an account'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('welcome-sign-in')));
+    expect(find.byKey(const Key('welcome-google-sign-in')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
     await tester.pumpAndSettle();
 
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('member-google-sign-in'))),
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
     );
-    expect(router.state.uri.path, '/sign-in');
+    expect(router.state.uri.path, '/welcome');
     expect(find.byType(TextField), findsNothing);
     expect(find.text('Continue with Google'), findsOneWidget);
     expect(sessions.passwordCredentials, isEmpty);
@@ -293,15 +297,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('welcome-sign-in')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('member-google-sign-in')));
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
     await tester.pumpAndSettle();
 
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('member-google-sign-in'))),
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
     );
-    expect(router.state.uri.path, '/sign-in');
+    expect(router.state.uri.path, '/welcome');
     expect(
       find.text('Google sign-in is not enabled for this app yet.'),
       findsOneWidget,
@@ -338,19 +340,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('welcome-sign-in')));
-    await tester.pumpAndSettle();
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('member-google-sign-in'))),
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
     );
-    await tester.tap(find.byKey(const Key('member-google-sign-in')));
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
     await tester.pump();
     expect(find.text('Opening Google…'), findsOneWidget);
 
     oauthBarrier.complete();
     await tester.pumpAndSettle();
 
-    expect(router.state.uri.path, '/sign-in');
+    expect(router.state.uri.path, '/welcome');
     expect(find.text('Continue with Google'), findsOneWidget);
     expect(find.byType(TextField), findsNothing);
   });
@@ -410,15 +410,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('welcome-sign-in'))),
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
     );
     router.go(MemberRoutes.youPrivacyPath);
     await tester.pumpAndSettle();
     expect(router.state.uri.path, '/welcome');
 
-    await tester.tap(find.byKey(const Key('welcome-sign-in')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('member-google-sign-in')));
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
     await tester.pumpAndSettle();
 
     expect(sessions.passwordCredentials, isEmpty);
