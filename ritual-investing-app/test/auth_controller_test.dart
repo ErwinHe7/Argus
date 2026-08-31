@@ -21,8 +21,8 @@ void main() {
     },
   );
 
-  test('password update requires a recovery session', () async {
-    final repository = _RecoverySessionRepository();
+  test('unexpected password-recovery events fail closed', () async {
+    final repository = _StreamingSessionRepository();
     final controller = AuthController(repository: repository);
     addTearDown(controller.dispose);
     repository.emit(
@@ -32,18 +32,14 @@ void main() {
       ),
     );
 
-    expect(await controller.updatePassword('new-password'), isFalse);
-    expect(repository.passwordUpdates, 0);
-
     repository.emit(
       const MemberSessionChange(
         event: MemberSessionEvent.passwordRecovery,
         session: AuthSession(accessToken: 'recovery'),
       ),
     );
-    expect(await controller.updatePassword('new-password'), isTrue);
-    expect(repository.passwordUpdates, 1);
-    expect(controller.state.isPasswordRecovery, isFalse);
+    expect(controller.state.phase, AuthPhase.signedOut);
+    expect(controller.activeSession, isNull);
   });
 
   test('token-free logout signal invalidates a sibling tab', () async {
@@ -73,48 +69,42 @@ void main() {
     expect(signal.published, 0);
   });
 
-  test('password sign in adopts the credential session', () async {
+  test('Google sign in adopts an immediately returned session', () async {
     final repository = _FakeSessionRepository(
       authenticatedSession: const AuthSession(
-        accessToken: 'password-access-token',
+        accessToken: 'google-access-token',
         userId: '11111111-1111-4111-8111-111111111111',
       ),
     );
     final controller = AuthController(repository: repository);
     addTearDown(controller.dispose);
 
-    final result = await controller.signInWithPassword(
-      email: 'beta@example.com',
-      password: 'correct horse battery staple',
-    );
+    final result = await controller.signInWithGoogle();
 
     expect(result, MemberAuthResult.authenticated);
     expect(controller.state.phase, AuthPhase.signedIn);
-    expect(controller.activeSession?.accessToken, 'password-access-token');
-    expect(repository.passwordEmail, 'beta@example.com');
-    expect(repository.passwordValue, 'correct horse battery staple');
+    expect(controller.activeSession?.accessToken, 'google-access-token');
+    expect(repository.googleSignIns, 1);
   });
 
   test(
-    'password sign in reports invalid credentials without hiding them',
+    'Google sign in reports unavailable provider without exposing internals',
     () async {
       final controller = AuthController(
         repository: _FakeSessionRepository(
-          authenticationError: const MemberAuthUnavailable(
-            'invalid_credentials',
-          ),
+          authenticationError: const MemberAuthUnavailable('provider_disabled'),
         ),
       );
       addTearDown(controller.dispose);
 
-      final result = await controller.signInWithPassword(
-        email: 'beta@example.com',
-        password: 'incorrect',
-      );
+      final result = await controller.signInWithGoogle();
 
       expect(result, MemberAuthResult.unavailable);
       expect(controller.state.phase, AuthPhase.failure);
-      expect(controller.state.message, 'Email or password is incorrect.');
+      expect(
+        controller.state.message,
+        'Google sign-in is not enabled for this app yet.',
+      );
     },
   );
 
@@ -132,38 +122,32 @@ void main() {
     },
   );
 
-  test(
-    'stale password session requires credentials without launching auth',
-    () async {
-      final now = DateTime.now().toUtc();
-      final repository = _FakeSessionRepository(
-        authenticatedSession: AuthSession(
-          accessToken: 'stale-password-session',
-          userId: '11111111-1111-4111-8111-111111111111',
-          authenticatedAt: now.subtract(const Duration(minutes: 10)),
-        ),
-      );
-      final controller = AuthController(repository: repository);
-      addTearDown(controller.dispose);
-      await controller.signInWithPassword(
-        email: 'beta@example.com',
-        password: 'correct horse battery staple',
-      );
+  test('stale Google session requires recent authentication', () async {
+    final now = DateTime.now().toUtc();
+    final repository = _FakeSessionRepository(
+      authenticatedSession: AuthSession(
+        accessToken: 'stale-google-session',
+        userId: '11111111-1111-4111-8111-111111111111',
+        authenticatedAt: now.subtract(const Duration(minutes: 10)),
+      ),
+    );
+    final controller = AuthController(repository: repository);
+    addTearDown(controller.dispose);
+    await controller.signInWithGoogle();
 
-      await expectLater(
-        controller.reauthenticate(const Duration(minutes: 5)),
-        throwsA(
-          isA<MemberAuthUnavailable>().having(
-            (error) => error.reason,
-            'reason',
-            'password_credentials_required',
-          ),
+    await expectLater(
+      controller.reauthenticate(const Duration(minutes: 5)),
+      throwsA(
+        isA<MemberAuthUnavailable>().having(
+          (error) => error.reason,
+          'reason',
+          'recent_authentication_required',
         ),
-      );
+      ),
+    );
 
-      expect(controller.state.phase, AuthPhase.signedIn);
-    },
-  );
+    expect(controller.state.phase, AuthPhase.signedIn);
+  });
 
   test(
     'sensitive actions fail closed until the server receipt port is wired',
@@ -178,10 +162,7 @@ void main() {
       );
       final controller = AuthController(repository: repository);
       addTearDown(controller.dispose);
-      await controller.signInWithPassword(
-        email: 'beta@example.com',
-        password: 'correct horse battery staple',
-      );
+      await controller.signInWithGoogle();
 
       await expectLater(
         controller.authorizeSensitiveAction(SensitiveMemberAction.argusDelete),
@@ -268,7 +249,7 @@ void main() {
 }
 
 class _FakeSessionRepository
-    implements SessionRepository, PasswordSessionRepository {
+    implements SessionRepository, GoogleOAuthSessionRepository {
   _FakeSessionRepository({
     this.failLogout = false,
     this.authenticationError,
@@ -279,8 +260,7 @@ class _FakeSessionRepository
   final Object? authenticationError;
   final AuthSession? authenticatedSession;
   int credentialReads = 0;
-  String? passwordEmail;
-  String? passwordValue;
+  int googleSignIns = 0;
 
   @override
   MemberClientExpectation get memberClientExpectation =>
@@ -298,25 +278,11 @@ class _FakeSessionRepository
   }
 
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordEmail = email;
-    passwordValue = password;
+  Future<AuthSession?> signInWithGoogle() async {
+    googleSignIns += 1;
     if (authenticationError case final error?) throw error;
     return authenticatedSession ??
-        const AuthSession(accessToken: 'password-access-token');
-  }
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    if (authenticationError case final error?) throw error;
-    return authenticatedSession ??
-        const AuthSession(accessToken: 'password-access-token');
+        const AuthSession(accessToken: 'google-access-token');
   }
 
   @override
@@ -365,19 +331,6 @@ class _StreamingSessionRepository
     logoutScopes.add(scope);
     if (failLogout) throw StateError('offline');
     current = null;
-  }
-}
-
-class _RecoverySessionRepository extends _StreamingSessionRepository
-    implements PasswordRecoverySessionRepository {
-  int passwordUpdates = 0;
-
-  @override
-  Future<void> requestPasswordRecovery({required String email}) async {}
-
-  @override
-  Future<void> updatePassword({required String password}) async {
-    passwordUpdates += 1;
   }
 }
 

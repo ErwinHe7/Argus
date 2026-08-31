@@ -36,9 +36,7 @@ DependencyContainer createProductionDependencyContainer(
     repository: SupabaseSessionRepository.production(
       client: Supabase.instance.client,
       supabaseUrl: config.supabaseUrl,
-      passwordRecoveryRedirect: config.passwordRecoveryRedirect,
-      initialPasswordRecovery: initialPasswordRecovery,
-      emailRedirectTo: config.nativeLinks.preferredArgusAuthRedirect,
+      googleRedirectTo: config.googleAuthRedirect,
     ),
     stepUpReceipts: ApiStepUpReceiptRepository.fromClientProvider(() => client),
     authSignal: createProductionMemberAuthSignal(),

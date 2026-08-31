@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { ShieldCheck } from 'lucide-react';
 import styles from './SiteChrome.module.css';
 
@@ -7,13 +8,13 @@ export function Footer() {
     <footer className={styles.footer}>
       <div className={styles.footerTop}>
         <div>
-          <Link href="/" className={styles.brand} aria-label="AXIO7 home">
-            <span className={styles.brandMark}>A7</span>
-            <span>AXIO7</span>
+          <Link href="/" className={styles.brand} aria-label="Leo home">
+            <Image className={styles.brandLion} src="/brand/leo-lion.png" alt="" width={40} height={40} />
+            <span>Leo</span>
           </Link>
           <p className={styles.footerCopy}>
-            One English-first system for evidence-led market research and private
-            celestial reflection.
+            A private English-first practice for Tarot reflection, learning,
+            community, and evidence-led market research.
           </p>
           <div className={styles.assurance}>
             <ShieldCheck size={15} />
@@ -25,11 +26,7 @@ export function Footer() {
           <FooterGroup
             title="PRODUCT"
             links={[
-              { href: '/#research-workspace', label: 'Research workspace' },
-              { href: '/apps/astrology', label: 'Astrology app' },
-              { href: '/pricing', label: 'Plans' },
-              { href: '/billing', label: 'Membership' },
-              { href: '/auth/signin?next=%2F', label: 'Sign in' },
+              { href: '/app/', label: 'Open Leo' },
             ]}
           />
           <FooterGroup
@@ -45,8 +42,8 @@ export function Footer() {
       </div>
 
       <div className={styles.footerBottom}>
-        <span>&copy; 2026 AXIO7 &middot; EVIDENCE AND REFLECTION</span>
-        <span>INSPECT THE METHOD &middot; KEEP THE BOUNDARIES</span>
+        <span>&copy; 2026 Leo</span>
+        <span>Reflection with evidence</span>
       </div>
     </footer>
   );

@@ -32,9 +32,7 @@ void main() {
       await _answer(tester, 'Keep astrology general');
       await _finishReviewedOnboarding(tester);
 
-      expect(harness.passwordSignUps, const [
-        (email: 'new-member@example.com', password: 'test-password'),
-      ]);
+      expect(harness.googleSignIns, 1);
       expect(find.byKey(const Key('app-shell-scaffold')), findsNothing);
       expect(find.text('Use these reviewed answers?'), findsOneWidget);
       expect(
@@ -141,24 +139,14 @@ void main() {
 
     await tester.tap(find.byKey(const Key('welcome-sign-in')));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-email')),
-      'returning-member@example.com',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'local-test-password',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.tap(find.byKey(const Key('member-google-sign-in')));
     await tester.pumpAndSettle();
     await _pumpUntil(
       tester,
       () => find.text('YOUR DAILY SIGNAL').evaluate().isNotEmpty,
     );
 
-    expect(harness.passwordSignIns, const [
-      (email: 'returning-member@example.com', password: 'local-test-password'),
-    ]);
+    expect(harness.googleSignIns, 1);
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
     expect(find.text('YOUR DAILY SIGNAL'), findsOneWidget);
     expect(find.text('How familiar are you with investing?'), findsNothing);
@@ -181,20 +169,7 @@ Future<void> _openCleanInstall(
   expect(find.byKey(const Key('app-shell-scaffold')), findsNothing);
   await tester.tap(find.byKey(const Key('welcome-create-account')));
   await tester.pumpAndSettle();
-  await tester.enterText(
-    find.byKey(const Key('member-sign-in-email')),
-    'new-member@example.com',
-  );
-  await tester.enterText(
-    find.byKey(const Key('member-sign-in-password')),
-    'test-password',
-  );
-  await tester.enterText(
-    find.byKey(const Key('member-sign-in-password-confirmation')),
-    'test-password',
-  );
-  await tester.tap(find.byKey(const Key('member-sign-in-submit')));
-  await tester.pumpAndSettle();
+  expect(find.text('How familiar are you with investing?'), findsOneWidget);
 }
 
 Future<void> _answer(WidgetTester tester, String answer) async {
@@ -233,11 +208,21 @@ Future<void> _finishReviewedOnboarding(WidgetTester tester) async {
   }
   final finishSetup = find.byKey(const Key('review-create-account'));
   await _scrollTo(tester, finishSetup);
-  expect(find.widgetWithText(FilledButton, 'Finish setup'), findsOneWidget);
+  expect(
+    find.widgetWithText(FilledButton, 'Continue with Google'),
+    findsOneWidget,
+  );
   final onFinishSetup = tester.widget<FilledButton>(finishSetup).onPressed;
   expect(onFinishSetup, isNotNull);
   onFinishSetup!();
   await tester.pumpAndSettle();
+  await tester.tap(find.byKey(const Key('member-google-sign-in')));
+  await tester.pumpAndSettle();
+  final attach = find.byKey(const Key('reconcile-attach'));
+  if (attach.evaluate().isNotEmpty) {
+    await tester.tap(attach);
+    await tester.pumpAndSettle();
+  }
 }
 
 Future<void> _scrollTo(WidgetTester tester, Finder finder) async {

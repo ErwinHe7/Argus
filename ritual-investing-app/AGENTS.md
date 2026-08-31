@@ -34,17 +34,18 @@
     --dart-define=WEBULL_COMPLETION_ALLOWLIST=https://just-build-this.app/mobile/webull/complete,com.ritualinvesting.ritual-investing-app.webull://webull/complete
   ```
 
-- Supabase member authentication uses email and password only, with secure
-  device-only session and verifier storage. Email confirmation and password
-  recovery use the first exact Argus HTTPS callback above; register it in the
-  Supabase redirect allowlist. Webull completion targets are a separate
-  lifecycle and must never be accepted by the Supabase callback predicate.
-- Email confirmation and recovery may run in a system-owned browser surface
-  and be absent from the app's ordinary UI snapshot. Inspect fresh system
+- Supabase member authentication is Google OAuth only. The app calls
+  `signInWithOAuth(OAuthProvider.google)` with one exact redirect selected from
+  `ARGUS_AUTH_REDIRECT_ALLOWLIST`; register that redirect in Supabase Auth and
+  the matching origin in Google Auth Platform. Email/password signup, login,
+  confirmation, and recovery are not member entry paths.
+- The OAuth consent flow may run in a system-owned browser surface and be
+  absent from the app's ordinary UI snapshot. Inspect fresh system
   accessibility state; never use stale coordinates or capture credentials.
-- Exercise cold start, warm return, expired-session refresh, offline refresh,
-  recovery events, local logout, global logout, wrong-account return, and every
-  malformed or cross-lifecycle link. Never print or preserve access, refresh,
-  callback, or step-up tokens in screenshots, logs, or test evidence.
-- U13 removed the Auth0 native rollback path. Member authentication uses only
-  Supabase email/password and the exact Argus callback allowlist above.
+- Exercise cold start, warm return, cancelled OAuth, wrong-account return,
+  expired-session refresh, offline refresh, local logout, global logout, and
+  every malformed or cross-lifecycle link. Never print or preserve access,
+  refresh, callback, provider, or step-up tokens in screenshots, logs, or test
+  evidence.
+- Webull completion targets are a separate lifecycle and must never be accepted
+  by the Supabase callback predicate.

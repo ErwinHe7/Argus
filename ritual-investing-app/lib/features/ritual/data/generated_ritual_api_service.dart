@@ -171,7 +171,7 @@ DailyRitual _map(DailyRitualAssignment value) {
     demo: RitualDisclosure(
       isDemo: false,
       observedAt: observedAt.toUtc(),
-      sourceLabel: 'Argus editorial',
+      sourceLabel: 'Leo editorial',
       limitations: const ['Educational context only.'],
     ),
   );

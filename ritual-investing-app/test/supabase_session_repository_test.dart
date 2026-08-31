@@ -2,13 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 import 'package:ritual_investing_app/core/auth/member_auth.dart';
 import 'package:ritual_investing_app/core/auth/member_step_up.dart';
 import 'package:ritual_investing_app/core/auth/supabase_session_repository.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _userId = '11111111-1111-4111-8111-111111111111';
 const _sessionId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -16,146 +13,31 @@ const _newSessionId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
 final _now = DateTime.utc(2026, 8, 28, 12);
 
 void main() {
-  group('SupabaseFlutterAuthClient', () {
-    test(
-      'translates hosted invalid credentials into a safe domain reason',
-      () async {
-        final supabase = SupabaseClient(
-          'https://project.supabase.co',
-          'publishable-key',
-          httpClient: MockClient(
-            (_) async => http.Response(
-              jsonEncode({
-                'code': 'invalid_credentials',
-                'error_code': 'invalid_credentials',
-                'msg': 'Invalid login credentials',
-              }),
-              400,
-              headers: {
-                'content-type': 'application/json',
-                'x-supabase-api-version': '2024-01-01',
-              },
-            ),
-          ),
-        );
-        addTearDown(supabase.dispose);
+  group('SupabaseSessionRepository', () {
+    test('Google OAuth receives the exact configured redirect', () async {
+      final client = _FakeAuthClient();
+      final repository = _repository(client);
 
-        await expectLater(
-          SupabaseFlutterAuthClient(
-            supabase,
-            emailRedirectTo: Uri.parse(
-              'https://just-build-this.app/mobile/argus-auth/callback',
-            ),
-          ).signInWithPassword(
-            email: 'beta@example.com',
-            password: 'incorrect',
-          ),
-          throwsA(
-            isA<MemberAuthUnavailable>().having(
-              (error) => error.reason,
-              'reason',
-              'invalid_credentials',
-            ),
-          ),
-        );
-      },
-    );
+      final result = await repository.signInWithGoogle();
 
-    test('signup sends the exact public confirmation redirect', () async {
-      Uri? requestUri;
-      final supabase = SupabaseClient(
-        'https://project.supabase.co',
-        'publishable-key',
-        authOptions: const AuthClientOptions(
-          authFlowType: AuthFlowType.implicit,
-        ),
-        httpClient: MockClient((request) async {
-          requestUri = request.url;
-          return http.Response(
-            jsonEncode({
-              'id': _userId,
-              'aud': 'authenticated',
-              'role': 'authenticated',
-              'email': 'new-member@example.com',
-              'app_metadata': {'provider': 'email'},
-              'user_metadata': <String, dynamic>{},
-              'created_at': '2026-08-30T12:00:00Z',
-              'updated_at': '2026-08-30T12:00:00Z',
-            }),
-            200,
-            headers: {
-              'content-type': 'application/json',
-              'x-supabase-api-version': '2024-01-01',
-            },
-          );
-        }),
-      );
-      addTearDown(supabase.dispose);
-      final client = SupabaseFlutterAuthClient(
-        supabase,
-        emailRedirectTo: Uri.parse(
-          'https://just-build-this.app/mobile/argus-auth/callback',
-        ),
-      );
+      expect(result, isNull);
+      expect(client.googleRedirects, [
+        'https://just-build-this.app/mobile/argus-auth/callback',
+      ]);
+    });
 
+    test('a failed OAuth launch fails closed', () async {
       await expectLater(
-        client.signUpWithPassword(
-          email: 'new-member@example.com',
-          password: 'correct horse battery staple',
-        ),
+        _repository(_FakeAuthClient(googleLaunchResult: false))
+            .signInWithGoogle(),
         throwsA(
           isA<MemberAuthUnavailable>().having(
             (error) => error.reason,
             'reason',
-            'email_confirmation_required',
+            'google_oauth_launch_failed',
           ),
         ),
       );
-
-      expect(
-        requestUri?.queryParameters['redirect_to'],
-        'https://just-build-this.app/mobile/argus-auth/callback',
-      );
-    });
-  });
-
-  group('SupabaseSessionRepository', () {
-    test('password sign in validates the returned Supabase session', () async {
-      final client = _FakeAuthClient(passwordResult: _session());
-      final repository = _repository(client);
-
-      final result = await repository.signInWithPassword(
-        email: 'beta@example.com',
-        password: 'correct horse battery staple',
-      );
-
-      expect(result.userId, _userId);
-      expect(result.sessionId, _sessionId);
-      expect(client.passwordSignIns, [
-        const _PasswordSignIn(
-          email: 'beta@example.com',
-          password: 'correct horse battery staple',
-        ),
-      ]);
-    });
-
-    test('password sign up validates the returned Supabase session', () async {
-      final client = _FakeAuthClient(passwordResult: _session());
-      final repository = _repository(client);
-
-      final result = await repository.signUpWithPassword(
-        email: 'new-member@example.com',
-        password: 'correct horse battery staple',
-      );
-
-      expect(result.userId, _userId);
-      expect(result.sessionId, _sessionId);
-      expect(client.passwordSignUps, [
-        const _PasswordSignIn(
-          email: 'new-member@example.com',
-          password: 'correct horse battery staple',
-        ),
-      ]);
     });
 
     test(
@@ -229,22 +111,14 @@ void main() {
   group('native link policy', () {
     final policy = _links();
 
-    test('accepts only exact Argus PKCE or error callbacks', () {
+    test('accepts only exact Google PKCE or error callbacks', () {
       expect(
         policy.acceptsArgusAuthCallback(
           Uri.parse(
             'https://just-build-this.app/mobile/argus-auth/callback?token_hash=abcdefghijklmnop&type=recovery',
           ),
         ),
-        isTrue,
-      );
-      expect(
-        policy.recoveryTokenHash(
-          Uri.parse(
-            'https://just-build-this.app/mobile/argus-auth/callback?token_hash=abcdefghijklmnop&type=recovery',
-          ),
-        ),
-        'abcdefghijklmnop',
+        isFalse,
       );
       expect(
         policy.acceptsArgusAuthCallback(
@@ -528,6 +402,9 @@ SupabaseSessionRepository _repository(_FakeAuthClient client) =>
     SupabaseSessionRepository(
       client: client,
       supabaseUrl: Uri.parse('https://project.supabase.co'),
+      googleRedirectTo: Uri.parse(
+        'https://just-build-this.app/mobile/argus-auth/callback',
+      ),
       now: () => _now,
     );
 
@@ -560,7 +437,7 @@ MemberSupabaseSession _session({
     if (authenticatedAt != null)
       'amr': [
         {
-          'method': 'password',
+          'method': 'oauth',
           'timestamp': authenticatedAt.millisecondsSinceEpoch ~/ 1000,
         },
       ],
@@ -574,28 +451,12 @@ MemberSupabaseSession _session({
   );
 }
 
-class _PasswordSignIn {
-  const _PasswordSignIn({required this.email, required this.password});
-
-  final String email;
-  final String password;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _PasswordSignIn &&
-      other.email == email &&
-      other.password == password;
-
-  @override
-  int get hashCode => Object.hash(email, password);
-}
-
 class _FakeAuthClient implements MemberSupabaseAuthClient {
   _FakeAuthClient({
     this.current,
     this.refreshed,
     this.refreshError,
-    this.passwordResult,
+    this.googleLaunchResult = true,
   });
 
   final StreamController<MemberSupabaseAuthChange> _events =
@@ -603,13 +464,10 @@ class _FakeAuthClient implements MemberSupabaseAuthClient {
   MemberSupabaseSession? current;
   MemberSupabaseSession? refreshed;
   Object? refreshError;
-  MemberSupabaseSession? passwordResult;
-  final List<_PasswordSignIn> passwordSignIns = [];
-  final List<_PasswordSignIn> passwordSignUps = [];
+  final bool googleLaunchResult;
+  final List<String> googleRedirects = [];
   final List<MemberLogoutScope> logoutScopes = [];
   int refreshCalls = 0;
-  final List<String> recoveryEmails = [];
-  String? updatedPassword;
 
   @override
   Stream<MemberSupabaseAuthChange> get events => _events.stream;
@@ -630,34 +488,9 @@ class _FakeAuthClient implements MemberSupabaseAuthClient {
   }
 
   @override
-  Future<MemberSupabaseSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignIns.add(_PasswordSignIn(email: email, password: password));
-    return passwordResult ?? (throw StateError('No password result.'));
-  }
-
-  @override
-  Future<MemberSupabaseSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignUps.add(_PasswordSignIn(email: email, password: password));
-    return passwordResult ?? (throw StateError('No password result.'));
-  }
-
-  @override
-  Future<void> requestPasswordRecovery({
-    required String email,
-    required String redirectTo,
-  }) async {
-    recoveryEmails.add(email);
-  }
-
-  @override
-  Future<void> updatePassword({required String password}) async {
-    updatedPassword = password;
+  Future<bool> signInWithGoogle({required String redirectTo}) async {
+    googleRedirects.add(redirectTo);
+    return googleLaunchResult;
   }
 
   @override

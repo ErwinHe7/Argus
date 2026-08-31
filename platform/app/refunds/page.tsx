@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { LightPage } from '@/components/LightPage';
 
 export const metadata: Metadata = {
-  title: 'Refund Policy - AXIO7',
-  description: 'AXIO7 subscription cancellation, refund request, duplicate-charge, and billing-error policy.',
+  title: 'Refund Policy - Leo',
+  description: 'Leo subscription cancellation, refund request, duplicate-charge, and billing-error policy.',
   alternates: { canonical: '/refund-policy' },
 };
 
@@ -15,14 +15,14 @@ export default function RefundPolicyPage() {
     <LightPage>
       <article className="mx-auto max-w-3xl space-y-6 rounded-[24px] border p-6" style={{ background: 'var(--lt-surface)', borderColor: 'var(--lt-border)' }}>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lt-muted)' }}>AXIO7 billing policy</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lt-muted)' }}>Leo billing policy</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight" style={{ color: 'var(--lt-text)' }}>Refund Policy</h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--lt-muted)' }}>Last updated: {updatedAt}</p>
         </div>
 
         <RefundSection title="Scope">
           <p>
-            This policy covers paid AXIO7 digital-software subscriptions. Access is delivered to the purchasing AXIO7
+            This policy covers paid Leo digital-software subscriptions. Access is delivered to the purchasing Leo
             account after payment verification. Starter, Pro, and Advanced are paid subscriptions with no free trial. No
             physical goods are shipped.
           </p>
@@ -61,10 +61,10 @@ export default function RefundPolicyPage() {
           <ol className="list-decimal space-y-2 pl-5">
             <li>Sign in and submit the internal review form on the <Link href="/billing" className="underline" style={{ color: 'var(--molt-shell)' }}>billing page</Link>, or email <a href="mailto:heguantao565@gmail.com" className="underline" style={{ color: 'var(--molt-shell)' }}>heguantao565@gmail.com</a> from the purchasing account.</li>
             <li>Provide the charge date, transaction or receipt ID, and a truthful description of the request. Never send full card details or passwords.</li>
-            <li>You may also use the link on your Paddle receipt or <a href="https://paddle.net" className="underline" style={{ color: 'var(--molt-shell)' }}>Paddle Buyer Support</a>. AXIO7 cannot remove that review channel.</li>
+            <li>You may also use the link on your Paddle receipt or <a href="https://paddle.net" className="underline" style={{ color: 'var(--molt-shell)' }}>Paddle Buyer Support</a>. Leo cannot remove that review channel.</li>
           </ol>
           <p>
-            Submitting an AXIO7 request creates an internal ticket with status <strong>under review</strong>. It never calls a refund API automatically.
+            Submitting an Leo request creates an internal ticket with status <strong>under review</strong>. It never calls a refund API automatically.
           </p>
         </RefundSection>
 

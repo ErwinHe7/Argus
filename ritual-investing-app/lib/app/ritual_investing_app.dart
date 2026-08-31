@@ -96,7 +96,7 @@ class _RitualInvestingAppState extends State<RitualInvestingApp> {
     builder: (context, _) => MaterialApp.router(
       debugShowCheckedModeBanner: false,
       restorationScopeId: 'ritual-investing-app',
-      title: 'Ritual Investing',
+      title: 'Leo',
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: _themeMode,

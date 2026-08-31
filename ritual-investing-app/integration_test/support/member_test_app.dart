@@ -165,10 +165,7 @@ class GuidedMemberTestHarness {
   final List<Map<String, dynamic>> finalizationPayloads = [];
   final List<String> idempotencyKeys = [];
 
-  List<({String email, String password})> get passwordSignIns =>
-      List.unmodifiable(_sessions.passwordSignIns);
-  List<({String email, String password})> get passwordSignUps =>
-      List.unmodifiable(_sessions.passwordSignUps);
+  int get googleSignIns => _sessions.googleSignIns;
   Map<String, String> get protectedValues => Map.unmodifiable(_storage.values);
   List<String> get financeOrBankingRequests => requestPaths
       .where(
@@ -432,9 +429,8 @@ class _LocalProtectedStorage implements ProtectedStorage {
 }
 
 class _GuidedSessionRepository
-    implements SessionRepository, PasswordSessionRepository {
-  final List<({String email, String password})> passwordSignIns = [];
-  final List<({String email, String password})> passwordSignUps = [];
+    implements SessionRepository, GoogleOAuthSessionRepository {
+  int googleSignIns = 0;
   AuthSession? _session;
 
   @override
@@ -445,22 +441,8 @@ class _GuidedSessionRepository
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
 
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignIns.add((email: email, password: password));
-    return _session = const AuthSession(
-      accessToken: GuidedMemberTestHarness._accessToken,
-    );
-  }
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignUps.add((email: email, password: password));
+  Future<AuthSession?> signInWithGoogle() async {
+    googleSignIns += 1;
     return _session = const AuthSession(
       accessToken: GuidedMemberTestHarness._accessToken,
     );

@@ -198,17 +198,17 @@ class _ConnectionStatus extends StatelessWidget {
     final (title, body, action) = switch (snapshot.phase) {
       BrokerageConnectionPhase.connected => (
         'Connected to Webull',
-        'Account values below are provider observations, not an Argus ledger.',
+        'Account values below are provider observations, not a Leo ledger.',
         null,
       ),
       BrokerageConnectionPhase.pending => (
         'Webull authorization pending',
-        'Finish in the secure browser, then return to Ritual Investing.',
+        'Finish in the secure browser, then return to Leo.',
         null,
       ),
       BrokerageConnectionPhase.reauthorizationRequired => (
         'Reconnect Webull',
-        'Your Argus account remains available, but brokerage data needs fresh authorization.',
+        'Your Leo account remains available, but brokerage data needs fresh authorization.',
         controller.reconnect,
       ),
       BrokerageConnectionPhase.denied => (
@@ -220,7 +220,7 @@ class _ConnectionStatus extends StatelessWidget {
       BrokerageConnectionPhase.temporarilyUnavailable ||
       BrokerageConnectionPhase.unknown => (
         'Webull is unavailable',
-        'Brokerage actions remain disabled. Ritual and discovery are still available.',
+        'Brokerage actions remain disabled. Leo and discovery are still available.',
         controller.load,
       ),
       BrokerageConnectionPhase.disconnected => (

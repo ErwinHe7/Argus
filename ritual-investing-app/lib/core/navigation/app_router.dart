@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/auth/presentation/member_email_confirmation_screen.dart';
 import '../../features/auth/presentation/member_sign_in_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
@@ -50,9 +49,19 @@ GoRouter createAppRouter({
     refreshListenable: container,
     errorBuilder: (context, state) => const _NotFoundScreen(),
     redirect: (context, state) {
+      final path = state.uri.path;
       final coordinator = container.entryCoordinator;
+      if (_legacyPasswordAuthPaths.contains(path)) {
+        if (container.authController.state.phase != AuthPhase.signedIn) {
+          return '/sign-in';
+        }
+        return switch (coordinator?.state.destination) {
+          EntryDestination.questionnaire => '/onboarding/experience',
+          EntryDestination.review => '/onboarding/review',
+          _ => MemberRoutes.ritual.path,
+        };
+      }
       if (coordinator != null) {
-        final path = state.uri.path;
         final isOnboarding = path.startsWith('/onboarding/');
         final stepName = path.startsWith('/onboarding/')
             ? path.substring('/onboarding/'.length)
@@ -61,24 +70,10 @@ GoRouter createAppRouter({
             _questionStep(stepName) != null || path == '/onboarding/review';
         final isAuthenticated =
             container.authController.state.phase == AuthPhase.signedIn;
-        final isPasswordRecovery =
-            container.authController.state.isPasswordRecovery;
-        if (path == '/mobile/argus-auth/callback' && isPasswordRecovery) {
-          return '/auth/recovery';
-        }
-        if (path == '/auth/recovery') {
-          if (isAuthenticated && isPasswordRecovery) return null;
-          return isAuthenticated
-              ? MemberRoutes.ritual.path
-              : '/forgot-password';
-        }
-        if (path == '/forgot-password' && !isAuthenticated) return null;
         final isEntry =
             path == '/welcome' ||
             path == '/sign-in' ||
-            path == '/sign-up' ||
-            path == '/check-email' ||
-            path == '/create-account' ||
+            path == '/mobile/argus-auth/callback' ||
             path == '/entry' ||
             isOnboarding;
         final safeMemberPath = _safePendingMemberPath(state.uri);
@@ -89,25 +84,13 @@ GoRouter createAppRouter({
           EntryDestination.restoring ||
           EntryDestination.finalizing => path == '/entry' ? null : '/entry',
           EntryDestination.welcome =>
-            path == '/welcome' ||
-                    path == '/sign-in' ||
-                    path == '/forgot-password' ||
-                    path == '/sign-up' ||
-                    path == '/create-account'
-                ? null
-                : '/welcome',
-          EntryDestination.emailConfirmation =>
-            path == '/check-email' ? null : '/check-email',
+            path == '/welcome' || path == '/sign-in' ? null : '/welcome',
           EntryDestination.questionnaire =>
-            path == '/create-account' && isAuthenticated
-                ? '/onboarding/review'
-                : isQuestionnaire || path == '/create-account'
+            isQuestionnaire || path == '/sign-in'
                 ? null
                 : '/onboarding/experience',
           EntryDestination.review =>
-            path == '/create-account' && isAuthenticated
-                ? '/onboarding/review'
-                : path == '/onboarding/review' || path == '/create-account'
+            path == '/onboarding/review' || path == '/sign-in'
                 ? null
                 : '/onboarding/review',
           EntryDestination.reconcile =>
@@ -129,20 +112,11 @@ GoRouter createAppRouter({
         };
       }
       final atEntry =
-          state.uri.path == '/entry' ||
-          state.uri.path == '/sign-in' ||
-          state.uri.path == '/sign-up';
+          state.uri.path == '/entry' || state.uri.path == '/sign-in';
       if (container.entryGate != MemberEntryGate.member) {
         if (container.entryGate == MemberEntryGate.signedOut &&
-            (state.uri.path == '/sign-in' ||
-                state.uri.path == '/forgot-password' ||
-                state.uri.path == '/sign-up' ||
-                state.uri.path == '/create-account')) {
+            state.uri.path == '/sign-in') {
           return null;
-        }
-        if (container.entryGate == MemberEntryGate.onboarding &&
-            state.uri.path == '/sign-up') {
-          return '/onboarding/experience';
         }
         return atEntry ? null : '/entry';
       }
@@ -153,86 +127,23 @@ GoRouter createAppRouter({
       GoRoute(
         path: '/welcome',
         builder: (context, state) => WelcomeScreen(
-          onCreateAccount: () => context.push('/sign-up'),
+          onCreateAccount: () =>
+              _runUiAction(context, container.beginQuestionnaire),
           onSignIn: () => context.push('/sign-in'),
-        ),
-      ),
-      GoRoute(
-        path: '/sign-up',
-        builder: (context, state) => MemberSignInScreen(
-          title: 'Create account',
-          submitLabel: 'Create account',
-          submittingLabel: 'Creating account…',
-          confirmPassword: true,
-          minimumPasswordLength: 10,
-          message: container.entryCoordinator?.state.message,
-          secondaryLabel: 'Sign in',
-          onSecondaryAction: () => context.go('/sign-in'),
-          onSubmit: (email, password) =>
-              container.signUpWithPassword(email: email, password: password),
         ),
       ),
       GoRoute(
         path: '/sign-in',
         builder: (context, state) => MemberSignInScreen(
-          secondaryLabel: 'Create account',
-          onSecondaryAction: () => context.go('/sign-up'),
-          onSubmit: (email, password) =>
-              container.signInWithPassword(email: email, password: password),
-          onForgotPassword: () => context.push('/forgot-password'),
-        ),
-      ),
-      GoRoute(
-        path: '/forgot-password',
-        builder: (context, state) => MemberPasswordScreen.forgot(
-          onSubmit: container.authController.requestPasswordRecovery,
-        ),
-      ),
-      GoRoute(
-        path: '/check-email',
-        builder: (context, state) => MemberEmailConfirmationScreen(
-          email: container.entryCoordinator?.state.confirmationEmail ?? '',
-          onSignIn: () {
-            container.entryCoordinator?.leaveEmailConfirmation();
-            context.go('/sign-in');
-          },
-          onUseDifferentEmail: () {
-            container.entryCoordinator?.leaveEmailConfirmation();
-            context.go('/sign-up');
-          },
-        ),
-      ),
-      GoRoute(
-        path: '/auth/recovery',
-        builder: (context, state) => MemberPasswordScreen.reset(
-          onSubmit: (password) async {
-            if (await container.authController.updatePassword(password) &&
-                context.mounted) {
-              context.go(MemberRoutes.ritual.path);
-            }
-          },
+          message:
+              container.entryCoordinator?.state.message ??
+              container.authController.state.message,
+          onContinueWithGoogle: container.signInWithGoogle,
         ),
       ),
       GoRoute(
         path: '/mobile/argus-auth/callback',
-        builder: (context, state) => const _RecoveryCallbackScreen(),
-      ),
-      GoRoute(
-        path: '/create-account',
-        builder: (context, state) => allowSelfServiceSignup
-            ? MemberSignInScreen(
-                title: 'Create account',
-                submitLabel: 'Create account',
-                submittingLabel: 'Creating account…',
-                confirmPassword: true,
-                minimumPasswordLength: 10,
-                onSubmit: (email, password) =>
-                    container.createAccountWithPassword(
-                      email: email,
-                      password: password,
-                    ),
-              )
-            : const _InviteOnlyScreen(),
+        builder: (context, state) => const _OAuthCallbackScreen(),
       ),
       GoRoute(
         path: '/onboarding/review',
@@ -255,15 +166,11 @@ GoRouter createAppRouter({
           primaryActionLabel:
               container.authController.state.phase == AuthPhase.signedIn
               ? 'Finish setup'
-              : allowSelfServiceSignup
-              ? 'Create account'
-              : 'Sign in with invitation',
+              : 'Continue with Google',
           onPrimaryAction:
               container.authController.state.phase == AuthPhase.signedIn
               ? () => _runUiAction(context, container.attachOnboardingDraft)
-              : () => context.push(
-                  allowSelfServiceSignup ? '/create-account' : '/sign-in',
-                ),
+              : () => context.push('/sign-in'),
           onDraftChanged: (draft) => _runUiAction(
             context,
             () => container.persistOnboardingDraft(draft),
@@ -373,36 +280,27 @@ bool _sameNavigation(
     first.isAuthoritative == second.isAuthoritative &&
     listEquals(first.branches, second.branches);
 
-class _RecoveryCallbackScreen extends StatelessWidget {
-  const _RecoveryCallbackScreen();
+const _legacyPasswordAuthPaths = {
+  '/sign-up',
+  '/forgot-password',
+  '/check-email',
+  '/auth/recovery',
+  '/create-account',
+};
+
+class _OAuthCallbackScreen extends StatelessWidget {
+  const _OAuthCallbackScreen();
 
   @override
   Widget build(BuildContext context) => const Scaffold(
-    body: SafeArea(child: Center(child: CircularProgressIndicator())),
-  );
-}
-
-class _InviteOnlyScreen extends StatelessWidget {
-  const _InviteOnlyScreen();
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Public beta access')),
-    body: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+    body: SafeArea(
+      child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'This beta is invitation-only. Use the email address that received an invitation.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => context.go('/sign-in'),
-              child: const Text('Sign in'),
-            ),
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text('Completing secure Google sign-in…'),
           ],
         ),
       ),
@@ -419,7 +317,7 @@ class _NotFoundScreen extends StatelessWidget {
     body: Center(
       child: TextButton(
         onPressed: () => context.go('/'),
-        child: const Text('Return to Ritual Investing'),
+        child: const Text('Return to Leo'),
       ),
     ),
   );

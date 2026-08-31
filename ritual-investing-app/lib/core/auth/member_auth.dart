@@ -77,12 +77,6 @@ class MemberNativeLinkPolicy {
     if (parameters.keys.length == 1 && code != null) {
       return _safeOpaqueValue(code, minimumLength: 8);
     }
-    final tokenHash = parameters['token_hash'];
-    if (parameters.keys.length == 2 &&
-        parameters['type'] == 'recovery' &&
-        tokenHash != null) {
-      return _safeOpaqueValue(tokenHash, minimumLength: 16);
-    }
     const errorKeys = {'error', 'error_code', 'error_description'};
     if (!parameters.keys.every(errorKeys.contains) ||
         !parameters.containsKey('error')) {
@@ -91,22 +85,6 @@ class MemberNativeLinkPolicy {
     return parameters.values.every(
       (value) => _safeOpaqueValue(value, minimumLength: 1),
     );
-  }
-
-  String? recoveryTokenHash(Uri uri) {
-    if (!_matchesAnyTarget(uri, argusAuthTargets) || uri.hasFragment) {
-      return null;
-    }
-    final parameters = _strictQuery(uri);
-    if (parameters == null ||
-        parameters.keys.length != 2 ||
-        parameters['type'] != 'recovery') {
-      return null;
-    }
-    final tokenHash = parameters['token_hash'];
-    return tokenHash != null && _safeOpaqueValue(tokenHash, minimumLength: 16)
-        ? tokenHash
-        : null;
   }
 
   bool acceptsWebullCompletion(Uri uri) {
@@ -269,27 +247,10 @@ abstract interface class SessionRepository {
   Future<void> logout();
 }
 
-/// Direct email/password authentication. Production repositories must never
-/// launch a hosted provider or external browser from these methods.
-abstract interface class PasswordSessionRepository {
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  });
-
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  });
-}
-
-abstract interface class PasswordRecoverySessionRepository {
-  Future<void> requestPasswordRecovery({required String email});
-  Future<void> updatePassword({required String password});
-}
-
-abstract interface class InitialPasswordRecoveryRepository {
-  bool consumeInitialPasswordRecovery();
+/// Starts the single supported member authentication flow. The authenticated
+/// session arrives through [SessionChangeRepository] after the browser returns.
+abstract interface class GoogleOAuthSessionRepository {
+  Future<AuthSession?> signInWithGoogle();
 }
 
 /// Optional richer session stream implemented by providers that expose

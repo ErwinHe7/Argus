@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { LightPage } from '@/components/LightPage';
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy - AXIO7',
+  title: 'Privacy Policy - Leo',
   description:
-    'How AXIO7 collects, uses, shares, retains, and protects account, billing, and quantitative market-research data.',
+    'How Leo collects, uses, shares, retains, and protects account, billing, and quantitative market-research data.',
 };
 
 const updatedAt = 'July 26, 2026';
@@ -15,12 +15,12 @@ export default function PrivacyPage() {
     <LightPage>
       <article className="mx-auto max-w-3xl space-y-6 rounded-[24px] border p-6" style={{ background: 'var(--lt-surface)', borderColor: 'var(--lt-border)' }}>
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lt-muted)' }}>AXIO7 policy</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lt-muted)' }}>Leo policy</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight" style={{ color: 'var(--lt-text)' }}>Privacy Policy</h1>
           <p className="mt-2 text-sm" style={{ color: 'var(--lt-muted)' }}>Last updated: {updatedAt}</p>
         </div>
 
-        <PolicySection title="What AXIO7 collects">
+        <PolicySection title="What Leo collects">
           <ul className="list-disc space-y-2 pl-5">
             <li>Account data such as email address, display name, avatar, authentication provider, and session metadata.</li>
             <li>Subscription and transaction data such as selected plan, payment status, customer and transaction identifiers, renewal date, invoice or receipt references, and billing country.</li>
@@ -33,14 +33,14 @@ export default function PrivacyPage() {
         <PolicySection title="Payments">
           <p>
             When Paddle is identified at checkout, Paddle collects and processes payment credentials as merchant of record.
-            AXIO7 does not receive or store full card numbers or bank-account credentials. AXIO7 receives limited billing
+            Leo does not receive or store full card numbers or bank-account credentials. Leo receives limited billing
             records such as customer, transaction, subscription, product, price, status, billing-country, invoice, and
             receipt references to activate access, reconcile transactions, manage subscriptions, prevent fraud, answer
             support requests, and meet legal or tax obligations. Paddle&apos;s own privacy terms also apply to that processing.
           </p>
         </PolicySection>
 
-        <PolicySection title="How AXIO7 uses data">
+        <PolicySection title="How Leo uses data">
           <ul className="list-disc space-y-2 pl-5">
             <li>To authenticate users, secure accounts, deliver paid digital access, and manage subscriptions.</li>
             <li>To run quantitative research workflows, save request history and monitors, present evidence and caveats, and improve service reliability.</li>
@@ -52,7 +52,7 @@ export default function PrivacyPage() {
 
         <PolicySection title="AI processing">
           <p>
-            AXIO7 may use AI systems to translate a question into an allow-listed research contract and explain output from
+            Leo may use AI systems to translate a question into an allow-listed research contract and explain output from
             the quantitative engine. AI systems are not the source of market observations and are not permitted to invent
             data or replace the production quantitative calculation. AI-assisted explanations may be incomplete or wrong
             and are not investment advice, personalized recommendations, or order instructions. Do not submit confidential
@@ -62,8 +62,8 @@ export default function PrivacyPage() {
 
         <PolicySection title="Service providers and sharing">
           <p>
-            AXIO7 may share only the data needed with authentication, cloud hosting, database, storage, analytics,
-            monitoring, market-data, model-inference, payment, customer-support, and AI providers. AXIO7 does not monetize personal data.
+            Leo may share only the data needed with authentication, cloud hosting, database, storage, analytics,
+            monitoring, market-data, model-inference, payment, customer-support, and AI providers. Leo does not monetize personal data.
             Data may also be disclosed when required by law, to protect users or the service, or as part of a business
             transfer subject to appropriate safeguards.
           </p>
@@ -71,7 +71,7 @@ export default function PrivacyPage() {
 
         <PolicySection title="Retention, security, and international processing">
           <p>
-            AXIO7 retains data for as long as needed to provide the service and for legitimate security, fraud-prevention,
+            Leo retains data for as long as needed to provide the service and for legitimate security, fraud-prevention,
             accounting, tax, dispute, and legal purposes. Reasonable technical and organizational safeguards are used, but
             no online service can guarantee absolute security. Providers may process data in countries other than your own,
             subject to their applicable safeguards and law.
@@ -82,7 +82,7 @@ export default function PrivacyPage() {
           <p>
             Depending on your location, you may have rights to access, correct, delete, restrict, or obtain a copy of certain
             personal data. You can request account deletion at <Link href="/account/delete" className="underline" style={{ color: 'var(--molt-shell)' }}>/account/delete</Link>.
-            AXIO7 may retain limited records where law or legitimate fraud, tax, security, or dispute needs require it.
+            Leo may retain limited records where law or legitimate fraud, tax, security, or dispute needs require it.
           </p>
         </PolicySection>
 

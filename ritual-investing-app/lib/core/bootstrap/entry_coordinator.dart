@@ -15,7 +15,6 @@ import 'member_bootstrap.dart';
 enum EntryDestination {
   restoring,
   welcome,
-  emailConfirmation,
   questionnaire,
   review,
   reconcile,
@@ -35,7 +34,6 @@ class EntryCoordinatorState {
     this.bootstrap,
     this.draftStatus = DraftReadStatus.empty,
     this.message,
-    this.confirmationEmail,
     this.canRetry = false,
     this.retryAction,
   });
@@ -45,7 +43,6 @@ class EntryCoordinatorState {
   final MemberBootstrap? bootstrap;
   final DraftReadStatus draftStatus;
   final String? message;
-  final String? confirmationEmail;
   final bool canRetry;
   final EntryRetryAction? retryAction;
 }
@@ -171,107 +168,24 @@ class EntryCoordinator extends ChangeNotifier {
     await _startBrokerageNativeLinks();
   }
 
-  Future<void> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    await _readDraft();
-    _set(EntryDestination.restoring);
-    final result = await authController.signInWithPassword(
-      email: email,
-      password: password,
-    );
+  Future<void> signInWithGoogle() async {
+    final returnDestination = _oauthReturnDestination(_state.destination);
+    final result = await authController.signInWithGoogle();
     switch (result) {
       case MemberAuthResult.authenticated:
         await _reconcileAuthenticated();
         await _startBrokerageNativeLinks();
+      case MemberAuthResult.started:
+        _set(returnDestination);
       case MemberAuthResult.cancelled:
-        _routeSignedOutDraft();
+        _set(returnDestination);
       case MemberAuthResult.unavailable:
         _set(
-          EntryDestination.failure,
+          returnDestination,
           message:
               authController.state.message ??
-              'Sign-in is temporarily unavailable.',
-          canRetry: true,
-          retryAction: EntryRetryAction.restore,
+              'Google sign-in is temporarily unavailable.',
         );
-    }
-  }
-
-  Future<void> createAccountWithPassword({
-    required OnboardingDraft reviewedDraft,
-    required String email,
-    required String password,
-  }) async {
-    _draft = reviewedDraft;
-    _draftStatus = DraftReadStatus.available;
-    try {
-      await _draftStore.save(reviewedDraft);
-    } on Object {
-      _set(EntryDestination.review, message: _draftSaveMessage, canRetry: true);
-      return;
-    }
-    _set(EntryDestination.restoring);
-    final result = await authController.signUpWithPassword(
-      email: email,
-      password: password,
-    );
-    switch (result) {
-      case MemberAuthResult.authenticated:
-        await _reconcileAuthenticated();
-        await _startBrokerageNativeLinks();
-      case MemberAuthResult.cancelled:
-        _set(EntryDestination.review);
-      case MemberAuthResult.unavailable:
-        _set(
-          EntryDestination.review,
-          message:
-              authController.state.message ??
-              'Account creation is temporarily unavailable.',
-          canRetry: true,
-        );
-    }
-  }
-
-  Future<void> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    final result = await authController.signUpWithPassword(
-      email: email,
-      password: password,
-    );
-    switch (result) {
-      case MemberAuthResult.authenticated:
-        await _reconcileAuthenticated();
-        if (_state.destination == EntryDestination.authenticatedRecovery ||
-            _state.destination == EntryDestination.reconcile) {
-          await beginQuestionnaire(_draft);
-        }
-        await _startBrokerageNativeLinks();
-      case MemberAuthResult.cancelled:
-        _set(EntryDestination.welcome);
-      case MemberAuthResult.unavailable:
-        if (authController.state.emailConfirmationRequired) {
-          _set(
-            EntryDestination.emailConfirmation,
-            confirmationEmail: email.trim(),
-          );
-          return;
-        }
-        _set(
-          EntryDestination.welcome,
-          message:
-              authController.state.message ??
-              'Account creation is temporarily unavailable.',
-        );
-    }
-  }
-
-  void leaveEmailConfirmation() {
-    if (_state.destination == EntryDestination.emailConfirmation) {
-      _set(EntryDestination.welcome);
     }
   }
 
@@ -494,7 +408,6 @@ class EntryCoordinator extends ChangeNotifier {
   void _set(
     EntryDestination destination, {
     String? message,
-    String? confirmationEmail,
     bool canRetry = false,
     EntryRetryAction? retryAction,
   }) {
@@ -504,7 +417,6 @@ class EntryCoordinator extends ChangeNotifier {
       bootstrap: _bootstrap,
       draftStatus: _draftStatus,
       message: message,
-      confirmationEmail: confirmationEmail,
       canRetry: canRetry,
       retryAction: retryAction,
     );
@@ -530,6 +442,12 @@ class EntryCoordinator extends ChangeNotifier {
     super.dispose();
   }
 }
+
+EntryDestination _oauthReturnDestination(EntryDestination destination) =>
+    switch (destination) {
+      EntryDestination.questionnaire || EntryDestination.review => destination,
+      _ => EntryDestination.welcome,
+    };
 
 const _draftSaveMessage =
     'Your answers are still editable, but could not be saved on this device. Unlock it and retry saving.';

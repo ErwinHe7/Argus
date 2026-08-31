@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowDown, ArrowRight, Orbit, Sparkles } from 'lucide-react';
+import { ArrowRight, MoonStar } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import styles from './CosmicHero.module.css';
 
@@ -185,8 +185,8 @@ export function CosmicHero() {
 
   return (
     <section className={styles.hero} aria-labelledby="cosmic-hero-title">
-      <a className={styles.skipLink} href="#research-workspace">
-        Skip to Research
+      <a className={styles.skipLink} href="#cosmic-actions">
+        Skip to product links
       </a>
 
       <div className={styles.media} aria-hidden="true">
@@ -203,43 +203,45 @@ export function CosmicHero() {
       </div>
 
       <header className={styles.navbar}>
-        <a className={styles.brand} href="#cosmic-hero-title" aria-label="AXIO7 home">
-          <span className={styles.brandMark}>A7</span>
-          <span className={styles.brandName}>AXIO7</span>
+        <a className={styles.brand} href="#cosmic-hero-title" aria-label="Leo home">
+          <Image
+            className={styles.brandIcon}
+            src="/brand/leo-lion.png"
+            alt=""
+            width={44}
+            height={44}
+            priority
+          />
+          <span className={styles.brandName}>Leo</span>
         </a>
         <nav className={styles.navLinks} aria-label="Homepage navigation">
-          <a href="#research-workspace">Research</a>
-          <Link href="/apps/astrology">Astrology</Link>
-          <Link href="/pricing">Plans</Link>
+          <Link href="/app/">App</Link>
         </nav>
       </header>
 
       <div className={styles.content}>
         <p className={styles.kicker}>
-          <Orbit aria-hidden="true" /> Evidence and reflection, one orbit
+          <MoonStar aria-hidden="true" /> A private practice for clearer decisions
         </p>
         <h1 id="cosmic-hero-title">
-          Navigate
-          <span>uncertainty.</span>
+          Read the world.
+          <span>Meet yourself.</span>
         </h1>
         <p className={styles.lede}>
-          AXIO7 brings rigorous market research and a private celestial reflection
-          practice into one English-first product.
+          Tarot reflection, guided learning, community, and evidence-led market
+          research—held together in one private English-first experience.
         </p>
-        <div className={styles.actions}>
-          <a className={styles.primaryAction} href="#research-workspace">
-            Enter Research <ArrowDown aria-hidden="true" />
-          </a>
-          <Link className={styles.secondaryAction} href="/apps/astrology">
-            Open Astrology <ArrowRight aria-hidden="true" />
+        <div id="cosmic-actions" className={styles.actions}>
+          <Link className={styles.primaryAction} href="/app/">
+            Enter Leo <ArrowRight aria-hidden="true" />
           </Link>
         </div>
       </div>
 
       <div className={styles.signalRail} aria-label="Product boundaries">
-        <span><i /> Evidence-first Research</span>
-        <span><Sparkles aria-hidden="true" /> Reflection, not prediction</span>
-        <span>Private by default</span>
+        <span><i /> Private by default</span>
+        <span>Reflection is not prediction</span>
+        <span>Research is not investment advice</span>
       </div>
 
       <div className={`${styles.curtain} ${styles.curtainTop}`} aria-hidden="true" />

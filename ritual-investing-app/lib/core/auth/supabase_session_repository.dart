@@ -3,6 +3,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'member_auth.dart';
@@ -35,32 +36,15 @@ abstract interface class MemberSupabaseAuthClient {
 
   Future<MemberSupabaseSession> refreshCurrentSession();
 
-  Future<MemberSupabaseSession> signInWithPassword({
-    required String email,
-    required String password,
-  });
-
-  Future<MemberSupabaseSession> signUpWithPassword({
-    required String email,
-    required String password,
-  });
-
-  Future<void> requestPasswordRecovery({
-    required String email,
-    required String redirectTo,
-  });
-
-  Future<void> updatePassword({required String password});
+  Future<bool> signInWithGoogle({required String redirectTo});
 
   Future<void> signOut(MemberLogoutScope scope);
 }
 
 class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
-  SupabaseFlutterAuthClient(this._client, {required Uri emailRedirectTo})
-    : _emailRedirectTo = emailRedirectTo.toString();
+  SupabaseFlutterAuthClient(this._client);
 
   final SupabaseClient _client;
-  final String _emailRedirectTo;
 
   @override
   Stream<MemberSupabaseAuthChange> get events =>
@@ -83,15 +67,14 @@ class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
   }
 
   @override
-  Future<MemberSupabaseSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    final AuthResponse response;
+  Future<bool> signInWithGoogle({required String redirectTo}) async {
     try {
-      response = await _client.auth.signInWithPassword(
-        email: email,
-        password: password,
+      return await _client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        redirectTo: redirectTo,
+        authScreenLaunchMode: kIsWeb
+            ? LaunchMode.platformDefault
+            : LaunchMode.externalApplication,
       );
     } on AuthException catch (error) {
       final reason = error.code?.trim();
@@ -99,47 +82,6 @@ class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
         reason == null || reason.isEmpty ? 'auth_request_failed' : reason,
       );
     }
-    final session = _snapshot(response.session);
-    if (session == null) {
-      throw const MemberAuthUnavailable('password_session_missing');
-    }
-    return session;
-  }
-
-  @override
-  Future<MemberSupabaseSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    final AuthResponse response;
-    try {
-      response = await _client.auth.signUp(
-        email: email,
-        password: password,
-        emailRedirectTo: _emailRedirectTo,
-      );
-    } on AuthException catch (error) {
-      final reason = error.code?.trim();
-      throw MemberAuthUnavailable(
-        reason == null || reason.isEmpty ? 'auth_request_failed' : reason,
-      );
-    }
-    final session = _snapshot(response.session);
-    if (session == null) {
-      throw const MemberAuthUnavailable('email_confirmation_required');
-    }
-    return session;
-  }
-
-  @override
-  Future<void> requestPasswordRecovery({
-    required String email,
-    required String redirectTo,
-  }) => _client.auth.resetPasswordForEmail(email, redirectTo: redirectTo);
-
-  @override
-  Future<void> updatePassword({required String password}) async {
-    await _client.auth.updateUser(UserAttributes(password: password));
   }
 
   @override
@@ -173,21 +115,17 @@ class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
 class SupabaseSessionRepository
     implements
         SessionRepository,
-        PasswordSessionRepository,
-        PasswordRecoverySessionRepository,
-        InitialPasswordRecoveryRepository,
+        GoogleOAuthSessionRepository,
         SessionChangeRepository,
         ScopedSessionLogout {
   SupabaseSessionRepository({
     required MemberSupabaseAuthClient client,
     required Uri supabaseUrl,
-    this.passwordRecoveryRedirect =
-        'https://just-build-this.app/mobile/argus-auth/callback',
-    bool initialPasswordRecovery = false,
+    required Uri googleRedirectTo,
     DateTime Function()? now,
   }) : _client = client,
        _now = now ?? DateTime.now,
-       _initialPasswordRecovery = initialPasswordRecovery,
+       googleRedirectTo = googleRedirectTo.toString(),
        memberClientExpectation = MemberClientExpectation(
          issuer: '${_withoutTrailingSlash(supabaseUrl.toString())}/auth/v1',
          audience: 'authenticated',
@@ -196,20 +134,16 @@ class SupabaseSessionRepository
   factory SupabaseSessionRepository.production({
     required SupabaseClient client,
     required Uri supabaseUrl,
-    required Uri passwordRecoveryRedirect,
-    bool initialPasswordRecovery = false,
-    required Uri emailRedirectTo,
+    required Uri googleRedirectTo,
   }) => SupabaseSessionRepository(
-    client: SupabaseFlutterAuthClient(client, emailRedirectTo: emailRedirectTo),
+    client: SupabaseFlutterAuthClient(client),
     supabaseUrl: supabaseUrl,
-    passwordRecoveryRedirect: passwordRecoveryRedirect.toString(),
-    initialPasswordRecovery: initialPasswordRecovery,
+    googleRedirectTo: googleRedirectTo,
   );
 
   final MemberSupabaseAuthClient _client;
   final DateTime Function() _now;
-  final String passwordRecoveryRedirect;
-  bool _initialPasswordRecovery;
+  final String googleRedirectTo;
   Future<AuthSession?>? _activeRecovery;
 
   @override
@@ -220,18 +154,8 @@ class SupabaseSessionRepository
     change,
   ) async {
     final session = change.session == null ? null : _validated(change.session!);
-    final event = session != null && consumeInitialPasswordRecovery()
-        ? MemberSessionEvent.passwordRecovery
-        : change.event;
-    return MemberSessionChange(event: event, session: session);
+    return MemberSessionChange(event: change.event, session: session);
   });
-
-  @override
-  bool consumeInitialPasswordRecovery() {
-    final value = _initialPasswordRecovery;
-    _initialPasswordRecovery = false;
-    return value;
-  }
 
   @override
   Stream<AuthSession> get recoveredSessions => sessionChanges
@@ -239,20 +163,15 @@ class SupabaseSessionRepository
       .map((change) => change.session!);
 
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async => _validated(
-    await _client.signInWithPassword(email: email, password: password),
-  );
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async => _validated(
-    await _client.signUpWithPassword(email: email, password: password),
-  );
+  Future<AuthSession?> signInWithGoogle() async {
+    final launched = await _client.signInWithGoogle(
+      redirectTo: googleRedirectTo,
+    );
+    if (!launched) {
+      throw const MemberAuthUnavailable('google_oauth_launch_failed');
+    }
+    return null;
+  }
 
   @override
   Future<AuthSession?> recover() async {
@@ -272,17 +191,6 @@ class SupabaseSessionRepository
     }
     return restored;
   }
-
-  @override
-  Future<void> requestPasswordRecovery({required String email}) =>
-      _client.requestPasswordRecovery(
-        email: email,
-        redirectTo: passwordRecoveryRedirect,
-      );
-
-  @override
-  Future<void> updatePassword({required String password}) =>
-      _client.updatePassword(password: password);
 
   @override
   Future<void> logout() => logoutWithScope(MemberLogoutScope.local);
@@ -464,9 +372,6 @@ Future<MemberSupabaseInitialization> initializeMemberSupabase({
 }) async {
   final storage = secureStorage ?? ProductionMemberAuthSecureStorage();
   final callbackUri = initialCallbackUri ?? currentMemberAuthCallbackUri();
-  final recoveryTokenHash = callbackUri == null
-      ? null
-      : nativeLinks.recoveryTokenHash(callbackUri);
   final instance = await Supabase.initialize(
     url: url.toString(),
     publishableKey: publishableKey,
@@ -477,19 +382,16 @@ Future<MemberSupabaseInitialization> initializeMemberSupabase({
       persistSession: true,
       localStorage: SecureSupabaseLocalStorage(storage),
       pkceAsyncStorage: SecureSupabasePkceStorage(storage),
-      detectSessionInUri: recoveryTokenHash == null,
+      detectSessionInUri: true,
       detectSessionInUriPredicate: nativeLinks.acceptsArgusAuthCallback,
     ),
   );
-  if (recoveryTokenHash != null && callbackUri != null) {
-    await instance.client.auth.verifyOTP(
-      tokenHash: recoveryTokenHash,
-      type: OtpType.recovery,
-    );
+  if (callbackUri != null &&
+      nativeLinks.acceptsArgusAuthCallback(callbackUri)) {
     clearMemberAuthCallbackParameters(callbackUri);
   }
   return MemberSupabaseInitialization(
     client: instance.client,
-    initialPasswordRecovery: recoveryTokenHash != null,
+    initialPasswordRecovery: false,
   );
 }

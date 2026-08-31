@@ -20,6 +20,7 @@ const RETIRED_LEGACY_PAGE_PREFIXES = [
 ];
 
 const ACTIVE_IMPERSONAL_RESEARCH_PAGE_PREFIXES = [
+  '/research',
   '/quant/intraday',
   '/quant/scanner',
   '/research/sector-rotation',
@@ -87,7 +88,7 @@ export async function middleware(req: NextRequest) {
       {
         error: 'feature_retired',
         message:
-          'AXIO7 provides general educational lessons and retrospective review tools. This legacy endpoint is unavailable.',
+          'Leo provides general educational lessons and retrospective review tools. This legacy endpoint is unavailable.',
       },
       {
         status: 410,

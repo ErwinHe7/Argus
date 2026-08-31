@@ -45,7 +45,7 @@ class _ConfigurationFailureApp extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.all(24),
             child: Text(
-              'Ritual Investing is not configured.\n$message',
+              'Leo is not configured.\n$message',
               textAlign: TextAlign.center,
             ),
           ),

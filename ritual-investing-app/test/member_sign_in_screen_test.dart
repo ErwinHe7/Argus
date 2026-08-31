@@ -1,115 +1,78 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/features/auth/presentation/member_sign_in_screen.dart';
 
 void main() {
-  testWidgets('credential sign in requires both email and password', (
+  testWidgets('Google is the only member authentication action', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: MemberSignInScreen()));
-
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
-    await tester.pump();
-
-    expect(find.text('Enter your email.'), findsOneWidget);
-    expect(find.text('Enter your password.'), findsOneWidget);
-  });
-
-  testWidgets('credential sign in submits normalized email and password', (
-    tester,
-  ) async {
-    String? submittedEmail;
-    String? submittedPassword;
+    var launches = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: MemberSignInScreen(
-          onSubmit: (email, password) async {
-            submittedEmail = email;
-            submittedPassword = password;
+          onContinueWithGoogle: () async {
+            launches += 1;
           },
         ),
       ),
     );
 
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-email')),
-      '  beta@example.com ',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'correct horse battery staple',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Continue with Google'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('member-google-sign-in')));
     await tester.pumpAndSettle();
 
-    expect(submittedEmail, 'beta@example.com');
-    expect(submittedPassword, 'correct horse battery staple');
+    expect(launches, 1);
   });
 
-  testWidgets('password visibility uses an explicit accessible control', (
+  testWidgets('Google action disables while the provider opens', (
     tester,
   ) async {
-    await tester.pumpWidget(const MaterialApp(home: MemberSignInScreen()));
-
-    final editable = find.descendant(
-      of: find.byKey(const Key('member-sign-in-password')),
-      matching: find.byType(EditableText),
-    );
-    expect(tester.widget<EditableText>(editable).obscureText, isTrue);
-
-    await tester.tap(find.byKey(const Key('member-password-visibility')));
-    await tester.pump();
-
-    expect(tester.widget<EditableText>(editable).obscureText, isFalse);
-    expect(find.byTooltip('Hide password'), findsOneWidget);
-  });
-
-  testWidgets('account creation confirms the password before submitting', (
-    tester,
-  ) async {
-    var submissions = 0;
+    final barrier = Completer<void>();
+    var launches = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: MemberSignInScreen(
-          title: 'Create account',
-          submitLabel: 'Create account',
-          confirmPassword: true,
-          minimumPasswordLength: 10,
-          onSubmit: (_, _) async => submissions++,
+          onContinueWithGoogle: () {
+            launches += 1;
+            return barrier.future;
+          },
         ),
       ),
     );
 
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-email')),
-      'new-member@example.com',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'short',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password-confirmation')),
-      'different',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.tap(find.byKey(const Key('member-google-sign-in')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('member-google-sign-in')));
     await tester.pump();
 
-    expect(find.text('Use at least 10 characters.'), findsOneWidget);
-    expect(find.text('Passwords do not match.'), findsOneWidget);
-    expect(submissions, 0);
+    expect(launches, 1);
+    expect(find.text('Opening Google…'), findsOneWidget);
 
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'correct horse battery staple',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password-confirmation')),
-      'correct horse battery staple',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    barrier.complete();
     await tester.pumpAndSettle();
+  });
 
-    expect(submissions, 1);
+  testWidgets('provider failures are announced without credential fields', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MemberSignInScreen(
+          onContinueWithGoogle: () async {},
+          message: 'Google sign-in is temporarily unavailable.',
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('member-auth-message')), findsOneWidget);
+    expect(
+      find.text('Google sign-in is temporarily unavailable.'),
+      findsOneWidget,
+    );
+    expect(find.byType(EditableText), findsNothing);
   });
 }

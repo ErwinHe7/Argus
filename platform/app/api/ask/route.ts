@@ -88,7 +88,7 @@ function researchSources(envelope: QuantEvidenceEnvelope): ForecastSource[] {
   }
   sources.set('axio7-rust-engine', {
     id: 'axio7-rust-engine',
-    name: 'AXIO7 Rust Quant Engine',
+    name: 'Leo Quant Engine',
     state: envelope.status === 'DATA_UNAVAILABLE' ? 'unavailable' : 'computed',
     role: String(
       envelope.model_contract.model_version ||
@@ -107,7 +107,7 @@ function tickerRagSources(bundle: QuantTickerRagBundle): ForecastSource[] {
     return [
       {
         id: `ticker-rag:${result.data_symbol}:${result.summary.session_date_et}`,
-        name: 'AXIO7 ticker RAG / Databento EQUS.MINI',
+        name: 'Leo ticker research / Databento EQUS.MINI',
         state: 'historical' as const,
         role: `${result.requested_symbol} exact-symbol database retrieval`,
         asOf: result.summary.source.last_available_at,
@@ -137,7 +137,7 @@ function toForecast(
   if (tickerRag) sources.push(...tickerRagSources(tickerRag));
   return {
     generatedAt: envelope.generated_at,
-    model: 'AXIO7 Native Quant Engine',
+    model: 'Leo Quant Engine',
     horizon:
       envelope.query.horizon_minutes === undefined
         ? 'all_configured_horizons'
@@ -160,7 +160,7 @@ function tickerRagForecast(
 ): ForecastChatResult {
   return {
     generatedAt: bundle.generated_at,
-    model: 'AXIO7 Rust Ticker RAG',
+    model: 'Leo Ticker Research',
     horizon: 'observed_regular_session',
     assets: [],
     sources: tickerRagSources(bundle),
@@ -188,7 +188,7 @@ function dailyRegimeSources(
     },
     {
       id: `axio7-daily-regime:${report.model_contract.model_version}`,
-      name: 'AXIO7 Rust Daily Regime + Analog Engine',
+      name: 'Leo Daily Regime + Analog Engine',
       state: 'computed',
       role: report.model_contract.model_id,
       asOf: report.generated_at,
@@ -471,7 +471,7 @@ export async function POST(req: NextRequest) {
       );
       const forecast: ForecastChatResult = {
         generatedAt: dailyRegime.generated_at,
-        model: 'AXIO7 Rust Daily Regime + Historical Analog',
+        model: 'Leo Daily Regime + Historical Analog',
         horizon: 'next_regular_session',
         assets: [],
         sources: dailyRegimeSources(dailyRegime, macro, news),
@@ -698,8 +698,8 @@ export async function POST(req: NextRequest) {
       {
         error:
           backendResponded
-            ? 'AXIO7 quant engine is connected, but it rejected this result contract. No unverified substitute was shown.'
-            : 'AXIO7 native quant engine is unavailable. No Yahoo, synthetic, or TypeScript forecast fallback was used.',
+            ? 'Leo’s quant engine is connected, but it rejected this result contract. No unverified substitute was shown.'
+            : 'Leo’s quant engine is unavailable. No Yahoo, synthetic, or TypeScript forecast fallback was used.',
         detail: unavailable,
       },
       {

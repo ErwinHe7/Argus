@@ -9,6 +9,7 @@ dist
 .vercel
 .open-next/
 .wrangler/
+/public/app/
 .dev.vars
 .dev.vars.*
 cloudflare-env.d.ts

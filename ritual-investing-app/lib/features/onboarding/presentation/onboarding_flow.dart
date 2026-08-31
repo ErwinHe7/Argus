@@ -28,7 +28,7 @@ class WelcomeScreen extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const _RitualBrandLockup(),
+                      const _LeoBrandLockup(),
                       SizedBox(height: spacious ? 24 : 12),
                       ClipRRect(
                         borderRadius: BorderRadius.circular(16),
@@ -50,7 +50,7 @@ class WelcomeScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Tell us how you invest and how you want Ritual to speak. Your answers shape explanations and research defaults, and you can change them later.',
+                        'Tell us how you invest and how you want Leo to speak. Your answers shape explanations and research defaults, and you can change them later.',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 10),
@@ -103,25 +103,22 @@ class WelcomeScreen extends StatelessWidget {
   );
 }
 
-class _RitualBrandLockup extends StatelessWidget {
-  const _RitualBrandLockup();
+class _LeoBrandLockup extends StatelessWidget {
+  const _LeoBrandLockup();
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: scheme.secondary),
-          ),
-          child: Icon(Icons.auto_awesome, color: scheme.primary, size: 21),
+        Image.asset(
+          'assets/images/brand/leo-lion.png',
+          width: 48,
+          height: 48,
+          fit: BoxFit.contain,
+          semanticLabel: 'Leo lion',
         ),
         const SizedBox(width: 12),
-        Text('Ritual', style: Theme.of(context).textTheme.titleLarge),
+        Text('Leo', style: Theme.of(context).textTheme.titleLarge),
       ],
     );
   }

@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { LightPage } from '@/components/LightPage';
 
 export const metadata: Metadata = {
-  title: 'Support & Contact - AXIO7',
+  title: 'Support & Contact - Leo',
   description:
-    'Get help with AXIO7 quantitative research access, data-readiness messages, billing, refunds, and accounts.',
+    'Get help with Leo quantitative research access, data-readiness messages, billing, refunds, and accounts.',
 };
 
 export default function SupportPage() {
@@ -13,7 +13,7 @@ export default function SupportPage() {
     <LightPage>
       <div className="mx-auto max-w-3xl space-y-6">
         <section className="rounded-[24px] border p-6" style={{ background: 'var(--lt-surface)', borderColor: 'var(--lt-border)' }}>
-          <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lt-muted)' }}>AXIO7 help</p>
+          <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lt-muted)' }}>Leo help</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight" style={{ color: 'var(--lt-text)' }}>Support &amp; Contact</h1>
           <p className="mt-3 text-sm leading-6" style={{ color: 'var(--lt-muted)' }}>
             Need help with billing, digital access, a research request, or your account? Email{' '}
@@ -44,7 +44,7 @@ export default function SupportPage() {
           </SupportCard>
           <SupportCard title="Research boundary">
             <p>
-              Support covers access, research-workflow errors, source and audit questions, accounts, and billing. AXIO7
+              Support covers access, research-workflow errors, source and audit questions, accounts, and billing. Leo
               provides impersonal quantitative market research, not investment advice, personalized recommendations, or
               order-execution support.
             </p>

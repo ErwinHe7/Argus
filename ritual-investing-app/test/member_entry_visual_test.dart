@@ -47,7 +47,7 @@ void main() {
       );
     });
 
-    testWidgets('captures credential entry in ${brightness.name}', (
+    testWidgets('captures Google member entry in ${brightness.name}', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -59,7 +59,7 @@ void main() {
           theme: brightness == Brightness.light
               ? AppTheme.light
               : AppTheme.dark,
-          home: const MemberSignInScreen(),
+          home: MemberSignInScreen(onContinueWithGoogle: () async {}),
         ),
       );
       await tester.pumpAndSettle();

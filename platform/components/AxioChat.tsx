@@ -4,11 +4,11 @@ import {
   ArrowRight,
   ArrowUp,
   BellRing,
+  BookOpenText,
   BrainCircuit,
   Check,
   CircleUserRound,
   Copy,
-  CreditCard,
   History,
   LogOut,
   Menu,
@@ -31,7 +31,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import Image from 'next/image';
 import type {
   ForecastChatResult,
   ForecastSourceState,
@@ -450,7 +449,7 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
       });
       const data = (await response.json().catch(() => ({}))) as AskResponse;
       if (!response.ok && !data.answer) {
-        throw new Error(data.error || 'AXIO7 could not complete that research request.');
+        throw new Error(data.error || 'Leo Research could not complete that request.');
       }
       let ownerPreviewForMessage: MoomooOwnerPreview | undefined;
       const ownerSymbol = initialUser.privateMarketDataAccess
@@ -509,7 +508,7 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
           content:
             error instanceof Error
               ? error.message
-              : 'AXIO7 could not complete that research request. Please try again.',
+              : 'Leo Research could not complete that request. Please try again.',
           question,
           failed: true,
         },
@@ -551,9 +550,9 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
             type="button"
             className={styles.brand}
             onClick={startNewChat}
-            aria-label="AXIO7 home"
+            aria-label="Leo Research home"
           >
-            <span className={styles.brandWord}>AXIO7</span>
+            <span className={styles.brandWord}>Leo</span>
             <span className={styles.brandDescriptor}>Research</span>
           </button>
           <button
@@ -659,30 +658,18 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
               <p className={styles.monitorEmpty}>
                 {monitorAccess === 'unavailable'
                   ? 'Monitor storage is not ready.'
-                  : 'Ask AXIO7 to monitor a setup.'}
+                  : 'Ask Research to monitor a setup.'}
               </p>
             )}
           </div>
         </div>
 
         <div className={styles.sidebarBottom}>
-          <nav className={styles.membershipLinks} aria-label="Membership navigation">
-            <a href="/pricing">
-              <CreditCard size={16} aria-hidden="true" />
-              <span>Plans</span>
-            </a>
-            {initialUser.authenticated ? (
-              <a href="/billing">
-                <CircleUserRound size={16} aria-hidden="true" />
-                <span>Membership</span>
-              </a>
-            ) : null}
-          </nav>
           <div className={styles.modelBadge}>
-            <BrainCircuit size={17} />
+            <BookOpenText size={17} />
             <div>
-              <strong>AXIO7 Research</strong>
-              <span>Native Rust inference</span>
+              <strong>Research workspace</strong>
+              <span>Sources and limits visible</span>
             </div>
           </div>
           <p className={styles.sidebarDisclaimer}>
@@ -710,17 +697,9 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
           >
             <Menu size={20} />
           </button>
-          <div className={styles.topbarModel} aria-label="AXIO7 website">
-            <span className={styles.topbarLogo}>
-              <Image
-                src="/axio7-logo.png"
-                alt="AXIO7 logo"
-                width={52}
-                height={52}
-                priority
-              />
-            </span>
-            <span>AXIO7</span>
+          <div className={styles.topbarModel} aria-label="Leo Research">
+            <span>Leo</span>
+            <small>Research</small>
           </div>
           <div className={styles.topbarActions}>
             <div
@@ -759,10 +738,10 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                          runtimeReceipt?.requestedModelCount ?? 'all'
                        } model artifacts are loaded. The live feed is not ready, and no live forecast readiness is implied.`
                    : runtimeState === 'checking'
-                     ? 'Checking the AXIO7 Rust research service.'
+                     ? 'Checking the research service.'
                      : runtimeReceipt?.code
                        ? `The Rust model runtime is unavailable (${runtimeReceipt.code}). Research requests fail closed.`
-                       : 'The AXIO7 Rust research service is unavailable. Research requests fail closed.'
+                       : 'The research service is unavailable. Research requests fail closed.'
                }
              >
                <i />
@@ -778,19 +757,6 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                    ? 'Checking model'
                  : 'Model offline'}
             </div>
-            <a
-              className={styles.plansLink}
-              href="/pricing"
-              aria-label="View membership plans"
-              onClick={() =>
-                trackProductEvent('pricing_cta_clicked', {
-                  placement: 'header',
-                })
-              }
-            >
-              <CreditCard size={14} aria-hidden="true" />
-              <span>Plans</span>
-            </a>
             {initialUser.authenticated ? (
               <div className={styles.account}>
                 <a
@@ -815,8 +781,8 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
             ) : (
               <a
                 className={styles.signInLink}
-                href="/auth/signin?next=%2F"
-                aria-label="Sign in to AXIO7"
+                href="/app/"
+                aria-label="Open the Leo app"
                 onClick={() =>
                   trackProductEvent('sign_in_started', {
                     placement: 'header',
@@ -824,7 +790,7 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                 }
               >
                 <CircleUserRound size={15} aria-hidden="true" />
-                <span>Sign in</span>
+                <span>Open app</span>
               </a>
             )}
           </div>
@@ -833,9 +799,9 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
         {!hasConversation ? (
           <div className={styles.welcome}>
             <div className={styles.welcomeInner}>
-              <h1>What would you like to predict or research?</h1>
+              <h1>What would you like to investigate?</h1>
               <p className={styles.welcomeCopy}>
-                Scan, backtest, or monitor an impersonal condition. AXIO7 shows
+                Scan, backtest, or monitor an impersonal condition. Leo shows
                 the data cutoff, evidence, model limits, and reproducibility trail.
               </p>
               {initialUser.researchAccess ? (
@@ -933,10 +899,10 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
                           message.failed ? styles.failedAvatar : ''
                         }`}
                       >
-                        A7
+                        <BookOpenText size={16} aria-hidden="true" />
                       </div>
                       <div className={styles.assistantBody}>
-                        <p className={styles.assistantName}>AXIO7</p>
+                        <p className={styles.assistantName}>Leo Research</p>
                         <AssistantAnswer message={message} />
                         {message.forecast ? (
                           <PredictionDetails
@@ -966,9 +932,11 @@ export function AxioChat({ initialUser }: { initialUser: AuthUser }) {
 
                 {loading ? (
                   <article className={styles.assistantMessage}>
-                    <div className={styles.assistantAvatar}>A7</div>
+                    <div className={styles.assistantAvatar}>
+                      <BookOpenText size={16} aria-hidden="true" />
+                    </div>
                     <div className={styles.assistantBody}>
-                      <p className={styles.assistantName}>AXIO7</p>
+                      <p className={styles.assistantName}>Leo Research</p>
                       <div className={styles.thinking}>
                         <span />
                         <span />
@@ -1304,7 +1272,7 @@ function Composer({
         value={value}
         onChange={(event) => setValue(event.target.value)}
         onKeyDown={onKeyDown}
-        placeholder="Ask AXIO7 to scan, backtest, or continuously monitor a setup..."
+        placeholder="Ask Research to scan, backtest, or monitor a setup..."
         rows={1}
         maxLength={2000}
         autoFocus={autoFocus}
@@ -1312,7 +1280,7 @@ function Composer({
       />
       <div className={styles.composerFooter}>
         <div className={styles.modelPill}>
-          AXIO7 Research
+          Leo Research
         </div>
         <button
           type="submit"
@@ -1796,10 +1764,10 @@ function InterpretedQuery({
   return (
     <section
       className={styles.interpretedQuery}
-      aria-label={chinese ? 'AXIO7 对查询的解释' : 'AXIO7 interpreted query'}
+      aria-label={chinese ? '研究查询解释' : 'Research interpreted query'}
     >
       <div className={styles.interpretedHeading}>
-        <strong>{chinese ? 'AXIO7 对查询的解释' : 'AXIO7 interpreted query'}</strong>
+        <strong>{chinese ? '研究查询解释' : 'Research interpreted query'}</strong>
         <span>
           {chinese ? '未从 ticker 猜测形态、方向或周期' : 'No setup, direction, or horizon inferred from a ticker'}
         </span>

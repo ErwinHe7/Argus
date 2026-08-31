@@ -16,7 +16,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const isResearchHome =
-    pathname === '/' || pathname === '/acceptance/research';
+    pathname === '/' || pathname === '/research' || pathname === '/acceptance/research';
   const isIntradayQuant = pathname === '/quant/intraday';
 
   if (isResearchHome) {

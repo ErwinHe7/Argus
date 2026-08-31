@@ -100,8 +100,7 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       return switch (entry.state.destination) {
         EntryDestination.restoring ||
         EntryDestination.finalizing => MemberEntryGate.restoring,
-        EntryDestination.welcome || EntryDestination.emailConfirmation =>
-          MemberEntryGate.signedOut,
+        EntryDestination.welcome => MemberEntryGate.signedOut,
         EntryDestination.questionnaire || EntryDestination.review =>
           authController.state.phase == AuthPhase.signedIn
               ? MemberEntryGate.onboarding
@@ -274,16 +273,13 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
     });
   }
 
-  Future<void> signInWithPassword({
-    required String email,
-    required String password,
-  }) {
+  Future<void> signInWithGoogle() {
     final coordinator = entryCoordinator;
     if (coordinator != null) {
-      return coordinator.signInWithPassword(email: email, password: password);
+      return coordinator.signInWithGoogle();
     }
     return _runRestoration(() async {
-      await authController.signInWithPassword(email: email, password: password);
+      await authController.signInWithGoogle();
       await _loadAuthenticatedState();
     });
   }
@@ -298,35 +294,6 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       throw StateError('Guided onboarding is unavailable.');
     }
     await coordinator.beginQuestionnaire(onboardingController.draft);
-  }
-
-  Future<void> createAccountWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    final coordinator = entryCoordinator;
-    if (coordinator == null) {
-      throw StateError('Guided onboarding is unavailable.');
-    }
-    await coordinator.createAccountWithPassword(
-      reviewedDraft: onboardingController.draft,
-      email: email,
-      password: password,
-    );
-  }
-
-  Future<void> signUpWithPassword({
-    required String email,
-    required String password,
-  }) {
-    final coordinator = entryCoordinator;
-    if (coordinator != null) {
-      return coordinator.signUpWithPassword(email: email, password: password);
-    }
-    return _runRestoration(() async {
-      await authController.signUpWithPassword(email: email, password: password);
-      await _loadAuthenticatedState();
-    });
   }
 
   Future<void> attachOnboardingDraft() async {

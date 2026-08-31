@@ -73,6 +73,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/images/brand/leo-lion.png
     - assets/images/the-compass.png
     - assets/images/persona-triptych.png
     - assets/images/starpath/celestial-path.png

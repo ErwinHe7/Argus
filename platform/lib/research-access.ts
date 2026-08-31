@@ -20,13 +20,16 @@ export type ResearchAccessDecision =
 
 export async function requirePaidResearchAccess(): Promise<ResearchAccessDecision> {
   const user = await getCurrentUser();
+  if (process.env.RITUAL_FREE_PREVIEW === 'true') {
+    return { allowed: true, user };
+  }
   if (!user.authenticated) {
     return {
       allowed: false,
       response: NextResponse.json(
         {
           error: 'authentication_required',
-          message: 'Sign in and choose Pro or Annual to run AXIO7 research.',
+          message: 'Sign in to run Leo Research.',
           signInUrl: '/auth/signin?next=%2Fpricing',
           pricingUrl: '/pricing',
         },

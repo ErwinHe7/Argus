@@ -49,7 +49,7 @@ export function AccountDeletionRequestForm() {
 
       <label className="flex gap-3 rounded-xl border p-3 text-sm" style={{ borderColor: 'var(--lt-border)', color: 'var(--lt-muted)' }}>
         <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="mt-1 accent-red-500" />
-        <span>I understand AXIO7 will review this request and delete or anonymize account data where possible, while limited safety, fraud-prevention, legal, or dispute records may be retained.</span>
+        <span>I understand Leo will review this request and delete or anonymize account data where possible, while limited safety, fraud-prevention, legal, or dispute records may be retained.</span>
       </label>
 
       <button

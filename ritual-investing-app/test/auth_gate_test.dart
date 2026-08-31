@@ -84,15 +84,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-email')),
-      'member@example.com',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'local-test-password',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.tap(find.byKey(const Key('member-google-sign-in')));
     await tester.pumpAndSettle();
     expect(container.memberBootstrap, isNotNull);
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
@@ -100,7 +92,7 @@ void main() {
 }
 
 class _GateSessionRepository
-    implements SessionRepository, PasswordSessionRepository {
+    implements SessionRepository, GoogleOAuthSessionRepository {
   _GateSessionRepository._({required this.restore, this.failRestore = false});
 
   factory _GateSessionRepository.pending() =>
@@ -140,16 +132,8 @@ class _GateSessionRepository
   }
 
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async => const AuthSession(accessToken: 'access-token');
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async => const AuthSession(accessToken: 'access-token');
+  Future<AuthSession?> signInWithGoogle() async =>
+      const AuthSession(accessToken: 'access-token');
 
   @override
   Future<void> logout() async {

@@ -1,59 +1,23 @@
 import type { Metadata } from 'next';
-import { AxioChat } from '@/components/AxioChat';
 import { CosmicHero } from '@/components/home/CosmicHero';
-import { getCurrentUser, isAdmin } from '@/lib/auth';
-import { billingAccountHasAccess, getBillingAccount } from '@/lib/billing';
-import cosmicStyles from '@/components/home/CosmicHero.module.css';
-
-export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'AXIO7 — Navigate uncertainty',
+  title: 'Leo — Reflection with evidence',
   description:
-    'Explore evidence-first market research and a private celestial reflection practice in one English-first product.',
+    'Tarot reflection, guided learning, community, and evidence-led market research in one private English-first product.',
   openGraph: {
-    title: 'AXIO7 — Navigate uncertainty',
+    title: 'Leo — Reflection with evidence',
     description:
-      'Evidence-first market research and private celestial reflection, held in one coherent product.',
-    images: [
-      {
-        url: '/og-formal.png',
-        width: 1776,
-        height: 887,
-        alt: 'AXIO7 quantitative market-research workspace',
-      },
-    ],
+      'A private daily practice for Tarot reflection, learning, community, and evidence-led research.',
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'AXIO7 — Navigate uncertainty',
+    card: 'summary',
+    title: 'Leo — Reflection with evidence',
     description:
-      'Evidence-first market research and private celestial reflection, held in one coherent product.',
-    images: ['/og-formal.png'],
+      'A private daily practice for Tarot reflection, learning, community, and evidence-led research.',
   },
 };
 
-export default async function HomePage() {
-  const user = await getCurrentUser();
-  const administrator = isAdmin(user);
-  const researchAccess =
-    administrator ||
-    (user.authenticated &&
-      billingAccountHasAccess(await getBillingAccount(user.id).catch(() => null)));
-  return (
-    <>
-      <CosmicHero />
-      <div id="research-workspace" className={cosmicStyles.researchStage}>
-        <AxioChat
-          initialUser={{
-            authenticated: user.authenticated,
-            name: user.name,
-            email: user.email,
-            privateMarketDataAccess: administrator,
-            researchAccess,
-          }}
-        />
-      </div>
-    </>
-  );
+export default function HomePage() {
+  return <CosmicHero />;
 }

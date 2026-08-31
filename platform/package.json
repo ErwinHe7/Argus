@@ -1,5 +1,5 @@
 {
-  "name": "axio7",
+  "name": "leo-platform",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "build:leo-app": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-leo-app.ps1",
     "quant:dev": "powershell -ExecutionPolicy Bypass -File scripts/start-intraday-quant.ps1",
     "quant:open": "powershell -ExecutionPolicy Bypass -File scripts/open-intraday-quant.ps1",
     "quant:stop": "powershell -ExecutionPolicy Bypass -File scripts/stop-intraday-quant.ps1",

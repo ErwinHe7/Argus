@@ -7,8 +7,8 @@ import { getCurrentUser } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
-  title: 'Delete Account — AXIO7',
-  description: 'Request deletion or anonymization of your AXIO7 account and private account data.',
+  title: 'Delete Account — Leo',
+  description: 'Request deletion or anonymization of your Leo account and private account data.',
 };
 
 export default async function DeleteAccountPage() {
@@ -21,7 +21,7 @@ export default async function DeleteAccountPage() {
           <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: 'var(--lt-muted)' }}>Account settings</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight" style={{ color: 'var(--lt-text)' }}>Delete account</h1>
           <p className="mt-3 text-sm leading-6" style={{ color: 'var(--lt-muted)' }}>
-            Request deletion or anonymization of your AXIO7 account, profile data, research history, saved monitors, and
+            Request deletion or anonymization of your Leo account, profile data, research history, saved monitors, and
             private account data where possible. Some billing and audit records may be retained when needed for safety,
             fraud prevention, legal compliance, tax, or dispute handling.
           </p>

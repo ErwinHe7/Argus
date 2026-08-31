@@ -40,7 +40,7 @@ class _PrivacySettingsScreenState extends State<PrivacySettingsScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Ritual Investing prepares one coherent ZIP. Only the latest one-time download is used, then the private local file is removed after sharing.',
+              'Leo prepares one coherent ZIP. Only the latest one-time download is used, then the private local file is removed after sharing.',
             ),
             const SizedBox(height: 8),
             Text(widget.controller.framingLabel),

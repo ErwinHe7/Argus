@@ -86,28 +86,23 @@
   display: inline-flex;
   min-height: 2.75rem;
   align-items: center;
-  gap: 0.75rem;
   color: var(--cosmic-ink);
   text-decoration: none;
+  gap: 0.625rem;
 }
 
-.brandMark {
-  display: grid;
+.brandIcon {
   width: 2.5rem;
   height: 2.5rem;
-  place-items: center;
-  border: 1px solid rgba(236, 182, 103, 0.75);
-  border-radius: 0.5rem;
-  color: var(--cosmic-gold);
-  font-size: 0.75rem;
-  font-weight: 900;
-  letter-spacing: 0.08em;
+  object-fit: contain;
+  filter: drop-shadow(0 0 1rem rgba(125, 190, 255, 0.24));
 }
 
 .brandName {
-  font-size: 0.875rem;
-  font-weight: 850;
-  letter-spacing: 0.18em;
+  font-family: var(--font-instrument-serif), Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 400;
+  letter-spacing: -0.02em;
 }
 
 .navLinks {
@@ -172,7 +167,7 @@
   margin: 0;
   color: #fff;
   font-family: var(--font-instrument-serif), Georgia, serif;
-  font-size: clamp(3.4rem, 8.5vw, 7.2rem);
+  font-size: clamp(3.4rem, 8vw, 6rem);
   font-weight: 400;
   letter-spacing: -0.045em;
   line-height: 0.88;
@@ -391,16 +386,12 @@
 }
 
 @media (max-width: 27rem) {
-  .brandName {
-    display: none;
-  }
-
   .actions {
     display: grid;
   }
 
   .signalRail {
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
   }
 }
 

@@ -29,39 +29,30 @@ const instrumentSerif = Instrument_Serif({
   display: 'swap',
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://axio7.com';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://leo.axio7.workers.dev';
 
 export const metadata: Metadata = {
-  title: 'AXIO7 — Evidence and reflection',
+  title: 'Leo — Reflection with evidence',
   description:
-    'Navigate uncertainty with evidence-first market research and a private celestial reflection practice.',
+    'A private daily practice for Tarot reflection, learning, community, and evidence-led market research.',
   metadataBase: new URL(siteUrl),
   openGraph: {
-    title: 'AXIO7 — Evidence and reflection',
+    title: 'Leo — Reflection with evidence',
     description:
-      'Evidence-first market research and private celestial reflection in one English-first product.',
-    siteName: 'AXIO7',
+      'Tarot reflection and evidence-led market research in one English-first product.',
+    siteName: 'Leo',
     url: siteUrl,
     type: 'website',
-    images: [
-      {
-        url: '/og.png',
-        width: 1745,
-        height: 873,
-        alt: 'AXIO7 — Evidence and reflection',
-      },
-    ],
   },
   twitter: {
-    card: 'summary_large_image',
-    title: 'AXIO7 — Evidence and reflection',
+    card: 'summary',
+    title: 'Leo — Reflection with evidence',
     description:
-      'Evidence-first market research and private celestial reflection in one English-first product.',
-    images: ['/og.png'],
+      'Tarot reflection and evidence-led market research in one English-first product.',
   },
   icons: {
-    icon: '/logo.png',
-    apple: '/logo.png',
+    icon: '/brand/leo-lion.png',
+    apple: '/brand/leo-lion.png',
   },
 };
 

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     return NextResponse.json(
       {
-        error: 'AXIO7 native quant engine is unavailable.',
+        error: 'Leo’s quant engine is unavailable.',
         detail: error instanceof Error ? error.message : String(error),
       },
       { status: 503, headers: { 'Cache-Control': 'no-store' } }
