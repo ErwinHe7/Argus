@@ -37,8 +37,9 @@ async function text(path: string): Promise<string> {
 
 function stringValue(source: string, name: string): string {
   const match = new RegExp(`\\b${name}\\s*=\\s*"([^"]+)"`).exec(source);
-  if (match === null) throw new Error(`Missing string value: ${name}`);
-  return match[1];
+  const value = match?.[1];
+  if (value === undefined) throw new Error(`Missing string value: ${name}`);
+  return value;
 }
 
 function resourceBlocks(source: string): Array<{ type: string; body: string }> {
@@ -54,8 +55,10 @@ function resourceBlocks(source: string): Array<{ type: string; body: string }> {
       if (source[cursor] === "}") depth -= 1;
       cursor += 1;
     }
-    if (depth !== 0) throw new Error(`Unclosed Terraform resource: ${match[1]}`);
-    blocks.push({ type: match[1], body: source.slice(match.index, cursor) });
+    const type = match[1];
+    if (type === undefined) throw new Error("Terraform resource type is missing");
+    if (depth !== 0) throw new Error(`Unclosed Terraform resource: ${type}`);
+    blocks.push({ type, body: source.slice(match.index, cursor) });
     startPattern.lastIndex = cursor;
   }
 
