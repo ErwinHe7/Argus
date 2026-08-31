@@ -15,6 +15,7 @@ import 'member_bootstrap.dart';
 enum EntryDestination {
   restoring,
   welcome,
+  emailConfirmation,
   questionnaire,
   review,
   reconcile,
@@ -34,6 +35,7 @@ class EntryCoordinatorState {
     this.bootstrap,
     this.draftStatus = DraftReadStatus.empty,
     this.message,
+    this.confirmationEmail,
     this.canRetry = false,
     this.retryAction,
   });
@@ -43,6 +45,7 @@ class EntryCoordinatorState {
   final MemberBootstrap? bootstrap;
   final DraftReadStatus draftStatus;
   final String? message;
+  final String? confirmationEmail;
   final bool canRetry;
   final EntryRetryAction? retryAction;
 }
@@ -134,7 +137,11 @@ class EntryCoordinator extends ChangeNotifier {
   }
 
   void pauseQuestionnaire() {
-    _set(EntryDestination.welcome);
+    _set(
+      authController.state.phase == AuthPhase.signedIn
+          ? EntryDestination.authenticatedRecovery
+          : EntryDestination.welcome,
+    );
   }
 
   Future<void> restore() async {
@@ -224,6 +231,47 @@ class EntryCoordinator extends ChangeNotifier {
               'Account creation is temporarily unavailable.',
           canRetry: true,
         );
+    }
+  }
+
+  Future<void> signUpWithPassword({
+    required String email,
+    required String password,
+  }) async {
+    final result = await authController.signUpWithPassword(
+      email: email,
+      password: password,
+    );
+    switch (result) {
+      case MemberAuthResult.authenticated:
+        await _reconcileAuthenticated();
+        if (_state.destination == EntryDestination.authenticatedRecovery ||
+            _state.destination == EntryDestination.reconcile) {
+          await beginQuestionnaire(_draft);
+        }
+        await _startBrokerageNativeLinks();
+      case MemberAuthResult.cancelled:
+        _set(EntryDestination.welcome);
+      case MemberAuthResult.unavailable:
+        if (authController.state.emailConfirmationRequired) {
+          _set(
+            EntryDestination.emailConfirmation,
+            confirmationEmail: email.trim(),
+          );
+          return;
+        }
+        _set(
+          EntryDestination.welcome,
+          message:
+              authController.state.message ??
+              'Account creation is temporarily unavailable.',
+        );
+    }
+  }
+
+  void leaveEmailConfirmation() {
+    if (_state.destination == EntryDestination.emailConfirmation) {
+      _set(EntryDestination.welcome);
     }
   }
 
@@ -446,6 +494,7 @@ class EntryCoordinator extends ChangeNotifier {
   void _set(
     EntryDestination destination, {
     String? message,
+    String? confirmationEmail,
     bool canRetry = false,
     EntryRetryAction? retryAction,
   }) {
@@ -455,6 +504,7 @@ class EntryCoordinator extends ChangeNotifier {
       bootstrap: _bootstrap,
       draftStatus: _draftStatus,
       message: message,
+      confirmationEmail: confirmationEmail,
       canRetry: canRetry,
       retryAction: retryAction,
     );

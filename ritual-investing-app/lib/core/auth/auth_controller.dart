@@ -20,11 +20,13 @@ class AuthState {
     this.message,
     this.canLogout = false,
     this.isPasswordRecovery = false,
+    this.emailConfirmationRequired = false,
   });
   final AuthPhase phase;
   final String? message;
   final bool canLogout;
   final bool isPasswordRecovery;
+  final bool emailConfirmationRequired;
 }
 
 class AuthController extends ChangeNotifier implements AccessTokenProvider {
@@ -153,6 +155,8 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
         AuthState(
           phase: AuthPhase.failure,
           message: _passwordSignUpMessage(error.reason),
+          emailConfirmationRequired:
+              error.reason == 'email_confirmation_required',
         ),
       );
       return MemberAuthResult.unavailable;

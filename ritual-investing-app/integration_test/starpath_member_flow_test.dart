@@ -58,8 +58,15 @@ void registerStarpathMemberFlowTests() {
       await tester.pumpAndSettle();
       expect(find.byType(StarpathLessonScreen), findsOneWidget);
 
+      await _scrollLessonTo(tester, 'Draw a card');
       await tester.tap(find.byKey(const Key('starpath-reveal-card')));
-      await tester.pump();
+      await tester.pumpAndSettle();
+      await _scrollLessonTo(tester, 'Reveal the financial fact');
+      await tester.tap(find.byKey(const Key('starpath-reveal-fact')));
+      await tester.pumpAndSettle();
+      await _scrollLessonTo(tester, 'Test what you understand');
+      await tester.tap(find.byKey(const Key('starpath-open-check')));
+      await tester.pumpAndSettle();
       await _scrollLessonTo(tester, 'Guaranteed return');
       await tester.runAsync(() => harness.controller.answer('option-b-1'));
       await tester.pumpAndSettle();
@@ -71,7 +78,7 @@ void registerStarpathMemberFlowTests() {
       await tester.runAsync(() => harness.controller.answer('option-a-1'));
       await tester.pumpAndSettle();
       expect(harness.controller.state.snapshot?.currentNode?.nodeOrdinal, 2);
-      await tester.pageBack();
+      await tester.tap(find.byTooltip('Close activity'));
       await tester.pumpAndSettle();
 
       for (var ordinal = 2; ordinal <= 8; ordinal += 1) {

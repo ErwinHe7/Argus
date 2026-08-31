@@ -5,15 +5,15 @@ import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft
 import 'package:ritual_investing_app/features/onboarding/presentation/onboarding_flow.dart';
 
 void main() {
-  testWidgets('welcome leads with value, honest timing, and direct sign in', (
+  testWidgets('welcome leads with value, regular signup, and direct sign in', (
     tester,
   ) async {
-    var started = false;
+    var accountCreationOpened = false;
     var signedIn = false;
     await tester.pumpWidget(
       MaterialApp(
         home: WelcomeScreen(
-          onGetStarted: () => started = true,
+          onCreateAccount: () => accountCreationOpened = true,
           onSignIn: () => signedIn = true,
         ),
       ),
@@ -21,9 +21,15 @@ void main() {
 
     expect(find.textContaining('personal ritual'), findsOneWidget);
     expect(find.textContaining('about 3 minutes'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('welcome-get-started')));
+    expect(find.byKey(const Key('welcome-artwork')), findsOneWidget);
+    expect(
+      find.text('Evidence and uncertainty stay within reach.'),
+      findsOneWidget,
+    );
+    expect(find.text('Create account'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('welcome-create-account')));
     await tester.tap(find.byKey(const Key('welcome-sign-in')));
-    expect(started, isTrue);
+    expect(accountCreationOpened, isTrue);
     expect(signedIn, isTrue);
   });
 
@@ -44,6 +50,7 @@ void main() {
     );
 
     expect(controller.draft.risk, isNull);
+    expect(find.text('Step 4 of 9'), findsOneWidget);
     final semantics = tester.getSemantics(
       find.byKey(const Key('onboarding-step-semantics')),
     );
@@ -259,6 +266,7 @@ void main() {
       ),
     );
 
+    await tester.ensureVisible(find.text('Practical and direct'));
     await tester.tap(find.text('Practical and direct'));
     await tester.pump();
     await tester.scrollUntilVisible(

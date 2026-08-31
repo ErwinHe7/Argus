@@ -88,6 +88,14 @@ class MemberTestHarness {
   static const Map<String, Object?> _bootstrapResponse = {
     'data': {
       'astrology_profile': null,
+      'branch_capabilities': {
+        'schema_version': 'member-branch-capabilities-v1',
+        'capability_version': 1,
+        'environment': 'beta',
+        'evaluated_at': '2026-08-24T12:00:00.000Z',
+        'expires_at': '2026-08-24T12:05:00.000Z',
+        'branches': ['ritual', 'starpath', 'discover', 'coven', 'you'],
+      },
       'investor_profile': null,
       'member': {
         'created_at': '2026-08-24T11:00:00.000Z',
@@ -335,6 +343,14 @@ class GuidedMemberTestHarness {
   static Map<String, Object?> _bootstrapResponse(bool complete) => {
     'data': {
       'astrology_profile': null,
+      'branch_capabilities': {
+        'schema_version': 'member-branch-capabilities-v1',
+        'capability_version': 1,
+        'environment': 'beta',
+        'evaluated_at': '2026-08-25T12:00:00.000Z',
+        'expires_at': '2026-08-25T12:05:00.000Z',
+        'branches': ['ritual', 'starpath', 'discover', 'coven', 'you'],
+      },
       'member': {
         'created_at': '2026-08-25T11:00:00.000Z',
         'deletion_epoch': 0,

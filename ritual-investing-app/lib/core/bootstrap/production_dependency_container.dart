@@ -38,6 +38,7 @@ DependencyContainer createProductionDependencyContainer(
       supabaseUrl: config.supabaseUrl,
       passwordRecoveryRedirect: config.passwordRecoveryRedirect,
       initialPasswordRecovery: initialPasswordRecovery,
+      emailRedirectTo: config.nativeLinks.preferredArgusAuthRedirect,
     ),
     stepUpReceipts: ApiStepUpReceiptRepository.fromClientProvider(() => client),
     authSignal: createProductionMemberAuthSignal(),

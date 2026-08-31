@@ -56,9 +56,11 @@ abstract interface class MemberSupabaseAuthClient {
 }
 
 class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
-  SupabaseFlutterAuthClient(this._client);
+  SupabaseFlutterAuthClient(this._client, {required Uri emailRedirectTo})
+    : _emailRedirectTo = emailRedirectTo.toString();
 
   final SupabaseClient _client;
+  final String _emailRedirectTo;
 
   @override
   Stream<MemberSupabaseAuthChange> get events =>
@@ -111,7 +113,11 @@ class SupabaseFlutterAuthClient implements MemberSupabaseAuthClient {
   }) async {
     final AuthResponse response;
     try {
-      response = await _client.auth.signUp(email: email, password: password);
+      response = await _client.auth.signUp(
+        email: email,
+        password: password,
+        emailRedirectTo: _emailRedirectTo,
+      );
     } on AuthException catch (error) {
       final reason = error.code?.trim();
       throw MemberAuthUnavailable(
@@ -192,8 +198,9 @@ class SupabaseSessionRepository
     required Uri supabaseUrl,
     required Uri passwordRecoveryRedirect,
     bool initialPasswordRecovery = false,
+    required Uri emailRedirectTo,
   }) => SupabaseSessionRepository(
-    client: SupabaseFlutterAuthClient(client),
+    client: SupabaseFlutterAuthClient(client, emailRedirectTo: emailRedirectTo),
     supabaseUrl: supabaseUrl,
     passwordRecoveryRedirect: passwordRecoveryRedirect.toString(),
     initialPasswordRecovery: initialPasswordRecovery,

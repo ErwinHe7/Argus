@@ -100,7 +100,8 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       return switch (entry.state.destination) {
         EntryDestination.restoring ||
         EntryDestination.finalizing => MemberEntryGate.restoring,
-        EntryDestination.welcome => MemberEntryGate.signedOut,
+        EntryDestination.welcome || EntryDestination.emailConfirmation =>
+          MemberEntryGate.signedOut,
         EntryDestination.questionnaire || EntryDestination.review =>
           authController.state.phase == AuthPhase.signedIn
               ? MemberEntryGate.onboarding
@@ -312,6 +313,20 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       email: email,
       password: password,
     );
+  }
+
+  Future<void> signUpWithPassword({
+    required String email,
+    required String password,
+  }) {
+    final coordinator = entryCoordinator;
+    if (coordinator != null) {
+      return coordinator.signUpWithPassword(email: email, password: password);
+    }
+    return _runRestoration(() async {
+      await authController.signUpWithPassword(email: email, password: password);
+      await _loadAuthenticatedState();
+    });
   }
 
   Future<void> attachOnboardingDraft() async {

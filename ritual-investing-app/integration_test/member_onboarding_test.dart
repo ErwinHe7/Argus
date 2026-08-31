@@ -30,7 +30,7 @@ void main() {
         'Reflection prompts',
       ]);
       await _answer(tester, 'Keep astrology general');
-      await _acceptReviewAndCreate(tester, harness);
+      await _finishReviewedOnboarding(tester);
 
       expect(harness.passwordSignUps, const [
         (email: 'new-member@example.com', password: 'test-password'),
@@ -42,16 +42,6 @@ void main() {
         contains(OnboardingDraftStore.storageKey),
       );
 
-      await tester.tap(find.byKey(const Key('reconcile-attach')));
-      await _pumpUntil(
-        tester,
-        () => harness.idempotencyKeys.length == 1,
-        diagnostics: () {
-          final state = harness.container.entryCoordinator!.state;
-          return 'requests=${harness.requestPaths}; '
-              'destination=${state.destination.name}; message=${state.message}';
-        },
-      );
       expect(find.text('Retry'), findsOneWidget);
       expect(find.byKey(const Key('app-shell-scaffold')), findsNothing);
       expect(harness.idempotencyKeys, hasLength(1));
@@ -114,10 +104,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('onboarding-next')));
     await tester.pumpAndSettle();
-    await _acceptReviewAndCreate(tester, harness);
+    await _finishReviewedOnboarding(tester);
 
-    expect(find.text('Use these reviewed answers?'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('reconcile-attach')));
     await _pumpUntil(
       tester,
       () => find.byKey(const Key('app-shell-scaffold')).evaluate().isNotEmpty,
@@ -189,9 +177,23 @@ Future<void> _openCleanInstall(
 ) async {
   await tester.pumpWidget(RitualInvestingApp(container: harness.container));
   await tester.pumpAndSettle();
-  expect(find.byKey(const Key('welcome-get-started')), findsOneWidget);
+  expect(find.byKey(const Key('welcome-create-account')), findsOneWidget);
   expect(find.byKey(const Key('app-shell-scaffold')), findsNothing);
-  await tester.tap(find.byKey(const Key('welcome-get-started')));
+  await tester.tap(find.byKey(const Key('welcome-create-account')));
+  await tester.pumpAndSettle();
+  await tester.enterText(
+    find.byKey(const Key('member-sign-in-email')),
+    'new-member@example.com',
+  );
+  await tester.enterText(
+    find.byKey(const Key('member-sign-in-password')),
+    'test-password',
+  );
+  await tester.enterText(
+    find.byKey(const Key('member-sign-in-password-confirmation')),
+    'test-password',
+  );
+  await tester.tap(find.byKey(const Key('member-sign-in-submit')));
   await tester.pumpAndSettle();
 }
 
@@ -218,10 +220,7 @@ Future<void> _chooseInterests(
   await tester.pumpAndSettle();
 }
 
-Future<void> _acceptReviewAndCreate(
-  WidgetTester tester,
-  GuidedMemberTestHarness harness,
-) async {
+Future<void> _finishReviewedOnboarding(WidgetTester tester) async {
   for (final key in const [
     Key('consent-terms'),
     Key('consent-privacy'),
@@ -232,26 +231,12 @@ Future<void> _acceptReviewAndCreate(
     await tester.pumpAndSettle();
     expect(tester.widget<CheckboxListTile>(find.byKey(key)).value, isTrue);
   }
-  final createAccount = find.byKey(const Key('review-create-account'));
-  await _scrollTo(tester, createAccount);
-  final onCreateAccount = tester.widget<FilledButton>(createAccount).onPressed;
-  expect(onCreateAccount, isNotNull);
-  onCreateAccount!();
-  await _pumpUntil(
-    tester,
-    () => find.byKey(const Key('member-sign-in-email')).evaluate().isNotEmpty,
-    diagnostics: () =>
-        'destination=${harness.container.entryCoordinator!.state.destination}',
-  );
-  await tester.enterText(
-    find.byKey(const Key('member-sign-in-email')),
-    'new-member@example.com',
-  );
-  await tester.enterText(
-    find.byKey(const Key('member-sign-in-password')),
-    'test-password',
-  );
-  await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+  final finishSetup = find.byKey(const Key('review-create-account'));
+  await _scrollTo(tester, finishSetup);
+  expect(find.widgetWithText(FilledButton, 'Finish setup'), findsOneWidget);
+  final onFinishSetup = tester.widget<FilledButton>(finishSetup).onPressed;
+  expect(onFinishSetup, isNotNull);
+  onFinishSetup!();
   await tester.pumpAndSettle();
 }
 

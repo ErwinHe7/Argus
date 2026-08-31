@@ -41,7 +41,12 @@ void main() {
         addTearDown(supabase.dispose);
 
         await expectLater(
-          SupabaseFlutterAuthClient(supabase).signInWithPassword(
+          SupabaseFlutterAuthClient(
+            supabase,
+            emailRedirectTo: Uri.parse(
+              'https://just-build-this.app/mobile/argus-auth/callback',
+            ),
+          ).signInWithPassword(
             email: 'beta@example.com',
             password: 'incorrect',
           ),
@@ -55,6 +60,63 @@ void main() {
         );
       },
     );
+
+    test('signup sends the exact public confirmation redirect', () async {
+      Uri? requestUri;
+      final supabase = SupabaseClient(
+        'https://project.supabase.co',
+        'publishable-key',
+        authOptions: const AuthClientOptions(
+          authFlowType: AuthFlowType.implicit,
+        ),
+        httpClient: MockClient((request) async {
+          requestUri = request.url;
+          return http.Response(
+            jsonEncode({
+              'id': _userId,
+              'aud': 'authenticated',
+              'role': 'authenticated',
+              'email': 'new-member@example.com',
+              'app_metadata': {'provider': 'email'},
+              'user_metadata': <String, dynamic>{},
+              'created_at': '2026-08-30T12:00:00Z',
+              'updated_at': '2026-08-30T12:00:00Z',
+            }),
+            200,
+            headers: {
+              'content-type': 'application/json',
+              'x-supabase-api-version': '2024-01-01',
+            },
+          );
+        }),
+      );
+      addTearDown(supabase.dispose);
+      final client = SupabaseFlutterAuthClient(
+        supabase,
+        emailRedirectTo: Uri.parse(
+          'https://just-build-this.app/mobile/argus-auth/callback',
+        ),
+      );
+
+      await expectLater(
+        client.signUpWithPassword(
+          email: 'new-member@example.com',
+          password: 'correct horse battery staple',
+        ),
+        throwsA(
+          isA<MemberAuthUnavailable>().having(
+            (error) => error.reason,
+            'reason',
+            'email_confirmation_required',
+          ),
+        ),
+      );
+
+      expect(
+        requestUri?.queryParameters['redirect_to'],
+        'https://just-build-this.app/mobile/argus-auth/callback',
+      );
+    });
   });
 
   group('SupabaseSessionRepository', () {

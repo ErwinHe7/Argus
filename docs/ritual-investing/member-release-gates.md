@@ -7,7 +7,7 @@ callback, background worker, or Webull partner contract has passed. Record
 hosted evidence separately and keep every capability fail-closed until its gate
 is satisfied.
 
-## Invite-first public web beta
+## Self-service public web beta
 
 The mobile-web beta may launch ahead of native store release without
 redesigning the retained landing artifact, standalone Demo, or member product
@@ -38,13 +38,12 @@ the experience as a public beta, discloses the unavailable financial authority,
 and keeps privacy, support, about, beta-feedback, and legal information
 reachable.
 
-Open signup is disabled; entry is invitation-only. Invite-first release
-requires server-enforced invitation restriction and dated evidence for custom
-SMTP, invitation delivery and expiry, fresh-context callbacks, resend and
-enumeration-resistant recovery, rate limits and abuse thresholds, deletion,
-alert and support ownership, and a reachable support path. Self-service signup
-additionally requires hosted email confirmation and CAPTCHA or equivalent abuse
-protection.
+Open signup is the standard entry path; invitation-only entry is not supported.
+Before public promotion, retain dated evidence for custom SMTP, hosted email
+confirmation, recovery delivery and expiry, fresh-context recovery callbacks,
+enumeration-safe errors, CAPTCHA or equivalent abuse protection, rate limits
+and abuse thresholds, deletion, alert and support ownership, and a reachable
+support path.
 
 Every unresolved hardening and product-definition concern is a P1 follow-up in
 [`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md).

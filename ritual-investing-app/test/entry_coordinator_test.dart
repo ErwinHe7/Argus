@@ -54,6 +54,142 @@ void main() {
     },
   );
 
+  test(
+    'regular signup starts onboarding once without an invitation recovery step',
+    () async {
+      final sessions = _SessionRepository(restoredSession: null);
+      final fixture = await _fixture(
+        sessionRepository: sessions,
+        bootstraps: [_bootstrap(complete: false, version: 1)],
+      );
+
+      await fixture.coordinator.signUpWithPassword(
+        email: 'new-member@example.com',
+        password: 'correct horse battery staple',
+      );
+
+      expect(sessions.passwordSignUps, [
+        (
+          email: 'new-member@example.com',
+          password: 'correct horse battery staple',
+        ),
+      ]);
+      expect(
+        fixture.coordinator.state.destination,
+        EntryDestination.questionnaire,
+      );
+      expect(fixture.coordinator.state.draft, const OnboardingDraft());
+      expect(
+        fixture.coordinator.state.destination,
+        isNot(EntryDestination.authenticatedRecovery),
+      );
+    },
+  );
+
+  test(
+    'failed signup stays on account creation with an existing draft intact',
+    () async {
+      final sessions = _SessionRepository(
+        restoredSession: null,
+        authenticationError: const MemberAuthUnavailable('email_exists'),
+      );
+      final fixture = await _fixture(
+        sessionRepository: sessions,
+        bootstraps: const [],
+      );
+      await fixture.store.save(_draft());
+      await fixture.coordinator.restore();
+
+      await fixture.coordinator.signUpWithPassword(
+        email: 'existing@example.com',
+        password: 'correct horse battery staple',
+      );
+
+      expect(fixture.coordinator.state.destination, EntryDestination.welcome);
+      expect(fixture.coordinator.state.draft, _draft());
+      expect((await fixture.store.read()).draft, _draft());
+      expect(
+        fixture.coordinator.state.message,
+        'An account already exists for this email.',
+      );
+    },
+  );
+
+  test(
+    'confirmation-required signup records a dedicated email state',
+    () async {
+      final sessions = _SessionRepository(
+        restoredSession: null,
+        authenticationError: const MemberAuthUnavailable(
+          'email_confirmation_required',
+        ),
+      );
+      final fixture = await _fixture(
+        sessionRepository: sessions,
+        bootstraps: const [],
+      );
+
+      await fixture.coordinator.signUpWithPassword(
+        email: '  new-member@example.com ',
+        password: 'correct horse battery staple',
+      );
+
+      expect(
+        fixture.coordinator.state.destination,
+        EntryDestination.emailConfirmation,
+      );
+      expect(
+        fixture.coordinator.state.confirmationEmail,
+        'new-member@example.com',
+      );
+    },
+  );
+
+  test('regular signup resumes an existing partial draft directly', () async {
+    final sessions = _SessionRepository(restoredSession: null);
+    final fixture = await _fixture(
+      sessionRepository: sessions,
+      bootstraps: [_bootstrap(complete: false, version: 1)],
+    );
+    const partialDraft = OnboardingDraft(
+      experience: InvestingExperience.someExperience,
+    );
+    await fixture.store.save(partialDraft);
+    await fixture.coordinator.restore();
+    fixture.coordinator.pauseQuestionnaire();
+
+    await fixture.coordinator.signUpWithPassword(
+      email: 'new-member@example.com',
+      password: 'correct horse battery staple',
+    );
+
+    expect(
+      fixture.coordinator.state.destination,
+      EntryDestination.questionnaire,
+    );
+    expect(fixture.coordinator.state.draft, partialDraft);
+    expect((await fixture.store.read()).draft, partialDraft);
+  });
+
+  test('cancelled regular signup returns to account creation', () async {
+    final sessions = _SessionRepository(
+      restoredSession: null,
+      authenticationError: const MemberAuthCancelled(),
+    );
+    final fixture = await _fixture(
+      sessionRepository: sessions,
+      bootstraps: const [],
+    );
+
+    await fixture.coordinator.signUpWithPassword(
+      email: 'new-member@example.com',
+      password: 'correct horse battery staple',
+    );
+
+    expect(fixture.coordinator.state.destination, EntryDestination.welcome);
+    expect(fixture.coordinator.state.message, isNull);
+  });
+
   test('password sign in preserves the actionable auth failure', () async {
     final sessions = _SessionRepository(
       restoredSession: null,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/member_email_confirmation_screen.dart';
 import '../../features/auth/presentation/member_sign_in_screen.dart';
 import '../../features/onboarding/application/onboarding_controller.dart';
 import '../../features/onboarding/presentation/onboarding_flow.dart';
@@ -75,6 +76,8 @@ GoRouter createAppRouter({
         final isEntry =
             path == '/welcome' ||
             path == '/sign-in' ||
+            path == '/sign-up' ||
+            path == '/check-email' ||
             path == '/create-account' ||
             path == '/entry' ||
             isOnboarding;
@@ -89,9 +92,12 @@ GoRouter createAppRouter({
             path == '/welcome' ||
                     path == '/sign-in' ||
                     path == '/forgot-password' ||
+                    path == '/sign-up' ||
                     path == '/create-account'
                 ? null
                 : '/welcome',
+          EntryDestination.emailConfirmation =>
+            path == '/check-email' ? null : '/check-email',
           EntryDestination.questionnaire =>
             path == '/create-account' && isAuthenticated
                 ? '/onboarding/review'
@@ -123,13 +129,20 @@ GoRouter createAppRouter({
         };
       }
       final atEntry =
-          state.uri.path == '/entry' || state.uri.path == '/sign-in';
+          state.uri.path == '/entry' ||
+          state.uri.path == '/sign-in' ||
+          state.uri.path == '/sign-up';
       if (container.entryGate != MemberEntryGate.member) {
         if (container.entryGate == MemberEntryGate.signedOut &&
             (state.uri.path == '/sign-in' ||
                 state.uri.path == '/forgot-password' ||
+                state.uri.path == '/sign-up' ||
                 state.uri.path == '/create-account')) {
           return null;
+        }
+        if (container.entryGate == MemberEntryGate.onboarding &&
+            state.uri.path == '/sign-up') {
+          return '/onboarding/experience';
         }
         return atEntry ? null : '/entry';
       }
@@ -140,14 +153,30 @@ GoRouter createAppRouter({
       GoRoute(
         path: '/welcome',
         builder: (context, state) => WelcomeScreen(
-          onGetStarted: () =>
-              _runUiAction(context, container.beginQuestionnaire),
+          onCreateAccount: () => context.push('/sign-up'),
           onSignIn: () => context.push('/sign-in'),
+        ),
+      ),
+      GoRoute(
+        path: '/sign-up',
+        builder: (context, state) => MemberSignInScreen(
+          title: 'Create account',
+          submitLabel: 'Create account',
+          submittingLabel: 'Creating account…',
+          confirmPassword: true,
+          minimumPasswordLength: 10,
+          message: container.entryCoordinator?.state.message,
+          secondaryLabel: 'Sign in',
+          onSecondaryAction: () => context.go('/sign-in'),
+          onSubmit: (email, password) =>
+              container.signUpWithPassword(email: email, password: password),
         ),
       ),
       GoRoute(
         path: '/sign-in',
         builder: (context, state) => MemberSignInScreen(
+          secondaryLabel: 'Create account',
+          onSecondaryAction: () => context.go('/sign-up'),
           onSubmit: (email, password) =>
               container.signInWithPassword(email: email, password: password),
           onForgotPassword: () => context.push('/forgot-password'),
@@ -157,6 +186,20 @@ GoRouter createAppRouter({
         path: '/forgot-password',
         builder: (context, state) => MemberPasswordScreen.forgot(
           onSubmit: container.authController.requestPasswordRecovery,
+        ),
+      ),
+      GoRoute(
+        path: '/check-email',
+        builder: (context, state) => MemberEmailConfirmationScreen(
+          email: container.entryCoordinator?.state.confirmationEmail ?? '',
+          onSignIn: () {
+            container.entryCoordinator?.leaveEmailConfirmation();
+            context.go('/sign-in');
+          },
+          onUseDifferentEmail: () {
+            container.entryCoordinator?.leaveEmailConfirmation();
+            context.go('/sign-up');
+          },
         ),
       ),
       GoRoute(
@@ -181,6 +224,8 @@ GoRouter createAppRouter({
                 title: 'Create account',
                 submitLabel: 'Create account',
                 submittingLabel: 'Creating account…',
+                confirmPassword: true,
+                minimumPasswordLength: 10,
                 onSubmit: (email, password) =>
                     container.createAccountWithPassword(
                       email: email,

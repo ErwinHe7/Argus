@@ -6,48 +6,143 @@ import '../domain/onboarding_draft.dart';
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({
     super.key,
-    required this.onGetStarted,
+    required this.onCreateAccount,
     required this.onSignIn,
   });
 
-  final VoidCallback onGetStarted;
+  final VoidCallback onCreateAccount;
   final VoidCallback onSignIn;
 
   @override
   Widget build(BuildContext context) => Scaffold(
     body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
-        children: [
-          Text(
-            'Begin with a personal ritual',
-            style: Theme.of(context).textTheme.displaySmall,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'Tell us how you invest and how you want Ritual to speak. Your answers shape explanations, research defaults, and recurring Demo plans.',
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'This takes about 3 minutes. You can keep spirituality practical and skip personalized astrology.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 32),
-          FilledButton(
-            key: const Key('welcome-get-started'),
-            onPressed: onGetStarted,
-            child: const Text('Get started'),
-          ),
-          const SizedBox(height: 8),
-          TextButton(
-            key: const Key('welcome-sign-in'),
-            onPressed: onSignIn,
-            child: const Text('I have an account'),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final spacious = constraints.maxHeight >= 760;
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, spacious ? 28 : 12, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const _RitualBrandLockup(),
+                      SizedBox(height: spacious ? 24 : 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          key: const Key('welcome-artwork'),
+                          height: spacious ? 252 : 72,
+                          child: Image.asset(
+                            'assets/images/the-compass.png',
+                            fit: BoxFit.cover,
+                            alignment: const Alignment(0, -0.08),
+                            excludeFromSemantics: true,
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: spacious ? 28 : 16),
+                      Text(
+                        'Begin with a personal ritual',
+                        style: Theme.of(context).textTheme.displaySmall,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Tell us how you invest and how you want Ritual to speak. Your answers shape explanations and research defaults, and you can change them later.',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'This takes about 3 minutes. Personalized astrology is optional.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      SizedBox(height: spacious ? 28 : 16),
+                      FilledButton(
+                        key: const Key('welcome-create-account'),
+                        onPressed: onCreateAccount,
+                        child: const Text('Create account'),
+                      ),
+                      const SizedBox(height: 4),
+                      TextButton(
+                        key: const Key('welcome-sign-in'),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(48, 48),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        onPressed: onSignIn,
+                        child: const Text('I have an account'),
+                      ),
+                      SizedBox(height: spacious ? 24 : 16),
+                      const _TrustLine(
+                        icon: Icons.visibility_outlined,
+                        text: 'Evidence and uncertainty stay within reach.',
+                      ),
+                      const SizedBox(height: 8),
+                      const _TrustLine(
+                        icon: Icons.tune,
+                        text: 'Nothing is chosen or acted on for you.',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
       ),
     ),
+  );
+}
+
+class _RitualBrandLockup extends StatelessWidget {
+  const _RitualBrandLockup();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: scheme.secondary),
+          ),
+          child: Icon(Icons.auto_awesome, color: scheme.primary, size: 21),
+        ),
+        const SizedBox(width: 12),
+        Text('Ritual', style: Theme.of(context).textTheme.titleLarge),
+      ],
+    );
+  }
+}
+
+class _TrustLine extends StatelessWidget {
+  const _TrustLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+      ),
+    ],
   );
 }
 
@@ -91,67 +186,107 @@ class OnboardingFlow extends StatelessWidget {
           title: const Text('Your Ritual'),
         ),
         body: SafeArea(
-          child: ListView(
-            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            children: [
-              Semantics(
-                key: const Key('onboarding-step-semantics'),
-                container: true,
-                header: true,
-                label: 'Step ${progress.$1} of ${progress.$2}. $title',
-                child: ExcludeSemantics(
-                  child: Text(
-                    title,
-                    style: Theme.of(context).textTheme.headlineMedium,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: SingleChildScrollView(
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Step ${progress.$1} of ${progress.$2}',
+                        key: const Key('onboarding-progress-label'),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Semantics(
+                        label:
+                            'Progress: Step ${progress.$1} of ${progress.$2}',
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(999),
+                          child: LinearProgressIndicator(
+                            key: const Key('onboarding-linear-progress'),
+                            value: progress.$1 / progress.$2,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 28),
+                      Semantics(
+                        key: const Key('onboarding-step-semantics'),
+                        container: true,
+                        header: true,
+                        label: 'Step ${progress.$1} of ${progress.$2}. $title',
+                        child: ExcludeSemantics(
+                          child: Text(
+                            title,
+                            style: Theme.of(context).textTheme.headlineMedium,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _supportingCopy(step),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      if (persistenceMessage != null) ...[
+                        const SizedBox(height: 16),
+                        _PersistenceNotice(
+                          message: persistenceMessage!,
+                          onRetry: onRetryPersistence,
+                        ),
+                      ],
+                      if (step == OnboardingStep.astrologyOptIn &&
+                          controller.draft.astrologyEnabled != null) ...[
+                        const SizedBox(height: 10),
+                        Semantics(
+                          liveRegion: true,
+                          label: controller.draft.astrologyEnabled == true
+                              ? 'Personalized astrology selected. Birth date will be Step 10 of 10.'
+                              : 'General astrology selected. This remains Step 9 of 9.',
+                          child: Text(
+                            controller.draft.astrologyEnabled == true
+                                ? 'Next: birth date, Step 10 of 10.'
+                                : 'No birth date needed. This is Step 9 of 9.',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      _question(context),
+                    ],
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              Semantics(
-                label: 'Progress: Step ${progress.$1} of ${progress.$2}',
-                child: LinearProgressIndicator(
-                  key: const Key('onboarding-linear-progress'),
-                  value: progress.$1 / progress.$2,
-                ),
-              ),
-              if (persistenceMessage != null) ...[
-                const SizedBox(height: 16),
-                _PersistenceNotice(
-                  message: persistenceMessage!,
-                  onRetry: onRetryPersistence,
-                ),
-              ],
-              const SizedBox(height: 8),
-              Text(_supportingCopy(step)),
-              if (step == OnboardingStep.astrologyOptIn &&
-                  controller.draft.astrologyEnabled != null) ...[
-                const SizedBox(height: 8),
-                Semantics(
-                  liveRegion: true,
-                  label: controller.draft.astrologyEnabled == true
-                      ? 'Personalized astrology selected. Birth date will be Step 10 of 10.'
-                      : 'General astrology selected. This remains Step 9 of 9.',
+            ),
+          ),
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+          child: Center(
+            heightFactor: 1,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              child: SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  key: const Key('onboarding-next'),
+                  onPressed: controller.canContinueFor(step)
+                      ? () => onContinue(_next(step, controller.draft))
+                      : null,
                   child: Text(
-                    controller.draft.astrologyEnabled == true
-                        ? 'Next: birth date, Step 10 of 10.'
-                        : 'No birth date needed. This is Step 9 of 9.',
+                    step == OnboardingStep.birthDate ? 'Review' : 'Continue',
                   ),
                 ),
-              ],
-              const SizedBox(height: 20),
-              _question(context),
-              const SizedBox(height: 28),
-              FilledButton(
-                key: const Key('onboarding-next'),
-                onPressed: controller.canContinueFor(step)
-                    ? () => onContinue(_next(step, controller.draft))
-                    : null,
-                child: Text(
-                  step == OnboardingStep.birthDate ? 'Review' : 'Continue',
-                ),
               ),
-            ],
+            ),
           ),
         ),
       );
@@ -160,6 +295,7 @@ class OnboardingFlow extends StatelessWidget {
 
   Widget _question(BuildContext context) => switch (step) {
     OnboardingStep.experience => _radio<InvestingExperience>(
+      context,
       controller.draft.experience,
       const {
         InvestingExperience.newToInvesting: 'New to investing',
@@ -168,13 +304,19 @@ class OnboardingFlow extends StatelessWidget {
       },
       controller.setExperience,
     ),
-    OnboardingStep.goal => _radio<InvestmentGoal>(controller.draft.goal, const {
-      InvestmentGoal.calmFund: 'Build a calmer cushion',
-      InvestmentGoal.longTermGrowth: 'Grow over the long term',
-      InvestmentGoal.income: 'Explore income ideas',
-      InvestmentGoal.exploration: 'Learn through exploration',
-    }, controller.setGoal),
+    OnboardingStep.goal => _radio<InvestmentGoal>(
+      context,
+      controller.draft.goal,
+      const {
+        InvestmentGoal.calmFund: 'Build a calmer cushion',
+        InvestmentGoal.longTermGrowth: 'Grow over the long term',
+        InvestmentGoal.income: 'Explore income ideas',
+        InvestmentGoal.exploration: 'Learn through exploration',
+      },
+      controller.setGoal,
+    ),
     OnboardingStep.horizon => _radio<InvestmentHorizon>(
+      context,
       controller.draft.horizon,
       const {
         InvestmentHorizon.short: 'Within 3 years',
@@ -183,12 +325,18 @@ class OnboardingFlow extends StatelessWidget {
       },
       controller.setHorizon,
     ),
-    OnboardingStep.risk => _radio<RiskComfort>(controller.draft.risk, const {
-      RiskComfort.low: 'Low — steadier paths',
-      RiskComfort.moderate: 'Moderate — some movement is okay',
-      RiskComfort.high: 'High — wider swings are okay',
-    }, controller.setRisk),
+    OnboardingStep.risk => _radio<RiskComfort>(
+      context,
+      controller.draft.risk,
+      const {
+        RiskComfort.low: 'Low — steadier paths',
+        RiskComfort.moderate: 'Moderate — some movement is okay',
+        RiskComfort.high: 'High — wider swings are okay',
+      },
+      controller.setRisk,
+    ),
     OnboardingStep.contributionRhythm => _radio<ContributionRhythm>(
+      context,
       controller.draft.contributionRhythm,
       const {
         ContributionRhythm.weekly: 'Weekly',
@@ -200,6 +348,7 @@ class OnboardingFlow extends StatelessWidget {
       controller.setContributionRhythm,
     ),
     OnboardingStep.ritualLanguage => _radio<RitualLanguage>(
+      context,
       controller.draft.ritualLanguage,
       const {
         RitualLanguage.practical: 'Practical and direct',
@@ -210,6 +359,7 @@ class OnboardingFlow extends StatelessWidget {
       controller.setRitualLanguage,
     ),
     OnboardingStep.ritualFamiliarity => _radio<RitualFamiliarity>(
+      context,
       controller.draft.ritualFamiliarity,
       const {
         RitualFamiliarity.newToRitual: 'New to ritual practices',
@@ -223,24 +373,33 @@ class OnboardingFlow extends StatelessWidget {
     OnboardingStep.ritualInterests => Column(
       children: RitualInterest.values
           .map(
-            (interest) => CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              minTileHeight: 48,
-              value: controller.draft.ritualInterests.contains(interest),
-              title: Text(_interestLabel(interest)),
-              onChanged: (selected) {
-                final next = Set<RitualInterest>.of(
-                  controller.draft.ritualInterests,
-                );
-                selected == true ? next.add(interest) : next.remove(interest);
-                controller.setRitualInterests(next);
-                _changed();
-              },
+            (interest) => _choiceSurface(
+              context,
+              selected: controller.draft.ritualInterests.contains(interest),
+              child: CheckboxListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                minTileHeight: 56,
+                value: controller.draft.ritualInterests.contains(interest),
+                selected: controller.draft.ritualInterests.contains(interest),
+                title: Text(_interestLabel(interest)),
+                onChanged: (selected) {
+                  final next = Set<RitualInterest>.of(
+                    controller.draft.ritualInterests,
+                  );
+                  selected == true ? next.add(interest) : next.remove(interest);
+                  controller.setRitualInterests(next);
+                  _changed();
+                },
+              ),
             ),
           )
           .toList(),
     ),
     OnboardingStep.astrologyOptIn => _radio<bool>(
+      context,
       controller.draft.astrologyEnabled,
       const {
         true: 'Personalize with my birth date',
@@ -256,6 +415,7 @@ class OnboardingFlow extends StatelessWidget {
   };
 
   Widget _radio<T>(
+    BuildContext context,
     T? selected,
     Map<T, String> options,
     ValueChanged<T> onChanged,
@@ -269,16 +429,51 @@ class OnboardingFlow extends StatelessWidget {
     child: Column(
       children: options.entries
           .map(
-            (entry) => RadioListTile<T>(
-              contentPadding: EdgeInsets.zero,
-              minTileHeight: 48,
-              value: entry.key,
-              title: Text(entry.value),
+            (entry) => _choiceSurface(
+              context,
+              selected: selected == entry.key,
+              child: RadioListTile<T>(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 2,
+                ),
+                minTileHeight: 56,
+                value: entry.key,
+                selected: selected == entry.key,
+                title: Text(entry.value),
+              ),
             ),
           )
           .toList(),
     ),
   );
+
+  Widget _choiceSurface(
+    BuildContext context, {
+    required bool selected,
+    required Widget child,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final selectedAlpha = Theme.of(context).brightness == Brightness.dark
+        ? 0.18
+        : 0.08;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: selected
+            ? scheme.primary.withValues(alpha: selectedAlpha)
+            : scheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: selected ? scheme.primary : Theme.of(context).dividerColor,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: child,
+      ),
+    );
+  }
 
   void _changed() => onDraftChanged?.call(controller.draft);
 }
@@ -323,78 +518,97 @@ class OnboardingReviewScreen extends StatelessWidget {
           title: const Text('Review your Ritual'),
         ),
         body: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
-            children: [
-              Text(
-                'This is what will shape your experience',
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 12),
-              Text(_personalizationSummary(personalization)),
-              if (persistenceMessage != null) ...[
-                const SizedBox(height: 16),
-                _PersistenceNotice(
-                  message: persistenceMessage!,
-                  onRetry: onRetryPersistence,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'This is what will shape your experience',
+                        style: Theme.of(context).textTheme.headlineMedium,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _personalizationSummary(personalization),
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      if (persistenceMessage != null) ...[
+                        const SizedBox(height: 16),
+                        _PersistenceNotice(
+                          message: persistenceMessage!,
+                          onRetry: onRetryPersistence,
+                        ),
+                      ],
+                      const SizedBox(height: 28),
+                      Text(
+                        'Your defaults',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 6),
+                      _ReviewLine(
+                        label: 'Investing approach',
+                        value:
+                            '${_label(controller.draft.goal)}, ${_label(controller.draft.horizon)} horizon, ${_label(controller.draft.risk)} risk',
+                        onEdit: () => onEdit(OnboardingStep.experience),
+                      ),
+                      _ReviewLine(
+                        label: 'Ritual language',
+                        value: _label(controller.draft.ritualLanguage),
+                        onEdit: () => onEdit(OnboardingStep.ritualLanguage),
+                      ),
+                      _ReviewLine(
+                        label: 'Astrology',
+                        value: controller.draft.astrologyEnabled == true
+                            ? 'Astrology decision: accepted · Personalized from birth date by the server'
+                            : 'Astrology decision: declined · General astrology; no birth data saved',
+                        onEdit: () => onEdit(OnboardingStep.astrologyOptIn),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        'Required consents',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: 10),
+                      _ReviewConsent(
+                        key: const Key('consent-terms'),
+                        value: controller.draft.termsAccepted,
+                        title: 'Terms · version 2026-08',
+                        onChanged: (value) => _setConsent(terms: value),
+                      ),
+                      _ReviewConsent(
+                        key: const Key('consent-privacy'),
+                        value: controller.draft.privacyAccepted,
+                        title: 'Privacy Policy · version 2026-08',
+                        onChanged: (value) => _setConsent(privacy: value),
+                      ),
+                      _ReviewConsent(
+                        key: const Key('consent-demo'),
+                        value: controller.draft.demoAccepted,
+                        title: 'Demo disclosure · version 2026-08',
+                        subtitle: 'I understand this is a Demo and no real money moves.',
+                        onChanged: (value) => _setConsent(demo: value),
+                      ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          key: const Key('review-create-account'),
+                          onPressed: controller.isReadyForAuthentication
+                              ? onPrimaryAction
+                              : null,
+                          child: Text(primaryActionLabel),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-              const SizedBox(height: 20),
-              _ReviewLine(
-                label: 'Investing approach',
-                value:
-                    '${_label(controller.draft.goal)}, ${_label(controller.draft.horizon)} horizon, ${_label(controller.draft.risk)} risk',
-                onEdit: () => onEdit(OnboardingStep.experience),
               ),
-              _ReviewLine(
-                label: 'Ritual language',
-                value: _label(controller.draft.ritualLanguage),
-                onEdit: () => onEdit(OnboardingStep.ritualLanguage),
-              ),
-              _ReviewLine(
-                label: 'Astrology',
-                value: controller.draft.astrologyEnabled == true
-                    ? 'Astrology decision: accepted · Personalized from birth date by the server'
-                    : 'Astrology decision: declined · General astrology; no birth data saved',
-                onEdit: () => onEdit(OnboardingStep.astrologyOptIn),
-              ),
-              const Divider(height: 32),
-              CheckboxListTile(
-                key: const Key('consent-terms'),
-                contentPadding: EdgeInsets.zero,
-                minTileHeight: 48,
-                value: controller.draft.termsAccepted,
-                title: const Text('Terms · version 2026-08'),
-                onChanged: (value) => _setConsent(terms: value ?? false),
-              ),
-              CheckboxListTile(
-                key: const Key('consent-privacy'),
-                contentPadding: EdgeInsets.zero,
-                minTileHeight: 48,
-                value: controller.draft.privacyAccepted,
-                title: const Text('Privacy Policy · version 2026-08'),
-                onChanged: (value) => _setConsent(privacy: value ?? false),
-              ),
-              CheckboxListTile(
-                key: const Key('consent-demo'),
-                contentPadding: EdgeInsets.zero,
-                minTileHeight: 48,
-                value: controller.draft.demoAccepted,
-                title: const Text('Demo disclosure · version 2026-08'),
-                subtitle: const Text(
-                  'I understand this is a Demo and no real money moves.',
-                ),
-                onChanged: (value) => _setConsent(demo: value ?? false),
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                key: const Key('review-create-account'),
-                onPressed: controller.isReadyForAuthentication
-                    ? onPrimaryAction
-                    : null,
-                child: Text(primaryActionLabel),
-              ),
-            ],
+            ),
           ),
         ),
       );
@@ -430,6 +644,57 @@ class _ReviewLine extends StatelessWidget {
   );
 }
 
+class _ReviewConsent extends StatelessWidget {
+  const _ReviewConsent({
+    super.key,
+    required this.value,
+    required this.title,
+    required this.onChanged,
+    this.subtitle,
+  });
+
+  final bool value;
+  final String title;
+  final String? subtitle;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: value
+            ? scheme.primary.withValues(
+                alpha: Theme.of(context).brightness == Brightness.dark
+                    ? 0.18
+                    : 0.08,
+              )
+            : scheme.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: value ? scheme.primary : Theme.of(context).dividerColor,
+          ),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: CheckboxListTile(
+          value: value,
+          selected: value,
+          minTileHeight: 56,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 2,
+          ),
+          title: Text(title),
+          subtitle: subtitle == null ? null : Text(subtitle!),
+          onChanged: (next) => onChanged(next ?? false),
+        ),
+      ),
+    );
+  }
+}
+
 class _PersistenceNotice extends StatelessWidget {
   const _PersistenceNotice({required this.message, this.onRetry});
 
@@ -442,13 +707,25 @@ class _PersistenceNotice extends StatelessWidget {
     container: true,
     liveRegion: true,
     label: message,
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(message),
-        if (onRetry != null)
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
-      ],
+    child: Material(
+      color: Theme.of(context).colorScheme.secondaryContainer,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(Icons.cloud_off_outlined, size: 20),
+            ),
+            const SizedBox(width: 10),
+            Expanded(child: Text(message)),
+            if (onRetry != null)
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
     ),
   );
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -171,14 +173,19 @@ void main() {
     }
   });
 
-  testWidgets('clean install cannot deep-link past guided welcome', (
+  testWidgets('clean install signs up before starting onboarding', (
     tester,
   ) async {
-    final sessions = _SignedOutSessionRepository();
+    final sessions = _SignedOutSessionRepository(
+      passwordSession: const AuthSession(
+        accessToken: 'password-token',
+        userId: '11111111-1111-4111-8111-111111111111',
+      ),
+    );
     final auth = AuthController(repository: sessions);
     final coordinator = EntryCoordinator(
       authController: auth,
-      bootstrapService: _UnusedBootstrapService(),
+      bootstrapService: _IncompleteBootstrapService(),
       draftStore: OnboardingDraftStore(
         storage: _MemoryProtectedStorage(),
         installation: const FixedInstallationBinding('install-a'),
@@ -196,9 +203,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('welcome-get-started')), findsOneWidget);
+    expect(find.byKey(const Key('welcome-create-account')), findsOneWidget);
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('welcome-get-started'))),
+      tester.element(find.byKey(const Key('welcome-create-account'))),
     );
     router.go(MemberRoutes.ritual.path);
     await tester.pumpAndSettle();
@@ -207,15 +214,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(router.state.uri.path, '/welcome');
 
-    await tester.tap(find.byKey(const Key('welcome-get-started')));
+    await tester.tap(find.byKey(const Key('welcome-create-account')));
     await tester.pumpAndSettle();
+    expect(router.state.uri.path, '/sign-up');
+    expect(find.text('Create account'), findsAtLeastNWidgets(1));
+
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-email')),
+      'new-member@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-password')),
+      'correct horse battery staple',
+    );
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-password-confirmation')),
+      'correct horse battery staple',
+    );
+    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.pumpAndSettle();
+
     expect(router.state.uri.path, '/onboarding/experience');
     expect(find.text('How familiar are you with investing?'), findsOneWidget);
+    expect(find.byKey(const Key('recovery-continue')), findsNothing);
+    expect(sessions.passwordSignUpCredentials, [
+      (
+        email: 'new-member@example.com',
+        password: 'correct horse battery staple',
+      ),
+    ]);
 
     await tester.tap(find.byKey(const Key('onboarding-back')));
     await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/welcome');
-    expect(find.byKey(const Key('welcome-get-started')), findsOneWidget);
+
+    expect(router.state.uri.path, '/onboarding/recovery');
+    expect(find.byKey(const Key('welcome-create-account')), findsNothing);
+    expect(find.byKey(const Key('recovery-continue')), findsOneWidget);
   });
 
   testWidgets('existing account opens credential sign in without OAuth', (
@@ -254,6 +288,144 @@ void main() {
     expect(find.byKey(const Key('member-sign-in-password')), findsOneWidget);
     expect(sessions.passwordCredentials, isEmpty);
   });
+
+  testWidgets('signup failure stays on account creation without onboarding', (
+    tester,
+  ) async {
+    final sessions = _SignedOutSessionRepository(
+      authenticationError: const MemberAuthUnavailable('email_exists'),
+    );
+    final auth = AuthController(repository: sessions);
+    final coordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: _UnusedBootstrapService(),
+      draftStore: OnboardingDraftStore(
+        storage: _MemoryProtectedStorage(),
+        installation: const FixedInstallationBinding('install-a'),
+        now: () => DateTime.utc(2026, 8, 24),
+      ),
+      onboardingRepository: _UnusedOnboardingRepository(),
+    );
+    final container = fixtureContainer(
+      authController: auth,
+      entryCoordinator: coordinator,
+    );
+    await coordinator.restore();
+    await tester.pumpWidget(
+      RitualInvestingApp(container: container, bootstrapOnStart: false),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('welcome-create-account')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-email')),
+      'existing@example.com',
+    );
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-password')),
+      'correct horse battery staple',
+    );
+    await tester.enterText(
+      find.byKey(const Key('member-sign-in-password-confirmation')),
+      'correct horse battery staple',
+    );
+    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('member-sign-in-email'))),
+    );
+    expect(router.state.uri.path, '/sign-up');
+    expect(
+      find.text('An account already exists for this email.'),
+      findsOneWidget,
+    );
+    expect(find.text('How familiar are you with investing?'), findsNothing);
+  });
+
+  testWidgets(
+    'confirmation-required signup replaces the form with a check-email screen',
+    (tester) async {
+      final signUpBarrier = Completer<void>();
+      final sessions = _SignedOutSessionRepository(
+        authenticationError: const MemberAuthUnavailable(
+          'email_confirmation_required',
+        ),
+        signUpBarrier: signUpBarrier.future,
+      );
+      final auth = AuthController(repository: sessions);
+      final coordinator = EntryCoordinator(
+        authController: auth,
+        bootstrapService: _UnusedBootstrapService(),
+        draftStore: OnboardingDraftStore(
+          storage: _MemoryProtectedStorage(),
+          installation: const FixedInstallationBinding('install-a'),
+          now: () => DateTime.utc(2026, 8, 24),
+        ),
+        onboardingRepository: _UnusedOnboardingRepository(),
+      );
+      final container = fixtureContainer(
+        authController: auth,
+        entryCoordinator: coordinator,
+      );
+      await coordinator.restore();
+      await tester.pumpWidget(
+        RitualInvestingApp(container: container, bootstrapOnStart: false),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('welcome-create-account')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('member-sign-in-email')),
+        'new-member@example.com',
+      );
+      await tester.enterText(
+        find.byKey(const Key('member-sign-in-password')),
+        'correct horse battery staple',
+      );
+      await tester.enterText(
+        find.byKey(const Key('member-sign-in-password-confirmation')),
+        'correct horse battery staple',
+      );
+      final router = GoRouter.of(
+        tester.element(find.byKey(const Key('member-sign-in-email'))),
+      );
+
+      await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+      await tester.pump();
+      await tester.pump();
+      expect(router.state.uri.path, '/sign-up');
+
+      signUpBarrier.complete();
+      await tester.pumpAndSettle();
+
+      expect(router.state.uri.path, '/check-email');
+      expect(find.text('Check your email'), findsOneWidget);
+      expect(find.text('new-member@example.com'), findsOneWidget);
+      expect(find.byKey(const Key('member-sign-in-email')), findsNothing);
+      expect(find.byKey(const Key('member-sign-in-password')), findsNothing);
+      expect(
+        find.widgetWithText(FilledButton, 'Go to sign in'),
+        findsOneWidget,
+      );
+      expect(
+        find.widgetWithText(TextButton, 'Use a different email'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('welcome-create-account')), findsNothing);
+      expect(find.text('How familiar are you with investing?'), findsNothing);
+
+      await tester.tap(
+        find.byKey(const Key('email-confirmation-change-email')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(router.state.uri.path, '/sign-up');
+      expect(find.byKey(const Key('member-sign-in-email')), findsOneWidget);
+    },
+  );
 
   testWidgets('fallback signed-out gate opens password form without OAuth', (
     tester,
@@ -508,6 +680,10 @@ void main() {
         find.byKey(const Key('member-sign-in-password')),
         'correct horse battery staple',
       );
+      await tester.enterText(
+        find.byKey(const Key('member-sign-in-password-confirmation')),
+        'correct horse battery staple',
+      );
       await tester.tap(find.byKey(const Key('member-sign-in-submit')));
       await tester.pumpAndSettle();
 
@@ -546,7 +722,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('welcome-get-started')));
+    await coordinator.beginQuestionnaire();
     await tester.pumpAndSettle();
 
     expect(find.text('How familiar are you with investing?'), findsOneWidget);
@@ -1040,11 +1216,13 @@ class _SignedOutSessionRepository
     this.authenticationError,
     this.passwordSession,
     this.restoredSession,
+    this.signUpBarrier,
   });
 
   final Object? authenticationError;
   final AuthSession? passwordSession;
   final AuthSession? restoredSession;
+  final Future<void>? signUpBarrier;
   final List<({String email, String password})> passwordCredentials = [];
   final List<({String email, String password})> passwordSignUpCredentials = [];
   @override
@@ -1069,6 +1247,7 @@ class _SignedOutSessionRepository
     required String password,
   }) async {
     passwordSignUpCredentials.add((email: email, password: password));
+    await signUpBarrier;
     final error = authenticationError;
     if (error != null) throw error;
     return passwordSession ?? const AuthSession(accessToken: 'password-token');

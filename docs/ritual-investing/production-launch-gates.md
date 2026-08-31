@@ -3,7 +3,7 @@
 Production is blocked until every item below has a named owner, dated evidence,
 and rollback authority. A pre-production deployment does not waive a gate.
 
-The invite-first public web beta is not a production launch and does not
+The self-service public web beta is not a production launch and does not
 redesign the retained landing artifact, standalone Demo, or member product
 behavior. The clearly labeled member Worker may own the apex while the
 unchanged landing stays available as the tested rollback and Pages-hosted
