@@ -15,6 +15,16 @@ node_modules/
 .next/
 .context/compound-engineering/
 
+# Terraform runtime artifacts. Provider dependency locks are source artifacts.
+infra/terraform/**/.terraform/
+infra/terraform/**/*.tfstate
+infra/terraform/**/*.tfstate.*
+infra/terraform/**/*.tfplan
+infra/terraform/**/*.tfplan.*
+infra/terraform/**/crash.log
+infra/terraform/**/crash.*.log
+!infra/terraform/**/.terraform.lock.hcl
+
 # Local Ritual staging/load evidence is stored in the approved evidence system.
 ritual-investing-api/capacity-report*.json
 
