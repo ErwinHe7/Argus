@@ -35,7 +35,8 @@ class StarpathViewState {
 
   bool get isReadOnly =>
       phase == StarpathViewPhase.cachedStale ||
-      phase == StarpathViewPhase.offlineReadOnly;
+      phase == StarpathViewPhase.offlineReadOnly ||
+      (snapshot?.isDraftPreview ?? false);
 }
 
 class StarpathController extends ChangeNotifier {
