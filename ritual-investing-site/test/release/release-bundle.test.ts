@@ -11,6 +11,7 @@ import {
   type ReleaseBuildOptions,
 } from "../../scripts/release/build-release-bundle.ts";
 import {
+  parseReleaseManifest,
   parseReleaseProfile,
   profileReleaseEligibility,
   verifyReleaseBundle,
@@ -162,6 +163,13 @@ describe("immutable Ritual release bundle", () => {
     expect(first.manifestSha256).toBe(second.manifestSha256);
     expect(first.manifest.trees.map(({ environment, sha256 }) => ({ environment, sha256 })))
       .toEqual(second.manifest.trees.map(({ environment, sha256 }) => ({ environment, sha256 })));
+    expect(first.manifest.trees.map(({ environment, surfaces }) => ({
+      environment,
+      surfaces: surfaces.map(({ surface, probeManifestSha256 }) => ({ surface, probeManifestSha256 })),
+    }))).toEqual(second.manifest.trees.map(({ environment, surfaces }) => ({
+      environment,
+      surfaces: surfaces.map(({ surface, probeManifestSha256 }) => ({ surface, probeManifestSha256 })),
+    })));
     expect(first.manifest.trees.map(({ environment }) => environment)).toEqual(["staging", "prod"]);
     expect(first.manifest.files.map(({ path }) => path)).toEqual(
       [...first.manifest.files.map(({ path }) => path)].sort(),
@@ -172,6 +180,33 @@ describe("immutable Ritual release bundle", () => {
     await expect(verifyReleaseBundle(first.bundleDirectory)).resolves.toMatchObject({
       manifestSha256: first.manifestSha256,
     });
+    for (const tree of first.manifest.trees) {
+      for (const surface of tree.surfaces) {
+        const root = join(first.bundleDirectory, surface.root);
+        const version = JSON.parse(await readFile(join(root, "version.json"), "utf8")) as unknown;
+        expect(version).toEqual({
+          schemaVersion: 1,
+          revision: SHA,
+          manifestSha256: surface.probeManifestSha256,
+        });
+        const assetManifest = JSON.parse(await readFile(join(root, "asset-manifest.json"), "utf8")) as {
+          files: Array<{ path: string }>;
+        };
+        expect(assetManifest.files.map(({ path }) => path)).toContain("version.json");
+        expect(assetManifest.files.map(({ path }) => path)).not.toContain("asset-manifest.json");
+      }
+    }
+  });
+
+  it("strictly parses each surface probe manifest identity", async () => {
+    const built = await buildReleaseBundle(await fixture());
+    const missing = structuredClone(built.manifest) as unknown as Record<string, any>;
+    delete missing.trees[0].surfaces[0].probeManifestSha256;
+    expect(() => parseReleaseManifest(missing)).toThrow(/probeManifestSha256|missing/i);
+
+    const malformed = structuredClone(built.manifest) as unknown as Record<string, any>;
+    malformed.trees[0].surfaces[0].probeManifestSha256 = "not-a-digest";
+    expect(() => parseReleaseManifest(malformed)).toThrow(/probe manifest SHA-256|digest shape/i);
   });
 
   it.each([

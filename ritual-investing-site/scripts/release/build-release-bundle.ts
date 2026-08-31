@@ -15,6 +15,7 @@ import { pathToFileURL } from "node:url";
 import { buildDeploymentAssets } from "../build-assets.ts";
 import {
   assertReleaseContentsSafe,
+  calculateProbeManifestSha256,
   isExcludedReleaseSource,
   isSecretShapedReleasePath,
   parseReleaseManifest,
@@ -139,6 +140,33 @@ async function inventoryFiles(bundleRoot: string): Promise<ReleaseFileEntry[]> {
   return entries.sort((left, right) => left.path.localeCompare(right.path));
 }
 
+async function writeSurfaceProbeIdentity(
+  surfaceRoot: string,
+  revision: string,
+  epoch: number,
+): Promise<string> {
+  const beforeIdentity = await inventoryFiles(surfaceRoot);
+  const probeManifestSha256 = calculateProbeManifestSha256(beforeIdentity);
+  const version = Buffer.from(`${JSON.stringify({
+    schemaVersion: 1,
+    revision,
+    manifestSha256: probeManifestSha256,
+  }, null, 2)}\n`);
+  await writeStableFile(join(surfaceRoot, "version.json"), version, epoch);
+
+  const files = (await inventoryFiles(surfaceRoot))
+    .filter(({ path }) => path !== "asset-manifest.json")
+    .sort((left, right) => left.path.localeCompare(right.path));
+  const assetManifest = Buffer.from(`${JSON.stringify({
+    algorithm: "sha256",
+    fileCount: files.length,
+    totalBytes: files.reduce((sum, file) => sum + file.bytes, 0),
+    files,
+  }, null, 2)}\n`);
+  await writeStableFile(join(surfaceRoot, "asset-manifest.json"), assetManifest, epoch);
+  return probeManifestSha256;
+}
+
 function digestEntries(entries: readonly ReleaseFileEntry[], root: string): ReleaseDigestEntry {
   const prefix = `${root}/`;
   const included = entries.filter(({ path }) => path === root || path.startsWith(prefix));
@@ -151,6 +179,12 @@ function digestEntries(entries: readonly ReleaseFileEntry[], root: string): Rele
     totalBytes: included.reduce((sum, entry) => sum + entry.bytes, 0),
     sha256: createHash("sha256").update(canonical).digest("hex"),
   };
+}
+
+function requiredProbeManifestDigest(digests: ReadonlyMap<string, string>, key: string): string {
+  const digest = digests.get(key);
+  if (digest === undefined) throw new Error(`Missing probe content manifest digest: ${key}`);
+  return digest;
 }
 
 function tarString(header: Buffer, value: string, offset: number, length: number): void {
@@ -250,6 +284,7 @@ export async function buildReleaseBundle(options: ReleaseBuildOptions): Promise<
   await rm(outputDirectory, { recursive: true, force: true });
   const bundleDirectory = join(outputDirectory, "release-bundle");
   await mkdir(bundleDirectory, { recursive: true });
+  const probeManifestDigests = new Map<string, string>();
 
   for (let index = 0; index < ENVIRONMENTS.length; index += 1) {
     const environment = ENVIRONMENTS[index];
@@ -266,6 +301,11 @@ export async function buildReleaseBundle(options: ReleaseBuildOptions): Promise<
         `trees/${environment}/${surface}`,
         bundleDirectory,
         options.sourceDateEpoch,
+      );
+      const surfaceRoot = join(bundleDirectory, `trees/${environment}/${surface}`);
+      probeManifestDigests.set(
+        `${environment}/${surface}`,
+        await writeSurfaceProbeIdentity(surfaceRoot, options.provenance.subject.sha, options.sourceDateEpoch),
       );
     }
   }
@@ -301,6 +341,7 @@ export async function buildReleaseBundle(options: ReleaseBuildOptions): Promise<
     surfaces: SURFACES.map((surface) => ({
       ...digestEntries(files, `trees/${environment}/${surface}`),
       surface,
+      probeManifestSha256: requiredProbeManifestDigest(probeManifestDigests, `${environment}/${surface}`),
     })),
   }));
   const snapshots: ReleaseManifest["snapshots"] = [

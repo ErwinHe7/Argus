@@ -71,7 +71,10 @@ export type ReleaseManifest = {
   profiles: Array<ReleaseDigestEntry & { environment: ReleaseEnvironment; identity: string }>;
   trees: Array<ReleaseDigestEntry & {
     environment: ReleaseEnvironment;
-    surfaces: Array<ReleaseDigestEntry & { surface: ReleaseSurface }>;
+    surfaces: Array<ReleaseDigestEntry & {
+      surface: ReleaseSurface;
+      probeManifestSha256: string;
+    }>;
   }>;
   snapshots: Array<ReleaseDigestEntry & {
     name: "terraform" | "supabase-migrations" | "supabase-functions" | "ritual-inventories";
@@ -354,6 +357,51 @@ function assertOrderedUnique(values: readonly string[], label: string): void {
   }
 }
 
+export function calculateProbeManifestSha256(entries: readonly ReleaseFileEntry[]): string {
+  const deployable = entries
+    .filter(({ path }) => path !== "version.json" && path !== "asset-manifest.json")
+    .sort((left, right) => left.path.localeCompare(right.path));
+  if (deployable.length === 0) throw new Error("Probe content manifest cannot be empty");
+  assertOrderedUnique(deployable.map(({ path }) => path), "Probe content manifest paths");
+  const canonical = deployable.map(({ path, bytes, sha256 }) => `${sha256} ${bytes} ${path}\n`).join("");
+  return createHash("sha256").update(canonical).digest("hex");
+}
+
+function parseProbeVersion(value: unknown, label: string): {
+  schemaVersion: 1;
+  revision: string;
+  manifestSha256: string;
+} {
+  const candidate = object(value, label);
+  exactKeys(candidate, ["schemaVersion", "revision", "manifestSha256"], label);
+  if (candidate.schemaVersion !== 1) throw new Error(`${label} schemaVersion must be 1`);
+  return {
+    schemaVersion: 1,
+    revision: hex(candidate.revision, GIT_SHA, `${label} revision`),
+    manifestSha256: hex(candidate.manifestSha256, SHA256, `${label} manifest SHA-256`),
+  };
+}
+
+function parseAssetManifest(value: unknown, label: string): {
+  algorithm: "sha256";
+  fileCount: number;
+  totalBytes: number;
+  files: ReleaseFileEntry[];
+} {
+  const candidate = object(value, label);
+  exactKeys(candidate, ["algorithm", "fileCount", "totalBytes", "files"], label);
+  if (candidate.algorithm !== "sha256") throw new Error(`${label} algorithm must be sha256`);
+  if (!Array.isArray(candidate.files)) throw new Error(`${label} files must be an array`);
+  const files = candidate.files.map((entry, index) => parseFileEntry(entry, `${label} file ${index}`));
+  assertOrderedUnique(files.map(({ path }) => path), `${label} file paths`);
+  const fileCount = integer(candidate.fileCount, `${label} fileCount`);
+  const totalBytes = integer(candidate.totalBytes, `${label} totalBytes`);
+  if (fileCount !== files.length || totalBytes !== files.reduce((sum, entry) => sum + entry.bytes, 0)) {
+    throw new Error(`${label} inventory totals do not match its files`);
+  }
+  return { algorithm: "sha256", fileCount, totalBytes, files };
+}
+
 export function parseReleaseManifest(value: unknown): ReleaseManifest {
   const candidate = object(value, "release manifest");
   exactKeys(candidate, [
@@ -403,7 +451,11 @@ export function parseReleaseManifest(value: unknown): ReleaseManifest {
     if (parsed.root !== `trees/${parsed.environment}`) throw new Error("Release tree root is not canonical");
     if (!Array.isArray(parsed.surfaces) || parsed.surfaces.length !== 2) throw new Error("Each release tree must contain landing and demo surfaces");
     const surfaces = parsed.surfaces.map((surfaceEntry, surfaceIndex) => {
-      const surface = parseDigestEntry(surfaceEntry, ["surface"], `release tree ${index} surface ${surfaceIndex}`);
+      const surface = parseDigestEntry(
+        surfaceEntry,
+        ["surface", "probeManifestSha256"],
+        `release tree ${index} surface ${surfaceIndex}`,
+      );
       if (surface.surface !== SURFACES[surfaceIndex]) throw new Error("Release surfaces must be ordered landing then demo");
       if (surface.root !== `trees/${parsed.environment}/${surface.surface}`) throw new Error("Release surface root is not canonical");
       return {
@@ -412,6 +464,11 @@ export function parseReleaseManifest(value: unknown): ReleaseManifest {
         totalBytes: surface.totalBytes,
         sha256: surface.sha256,
         surface: surface.surface as ReleaseSurface,
+        probeManifestSha256: hex(
+          surface.probeManifestSha256,
+          SHA256,
+          `release tree ${index} surface ${surfaceIndex} probe manifest SHA-256`,
+        ),
       };
     });
     return {
@@ -575,6 +632,20 @@ function sameIdentity(expected: Record<string, unknown>, actual: Record<string, 
   }
 }
 
+function sameFileInventory(
+  expected: readonly ReleaseFileEntry[],
+  actual: readonly ReleaseFileEntry[],
+  label: string,
+): void {
+  if (expected.length !== actual.length || expected.some((entry, index) => {
+    const observed = actual[index];
+    return observed === undefined || entry.path !== observed.path || entry.bytes !== observed.bytes ||
+      entry.sha256 !== observed.sha256;
+  })) {
+    throw new Error(`${label} does not match the exact deployable tree inventory`);
+  }
+}
+
 export type BundleVerificationContext = {
   expectedSubject?: ReleaseSubjectIdentity;
   expectedController?: ReleaseControllerIdentity;
@@ -624,7 +695,34 @@ export async function verifyReleaseBundle(
   }
   for (const tree of manifest.trees) {
     sameDigest(tree, digestEntries(actualFiles, tree.root), `${tree.environment} tree`);
-    for (const surface of tree.surfaces) sameDigest(surface, digestEntries(actualFiles, surface.root), `${tree.environment} ${surface.surface} tree`);
+    for (const surface of tree.surfaces) {
+      const label = `${tree.environment} ${surface.surface}`;
+      sameDigest(surface, digestEntries(actualFiles, surface.root), `${label} tree`);
+      const prefix = `${surface.root}/`;
+      const surfaceFiles = actualFiles
+        .filter(({ path }) => path.startsWith(prefix))
+        .map(({ path, bytes, sha256 }) => ({ path: path.slice(prefix.length), bytes, sha256 }));
+      const probeManifestSha256 = calculateProbeManifestSha256(surfaceFiles);
+      if (probeManifestSha256 !== surface.probeManifestSha256) {
+        throw new Error(`${label} probe content manifest digest mismatch`);
+      }
+      const version = parseProbeVersion(
+        JSON.parse(await readFile(join(root, surface.root, "version.json"), "utf8")),
+        `${label} version marker`,
+      );
+      if (version.revision !== manifest.subject.sha || version.manifestSha256 !== probeManifestSha256) {
+        throw new Error(`${label} version marker identity mismatch`);
+      }
+      const assetManifest = parseAssetManifest(
+        JSON.parse(await readFile(join(root, surface.root, "asset-manifest.json"), "utf8")),
+        `${label} asset manifest`,
+      );
+      const expectedAssetFiles = surfaceFiles.filter(({ path }) => path !== "asset-manifest.json");
+      if (!assetManifest.files.some(({ path }) => path === "version.json")) {
+        throw new Error(`${label} asset manifest omits the version marker`);
+      }
+      sameFileInventory(assetManifest.files, expectedAssetFiles, `${label} asset manifest`);
+    }
   }
   for (const snapshot of manifest.snapshots) {
     sameDigest(snapshot, digestEntries(actualFiles, snapshot.root), `${snapshot.name} snapshot`);
@@ -648,7 +746,11 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
   try {
     const bundleDirectory = process.argv[2];
     if (bundleDirectory === undefined) throw new Error("Usage: verify-release-bundle.ts <bundle-directory>");
-    const result = await verifyReleaseBundle(bundleDirectory);
+    const contextJson = process.env.RELEASE_BUNDLE_VERIFICATION_CONTEXT;
+    const context = contextJson === undefined
+      ? {}
+      : JSON.parse(contextJson) as BundleVerificationContext;
+    const result = await verifyReleaseBundle(bundleDirectory, context);
     process.stdout.write(`${JSON.stringify({
       manifestSha256: result.manifestSha256,
       subject: result.manifest.subject,
