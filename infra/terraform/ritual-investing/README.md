@@ -8,8 +8,20 @@ Terraform owns only the Cloudflare Pages project, custom domain, DNS record,
 GitHub environment metadata, and known nonsecret GitHub environment variables.
 Wrangler owns Pages content uploads and is explicitly excluded from this stack.
 Supabase resources and mutations are also explicitly excluded. Credentials,
-GitHub environment secrets, runtime values, import blocks, and deployment
-artifacts must never be added to these roots.
+GitHub environment secrets, runtime values, live inventory values, saved plans,
+and deployment artifacts must never be committed to these roots.
+
+## Current enablement blocker
+
+Remote adoption is **disabled**. There is no complete live inventory or R2
+state-lock proof in this repository, and neither root contains a readiness
+receipt. The declarations and conditional imports are inert by default:
+`adoption_phase` is `disabled`, `enable_brownfield_imports` is `false`, and
+`enable_remote_changes` is `false`. Staging declarations are ready for a future
+reviewed bootstrap, but remote create remains disabled. Prod must remain
+disabled until exact live inventory inputs, backend lock proof, an import-only
+plan, a following no-op plan, and a readiness receipt are recorded outside the
+repository.
 
 ## Roots and state
 
@@ -93,6 +105,62 @@ state. Re-run the same two-client lock, cross-environment access denial,
 version recovery, retention, and encryption evidence before proceeding. There
 is no shared-state or unlocked fallback.
 
+## Manual inventory and brownfield adoption
+
+Never derive an account, zone, project, DNS, or provider import ID from a file
+name. A future operator must inventory the live APIs first. The operator-only
+inventory must cover Pages project mode and variables, Functions or
+`_worker.js`, bindings, domains, DNS records, deployment IDs, physical legacy
+IDs, GitHub environments and settings, state lineage/serial, and known
+nonsecret variables. A secret environment variable, Function, binding, or
+unknown setting leaves that project unmanaged and blocks enablement.
+
+Capture sanitized, read-only GitHub evidence with the checker below. It never
+creates or updates branch protection, rulesets, required checks, reviewers,
+wait timers, or deployment-branch policies, and it fails if any exist.
+
+```sh
+GITHUB_REPOSITORY=OWNER/REPOSITORY GITHUB_TOKEN="$GITHUB_TOKEN" \
+  node --experimental-strip-types \
+  ritual-investing-site/scripts/release/check-github-settings.ts \
+  > /operator-evidence/github-settings-before.json
+```
+
+Keep exact import IDs in an operator-only variable file outside the checkout.
+Cloudflare project and DNS IDs remain opaque provider inputs; the current
+`cloudflare_pages_domain` importer uses the exact domain `name`. GitHub
+repository environments use `<repository>:<environment>`. Never put token
+values or secret Pages variable values in the file.
+
+Once the state-safety gate has a reviewed receipt, these future manual commands
+produce the import-only evidence; they do not describe current readiness:
+
+```sh
+terraform -chdir=infra/terraform/ritual-investing/environments/prod \
+  init -backend-config=../../backends/prod.hcl
+terraform -chdir=infra/terraform/ritual-investing/environments/prod \
+  plan -var-file=/operator-evidence/prod-import.tfvars.json \
+  -out=/operator-evidence/prod-import.tfplan
+terraform -chdir=infra/terraform/ritual-investing/environments/prod \
+  show -json /operator-evidence/prod-import.tfplan \
+  > /operator-evidence/prod-import-plan.json
+```
+
+The operator-only file selects `inventory-import-plan`, enables conditional
+imports, keeps `enable_remote_changes = false`, supplies exact inventory IDs,
+and records SHA-256 digests for live inventory, backend lock proof, and the
+provider lock. The JSON must contain no create, update, delete, replacement,
+unknown resource type, compute, binding, or secret-bearing resource action.
+Import prod one resource type at a time and stop on drift; never remove live
+configuration to make an import fit.
+
+After imports are applied manually to state, disable imports and produce a
+second saved plan from the same inventory. It must be a no-op. Record both plan
+digests, inventory and provider-lock digests, backend proof, state
+lineage/serial, operator, UTC window, and recovery owner in the versioned
+readiness receipt. Only then may an operator select `ready` and explicitly set
+`enable_remote_changes = true`. Repeat the GitHub checker for the after receipt.
+
 ## Plans and destructive-change gate
 
 Plans are transient and must not be committed. Render a saved plan with
@@ -102,5 +170,5 @@ Any delete or replacement action must stop before apply. Production requires a
 separately reviewed zero-delete, zero-replacement plan; U3 performs no import or
 remote apply.
 
-Prefer `moved` blocks for later address refactors and explicit imports during
-the brownfield adoption unit. Neither is part of this foundation.
+Prefer `moved` blocks for later address refactors. U4 imports remain
+configuration-driven and disabled unless exact operator inventory is supplied.

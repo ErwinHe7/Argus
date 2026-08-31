@@ -2,6 +2,8 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
+import { checkGitHubSettings } from "../../scripts/release/check-github-settings.ts";
+
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const terraformRoot = resolve(repositoryRoot, "infra/terraform/ritual-investing");
 
@@ -14,6 +16,7 @@ const requiredFiles = [
   "modules/pages-environment/outputs.tf",
   ...["staging", "prod"].flatMap((environment) => [
     `environments/${environment}/backend.tf`,
+    `environments/${environment}/imports.tf`,
     `environments/${environment}/main.tf`,
     `environments/${environment}/outputs.tf`,
     `environments/${environment}/providers.tf`,
@@ -66,13 +69,22 @@ function resourceBlocks(source: string): Array<{ type: string; body: string }> {
 }
 
 type PlanSummary = {
-  resource_changes?: Array<{ change?: { actions?: string[] } }>;
+  resource_changes?: Array<{ type?: string; change?: { actions?: string[] } }>;
 };
 
 function acceptsPlanSummary(summary: PlanSummary): boolean {
-  return (summary.resource_changes ?? []).every(({ change }) => {
+  const allowedResourceTypes = new Set([
+    "cloudflare_pages_project",
+    "cloudflare_pages_domain",
+    "cloudflare_dns_record",
+    "github_repository_environment",
+    "github_actions_environment_variable",
+  ]);
+  const allowedActions = new Set(["no-op", "read", "create", "update"]);
+  return (summary.resource_changes ?? []).every(({ type, change }) => {
     const actions = change?.actions ?? [];
-    return actions.length > 0 && !actions.includes("delete");
+    return type !== undefined && allowedResourceTypes.has(type) && actions.length > 0 &&
+      actions.every((action) => allowedActions.has(action));
   });
 }
 
@@ -231,17 +243,160 @@ describe("Ritual Terraform release contract", () => {
 
   it("rejects a mocked destructive or replacement plan summary before apply", async () => {
     expect(acceptsPlanSummary({
-      resource_changes: [{ change: { actions: ["update"] } }],
+      resource_changes: [{
+        type: "cloudflare_pages_project",
+        change: { actions: ["update"] },
+      }],
     })).toBe(true);
     expect(acceptsPlanSummary({
-      resource_changes: [{ change: { actions: ["delete"] } }],
+      resource_changes: [{
+        type: "cloudflare_pages_project",
+        change: { actions: ["delete"] },
+      }],
     })).toBe(false);
     expect(acceptsPlanSummary({
-      resource_changes: [{ change: { actions: ["delete", "create"] } }],
+      resource_changes: [{
+        type: "cloudflare_pages_project",
+        change: { actions: ["delete", "create"] },
+      }],
+    })).toBe(false);
+    expect(acceptsPlanSummary({
+      resource_changes: [{
+        type: "cloudflare_pages_project",
+        change: { actions: ["future-provider-action"] },
+      }],
+    })).toBe(false);
+    expect(acceptsPlanSummary({
+      resource_changes: [{
+        type: "cloudflare_workers_script",
+        change: { actions: ["create"] },
+      }],
     })).toBe(false);
 
     const readme = await text("README.md");
     expect(readme).toContain("terraform show -json");
     expect(readme).toMatch(/delete or replacement[\s\S]*stop/i);
+  });
+
+  it("keeps imports conditional, inventory-driven, and free of fabricated provider IDs", async () => {
+    for (const environment of ["staging", "prod"]) {
+      const [imports, main] = await Promise.all([
+        text(`environments/${environment}/imports.tf`),
+        text(`environments/${environment}/main.tf`),
+      ]);
+      expect(imports).toMatch(/for_each\s*=\s*var\.enable_brownfield_imports\s*\?/);
+      expect(imports).toContain("github_repository_environment");
+      expect(imports).toContain('"${var.github_repository}:${var.environment}"');
+      expect(imports).not.toMatch(/\b[a-f0-9]{32,64}\b/i);
+      expect(main).toMatch(/enable_remote_changes[\s\S]*default\s*=\s*false/);
+      expect(main).toMatch(/live_inventory_sha256/);
+      expect(main).toMatch(/backend_lock_proof_sha256/);
+      for (const unsafeInventoryField of [
+        "has_secret_environment_variables",
+        "has_functions_or_worker",
+        "has_bindings",
+        "has_unknown_settings",
+      ]) expect(main).toContain(unsafeInventoryField);
+    }
+
+    const prodImports = await text("environments/prod/imports.tf");
+    expect(prodImports).toMatch(/pages_project_import_id/);
+    expect(prodImports).toMatch(/dns_record_import_id/);
+    expect(prodImports).toMatch(/cloudflare_pages_domain[\s\S]*id\s*=\s*each\.value\.name/);
+    expect(prodImports).not.toMatch(/(?:account|zone)_id\s*=\s*"/);
+
+    const readme = await text("README.md");
+    expect(readme).toMatch(/no (?:complete )?live inventory[\s\S]*R2[\s\S]*proof[\s\S]*repository/i);
+    expect(readme).toMatch(/import-only[\s\S]*no-op[\s\S]*readiness receipt/i);
+    expect(readme).toMatch(/remote create[\s\S]*disabled/i);
+  });
+
+  it("reads GitHub settings without mutation and fails closed on any policy", async () => {
+    const calls: Array<{ url: string; method: string }> = [];
+    const cleanFetch: typeof fetch = async (input, init) => {
+      const url = String(input);
+      calls.push({ url, method: init?.method ?? "GET" });
+      if (url.endsWith("/branches?per_page=100&page=1")) {
+        return Response.json([{ name: "main", protected: false }]);
+      }
+      if (url.endsWith("/branches/main/protection") ||
+          url.endsWith("/branches/main/protection/required_status_checks")) {
+        return new Response(null, { status: 404 });
+      }
+      if (url.endsWith("/rulesets?includes_parents=true&per_page=100&page=1")) {
+        return Response.json([]);
+      }
+      if (url.endsWith("/environments/staging") || url.endsWith("/environments/prod")) {
+        return Response.json({
+          protection_rules: [],
+          deployment_branch_policy: null,
+        });
+      }
+      return new Response(null, { status: 500 });
+    };
+
+    const clean = await checkGitHubSettings({
+      repository: "owner/repository",
+      token: "never-print-this-token",
+      fetchImpl: cleanFetch,
+      now: () => new Date("2026-08-31T12:00:00.000Z"),
+    });
+    expect(clean).toEqual({
+      schemaVersion: 1,
+      checkedAt: "2026-08-31T12:00:00.000Z",
+      repository: "owner/repository",
+      passed: true,
+      branches: { count: 1, protected: [] },
+      main: { protection: false, requiredChecks: [] },
+      rulesets: { count: 0 },
+      environments: {
+        staging: { reviewers: 0, waitTimerMinutes: 0, deploymentBranchPolicy: false },
+        prod: { reviewers: 0, waitTimerMinutes: 0, deploymentBranchPolicy: false },
+      },
+      violations: [],
+    });
+    expect(calls.every(({ method }) => method === "GET")).toBe(true);
+    expect(JSON.stringify(clean)).not.toContain("never-print-this-token");
+
+    const protectedFetch: typeof fetch = async (input) => {
+      const url = String(input);
+      if (url.endsWith("/branches?per_page=100&page=1")) {
+        return Response.json([{ name: "main", protected: true }]);
+      }
+      if (url.endsWith("/branches/main/protection")) return Response.json({ enabled: true });
+      if (url.endsWith("/branches/main/protection/required_status_checks")) {
+        return Response.json({ contexts: ["ci"] });
+      }
+      if (url.endsWith("/rulesets?includes_parents=true&per_page=100&page=1")) {
+        return Response.json([{ id: 123 }]);
+      }
+      if (url.endsWith("/environments/staging")) {
+        return Response.json({
+          protection_rules: [{ type: "required_reviewers", reviewers: [{ type: "User", id: 1 }] }],
+          deployment_branch_policy: null,
+        });
+      }
+      if (url.endsWith("/environments/prod")) {
+        return Response.json({
+          protection_rules: [{ type: "wait_timer", wait_timer: 15 }],
+          deployment_branch_policy: { protected_branches: false, custom_branch_policies: true },
+        });
+      }
+      return new Response(null, { status: 500 });
+    };
+    const protectedSettings = await checkGitHubSettings({
+      repository: "owner/repository",
+      fetchImpl: protectedFetch,
+    });
+    expect(protectedSettings.passed).toBe(false);
+    expect(protectedSettings.violations).toEqual(expect.arrayContaining([
+      "protected branches exist",
+      "main branch protection exists",
+      "required status checks exist",
+      "repository rulesets exist",
+      "staging environment reviewers exist",
+      "prod environment wait timer exists",
+      "prod environment deployment branch policy exists",
+    ]));
   });
 });
