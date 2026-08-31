@@ -19,11 +19,12 @@ describe("Ritual manual release evidence", () => {
   it("requires and verifies one exact canonical source release", async () => {
     const source = await readWorkflow();
     expect(source).toMatch(/on:\n\s+workflow_dispatch:/);
-    expect(source).not.toMatch(/\n\s+(push|pull_request|workflow_run):/);
-    for (const input of ["source_run_id", "artifact_id", "source_sha", "archive_sha256", "manifest_sha256"]) expect(source).toContain(`${input}:`);
+    expect(source).not.toMatch(/\n  (push|pull_request|workflow_run):/);
+    for (const input of ["source_run_id", "artifact_id", "source_sha", "archive_sha256", "manifest_sha256", "prod_readiness_url"]) expect(source).toContain(`${input}:`);
     const preflight = job(source, "source-release");
     for (const condition of ['.repository.full_name == $repository', '.head_repository.full_name == $repository', '.event == "push"', '.head_branch == "main"', '.head_sha == $sha', '.conclusion == "success"', '.path == ".github/workflows/ritual-investing-ci.yml"', '.workflow_run.id == $run_id', '.expired == false']) expect(preflight).toContain(condition);
     expect(preflight).toContain("artifact-ids: ${{ inputs.artifact_id }}");
+    expect(preflight).toContain("merge-multiple: true");
     expect(preflight).toContain("run-id: ${{ inputs.source_run_id }}");
     expect(preflight).toContain(".workflow_run.repository_id == $source_run[0].repository.id");
     expect(preflight).toContain(".workflow_run.head_repository_id == $source_run[0].head_repository.id");
@@ -50,8 +51,13 @@ describe("Ritual manual release evidence", () => {
     const source = await readWorkflow();
     const summary = job(source, "evidence-summary");
     for (const name of heavyJobs) expect(summary).toContain(name);
+    for (const name of ["axio7_rust", "axio7_python", "axio7_typescript", "axio7_docker", "axio7_native", "prod_readiness"]) {
+      expect(summary).toContain(name);
+    }
     expect(summary).toContain("retention-days: 30");
-    expect(source).not.toMatch(/secrets\.|environment:/);
+    expect(source.match(/environment: prod/g)).toHaveLength(1);
+    expect(source.match(/secrets\.AXIO7_PROD_RESEARCH_TOKEN/g)).toHaveLength(1);
+    expect(source).not.toMatch(/reviewers:|wait_timer:|deployment_branch_policy:/);
     for (const line of source.split("\n").filter((entry) => entry.includes("uses:"))) expect(line).toMatch(/uses:\s+[\w.-]+\/[\w.-]+@[a-f0-9]{40}\s+#\s+\S+/);
   });
 });

@@ -71,7 +71,63 @@ export type ReceiptVerificationResult = {
   scope: EligibilityScope;
 };
 
+type ProdCheckStatus = "passed" | "failed" | "blocked";
+type NativeCheck =
+  | { availability: "available"; status: "passed" | "failed" | "blocked"; reason: null }
+  | { availability: "unavailable"; status: "not-run"; reason: string };
+
+export type ProdEvidenceEnvelope = {
+  schemaVersion: "ritual-prod-evidence.v1";
+  status: "ready" | "blocked";
+  subject: ReleaseSubjectIdentity;
+  controller: ReleaseControllerIdentity;
+  source: {
+    runId: string;
+    attempt: number;
+    artifact: { id: string; archiveSha256: string; manifestSha256: string };
+  };
+  checks: {
+    rust: { status: ProdCheckStatus };
+    python: { status: ProdCheckStatus };
+    typescript: { status: ProdCheckStatus };
+    docker: { status: ProdCheckStatus };
+    native: NativeCheck;
+  };
+  prodTarget: { fingerprint: string; runningRevision: string };
+  readiness: {
+    status: "ready" | "blocked" | "unavailable";
+    responseSha256: string | null;
+    observedAt: string;
+  };
+  evidence: {
+    actor: string;
+    workflow: string;
+    ref: string;
+    sha: string;
+    runId: string;
+    attempt: number;
+  };
+};
+
+export type ProdEvidenceVerificationContext = {
+  expectedSubject: ReleaseSubjectIdentity;
+  expectedController: ReleaseControllerIdentity;
+  expectedArtifact: { id: string; archiveSha256: string; manifestSha256: string };
+  expectedProdTargetFingerprint: string;
+  expectedRunningRevision: string;
+  expectedEvidence: ProdEvidenceEnvelope["evidence"];
+  preflightStartedAt: string;
+};
+
+export type ProdEvidenceVerificationResult = {
+  eligible: true;
+  observedAgeSeconds: number;
+  responseSha256: string;
+};
+
 const SHA256 = /^[a-f0-9]{64}$/;
+const GIT_SHA = /^[a-f0-9]{40}$/;
+const RUN_ID = /^[1-9][0-9]*$/;
 const OUTCOMES: readonly ReceiptOutcome[] = [
   "success",
   "failed-before-mutation",
@@ -132,6 +188,12 @@ function isoDate(value: unknown, label: string): string {
 function integer(value: unknown, label: string): number {
   if (!Number.isSafeInteger(value) || (value as number) < 0) throw new Error(`${label} must be a non-negative integer`);
   return value as number;
+}
+
+function positiveInteger(value: unknown, label: string): number {
+  const result = integer(value, label);
+  if (result < 1) throw new Error(`${label} must be greater than zero`);
+  return result;
 }
 
 function parseState(value: unknown, label: string): { lineage: string; serial: number } {
@@ -264,6 +326,171 @@ function exactIdentity(expected: Record<string, unknown>, actual: Record<string,
   }
 }
 
+function parseProdCheck(value: unknown, label: string): { status: ProdCheckStatus } {
+  const candidate = object(value, label);
+  exactKeys(candidate, ["status"], label);
+  if (!(candidate.status === "passed" || candidate.status === "failed" || candidate.status === "blocked")) {
+    throw new Error(`${label} status is unknown`);
+  }
+  return { status: candidate.status };
+}
+
+function parseNativeCheck(value: unknown): NativeCheck {
+  const candidate = object(value, "Native check");
+  exactKeys(candidate, ["availability", "status", "reason"], "Native check");
+  if (candidate.availability === "available") {
+    if (!(candidate.status === "passed" || candidate.status === "failed" || candidate.status === "blocked")) {
+      throw new Error("Available native check status is unknown");
+    }
+    if (candidate.reason !== null) throw new Error("Available native check must not include an unavailability reason");
+    return { availability: "available", status: candidate.status, reason: null };
+  }
+  if (candidate.availability === "unavailable") {
+    if (candidate.status !== "not-run") throw new Error("Unavailable native check must be not-run");
+    return {
+      availability: "unavailable",
+      status: "not-run",
+      reason: string(candidate.reason, "Native unavailability reason"),
+    };
+  }
+  throw new Error("Native availability decision is missing or unknown");
+}
+
+function parseProdEvidenceEnvelope(value: unknown): ProdEvidenceEnvelope {
+  const candidate = object(value, "prod evidence envelope");
+  exactKeys(candidate, [
+    "schemaVersion", "status", "subject", "controller", "source", "checks", "prodTarget", "readiness", "evidence",
+  ], "prod evidence envelope");
+  if (candidate.schemaVersion !== "ritual-prod-evidence.v1") {
+    throw new Error("Prod evidence schemaVersion must be ritual-prod-evidence.v1");
+  }
+  if (candidate.status !== "ready" && candidate.status !== "blocked") {
+    throw new Error("Prod evidence status must be ready or blocked");
+  }
+
+  const source = object(candidate.source, "prod evidence source");
+  exactKeys(source, ["runId", "attempt", "artifact"], "prod evidence source");
+  const sourceRunId = string(source.runId, "Prod evidence source run ID");
+  if (!RUN_ID.test(sourceRunId)) throw new Error("Prod evidence source run ID is invalid");
+  const artifact = object(source.artifact, "prod evidence artifact");
+  exactKeys(artifact, ["id", "archiveSha256", "manifestSha256"], "prod evidence artifact");
+  const artifactId = string(artifact.id, "Prod evidence artifact ID");
+  if (!RUN_ID.test(artifactId)) throw new Error("Prod evidence artifact ID is invalid");
+
+  const checks = object(candidate.checks, "prod evidence checks");
+  exactKeys(checks, ["rust", "python", "typescript", "docker", "native"], "prod evidence checks");
+  const prodTarget = object(candidate.prodTarget, "prod evidence target");
+  exactKeys(prodTarget, ["fingerprint", "runningRevision"], "prod evidence target");
+  const runningRevision = string(prodTarget.runningRevision, "Prod running revision");
+  if (!GIT_SHA.test(runningRevision)) throw new Error("Prod running revision must be a lowercase Git SHA");
+
+  const readiness = object(candidate.readiness, "prod readiness evidence");
+  exactKeys(readiness, ["status", "responseSha256", "observedAt"], "prod readiness evidence");
+  if (!(readiness.status === "ready" || readiness.status === "blocked" || readiness.status === "unavailable")) {
+    throw new Error("Prod readiness status is unknown");
+  }
+
+  const evidence = object(candidate.evidence, "prod evidence run");
+  exactKeys(evidence, ["actor", "workflow", "ref", "sha", "runId", "attempt"], "prod evidence run");
+  const evidenceRef = string(evidence.ref, "Prod evidence ref");
+  if (!evidenceRef.startsWith("refs/")) throw new Error("Prod evidence ref must be a full Git ref");
+  const evidenceSha = string(evidence.sha, "Prod evidence workflow SHA");
+  if (!GIT_SHA.test(evidenceSha)) throw new Error("Prod evidence workflow SHA must be a lowercase Git SHA");
+  const evidenceRunId = string(evidence.runId, "Prod evidence run ID");
+  if (!RUN_ID.test(evidenceRunId)) throw new Error("Prod evidence run ID is invalid");
+
+  return {
+    schemaVersion: "ritual-prod-evidence.v1",
+    status: candidate.status,
+    subject: parseReleaseSubject(candidate.subject),
+    controller: parseReleaseController(candidate.controller),
+    source: {
+      runId: sourceRunId,
+      attempt: positiveInteger(source.attempt, "Prod evidence source attempt"),
+      artifact: {
+        id: artifactId,
+        archiveSha256: digest(artifact.archiveSha256, "Prod evidence archive digest"),
+        manifestSha256: digest(artifact.manifestSha256, "Prod evidence manifest digest"),
+      },
+    },
+    checks: {
+      rust: parseProdCheck(checks.rust, "Rust check"),
+      python: parseProdCheck(checks.python, "Python check"),
+      typescript: parseProdCheck(checks.typescript, "TypeScript check"),
+      docker: parseProdCheck(checks.docker, "Docker check"),
+      native: parseNativeCheck(checks.native),
+    },
+    prodTarget: {
+      fingerprint: digest(prodTarget.fingerprint, "Prod target fingerprint"),
+      runningRevision,
+    },
+    readiness: {
+      status: readiness.status,
+      responseSha256: readiness.responseSha256 === null
+        ? null
+        : digest(readiness.responseSha256, "Prod readiness response digest"),
+      observedAt: isoDate(readiness.observedAt, "Prod readiness observedAt"),
+    },
+    evidence: {
+      actor: string(evidence.actor, "Prod evidence actor"),
+      workflow: string(evidence.workflow, "Prod evidence workflow"),
+      ref: evidenceRef,
+      sha: evidenceSha,
+      runId: evidenceRunId,
+      attempt: positiveInteger(evidence.attempt, "Prod evidence attempt"),
+    },
+  };
+}
+
+export function validateProdEvidenceEnvelope(
+  value: unknown,
+  context: ProdEvidenceVerificationContext,
+): ProdEvidenceVerificationResult {
+  const envelope = parseProdEvidenceEnvelope(value);
+  if (envelope.status !== "ready") throw new Error("Prod evidence status is blocked");
+  exactIdentity(context.expectedSubject, envelope.subject, "Release subject");
+  exactIdentity(context.expectedController, envelope.controller, "Release controller");
+  if (envelope.source.runId !== context.expectedSubject.runId || envelope.source.attempt !== context.expectedSubject.attempt) {
+    throw new Error("Prod evidence source run or attempt mismatch");
+  }
+  if (envelope.source.artifact.id !== context.expectedArtifact.id ||
+      envelope.source.artifact.archiveSha256 !== context.expectedArtifact.archiveSha256 ||
+      envelope.source.artifact.manifestSha256 !== context.expectedArtifact.manifestSha256) {
+    throw new Error("Prod evidence source artifact mismatch");
+  }
+  for (const [name, check] of Object.entries({
+    Rust: envelope.checks.rust,
+    Python: envelope.checks.python,
+    TypeScript: envelope.checks.typescript,
+    Docker: envelope.checks.docker,
+  })) {
+    if (check.status !== "passed") throw new Error(`${name} prod evidence did not pass`);
+  }
+  if (envelope.checks.native.availability === "available" && envelope.checks.native.status !== "passed") {
+    throw new Error("Available native prod evidence did not pass");
+  }
+  if (envelope.prodTarget.fingerprint !== context.expectedProdTargetFingerprint) {
+    throw new Error("Prod target fingerprint mismatch");
+  }
+  if (envelope.prodTarget.runningRevision !== context.expectedRunningRevision) {
+    throw new Error("Prod running revision mismatch");
+  }
+  if (envelope.readiness.status !== "ready") throw new Error("Prod readiness status is not ready");
+  if (envelope.readiness.responseSha256 === null) throw new Error("Prod readiness response digest is unavailable");
+  exactIdentity(context.expectedEvidence, envelope.evidence, "Prod evidence run");
+
+  const preflight = Date.parse(isoDate(context.preflightStartedAt, "Prod preflight startedAt"));
+  const observed = Date.parse(envelope.readiness.observedAt);
+  const ageMilliseconds = preflight - observed;
+  if (ageMilliseconds < 0) throw new Error("Prod readiness observation is from the future");
+  if (ageMilliseconds > 15 * 60 * 1000) throw new Error("Prod readiness observation is stale");
+  return {
+    eligible: true,
+    observedAgeSeconds: ageMilliseconds / 1000,
+    responseSha256: envelope.readiness.responseSha256,
+  };
+}
+
 function validateOutcome(receipt: DeploymentReceipt): void {
   const { outcome, eligibility, artifact, surfaces } = receipt;
   if (receipt.infrastructure.beforeState.lineage !== receipt.infrastructure.afterState.lineage ||
@@ -360,15 +587,20 @@ export function validateDeploymentReceipt(
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
-    const receiptPath = process.argv[2];
-    const contextJson = process.env.RELEASE_VERIFICATION_CONTEXT;
+    const prodEvidenceMode = process.argv[2] === "--prod-evidence";
+    const receiptPath = process.argv[prodEvidenceMode ? 3 : 2];
+    const contextJson = process.env[prodEvidenceMode
+      ? "PROD_EVIDENCE_VERIFICATION_CONTEXT"
+      : "RELEASE_VERIFICATION_CONTEXT"];
     if (receiptPath === undefined || contextJson === undefined) {
-      throw new Error("Usage: RELEASE_VERIFICATION_CONTEXT='<json>' verify-deployment-receipt.ts <receipt.json>");
+      throw new Error(prodEvidenceMode
+        ? "Usage: PROD_EVIDENCE_VERIFICATION_CONTEXT='<json>' verify-deployment-receipt.ts --prod-evidence <evidence.json>"
+        : "Usage: RELEASE_VERIFICATION_CONTEXT='<json>' verify-deployment-receipt.ts <receipt.json>");
     }
-    const result = validateDeploymentReceipt(
-      JSON.parse(await readFile(receiptPath, "utf8")),
-      JSON.parse(contextJson) as ReceiptVerificationContext,
-    );
+    const value: unknown = JSON.parse(await readFile(receiptPath, "utf8"));
+    const result = prodEvidenceMode
+      ? validateProdEvidenceEnvelope(value, JSON.parse(contextJson) as ProdEvidenceVerificationContext)
+      : validateDeploymentReceipt(value, JSON.parse(contextJson) as ReceiptVerificationContext);
     process.stdout.write(`${JSON.stringify(result)}\n`);
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Deployment receipt verification failed");
