@@ -84,7 +84,7 @@ DependencyContainer createProductionDependencyContainer(
       now: DateTime.now,
       openBrokerageAuthorization: (uri) =>
           launchUrl(uri, mode: LaunchMode.externalApplication),
-      capabilityPolicy: kIsWeb && config.environment == 'beta'
+      capabilityPolicy: kIsWeb && config.environment == 'staging'
           ? MemberCapabilityPolicy.publicWebBeta
           : MemberCapabilityPolicy.native,
     ).call,

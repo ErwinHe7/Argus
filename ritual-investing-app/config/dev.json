@@ -1,0 +1,6 @@
+{
+  "RITUAL_ENVIRONMENT": "dev",
+  "RITUAL_API_BASE_URL": "http://127.0.0.1:54321/functions/v1/api",
+  "SUPABASE_URL": "http://127.0.0.1:54321",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_local_ritual_dev_000000000"
+}

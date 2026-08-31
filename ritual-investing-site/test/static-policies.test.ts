@@ -4,8 +4,8 @@ import { renderDemoHeaders, renderLandingHeaders } from "../scripts/build-assets
 
 describe("host-specific static response policy", () => {
   it.each([
-    ["production", "https://demo.just-build-this.app", "https://just-build-this.app"],
-    ["beta", "https://demo-beta.just-build-this.app", "https://beta.just-build-this.app"],
+    ["prod", "https://demo.just-build-this.app", "https://just-build-this.app"],
+    ["staging", "https://demo-staging.just-build-this.app", "https://staging.just-build-this.app"],
   ] as const)("locks %s landing and demo to their exact peer", (environment, demoOrigin, landingOrigin) => {
     const waitlist = "https://project-ref.supabase.co/functions/v1/waitlist";
     const landing = renderLandingHeaders(environment, waitlist);
@@ -31,22 +31,22 @@ describe("host-specific static response policy", () => {
   });
 
   it("marks only fingerprinted landing assets immutable and revalidates entry documents", () => {
-    const headers = renderLandingHeaders("production");
+    const headers = renderLandingHeaders("prod");
     expect(headers).toContain("/assets/immutable/*");
     expect(headers).toContain("Cache-Control: public, max-age=31536000, immutable");
     expect(headers).toContain("Cache-Control: no-cache, no-store, must-revalidate");
   });
 
   it("keeps preview waitlist submission disabled when no endpoint is injected", () => {
-    const headers = renderLandingHeaders("beta");
+    const headers = renderLandingHeaders("staging");
     expect(headers).toContain("form-action 'none'");
     expect(headers).not.toContain("supabase.co");
   });
 
-  it("keeps beta and both demo hosts out of indexes", () => {
-    expect(renderLandingHeaders("production")).not.toContain("X-Robots-Tag: noindex");
-    expect(renderLandingHeaders("beta")).toContain("X-Robots-Tag: noindex, nofollow, noarchive");
-    expect(renderDemoHeaders("production")).toContain("X-Robots-Tag: noindex, nofollow, noarchive");
-    expect(renderDemoHeaders("beta")).toContain("X-Robots-Tag: noindex, nofollow, noarchive");
+  it("keeps staging and both demo hosts out of indexes", () => {
+    expect(renderLandingHeaders("prod")).not.toContain("X-Robots-Tag: noindex");
+    expect(renderLandingHeaders("staging")).toContain("X-Robots-Tag: noindex, nofollow, noarchive");
+    expect(renderDemoHeaders("prod")).toContain("X-Robots-Tag: noindex, nofollow, noarchive");
+    expect(renderDemoHeaders("staging")).toContain("X-Robots-Tag: noindex, nofollow, noarchive");
   });
 });

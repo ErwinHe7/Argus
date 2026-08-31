@@ -8,7 +8,7 @@ import {
 } from "../public/landing.js";
 
 const configuration = {
-  environment: "production" as const,
+  environment: "prod" as const,
   demoOrigin: "https://demo.just-build-this.app",
   protocols: [2, 1] as const,
 };
@@ -24,7 +24,7 @@ function readyEvent(overrides: Record<string, unknown> = {}) {
         source: "ritual-investing-demo",
         type: "ritual-demo-ready",
         protocolVersion: 2,
-        environment: "production",
+        environment: "prod",
         attemptId: "attempt-1",
         ...overrides,
       },
@@ -55,12 +55,13 @@ describe("embedded demo lifecycle", () => {
     ["hostile string", { data: "ritual-demo-ready" }],
     ["wrong origin", { origin: "https://hostile.example" }],
     ["wrong source window", { source: { name: "stale-frame" } }],
-    ["missing source marker", { data: { type: "ritual-demo-ready", protocolVersion: 2, environment: "production", attemptId: "attempt-1" } }],
-    ["stale attempt", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: 2, environment: "production", attemptId: "attempt-0" } }],
-    ["cross environment", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: 2, environment: "beta", attemptId: "attempt-1" } }],
-    ["later protocol", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: 3, environment: "production", attemptId: "attempt-1" } }],
-    ["malformed protocol", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: "2", environment: "production", attemptId: "attempt-1" } }],
-    ["unknown type", { data: { source: "ritual-investing-demo", type: "ritual-demo-detail", protocolVersion: 2, environment: "production", attemptId: "attempt-1" } }],
+    ["missing source marker", { data: { type: "ritual-demo-ready", protocolVersion: 2, environment: "prod", attemptId: "attempt-1" } }],
+    ["stale attempt", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: 2, environment: "prod", attemptId: "attempt-0" } }],
+    ["cross environment", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: 2, environment: "staging", attemptId: "attempt-1" } }],
+    ["former stage", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: 2, environment: "beta", attemptId: "attempt-1" } }],
+    ["later protocol", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: 3, environment: "prod", attemptId: "attempt-1" } }],
+    ["malformed protocol", { data: { source: "ritual-investing-demo", type: "ritual-demo-ready", protocolVersion: "2", environment: "prod", attemptId: "attempt-1" } }],
+    ["unknown type", { data: { source: "ritual-investing-demo", type: "ritual-demo-detail", protocolVersion: 2, environment: "prod", attemptId: "attempt-1" } }],
   ])("ignores %s", (_name, mutation) => {
     const { event, frameWindow } = readyEvent();
     const lifecycle = createDemoLifecycle({
@@ -96,9 +97,9 @@ describe("embedded demo lifecycle", () => {
 
     expect(new Set(frames.map((frame) => frame.identity)).size).toBe(3);
     expect([first.url, second.url, third.url]).toEqual([
-      "https://demo.just-build-this.app/?environment=production&attempt=attempt-1",
-      "https://demo.just-build-this.app/?environment=production&attempt=attempt-2",
-      "https://demo.just-build-this.app/?environment=production&attempt=attempt-3",
+      "https://demo.just-build-this.app/?environment=prod&attempt=attempt-1",
+      "https://demo.just-build-this.app/?environment=prod&attempt=attempt-2",
+      "https://demo.just-build-this.app/?environment=prod&attempt=attempt-3",
     ]);
   });
 

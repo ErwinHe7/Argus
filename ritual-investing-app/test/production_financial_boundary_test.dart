@@ -54,6 +54,12 @@ void main() {
       factory,
       contains('capabilityPolicy.permits(MemberCapability.brokerageOrders)'),
     );
+
+    final container = File(
+      'lib/core/bootstrap/production_dependency_container.dart',
+    ).readAsStringSync();
+    expect(container, contains("config.environment == 'staging'"));
+    expect(container, isNot(contains("config.environment == 'beta'")));
   });
 
   test('public web beta scope constructs no brokerage controllers', () {

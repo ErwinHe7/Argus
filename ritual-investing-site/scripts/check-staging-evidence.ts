@@ -32,7 +32,7 @@ function requireExactUrl(value: string | undefined, host: string, label: string)
   if (url.protocol !== "https:" || url.hostname !== host || url.port !== "" ||
       url.username !== "" || url.password !== "" || url.pathname !== "/" ||
       url.search !== "" || url.hash !== "") {
-    throw new Error(`${label} staging URL must be the exact beta HTTPS origin`);
+    throw new Error(`${label} staging URL must be the exact staging HTTPS origin`);
   }
 }
 
@@ -44,8 +44,8 @@ function record(value: unknown, label: string): Record<string, unknown> {
 }
 
 export function validateStagingEvidence(input: EvidenceInput): PassedChecks {
-  requireExactUrl(input.landingUrl, "beta.just-build-this.app", "Landing");
-  requireExactUrl(input.demoUrl, "demo-beta.just-build-this.app", "Demo");
+  requireExactUrl(input.landingUrl, "staging.just-build-this.app", "Landing");
+  requireExactUrl(input.demoUrl, "demo-staging.just-build-this.app", "Demo");
   if (!/^[0-9a-f]{40}$/.test(input.expectedCommit ?? "")) {
     throw new Error("Expected commit must be a full lowercase Git SHA");
   }
@@ -67,8 +67,8 @@ export function validateStagingEvidence(input: EvidenceInput): PassedChecks {
   for (const key of Object.keys(envelope)) {
     if (!allowedEnvelopeKeys.has(key)) throw new Error(`Unknown staging evidence field: ${key}`);
   }
-  if (envelope.version !== 1 || envelope.environment !== "beta") {
-    throw new Error("Staging evidence must use the beta version 1 contract");
+  if (envelope.version !== 1 || envelope.environment !== "staging") {
+    throw new Error("Staging evidence must use the staging version 1 contract");
   }
   if (envelope.commit !== input.expectedCommit) {
     throw new Error("Staging evidence commit does not match this workflow revision");
@@ -93,7 +93,7 @@ if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.a
       expectedCommit: process.env.GITHUB_SHA,
       evidence: process.env.SITE_STAGING_EVIDENCE,
     });
-    console.log("deployed beta staging evidence contract passed");
+    console.log("deployed staging evidence contract passed");
   } catch (error) {
     console.error(error instanceof Error ? error.message : "Staging evidence validation failed");
     process.exitCode = 1;

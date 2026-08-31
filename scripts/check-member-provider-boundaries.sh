@@ -111,9 +111,9 @@ printf '%s\n' "$literal_urls" | while IFS= read -r literal_url; do
   case "$literal_host" in
     PROJECT_REF.supabase.co|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|media-processor.internal|media-scanner.internal|push-provider.internal)
       ;;
-    # Frame messages are reviewed as an exact production/beta pair. Do not
+    # Frame messages are reviewed as an exact prod/staging pair. Do not
     # broaden this to a wildcard subdomain allowlist.
-    just-build-this.app|beta.just-build-this.app)
+    just-build-this.app|staging.just-build-this.app)
       ;;
     *) fail "unreviewed literal production host: $literal_host" ;;
   esac

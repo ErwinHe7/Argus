@@ -28,6 +28,7 @@ EOF
   cat >"$fixture/ritual-investing-app/lib/runtime.dart" <<'EOF'
 const apiOrigin = 'https://api.just-build-this.app';
 const authOrigin = 'https://PROJECT_REF.supabase.co';
+const stagingFrameOrigin = 'https://staging.just-build-this.app';
 EOF
   cat >"$fixture/ritual-investing-demo/lib/main.dart" <<'EOF'
 const mode = 'memory-only';
@@ -101,6 +102,11 @@ write_allowed_fixture
 printf '\nconst provider = "direct";\n' \
   >>"$fixture/ritual-investing-api/src/jobs/queue-consumer.ts"
 expect_failure "provider-selected queue transport"
+
+write_allowed_fixture
+printf "const formerStage = 'https://beta.just-build-this.app';\n" \
+  >>"$fixture/ritual-investing-app/lib/runtime.dart"
+expect_failure "the former deployment-stage host"
 
 write_allowed_fixture
 sed 's/createBlockedBrokerageOrderProvider();//' \

@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assembleAssets,
+  DEPLOYMENT_TARGETS,
   injectWaitlistConfiguration,
   injectTurnstileSiteKey,
   MAX_ASSET_BYTES,
@@ -61,33 +62,48 @@ describe("deterministic demo asset assembly", () => {
   });
 
   it("requires both environment-specific site keys for a release assembly", () => {
-    expect(resolveTurnstileSiteKey("production", {
-      TURNSTILE_SITE_KEY_PRODUCTION: "0x4AAAAAAAsyntheticProductionKey",
+    expect(resolveTurnstileSiteKey("prod", {
+      TURNSTILE_SITE_KEY_PROD: "0x4AAAAAAAsyntheticProductionKey",
     }, true)).toBe("0x4AAAAAAAsyntheticProductionKey");
-    expect(() => resolveTurnstileSiteKey("beta", {}, true)).toThrow(/beta.*site key/i);
-    expect(resolveTurnstileSiteKey("beta", {}, false)).toBeUndefined();
+    expect(() => resolveTurnstileSiteKey("staging", {}, true)).toThrow(/staging.*site key/i);
+    expect(resolveTurnstileSiteKey("staging", {}, false)).toBeUndefined();
   });
 
   it("accepts only an exact public Supabase waitlist endpoint and injects it once", () => {
     const endpoint = "https://project-ref.supabase.co/functions/v1/waitlist";
-    expect(resolveWaitlistFunctionUrl("production", {
-      WAITLIST_FUNCTION_URL_PRODUCTION: endpoint,
+    expect(resolveWaitlistFunctionUrl("prod", {
+      WAITLIST_FUNCTION_URL_PROD: endpoint,
     }, true)).toBe(endpoint);
-    expect(resolveWaitlistFunctionUrl("beta", {}, false)).toBeUndefined();
+    expect(resolveWaitlistFunctionUrl("staging", {}, false)).toBeUndefined();
     for (const invalid of [
       "http://project-ref.supabase.co/functions/v1/waitlist",
       "https://project-ref.supabase.co/functions/v1/worker",
       "https://evil.example/functions/v1/waitlist",
       `${endpoint}?apikey=forbidden`,
     ]) {
-      expect(() => resolveWaitlistFunctionUrl("production", {
-        WAITLIST_FUNCTION_URL_PRODUCTION: invalid,
+      expect(() => resolveWaitlistFunctionUrl("prod", {
+        WAITLIST_FUNCTION_URL_PROD: invalid,
       }, true)).toThrow(/Supabase waitlist function URL/i);
     }
     const html = '<form action="" method="post" data-waitlist-form data-waitlist-enabled="false"></form>';
     expect(injectWaitlistConfiguration(html, endpoint)).toContain(
       `action="${endpoint}" method="post" data-waitlist-form data-waitlist-enabled="true"`,
     );
+  });
+
+  it("publishes only canonical staging and prod asset directories", () => {
+    expect(DEPLOYMENT_TARGETS).toEqual([
+      {
+        environment: "staging",
+        landingDirectory: "dist/landing-staging",
+        demoDirectory: "dist/demo-staging",
+      },
+      {
+        environment: "prod",
+        landingDirectory: "dist/landing-prod",
+        demoDirectory: "dist/demo-prod",
+      },
+    ]);
   });
 
   it("copies validated assets, drops Flutter's zero-byte service-worker placeholder, and emits a hash manifest", async () => {
@@ -205,9 +221,9 @@ describe("deterministic demo asset assembly", () => {
     expect(headers).toContain("default-src 'none'");
     expect(headers).toContain("script-src 'self' 'wasm-unsafe-eval'");
     expect(contentSecurityPolicyDirective(headers, "img-src")).toBe("img-src 'self' blob:");
-    expect(contentSecurityPolicyDirective(renderLandingHeaders("beta"), "img-src"))
+    expect(contentSecurityPolicyDirective(renderLandingHeaders("staging"), "img-src"))
       .toBe("img-src 'self'");
-    expect(contentSecurityPolicyDirective(renderDemoHeaders("beta"), "img-src"))
+    expect(contentSecurityPolicyDirective(renderDemoHeaders("staging"), "img-src"))
       .toBe("img-src 'self' data: blob:");
     expect(headers).toContain(`connect-src 'self' ${MEMBER_ORIGIN}`);
     expect(headers).toContain("X-Frame-Options: DENY");

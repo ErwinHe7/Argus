@@ -74,9 +74,9 @@ then
 fi
 
 for pages_config in \
-  ritual-investing-site/wrangler.beta.jsonc \
+  ritual-investing-site/wrangler.staging.jsonc \
   ritual-investing-site/wrangler.demo.jsonc \
-  ritual-investing-site/wrangler.demo-beta.jsonc
+  ritual-investing-site/wrangler.demo-staging.jsonc
 do
   node --input-type=module -e '
     import { readFileSync } from "node:fs";
@@ -85,6 +85,33 @@ do
     if (typeof config.pages_build_output_dir !== "string" || forbidden.some((key) => key in config)) process.exit(1);
   ' "$pages_config" || fail "Cloudflare Pages config is not static-only: $pages_config"
 done
+
+for former_stage_path in \
+  ritual-investing-app/config/beta.json \
+  scripts/run-ritual-investing-beta.sh \
+  ritual-investing-site/wrangler.beta.jsonc \
+  ritual-investing-site/wrangler.demo-beta.jsonc
+do
+  test ! -e "$former_stage_path" || \
+    fail "active configuration remains under the former stage name: $former_stage_path"
+done
+
+if rg -n \
+  'RITUAL_ENVIRONMENT["[:space:]:=]+beta|DemoEnvironment\.(beta|production)|data-demo-environment="(beta|production)"|environment=(beta|production)|landing-beta|demo-beta|beta\.just-build-this\.app|TURNSTILE_SITE_KEY_(BETA|PRODUCTION)|WAITLIST_FUNCTION_URL_(BETA|PRODUCTION)' \
+  ritual-investing-app/config \
+  ritual-investing-app/lib/core/config/runtime_config.dart \
+  ritual-investing-demo/lib/demo_bootstrap.dart \
+  ritual-investing-site/public \
+  ritual-investing-site/scripts/build-assets.ts \
+  ritual-investing-site/scripts/check-staging-evidence.ts \
+  ritual-investing-site/wrangler.staging.jsonc \
+  ritual-investing-site/wrangler.demo.jsonc \
+  ritual-investing-site/wrangler.demo-staging.jsonc \
+  scripts/run-ritual-investing-dev.sh \
+  scripts/run-ritual-investing-staging.sh
+then
+  fail "an active environment-stage use of beta or production remains"
+fi
 
 for worker_config in \
   ritual-investing-site/wrangler.jsonc \
