@@ -81,6 +81,40 @@ void main() {
     });
   });
 
+  test('birthday-only command contains no invented questionnaire answers', () {
+    final command = OnboardingFinalizationCommand.birthdayOnlyFromDraft(
+      OnboardingDraft(
+        astrologyEnabled: true,
+        birthDate: DateTime.utc(1994, 5, 14),
+        termsAccepted: true,
+        privacyAccepted: true,
+        demoAccepted: true,
+      ),
+      expectedOnboardingVersion: 2,
+      now: () => DateTime.utc(2026, 8, 24),
+    );
+
+    expect(command.isBirthdayOnly, isTrue);
+    expect(command.idempotencyKey, hasLength(32));
+    expect(command.idempotencyKey, isNot(command.canonicalPayloadHash));
+    expect(command.payload, {
+      'schema_version': 3,
+      'expected_onboarding_version': 2,
+      'astrology': {'birth_date': '1994-05-14'},
+      'consents': {
+        'terms': {'policy_version': '2026-08', 'decision': 'accepted'},
+        'privacy': {'policy_version': '2026-08', 'decision': 'accepted'},
+        'demo_disclosure': {
+          'policy_version': '2026-08',
+          'decision': 'accepted',
+        },
+        'astrology': {'policy_version': '2026-08', 'decision': 'accepted'},
+      },
+    });
+    expect(command.payload, isNot(contains('investing')));
+    expect(command.payload, isNot(contains('ritual')));
+  });
+
   test(
     'finalization rejects non-calendar, future, and non-date-only values',
     () {
@@ -180,6 +214,46 @@ void main() {
       expect(astrology, {'enabled': true, 'birth_date': '1994-05-14'});
     },
   );
+
+  test('generated birthday-only request uses its minimal endpoint', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final requestSeen = Completer<(String, Map<String, dynamic>)>();
+    unawaited(() async {
+      final request = await server.first;
+      requestSeen.complete((
+        request.uri.path,
+        jsonDecode(await utf8.decoder.bind(request).join())
+            as Map<String, dynamic>,
+      ));
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(jsonEncode(_completedBootstrapResponse));
+      await request.response.close();
+    }());
+    final repository = GeneratedOnboardingRepository(
+      RitualInvestingApiClient(
+        basePathOverride: 'http://${server.address.address}:${server.port}',
+        interceptors: const [],
+      ),
+    );
+    final command = OnboardingFinalizationCommand.birthdayOnlyFromDraft(
+      OnboardingDraft(
+        astrologyEnabled: true,
+        birthDate: DateTime.utc(1994, 5, 14),
+        termsAccepted: true,
+        privacyAccepted: true,
+        demoAccepted: true,
+      ),
+      expectedOnboardingVersion: 3,
+      now: () => DateTime.utc(2026, 8, 24),
+    );
+
+    await repository.finalize(command);
+    final captured = await requestSeen.future;
+
+    expect(captured.$1, '/v1/session/onboarding/birthday/finalize');
+    expect(captured.$2, command.payload);
+  });
 
   test('generated astrology settings PUT emits date-only JSON', () async {
     final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);

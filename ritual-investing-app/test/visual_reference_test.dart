@@ -85,7 +85,7 @@ Future<void> _setAuthoritativeTheme(WidgetTester tester, String theme) async {
   );
   await tester.tap(find.byKey(const Key('preferences-save')));
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Ritual').last);
+  await tester.tap(find.text('Gospel').last);
   await tester.pumpAndSettle();
 }
 

@@ -1,5 +1,6 @@
 import 'dart:collection';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
@@ -32,11 +33,14 @@ class OnboardingFinalizationCommand {
   const OnboardingFinalizationCommand._({
     required this.payload,
     required this.canonicalPayloadHash,
-  }) : idempotencyKey = canonicalPayloadHash;
+    required this.isBirthdayOnly,
+    String? idempotencyKey,
+  }) : idempotencyKey = idempotencyKey ?? canonicalPayloadHash;
 
   final Map<String, Object?> payload;
   final String canonicalPayloadHash;
   final String idempotencyKey;
+  final bool isBirthdayOnly;
 
   factory OnboardingFinalizationCommand.fromDraft(
     OnboardingDraft draft, {
@@ -56,6 +60,36 @@ class OnboardingFinalizationCommand {
     return OnboardingFinalizationCommand._(
       payload: Map.unmodifiable(payload),
       canonicalPayloadHash: canonicalPayloadHash,
+      isBirthdayOnly: false,
+    );
+  }
+
+  factory OnboardingFinalizationCommand.birthdayOnlyFromDraft(
+    OnboardingDraft draft, {
+    required int expectedOnboardingVersion,
+    DateTime Function()? now,
+  }) {
+    final today = (now ?? DateTime.now)();
+    if (expectedOnboardingVersion < 1 ||
+        draft.birthDate == null ||
+        !isValidOnboardingBirthDate(draft.birthDate!, today: today) ||
+        draft.astrologyEnabled != true ||
+        !draft.termsAccepted ||
+        !draft.privacyAccepted ||
+        !draft.demoAccepted) {
+      throw ArgumentError(
+        'A valid birth date and explicit policy acknowledgement are required.',
+      );
+    }
+    final payload = _birthdayOnlyPayload(draft, expectedOnboardingVersion);
+    final canonicalPayloadHash = sha256
+        .convert(utf8.encode(_canonical(payload)))
+        .toString();
+    return OnboardingFinalizationCommand._(
+      payload: Map.unmodifiable(payload),
+      canonicalPayloadHash: canonicalPayloadHash,
+      idempotencyKey: _opaqueIdempotencyKey(),
+      isBirthdayOnly: true,
     );
   }
 }
@@ -77,6 +111,9 @@ class GeneratedOnboardingRepository implements OnboardingRepository {
     OnboardingFinalizationCommand command,
   ) async {
     try {
+      if (command.isBirthdayOnly) {
+        return await _finalizeBirthdayOnly(command);
+      }
       final response = await _api.finalizeOnboarding(
         idempotencyKey: command.idempotencyKey,
         finalizeOnboardingRequest: FinalizeOnboardingRequest.fromJson(
@@ -96,6 +133,28 @@ class GeneratedOnboardingRepository implements OnboardingRepository {
     } on DioException catch (error) {
       throw OnboardingFinalizationException(_failureKind(error));
     }
+  }
+
+  Future<MemberBootstrap> _finalizeBirthdayOnly(
+    OnboardingFinalizationCommand command,
+  ) async {
+    final response = await _api.finalizeBirthdayOnboarding(
+      idempotencyKey: command.idempotencyKey,
+      finalizeBirthdayOnboardingRequest:
+          FinalizeBirthdayOnboardingRequest.fromJson(
+            _generatedFinalizationPayload(command.payload),
+          ),
+    );
+    final data = response.data?.data;
+    if (data == null) {
+      throw const OnboardingFinalizationException(
+        OnboardingFailureKind.terminal,
+      );
+    }
+    return mapSupabaseSessionBootstrap(
+      data.toJson(),
+      const BrokerageConnectionSnapshot.disconnected(),
+    );
   }
 }
 
@@ -145,6 +204,30 @@ Map<String, Object?> _payload(OnboardingDraft draft, int expectedVersion) => {
     },
   },
 };
+
+Map<String, Object?> _birthdayOnlyPayload(
+  OnboardingDraft draft,
+  int expectedVersion,
+) => {
+  'schema_version': 3,
+  'expected_onboarding_version': expectedVersion,
+  'astrology': {'birth_date': onboardingDateOnly(draft.birthDate!)},
+  'consents': {
+    'terms': const {'policy_version': '2026-08', 'decision': 'accepted'},
+    'privacy': const {'policy_version': '2026-08', 'decision': 'accepted'},
+    'demo_disclosure': const {
+      'policy_version': '2026-08',
+      'decision': 'accepted',
+    },
+    'astrology': const {'policy_version': '2026-08', 'decision': 'accepted'},
+  },
+};
+
+String _opaqueIdempotencyKey() {
+  final random = Random.secure();
+  return base64UrlEncode(List<int>.generate(24, (_) => random.nextInt(256)))
+      .replaceAll('=', '');
+}
 
 bool _isComplete(OnboardingDraft draft, DateTime today) =>
     draft.experience != null &&

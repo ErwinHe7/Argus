@@ -77,7 +77,7 @@ class _MemberSignInScreenState extends State<MemberSignInScreen> {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          'Your ritual, in one place.',
+                          'Your Gospel, in one place.',
                           key: const Key('member-google-sign-in-title'),
                           style: theme.textTheme.headlineLarge,
                         ),
@@ -133,7 +133,7 @@ class _MemberSignInScreenState extends State<MemberSignInScreen> {
                         ),
                         const SizedBox(height: 18),
                         Text(
-                          'Google verifies your identity. Your ritual data remains private and is never used to place trades.',
+                          'Google verifies your identity. Your Gospel data remains private and is never used to place trades.',
                           textAlign: TextAlign.center,
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,

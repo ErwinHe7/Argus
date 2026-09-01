@@ -12,6 +12,7 @@ import 'package:ritual_investing_api_client/generated/model/asset_risk.dart';
 import 'package:ritual_investing_api_client/generated/model/asset_summary.dart';
 import 'package:ritual_investing_api_client/generated/model/astrology_profile.dart';
 import 'package:ritual_investing_api_client/generated/model/astrology_profile_response.dart';
+import 'package:ritual_investing_api_client/generated/model/birthday_accepted_onboarding_consent.dart';
 import 'package:ritual_investing_api_client/generated/model/briefing_collection_response.dart';
 import 'package:ritual_investing_api_client/generated/model/briefing_detail.dart';
 import 'package:ritual_investing_api_client/generated/model/briefing_detail_response.dart';
@@ -93,6 +94,9 @@ import 'package:ritual_investing_api_client/generated/model/evidence_detail.dart
 import 'package:ritual_investing_api_client/generated/model/evidence_detail_source.dart';
 import 'package:ritual_investing_api_client/generated/model/evidence_source.dart';
 import 'package:ritual_investing_api_client/generated/model/evidence_summary.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_birthday_onboarding_request.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_birthday_onboarding_request_astrology.dart';
+import 'package:ritual_investing_api_client/generated/model/finalize_birthday_onboarding_request_consents.dart';
 import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request.dart';
 import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_astrology.dart';
 import 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_consents.dart';
@@ -267,6 +271,11 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'AstrologyProfileResponse':
       return AstrologyProfileResponse.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'BirthdayAcceptedOnboardingConsent':
+      return BirthdayAcceptedOnboardingConsent.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'BriefingCollectionResponse':
       return BriefingCollectionResponse.fromJson(value as Map<String, dynamic>)
@@ -544,6 +553,21 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'EvidenceSummary':
       return EvidenceSummary.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'FinalizeBirthdayOnboardingRequest':
+      return FinalizeBirthdayOnboardingRequest.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'FinalizeBirthdayOnboardingRequestAstrology':
+      return FinalizeBirthdayOnboardingRequestAstrology.fromJson(
+            value as Map<String, dynamic>,
+          )
+          as ReturnType;
+    case 'FinalizeBirthdayOnboardingRequestConsents':
+      return FinalizeBirthdayOnboardingRequestConsents.fromJson(
+            value as Map<String, dynamic>,
+          )
           as ReturnType;
     case 'FinalizeOnboardingRequest':
       return FinalizeOnboardingRequest.fromJson(value as Map<String, dynamic>)

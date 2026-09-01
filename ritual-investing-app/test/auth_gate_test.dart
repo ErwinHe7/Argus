@@ -22,10 +22,7 @@ void main() {
 
     repository.completeRestore(null);
     await tester.pumpAndSettle();
-    expect(
-      find.text('Sign in to continue your private ritual.'),
-      findsOneWidget,
-    );
+    expect(find.text('Sign in to continue to Leo.'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
   });
 
@@ -67,10 +64,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.logoutCalls, 1);
-    expect(
-      find.text('Sign in to continue your private ritual.'),
-      findsOneWidget,
-    );
+    expect(find.text('Sign in to continue to Leo.'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
   });
 

@@ -39,7 +39,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.bySemanticsLabel('Unrevealed ritual card'), findsOneWidget);
+    expect(find.bySemanticsLabel('Unrevealed Gospel card'), findsOneWidget);
     expect(find.byKey(const Key('daily-ritual-card-art')), findsNothing);
     expect(
       find.bySemanticsLabel(
@@ -51,7 +51,7 @@ void main() {
     await tester.tap(find.byKey(const Key('ritual-reveal')));
     await tester.pumpAndSettle();
 
-    expect(find.bySemanticsLabel('Unrevealed ritual card'), findsNothing);
+    expect(find.bySemanticsLabel('Unrevealed Gospel card'), findsNothing);
     expect(find.byKey(const Key('daily-ritual-card-art')), findsOneWidget);
     expect(
       find.bySemanticsLabel(
@@ -87,7 +87,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('This ritual could not be updated. Refresh and try again.'),
+      find.text('This Gospel could not be updated. Refresh and try again.'),
       findsOneWidget,
     );
     expect(find.byKey(const Key('ritual-reveal')), findsOneWidget);
@@ -296,7 +296,7 @@ void main() {
       await tester.tap(find.byKey(const Key('ritual-history')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Ritual history'), findsWidgets);
+      expect(find.text('Gospel history'), findsWidgets);
       expect(find.textContaining('Completed'), findsOneWidget);
       expect(find.textContaining('Tarot'), findsOneWidget);
       expect(find.textContaining('Aug 25, 2026'), findsOneWidget);

@@ -70,7 +70,7 @@ class FlutterPrivateExportFiles implements PrivateExportFiles {
     final result = await SharePlus.instance.share(
       ShareParams(
         files: [XFile(path, mimeType: 'application/zip')],
-        subject: 'Ritual private data export',
+        subject: 'Leo private data export',
         sharePositionOrigin: const Rect.fromLTWH(0, 0, 1, 1),
       ),
     );

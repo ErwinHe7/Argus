@@ -408,32 +408,17 @@ class _AuthenticatedOnboardingRecovery extends StatelessWidget {
   final DependencyContainer container;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Continue your setup')),
-    body: SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text(
-            'Your account setup is incomplete.',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'Continue from the first missing section. The member app stays locked until the server confirms completion.',
-          ),
-          const SizedBox(height: 24),
-          FilledButton(
-            key: const Key('recovery-continue'),
-            onPressed: () =>
-                _runUiAction(context, container.beginQuestionnaire),
-            child: const Text('Continue setup'),
-          ),
-          TextButton(
-            onPressed: () => _runUiAction(context, container.logout),
-            child: const Text('Log out'),
-          ),
-        ],
+  Widget build(BuildContext context) => BirthdayOnboardingScreen(
+    controller: container.onboardingController,
+    onFinish: container.completeBirthdayOnboarding,
+    onLogout: container.logout,
+    onDraftChanged: (draft) =>
+        _runUiAction(context, () => container.persistOnboardingDraft(draft)),
+    persistenceMessage: container.entryCoordinator?.state.message,
+    onRetryPersistence: () => _runUiAction(
+      context,
+      () => container.persistOnboardingDraft(
+        container.onboardingController.draft,
       ),
     ),
   );
@@ -468,7 +453,7 @@ class _EntryGate extends StatelessWidget {
         null,
       ),
       MemberEntryGate.signedOut => (
-        'Sign in to continue your private ritual.',
+        'Sign in to continue to Leo.',
         'Sign in',
         () async => context.go('/sign-in'),
         null,
@@ -484,7 +469,7 @@ class _EntryGate extends StatelessWidget {
         state.canLogout ? container.logout : null,
       ),
       MemberEntryGate.onboarding => (
-        'Complete onboarding to continue.',
+        'Add your birth date to finish setup.',
         null,
         null,
         'Log out',

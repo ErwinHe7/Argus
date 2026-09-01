@@ -11,6 +11,7 @@ import {
 import { idempotencyKeySchema } from "../retained-http/schemas.ts";
 import type { RetainedAppEnvironment } from "../retained-http/types.ts";
 import {
+  birthdayOnboardingFinalizeBodySchema,
   onboardingFinalizeBodySchema,
   sessionBootstrapResponseSchema,
 } from "./schemas.ts";
@@ -31,6 +32,27 @@ export function registerSessionRoutes(input: Readonly<{
     await rejectBody(context);
     return dataResponse(context, await input.service(context).bootstrap());
   });
+
+  const finalizeBirthdayOnboarding = retainedRoute(
+    "post",
+    "/v1/session/onboarding/birthday/finalize",
+    "finalizeBirthdayOnboarding",
+    "Session",
+    {
+      transaction: "runtime",
+      body: birthdayOnboardingFinalizeBodySchema,
+      headers: z.object({ "idempotency-key": idempotencyKeySchema }),
+      response: sessionBootstrapResponseSchema,
+    },
+  );
+  input.register(finalizeBirthdayOnboarding, async (context) =>
+    dataResponse(
+      context,
+      await input.service(context).finalizeBirthdayOnboarding(
+        await parseBody(context, birthdayOnboardingFinalizeBodySchema),
+        idempotencyKeySchema.parse(context.req.header("idempotency-key")),
+      ),
+    ));
 
   const finalizeOnboarding = retainedRoute(
     "post",

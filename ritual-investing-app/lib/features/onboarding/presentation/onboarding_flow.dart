@@ -62,17 +62,17 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       ),
                       SizedBox(height: spacious ? 28 : 16),
                       Text(
-                        'Begin with a personal ritual',
+                        'Welcome to Leo',
                         style: Theme.of(context).textTheme.displaySmall,
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        'Continue with Google to enter Leo. Your Tarot readings, Starpath, saved research, and preferences stay together across devices.',
+                        'Continue with Google, then add only your birth date for astrology. There is no setup questionnaire.',
                         style: Theme.of(context).textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        'Google is the only sign-in method. No separate password is needed.',
+                        'Google is the only sign-in method. Investing and voice preferences stay optional in You.',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       if (widget.message != null) ...[
@@ -214,6 +214,140 @@ class _TrustLine extends StatelessWidget {
   );
 }
 
+class BirthdayOnboardingScreen extends StatefulWidget {
+  const BirthdayOnboardingScreen({
+    super.key,
+    required this.controller,
+    required this.onFinish,
+    required this.onLogout,
+    this.onDraftChanged,
+    this.persistenceMessage,
+    this.onRetryPersistence,
+  });
+
+  final OnboardingController controller;
+  final Future<void> Function() onFinish;
+  final Future<void> Function() onLogout;
+  final ValueChanged<OnboardingDraft>? onDraftChanged;
+  final String? persistenceMessage;
+  final VoidCallback? onRetryPersistence;
+
+  @override
+  State<BirthdayOnboardingScreen> createState() =>
+      _BirthdayOnboardingScreenState();
+}
+
+class _BirthdayOnboardingScreenState extends State<BirthdayOnboardingScreen> {
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller.draft.astrologyEnabled != true) {
+      widget.controller.setAstrologyEnabled(true);
+    }
+  }
+
+  Future<void> _finish() async {
+    if (_isSubmitting || !widget.controller.isBirthDateReady) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await widget.onFinish();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.controller,
+    builder: (context, _) => Scaffold(
+      appBar: AppBar(
+        title: const _LeoBrandLockup(),
+        actions: [
+          TextButton(
+            key: const Key('birthday-logout'),
+            onPressed: _isSubmitting ? null : widget.onLogout,
+            child: const Text('Log out'),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(
+                    Icons.auto_awesome_outlined,
+                    size: 44,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'One detail for your sky',
+                    style: Theme.of(context).textTheme.displaySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your birth date lets Leo personalize astrology. We never ask for a birth time or place.',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Investment and Gospel preferences stay optional in You and never block access.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  if (widget.persistenceMessage != null) ...[
+                    const SizedBox(height: 16),
+                    _PersistenceNotice(
+                      message: widget.persistenceMessage!,
+                      onRetry: widget.onRetryPersistence,
+                    ),
+                  ],
+                  const SizedBox(height: 28),
+                  _BirthDateQuestion(
+                    controller: widget.controller,
+                    onChanged: () =>
+                        widget.onDraftChanged?.call(widget.controller.draft),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'By continuing, you agree to Leo’s Terms, Privacy Policy, public beta disclosure, and birth-date processing for personalized astrology.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      key: const Key('recovery-continue'),
+                      onPressed:
+                          widget.controller.isBirthDateReady && !_isSubmitting
+                          ? _finish
+                          : null,
+                      child: _isSubmitting
+                          ? const SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Save birthday & enter Leo'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
 class OnboardingFlow extends StatelessWidget {
   const OnboardingFlow({
     super.key,
@@ -251,7 +385,7 @@ class OnboardingFlow extends StatelessWidget {
             onPressed: () => onBack(_previous(step)),
             icon: const Icon(Icons.arrow_back),
           ),
-          title: const Text('Your Ritual'),
+          title: const Text('Your Gospel'),
         ),
         body: SafeArea(
           child: Align(
@@ -430,7 +564,7 @@ class OnboardingFlow extends StatelessWidget {
       context,
       controller.draft.ritualFamiliarity,
       const {
-        RitualFamiliarity.newToRitual: 'New to ritual practices',
+        RitualFamiliarity.newToRitual: 'New to Gospel guidance',
         RitualFamiliarity.curious: 'Curious and exploring',
         RitualFamiliarity.familiar: 'Familiar',
         RitualFamiliarity.practiced: 'Part of my regular practice',
@@ -583,7 +717,7 @@ class OnboardingReviewScreen extends StatelessWidget {
                   onPressed: onBack,
                   icon: const Icon(Icons.arrow_back),
                 ),
-          title: const Text('Review your Ritual'),
+          title: const Text('Review your Gospel'),
         ),
         body: SafeArea(
           child: Align(
@@ -625,7 +759,7 @@ class OnboardingReviewScreen extends StatelessWidget {
                         onEdit: () => onEdit(OnboardingStep.experience),
                       ),
                       _ReviewLine(
-                        label: 'Ritual language',
+                        label: 'Gospel language',
                         value: _label(controller.draft.ritualLanguage),
                         onEdit: () => onEdit(OnboardingStep.ritualLanguage),
                       ),
@@ -840,6 +974,17 @@ class _BirthDateQuestionState extends State<_BirthDateQuestion> {
             hintText: 'YYYY-MM-DD',
             helperText: 'Enter a date, or use the date picker below.',
           ),
+          onChanged: (raw) {
+            final selectedValue = selected == null
+                ? null
+                : onboardingDateOnly(selected);
+            if (raw == selectedValue) return;
+            if (widget.controller.draft.birthDate != null) {
+              widget.controller.clearBirthDate();
+              widget.onChanged();
+            }
+            if (raw.length == 10) _submit(raw);
+          },
           onFieldSubmitted: _submit,
         ),
         if (_errorText != null)
@@ -883,9 +1028,10 @@ String _title(OnboardingStep step) => switch (step) {
   OnboardingStep.horizon => 'What time horizon feels relevant?',
   OnboardingStep.risk => 'How much uncertainty feels comfortable?',
   OnboardingStep.contributionRhythm => 'What contribution rhythm fits you?',
-  OnboardingStep.ritualLanguage => 'How should Ritual speak to you?',
-  OnboardingStep.ritualFamiliarity => 'How familiar are ritual practices?',
-  OnboardingStep.ritualInterests => 'What would you like in your ritual?',
+  OnboardingStep.ritualLanguage => 'How should Gospel speak to you?',
+  OnboardingStep.ritualFamiliarity =>
+    'How familiar are you with Gospel guidance?',
+  OnboardingStep.ritualInterests => 'What would you like in your Gospel?',
   OnboardingStep.astrologyOptIn => 'Would you like personalized astrology?',
   OnboardingStep.birthDate => 'Add your birth date',
   OnboardingStep.welcome => 'Welcome',
@@ -900,7 +1046,7 @@ String _supportingCopy(OnboardingStep step) => switch (step) {
   OnboardingStep.astrologyOptIn =>
     'Tarot and general astrology remain available either way.',
   OnboardingStep.birthDate =>
-    'We ask only for the date. Ritual does not ask for birth time or place.',
+    'We ask only for the date. Leo does not ask for birth time or place.',
   OnboardingStep.ritualInterests => 'Choose one or more.',
   _ => 'Your answer sets a visible default that you can change later.',
 };

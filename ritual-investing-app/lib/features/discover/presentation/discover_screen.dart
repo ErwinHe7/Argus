@@ -364,7 +364,7 @@ String _lensTitle(MemberRiskFraming value) => switch (value) {
 String _intro(MemberRitualVoice value) => switch (value) {
   MemberRitualVoice.practical => 'Server-prioritized research with evidence, risks, and limitations close at hand.',
   MemberRitualVoice.mystical => 'Trace today’s research constellation, then ground every signal in dated evidence.',
-  MemberRitualVoice.balanced || MemberRitualVoice.unavailable => 'A ritual-shaped research path, grounded in dated evidence and clear uncertainty.',
+  MemberRitualVoice.balanced || MemberRitualVoice.unavailable => 'A Gospel-inspired research path, grounded in dated evidence and clear uncertainty.',
 };
 
 String _kindLabel(DiscoverItemKind kind) => switch (kind) {

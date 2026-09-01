@@ -9,6 +9,22 @@ export interface MemberBranchCapabilityEvaluator {
 
 export interface SessionRepository {
   bootstrap(): Promise<SessionRepositorySnapshot>;
+  finalizeBirthdayOnboarding(
+    input: Readonly<{
+      expectedOnboardingVersion: number;
+      birthDate: string;
+      consents: Readonly<
+        Record<
+          string,
+          Readonly<{
+            policyVersion: string;
+            decision: "accepted";
+          }>
+        >
+      >;
+    }>,
+    idempotencyKey: string,
+  ): Promise<SessionRepositorySnapshot>;
   finalizeOnboarding(
     input: Readonly<{
       expectedOnboardingVersion: number;

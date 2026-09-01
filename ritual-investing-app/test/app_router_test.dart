@@ -117,7 +117,7 @@ void main() {
     expect(withStarpath.redirectFor('/you/account'), isNull);
   });
 
-  testWidgets('production shell renders Ritual, Starpath, You only', (
+  testWidgets('production shell renders Gospel, Starpath, You only', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -140,7 +140,7 @@ void main() {
         .widgetList<NavigationDestination>(find.byType(NavigationDestination))
         .map((destination) => destination.label)
         .toList();
-    expect(destinations, ['Ritual', 'Starpath', 'You']);
+    expect(destinations, ['Gospel', 'Starpath', 'You']);
 
     router.go('/discover/assets/hidden-id');
     await tester.pumpAndSettle();
@@ -162,7 +162,7 @@ void main() {
         find.byType(CupertinoTabBar),
       );
       expect(tabBar.items.map((item) => item.label), [
-        'Ritual',
+        'Gospel',
         'Starpath',
         'Discover',
         'Coven',
@@ -224,10 +224,9 @@ void main() {
     expect(sessions.passwordSignUpCredentials, isEmpty);
     expect(sessions.passwordCredentials, isEmpty);
 
-    await tester.tap(find.byKey(const Key('recovery-continue')));
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/onboarding/experience');
-    expect(find.text('How familiar are you with investing?'), findsOneWidget);
+    expect(find.byKey(const Key('birth-date-manual')), findsOneWidget);
+    expect(find.text('How familiar are you with investing?'), findsNothing);
+    expect(router.state.uri.path, '/onboarding/recovery');
   });
 
   testWidgets('cancelled Google sign-in stays on the direct welcome entry', (
@@ -465,7 +464,7 @@ void main() {
   });
 
   testWidgets(
-    'authenticated onboarding finishes setup without creating another account',
+    'authenticated onboarding asks only for birth date and enters Leo',
     (tester) async {
       final sessions = _SignedOutSessionRepository(
         restoredSession: const AuthSession(
@@ -492,41 +491,27 @@ void main() {
         sessionBootstrapService: bootstrap,
       );
       await coordinator.restore();
-      container.onboardingController.replaceDraft(_reviewedDraft());
       await tester.pumpWidget(
         RitualInvestingApp(container: container, bootstrapOnStart: false),
       );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('recovery-continue')), findsOneWidget);
-      await tester.tap(find.byKey(const Key('recovery-continue')));
-      await tester.pumpAndSettle();
-      expect(container.entryGate, MemberEntryGate.onboarding);
-
-      final router = GoRouter.of(
-        tester.element(find.text('How familiar are you with investing?')),
+      expect(find.text('One detail for your sky'), findsOneWidget);
+      expect(find.text('How familiar are you with investing?'), findsNothing);
+      await tester.enterText(
+        find.byKey(const Key('birth-date-manual')),
+        '1994-05-14',
       );
-      router.go('/onboarding/review');
-      await tester.pumpAndSettle();
-
-      final finishSetup = find.widgetWithText(FilledButton, 'Finish setup');
-      await _scrollTo(tester, finishSetup);
-      expect(finishSetup, findsOneWidget);
-
-      router.go('/create-account');
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, '/onboarding/experience');
-      expect(find.byKey(const Key('member-sign-in-email')), findsNothing);
-
-      router.go('/onboarding/review');
-      await tester.pumpAndSettle();
-
-      await _scrollTo(tester, finishSetup);
-      await tester.tap(finishSetup);
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('recovery-continue')));
+      await tester.tap(find.byKey(const Key('recovery-continue')));
       await tester.pumpAndSettle();
 
       expect(onboarding.commands, hasLength(1));
+      expect(onboarding.commands.single.isBirthdayOnly, isTrue);
       expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
+      expect(container.entryGate, MemberEntryGate.member);
       expect(sessions.passwordSignUpCredentials, isEmpty);
     },
   );
@@ -660,7 +645,7 @@ void main() {
     expect(storage.values, contains(OnboardingDraftStore.storageKey));
     expect(coordinator.state.destination, EntryDestination.questionnaire);
     expect(router.state.uri.path, '/onboarding/review');
-    expect(find.text('Review your Ritual'), findsOneWidget);
+    expect(find.text('Review your Gospel'), findsOneWidget);
   });
 
   testWidgets('review Edit resumes questionnaire with draft intact', (
@@ -791,7 +776,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('asset-codex-screen')), findsOneWidget);
 
-      await tester.tap(find.text('Ritual').last);
+      await tester.tap(find.text('Gospel').last);
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('detail-ritual-reading')), findsOneWidget);
       await tester.tap(find.text('Discover').last);

@@ -38,7 +38,7 @@ class _BriefingsScreenState extends State<BriefingsScreen> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.controller,
     builder: (context, _) => Scaffold(
-      appBar: AppBar(title: const Text('Ritual briefings')),
+      appBar: AppBar(title: const Text('Gospel briefings')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: widget.controller.load,
@@ -155,7 +155,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
     builder: (context, _) {
       final detail = widget.controller.selected;
       return Scaffold(
-        appBar: AppBar(title: const Text('Ritual briefing')),
+        appBar: AppBar(title: const Text('Gospel briefing')),
         body: SafeArea(
           child: ListView(
             key: const PageStorageKey('briefing-detail-scroll'),
@@ -244,7 +244,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
                       minimumSize: const Size(48, 48),
                     ),
                     onPressed: widget.onOpenRitual,
-                    child: const Text('Open Daily Ritual'),
+                    child: const Text('Open today’s Gospel'),
                   ),
                 const SizedBox(height: 12),
                 const Text(

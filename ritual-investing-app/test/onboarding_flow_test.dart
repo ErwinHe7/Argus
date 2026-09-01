@@ -19,7 +19,8 @@ void main() {
       ),
     );
 
-    expect(find.textContaining('personal ritual'), findsOneWidget);
+    expect(find.text('Welcome to Leo'), findsOneWidget);
+    expect(find.textContaining('only your birth date'), findsOneWidget);
     expect(find.textContaining('only sign-in method'), findsOneWidget);
     expect(find.byKey(const Key('welcome-artwork')), findsOneWidget);
     expect(
@@ -66,6 +67,47 @@ void main() {
     barrier.complete();
     await tester.pumpAndSettle();
     expect(find.text('Continue with Google'), findsOneWidget);
+  });
+
+  testWidgets('authenticated entry asks for birth date only', (tester) async {
+    final controller = OnboardingController(
+      now: () => DateTime.utc(2026, 8, 24),
+    );
+    var finishCalls = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: BirthdayOnboardingScreen(
+          controller: controller,
+          onFinish: () async => finishCalls++,
+          onLogout: () async {},
+        ),
+      ),
+    );
+
+    expect(find.text('One detail for your sky'), findsOneWidget);
+    expect(find.byKey(const Key('birth-date-manual')), findsOneWidget);
+    expect(find.text('How familiar are you with investing?'), findsNothing);
+    expect(find.textContaining('risk'), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('recovery-continue')))
+          .onPressed,
+      isNull,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('birth-date-manual')),
+      '1994-05-14',
+    );
+    await tester.pump();
+    expect(controller.draft.birthDate, DateTime.utc(1994, 5, 14));
+    expect(controller.draft.experience, isNull);
+    expect(controller.draft.ritualLanguage, isNull);
+
+    await tester.ensureVisible(find.byKey(const Key('recovery-continue')));
+    await tester.tap(find.byKey(const Key('recovery-continue')));
+    await tester.pumpAndSettle();
+    expect(finishCalls, 1);
   });
 
   testWidgets('risk has no default and announces semantic progress', (

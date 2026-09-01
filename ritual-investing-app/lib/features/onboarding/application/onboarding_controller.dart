@@ -133,6 +133,10 @@ class OnboardingController extends ChangeNotifier {
 
   bool get isReadyForAuthentication => validationErrors.isEmpty;
 
+  bool get isBirthDateReady =>
+      _draft.birthDate != null &&
+      isValidOnboardingBirthDate(_draft.birthDate!, today: _now());
+
   bool get canContinue => canContinueFor(_step);
 
   bool canContinueFor(OnboardingStep step) => switch (step) {
@@ -214,6 +218,8 @@ class OnboardingController extends ChangeNotifier {
     }
   }
 
+  void clearBirthDate() => _update(_draft.copyWith(birthDate: null));
+
   void setConsents({
     required bool terms,
     required bool privacy,
@@ -225,6 +231,20 @@ class OnboardingController extends ChangeNotifier {
       demoAccepted: demo,
     ),
   );
+
+  void prepareBirthdayOnlyCompletion() {
+    if (!isBirthDateReady) {
+      throw StateError('A valid birth date is required to finish setup.');
+    }
+    _draft = _draft.copyWith(
+      astrologyEnabled: true,
+      termsAccepted: true,
+      privacyAccepted: true,
+      demoAccepted: true,
+    );
+    _step = OnboardingStep.birthDate;
+    notifyListeners();
+  }
 
   void _update(OnboardingDraft value) {
     _draft = value;

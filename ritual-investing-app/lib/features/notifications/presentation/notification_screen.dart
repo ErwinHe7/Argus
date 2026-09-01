@@ -118,7 +118,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
                   child: Text(
-                    'No in-app notices yet. Recaps remain available from Ritual briefings.',
+                    'No in-app notices yet. Recaps remain available from Gospel briefings.',
                     textAlign: TextAlign.center,
                   ),
                 ),
@@ -269,7 +269,7 @@ class _NotificationPreferencesScreenState
                 const SizedBox(height: 16),
                 _PreferenceSwitch(
                   key: const Key('preference-daily'),
-                  title: 'Daily Ritual recap',
+                  title: 'Daily Gospel recap',
                   value: draft.dailyRitual,
                   onChanged: (value) => controller.editPreferenceDraft(
                     NotificationPreferencesDraft(

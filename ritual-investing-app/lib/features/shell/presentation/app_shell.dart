@@ -122,8 +122,9 @@ class _AdaptiveNavigation extends StatelessWidget {
   BottomNavigationBarItem _cupertinoItem(MemberBranch branch) =>
       switch (branch) {
         MemberBranch.ritual => const BottomNavigationBarItem(
-          icon: Icon(CupertinoIcons.sparkles),
-          label: 'Ritual',
+          icon: Icon(CupertinoIcons.book),
+          activeIcon: Icon(CupertinoIcons.book_fill),
+          label: 'Gospel',
         ),
         MemberBranch.starpath => const BottomNavigationBarItem(
           icon: Icon(CupertinoIcons.star_circle),
@@ -145,9 +146,9 @@ class _AdaptiveNavigation extends StatelessWidget {
 
   NavigationDestination _materialItem(MemberBranch branch) => switch (branch) {
     MemberBranch.ritual => const NavigationDestination(
-      icon: Icon(Icons.auto_awesome_outlined),
-      selectedIcon: Icon(Icons.auto_awesome),
-      label: 'Ritual',
+      icon: Icon(Icons.auto_stories_outlined),
+      selectedIcon: Icon(Icons.auto_stories),
+      label: 'Gospel',
     ),
     MemberBranch.starpath => const NavigationDestination(
       icon: Icon(Icons.stars_outlined),

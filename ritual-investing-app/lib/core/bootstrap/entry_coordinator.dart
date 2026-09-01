@@ -203,6 +203,36 @@ class EntryCoordinator extends ChangeNotifier {
       draft,
       expectedOnboardingVersion: bootstrap.onboarding.version,
     );
+    await _finalizeDraft(
+      command,
+      failureDestination: EntryDestination.reconcile,
+    );
+  }
+
+  Future<void> attachBirthdayDraft() async {
+    final draft = _draft;
+    final bootstrap = _bootstrap;
+    if (draft == null || bootstrap == null) {
+      throw StateError('No incomplete account and birth date to attach.');
+    }
+    if (bootstrap.onboarding.isComplete) {
+      await _finishCompleted(bootstrap);
+      return;
+    }
+    final command = OnboardingFinalizationCommand.birthdayOnlyFromDraft(
+      draft,
+      expectedOnboardingVersion: bootstrap.onboarding.version,
+    );
+    await _finalizeDraft(
+      command,
+      failureDestination: EntryDestination.authenticatedRecovery,
+    );
+  }
+
+  Future<void> _finalizeDraft(
+    OnboardingFinalizationCommand command, {
+    required EntryDestination failureDestination,
+  }) async {
     _set(EntryDestination.finalizing);
     try {
       final completed = await _onboardingRepository.finalize(command);
@@ -229,7 +259,7 @@ class EntryCoordinator extends ChangeNotifier {
         }
       }
       _set(
-        EntryDestination.reconcile,
+        failureDestination,
         message: _messageFor(error.kind),
         canRetry:
             error.kind == OnboardingFailureKind.conflict ||
@@ -238,8 +268,8 @@ class EntryCoordinator extends ChangeNotifier {
       );
     } on Object {
       _set(
-        EntryDestination.reconcile,
-        message: 'Onboarding could not finish preparing. Your answers are safe; retry with the same reviewed details.',
+        failureDestination,
+        message: 'Setup could not finish. Your birth date is safe on this device; please retry.',
         canRetry: true,
       );
     }
@@ -356,8 +386,6 @@ class EntryCoordinator extends ChangeNotifier {
       _draftStatus = DraftReadStatus.empty;
       await _clearDraftBestEffort();
       _set(EntryDestination.shell);
-    } else if (_draft != null) {
-      _set(EntryDestination.reconcile);
     } else {
       _set(EntryDestination.authenticatedRecovery);
     }
@@ -384,7 +412,7 @@ class EntryCoordinator extends ChangeNotifier {
   void _routeSignedOutDraft() {
     switch (_draftStatus) {
       case DraftReadStatus.available:
-        _set(EntryDestination.questionnaire);
+        _set(EntryDestination.welcome);
       case DraftReadStatus.locked:
         _set(
           EntryDestination.failure,

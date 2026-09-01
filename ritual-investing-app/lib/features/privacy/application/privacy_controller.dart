@@ -270,8 +270,7 @@ class PrivacyController extends ChangeNotifier {
       if (_deactivated) return;
       _knownExportRequestId = null;
       _phase = PrivacyPhase.shared;
-      _message =
-          'A private local copy was shared and removed from Ritual.';
+      _message = 'A private local copy was shared and removed from Leo.';
     } on Object catch (error) {
       if (!_deactivated) _setFailure(error);
     } finally {

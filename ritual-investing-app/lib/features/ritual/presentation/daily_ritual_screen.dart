@@ -85,7 +85,7 @@ class DailyRitualScreen extends StatelessWidget {
                       IconButton(
                         key: const Key('ritual-briefings'),
                         onPressed: onOpenBriefings,
-                        tooltip: 'Open Ritual briefings',
+                        tooltip: 'Open Gospel briefings',
                         constraints: const BoxConstraints.tightFor(
                           width: 48,
                           height: 48,
@@ -147,7 +147,7 @@ class DailyRitualScreen extends StatelessWidget {
                   if (controller.state.value!.state ==
                       DailyRitualState.assigned) ...[
                     Text(
-                      'Your ritual is ready. Reveal it when you have a quiet moment.',
+                      'Your Gospel is ready. Reveal it when you have a quiet moment.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
@@ -163,7 +163,7 @@ class DailyRitualScreen extends StatelessWidget {
                           ? null
                           : controller.reveal,
                       icon: const Icon(Icons.auto_awesome),
-                      label: const Text('Reveal today’s ritual'),
+                      label: const Text('Reveal today’s Gospel'),
                     ),
                     if (controller.mutationPhase ==
                             RitualMutationPhase.retryableFailure ||
@@ -173,8 +173,8 @@ class DailyRitualScreen extends StatelessWidget {
                       Text(
                         controller.mutationPhase ==
                                 RitualMutationPhase.retryableFailure
-                            ? 'Could not update this ritual. Try again.'
-                            : 'This ritual could not be updated. Refresh and try again.',
+                            ? 'Could not update this Gospel. Try again.'
+                            : 'This Gospel could not be updated. Refresh and try again.',
                         key: const Key('ritual-mutation-status'),
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -312,7 +312,7 @@ class DailyRitualScreen extends StatelessWidget {
                             ? null
                             : controller.complete,
                         icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Complete today’s ritual'),
+                        label: const Text('Complete today’s Gospel'),
                       ),
                     ],
                     if (controller.state.value!.demo.isDemo) ...[
@@ -332,7 +332,7 @@ class DailyRitualScreen extends StatelessWidget {
                     ),
                     onPressed: () => _showHistory(context),
                     icon: const Icon(Icons.history),
-                    label: const Text('Ritual history'),
+                    label: const Text('Gospel history'),
                   ),
                 ],
               ],
@@ -468,12 +468,12 @@ class DailyRitualScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Ritual history',
+                        'Gospel history',
                         style: Theme.of(context).textTheme.headlineMedium,
                       ),
                       const SizedBox(height: 8),
                       const Text(
-                        'Lifecycle states come from the server. Completing a ritual records reflection, not market action.',
+                        'Lifecycle states come from the server. Completing a Gospel records reflection, not market action.',
                       ),
                       const SizedBox(height: 14),
                       StateStatus(
@@ -507,7 +507,7 @@ class DailyRitualScreen extends StatelessWidget {
   }
 
   String _formatDate(DateTime? value) {
-    if (value == null) return 'Daily ritual';
+    if (value == null) return 'Daily Gospel';
     const months = [
       'January',
       'February',
@@ -565,7 +565,7 @@ class _Sigil extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Ritual sigil',
+      label: 'Gospel blessing',
       child: Container(
         width: 42,
         height: 42,
@@ -574,7 +574,7 @@ class _Sigil extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: colors.gold),
         ),
-        child: Icon(Icons.auto_awesome, color: colors.gold, size: 21),
+        child: Icon(Icons.auto_stories_outlined, color: colors.gold, size: 21),
       ),
     );
   }
@@ -636,7 +636,7 @@ class _CardStage extends StatelessWidget {
               Semantics(
                 image: true,
                 label: concealed
-                    ? 'Unrevealed ritual card'
+                    ? 'Unrevealed Gospel card'
                     : artwork?.alt ?? art.alt,
                 child: ExcludeSemantics(
                   child: Container(
@@ -786,7 +786,7 @@ class _AssetStar extends StatelessWidget {
     return Expanded(
       child: Semantics(
         button: true,
-        label: [symbol, ?change, note, 'ritual asset idea'].join(', '),
+        label: [symbol, ?change, note, 'Gospel research idea'].join(', '),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(12),

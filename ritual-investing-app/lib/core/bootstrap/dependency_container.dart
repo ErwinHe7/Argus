@@ -304,6 +304,16 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
     await coordinator.attachDraft();
   }
 
+  Future<void> completeBirthdayOnboarding() async {
+    final coordinator = entryCoordinator;
+    if (coordinator == null) {
+      throw StateError('Guided onboarding is unavailable.');
+    }
+    onboardingController.prepareBirthdayOnlyCompletion();
+    await coordinator.saveDraft(onboardingController.draft);
+    await coordinator.attachBirthdayDraft();
+  }
+
   Future<void> retryEntryAction() async {
     final coordinator = entryCoordinator;
     if (coordinator == null) return bootstrap();
