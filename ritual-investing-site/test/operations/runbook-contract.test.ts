@@ -51,7 +51,7 @@ describe("static Pages and Supabase waitlist runbook", () => {
     expect(runbook).toMatch(/does not require a GitHub\s+deployment environment/);
     expect(runbook).toMatch(/repository-level GitHub\s+Actions variables/);
     expect(runbook).toContain("credential-free staging preflight");
-    expect(runbook).toContain("authorizes Wrangler content deployment only");
+    expect(runbook).toMatch(/authorizes Wrangler content deployment\s+only/);
     expect(runbook).toContain("does not authorize a Terraform apply");
     expect(terraformReadme).toContain("repository-level GitHub Actions variables");
     expect(terraformReadme).toContain("operator-local state");
