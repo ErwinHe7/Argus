@@ -35,6 +35,10 @@ const mode = 'memory-only';
 EOF
   cat >"$fixture/ritual-investing-api/src/jobs/handlers.ts" <<'EOF'
 export const handlers = Object.freeze({});
+export const reviewedEvidenceSources = Object.freeze([
+  "https://www.investor.gov/example",
+  "https://www.sec.gov/example",
+]);
 EOF
   cat >"$fixture/ritual-investing-api/src/jobs/queue-consumer.ts" <<'EOF'
 import { z } from "zod";

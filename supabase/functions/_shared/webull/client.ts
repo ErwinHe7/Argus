@@ -288,7 +288,7 @@ export function createWebullClient(
       response = await send(url, {
         method: init.method,
         headers,
-        ...(init.body === undefined ? {} : { body: init.body }),
+        ...(init.body === undefined ? {} : { body: new Uint8Array(init.body) }),
         redirect: "error",
         signal: AbortSignal.timeout(10_000),
       });

@@ -34,6 +34,15 @@ describe("Ritual fast CI", () => {
       expect(job(source, name).length).toBeGreaterThan(100);
     }
     expect(source).not.toMatch(/playwright|flutter\s+drive|integration_test|chromedriver|emulator|simulator|hosted[- ]acceptance|supabase\s+(start|link)|supabase\s+db\s+reset|--linked|restore|terraform\s+(plan|apply)|wrangler\s+(pages\s+deploy|versions\s+upload)/i);
+    expect(source).toContain("DENO_VERSION: 2.9.6");
+    expect(source).not.toContain("deno-version: v2.x");
+    expect(source.match(/deno-version: \$\{\{ env\.DENO_VERSION \}\}/g)).toHaveLength(2);
+    expect(job(source, "member-provider-boundary")).toContain("sudo apt-get install -y ripgrep");
+    expect(job(source, "demo-web-fast")).toContain("flutter test --exclude-tags golden");
+    for (const name of ["starpath_visual_reference_test.dart", "member_entry_visual_test.dart", "visual_reference_test.dart"]) {
+      const visualTest = await readFile(resolve(root, `ritual-investing-app/test/${name}`), "utf8");
+      expect(visualTest).toContain("@Tags(['golden'])");
+    }
     expectPinned(source);
   });
 

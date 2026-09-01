@@ -109,7 +109,7 @@ printf '%s\n' "$literal_urls" | while IFS= read -r literal_url; do
   literal_host=${literal_url#*://}
   literal_host=${literal_host%%/*}
   case "$literal_host" in
-    PROJECT_REF.supabase.co|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|media-processor.internal|media-scanner.internal|push-provider.internal)
+    PROJECT_REF.supabase.co|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|www.investor.gov|www.sec.gov|media-processor.internal|media-scanner.internal|push-provider.internal)
       ;;
     # Frame messages are reviewed as an exact prod/staging pair. Do not
     # broaden this to a wildcard subdomain allowlist.

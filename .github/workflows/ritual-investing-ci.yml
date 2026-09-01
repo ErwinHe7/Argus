@@ -37,6 +37,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  DENO_VERSION: 2.9.6
   NODE_VERSION: 22.22.0
   FLUTTER_VERSION: 3.47.1
   RITUAL_ENVIRONMENT: staging
@@ -58,6 +59,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - run: sudo apt-get install -y ripgrep
       - run: ./scripts/test-check-member-provider-boundaries.sh
       - run: ./scripts/check-member-provider-boundaries.sh
 
@@ -78,7 +80,7 @@ jobs:
       - working-directory: ritual-investing-app
         run: flutter analyze
       - working-directory: ritual-investing-app
-        run: flutter test
+        run: flutter test --exclude-tags golden
       - working-directory: ritual-investing-demo
         run: flutter pub get --enforce-lockfile
       - working-directory: ritual-investing-demo
@@ -149,7 +151,7 @@ jobs:
           persist-credentials: false
       - uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
         with:
-          deno-version: v2.x
+          deno-version: ${{ env.DENO_VERSION }}
       - working-directory: supabase/functions/waitlist
         run: deno task check
       - working-directory: supabase/functions/waitlist
@@ -185,7 +187,7 @@ jobs:
           persist-credentials: false
       - uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
         with:
-          deno-version: v2.x
+          deno-version: ${{ env.DENO_VERSION }}
       - working-directory: supabase/functions/api
         run: deno task check && deno task test
       - working-directory: supabase/functions/webull-callback

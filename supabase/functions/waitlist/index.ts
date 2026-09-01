@@ -288,7 +288,7 @@ function createRuntime(databaseUrl: string): WaitlistRuntime {
 }
 
 async function deadline<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
-  let timeout: number | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   const expired = new Promise<never>((_resolve, reject) => {
     timeout = setTimeout(() => reject(new Error("dependency_timeout")), milliseconds);
   });
