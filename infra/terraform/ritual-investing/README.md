@@ -4,12 +4,13 @@ This feature owns the stable hosting control plane for the exact `staging` and
 `prod` environments. There is intentionally no Terraform root for `dev`: local
 development remains local-only.
 
-Terraform owns only the Cloudflare Pages project, custom domain, DNS record,
-GitHub environment metadata, and known nonsecret GitHub environment variables.
-Wrangler owns Pages content uploads and is explicitly excluded from this stack.
-Supabase resources and mutations are also explicitly excluded. Credentials,
-GitHub environment secrets, runtime values, live inventory values, saved plans,
-and deployment artifacts must never be committed to these roots.
+Terraform owns only the Cloudflare Pages project, custom domain, and DNS record.
+GitHub Actions variables and secrets stay outside this stack so automatic
+staging does not require repository-admin environment management. Wrangler owns
+Pages content uploads and is explicitly excluded from this stack. Supabase
+resources and mutations are also explicitly excluded. Credentials, runtime
+values, live inventory values, saved plans, and deployment artifacts must never
+be committed to these roots.
 
 ## Current enablement blocker
 
@@ -111,9 +112,9 @@ Never derive an account, zone, project, DNS, or provider import ID from a file
 name. A future operator must inventory the live APIs first. The operator-only
 inventory must cover Pages project mode and variables, Functions or
 `_worker.js`, bindings, domains, DNS records, deployment IDs, physical legacy
-IDs, GitHub environments and settings, state lineage/serial, and known
-nonsecret variables. A secret environment variable, Function, binding, or
-unknown setting leaves that project unmanaged and blocks enablement.
+IDs, GitHub Actions settings, state lineage/serial, and known nonsecret
+variables. A secret environment variable, Function, binding, or unknown setting
+leaves that project unmanaged and blocks enablement.
 
 Capture sanitized, read-only GitHub evidence with the checker below. It never
 creates or updates branch protection, rulesets, required checks, reviewers,
@@ -128,8 +129,7 @@ GITHUB_REPOSITORY=OWNER/REPOSITORY GITHUB_TOKEN="$GITHUB_TOKEN" \
 
 Keep exact import IDs in an operator-only variable file outside the checkout.
 Cloudflare project and DNS IDs remain opaque provider inputs; the current
-`cloudflare_pages_domain` importer uses the exact domain `name`. GitHub
-repository environments use `<repository>:<environment>`. Never put token
+`cloudflare_pages_domain` importer uses the exact domain `name`. Never put token
 values or secret Pages variable values in the file.
 
 Once the state-safety gate has a reviewed receipt, these future manual commands

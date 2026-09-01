@@ -48,6 +48,7 @@ describe("static Pages and Supabase waitlist runbook", () => {
       "Production remains NO-GO",
     ]) expect(runbook).toContain(phrase);
     expect(runbook).toContain("does not configure branch protection");
+    expect(runbook).toMatch(/does not require a GitHub\s+deployment environment/);
     expect(runbook).toMatch(/repository-level GitHub\s+Actions variables/);
     expect(runbook).toContain("credential-free staging preflight");
     expect(terraformReadme).toContain("repository-level GitHub Actions variables");

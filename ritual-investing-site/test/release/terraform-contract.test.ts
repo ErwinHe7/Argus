@@ -77,8 +77,6 @@ function acceptsPlanSummary(summary: PlanSummary): boolean {
     "cloudflare_pages_project",
     "cloudflare_pages_domain",
     "cloudflare_dns_record",
-    "github_repository_environment",
-    "github_actions_environment_variable",
   ]);
   const allowedActions = new Set(["no-op", "read", "create", "update"]);
   return (summary.resource_changes ?? []).every(({ type, change }) => {
@@ -106,8 +104,7 @@ describe("Ritual Terraform release contract", () => {
       const lock = await text(`environments/${environment}/.terraform.lock.hcl`);
       expect(lock).toContain('provider "registry.terraform.io/cloudflare/cloudflare"');
       expect(lock).toContain('version     = "5.24.0"');
-      expect(lock).toContain('provider "registry.terraform.io/integrations/github"');
-      expect(lock).toContain('version     = "6.13.0"');
+      expect(lock).not.toContain('registry.terraform.io/integrations/github');
       expect(lock).toMatch(/hashes\s*=\s*\[\s*"(?:h1|zh):/);
     }
   });
@@ -117,7 +114,7 @@ describe("Ritual Terraform release contract", () => {
       const providers = await text(`environments/${environment}/providers.tf`);
       expect(providers).toMatch(/required_version\s*=\s*"~> 1\.15\.0"/);
       expect(providers).toMatch(/cloudflare[\s\S]*?version\s*=\s*"~> 5\.24\.0"/);
-      expect(providers).toMatch(/github[\s\S]*?version\s*=\s*"~> 6\.13\.0"/);
+      expect(providers).not.toMatch(/integrations\/github|provider\s+"github"/);
     }
   });
 
@@ -154,8 +151,6 @@ describe("Ritual Terraform release contract", () => {
       "cloudflare_pages_project",
       "cloudflare_pages_domain",
       "cloudflare_dns_record",
-      "github_repository_environment",
-      "github_actions_environment_variable",
     ]);
 
     const blocks = resourceBlocks(configuration);
@@ -165,7 +160,7 @@ describe("Ritual Terraform release contract", () => {
       /\b(?:api_token|token|password|client_secret|access_key|secret_key|credentials?)\s*=/i,
     );
     expect(configuration).not.toMatch(
-      /github_actions_environment_secret|cloudflare_pages_deployment|wrangler|supabase|workers?_script/i,
+      /github_(?:repository_environment|actions_environment_(?:variable|secret))|cloudflare_pages_deployment|wrangler|supabase|workers?_script/i,
     );
   });
 
@@ -181,8 +176,6 @@ describe("Ritual Terraform release contract", () => {
       "cloudflare_dns_record",
       "cloudflare_pages_domain",
       "cloudflare_pages_project",
-      "github_actions_environment_variable",
-      "github_repository_environment",
     ]);
     for (const { body } of blocks) {
       expect(body).toMatch(/lifecycle\s*\{[\s\S]*?prevent_destroy\s*=\s*true/);
@@ -285,8 +278,9 @@ describe("Ritual Terraform release contract", () => {
         text(`environments/${environment}/main.tf`),
       ]);
       expect(imports).toMatch(/for_each\s*=\s*var\.enable_brownfield_imports\s*\?/);
-      expect(imports).toContain("github_repository_environment");
-      expect(imports).toContain('"${var.github_repository}:${var.environment}"');
+      expect(imports).toMatch(/pages_project_import_id/);
+      expect(imports).toMatch(/dns_record_import_id/);
+      expect(imports).not.toMatch(/github_repository_environment|github_actions_environment_variable/);
       expect(imports).not.toMatch(/\b[a-f0-9]{32,64}\b/i);
       expect(main).toMatch(/enable_remote_changes[\s\S]*default\s*=\s*false/);
       expect(main).toMatch(/live_inventory_sha256/);

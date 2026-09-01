@@ -12,8 +12,3 @@ output "dns_record_id" {
   description = "Managed Cloudflare DNS record identifier."
   value       = cloudflare_dns_record.pages.id
 }
-
-output "github_environment" {
-  description = "Managed GitHub environment name."
-  value       = github_repository_environment.this.environment
-}

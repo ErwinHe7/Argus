@@ -57,24 +57,32 @@ variable "adoption_evidence" {
 }
 
 variable "brownfield_import_inventory" {
-  description = "Exact read-only GitHub inventory used only by conditional import blocks."
+  description = "Exact nonsecret provider import identifiers from the live staging inventory."
   type = object({
-    github_environment_exists              = bool
-    github_environment_variable_import_ids = optional(map(string), {})
+    landing_pages_project_import_id = string
+    landing_pages_domain_name       = string
+    landing_dns_record_import_id    = string
+    demo_pages_project_import_id    = string
+    demo_pages_domain_name          = string
+    demo_dns_record_import_id       = string
   })
   default  = null
   nullable = true
 
   validation {
     condition = var.brownfield_import_inventory == null ? true : (
-      var.brownfield_import_inventory.github_environment_exists &&
-      alltrue([for value in values(var.brownfield_import_inventory.github_environment_variable_import_ids) : length(trimspace(value)) > 0]) &&
-      length(setsubtract(
-        toset(keys(var.brownfield_import_inventory.github_environment_variable_import_ids)),
-        toset(["RITUAL_ENVIRONMENT", "RITUAL_PAGES_DOMAIN", "RITUAL_PAGES_PROJECT"]),
-      )) == 0
+      alltrue([
+        for value in [
+          var.brownfield_import_inventory.landing_pages_project_import_id,
+          var.brownfield_import_inventory.landing_pages_domain_name,
+          var.brownfield_import_inventory.landing_dns_record_import_id,
+          var.brownfield_import_inventory.demo_pages_project_import_id,
+          var.brownfield_import_inventory.demo_pages_domain_name,
+          var.brownfield_import_inventory.demo_dns_record_import_id,
+        ] : length(trimspace(value)) > 0
+      ])
     )
-    error_message = "Staging import inventory must confirm the GitHub environment and may contain only nonempty opaque IDs for known nonsecret environment variables."
+    error_message = "Staging import inventory must provide every nonempty Cloudflare import identity."
   }
 }
 
@@ -118,7 +126,8 @@ locals {
     false,
   )
   import_inventory_valid = try(
-    var.brownfield_import_inventory.github_environment_exists,
+    var.brownfield_import_inventory.landing_pages_domain_name == var.pages_domain &&
+    var.brownfield_import_inventory.demo_pages_domain_name == var.demo_pages_domain,
     false,
   )
 }
@@ -151,7 +160,6 @@ module "pages_environment" {
   production_branch     = var.production_branch
   pages_root_dir        = "ritual-investing-site"
   pages_destination_dir = "public"
-  github_repository     = var.github_repository
 }
 
 resource "cloudflare_pages_project" "demo" {

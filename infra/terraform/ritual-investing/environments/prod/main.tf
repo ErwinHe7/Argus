@@ -59,13 +59,12 @@ variable "adoption_evidence" {
 variable "brownfield_import_inventory" {
   description = "Exact nonsecret provider import identifiers from the live prod inventory."
   type = object({
-    landing_pages_project_import_id        = string
-    landing_pages_domain_name              = string
-    landing_dns_record_import_id           = string
-    demo_pages_project_import_id           = string
-    demo_pages_domain_name                 = string
-    demo_dns_record_import_id              = string
-    github_environment_variable_import_ids = optional(map(string), {})
+    landing_pages_project_import_id = string
+    landing_pages_domain_name       = string
+    landing_dns_record_import_id    = string
+    demo_pages_project_import_id    = string
+    demo_pages_domain_name          = string
+    demo_dns_record_import_id       = string
   })
   default  = null
   nullable = true
@@ -81,14 +80,9 @@ variable "brownfield_import_inventory" {
           var.brownfield_import_inventory.demo_pages_domain_name,
           var.brownfield_import_inventory.demo_dns_record_import_id,
         ] : length(trimspace(value)) > 0
-      ]) &&
-      alltrue([for value in values(var.brownfield_import_inventory.github_environment_variable_import_ids) : length(trimspace(value)) > 0]) &&
-      length(setsubtract(
-        toset(keys(var.brownfield_import_inventory.github_environment_variable_import_ids)),
-        toset(["RITUAL_ENVIRONMENT", "RITUAL_PAGES_DOMAIN", "RITUAL_PAGES_PROJECT"]),
-      )) == 0
+      ])
     )
-    error_message = "Prod import inventory must provide every nonempty Cloudflare import identity and may contain only opaque IDs for known nonsecret GitHub environment variables."
+    error_message = "Prod import inventory must provide every nonempty Cloudflare import identity."
   }
 }
 
@@ -166,7 +160,6 @@ module "pages_environment" {
   production_branch     = var.production_branch
   pages_root_dir        = "ritual-investing-site"
   pages_destination_dir = "public"
-  github_repository     = var.github_repository
 }
 
 resource "cloudflare_pages_project" "demo" {

@@ -3,17 +3,6 @@ terraform {
     cloudflare = {
       source = "cloudflare/cloudflare"
     }
-    github = {
-      source = "integrations/github"
-    }
-  }
-}
-
-locals {
-  github_environment_variables = {
-    RITUAL_ENVIRONMENT   = var.environment
-    RITUAL_PAGES_DOMAIN  = var.pages_domain
-    RITUAL_PAGES_PROJECT = var.pages_project_name
   }
 }
 
@@ -70,28 +59,6 @@ resource "cloudflare_dns_record" "pages" {
   content = cloudflare_pages_project.this.subdomain
   ttl     = 1
   proxied = true
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "github_repository_environment" "this" {
-  repository  = var.github_repository
-  environment = var.environment
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
-resource "github_actions_environment_variable" "control_plane" {
-  for_each = local.github_environment_variables
-
-  repository    = var.github_repository
-  environment   = github_repository_environment.this.environment
-  variable_name = each.key
-  value         = each.value
 
   lifecycle {
     prevent_destroy = true

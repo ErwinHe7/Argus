@@ -9,7 +9,3 @@ output "pages_domain" {
 output "dns_record_id" {
   value = module.pages_environment.dns_record_id
 }
-
-output "github_environment" {
-  value = module.pages_environment.github_environment
-}

@@ -7,10 +7,12 @@ local build/run environment and has no hosted target. A canonical push to
 `main` runs the fast, secret-free workflow, builds one immutable release, and
 automatically attempts staging deployment. Direct pushes remain allowed: this
 repository does not configure branch protection, rulesets, required checks,
-or deployment branch policies. The static `staging` and `prod` environments
-have no reviewers or wait timers. Existing separately named protected
-authority environments for manual Supabase remediation and member-web release
-remain intact; they are not deployment-stage names and do not gate pushes.
+or deployment branch policies. Automatic staging does not require a GitHub
+deployment environment; repository variables and secrets are exposed only to
+the serialized content job after preflight passes. Existing separately named
+protected authority environments for manual Supabase remediation and member-web
+release remain intact; they are not deployment-stage names and do not gate
+pushes.
 
 Integration, browser, device, simulator, hosted acceptance, restore, and
 production-readiness checks run only through the manual evidence workflow.

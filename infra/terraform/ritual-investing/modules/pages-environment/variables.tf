@@ -62,13 +62,3 @@ variable "pages_destination_dir" {
   description = "Pages build destination metadata."
   type        = string
 }
-
-variable "github_repository" {
-  description = "GitHub repository name containing the environment."
-  type        = string
-
-  validation {
-    condition     = length(trimspace(var.github_repository)) > 0
-    error_message = "GitHub repository name must not be empty."
-  }
-}
