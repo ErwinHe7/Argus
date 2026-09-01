@@ -33,6 +33,7 @@ class _StarpathScreenState extends State<StarpathScreen> {
       builder: (context, _) {
         final state = widget.controller.state;
         final snapshot = state.snapshot;
+        final preview = snapshot?.isDraftPreview ?? false;
         return Scaffold(
           backgroundColor: const Color(0xFF09020D),
           body: SafeArea(
@@ -66,6 +67,7 @@ class _StarpathScreenState extends State<StarpathScreen> {
                 snapshot: snapshot,
                 controller: widget.controller,
                 readOnly: state.isReadOnly,
+                preview: preview,
                 stale:
                     state.phase == StarpathViewPhase.cachedStale ||
                     state.phase == StarpathViewPhase.offlineReadOnly,
@@ -83,12 +85,14 @@ class _Content extends StatefulWidget {
     required this.snapshot,
     required this.controller,
     required this.readOnly,
+    required this.preview,
     required this.stale,
   });
 
   final StarpathSnapshot snapshot;
   final StarpathController controller;
   final bool readOnly;
+  final bool preview;
   final bool stale;
 
   @override
@@ -141,8 +145,10 @@ class _ContentState extends State<_Content> {
                                   (widget.snapshot.nodes.isEmpty
                                       ? null
                                       : widget.snapshot.nodes.last),
+                              preview: widget.preview,
                               stale: widget.stale,
                             ),
+                            if (widget.preview) const _DraftPreviewBanner(),
                             if (widget.snapshot.recall case final recall?)
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(
@@ -160,6 +166,7 @@ class _ContentState extends State<_Content> {
                             StarpathPath(
                               nodes: widget.snapshot.nodes,
                               readOnly: widget.readOnly,
+                              preview: widget.preview,
                               currentNodeKey: _currentNodeKey,
                               onOpenNode: (node) => Navigator.of(context).push(
                                 MaterialPageRoute<void>(
@@ -167,6 +174,7 @@ class _ContentState extends State<_Content> {
                                     controller: widget.controller,
                                     node: node,
                                     readOnly: widget.readOnly,
+                                    preview: widget.preview,
                                   ),
                                 ),
                               ),
@@ -234,12 +242,14 @@ class _PathHeader extends StatelessWidget {
     required this.theme,
     required this.nodes,
     required this.currentNode,
+    required this.preview,
     required this.stale,
   });
 
   final StarpathTheme? theme;
   final List<StarpathNode> nodes;
   final StarpathNode? currentNode;
+  final bool preview;
   final bool stale;
 
   @override
@@ -295,7 +305,7 @@ class _PathHeader extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '$completed / 8',
+                    preview ? '8 draft nodes' : '$completed / 8',
                     style: const TextStyle(
                       color: Color(0xFFFFF7FF),
                       fontSize: 15,
@@ -318,7 +328,7 @@ class _PathHeader extends StatelessWidget {
             child: SizedBox(
               height: 6,
               child: LinearProgressIndicator(
-                value: completed / 8,
+                value: preview ? 0 : completed / 8,
                 backgroundColor: Colors.white.withValues(alpha: 0.12),
                 valueColor: const AlwaysStoppedAnimation(Color(0xFFEDBC70)),
               ),
@@ -342,7 +352,10 @@ class _PathHeader extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      theme?.horoscopeFrame ?? 'Celestial imagery is used only to remember reviewed facts.',
+                      theme?.horoscopeFrame ??
+                          (preview
+                              ? 'Celestial imagery is used only to remember draft educational concepts.'
+                              : 'Celestial imagery is used only to remember reviewed facts.'),
                       style: const TextStyle(
                         color: Color(0xFFEADDEC),
                         fontSize: 13,
@@ -369,6 +382,37 @@ class _PathHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DraftPreviewBanner extends StatelessWidget {
+  const _DraftPreviewBanner();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('starpath-draft-preview-banner'),
+    width: double.infinity,
+    padding: const EdgeInsets.fromLTRB(18, 12, 18, 13),
+    color: const Color(0xFF3A193F),
+    child: const Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.science_outlined, color: Color(0xFFF7DCAE), size: 19),
+        SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            'DRAFT BETA PREVIEW · All eight lessons are open for reading. '
+            'Checks and progress are disabled until publication.',
+            style: TextStyle(
+              color: Color(0xFFFFF7FF),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.4,
+            ),
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _OfflineBanner extends StatelessWidget {

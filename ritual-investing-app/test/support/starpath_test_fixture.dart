@@ -9,12 +9,14 @@ StarpathController starpathFixtureController({
   bool recall = false,
   StarpathAnswerFeedback? answer,
   bool offline = false,
+  bool draftPreview = false,
 }) {
   final snapshot = starpathFixtureSnapshot(
     version: version,
     currentOrdinal: currentOrdinal,
     recall: recall,
     answer: answer,
+    draftPreview: draftPreview,
   );
   return StarpathController(
     repository: StarpathRepository(
@@ -61,16 +63,19 @@ StarpathSnapshot starpathFixtureSnapshot({
   int currentOrdinal = 3,
   bool recall = false,
   StarpathAnswerFeedback? answer,
+  bool draftPreview = false,
 }) => StarpathSnapshot(
   availability: StarpathAvailability.available,
   version: version,
-  authority: const StarpathAuthority(
+  authority: StarpathAuthority(
     environment: StarpathEnvironment.beta,
     jurisdiction: 'US',
     capabilityVersion: 4,
-    policyVersion: 'starpath-no-advice-v1',
+    policyVersion: draftPreview
+        ? 'starpath-no-advice-v1-draft'
+        : 'starpath-no-advice-v1',
     manifestId: 'manifest-1',
-    manifestVersion: '1',
+    manifestVersion: draftPreview ? draftPreviewStarpathManifestVersion : '1',
   ),
   nodes: List.generate(8, (index) {
     final ordinal = index + 1;

@@ -38,6 +38,10 @@ import {
   createBlockedStarpathCapabilityEvaluator,
   createSupabaseStarpathRepository,
 } from "../../../ritual-investing-api/src/domains/starpath/repository.ts";
+import {
+  createBetaDraftStarpathCapabilityEvaluator,
+  createDraftPreviewStarpathRepository,
+} from "../../../ritual-investing-api/src/domains/starpath/draft-preview-repository.ts";
 import { createMemberBranchCapabilityEvaluator } from "./member-branch-capabilities.ts";
 
 import { createSupabaseAccessTokenVerifier } from "../_shared/auth.ts";
@@ -101,9 +105,12 @@ const blockedWebullContract =
     ? configuredWebullContract.publicContract
     : configuredWebullContract;
 const blockedStarpathCapability = createBlockedStarpathCapabilityEvaluator();
+const starpathCapability = environment === "production"
+  ? blockedStarpathCapability
+  : createBetaDraftStarpathCapabilityEvaluator();
 const memberBranchCapabilities = createMemberBranchCapabilityEvaluator({
   runtimeEnvironment: environment,
-  starpath: blockedStarpathCapability,
+  starpath: starpathCapability,
 });
 
 function createRepositories(
@@ -127,12 +134,9 @@ function createRepositories(
     rowan: createSupabaseRowanRepository(database),
     search: createSupabaseSearchRepository(database),
     starpath: createSupabaseStarpathEditorialRepository(database),
-    // RC1 owns the evaluator and replaces this fail-closed adapter at
-    // composition time. Starpath never falls back to environment guessing.
-    starpathMember: createSupabaseStarpathRepository(
-      database,
-      blockedStarpathCapability,
-    ),
+    starpathMember: environment === "production"
+      ? createSupabaseStarpathRepository(database, blockedStarpathCapability)
+      : createDraftPreviewStarpathRepository(),
     admin: createSupabaseAdminRepository(database, claims),
     adminOperations: createSupabaseAdminOperationsRepository(
       database,

@@ -23,11 +23,13 @@ class StarpathLessonScreen extends StatefulWidget {
     required this.controller,
     required this.node,
     required this.readOnly,
+    this.preview = false,
   });
 
   final StarpathController controller;
   final StarpathNode node;
   final bool readOnly;
+  final bool preview;
 
   @override
   State<StarpathLessonScreen> createState() => _StarpathLessonScreenState();
@@ -157,12 +159,14 @@ class _StarpathLessonScreenState extends State<StarpathLessonScreen> {
   ];
 
   List<Widget> _factStep(BuildContext context) => [
-    const _SectionLabel('FACTUAL LESSON'),
+    _SectionLabel(widget.preview ? 'DRAFT FINANCIAL LESSON' : 'FACTUAL LESSON'),
     const SizedBox(height: 8),
     Text(widget.node.title, style: Theme.of(context).textTheme.headlineMedium),
     const SizedBox(height: 14),
     _Lens(
-      label: 'VERIFIED FINANCIAL FACT',
+      label: widget.preview
+          ? 'DRAFT EDUCATIONAL CONCEPT'
+          : 'VERIFIED FINANCIAL FACT',
       body: widget.node.factualSummary,
       ritual: false,
     ),
@@ -228,7 +232,9 @@ class _StarpathLessonScreenState extends State<StarpathLessonScreen> {
     if (!canAnswer) ...[
       const SizedBox(height: 8),
       Text(
-        widget.readOnly
+        widget.preview
+            ? 'Draft preview only. Checks do not record answers or progress.'
+            : widget.readOnly
             ? 'Checks are disabled while this reviewed lesson is offline.'
             : 'Review complete. Your progress is unchanged.',
         style: Theme.of(context).textTheme.bodyMedium,
@@ -273,8 +279,10 @@ class _StarpathLessonScreenState extends State<StarpathLessonScreen> {
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 12),
-              const _BoundaryNote(
-                text: 'Reviewed lesson copy only. Rowan cannot recommend, predict, or change progress here.',
+              _BoundaryNote(
+                text: widget.preview
+                    ? 'Draft lesson copy only. Rowan cannot recommend, predict, or change progress here.'
+                    : 'Reviewed lesson copy only. Rowan cannot recommend, predict, or change progress here.',
               ),
               const SizedBox(height: 18),
               FilledButton(

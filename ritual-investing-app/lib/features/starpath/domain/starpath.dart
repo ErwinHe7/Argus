@@ -1,5 +1,8 @@
 import 'package:flutter/foundation.dart';
 
+const draftPreviewStarpathManifestVersion =
+    'draft-preview-starpath-curriculum-v1';
+
 enum StarpathAvailability { available, notStarted }
 
 enum StarpathEnvironment { beta, production }
@@ -268,6 +271,10 @@ class StarpathSnapshot {
   final StarpathRecall? recall;
   final StarpathAnswerFeedback? answer;
   final StarpathCommandEffect? commandEffect;
+
+  bool get isDraftPreview =>
+      authority.environment == StarpathEnvironment.beta &&
+      authority.manifestVersion == draftPreviewStarpathManifestVersion;
 
   StarpathNode? get currentNode {
     for (final node in nodes) {
