@@ -50,6 +50,10 @@ describe("Ritual fast CI", () => {
       expect(provisionIndex).toBeGreaterThanOrEqual(0);
       expect(consumerIndex).toBeGreaterThan(provisionIndex);
     }
+    const demoBoundary = job(source, "demo-provider-boundary");
+    const dartProvisionIndex = demoBoundary.indexOf("subosito/flutter-action@");
+    expect(dartProvisionIndex).toBeGreaterThanOrEqual(0);
+    expect(demoBoundary.indexOf("./scripts/test-check-demo-provider-boundaries.sh")).toBeGreaterThan(dartProvisionIndex);
     const legacyGuard = await readFile(resolve(root, "scripts/check-legacy-backend-removal.sh"), "utf8");
     expect(legacyGuard).toContain('command -v rg >/dev/null 2>&1 || fail "ripgrep (rg) is required"');
     expect(job(source, "demo-web-fast")).toContain("flutter test --exclude-tags golden");
