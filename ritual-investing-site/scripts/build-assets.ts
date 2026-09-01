@@ -202,7 +202,7 @@ export function renderLandingHeaders(
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin${indexPolicy}
 
-${entryCacheRules(["/", "/index.html", "/privacy/waitlist", "/privacy/waitlist/", "/privacy/waitlist/index.html", "/landing.js", "/styles.css", "/robots.txt", "/sitemap.xml"])}
+${entryCacheRules(["/", "/index.html", "/404.html", "/privacy/waitlist", "/privacy/waitlist/", "/privacy/waitlist/index.html", "/landing.js", "/styles.css", "/robots.txt", "/sitemap.xml"])}
 
 /assets/immutable/*
   Cache-Control: public, max-age=31536000, immutable
@@ -240,7 +240,7 @@ export function renderDemoHeaders(environment: DeploymentEnvironment): string {
   Cross-Origin-Resource-Policy: same-origin
   ${NOINDEX}
 
-${entryCacheRules(["/", "/index.html", "/flutter.js", "/flutter_bootstrap.js", "/main.dart.js", "/manifest.json", "/version.json", "/asset-manifest.json"])}
+${entryCacheRules(["/", "/index.html", "/404.html", "/flutter.js", "/flutter_bootstrap.js", "/main.dart.js", "/manifest.json", "/version.json", "/asset-manifest.json"])}
 `;
 }
 

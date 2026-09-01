@@ -222,6 +222,10 @@ describe("immutable Ritual release bundle", () => {
         const assetManifest = JSON.parse(await readFile(join(root, "asset-manifest.json"), "utf8")) as {
           files: Array<{ path: string }>;
         };
+        const notFoundPage = await readFile(join(root, "404.html"), "utf8");
+        expect(notFoundPage).toContain("<title>Page not found</title>");
+        expect(notFoundPage).toContain('content="noindex,nofollow"');
+        expect(assetManifest.files.map(({ path }) => path)).toContain("404.html");
         expect(assetManifest.files.map(({ path }) => path)).toContain("version.json");
         expect(assetManifest.files.map(({ path }) => path)).not.toContain("asset-manifest.json");
       }

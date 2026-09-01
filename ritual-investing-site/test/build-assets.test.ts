@@ -106,6 +106,12 @@ describe("deterministic demo asset assembly", () => {
     ]);
   });
 
+  it("marks the static 404 response as non-cacheable on landing and Demo", () => {
+    for (const headers of [renderLandingHeaders("staging"), renderDemoHeaders("staging")]) {
+      expect(headers).toContain("/404.html\n  Cache-Control: no-cache, no-store, must-revalidate");
+    }
+  });
+
   it("copies validated assets, drops Flutter's zero-byte service-worker placeholder, and emits a hash manifest", async () => {
     const paths = await fixture();
     const manifest = await assembleAssets(paths);

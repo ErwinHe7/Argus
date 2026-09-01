@@ -60,6 +60,22 @@ export type ReleaseBuildResult = {
 
 const ENVIRONMENTS = ["staging", "prod"] as const;
 const SURFACES = ["landing", "demo"] as const;
+const STATIC_NOT_FOUND_PAGE = Buffer.from(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Page not found</title>
+</head>
+<body>
+  <main>
+    <h1>Page not found</h1>
+    <p>The requested page does not exist.</p>
+  </main>
+</body>
+</html>
+`);
 const INVENTORY_DOCUMENTS = [
   "member-data-inventory.md",
   "supabase-boundary-manifest-v1.txt",
@@ -316,6 +332,11 @@ export async function buildReleaseBundle(options: ReleaseBuildOptions): Promise<
         options.sourceDateEpoch,
       );
       const surfaceRoot = join(bundleDirectory, `trees/${environment}/${surface}`);
+      await writeStableFile(
+        join(surfaceRoot, "404.html"),
+        STATIC_NOT_FOUND_PAGE,
+        options.sourceDateEpoch,
+      );
       probeManifestDigests.set(
         `${environment}/${surface}`,
         await writeSurfaceProbeIdentity(surfaceRoot, options.provenance.subject.sha, options.sourceDateEpoch),
