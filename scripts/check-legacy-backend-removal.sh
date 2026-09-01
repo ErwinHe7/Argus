@@ -9,6 +9,8 @@ fail() {
   exit 1
 }
 
+command -v rg >/dev/null 2>&1 || fail "ripgrep (rg) is required"
+
 for retired_path in \
   ritual-investing-api/wrangler.jsonc \
   ritual-investing-api/wrangler.beta.jsonc \

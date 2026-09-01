@@ -37,7 +37,11 @@ describe("Ritual fast CI", () => {
     expect(source).toContain("DENO_VERSION: 2.9.6");
     expect(source).not.toContain("deno-version: v2.x");
     expect(source.match(/deno-version: \$\{\{ env\.DENO_VERSION \}\}/g)).toHaveLength(2);
-    expect(job(source, "member-provider-boundary")).toContain("sudo apt-get install -y ripgrep");
+    for (const name of ["source-guard", "member-provider-boundary", "demo-web-fast", "demo-provider-boundary"]) {
+      expect(job(source, name)).toContain("sudo apt-get install -y ripgrep");
+    }
+    const legacyGuard = await readFile(resolve(root, "scripts/check-legacy-backend-removal.sh"), "utf8");
+    expect(legacyGuard).toContain('command -v rg >/dev/null 2>&1 || fail "ripgrep (rg) is required"');
     expect(job(source, "demo-web-fast")).toContain("flutter test --exclude-tags golden");
     for (const name of ["starpath_visual_reference_test.dart", "member_entry_visual_test.dart", "visual_reference_test.dart"]) {
       const visualTest = await readFile(resolve(root, `ritual-investing-app/test/${name}`), "utf8");
