@@ -41,9 +41,12 @@ not prove that the hosted backend is deployed or healthy.
 
 ## External readiness receipt bindings
 
-Readiness receipts live outside the repository as GitHub environment variables;
-they must not contain credentials or member data. Store the compact JSON and
-its SHA-256 separately in the matching `staging` or `prod` environment.
+Readiness receipts live outside the repository as repository-level GitHub
+Actions variables; they must not contain credentials or member data. The
+environment-prefixed names keep `staging` and `prod` evidence separate while
+making the nonsecret values available to the credential-free staging preflight
+before any environment job can access deployment credentials. Store the compact
+JSON and its SHA-256 separately under the matching environment-prefixed names.
 
 - `RITUAL_<ENV>_INFRASTRUCTURE_RECEIPT` uses `schemaVersion: 2` and the exact
   key set enforced by the deployment workflow. Its
@@ -66,7 +69,8 @@ its SHA-256 separately in the matching `staging` or `prod` environment.
   production research token.
 
 An expired receipt, a source/snapshot mismatch, an extra or missing JSON key,
-or a receipt placed in the wrong environment fails before content mutation.
+or a receipt placed under the wrong environment prefix or variable scope fails
+before content mutation.
 
 ## Failure and recovery
 

@@ -167,8 +167,9 @@ fields enforced by the workflow, it must include `terraformSnapshotSha256`
 equal to the `terraform` snapshot SHA-256 in the exact immutable release
 manifest. This prevents a receipt for one Terraform source tree from
 authorizing another. Store the compact receipt and its SHA-256 only in the
-matching GitHub `staging` or `prod` environment variables described in
-`docs/ritual-investing/production-release-runbook.md`.
+environment-prefixed, repository-level GitHub Actions variables described in
+`docs/ritual-investing/production-release-runbook.md`; the credential-free
+staging preflight intentionally runs before any environment-scoped job.
 
 ## Plans and destructive-change gate
 

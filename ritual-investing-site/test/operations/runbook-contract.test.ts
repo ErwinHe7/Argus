@@ -27,10 +27,16 @@ describe("static Pages and Supabase waitlist runbook", () => {
   });
 
   it("documents the velocity-first dev, staging, prod release and recovery contract", async () => {
-    const runbook = await readFile(
-      resolve(repositoryRoot, "docs/ritual-investing/production-release-runbook.md"),
-      "utf8",
-    );
+    const [runbook, terraformReadme] = await Promise.all([
+      readFile(
+        resolve(repositoryRoot, "docs/ritual-investing/production-release-runbook.md"),
+        "utf8",
+      ),
+      readFile(
+        resolve(repositoryRoot, "infra/terraform/ritual-investing/README.md"),
+        "utf8",
+      ),
+    ]);
     for (const phrase of [
       "`dev`, `staging`, and `prod`",
       "Direct pushes remain allowed",
@@ -42,6 +48,9 @@ describe("static Pages and Supabase waitlist runbook", () => {
       "Production remains NO-GO",
     ]) expect(runbook).toContain(phrase);
     expect(runbook).toContain("does not configure branch protection");
+    expect(runbook).toMatch(/repository-level GitHub\s+Actions variables/);
+    expect(runbook).toContain("credential-free staging preflight");
+    expect(terraformReadme).toContain("repository-level GitHub Actions variables");
   });
 
   it("moves the route and retention proof to Supabase and keeps Pages free of backend bindings", async () => {
