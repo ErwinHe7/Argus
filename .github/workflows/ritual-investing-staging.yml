@@ -245,6 +245,7 @@ jobs:
       EXPECTED_TERRAFORM_SNAPSHOT_SHA256: ${{ needs.preflight.outputs.terraform_snapshot_sha256 }}
       EXPECTED_BACKEND_RECEIPT_SHA256: ${{ needs.preflight.outputs.backend_receipt_sha256 }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTENT_API_TOKEN }}
       CLOUDFLARE_CONTENT_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTENT_API_TOKEN }}
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -325,7 +326,7 @@ jobs:
             test "$(jq -er '.backendDependencies[] | select(.environment == "staging" and .surface == "landing") | .targetStatus' "$artifact/release-bundle/release-manifest.json")" = "$LANDING_TARGET_STATUS"
           fi
           jq -r '"INFRA_PLAN_DIGEST=" + .terraformPlanDigest, "INFRA_INVENTORY_DIGEST=" + .liveInventoryDigest, "INFRA_LOCK_DIGEST=" + .lockProofDigest, "INFRA_STATE_LINEAGE=" + .state.lineage, "INFRA_STATE_SERIAL=" + (.state.serial|tostring)' "$RUNNER_TEMP/current-infrastructure-receipt.json" >>"$GITHUB_ENV"
-          echo "DEPLOYMENT_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$GITHUB_ENV"
+          echo "DEPLOYMENT_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" >>"$GITHUB_ENV"
           [[ -n "$CLOUDFLARE_ACCOUNT_ID" && -n "$CLOUDFLARE_CONTENT_API_TOKEN" ]]
 
       - name: Capture prior staging deployment identities
@@ -385,7 +386,7 @@ jobs:
           RELEASE_PROBE_UNKNOWN_ROUTE_POLICY: not-found
         run: |
           npm run --silent release:probe
-          echo "DEMO_PROBE_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$GITHUB_ENV"
+          echo "DEMO_PROBE_AT=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" >>"$GITHUB_ENV"
 
       - name: Deploy exact immutable staging landing subtree
         if: env.LANDING_ELIGIBLE == 'true'
@@ -420,7 +421,7 @@ jobs:
           RELEASE_PROBE_UNKNOWN_ROUTE_POLICY: not-found
         run: |
           npm run --silent release:probe
-          echo "LANDING_PROBE_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$GITHUB_ENV"
+          echo "LANDING_PROBE_AT=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" >>"$GITHUB_ENV"
 
       - name: Restore prior content after a deploy or probe failure
         if: failure()
@@ -521,7 +522,7 @@ jobs:
             [[ -z "${LANDING_NEW_ID:-}" ]]
             LANDING_FINAL_ID="${LANDING_PRIOR_ID:-}"
           fi
-          completed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          completed_at="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
           jq -n --arg artifactId "$ARTIFACT_ID" \
             --arg releaseDigest "$EXPECTED_ARCHIVE_SHA256" --arg manifestSha256 "$EXPECTED_MANIFEST_SHA256" \
             --arg repository "$GITHUB_REPOSITORY" --arg sourceSha "$SOURCE_SHA" --arg sourceRunId "$SOURCE_RUN_ID" \

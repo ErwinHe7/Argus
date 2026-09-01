@@ -70,6 +70,9 @@ describe("Ritual automatic staging workflow", () => {
     expect(content).toContain("group: ritual-investing-staging-content");
     expect(content).toContain("cancel-in-progress: false");
     expect(content).toContain("CLOUDFLARE_CONTENT_API_TOKEN");
+    expect(content).toContain(
+      "CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTENT_API_TOKEN }}",
+    );
     expect(content).not.toMatch(/AWS_|TF_VAR_|TERRAFORM_TOKEN|CLOUDFLARE_CONTROL_PLANE/);
     expect(content).toContain("release-bundle/trees/staging/demo");
     expect(content).toContain("release-bundle/trees/staging/landing");
@@ -107,6 +110,12 @@ describe("Ritual automatic staging workflow", () => {
       expect(content).toContain(field);
     }
     expect(content).toContain("release:receipt:verify");
+    for (const timestamp of [
+      'DEPLOYMENT_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)',
+      'DEMO_PROBE_AT=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)',
+      'LANDING_PROBE_AT=$(date -u +%Y-%m-%dT%H:%M:%S.000Z)',
+      'completed_at="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"',
+    ]) expect(content).toContain(timestamp);
     expect(content).toContain("DEMO_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.demo_probe_manifest_sha256 }}");
     expect(content).toContain("LANDING_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.landing_probe_manifest_sha256 }}");
     expect(content).toContain("RELEASE_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.demo_probe_manifest_sha256 }}");
