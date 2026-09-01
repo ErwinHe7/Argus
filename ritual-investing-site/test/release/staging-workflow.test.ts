@@ -60,7 +60,7 @@ describe("Ritual automatic staging workflow", () => {
 
     const content = job(source, "staging-content");
     expect(content).toContain("needs.preflight.outputs.mutation_ready == 'true'");
-    expect(content).toContain("environment: staging");
+    expect(content).not.toMatch(/\n\s{4}environment:/);
   });
 
   it("serializes exact-tree content publication and keeps credentials separate", async () => {

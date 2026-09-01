@@ -227,7 +227,6 @@ jobs:
     needs: preflight
     if: needs.preflight.result == 'success' && needs.preflight.outputs.mutation_ready == 'true'
     runs-on: ubuntu-24.04
-    environment: staging
     concurrency:
       group: ritual-investing-staging-content
       cancel-in-progress: false
