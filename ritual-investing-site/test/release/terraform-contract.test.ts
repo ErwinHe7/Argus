@@ -279,6 +279,7 @@ describe("Ritual Terraform release contract", () => {
       ]);
       expect(imports).toMatch(/for_each\s*=\s*var\.enable_brownfield_imports\s*\?/);
       expect(imports).toMatch(/pages_project_import_id/);
+      expect(imports).toMatch(/pages_domain_import_id/);
       expect(imports).toMatch(/dns_record_import_id/);
       expect(imports).not.toMatch(/github_repository_environment|github_actions_environment_variable/);
       expect(imports).not.toMatch(/\b[a-f0-9]{32,64}\b/i);
@@ -295,8 +296,9 @@ describe("Ritual Terraform release contract", () => {
 
     const prodImports = await text("environments/prod/imports.tf");
     expect(prodImports).toMatch(/pages_project_import_id/);
+    expect(prodImports).toMatch(/pages_domain_import_id/);
     expect(prodImports).toMatch(/dns_record_import_id/);
-    expect(prodImports).toMatch(/cloudflare_pages_domain[\s\S]*id\s*=\s*each\.value\.name/);
+    expect(prodImports).toMatch(/cloudflare_pages_domain[\s\S]*id\s*=\s*each\.value\.id/);
     expect(prodImports).not.toMatch(/(?:account|zone)_id\s*=\s*"/);
 
     const readme = await text("README.md");

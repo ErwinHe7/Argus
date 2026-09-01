@@ -1,5 +1,4 @@
-# Provider-specific Cloudflare identifiers are opaque inventory inputs. The
-# current Cloudflare Pages domain importer uses the domain name itself.
+# Provider-specific Cloudflare identifiers are exact, opaque inventory inputs.
 import {
   for_each = var.enable_brownfield_imports ? { landing = { id = try(var.brownfield_import_inventory.landing_pages_project_import_id, "") } } : {}
 
@@ -8,10 +7,10 @@ import {
 }
 
 import {
-  for_each = var.enable_brownfield_imports ? { landing = { name = try(var.brownfield_import_inventory.landing_pages_domain_name, "") } } : {}
+  for_each = var.enable_brownfield_imports ? { landing = { id = try(var.brownfield_import_inventory.landing_pages_domain_import_id, "") } } : {}
 
   to = module.pages_environment.cloudflare_pages_domain.this
-  id = each.value.name
+  id = each.value.id
 }
 
 import {
@@ -29,10 +28,10 @@ import {
 }
 
 import {
-  for_each = var.enable_brownfield_imports ? { demo = { name = try(var.brownfield_import_inventory.demo_pages_domain_name, "") } } : {}
+  for_each = var.enable_brownfield_imports ? { demo = { id = try(var.brownfield_import_inventory.demo_pages_domain_import_id, "") } } : {}
 
   to = cloudflare_pages_domain.demo
-  id = each.value.name
+  id = each.value.id
 }
 
 import {

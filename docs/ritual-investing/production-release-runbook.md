@@ -56,6 +56,12 @@ JSON and its SHA-256 separately under the matching environment-prefixed names.
   snapshot SHA-256, while `terraformPlanDigest` identifies the reviewed
   current no-op plan for that source. Set the matching
   `RITUAL_<ENV>_INFRASTRUCTURE_RECEIPT_SHA256` to the compact JSON's SHA-256.
+  For automatic staging, this receipt authorizes Wrangler content deployment
+  only; it does not authorize a Terraform apply. Its `lockProofDigest` binds
+  evidence that the Terraform remote-change gate remains disabled, and `state`
+  identifies the isolated operator-local verification state used for the import
+  and no-op plan. R2 backend safety evidence is still mandatory before any
+  Terraform remote apply.
 - `RITUAL_<ENV>_BACKEND_RECEIPT` uses `schemaVersion: 2` and the exact keys
   `environment`, `expiresAt`, `fingerprint`, `observedAt`, `schemaVersion`,
   `sourceSha256`, and `status`. `sourceSha256` must equal the landing

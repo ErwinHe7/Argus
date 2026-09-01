@@ -14,15 +14,16 @@ be committed to these roots.
 
 ## Current enablement blocker
 
-Remote adoption is **disabled**. There is no complete live inventory or R2
-state-lock proof in this repository, and neither root contains a readiness
+Remote Terraform adoption is **disabled**. There is no complete live inventory
+or R2 state-lock proof in this repository, and neither root contains a readiness
 receipt. The declarations and conditional imports are inert by default:
 `adoption_phase` is `disabled`, `enable_brownfield_imports` is `false`, and
 `enable_remote_changes` is `false`. Staging declarations are ready for a future
-reviewed bootstrap, but remote create remains disabled. Prod must remain
-disabled until exact live inventory inputs, backend lock proof, an import-only
-plan, a following no-op plan, and a readiness receipt are recorded outside the
-repository.
+reviewed bootstrap, but remote create remains disabled. Automatic staging
+content publication is a separate Wrangler path and does not enable a Terraform
+apply. Prod must remain disabled until exact live inventory inputs, backend lock
+proof, an import-only plan, a following no-op plan, and a readiness receipt are
+recorded outside the repository.
 
 ## Roots and state
 
@@ -70,11 +71,27 @@ both backend configurations. State buckets, access policies, and credentials are
 deliberately not represented in either managed root, preventing a stack from
 destroying or weakening its own state controls.
 
+## Content-only staging verification
+
+Automatic staging needs current Cloudflare infrastructure evidence, but it does
+not run Terraform or authorize Terraform mutation. An operator may build that
+evidence with an isolated, operator-local state outside the checkout: inventory
+the live APIs, import the six exact staging resources into the temporary state,
+and produce a no-op plan while `enable_remote_changes = false`. Record the live
+inventory digest, no-op plan digest, provider-lock digest, state lineage/serial,
+and the digest of evidence that the remote-change gate remained disabled. Those
+values populate the workflow-facing receipt described below.
+
+The temporary state and plans are evidence only. They must remain outside the
+repository, contain no credentials or secret Pages variables, and be discarded
+after the receipt is stored. This path authorizes Wrangler content deployment
+only; it does not authorize a Terraform apply or satisfy the remote-backend gate.
+
 ## Mandatory live state-safety gate
 
-The following evidence is a prerequisite. It is not satisfied by this static
-configuration and must be repeated for both roots before any live import or
-mutation:
+The following evidence is a prerequisite for a Terraform remote backend or
+remote apply. It is not satisfied by this static configuration and must be
+repeated for both roots before Terraform mutation:
 
 - **Two-client lock:** start two independently authenticated clients against the
   same root and key. Hold a write lock with client A; prove client B fails to
@@ -128,9 +145,10 @@ GITHUB_REPOSITORY=OWNER/REPOSITORY GITHUB_TOKEN="$GITHUB_TOKEN" \
 ```
 
 Keep exact import IDs in an operator-only variable file outside the checkout.
-Cloudflare project and DNS IDs remain opaque provider inputs; the current
-`cloudflare_pages_domain` importer uses the exact domain `name`. Never put token
-values or secret Pages variable values in the file.
+Cloudflare project and DNS IDs remain opaque provider inputs. With the pinned
+provider, Pages projects import as `account_id/project_name`, Pages domains as
+`account_id/project_name/domain_name`, and DNS records as `zone_id/record_id`.
+Never put token values or secret Pages variable values in the file.
 
 Once the state-safety gate has a reviewed receipt, these future manual commands
 produce the import-only evidence; they do not describe current readiness:

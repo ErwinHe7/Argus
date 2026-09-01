@@ -60,10 +60,10 @@ variable "brownfield_import_inventory" {
   description = "Exact nonsecret provider import identifiers from the live staging inventory."
   type = object({
     landing_pages_project_import_id = string
-    landing_pages_domain_name       = string
+    landing_pages_domain_import_id  = string
     landing_dns_record_import_id    = string
     demo_pages_project_import_id    = string
-    demo_pages_domain_name          = string
+    demo_pages_domain_import_id     = string
     demo_dns_record_import_id       = string
   })
   default  = null
@@ -74,10 +74,10 @@ variable "brownfield_import_inventory" {
       alltrue([
         for value in [
           var.brownfield_import_inventory.landing_pages_project_import_id,
-          var.brownfield_import_inventory.landing_pages_domain_name,
+          var.brownfield_import_inventory.landing_pages_domain_import_id,
           var.brownfield_import_inventory.landing_dns_record_import_id,
           var.brownfield_import_inventory.demo_pages_project_import_id,
-          var.brownfield_import_inventory.demo_pages_domain_name,
+          var.brownfield_import_inventory.demo_pages_domain_import_id,
           var.brownfield_import_inventory.demo_dns_record_import_id,
         ] : length(trimspace(value)) > 0
       ])
@@ -126,8 +126,8 @@ locals {
     false,
   )
   import_inventory_valid = try(
-    var.brownfield_import_inventory.landing_pages_domain_name == var.pages_domain &&
-    var.brownfield_import_inventory.demo_pages_domain_name == var.demo_pages_domain,
+    var.brownfield_import_inventory.landing_pages_domain_import_id == "${var.cloudflare_account_id}/${var.pages_project_name}/${var.pages_domain}" &&
+    var.brownfield_import_inventory.demo_pages_domain_import_id == "${var.cloudflare_account_id}/${var.demo_pages_project_name}/${var.demo_pages_domain}",
     false,
   )
 }
