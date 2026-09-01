@@ -37,8 +37,18 @@ describe("Ritual fast CI", () => {
     expect(source).toContain("DENO_VERSION: 2.9.6");
     expect(source).not.toContain("deno-version: v2.x");
     expect(source.match(/deno-version: \$\{\{ env\.DENO_VERSION \}\}/g)).toHaveLength(2);
-    for (const name of ["source-guard", "member-provider-boundary", "demo-web-fast", "demo-provider-boundary"]) {
-      expect(job(source, name)).toContain("sudo apt-get install -y ripgrep");
+    for (const [name, consumer] of [
+      ["source-guard", "./scripts/check-legacy-backend-removal.sh"],
+      ["member-provider-boundary", "./scripts/test-check-member-provider-boundaries.sh"],
+      ["demo-web-fast", "./scripts/check-demo-provider-boundaries.sh"],
+      ["demo-provider-boundary", "./scripts/test-check-demo-provider-boundaries.sh"],
+      ["api-security", "npm run cutover:check"],
+    ] as const) {
+      const jobSource = job(source, name);
+      const provisionIndex = jobSource.indexOf("sudo apt-get install -y ripgrep");
+      const consumerIndex = jobSource.indexOf(consumer);
+      expect(provisionIndex).toBeGreaterThanOrEqual(0);
+      expect(consumerIndex).toBeGreaterThan(provisionIndex);
     }
     const legacyGuard = await readFile(resolve(root, "scripts/check-legacy-backend-removal.sh"), "utf8");
     expect(legacyGuard).toContain('command -v rg >/dev/null 2>&1 || fail "ripgrep (rg) is required"');
