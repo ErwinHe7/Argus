@@ -190,7 +190,7 @@ List<RouteBase> _settingsRoutes(
     ),
   ),
   GoRoute(
-    path: 'ritual-preferences',
+    path: 'gospel-preferences',
     builder: (context, state) => RitualPreferencesScreen(
       controller: container.profileController,
       onSave: container.updateMemberPreferences,

@@ -22,15 +22,15 @@ class NotificationDestination {
     }
     final segments = uri.pathSegments;
     if (segments.length == 1 && segments.single == 'briefings') {
-      return const NotificationDestination._('/ritual/briefings');
+      return const NotificationDestination._('/gospel/briefings');
     }
     if (segments.length == 2 &&
         segments.first == 'briefings' &&
         _isUuid(segments[1])) {
-      return NotificationDestination._('/ritual/briefings/${segments[1]}');
+      return NotificationDestination._('/gospel/briefings/${segments[1]}');
     }
     if (segments.length == 1 && segments.single == 'ritual') {
-      return const NotificationDestination._('/ritual');
+      return const NotificationDestination._('/gospel');
     }
     final assetId = switch (segments) {
       ['assets', final id] => id,

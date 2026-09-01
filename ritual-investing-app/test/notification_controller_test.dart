@@ -21,7 +21,7 @@ void main() {
       expect(controller.phase, NotificationPhase.ready);
       expect(
         controller.items.single.destination?.location,
-        '/ritual/briefings',
+        '/gospel/briefings',
       );
       expect(controller.preferences?.version, 3);
       expect(controller.externalDeliveryAvailable, isFalse);
@@ -239,11 +239,11 @@ void main() {
   test('unknown and external notification routes fail closed', () {
     expect(
       NotificationDestination.tryParse('/briefings')?.location,
-      '/ritual/briefings',
+      '/gospel/briefings',
     );
     expect(
       NotificationDestination.tryParse('/briefings/$_briefingId')?.location,
-      '/ritual/briefings/$_briefingId',
+      '/gospel/briefings/$_briefingId',
     );
     expect(NotificationDestination.tryParse('https://example.com'), isNull);
     expect(NotificationDestination.tryParse('/admin/jobs'), isNull);

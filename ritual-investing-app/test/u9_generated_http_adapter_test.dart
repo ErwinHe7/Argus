@@ -62,7 +62,7 @@ void main() {
     expect(readBriefing.isRead, isTrue);
     expect(
       noticePage.items.single.destination?.location,
-      '/ritual/briefings/$_briefingId',
+      '/gospel/briefings/$_briefingId',
     );
     expect(preferences.version, 3);
     expect(patched.version, 4);

@@ -91,7 +91,7 @@ void main() {
     }
   });
 
-  test('hidden route fallback prefers Starpath then Ritual', () {
+  test('hidden route fallback prefers Starpath then Gospel', () {
     final withStarpath = MemberNavigationPolicy.fromBootstrap(
       _bootstrapWithBranches(
         environment: MemberReleaseEnvironment.production,
@@ -113,7 +113,12 @@ void main() {
     );
 
     expect(withStarpath.redirectFor('/discover/assets/id'), '/starpath');
-    expect(rollback.redirectFor('/coven/entries/id'), '/ritual');
+    expect(rollback.redirectFor('/coven/entries/id'), '/gospel');
+    expect(rollback.redirectFor('/ritual'), '/gospel');
+    expect(
+      rollback.redirectFor('/you/ritual-preferences'),
+      '/you/gospel-preferences',
+    );
     expect(withStarpath.redirectFor('/you/account'), isNull);
   });
 
@@ -1014,6 +1019,11 @@ void main() {
       tester.element(find.byKey(const Key('app-shell-scaffold'))),
     );
 
+    router.go('/ritual/briefings/$briefingA');
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.briefingLocation(briefingA));
+    expect(find.byKey(const ValueKey('briefing-$briefingA')), findsOneWidget);
+
     router.go(MemberRoutes.briefingLocation(briefingA));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('briefing-$briefingA')), findsOneWidget);
@@ -1027,7 +1037,7 @@ void main() {
     expect(find.textContaining('briefing $briefingB'), findsOneWidget);
     expect(container.briefingController.selected?.id, briefingB);
 
-    router.go('/ritual/briefings/not-a-uuid');
+    router.go('/gospel/briefings/not-a-uuid');
     await tester.pumpAndSettle();
     expect(router.state.uri.path, MemberRoutes.ritual.path);
     expect(find.textContaining('not-a-uuid'), findsNothing);

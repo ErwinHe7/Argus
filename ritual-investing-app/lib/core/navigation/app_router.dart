@@ -258,7 +258,7 @@ GoRouter createAppRouter({
 
 String? _safePendingMemberPath(Uri uri) {
   if (uri.hasQuery || uri.hasFragment || uri.path.length > 512) return null;
-  return RegExp(r'^/(ritual|discover|coven|you)(/[A-Za-z0-9._~-]+)*$')
+  return RegExp(r'^/(gospel|ritual|discover|coven|you)(/[A-Za-z0-9._~-]+)*$')
           .hasMatch(uri.path)
       ? uri.path
       : null;

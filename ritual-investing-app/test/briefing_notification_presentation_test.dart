@@ -121,7 +121,7 @@ void main() {
         find.byKey(const Key('notification-open-$_notificationId')),
       );
       await tester.pumpAndSettle();
-      expect(opened, '/ritual/briefings');
+      expect(opened, '/gospel/briefings');
       await controller.load();
       await tester.pumpAndSettle();
       await tester.scrollUntilVisible(
