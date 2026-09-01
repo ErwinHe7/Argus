@@ -81,6 +81,9 @@ describe("Ritual fast CI", () => {
     const release = job(source, "release-bundle");
     expect(release).toContain("if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.fork == false");
     expect(release).toContain("npm run --silent release:bundle");
+    expect(release).toContain("tee release-result.log");
+    expect(release).toContain("tail -n 1 release-result.log | jq -ce");
+    expect(release).toContain(">release-result.json");
     expect(release).toContain("npm run --silent release:verify -- release/release-bundle");
     expect(release).toContain("retention-days: 30");
     expect(release).toContain("include-hidden-files: true");

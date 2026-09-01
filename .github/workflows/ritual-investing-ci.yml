@@ -270,7 +270,10 @@ jobs:
           set -euo pipefail
           export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$GITHUB_SHA")"
           export RELEASE_OUTPUT_DIRECTORY="$PWD/release"
-          npm run --silent release:bundle | tee release-result.json
+          npm run --silent release:bundle | tee release-result.log
+          tail -n 1 release-result.log | jq -ce \
+            'select((.archiveSha256 | type) == "string" and (.manifestSha256 | type) == "string")' \
+            >release-result.json
           npm run --silent release:verify -- release/release-bundle
           archive_sha256="$(jq -er '.archiveSha256' release-result.json)"
           manifest_sha256="$(jq -er '.manifestSha256' release-result.json)"
