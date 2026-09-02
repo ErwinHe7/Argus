@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/app/theme/app_theme.dart';
@@ -11,8 +12,203 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
   });
 
+  testWidgets('assigned entry is passive until explicit Start', (tester) async {
+    _setPhoneViewport(tester);
+    final voice = _TrackingVoice();
+    var revealCount = 0;
+
+    await tester.pumpWidget(
+      _testApp(
+        ritual: _ritual(DailyRitualState.assigned),
+        voice: voice,
+        onReveal: () async {
+          revealCount += 1;
+          return true;
+        },
+      ),
+    );
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('Start your daily ritual'), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
+    expect(revealCount, 0);
+    expect(voice.lines, isEmpty);
+  });
+
+  for (final releaseAfter in <Duration>[
+    const Duration(milliseconds: 100),
+    const Duration(milliseconds: 4900),
+  ]) {
+    testWidgets(
+      'release after ${releaseAfter.inMilliseconds}ms cancels without reveal',
+      (tester) async {
+        _setPhoneViewport(tester);
+        var revealCount = 0;
+        await tester.pumpWidget(
+          _testApp(
+            ritual: _ritual(DailyRitualState.assigned),
+            voice: _UnavailableVoice(),
+            onReveal: () async {
+              revealCount += 1;
+              return true;
+            },
+          ),
+        );
+
+        await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+        await tester.pump(const Duration(milliseconds: 200));
+        expect(
+          find.text('Place your thumb on the seal and hold.'),
+          findsOneWidget,
+        );
+        final seal = find.bySemanticsLabel('Hold to attune');
+        final gesture = await tester.startGesture(tester.getCenter(seal));
+        await tester.pump();
+        await tester.pump(releaseAfter);
+        await gesture.up();
+        await tester.pump(const Duration(milliseconds: 250));
+
+        expect(revealCount, 0);
+        expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
+        expect(
+          find.text('You let go. Was the moment not right?'),
+          findsOneWidget,
+        );
+      },
+    );
+  }
+
+  testWidgets('continuous hold dispatches one reveal at exactly five seconds', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    var revealCount = 0;
+    await tester.pumpWidget(
+      _testApp(
+        ritual: _ritual(DailyRitualState.assigned),
+        voice: _UnavailableVoice(),
+        onReveal: () async {
+          revealCount += 1;
+          return true;
+        },
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+    await tester.pump(const Duration(milliseconds: 200));
+    final seal = find.bySemanticsLabel('Hold to attune');
+    final gesture = await tester.startGesture(tester.getCenter(seal));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 4999));
+    expect(revealCount, 0);
+
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(revealCount, 1);
+    await tester.pump(const Duration(seconds: 1));
+    expect(revealCount, 1);
+    await gesture.up();
+  });
+
+  testWidgets('accepted hold waits concealed for delayed matching preflight', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    final matchingPreflight = Completer<bool>();
+    var preflightChecks = 0;
+    var revealCount = 0;
+    await tester.pumpWidget(
+      _testApp(
+        ritual: _ritual(DailyRitualState.assigned),
+        voice: _UnavailableVoice(),
+        onReveal: () async {
+          preflightChecks += 1;
+          revealCount += 1;
+          return revealCount == 1;
+        },
+        prepareExactMedia: (_) => matchingPreflight.future,
+      ),
+    );
+
+    await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+    await tester.pump(const Duration(milliseconds: 200));
+    final seal = find.bySemanticsLabel('Hold to attune');
+    final gesture = await tester.startGesture(tester.getCenter(seal));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
+
+    expect(preflightChecks, 0);
+    expect(revealCount, 0);
+    expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
+
+    matchingPreflight.complete(true);
+    await tester.pump();
+    await tester.pump();
+    expect(revealCount, 1);
+    expect(preflightChecks, 1);
+    await gesture.up();
+  });
+
+  testWidgets('tab invisibility cancels the hold and return stays passive', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    final tabVisible = ValueNotifier<bool>(true);
+    addTearDown(tabVisible.dispose);
+    var revealCount = 0;
+
+    await tester.pumpWidget(
+      _testApp(
+        ritual: _ritual(DailyRitualState.assigned),
+        voice: _UnavailableVoice(),
+        onReveal: () async {
+          revealCount += 1;
+          return true;
+        },
+        tabVisibility: tabVisible,
+      ),
+    );
+    await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+    await tester.pump();
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.bySemanticsLabel('Hold to attune')),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 4900));
+
+    tabVisible.value = false;
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(revealCount, 0);
+
+    tabVisible.value = true;
+    await tester.pump();
+    await tester.pump();
+    await gesture.up();
+    expect(find.text('Start your daily ritual'), findsOneWidget);
+    expect(revealCount, 0);
+  });
+
+  testWidgets('unavailable decoded art never paints a fallback card face', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _testApp(
+        ritual: _ritual(DailyRitualState.completed),
+        voice: _UnavailableVoice(),
+        onReveal: () async => true,
+        artDecodeSucceeds: false,
+      ),
+    );
+
+    expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
+    expect(find.byIcon(Icons.image_not_supported_outlined), findsNothing);
+  }, skip: true); // U4 owns exact decoded-art paint gating.
+
   testWidgets(
-    'starts standing then moves close only after one successful reveal',
+    'reveals after one hold and speaks only after one successful Finish',
     (tester) async {
       _setPhoneViewport(tester);
       tester.platformDispatcher.accessibilityFeaturesTestValue =
@@ -36,6 +232,7 @@ void main() {
             return reveal.future;
           },
           onShowEvidence: () => evidenceCount += 1,
+          onComplete: () async => true,
         ),
       );
 
@@ -49,16 +246,16 @@ void main() {
       expect(find.byKey(const Key('leonidas-standing')), findsOneWidget);
       expect(find.byKey(const Key('leonidas-close-up')), findsNothing);
       expect(
-        find.text(
-          'Come closer. We will let the card speak before we ask the evidence to agree.',
-        ),
+        find.text('Place your thumb on the seal and hold.'),
         findsOneWidget,
       );
       expect(revealCount, 0);
       expect(voice.lines, isEmpty);
 
-      await tester.pump(const Duration(milliseconds: 1));
-      await tester.pump(const Duration(milliseconds: 1));
+      final seal = find.bySemanticsLabel('Begin ritual');
+      final gesture = await tester.startGesture(tester.getCenter(seal));
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 5));
 
       expect(revealCount, 1);
       expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
@@ -72,11 +269,18 @@ void main() {
       expect(find.byKey(const Key('leonidas-close-up')), findsOneWidget);
       expect(find.byKey(const Key('leonidas-standing')), findsNothing);
       expect(find.text('Strength'), findsOneWidget);
+      expect(find.byKey(const Key('ritual-complete')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
+      expect(voice.lines, isEmpty);
+
+      await gesture.up();
+      await tester.tap(find.byKey(const Key('ritual-complete')));
+      await tester.pumpAndSettle();
+
       expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
       expect(voice.lines, hasLength(1));
       expect(
         voice.lines.single,
-        'Strength Patience is the stronger path. '
         'The choice remains yours. Demo counsel; not investment advice.',
       );
 
@@ -106,7 +310,13 @@ void main() {
     );
 
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    final seal = find.bySemanticsLabel('Begin ritual');
+    final gesture = await tester.startGesture(tester.getCenter(seal));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await gesture.up();
 
     expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
     expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
@@ -117,7 +327,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('leonidas-sequence-start')), findsOneWidget);
+    expect(find.bySemanticsLabel('Begin ritual'), findsOneWidget);
   });
 
   testWidgets('unexpected reveal errors fail closed and remain retryable', (
@@ -140,17 +350,23 @@ void main() {
     );
 
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    final seal = find.bySemanticsLabel('Begin ritual');
+    final gesture = await tester.startGesture(tester.getCenter(seal));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await gesture.up();
 
     expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
     expect(find.byKey(const Key('leonidas-close-up')), findsNothing);
-    expect(find.byKey(const Key('leonidas-sequence-start')), findsOneWidget);
+    expect(find.bySemanticsLabel('Begin ritual'), findsOneWidget);
     expect(find.textContaining('remains safely concealed'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets(
-    'an already revealed ritual opens on the close-up without speech',
+    'a restored completed ritual opens onward without C2 speech or Replay',
     (tester) async {
       _setPhoneViewport(tester);
       final voice = _UnavailableVoice();
@@ -159,12 +375,14 @@ void main() {
           ritual: _ritual(DailyRitualState.completed),
           voice: voice,
           onReveal: () async => true,
+          onShowEvidence: () {},
         ),
       );
 
       expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
       expect(find.byKey(const Key('leonidas-close-up')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-sequence-replay')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-sequence-replay')), findsNothing);
+      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
       expect(voice.lines, isEmpty);
     },
   );
@@ -190,22 +408,34 @@ void main() {
           revealCount += 1;
           return true;
         },
+        onComplete: () async => true,
+        onShowEvidence: () {},
       ),
     );
+    await tester.pump();
 
     await tester.tap(find.byKey(const Key('leonidas-voice-toggle')));
     await tester.pump();
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    final seal = find.bySemanticsLabel('Begin ritual');
+    final gesture = await tester.startGesture(tester.getCenter(seal));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await gesture.up();
+    await tester.tap(find.byKey(const Key('ritual-complete')));
+    await tester.pump(const Duration(milliseconds: 1200));
+    await tester.pump();
 
     expect(revealCount, 1);
     expect(voice.lines, isEmpty);
-    expect(voice.stopCount, 1);
-    expect(find.byKey(const Key('leonidas-sequence-replay')), findsOneWidget);
+    expect(voice.stopCount, 0);
+    expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
     expect(find.textContaining('The choice remains yours.'), findsOneWidget);
   });
 
-  testWidgets('a stalled native voice falls back to complete captions', (
+  testWidgets('Skip stops a stalled native voice and opens onward once', (
     tester,
   ) async {
     _setPhoneViewport(tester);
@@ -226,18 +456,31 @@ void main() {
           revealCount += 1;
           return true;
         },
+        onComplete: () async => true,
+        onShowEvidence: () {},
       ),
     );
 
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
-    await tester.pump(const Duration(milliseconds: 4));
-    await tester.pump(const Duration(minutes: 2));
-    await tester.pumpAndSettle();
+    await tester.pump();
+    final seal = find.bySemanticsLabel('Begin ritual');
+    final gesture = await tester.startGesture(tester.getCenter(seal));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump();
+    await gesture.up();
+    await tester.tap(find.byKey(const Key('ritual-complete')));
+    await tester.pump();
 
     expect(revealCount, 1);
     expect(voice.lines, hasLength(1));
+    expect(find.byKey(const Key('leonidas-closing-skip')), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('leonidas-closing-skip')));
+    await tester.pump();
+
     expect(voice.stopCount, 1);
-    expect(find.byKey(const Key('leonidas-sequence-replay')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
   });
 
   testWidgets('long reviewed captions remain visible at 2x text', (
@@ -264,13 +507,14 @@ void main() {
         ),
         voice: _UnavailableVoice(),
         onReveal: () async => true,
+        onShowEvidence: () {},
       ),
     );
 
     expect(tester.takeException(), isNull);
     expect(find.text(longInterpretation), findsOneWidget);
     expect(find.textContaining(longCounsel), findsOneWidget);
-    expect(find.byKey(const Key('leonidas-sequence-replay')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
   });
 }
 
@@ -286,18 +530,39 @@ Widget _testApp({
   required LeonidasVoice voice,
   required Future<bool> Function() onReveal,
   VoidCallback? onShowEvidence,
+  bool artDecodeSucceeds = true,
+  Future<bool> Function(DailyRitual)? prepareExactMedia,
+  Future<bool> Function()? onComplete,
+  ValueListenable<bool>? tabVisibility,
 }) {
+  final sequence = SingleChildScrollView(
+    child: LeonidasRitualSequence(
+      ritual: ritual,
+      voice: voice,
+      onReveal: onReveal,
+      onComplete: onComplete,
+      onShowEvidence: onShowEvidence,
+      useBundledArtwork: artDecodeSucceeds,
+      prepareExactMedia:
+          prepareExactMedia ?? (artDecodeSucceeds ? (_) async => true : null),
+      monotonicNow: () => Duration(
+        microseconds: TestWidgetsFlutterBinding.instance.clock
+            .now()
+            .microsecondsSinceEpoch,
+      ),
+    ),
+  );
   return MaterialApp(
     theme: AppTheme.dark,
     home: Scaffold(
-      body: SingleChildScrollView(
-        child: LeonidasRitualSequence(
-          ritual: ritual,
-          voice: voice,
-          onReveal: onReveal,
-          onShowEvidence: onShowEvidence,
-        ),
-      ),
+      body: tabVisibility == null
+          ? sequence
+          : ValueListenableBuilder<bool>(
+              valueListenable: tabVisibility,
+              child: sequence,
+              builder: (context, visible, child) =>
+                  TickerMode(enabled: visible, child: child!),
+            ),
     ),
   );
 }

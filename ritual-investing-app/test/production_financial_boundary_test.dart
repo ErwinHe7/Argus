@@ -10,6 +10,7 @@ import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/bootstrap/production_member_feature_scope_factory.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/privacy/data/repository.dart';
+import 'package:ritual_investing_app/features/ritual/data/leonidas_voice_preference_store.dart';
 import 'package:ritual_investing_app/features/public_beta/domain/member_capability_policy.dart';
 
 void main() {
@@ -80,6 +81,7 @@ void main() {
           createCommandKey: () => 'command-key',
           now: () => DateTime.utc(2026, 8, 30),
           openBrokerageAuthorization: (_) async => false,
+          leonidasVoicePreferenceStore: LeonidasVoicePreferenceStore(storage),
           capabilityPolicy: MemberCapabilityPolicy.publicWebBeta,
         ).call(
           cacheScope,

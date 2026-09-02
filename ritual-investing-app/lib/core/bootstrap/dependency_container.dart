@@ -56,6 +56,7 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
        ),
        onboardingController = onboardingController ?? OnboardingController() {
     _memberShellRuntime.addListener(_handleMemberShellRuntime);
+    _memberShellRuntime.configureLifecycle(onDeletionAccepted: logout);
     entryCoordinator?.bindApplyBootstrap(_transitionTo);
     entryCoordinator?.addListener(_handleEntryCoordinator);
     _recoverySubscription = authController.recoveredSessions.listen((_) {
@@ -100,8 +101,8 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
       return switch (entry.state.destination) {
         EntryDestination.restoring ||
         EntryDestination.finalizing => MemberEntryGate.restoring,
-        EntryDestination.welcome || EntryDestination.emailConfirmation =>
-          MemberEntryGate.signedOut,
+        EntryDestination.welcome ||
+        EntryDestination.emailConfirmation => MemberEntryGate.signedOut,
         EntryDestination.questionnaire || EntryDestination.review =>
           authController.state.phase == AuthPhase.signedIn
               ? MemberEntryGate.onboarding
@@ -471,10 +472,6 @@ class DependencyContainer extends ChangeNotifier implements AppRuntime {
 
   Future<void> _transitionTo(MemberBootstrap? next) async {
     await _memberShellRuntime.transitionTo(next);
-    final scope = featureScope;
-    scope?.privacyController?.bindAccountTransitions(
-      onDeletionAccepted: logout,
-    );
   }
 
   MemberFeatureScope _requireScope() {

@@ -37,6 +37,7 @@ import 'package:ritual_investing_app/features/starpath/application/starpath_cont
 import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
 import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
+import 'package:ritual_investing_app/features/ritual/data/leonidas_voice_preference_store.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/search/application/controller.dart';
 import 'package:ritual_investing_app/features/search/data/repository.dart';
@@ -80,6 +81,7 @@ DependencyContainer fixtureContainer({
   bool includeU11 = false,
   bool includeSearch = false,
   PrivacyRepository? privacyRepository,
+  LeonidasVoicePreferencePersistence? leonidasVoicePreferenceStore,
   MemberCapabilityPolicy capabilityPolicy = MemberCapabilityPolicy.native,
 }) {
   final storage = cache ?? MemoryReadCache();
@@ -157,6 +159,9 @@ DependencyContainer fixtureContainer({
             cache: scopedCache,
           ),
         ),
+        leonidasVoicePreferenceStore:
+            leonidasVoicePreferenceStore ??
+            LeonidasVoicePreferenceStore(_MemoryProtectedStorage()),
         starpathController: StarpathController(
           repository: StarpathRepository(
             service: _FixtureStarpathService(tracker),

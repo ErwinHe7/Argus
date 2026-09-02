@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../core/api/state_status.dart';
 import '../../../core/bootstrap/member_bootstrap.dart';
+import '../../../core/cache/read_cache.dart';
 import '../../../core/presentation/demo_disclosure.dart';
 import '../../../core/presentation/server_time.dart';
 import '../application/daily_ritual_controller.dart';
 import '../domain/daily_ritual.dart';
+import '../data/leonidas_voice_preference_store.dart';
 import 'leonidas_ritual_sequence.dart';
 import '../../rowan/application/controller.dart';
 import '../../rowan/domain/model.dart';
@@ -28,6 +30,8 @@ class DailyRitualScreen extends StatelessWidget {
     this.useBundledArtwork = true,
     this.assetPackage,
     this.leonidasVoice = const PlatformLeonidasVoice(),
+    this.cacheScope,
+    this.voicePreferenceStore,
   });
 
   final VoidCallback onOpenCoven;
@@ -41,6 +45,8 @@ class DailyRitualScreen extends StatelessWidget {
   final bool useBundledArtwork;
   final String? assetPackage;
   final LeonidasVoice leonidasVoice;
+  final CacheScope? cacheScope;
+  final LeonidasVoicePreferencePersistence? voicePreferenceStore;
 
   @override
   Widget build(BuildContext context) {
@@ -139,6 +145,9 @@ class DailyRitualScreen extends StatelessWidget {
                       'leonidas-${controller.state.value!.assignmentId}',
                     ),
                     ritual: controller.state.value!,
+                    authorityController: controller,
+                    cacheScope: cacheScope,
+                    voicePreferenceStore: voicePreferenceStore,
                     onReveal: () async {
                       await controller.reveal(waitForHistory: false);
                       return switch (controller.state.value?.state) {
@@ -225,23 +234,6 @@ class DailyRitualScreen extends StatelessWidget {
                         personalization: personalization,
                         displayName: 'Leonidas',
                       ),
-                    if (controller.state.value!.state ==
-                        DailyRitualState.revealed) ...[
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        key: const Key('ritual-complete'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(48, 48),
-                        ),
-                        onPressed:
-                            controller.mutationPhase ==
-                                RitualMutationPhase.committing
-                            ? null
-                            : controller.complete,
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Complete today’s ritual'),
-                      ),
-                    ],
                     if (controller.state.value!.demo.isDemo) ...[
                       const SizedBox(height: 18),
                       Text(

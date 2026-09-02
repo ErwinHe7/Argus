@@ -36,6 +36,7 @@ import '../../features/profile/data/repository.dart';
 import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
 import '../../features/ritual/data/daily_ritual_repository.dart';
+import '../../features/ritual/data/leonidas_voice_preference_store.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/rowan/data/generated_rowan_api_service.dart';
 import '../../features/rowan/data/repository.dart';
@@ -65,6 +66,7 @@ class ProductionMemberFeatureScopeFactory {
     required this.createCommandKey,
     required this.now,
     required this.openBrokerageAuthorization,
+    required this.leonidasVoicePreferenceStore,
     this.capabilityPolicy = MemberCapabilityPolicy.native,
   });
 
@@ -76,6 +78,7 @@ class ProductionMemberFeatureScopeFactory {
   final String Function() createCommandKey;
   final DateTime Function() now;
   final OpenBrokerageAuthorization openBrokerageAuthorization;
+  final LeonidasVoicePreferencePersistence leonidasVoicePreferenceStore;
   final MemberCapabilityPolicy capabilityPolicy;
 
   MemberFeatureScope call(
@@ -205,6 +208,7 @@ class ProductionMemberFeatureScopeFactory {
           now: now,
         ),
       ),
+      leonidasVoicePreferenceStore: leonidasVoicePreferenceStore,
       starpathController: StarpathController(
         repository: StarpathRepository(
           service: GeneratedStarpathApiService(client),

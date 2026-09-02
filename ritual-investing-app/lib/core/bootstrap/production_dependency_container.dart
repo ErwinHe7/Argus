@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../features/brokerage_connection/data/repository.dart';
 import '../../features/onboarding/data/onboarding_repository.dart';
 import '../../features/privacy/data/repository.dart';
+import '../../features/ritual/data/leonidas_voice_preference_store.dart';
 import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../api/pending_command_store.dart';
 import '../api/ritual_api.dart';
@@ -31,6 +32,9 @@ DependencyContainer createProductionDependencyContainer(
   final cache = MemoryReadCache();
   final protectedStorage = createProductionProtectedStorage();
   final pendingCommandStore = PendingCommandStore(storage: protectedStorage);
+  final leonidasVoicePreferenceStore = LeonidasVoicePreferenceStore(
+    protectedStorage,
+  );
   late final RitualInvestingApiClient client;
   final auth = AuthController(
     repository: SupabaseSessionRepository.production(
@@ -84,6 +88,7 @@ DependencyContainer createProductionDependencyContainer(
       now: DateTime.now,
       openBrokerageAuthorization: (uri) =>
           launchUrl(uri, mode: LaunchMode.externalApplication),
+      leonidasVoicePreferenceStore: leonidasVoicePreferenceStore,
       capabilityPolicy: kIsWeb && config.environment == 'staging'
           ? MemberCapabilityPolicy.publicWebBeta
           : MemberCapabilityPolicy.native,
