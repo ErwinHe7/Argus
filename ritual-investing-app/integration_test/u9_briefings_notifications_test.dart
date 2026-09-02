@@ -140,10 +140,21 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
-  for (var attempt = 0; attempt < 100 && !condition(); attempt += 1) {
-    await tester.pump(const Duration(milliseconds: 100));
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 10),
+  Duration pollInterval = const Duration(milliseconds: 100),
+}) async {
+  final stopwatch = Stopwatch()..start();
+  while (!condition()) {
+    final remaining = timeout - stopwatch.elapsed;
+    if (remaining <= Duration.zero) break;
+    final delay = remaining < pollInterval ? remaining : pollInterval;
+    await tester.runAsync<void>(() => Future<void>.delayed(delay));
+    await tester.pump();
   }
+  stopwatch.stop();
   expect(
     condition(),
     isTrue,

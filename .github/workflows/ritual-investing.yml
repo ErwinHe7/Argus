@@ -441,6 +441,11 @@ jobs:
           arch: x86_64
           profile: pixel_6
           disk-size: 3072M
+          pre-emulator-launch-script: >-
+            sed -i '/^[[:space:]]*disk\.dataPartition\.size[[:space:]]*=/d'
+            "$ANDROID_AVD_HOME/test.avd/config.ini" &&
+            printf '%s\n' 'disk.dataPartition.size=3072M' >>
+            "$ANDROID_AVD_HOME/test.avd/config.ini"
           disable-animations: true
           script: >-
             cd ritual-investing-app &&
