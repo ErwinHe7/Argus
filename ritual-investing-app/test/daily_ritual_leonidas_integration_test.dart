@@ -17,22 +17,35 @@ void main() {
         RitualInvestingApp(container: fixtureContainer()),
       );
       await tester.pumpAndSettle();
+      final ritualContext = tester.element(
+        find.byKey(const Key('leonidas-ritual-sequence')),
+      );
+      await tester.runAsync<void>(
+        () => precacheImage(
+          const AssetImage(
+            'assets/images/tarot/modern-rider-waite/major/04-the-emperor.webp',
+          ),
+          ritualContext,
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
 
       expect(find.byKey(const Key('leonidas-ritual-sequence')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-close-up')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
       expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
       expect(find.text("TODAY'S REFLECTION"), findsNothing);
+      expect(find.byKey(const Key('ritual-history')), findsNothing);
 
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
-      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.byKey(const Key('leonidas-evidence')));
+      await tester.pump();
       await tester.tap(find.byKey(const Key('leonidas-evidence')));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('ritual-evidence-sheet')), findsOneWidget);
-      expect(
-        find.textContaining('research cues, not predictions'),
-        findsOneWidget,
-      );
+      expect(find.text('Observation'), findsOneWidget);
+      expect(find.text('Summary'), findsOneWidget);
+      expect(find.textContaining('durable dividend momentum'), findsOneWidget);
     },
   );
 }

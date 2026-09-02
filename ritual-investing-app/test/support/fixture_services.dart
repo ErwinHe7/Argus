@@ -81,6 +81,7 @@ DependencyContainer fixtureContainer({
   bool includeU11 = false,
   bool includeSearch = false,
   PrivacyRepository? privacyRepository,
+  DailyRitualController? dailyRitualController,
   LeonidasVoicePreferencePersistence? leonidasVoicePreferenceStore,
   MemberCapabilityPolicy capabilityPolicy = MemberCapabilityPolicy.native,
 }) {
@@ -153,12 +154,14 @@ DependencyContainer fixtureContainer({
       return MemberFeatureScope(
         scope: scope,
         capabilityPolicy: capabilityPolicy,
-        dailyRitualController: DailyRitualController(
-          repository: DailyRitualRepository(
-            service: _FixtureRitualService(tracker),
-            cache: scopedCache,
-          ),
-        ),
+        dailyRitualController:
+            dailyRitualController ??
+            DailyRitualController(
+              repository: DailyRitualRepository(
+                service: _FixtureRitualService(tracker),
+                cache: scopedCache,
+              ),
+            ),
         leonidasVoicePreferenceStore:
             leonidasVoicePreferenceStore ??
             LeonidasVoicePreferenceStore(_MemoryProtectedStorage()),
@@ -388,6 +391,9 @@ class _FixtureSessionBootstrapService implements SessionBootstrapService {
     defaultPortfolioId: 'fixture-portfolio',
     serverTime: DateTime.utc(2026, 8, 24),
     contractVersion: '1.0.0',
+    personalization: const MemberPersonalization(
+      ritualMode: MemberRitualMode.tarot,
+    ),
     themePreference: switch (state.theme) {
       ProfileTheme.system => MemberThemePreference.system,
       ProfileTheme.light => MemberThemePreference.light,

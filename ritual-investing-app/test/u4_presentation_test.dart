@@ -3,16 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/app/theme/app_theme.dart';
 import 'package:ritual_investing_app/core/api/view_state.dart';
-import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/application/leonidas_voice.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_screen.dart';
-import 'package:ritual_investing_app/features/rowan/application/controller.dart';
-import 'package:ritual_investing_app/features/rowan/data/repository.dart';
-import 'package:ritual_investing_app/features/rowan/domain/model.dart';
 import 'package:ritual_investing_app/features/search/application/controller.dart'
     as member_search;
 import 'package:ritual_investing_app/features/search/data/repository.dart';
@@ -24,6 +20,7 @@ void main() {
     tester,
   ) async {
     _setReducedMotionPhoneViewport(tester);
+    var elapsed = Duration.zero;
     final controller = DailyRitualController(
       repository: DailyRitualRepository(
         service: _RitualService(state: DailyRitualState.assigned),
@@ -39,14 +36,21 @@ void main() {
             controller: controller,
             onOpenCoven: () {},
             leonidasVoice: const _ImmediateLeonidasVoice(),
+            monotonicNow: () => elapsed,
+            prepareExactMedia: (_) async => true,
           ),
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    await _decodeExactArt(
+      tester,
+      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+    );
 
-    expect(find.bySemanticsLabel('Unrevealed ritual card'), findsOneWidget);
-    expect(find.byKey(const Key('daily-ritual-card-art')), findsNothing);
+    expect(find.byKey(const Key('daily-ritual-card-art')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
     expect(
       find.bySemanticsLabel(
         'The Hermit tarot card: an elder holds a star lantern on a snowy mountain',
@@ -54,28 +58,119 @@ void main() {
       findsNothing,
     );
 
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('leonidas-sequence-start')),
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
     await tester.pumpAndSettle();
+    final hold = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('daily-ritual-seal-hit-region'))),
+    );
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const Key('leonidas-phase-label'))).data,
+      'Hold the seal',
+    );
+    elapsed = const Duration(seconds: 5, milliseconds: 1);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump();
+    await hold.up();
+    await controller.authorityIdle;
+    await tester.pump();
+    await tester.pump();
+    await tester.pumpAndSettle();
 
-    expect(find.bySemanticsLabel('Unrevealed ritual card'), findsNothing);
+    expect(
+      tester.widget<Text>(find.byKey(const Key('leonidas-phase-label'))).data,
+      'Reading revealed',
+    );
     expect(find.byKey(const Key('daily-ritual-card-art')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
     expect(
       find.bySemanticsLabel(
         'The Hermit tarot card: an elder holds a star lantern on a snowy mountain',
       ),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('leonidas-ritual-sequence')),
+        matching: find.byType(Scrollable),
+      ),
+      findsNothing,
+    );
   });
+
+  testWidgets(
+    'Start opens a chrome-free non-scrolling immersive ritual route',
+    (tester) async {
+      _setReducedMotionPhoneViewport(tester);
+      final controller = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: _RitualService(state: DailyRitualState.assigned),
+          cache: MemoryReadCache(),
+        ),
+      );
+      await controller.load();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: Scaffold(
+            body: DailyRitualScreen(
+              controller: controller,
+              onOpenCoven: () {},
+              onOpenSearch: () {},
+              onOpenBriefings: () {},
+              onToggleTheme: () {},
+              prepareExactMedia: (_) async => true,
+            ),
+            bottomNavigationBar: NavigationBar(
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.auto_awesome),
+                  label: 'Ritual',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.stars),
+                  label: 'Starpath',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await _decodeExactArt(
+        tester,
+        'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+      );
+
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('ritual-search')), findsOneWidget);
+      expect(find.byKey(const Key('ritual-briefings')), findsOneWidget);
+      expect(find.byKey(const Key('theme-toggle')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byKey(const Key('ritual-search')), findsNothing);
+      expect(find.byKey(const Key('ritual-briefings')), findsNothing);
+      expect(find.byKey(const Key('theme-toggle')), findsNothing);
+      expect(find.byType(CustomScrollView), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('leonidas-ritual-sequence')),
+          matching: find.byType(Scrollable),
+        ),
+        findsNothing,
+      );
+    },
+  );
 
   testWidgets('failed reveal remains actionable and announces the failure', (
     tester,
   ) async {
     _setReducedMotionPhoneViewport(tester);
+    var elapsed = Duration.zero;
     final controller = DailyRitualController(
       repository: DailyRitualRepository(
         service: _RitualService(
@@ -94,24 +189,47 @@ void main() {
             controller: controller,
             onOpenCoven: () {},
             leonidasVoice: const _ImmediateLeonidasVoice(),
+            monotonicNow: () => elapsed,
+            prepareExactMedia: (_) async => true,
           ),
         ),
       ),
     );
-
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('leonidas-sequence-start')),
-      250,
-      scrollable: find.byType(Scrollable).first,
+    await tester.pump();
+    await _decodeExactArt(
+      tester,
+      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
     );
+
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+    await tester.pumpAndSettle();
+    final hold = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('daily-ritual-seal-hit-region'))),
+    );
+    await tester.pump();
+    expect(
+      tester.widget<Text>(find.byKey(const Key('leonidas-phase-label'))).data,
+      'Hold the seal',
+    );
+    elapsed = const Duration(seconds: 5, milliseconds: 1);
+    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump();
+    await hold.up();
+    await controller.authorityIdle;
+    await tester.pump();
+    await tester.pump();
     await tester.pumpAndSettle();
 
     expect(
-      find.text('This ritual could not be updated. Refresh and try again.'),
+      tester.widget<Text>(find.byKey(const Key('leonidas-phase-label'))).data,
+      'Reveal paused safely',
+    );
+    expect(
+      find.textContaining('The ritual could not be opened'),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('leonidas-sequence-start')), findsOneWidget);
+    expect(find.bySemanticsLabel('Begin ritual'), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
   });
 
   testWidgets('production ritual shows only content for the drawn card', (
@@ -134,26 +252,37 @@ void main() {
         ),
       ),
     );
+    await tester.pump();
+    await _decodeExactArt(
+      tester,
+      'assets/images/tarot/modern-rider-waite/major/13-death.webp',
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Death'), findsOneWidget);
     expect(find.text(ritual.interpretation), findsOneWidget);
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -720));
-    await tester.pumpAndSettle();
-    expect(find.text(ritual.guidance), findsOneWidget);
-    expect(
-      find.bySemanticsLabel(
-        'Death tarot card: a skeletal rider advances on a white horse at sunrise',
-      ),
-      findsOneWidget,
+    expect(find.text(ritual.guidance), findsNothing);
+    expect(find.byKey(const Key('daily-ritual-card-art')), findsOneWidget);
+    expect(find.byKey(const Key('daily-ritual-media-retry')), findsNothing);
+    final deathImage = tester.widget<Image>(
+      find.byKey(const Key('daily-ritual-card-art')),
     );
-    await tester.drag(find.byType(CustomScrollView), const Offset(0, -1000));
-    await tester.pumpAndSettle();
-
+    final deathProvider = deathImage.image as AssetImage;
+    expect(
+      deathProvider.assetName,
+      'assets/images/tarot/modern-rider-waite/major/13-death.webp',
+    );
     expect(find.textContaining('Demo'), findsNothing);
     expect(find.textContaining('demo'), findsNothing);
     expect(find.text("THE CARD'S CONSTELLATION"), findsNothing);
     expect(find.text('Market-informed Demo'), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('leonidas-ritual-sequence')),
+        matching: find.byType(Scrollable),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets(
@@ -174,6 +303,11 @@ void main() {
             body: DailyRitualScreen(controller: controller, onOpenCoven: () {}),
           ),
         ),
+      );
+      await tester.pump();
+      await _decodeExactArt(
+        tester,
+        'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
       );
       await tester.pumpAndSettle();
 
@@ -204,91 +338,80 @@ void main() {
       final renderedSize = tester.getSize(
         find.byKey(const Key('leonidas-card-front')),
       );
-      expect(renderedSize.height, greaterThan(250));
-      expect(renderedSize.aspectRatio, closeTo(150 / 262, 0.02));
+      expect(renderedSize, const Size(118, 206));
+      expect(image.fit, BoxFit.contain);
+      expect(find.byKey(const Key('daily-ritual-card-art')), findsOneWidget);
     },
   );
 
-  testWidgets(
-    'evidence opens while loading, retries live, and uses evidence Rowan context',
-    (tester) async {
-      _setReducedMotionPhoneViewport(tester);
-      final service = _RitualService(evidenceFailures: 1, hasEvidence: true);
-      final ritual = DailyRitualController(
-        repository: DailyRitualRepository(
-          service: service,
-          cache: MemoryReadCache(),
-        ),
-      );
-      final rowanService = _RowanService();
-      final rowan = RowanController(
-        repository: RowanRepository(
-          service: rowanService,
-          cache: MemoryReadCache(),
-        ),
-      );
-      await ritual.load();
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: AppTheme.light,
-          home: Scaffold(
-            body: DailyRitualScreen(
-              controller: ritual,
-              onOpenCoven: () {},
-              onToggleTheme: () {},
-              rowanController: rowan,
-              personalization: const MemberPersonalization(
-                ritualVoice: MemberRitualVoice.practical,
-              ),
-            ),
+  testWidgets('evidence preserves its immutable summary while detail retries', (
+    tester,
+  ) async {
+    _setReducedMotionPhoneViewport(tester);
+    final service = _RitualService(evidenceFailures: 1, hasEvidence: true);
+    final ritual = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+    await ritual.load();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: DailyRitualScreen(
+            controller: ritual,
+            onOpenCoven: () {},
+            onToggleTheme: () {},
           ),
         ),
-      );
+      ),
+    );
 
-      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const Key('leonidas-evidence')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('ritual-evidence-sheet')), findsOneWidget);
-      expect(find.byKey(const Key('state-retryableFailure')), findsOneWidget);
-      final evidenceScrollable = find.descendant(
-        of: find.byKey(const Key('ritual-evidence-sheet')),
-        matching: find.byType(Scrollable),
-      );
-      expect(evidenceScrollable, findsOneWidget);
-      final evidencePosition = tester
-          .state<ScrollableState>(evidenceScrollable)
-          .position;
-      expect(evidencePosition.maxScrollExtent, greaterThan(0));
-      evidencePosition.jumpTo(evidencePosition.maxScrollExtent);
-      await tester.pump();
-      await tester.tap(find.text('Retry'));
-      await tester.pumpAndSettle();
-      evidencePosition.jumpTo(0);
-      await tester.pump();
-      expect(find.textContaining('Demo Research Desk'), findsOneWidget);
-
-      evidencePosition.jumpTo(evidencePosition.maxScrollExtent);
-      await tester.pump();
-      await tester.tap(
-        find.descendant(
-          of: find.byKey(const Key('ritual-evidence-sheet')),
-          matching: find.byKey(const Key('rowan-explain')),
-        ),
-      );
-      await tester.pumpAndSettle();
-      expect(rowanService.request?.surface, RowanSurface.evidence);
-      expect(rowanService.request?.resourceId, _assignmentId);
-      expect(
-        find.text('Evidence stays separate from interpretation.'),
-        findsOneWidget,
-      );
-    },
-  );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await _decodeExactArt(
+      tester,
+      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+    );
+    await tester.ensureVisible(find.byKey(const Key('leonidas-evidence')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('leonidas-evidence')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('ritual-evidence-sheet')), findsOneWidget);
+    expect(find.byKey(const Key('ritual-evidence-done')), findsOneWidget);
+    expect(find.byKey(const Key('ritual-evidence-retry')), findsOneWidget);
+    expect(find.text('Observation'), findsOneWidget);
+    expect(find.text('Summary'), findsOneWidget);
+    expect(
+      find.text('The Demo scenario held its fictional range.'),
+      findsOneWidget,
+    );
+    final evidenceScrollable = find.descendant(
+      of: find.byKey(const Key('ritual-evidence-sheet')),
+      matching: find.byType(Scrollable),
+    );
+    expect(evidenceScrollable, findsOneWidget);
+    final evidencePosition = tester
+        .state<ScrollableState>(evidenceScrollable)
+        .position;
+    expect(evidencePosition.maxScrollExtent, greaterThan(0));
+    evidencePosition.jumpTo(evidencePosition.maxScrollExtent);
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('ritual-evidence-retry')));
+    await tester.pumpAndSettle();
+    evidencePosition.jumpTo(0);
+    await tester.pump();
+    expect(find.textContaining('Demo Research Desk'), findsOneWidget);
+    expect(find.byKey(const Key('rowan-explain')), findsNothing);
+  });
 
   testWidgets(
-    'history stays usable at large text and shows authoritative lifecycle',
+    'completed onward flow stays focused and reachable at large text',
     (tester) async {
+      _setReducedMotionPhoneViewport(tester);
+      var starpathOpened = false;
       final controller = DailyRitualController(
         repository: DailyRitualRepository(
           service: _RitualService(),
@@ -308,25 +431,33 @@ void main() {
             body: DailyRitualScreen(
               controller: controller,
               onOpenCoven: () {},
+              onOpenStarpath: () => starpathOpened = true,
               onToggleTheme: () {},
             ),
           ),
         ),
       );
 
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('ritual-history')),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const Key('ritual-history')));
-      await tester.pumpAndSettle();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
 
-      expect(find.text('Ritual history'), findsWidgets);
-      expect(find.textContaining('Completed'), findsOneWidget);
-      expect(find.textContaining('Tarot'), findsOneWidget);
-      expect(find.textContaining('Aug 25, 2026'), findsOneWidget);
-      expect(find.textContaining('Demo'), findsWidgets);
+      expect(find.byKey(const Key('ritual-history')), findsNothing);
+      expect(find.textContaining('Coven'), findsNothing);
+      expect(find.textContaining('practice'), findsNothing);
+      expect(find.byKey(const Key('rowan-explain')), findsNothing);
+      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byKey(const Key('leonidas-evidence'))).dy,
+        lessThan(
+          tester.getTopLeft(find.byKey(const Key('leonidas-starpath'))).dy,
+        ),
+      );
+      await tester.ensureVisible(find.byKey(const Key('leonidas-starpath')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('leonidas-starpath')));
+      expect(starpathOpened, isTrue);
+      expect(tester.takeException(), isNull);
     },
   );
 
@@ -369,6 +500,17 @@ void _setReducedMotionPhoneViewport(WidgetTester tester) {
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.platformDispatcher.clearAllTestValues);
+}
+
+Future<void> _decodeExactArt(WidgetTester tester, String assetPath) async {
+  final context = tester.element(
+    find.byKey(const Key('leonidas-ritual-sequence')),
+  );
+  await tester.runAsync<void>(
+    () => precacheImage(AssetImage(assetPath), context),
+  );
+  await tester.pump();
+  await tester.pump();
 }
 
 class _ImmediateLeonidasVoice implements LeonidasVoice {
@@ -465,21 +607,6 @@ class _SingleRitualService extends _RitualService {
 
   @override
   Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async => ritual;
-}
-
-class _RowanService implements RowanService {
-  RowanRequest? request;
-
-  @override
-  Future<RowanCounselResult> fetch(RowanRequest request) async {
-    this.request = request;
-    return const RowanCounselResult(
-      scriptRevisionId: '00000000-0000-4000-8000-000000000504',
-      surface: RowanSurface.evidence,
-      body: 'Evidence stays separate from interpretation.',
-      riskFooter: 'Demo only; not investment advice.',
-    );
-  }
 }
 
 class _SearchService implements SearchService {

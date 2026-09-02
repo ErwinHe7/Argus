@@ -394,6 +394,65 @@ void main() {
     expect(controller.evidenceState.phase, LoadPhase.idle);
     expect(controller.evidenceState.value, isNull);
   });
+
+  test(
+    'snapshot Evidence is immutable and detached from the shared evidence lane',
+    () async {
+      final service = _ScriptedService(
+        daily: [
+          _async(_authority(state: DailyRitualState.completed, version: 3)),
+        ],
+        evidence: {
+          'assignment-a': Future.value([_evidenceDetail]),
+        },
+      );
+      final controller = _controller(
+        service: service,
+        cache: MemoryReadCache(),
+      );
+      await controller.load();
+
+      final result = await controller.loadEvidenceSnapshot(
+        controller.state.value!,
+      );
+
+      expect(result.phase, LoadPhase.ready);
+      expect(result.details, [_evidenceDetail]);
+      expect(() => result.details.add(_evidenceDetail), throwsUnsupportedError);
+      expect(controller.evidenceState.phase, LoadPhase.idle);
+      expect(controller.evidenceState.value, isNull);
+    },
+  );
+
+  test('snapshot Evidence fails closed across an authority switch', () async {
+    final pendingEvidence = Completer<List<RitualEvidenceDetail>>();
+    final service = _ScriptedService(
+      daily: [
+        _async(_authority(state: DailyRitualState.completed, version: 3)),
+        _async(
+          _authority(
+            assignmentId: 'assignment-b',
+            state: DailyRitualState.completed,
+            version: 3,
+          ),
+        ),
+      ],
+      evidence: {'assignment-a': pendingEvidence.future},
+    );
+    final controller = _controller(service: service, cache: MemoryReadCache());
+    await controller.load();
+    final snapshot = controller.state.value!;
+    final evidenceLoad = controller.loadEvidenceSnapshot(snapshot);
+
+    await controller.revalidate();
+    pendingEvidence.complete([_evidenceDetail]);
+    final result = await evidenceLoad;
+
+    expect(controller.state.value?.assignmentId, 'assignment-b');
+    expect(result.phase, LoadPhase.conflict);
+    expect(result.details, isEmpty);
+    expect(controller.evidenceState.phase, LoadPhase.idle);
+  });
 }
 
 Future<DailyRitual> _async(DailyRitual ritual) async => ritual;

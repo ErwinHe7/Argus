@@ -188,6 +188,10 @@ void main() {
       expect(harness.stage.phase, DailyRitualStagePhase.closing);
       expect(harness.stage.closingCaptionVisible, isTrue);
       expect(harness.voice.lines, hasLength(1));
+      expect(
+        harness.voice.lines.single,
+        'Carry the signal with you. I’ll meet you here tomorrow.',
+      );
 
       harness.voice.complete(true);
       await _flush();

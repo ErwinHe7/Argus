@@ -221,7 +221,7 @@ void main() {
     expect(service.revealVersions, [1]);
   });
 
-  test('successful reveal does not wait for ritual history refresh', () async {
+  test('ceremony reveal can skip the unrelated history refresh', () async {
     final history = Completer<RitualHistoryPage>();
     final service = _LifecycleService(historyGate: history);
     final controller = DailyRitualController(
@@ -232,14 +232,11 @@ void main() {
     );
 
     await controller.load();
-    await controller.reveal(waitForHistory: false);
+    await controller.reveal(refreshHistory: false);
 
     expect(controller.state.value?.state, DailyRitualState.revealed);
-    expect(controller.historyState.phase, LoadPhase.loading);
-
-    history.complete(service.historyPage);
-    await Future<void>.delayed(Duration.zero);
-    expect(controller.historyState.phase, LoadPhase.ready);
+    expect(controller.historyState.phase, LoadPhase.idle);
+    expect(service.historyReads, 0);
   });
 
   test(
@@ -254,7 +251,7 @@ void main() {
       );
 
       await controller.load();
-      await controller.reveal(waitForHistory: false);
+      await controller.reveal();
       final completion = controller.complete();
       await Future<void>.delayed(Duration.zero);
 
@@ -322,6 +319,7 @@ class _LifecycleService implements DailyRitualService {
   final List<int> completeVersions = [];
   int dailyReads = 0;
   int assignmentReads = 0;
+  int historyReads = 0;
 
   @override
   Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async {
@@ -362,8 +360,10 @@ class _LifecycleService implements DailyRitualService {
   );
 
   @override
-  Future<RitualHistoryPage> fetchHistory({String? cursor}) async =>
-      historyGate?.future ?? historyPage;
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) async {
+    historyReads += 1;
+    return historyGate?.future ?? historyPage;
+  }
 
   @override
   Future<DailyRitual> reveal(String assignmentId, int version) async {

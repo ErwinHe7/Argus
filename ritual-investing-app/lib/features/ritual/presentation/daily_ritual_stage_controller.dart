@@ -63,10 +63,11 @@ class ControllerDailyRitualStageAuthority implements DailyRitualStageAuthority {
 
   @override
   Future<RitualTransitionResult?> reveal() =>
-      controller.reveal(waitForHistory: false);
+      controller.reveal(refreshHistory: false);
 
   @override
-  Future<RitualTransitionResult?> complete() => controller.complete();
+  Future<RitualTransitionResult?> complete() =>
+      controller.complete(refreshHistory: false);
 
   @override
   void invalidateForResume() => controller.invalidateForResume();
@@ -83,10 +84,8 @@ typedef DailyRitualStageSchedule = DailyRitualStageScheduled Function(
 typedef DailyRitualMonotonicNow = Duration Function();
 typedef DailyRitualMediaPreparer = Future<bool> Function(DailyRitual ritual);
 
-String dailyRitualClosingCaption(DailyRitual ritual) => [
-  ritual.rowan.body,
-  ritual.rowan.riskFooter,
-].where((part) => part.trim().isNotEmpty).join(' ');
+const dailyRitualClosingCaption =
+    'Carry the signal with you. I’ll meet you here tomorrow.';
 
 abstract interface class DailyRitualStageHaptics {
   Future<void> touchDown();
@@ -164,6 +163,7 @@ class DailyRitualStageController extends ChangeNotifier {
   bool _disposed = false;
   int _runToken = 0;
   int _preferenceRevision = 0;
+  final ValueNotifier<double> _holdProgress = ValueNotifier(0);
 
   DailyRitualStagePhase get phase => _phase;
   HoldCancellation? get cancellation => _cancellation;
@@ -173,6 +173,7 @@ class DailyRitualStageController extends ChangeNotifier {
   bool get hasActiveHold => _attemptStartedAt != null && !_accepted;
   bool get hasSemanticHold => hasActiveHold && _semanticOwner;
   bool ownsPointer(int pointer) => _pointerOwner == pointer;
+  ValueListenable<double> get holdProgressListenable => _holdProgress;
 
   double get holdProgress {
     final startedAt = _attemptStartedAt;
@@ -272,7 +273,7 @@ class DailyRitualStageController extends ChangeNotifier {
     }
     final token = _runToken;
     authority.invalidateForResume();
-    unawaited(_revalidateAfterResume(token));
+    unawaited(Future<void>.microtask(() => _revalidateAfterResume(token)));
     _emit();
   }
 
@@ -409,6 +410,7 @@ class DailyRitualStageController extends ChangeNotifier {
     _revealDispatched = false;
     _cancellation = null;
     _phase = DailyRitualStagePhase.holding;
+    _setHoldProgress(0);
     _emit();
     unawaited(_haptic(haptics.touchDown));
     unawaited(_prepare(token, current));
@@ -460,7 +462,7 @@ class DailyRitualStageController extends ChangeNotifier {
     if (!_isCurrentRun(token) || _attemptStartedAt == null) return;
     final elapsed = _monotonicNow() - _attemptStartedAt!;
     if (elapsed < holdDuration) {
-      _emit();
+      _setHoldProgress(holdProgress);
       _scheduleTick(token);
       return;
     }
@@ -476,6 +478,7 @@ class DailyRitualStageController extends ChangeNotifier {
     _semanticOwner = false;
     _phase = DailyRitualStagePhase.acceptedWaiting;
     _scheduled = null;
+    _setHoldProgress(1);
     _emit();
     unawaited(_haptic(haptics.accepted));
     _maybeDispatchReveal(token);
@@ -654,11 +657,7 @@ class DailyRitualStageController extends ChangeNotifier {
       (result?.disposition == RitualOperationDisposition.committed ||
           result?.disposition == RitualOperationDisposition.reconciledToTarget);
 
-  String get _closingLine {
-    final current = authority.current;
-    if (current == null) return 'Today’s ritual is complete.';
-    return dailyRitualClosingCaption(current);
-  }
+  String get _closingLine => dailyRitualClosingCaption;
 
   void _clearAttempt() {
     _attemptStartedAt = null;
@@ -668,6 +667,13 @@ class DailyRitualStageController extends ChangeNotifier {
     _accepted = false;
     _preflightReady = false;
     _revealDispatched = false;
+    _setHoldProgress(0);
+  }
+
+  void _setHoldProgress(double value) {
+    if (!_disposed && _holdProgress.value != value) {
+      _holdProgress.value = value;
+    }
   }
 
   bool _isCurrentRun(int token) => !_disposed && token == _runToken;
@@ -707,8 +713,9 @@ class DailyRitualStageController extends ChangeNotifier {
     _scheduled?.cancel();
     _scheduled = null;
     _stopSpeechOnce();
-    _clearAttempt();
     _disposed = true;
+    _clearAttempt();
+    _holdProgress.dispose();
     super.dispose();
   }
 

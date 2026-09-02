@@ -12,6 +12,7 @@ import '../data/daily_ritual_repository.dart';
 import '../data/leonidas_voice_preference_store.dart';
 import '../domain/daily_ritual.dart';
 import 'daily_ritual_stage_controller.dart';
+import 'daily_ritual_stage_spec.dart';
 import 'ritual_tarot_art.dart';
 
 export '../application/leonidas_voice.dart'
@@ -22,8 +23,11 @@ class LeonidasRitualSequence extends StatefulWidget {
     super.key,
     required this.ritual,
     required this.onReveal,
+    this.onRevalidate,
     this.onComplete,
+    this.onStartRequested,
     this.onShowEvidence,
+    this.onOpenStarpath,
     this.authorityController,
     this.cacheScope,
     this.voicePreferenceStore,
@@ -32,12 +36,16 @@ class LeonidasRitualSequence extends StatefulWidget {
     this.voice = const PlatformLeonidasVoice(),
     this.useBundledArtwork = true,
     this.assetPackage,
+    this.startImmediately = false,
   });
 
   final DailyRitual ritual;
   final Future<bool> Function() onReveal;
+  final Future<void> Function()? onRevalidate;
   final Future<bool> Function()? onComplete;
+  final VoidCallback? onStartRequested;
   final VoidCallback? onShowEvidence;
+  final VoidCallback? onOpenStarpath;
   final DailyRitualController? authorityController;
   final CacheScope? cacheScope;
   final LeonidasVoicePreferencePersistence? voicePreferenceStore;
@@ -46,62 +54,62 @@ class LeonidasRitualSequence extends StatefulWidget {
   final LeonidasVoice voice;
   final bool useBundledArtwork;
   final String? assetPackage;
+  final bool startImmediately;
 
   @override
   State<LeonidasRitualSequence> createState() => _LeonidasRitualSequenceState();
 }
 
+enum _ExactMediaState { loading, ready, unavailable }
+
 class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     with WidgetsBindingObserver {
   static const _revealFailureLine =
-      'The card could not be revealed. Your ritual remains safely concealed; try again when you are ready.';
+      "The ritual could not be opened. Try again when you're ready.";
 
   late DailyRitualStageController _stage;
   _CallbackStageAuthority? _callbackAuthority;
+  RitualTarotArtwork? _artwork;
+  AssetImage? _imageProvider;
+  String? _mediaIdentity;
+  _ExactMediaState _mediaState = _ExactMediaState.unavailable;
+  int _mediaAttempt = 0;
   bool _appResumed = true;
   bool? _lastVisible;
 
   DailyRitualStagePhase get _phase => _stage.phase;
-
-  bool get _cardRevealed => switch (_phase) {
-    DailyRitualStagePhase.revealed ||
-    DailyRitualStagePhase.finishPending ||
-    DailyRitualStagePhase.finishFailure ||
-    DailyRitualStagePhase.closing ||
-    DailyRitualStagePhase.completed => true,
-    _ => false,
-  };
-
-  bool get _showsStanding => switch (_phase) {
-    DailyRitualStagePhase.resting ||
-    DailyRitualStagePhase.ready ||
-    DailyRitualStagePhase.holding ||
-    DailyRitualStagePhase.acceptedWaiting ||
-    DailyRitualStagePhase.revealFailure ||
-    DailyRitualStagePhase.mediaUnavailable => true,
-    _ => false,
-  };
-
-  bool get _showsCloseUp => switch (_phase) {
-    DailyRitualStagePhase.revealed ||
-    DailyRitualStagePhase.finishPending ||
-    DailyRitualStagePhase.finishFailure ||
-    DailyRitualStagePhase.closing ||
-    DailyRitualStagePhase.completed => true,
-    _ => false,
-  };
+  bool get _reducedMotion =>
+      MediaQuery.disableAnimationsOf(context) ||
+      MediaQuery.accessibleNavigationOf(context);
+  bool get _hasExactImage =>
+      _artwork != null &&
+      _imageProvider != null &&
+      _mediaState == _ExactMediaState.ready;
+  bool get _cardShouldShow =>
+      _hasExactImage &&
+      switch (_phase) {
+        DailyRitualStagePhase.revealed ||
+        DailyRitualStagePhase.finishPending ||
+        DailyRitualStagePhase.finishFailure ||
+        DailyRitualStagePhase.closing ||
+        DailyRitualStagePhase.completed => true,
+        _ => false,
+      };
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _syncArtwork();
     _stage = _createStage();
+    if (widget.startImmediately) _stage.start();
     unawaited(_stage.restoreVoicePreference());
   }
 
   @override
   void didUpdateWidget(covariant LeonidasRitualSequence oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _syncArtwork();
     if (oldWidget.authorityController != widget.authorityController ||
         oldWidget.cacheScope != widget.cacheScope ||
         oldWidget.voicePreferenceStore != widget.voicePreferenceStore) {
@@ -135,14 +143,34 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     super.dispose();
   }
 
-  String get _finalCaption => dailyRitualClosingCaption(widget.ritual);
-
-  bool get _reducedMotion =>
-      MediaQuery.disableAnimationsOf(context) ||
-      MediaQuery.accessibleNavigationOf(context);
-
-  Duration _motionDuration(int milliseconds) =>
-      _reducedMotion ? Duration.zero : Duration(milliseconds: milliseconds);
+  void _syncArtwork() {
+    final artwork = widget.useBundledArtwork
+        ? resolveRitualTarotArtwork(
+            art: widget.ritual.art,
+            date: widget.ritual.date,
+            mode: widget.ritual.mode,
+          )
+        : null;
+    final ritual = widget.ritual;
+    final identity = artwork == null
+        ? null
+        : '${widget.assetPackage ?? ''}:${ritual.userId ?? ''}:'
+              '${ritual.deletionEpoch ?? ''}:${ritual.date.toIso8601String()}:'
+              '${ritual.mode.name}:${ritual.assignmentId}:'
+              '${ritual.revision.id}:${ritual.revision.number}:'
+              '${ritual.contentIdentity}:${artwork.key}:'
+              '${artwork.assetPath}';
+    if (identity == _mediaIdentity) return;
+    _artwork = artwork;
+    _mediaIdentity = identity;
+    _imageProvider = artwork == null
+        ? null
+        : AssetImage(artwork.assetPath, package: widget.assetPackage);
+    _mediaState = artwork == null
+        ? _ExactMediaState.unavailable
+        : _ExactMediaState.loading;
+    _mediaAttempt += 1;
+  }
 
   DailyRitualStageController _createStage() {
     final controller = widget.authorityController;
@@ -150,6 +178,7 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
         ? (_callbackAuthority = _CallbackStageAuthority(
             widget.onReveal,
             widget.onComplete,
+            revalidate: widget.onRevalidate,
             current: widget.ritual,
           ))
         : ControllerDailyRitualStageAuthority(controller);
@@ -172,22 +201,40 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
   Future<bool> _prepareExactMedia(DailyRitual ritual) async {
     final injected = widget.prepareExactMedia;
     if (injected != null) return injected(ritual);
-    if (!widget.useBundledArtwork || !mounted) return false;
-    final artwork = resolveRitualTarotArtwork(
-      art: ritual.art,
-      date: ritual.date,
-      mode: ritual.mode,
-    );
-    if (artwork == null) return false;
+    final provider = _imageProvider;
+    if (provider == null || !mounted) return false;
     try {
-      await precacheImage(
-        AssetImage(artwork.assetPath, package: widget.assetPackage),
-        context,
-      );
+      await precacheImage(provider, context);
+      if (mounted) _markMediaReady();
       return mounted;
     } on Object {
+      if (mounted) _markMediaUnavailable();
       return false;
     }
+  }
+
+  void _markMediaReady() {
+    if (!mounted || _mediaState == _ExactMediaState.ready) return;
+    setState(() => _mediaState = _ExactMediaState.ready);
+  }
+
+  void _markMediaUnavailable() {
+    if (!mounted || _mediaState == _ExactMediaState.unavailable) return;
+    setState(() => _mediaState = _ExactMediaState.unavailable);
+  }
+
+  Future<void> _retryExactMedia() async {
+    final provider = _imageProvider;
+    if (provider == null) {
+      setState(() => _mediaState = _ExactMediaState.unavailable);
+      return;
+    }
+    await provider.evict();
+    if (!mounted) return;
+    setState(() {
+      _mediaState = _ExactMediaState.loading;
+      _mediaAttempt += 1;
+    });
   }
 
   void _applyVisibility({HoldCancellation? forcedReason}) {
@@ -218,223 +265,631 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
 
   Widget _buildStage(BuildContext context) {
     final colors = context.ritualColors;
-    final textScaleGrowth = math.max(
-      0.0,
-      MediaQuery.textScalerOf(context).scale(16) - 16,
+    final stageHeight = DailyRitualStageSpec.stageHeight(
+      MediaQuery.textScalerOf(context),
     );
-    final stageHeight = 700.0 + math.min(150.0, textScaleGrowth * 7.5);
-    final artwork = widget.useBundledArtwork
-        ? resolveRitualTarotArtwork(
-            art: widget.ritual.art,
-            date: widget.ritual.date,
-            mode: widget.ritual.mode,
-          )
-        : null;
-
+    final largeText = MediaQuery.textScalerOf(context).scale(16) >= 24;
     return Semantics(
       container: true,
-      label: 'Leonidas Daily Ritual sequence',
+      label: 'Leonidas Daily Ritual',
       explicitChildNodes: true,
-      child: ConstrainedBox(
-        key: const Key('leonidas-ritual-sequence'),
-        constraints: BoxConstraints(minHeight: stageHeight),
+      child: SizedBox(
+        key: DailyRitualStageSpec.stageKey,
+        width: double.infinity,
+        height: stageHeight,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(DailyRitualStageSpec.radius),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: const Color(0xFF130C19),
-              border: Border.all(color: colors.gold.withValues(alpha: 0.36)),
-              borderRadius: BorderRadius.circular(16),
+              color: const Color(0xFF0C0810),
+              border: Border.all(color: colors.gold.withValues(alpha: 0.48)),
+              borderRadius: BorderRadius.circular(DailyRitualStageSpec.radius),
             ),
-            child: Stack(
-              children: [
-                const Positioned.fill(
-                  child: ExcludeSemantics(child: _CelestialBackdrop()),
-                ),
-                Positioned.fill(
-                  child: _LeonidasPortrait(
-                    standing: _showsStanding,
-                    closeUp: _showsCloseUp,
-                    duration: _motionDuration(900),
-                    package: widget.assetPackage,
-                    useBundledArtwork: widget.useBundledArtwork,
-                  ),
-                ),
-                Positioned(
-                  top: 16,
-                  left: 16,
-                  right: 12,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'DAILY RITUAL',
-                              style: TextStyle(
-                                color: colors.gold,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              _phaseLabel,
-                              key: const Key('leonidas-phase-label'),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final dx =
+                    (constraints.maxWidth -
+                        DailyRitualStageSpec.baseStageSize.width) /
+                    2;
+                return Stack(
+                  clipBehavior: Clip.hardEdge,
+                  children: [
+                    const Positioned.fill(
+                      child: ExcludeSemantics(child: _StageBackdrop()),
+                    ),
+                    _positionedRect(
+                      DailyRitualStageSpec.portrait.shift(Offset(dx, 0)),
+                      child: _LeonidasPortrait(
+                        package: widget.assetPackage,
+                        useBundledArtwork: widget.useBundledArtwork,
+                      ),
+                    ),
+                    _positionedRect(
+                      DailyRitualStageSpec.faceClear.shift(Offset(dx, 0)),
+                      child: const IgnorePointer(
+                        child: ExcludeSemantics(
+                          child: SizedBox(
+                            key: DailyRitualStageSpec.faceClearKey,
+                          ),
                         ),
                       ),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Semantics(
-                            label:
-                                _stage.voicePreference ==
-                                    LeonidasVoicePreference.pending
-                                ? 'Leonidas voice unavailable'
-                                : 'Leonidas voice',
-                            toggled:
-                                _stage.voicePreference ==
-                                LeonidasVoicePreference.enabled,
-                            onTap:
-                                _stage.voicePreference ==
-                                    LeonidasVoicePreference.pending
-                                ? null
-                                : () => _stage.setVoiceEnabled(
-                                    _stage.voicePreference !=
-                                        LeonidasVoicePreference.enabled,
-                                  ),
-                            child: ExcludeSemantics(
-                              child: Switch.adaptive(
-                                key: const Key('leonidas-voice-toggle'),
-                                value:
-                                    _stage.voicePreference ==
-                                    LeonidasVoicePreference.enabled,
-                                onChanged:
-                                    _stage.voicePreference ==
-                                        LeonidasVoicePreference.pending
-                                    ? null
-                                    : _stage.setVoiceEnabled,
-                              ),
-                            ),
-                          ),
-                          const Text(
-                            'Voice',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                Positioned(
-                  top: 82,
-                  left: 0,
-                  right: 0,
-                  height: 300 + math.min(60, textScaleGrowth * 2),
-                  child: AnimatedAlign(
-                    duration: _motionDuration(800),
-                    curve: Curves.easeOutCubic,
-                    alignment: _showsCloseUp
-                        ? const Alignment(-0.58, -0.12)
-                        : const Alignment(-0.42, -0.1),
-                    child: _RitualFlipCard(
-                      revealed: _cardRevealed,
-                      duration: _motionDuration(1050),
-                      artwork: artwork,
-                      fallbackAlt: widget.ritual.art.alt,
-                      package: widget.assetPackage,
-                      colors: colors,
                     ),
-                  ),
-                ),
-                Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(height: 410 + math.min(80, textScaleGrowth * 3)),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (_showsCloseUp) ...[
-                            Text(
-                              widget.ritual.marketLabel.toUpperCase(),
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: colors.gold,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1.1,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.ritual.title,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontFamily: 'LibreBaskerville',
-                                fontSize: 27,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.ritual.interpretation,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                                height: 1.35,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                          ],
-                          _CaptionPanel(
-                            caption: _caption,
-                            speaking:
-                                _phase == DailyRitualStagePhase.closing &&
-                                _stage.voicePreference ==
-                                    LeonidasVoicePreference.enabled,
-                          ),
-                          const SizedBox(height: 10),
-                          _buildActions(),
-                          if (widget.ritual.demo.isDemo) ...[
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Demo content · Not live market data · Not a recommendation',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
+                    _buildCardSurface(dx),
+                    _buildMetadata(dx),
+                    ..._buildPhaseContent(dx, largeText: largeText),
                   ],
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),
       ),
     );
   }
+
+  Widget _buildMetadata(double dx) {
+    final voicePreference = _stage.voicePreference;
+    return Positioned(
+      left: DailyRitualStageSpec.metadata.left + dx,
+      top: DailyRitualStageSpec.metadata.top,
+      width: DailyRitualStageSpec.metadata.width,
+      height:
+          DailyRitualStageSpec.faceClear.top -
+          DailyRitualStageSpec.metadata.top,
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'TODAY’S DAILY RITUAL',
+                    style: TextStyle(
+                      color: context.ritualColors.gold,
+                      fontSize: 10,
+                      height: 1.1,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _phaseLabel,
+                    key: const Key('leonidas-phase-label'),
+                    maxLines: 2,
+                    overflow: TextOverflow.fade,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              width: DailyRitualStageSpec.voice.width,
+              height: 48,
+              child: Semantics(
+                label: voicePreference == LeonidasVoicePreference.pending
+                    ? 'Leonidas voice unavailable'
+                    : 'Leonidas voice',
+                button: true,
+                enabled: voicePreference != LeonidasVoicePreference.pending,
+                toggled: voicePreference == LeonidasVoicePreference.enabled,
+                onTap: voicePreference == LeonidasVoicePreference.pending
+                    ? null
+                    : () => _stage.setVoiceEnabled(
+                        voicePreference != LeonidasVoicePreference.enabled,
+                      ),
+                child: ExcludeSemantics(
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: SizedBox(
+                      width: DailyRitualStageSpec.voice.width,
+                      height: DailyRitualStageSpec.voice.height,
+                      child: OutlinedButton(
+                        key: const Key('leonidas-voice-toggle'),
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: const Size(76, 44),
+                          padding: EdgeInsets.zero,
+                          side: BorderSide(
+                            color: context.ritualColors.gold.withValues(
+                              alpha: 0.7,
+                            ),
+                          ),
+                          foregroundColor: Colors.white,
+                          textStyle: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        onPressed:
+                            voicePreference == LeonidasVoicePreference.pending
+                            ? null
+                            : () => _stage.setVoiceEnabled(
+                                voicePreference !=
+                                    LeonidasVoicePreference.enabled,
+                              ),
+                        child: Text(
+                          voicePreference == LeonidasVoicePreference.enabled
+                              ? 'Voice on'
+                              : 'Voice off',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCardSurface(double dx) {
+    final provider = _imageProvider;
+    if (provider == null || _artwork == null) {
+      return const SizedBox.shrink();
+    }
+    final rect = _cardRect.shift(Offset(dx, 0));
+    final positionDuration = _reducedMotion ? Duration.zero : _cardDuration;
+    final opacityDuration = DailyRitualStageSpec.motion(
+      _cardDuration,
+      reducedMotion: _reducedMotion,
+    );
+    return AnimatedPositioned(
+      key: DailyRitualStageSpec.cardSurfaceKey,
+      duration: positionDuration,
+      curve: DailyRitualStageSpec.enterCurve,
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+      child: IgnorePointer(
+        child: AnimatedOpacity(
+          duration: opacityDuration,
+          curve: DailyRitualStageSpec.enterCurve,
+          opacity: _cardShouldShow ? 1 : 0,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ExcludeSemantics(
+                child: _ExactCardFrame(
+                  provider: provider,
+                  attempt: _mediaAttempt,
+                  colors: context.ritualColors,
+                  onReady: _markMediaReady,
+                  onUnavailable: _markMediaUnavailable,
+                ),
+              ),
+              if (_cardShouldShow)
+                Semantics(
+                  key: const Key('leonidas-card-front'),
+                  image: true,
+                  label: _artwork!.alt,
+                  child: const SizedBox.expand(),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Rect get _cardRect => switch (_phase) {
+    DailyRitualStagePhase.closing => DailyRitualStageSpec.c2Card,
+    DailyRitualStagePhase.completed => DailyRitualStageSpec.keepsakeCard,
+    _ => DailyRitualStageSpec.revealedCard,
+  };
+
+  Duration get _cardDuration => switch (_phase) {
+    DailyRitualStagePhase.closing => DailyRitualStageSpec.c2Expand,
+    DailyRitualStagePhase.completed => DailyRitualStageSpec.c2Settle,
+    _ => DailyRitualStageSpec.reveal,
+  };
+
+  List<Widget> _buildPhaseContent(
+    double dx, {
+    required bool largeText,
+  }) => switch (_phase) {
+    DailyRitualStagePhase.resting => _buildResting(dx, largeText: largeText),
+    DailyRitualStagePhase.ready ||
+    DailyRitualStagePhase.holding ||
+    DailyRitualStagePhase.acceptedWaiting ||
+    DailyRitualStagePhase.revealFailure => _buildSeal(dx, largeText: largeText),
+    DailyRitualStagePhase.revealed ||
+    DailyRitualStagePhase.finishPending ||
+    DailyRitualStagePhase.finishFailure => _buildReading(
+      dx,
+      largeText: largeText,
+    ),
+    DailyRitualStagePhase.closing => _buildClosing(dx),
+    DailyRitualStagePhase.completed => _buildCompleted(
+      dx,
+      largeText: largeText,
+    ),
+    DailyRitualStagePhase.mediaUnavailable => _buildMediaUnavailable(
+      dx,
+      completed: widget.ritual.state == DailyRitualState.completed,
+    ),
+  };
+
+  List<Widget> _buildResting(double dx, {required bool largeText}) {
+    if (_imageProvider == null) return _buildMediaUnavailable(dx);
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (largeText)
+          const Text(
+            'Your ritual is ready when you are.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Colors.white,
+              fontFamily: 'LibreBaskerville',
+              fontSize: 16,
+              height: 1.3,
+            ),
+          )
+        else
+          const SizedBox(
+            height: 48,
+            child: Center(
+              child: Text(
+                'Your ritual is ready when you are.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontFamily: 'LibreBaskerville',
+                  fontSize: 16,
+                  height: 1.3,
+                ),
+              ),
+            ),
+          ),
+        SizedBox(height: largeText ? 20 : 23),
+        _GoldAction(
+          key: const Key('leonidas-sequence-start'),
+          label: 'Start your daily ritual',
+          onPressed: widget.onStartRequested ?? _stage.start,
+        ),
+      ],
+    );
+    return [
+      _positionedRect(
+        DailyRitualStageSpec.restingSealVisual.shift(Offset(dx, 0)),
+        child: const _RestingSeal(),
+      ),
+      Positioned(
+        left: 16 + dx,
+        right: math.max(16 - dx, 16),
+        top: largeText ? 476 : DailyRitualStageSpec.restingGuidance.top,
+        child: AnimatedSwitcher(
+          duration: DailyRitualStageSpec.motion(
+            DailyRitualStageSpec.startTransition,
+            reducedMotion: _reducedMotion,
+          ),
+          child: content,
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildSeal(double dx, {required bool largeText}) {
+    final holding =
+        _phase == DailyRitualStagePhase.holding ||
+        _phase == DailyRitualStagePhase.acceptedWaiting;
+    final sealRect = holding
+        ? DailyRitualStageSpec.holdingSealHit
+        : DailyRitualStageSpec.restingSealHit;
+    Widget caption() => Text(
+      _sealCaption,
+      key: const Key('leonidas-caption'),
+      textAlign: TextAlign.center,
+      style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35),
+    );
+    return [
+      _positionedRect(
+        sealRect.shift(Offset(dx, 0)),
+        child: _SealHold(stage: _stage, expanded: holding),
+      ),
+      Positioned(
+        left: 20 + dx,
+        right: math.max(20 - dx, 20),
+        top: largeText ? 470 : 468,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ExcludeSemantics(
+              child: Text(
+                _sealHeading,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.ritualColors.gold,
+                  fontFamily: 'LibreBaskerville',
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            if (_phase == DailyRitualStagePhase.holding)
+              ValueListenableBuilder<double>(
+                valueListenable: _stage.holdProgressListenable,
+                builder: (context, progress, child) => caption(),
+              )
+            else
+              caption(),
+          ],
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _buildReading(double dx, {required bool largeText}) {
+    if (!_hasExactImage) {
+      return _buildMediaUnavailable(dx, completed: false);
+    }
+    final copy = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          widget.ritual.title,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontFamily: 'LibreBaskerville',
+            fontSize: 23,
+            height: 1.05,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 5),
+        Text(
+          widget.ritual.interpretation,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            height: 1.3,
+          ),
+        ),
+        if (_phase == DailyRitualStagePhase.finishFailure) ...[
+          const SizedBox(height: 6),
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              'Your reading is still here. Finish again when you are ready.',
+              key: Key('daily-ritual-finish-error'),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Color(0xFFFFD6D6), fontSize: 12),
+            ),
+          ),
+        ],
+      ],
+    );
+    if (largeText) {
+      return [
+        Positioned(
+          key: DailyRitualStageSpec.readingContentKey,
+          left: 16 + dx,
+          right: math.max(16 - dx, 16),
+          top: DailyRitualStageSpec.revealedContent.top,
+          bottom: 10,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                copy,
+                const SizedBox(height: 18),
+                _buildFinishAction(),
+              ],
+            ),
+          ),
+        ),
+      ];
+    }
+    return [
+      _positionedRect(
+        DailyRitualStageSpec.revealedContent.shift(Offset(dx, 0)),
+        child: KeyedSubtree(
+          key: DailyRitualStageSpec.readingContentKey,
+          child: ClipRect(child: copy),
+        ),
+      ),
+      _positionedRect(
+        DailyRitualStageSpec.revealedFinish.shift(Offset(dx, 0)),
+        child: _buildFinishAction(),
+      ),
+    ];
+  }
+
+  Widget _buildFinishAction() {
+    if (_phase == DailyRitualStagePhase.finishPending) {
+      return SizedBox(
+        key: const Key('ritual-complete'),
+        height: 52,
+        child: Center(
+          child: Semantics(
+            label: 'Finishing today’s ritual',
+            child: const SizedBox.square(
+              dimension: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
+    return _GoldAction(
+      key: const Key('ritual-complete'),
+      label: 'Finish today’s ritual',
+      onPressed: _stage.finish,
+    );
+  }
+
+  List<Widget> _buildClosing(double dx) => [
+    Positioned(
+      key: DailyRitualStageSpec.c2CaptionKey,
+      left: DailyRitualStageSpec.c2Caption.left + dx,
+      right: math.max(20 - dx, 20),
+      top: DailyRitualStageSpec.c2Caption.top,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Text(
+              dailyRitualClosingCaption,
+              key: const Key('leonidas-caption'),
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: 'LibreBaskerville',
+                fontSize: 12.5,
+                height: 1.25,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          TextButton(
+            key: const Key('leonidas-closing-skip'),
+            style: TextButton.styleFrom(
+              minimumSize: const Size(56, 44),
+              foregroundColor: context.ritualColors.gold,
+            ),
+            onPressed: _stage.skipClosing,
+            child: const Text('Skip'),
+          ),
+        ],
+      ),
+    ),
+  ];
+
+  List<Widget> _buildCompleted(double dx, {required bool largeText}) {
+    if (!_hasExactImage) return _buildMediaUnavailable(dx, completed: true);
+    final copy = Column(
+      key: DailyRitualStageSpec.completedCopyKey,
+      crossAxisAlignment: largeText
+          ? CrossAxisAlignment.center
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.ritual.title,
+          textAlign: largeText ? TextAlign.center : TextAlign.start,
+          style: const TextStyle(
+            color: Colors.white,
+            fontFamily: 'LibreBaskerville',
+            fontSize: 23,
+            height: 1.1,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          widget.ritual.interpretation,
+          textAlign: largeText ? TextAlign.center : TextAlign.start,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            height: 1.4,
+          ),
+        ),
+      ],
+    );
+    if (!largeText) {
+      return [
+        _positionedRect(
+          DailyRitualStageSpec.keepsakeCopy.shift(Offset(dx, 0)),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: DailyRitualStageSpec.keepsakeCopy.width,
+              child: copy,
+            ),
+          ),
+        ),
+        if (widget.onShowEvidence != null)
+          _positionedRect(
+            DailyRitualStageSpec.evidenceAction.shift(Offset(dx, 0)),
+            child: _GoldAction(
+              key: DailyRitualStageSpec.evidenceKey,
+              label: 'Review evidence',
+              onPressed: widget.onShowEvidence!,
+            ),
+          ),
+        if (widget.onOpenStarpath != null)
+          _positionedRect(
+            DailyRitualStageSpec.starpathAction.shift(Offset(dx, 0)),
+            child: _OutlineAction(
+              key: DailyRitualStageSpec.starpathKey,
+              label: 'Continue to Starpath',
+              onPressed: widget.onOpenStarpath!,
+            ),
+          ),
+      ];
+    }
+    final content = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const SizedBox(width: 118, height: 206),
+        const SizedBox(height: 12),
+        copy,
+        const SizedBox(height: 20),
+        ..._onwardActions(),
+      ],
+    );
+    return [
+      Positioned(
+        left: 16 + dx,
+        right: math.max(16 - dx, 16),
+        top: DailyRitualStageSpec.keepsakeCard.top,
+        bottom: 10,
+        child: SingleChildScrollView(
+          key: const Key('daily-ritual-accessibility-scroll'),
+          child: content,
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _onwardActions() => [
+    if (widget.onShowEvidence != null)
+      _GoldAction(
+        key: DailyRitualStageSpec.evidenceKey,
+        label: 'Review evidence',
+        onPressed: widget.onShowEvidence!,
+      ),
+    if (widget.onShowEvidence != null && widget.onOpenStarpath != null)
+      const SizedBox(height: 10),
+    if (widget.onOpenStarpath != null)
+      _OutlineAction(
+        key: DailyRitualStageSpec.starpathKey,
+        label: 'Continue to Starpath',
+        onPressed: widget.onOpenStarpath!,
+      ),
+  ];
+
+  List<Widget> _buildMediaUnavailable(double dx, {bool completed = false}) => [
+    Positioned(
+      left: 20 + dx,
+      right: math.max(20 - dx, 20),
+      top: completed ? 272 : 442,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ExactMediaUnavailable(
+            loading: _mediaState == _ExactMediaState.loading,
+            onRetry: _retryExactMedia,
+          ),
+          if (completed) ...[const SizedBox(height: 18), ..._onwardActions()],
+        ],
+      ),
+    ),
+  ];
 
   String get _phaseLabel => switch (_phase) {
     DailyRitualStagePhase.resting => 'Awaiting your choice',
@@ -443,151 +898,63 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     DailyRitualStagePhase.acceptedWaiting => 'Confirming today’s card',
     DailyRitualStagePhase.revealed => 'Reading revealed',
     DailyRitualStagePhase.finishPending => 'Finishing safely',
-    DailyRitualStagePhase.closing => 'Today’s ritual is complete.',
+    DailyRitualStagePhase.closing ||
     DailyRitualStagePhase.completed => 'Today’s ritual is complete.',
     DailyRitualStagePhase.revealFailure => 'Reveal paused safely',
     DailyRitualStagePhase.finishFailure => 'Finish paused safely',
-    DailyRitualStagePhase.mediaUnavailable => 'Card media unavailable',
+    DailyRitualStagePhase.mediaUnavailable => 'Exact card unavailable',
   };
 
-  String get _caption => switch (_phase) {
-    DailyRitualStagePhase.resting =>
-      'Leonidas is ready whenever you choose to begin.',
+  String get _sealHeading => switch (_phase) {
+    DailyRitualStagePhase.acceptedWaiting => 'The seal is set',
+    DailyRitualStagePhase.revealFailure => 'Try again',
+    _ => 'Hold to attune',
+  };
+
+  String get _sealCaption => switch (_phase) {
     DailyRitualStagePhase.ready when _stage.cancellation != null =>
       'You let go. Was the moment not right?',
-    DailyRitualStagePhase.ready ||
-    DailyRitualStagePhase.holding => 'Place your thumb on the seal and hold.',
+    DailyRitualStagePhase.holding =>
+      'Stay with me. ${_stage.semanticProgressSeconds} of 5 seconds.',
     DailyRitualStagePhase.acceptedWaiting =>
-      'The seal is set while today’s card is confirmed.',
+      'Today’s exact card is being confirmed.',
     DailyRitualStagePhase.revealFailure => _revealFailureLine,
-    DailyRitualStagePhase.finishPending =>
-      'Your confirmed reading remains here while the ritual finishes.',
-    DailyRitualStagePhase.finishFailure =>
-      'Your reading is still here. Finish again when you are ready.',
-    DailyRitualStagePhase.closing ||
-    DailyRitualStagePhase.completed => _finalCaption,
-    DailyRitualStagePhase.revealed => 'Take in the reading at your own pace.',
-    DailyRitualStagePhase.mediaUnavailable =>
-      'The assigned card could not be prepared. Nothing else was substituted.',
+    _ => 'Place your thumb on the seal and hold.',
   };
-
-  Widget _buildActions() {
-    final gold = context.ritualColors.gold;
-    if (_phase == DailyRitualStagePhase.resting) {
-      return KeyedSubtree(
-        key: const Key('ritual-reveal'),
-        child: FilledButton.icon(
-          key: const Key('leonidas-sequence-start'),
-          onPressed: _stage.start,
-          icon: const Icon(Icons.auto_awesome),
-          label: const Text('Start your daily ritual'),
-        ),
-      );
-    }
-    if (_phase == DailyRitualStagePhase.ready ||
-        _phase == DailyRitualStagePhase.holding ||
-        _phase == DailyRitualStagePhase.acceptedWaiting ||
-        _phase == DailyRitualStagePhase.revealFailure) {
-      return _SealHold(stage: _stage);
-    }
-    if (_phase == DailyRitualStagePhase.revealed ||
-        _phase == DailyRitualStagePhase.finishFailure) {
-      return FilledButton.icon(
-        key: const Key('ritual-complete'),
-        onPressed: _stage.finish,
-        icon: const Icon(Icons.check_circle_outline),
-        label: const Text('Finish today’s ritual'),
-      );
-    }
-    if (_phase == DailyRitualStagePhase.finishPending) {
-      return const SizedBox(
-        height: 48,
-        child: Center(child: CircularProgressIndicator()),
-      );
-    }
-    if (_phase == DailyRitualStagePhase.closing) {
-      return TextButton(
-        key: const Key('leonidas-closing-skip'),
-        onPressed: _stage.skipClosing,
-        child: const Text('Skip'),
-      );
-    }
-    if (_phase == DailyRitualStagePhase.completed) {
-      return Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          if (widget.onShowEvidence != null &&
-              widget.ritual.evidence.isNotEmpty)
-            FilledButton.tonalIcon(
-              key: const Key('leonidas-evidence'),
-              style: FilledButton.styleFrom(
-                backgroundColor: gold,
-                foregroundColor: const Color(0xFF1A101A),
-              ),
-              onPressed: widget.onShowEvidence,
-              icon: const Icon(Icons.fact_check_outlined),
-              label: const Text('Review evidence'),
-            ),
-        ],
-      );
-    }
-    return const SizedBox(height: 48);
-  }
 }
 
-class _SealHold extends StatelessWidget {
-  const _SealHold({required this.stage});
+class _LeonidasPortrait extends StatelessWidget {
+  const _LeonidasPortrait({
+    required this.package,
+    required this.useBundledArtwork,
+  });
 
-  final DailyRitualStageController stage;
+  final String? package;
+  final bool useBundledArtwork;
 
   @override
   Widget build(BuildContext context) {
-    final assistive = MediaQuery.accessibleNavigationOf(context);
-    final active = stage.phase == DailyRitualStagePhase.holding;
+    if (!useBundledArtwork) {
+      return const SizedBox(key: DailyRitualStageSpec.portraitKey);
+    }
     return Semantics(
-      label: assistive ? 'Begin ritual' : 'Hold to attune',
-      value: '${stage.semanticProgressSeconds} of 5 seconds',
-      button: assistive && !active,
-      onTap: assistive && !active ? stage.beginSemanticHold : null,
-      onDismiss: assistive && active
-          ? () => stage.cancel(HoldCancellation.semanticCancel)
-          : null,
+      key: DailyRitualStageSpec.portraitKey,
+      image: true,
+      label: 'Leonidas guiding today’s ritual',
       child: ExcludeSemantics(
-        child: Listener(
-          key: const Key('daily-ritual-seal-hit-region'),
-          behavior: HitTestBehavior.opaque,
-          onPointerDown: (event) {
-            if (event.buttons == kPrimaryButton) {
-              stage.beginPointerHold(event.pointer);
-            }
-          },
-          onPointerMove: (event) {
-            if (!stage.ownsPointer(event.pointer)) return;
-            const region = Rect.fromLTWH(0, 0, 96, 96);
-            if (!region.contains(event.localPosition)) {
-              stage.pointerExit(event.pointer);
-            }
-          },
-          onPointerUp: (event) => stage.pointerUp(event.pointer),
-          onPointerCancel: (event) => stage.pointerCancel(event.pointer),
-          child: SizedBox.square(
-            dimension: 96,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                SizedBox.square(
-                  dimension: 82,
-                  child: CircularProgressIndicator(
-                    key: const Key('daily-ritual-hold-progress'),
-                    value: stage.holdProgress,
-                    strokeWidth: 5,
-                  ),
-                ),
-                const Icon(Icons.auto_awesome, size: 32),
-              ],
-            ),
+        child: ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) => const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Colors.white, Colors.white, Colors.transparent],
+            stops: [0, 0.78, 1],
+          ).createShader(bounds),
+          child: Image.asset(
+            'assets/images/leonidas/leonidas-canonical-scholar-portrait-v1.png',
+            package: package,
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
           ),
         ),
       ),
@@ -595,10 +962,326 @@ class _SealHold extends StatelessWidget {
   }
 }
 
+class _RestingSeal extends StatelessWidget {
+  const _RestingSeal();
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: ExcludeSemantics(
+      child: DecoratedBox(
+        key: DailyRitualStageSpec.sealVisualKey,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: const RadialGradient(
+            colors: [Color(0xFF5A3812), Color(0xFF211221)],
+          ),
+          border: Border.all(
+            color: context.ritualColors.gold.withValues(alpha: 0.72),
+            width: 2,
+          ),
+        ),
+        child: Center(
+          child: Icon(
+            Icons.auto_awesome,
+            color: context.ritualColors.gold,
+            size: 42,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _SealHold extends StatelessWidget {
+  const _SealHold({required this.stage, required this.expanded});
+
+  final DailyRitualStageController stage;
+  final bool expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<double>(
+      valueListenable: stage.holdProgressListenable,
+      builder: (context, progress, _) {
+        final assistive = MediaQuery.accessibleNavigationOf(context);
+        final active = stage.phase == DailyRitualStagePhase.holding;
+        final visualDimension = expanded ? 150.0 : 130.0;
+        return Semantics(
+          label: assistive ? 'Begin ritual' : 'Hold to attune',
+          value: '${stage.semanticProgressSeconds} of 5 seconds',
+          button: assistive && !active,
+          onTap: assistive && !active ? stage.beginSemanticHold : null,
+          onDismiss: assistive && active
+              ? () => stage.cancel(HoldCancellation.semanticCancel)
+              : null,
+          child: ExcludeSemantics(
+            child: Listener(
+              key: DailyRitualStageSpec.sealHitKey,
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (event) {
+                if (event.buttons == kPrimaryButton) {
+                  stage.beginPointerHold(event.pointer);
+                }
+              },
+              onPointerMove: (event) {
+                if (!stage.ownsPointer(event.pointer)) return;
+                final region = Offset.zero & Size.square(expanded ? 180 : 160);
+                if (!region.contains(event.localPosition)) {
+                  stage.pointerExit(event.pointer);
+                }
+              },
+              onPointerUp: (event) => stage.pointerUp(event.pointer),
+              onPointerCancel: (event) => stage.pointerCancel(event.pointer),
+              child: Center(
+                child: AnimatedContainer(
+                  key: DailyRitualStageSpec.sealVisualKey,
+                  duration: DailyRitualStageSpec.holdCompression,
+                  width: visualDimension,
+                  height: visualDimension,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const RadialGradient(
+                      colors: [Color(0xFF714819), Color(0xFF251323)],
+                    ),
+                    border: Border.all(
+                      color: context.ritualColors.gold,
+                      width: 2,
+                    ),
+                  ),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      SizedBox.square(
+                        dimension: visualDimension - 10,
+                        child: CircularProgressIndicator(
+                          key: const Key('daily-ritual-hold-progress'),
+                          value: progress,
+                          strokeWidth: 7,
+                          backgroundColor: Colors.white12,
+                          color: const Color(0xFFFFD98A),
+                        ),
+                      ),
+                      Icon(
+                        Icons.auto_awesome,
+                        color: const Color(0xFFFFD98A),
+                        size: 40,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ExactCardFrame extends StatelessWidget {
+  const _ExactCardFrame({
+    required this.provider,
+    required this.attempt,
+    required this.colors,
+    required this.onReady,
+    required this.onUnavailable,
+  });
+
+  final ImageProvider provider;
+  final int attempt;
+  final RitualColors colors;
+  final VoidCallback onReady;
+  final VoidCallback onUnavailable;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: const Color(0xFF0A070C),
+      borderRadius: BorderRadius.circular(9),
+      border: Border.all(color: colors.gold, width: 2),
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(7),
+      child: _ExactCardImage(
+        key: ValueKey(attempt),
+        provider: provider,
+        onReady: onReady,
+        onUnavailable: onUnavailable,
+      ),
+    ),
+  );
+}
+
+class _ExactCardImage extends StatefulWidget {
+  const _ExactCardImage({
+    super.key,
+    required this.provider,
+    required this.onReady,
+    required this.onUnavailable,
+  });
+
+  final ImageProvider provider;
+  final VoidCallback onReady;
+  final VoidCallback onUnavailable;
+
+  @override
+  State<_ExactCardImage> createState() => _ExactCardImageState();
+}
+
+class _ExactCardImageState extends State<_ExactCardImage> {
+  bool _reported = false;
+
+  void _report(VoidCallback callback) {
+    if (_reported) return;
+    _reported = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) callback();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => Image(
+    key: DailyRitualStageSpec.cardArtKey,
+    image: widget.provider,
+    fit: BoxFit.contain,
+    frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+      if (wasSynchronouslyLoaded || frame != null) _report(widget.onReady);
+      return child;
+    },
+    errorBuilder: (context, error, stackTrace) {
+      _report(widget.onUnavailable);
+      return const SizedBox.expand();
+    },
+  );
+}
+
+class _ExactMediaUnavailable extends StatelessWidget {
+  const _ExactMediaUnavailable({required this.loading, required this.onRetry});
+
+  final bool loading;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    label: loading
+        ? 'Preparing the exact assigned card'
+        : 'The exact assigned card is unavailable',
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (loading)
+          Icon(Icons.hourglass_top_rounded, color: context.ritualColors.gold)
+        else
+          Icon(Icons.broken_image_outlined, color: context.ritualColors.gold),
+        const SizedBox(height: 8),
+        Text(
+          loading ? 'Preparing today’s exact card…' : 'Today’s exact card is unavailable. Nothing else was substituted.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white, height: 1.3),
+        ),
+        if (!loading) ...[
+          const SizedBox(height: 8),
+          OutlinedButton(
+            key: const Key('daily-ritual-media-retry'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              foregroundColor: context.ritualColors.gold,
+            ),
+            onPressed: onRetry,
+            child: const Text('Retry exact card'),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+class _GoldAction extends StatelessWidget {
+  const _GoldAction({super.key, required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    height: 52,
+    child: FilledButton(
+      style: FilledButton.styleFrom(
+        backgroundColor: context.ritualColors.gold,
+        foregroundColor: const Color(0xFF1B101A),
+        textStyle: const TextStyle(
+          fontFamily: 'LibreBaskerville',
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      onPressed: onPressed,
+      child: Text(label),
+    ),
+  );
+}
+
+class _OutlineAction extends StatelessWidget {
+  const _OutlineAction({
+    super.key,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    height: 52,
+    child: OutlinedButton(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: context.ritualColors.gold,
+        side: BorderSide(color: context.ritualColors.gold),
+        textStyle: const TextStyle(
+          fontFamily: 'LibreBaskerville',
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      onPressed: onPressed,
+      child: Text(label),
+    ),
+  );
+}
+
+class _StageBackdrop extends StatelessWidget {
+  const _StageBackdrop();
+
+  @override
+  Widget build(BuildContext context) => const DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF09070D), Color(0xFF1C111E), Color(0xFF08070A)],
+        stops: [0, 0.58, 1],
+      ),
+    ),
+  );
+}
+
+Widget _positionedRect(Rect rect, {required Widget child}) => Positioned(
+  left: rect.left,
+  top: rect.top,
+  width: rect.width,
+  height: rect.height,
+  child: child,
+);
+
 class _CallbackStageAuthority implements DailyRitualStageAuthority {
   _CallbackStageAuthority(
     this._reveal,
     this._complete, {
+    this._revalidate,
     required this.current,
   });
 
@@ -606,12 +1289,13 @@ class _CallbackStageAuthority implements DailyRitualStageAuthority {
   DailyRitual? current;
   final Future<bool> Function() _reveal;
   final Future<bool> Function()? _complete;
+  final Future<void> Function()? _revalidate;
 
   @override
   bool get mutationAuthorityEnabled => true;
 
   @override
-  Future<void> revalidate() async {}
+  Future<void> revalidate() async => _revalidate?.call();
 
   @override
   Future<RitualTransitionResult?> reveal() async {
@@ -699,358 +1383,3 @@ DailyRitual _copyWithState(DailyRitual source, DailyRitualState state) =>
       mediaAvailability: source.mediaAvailability,
       contentAvailability: source.contentAvailability,
     );
-
-class _LeonidasPortrait extends StatelessWidget {
-  const _LeonidasPortrait({
-    required this.standing,
-    required this.closeUp,
-    required this.duration,
-    required this.package,
-    required this.useBundledArtwork,
-  });
-
-  final bool standing;
-  final bool closeUp;
-  final Duration duration;
-  final String? package;
-  final bool useBundledArtwork;
-
-  @override
-  Widget build(BuildContext context) {
-    Widget portrait = const SizedBox.shrink(key: ValueKey('empty'));
-    if (useBundledArtwork && standing) {
-      portrait = _portrait(
-        key: const Key('leonidas-standing'),
-        asset:
-            'assets/images/leonidas/leonidas-canonical-observatory-hero-v1.png',
-        alignment: const Alignment(0.36, -0.8),
-        semanticLabel: 'Leonidas standing in the Candlelit Observatory',
-      );
-    } else if (useBundledArtwork && closeUp) {
-      portrait = _portrait(
-        key: const Key('leonidas-close-up'),
-        asset:
-            'assets/images/leonidas/leonidas-canonical-scholar-portrait-v1.png',
-        alignment: const Alignment(0.34, -0.72),
-        semanticLabel: 'Close-up of Leonidas interpreting the revealed card',
-      );
-    }
-
-    return AnimatedSwitcher(
-      duration: duration,
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      layoutBuilder: (current, previous) =>
-          Stack(fit: StackFit.expand, children: [...previous, ?current]),
-      transitionBuilder: (child, animation) => FadeTransition(
-        opacity: animation,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 1.04, end: 1).animate(animation),
-          child: child,
-        ),
-      ),
-      child: portrait,
-    );
-  }
-
-  Widget _portrait({
-    required Key key,
-    required String asset,
-    required Alignment alignment,
-    required String semanticLabel,
-  }) {
-    return Semantics(
-      key: key,
-      image: true,
-      label: semanticLabel,
-      child: ExcludeSemantics(
-        child: ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (bounds) => const LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.white, Colors.white, Colors.transparent],
-            stops: [0, 0.78, 1],
-          ).createShader(bounds),
-          child: Image.asset(
-            asset,
-            package: package,
-            fit: BoxFit.cover,
-            alignment: alignment,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RitualFlipCard extends StatelessWidget {
-  const _RitualFlipCard({
-    required this.revealed,
-    required this.duration,
-    required this.artwork,
-    required this.fallbackAlt,
-    required this.package,
-    required this.colors,
-  });
-
-  final bool revealed;
-  final Duration duration;
-  final RitualTarotArtwork? artwork;
-  final String fallbackAlt;
-  final String? package;
-  final RitualColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    final decodeWidth = (150 * MediaQuery.devicePixelRatioOf(context)).ceil();
-    final child = revealed
-        ? Semantics(
-            key: const Key('leonidas-card-front'),
-            image: true,
-            label: artwork?.alt ?? fallbackAlt,
-            child: ExcludeSemantics(
-              child: _cardFrame(
-                child: artwork == null
-                    ? Icon(
-                        Icons.image_not_supported_outlined,
-                        color: colors.gold,
-                        size: 42,
-                      )
-                    : Image.asset(
-                        artwork!.assetPath,
-                        key: const Key('daily-ritual-card-art'),
-                        package: package,
-                        cacheWidth: decodeWidth,
-                        fit: BoxFit.cover,
-                      ),
-              ),
-            ),
-          )
-        : Semantics(
-            key: const Key('leonidas-card-back'),
-            image: true,
-            label: 'Unrevealed ritual card',
-            child: ExcludeSemantics(
-              child: _cardFrame(
-                child: DecoratedBox(
-                  key: const Key('daily-ritual-card-back'),
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF3B182D), Color(0xFF160E24)],
-                    ),
-                  ),
-                  child: Center(
-                    child: Container(
-                      width: 74,
-                      height: 74,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: colors.gold.withValues(alpha: 0.7),
-                        ),
-                      ),
-                      child: Text(
-                        '♌',
-                        style: TextStyle(color: colors.gold, fontSize: 36),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-
-    return SizedBox(
-      width: 150,
-      height: 262,
-      child: AnimatedSwitcher(
-        duration: duration,
-        transitionBuilder: (transitionChild, animation) {
-          return AnimatedBuilder(
-            animation: animation,
-            child: transitionChild,
-            builder: (context, child) {
-              final angle = (1 - animation.value) * math.pi;
-              return Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..setEntry(3, 2, 0.001)
-                  ..rotateY(angle),
-                child: child,
-              );
-            },
-          );
-        },
-        child: child,
-      ),
-    );
-  }
-
-  Widget _cardFrame({required Widget child}) => SizedBox(
-    width: 150,
-    height: 262,
-    child: DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.gold.withValues(alpha: 0.82)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 8,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: ClipRRect(borderRadius: BorderRadius.circular(11), child: child),
-    ),
-  );
-}
-
-class _CaptionPanel extends StatelessWidget {
-  const _CaptionPanel({required this.caption, required this.speaking});
-
-  final String caption;
-  final bool speaking;
-
-  @override
-  Widget build(BuildContext context) {
-    final gold = context.ritualColors.gold;
-    return Semantics(
-      liveRegion: true,
-      label: 'Leonidas says: $caption',
-      child: ExcludeSemantics(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: const Color(0xE8110A16),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: gold.withValues(alpha: 0.35)),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: speaking
-                        ? gold.withValues(alpha: 0.16)
-                        : Colors.transparent,
-                    border: Border.all(color: gold.withValues(alpha: 0.56)),
-                    boxShadow: speaking
-                        ? [
-                            BoxShadow(
-                              color: gold.withValues(alpha: 0.24),
-                              blurRadius: 16,
-                            ),
-                          ]
-                        : null,
-                  ),
-                  child: Text(
-                    'L',
-                    style: TextStyle(
-                      color: gold,
-                      fontFamily: 'LibreBaskerville',
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'LEONIDAS',
-                        style: TextStyle(
-                          color: gold,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        caption,
-                        key: const Key('leonidas-caption'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'LibreBaskerville',
-                          fontSize: 14,
-                          height: 1.32,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CelestialBackdrop extends StatelessWidget {
-  const _CelestialBackdrop();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _CelestialPainter(),
-      child: const DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF100A17), Color(0xFF3B182D), Color(0xFF100918)],
-            stops: [0, 0.64, 1],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CelestialPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width * 0.5, size.height * 0.38);
-    final ring = Paint()
-      ..color = const Color(0x33E5BD6C)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    for (final radius in <double>[90, 145, 210]) {
-      canvas.drawCircle(center, radius, ring);
-    }
-    final star = Paint()..color = const Color(0x55FFE3A1);
-    const points = <Offset>[
-      Offset(0.13, 0.17),
-      Offset(0.74, 0.12),
-      Offset(0.87, 0.27),
-      Offset(0.2, 0.46),
-      Offset(0.69, 0.53),
-      Offset(0.9, 0.68),
-      Offset(0.37, 0.72),
-    ];
-    for (final point in points) {
-      canvas.drawCircle(
-        Offset(size.width * point.dx, size.height * point.dy),
-        1.25,
-        star,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

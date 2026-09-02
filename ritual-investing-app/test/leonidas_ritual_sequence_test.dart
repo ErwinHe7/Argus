@@ -30,7 +30,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
 
     expect(find.text('Start your daily ritual'), findsOneWidget);
-    expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
+    expect(find.byKey(const Key('daily-ritual-card-art')), findsOneWidget);
     expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
     expect(revealCount, 0);
     expect(voice.lines, isEmpty);
@@ -139,7 +139,7 @@ void main() {
 
     expect(preflightChecks, 0);
     expect(revealCount, 0);
-    expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
 
     matchingPreflight.complete(true);
     await tester.pump();
@@ -205,7 +205,7 @@ void main() {
 
     expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
     expect(find.byIcon(Icons.image_not_supported_outlined), findsNothing);
-  }, skip: true); // U4 owns exact decoded-art paint gating.
+  });
 
   testWidgets(
     'reveals after one hold and speaks only after one successful Finish',
@@ -236,15 +236,14 @@ void main() {
         ),
       );
 
-      expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-standing')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-close-up')), findsNothing);
+      expect(find.byKey(const Key('daily-ritual-card-art')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
+      expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
 
       await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
       await tester.pump();
 
-      expect(find.byKey(const Key('leonidas-standing')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-close-up')), findsNothing);
+      expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
       expect(
         find.text('Place your thumb on the seal and hold.'),
         findsOneWidget,
@@ -258,16 +257,14 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
 
       expect(revealCount, 1);
-      expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-close-up')), findsNothing);
+      expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
 
       reveal.complete(true);
       await tester.pumpAndSettle();
 
       expect(revealCount, 1);
       expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-close-up')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-standing')), findsNothing);
+      expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
       expect(find.text('Strength'), findsOneWidget);
       expect(find.byKey(const Key('ritual-complete')), findsOneWidget);
       expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
@@ -281,7 +278,7 @@ void main() {
       expect(voice.lines, hasLength(1));
       expect(
         voice.lines.single,
-        'The choice remains yours. Demo counsel; not investment advice.',
+        'Carry the signal with you. I’ll meet you here tomorrow.',
       );
 
       await tester.tap(find.byKey(const Key('leonidas-evidence')));
@@ -318,13 +315,10 @@ void main() {
     await tester.pump();
     await gesture.up();
 
-    expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
     expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
-    expect(find.byKey(const Key('leonidas-close-up')), findsNothing);
+    expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
     expect(
-      find.text(
-        'The card could not be revealed. Your ritual remains safely concealed; try again when you are ready.',
-      ),
+      find.text("The ritual could not be opened. Try again when you're ready."),
       findsOneWidget,
     );
     expect(find.bySemanticsLabel('Begin ritual'), findsOneWidget);
@@ -358,10 +352,8 @@ void main() {
     await tester.pump();
     await gesture.up();
 
-    expect(find.byKey(const Key('leonidas-card-back')), findsOneWidget);
-    expect(find.byKey(const Key('leonidas-close-up')), findsNothing);
     expect(find.bySemanticsLabel('Begin ritual'), findsOneWidget);
-    expect(find.textContaining('remains safely concealed'), findsOneWidget);
+    expect(find.textContaining('could not be opened'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -378,9 +370,10 @@ void main() {
           onShowEvidence: () {},
         ),
       );
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-close-up')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
       expect(find.byKey(const Key('leonidas-sequence-replay')), findsNothing);
       expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
       expect(voice.lines, isEmpty);
@@ -432,7 +425,7 @@ void main() {
     expect(voice.lines, isEmpty);
     expect(voice.stopCount, 0);
     expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
-    expect(find.textContaining('The choice remains yours.'), findsOneWidget);
+    expect(find.text('Strength'), findsOneWidget);
   });
 
   testWidgets('Skip stops a stalled native voice and opens onward once', (
@@ -483,7 +476,7 @@ void main() {
     expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
   });
 
-  testWidgets('long reviewed captions remain visible at 2x text', (
+  testWidgets('long interpretation remains reachable at 2x without C2 replay', (
     tester,
   ) async {
     _setPhoneViewport(tester);
@@ -510,10 +503,11 @@ void main() {
         onShowEvidence: () {},
       ),
     );
+    await tester.pump(const Duration(milliseconds: 600));
 
     expect(tester.takeException(), isNull);
     expect(find.text(longInterpretation), findsOneWidget);
-    expect(find.textContaining(longCounsel), findsOneWidget);
+    expect(find.textContaining(longCounsel), findsNothing);
     expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
   });
 }

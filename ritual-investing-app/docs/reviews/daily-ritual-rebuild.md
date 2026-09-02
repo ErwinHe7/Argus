@@ -1,6 +1,6 @@
 # Daily Ritual Rebuild
 
-**Status:** Product and UX requirements confirmed; implementation planning is the next separate step  
+**Status:** G1 composition approved; immersive fullscreen refinement and implementation verification in progress  
 **Owner decisions captured:** 2026-09-02  
 **Platform:** Flutter application validated on iOS  
 **Authoritative scope:** Daily Ritual entry, hold, reveal, Leonidas closing, completion, and onward handoff
@@ -11,7 +11,7 @@ This document is the source of truth for the Daily Ritual rebuild. An implementa
 
 If an older critique, screenshot, generated probe, test, or existing implementation conflicts with this document, this document wins. Historical screenshots describe the problem being replaced; they are not implementation instructions. Generated images define composition and emotional direction, while the written requirements define behavior, content, accessibility, data safety, and acceptance.
 
-No application implementation is authorized by this document alone. The next artifact is a separate implementation plan for review.
+Implementation is governed by the approved plan at [`../../../docs/plans/2026-09-02-1225-feat-daily-ritual-rebuild-plan.md`](../../../docs/plans/2026-09-02-1225-feat-daily-ritual-rebuild-plan.md). This requirements document remains authoritative when implementation details conflict with the approved product outcome.
 
 ## Product outcome
 
@@ -23,7 +23,7 @@ The rebuild must feel ceremonial without becoming slow, coercive, deceptive, or 
 
 ### Entry and hold — The Leonidas Seal
 
-The member first taps **Start your daily ritual**. The stage then asks for a five-second continuous hold on the Leonidas Seal. The seal responds with elapsed-time progress and restrained ritual animation while data is prepared behind the scene.
+The member first taps **Start your daily ritual** from the navigable Ritual entry page. That action opens a fullscreen, app-chrome-free stage and asks for a five-second continuous hold on the Leonidas Seal. The seal responds with elapsed-time progress and restrained ritual animation while data is prepared behind the scene.
 
 ![Selected Leonidas Seal entry and hold direction](assets/daily-ritual-rebuild/06-selected-leonidas-seal-probe.png)
 
@@ -37,12 +37,33 @@ The revealed state displays the real illustrated card, its title, a concise inte
 
 The probes are not pixel specifications and their generated wording is not authoritative. Production uses the real application fonts, theme tokens, card assets, and approved copy defined below.
 
+### G1 implementation evidence — composition approved with one refinement
+
+The following frames come from the real production widget and application shell running on the iPhone 17 simulator with deterministic test authority. On 2026-09-02 the product owner approved their stage composition, face clearance, card continuity, and action hierarchy, with one binding refinement: after Start, the ceremony must occupy a fullscreen route with the global top utility row and bottom navigation removed. These pre-refinement frames remain decision evidence, not permanent golden baselines.
+
+![Five-state iPhone 17 Daily Ritual implementation](../evidence/daily-ritual-rebuild/g1-five-state-contact-sheet.jpg)
+
+The comparison below places each selected probe beside the simulator result, a 50% overlay, and a difference heatmap. Dynamic Island/status chrome is masked only in the overlay and heatmap. Differences caused by real assigned artwork, production typography, and authoritative copy are expected; composition, hierarchy, face clearance, card continuity, and action order remain binding.
+
+![Daily Ritual probe-to-simulator comparison](../evidence/daily-ritual-rebuild/g1-probe-comparison.jpg)
+
+Current G1 evidence status:
+
+- The iPhone 17 capture flow passes for Resting, Holding at 60%, Revealed, C2 closing, and Completed onward.
+- Leonidas's face remains clear in every captured state.
+- The bundled Emperor artwork remains the same assigned card through reveal, expansion, and keepsake settlement.
+- The completion heading remains in the top-left metadata area because the generated probe's centered heading conflicts with the approved face-clear rectangle.
+- The navigable pre-start invitation remains in the normal app shell. Ready, Holding, Revealed, C2, and Completed occupy a fullscreen route without global top icons or bottom navigation.
+- Standard text sizes do not scroll during the immersive ceremony. Accessibility text sizes may scroll only the adaptive lower content needed to keep every control and complete string reachable.
+- Permanent goldens remain gated on final post-refinement simulator approval in U6.
+
 ## Authoritative flow
 
 ```text
 Open Ritual tab
   → Resting daily page
   → Start your daily ritual
+  → Fullscreen ceremony (no global top icons or bottom navigation)
   → Hold Leonidas Seal for 5 seconds
       ↳ release early: cancel and retry when ready
       ↳ failure: remain concealed and offer retry
@@ -60,7 +81,7 @@ Open Ritual tab
 
 - **DR-ENTRY-01 — No forced start.** Opening the app or Ritual tab must not begin the ritual, start speech, animate the seal, reveal content, change lifecycle state, or present a blocking modal.
 - **DR-ENTRY-02 — Explicit daily entry.** A fresh assigned ritual presents **Start your daily ritual** as the only ritual-specific primary action.
-- **DR-ENTRY-03 — Reversible entry.** Global navigation remains available before the member starts and throughout all non-modal states.
+- **DR-ENTRY-03 — Reversible entry and immersive boundary.** Global navigation remains available before the member starts. Start opens a fullscreen ceremony without the global top utility row or bottom navigation. System Back/edge dismissal and assistive semantic dismissal may leave safely; Completed provides Evidence and Starpath as the visible onward exits.
 - **DR-ENTRY-04 — Once per day.** The entry state represents the current member's current daily assignment. Returning to an already completed daily ritual restores the completed onward state rather than offering Start again.
 - **DR-ENTRY-05 — No outcome leak.** Before reveal, do not expose the assigned card face, title, interpretation, evidence summary, or another clue that reveals the outcome.
 - **DR-ENTRY-06 — Neutral time language.** Use **Today’s daily ritual** or equivalent time-neutral wording. Do not hard-code **Tonight**.
@@ -75,7 +96,7 @@ Open Ritual tab
 
 ### Start and five-second hold
 
-- **DR-HOLD-01 — Two-step entry.** Tapping Start changes the same stage into a ready-to-hold state; it does not reveal content or open a separate modal.
+- **DR-HOLD-01 — Two-step entry.** Tapping Start opens the same visual stage as a fullscreen route in the ready-to-hold state. It does not reveal content, mutate lifecycle state, or present a dialog/sheet.
 - **DR-HOLD-02 — Clear instruction.** Ready guidance is **Place your thumb on the seal and hold.** The control label is **Hold to attune** and the resting duration cue is **5 seconds**.
 - **DR-HOLD-03 — Continuous contact.** The normal gesture succeeds only after five uninterrupted seconds of contact within a forgiving hit region around the seal.
 - **DR-HOLD-04 — Honest progress.** The ring represents elapsed hold time only. Network progress must never cause it to jump, finish early, reverse, or imply data is ready.
@@ -142,9 +163,9 @@ Strict replay-as-2xx idempotency and a two-phase prepare/commit reveal endpoint 
 - **DR-A11Y-02 — Touch targets.** Every actionable target is at least 44×44 logical points, including Skip, Voice, retry, Evidence dismissal, and the seal's effective hit region.
 - **DR-A11Y-03 — Contrast.** Body and control text reaches at least 4.5:1; qualifying large text reaches at least 3:1. Muted copy and gold labels are not exempt.
 - **DR-A11Y-04 — Type floor.** Informative interface text remains at or above the iOS 11-point floor and does not depend on tiny tracked uppercase labels.
-- **DR-A11Y-05 — Dynamic Type.** At 2× text scaling, no title, interpretation, Leonidas caption, risk/evidence content, or control truncates, overlaps, clips, or covers the face-clear zone.
+- **DR-A11Y-05 — Dynamic Type.** At 2× text scaling, no title, interpretation, Leonidas caption, risk/evidence content, or control truncates, overlaps, clips, or covers the face-clear zone. Accessibility text sizes may scroll the adaptive lower content; ordinary text sizes must not expose a ceremony scroll surface.
 - **DR-A11Y-06 — Semantics.** VoiceOver exposes logical reading order, button roles, hold progress, cancellation, errors, Reading revealed, completion, and onward actions without announcing decorative effects.
-- **DR-A11Y-07 — Safe areas.** Content and controls remain clear of the Dynamic Island, home indicator, tab bar, and system insets.
+- **DR-A11Y-07 — Safe areas.** Content and controls remain clear of the Dynamic Island, home indicator, and system insets. The immersive ceremony has no tab bar.
 - **DR-A11Y-08 — Orientation and supported sizes.** The required portrait layout works on the smallest and largest supported iPhone viewports without horizontal scrolling or loss of primary controls.
 - **DR-CONTENT-01 — Evidence remains adjacent to trust.** Evidence, uncertainty, limitations, freshness, observation window, and risk remain inspectable and are not weakened by the ritual redesign.
 - **DR-CONTENT-02 — Financial boundary.** Leonidas does not present predictions, personalized recommendations, certainty, or risk-free language. Flutter renders validated data and does not calculate financial quantities.
@@ -156,14 +177,14 @@ The server domain remains `assigned → revealed → completed`. The UI may use 
 | UI state | Server requirement | Entry | Exit |
 |---|---|---|---|
 | Resting | Assigned | Open fresh daily Ritual | Tap Start or leave |
-| Ready to hold | Assigned | Tap Start | Touch down, leave, or lifecycle cancellation |
+| Ready to hold | Assigned | Tap Start and enter fullscreen ceremony | Touch down, dismiss, or lifecycle cancellation |
 | Holding | Assigned | Continuous seal contact | Early release → Ready; five seconds → Reveal choreography |
 | Reveal choreography | Assigned or reveal request pending | Hold accepted | Valid reveal → Revealed; failure → Reveal unavailable |
 | Reveal unavailable | Assigned | Invalid/failed reveal | Retry or leave |
 | Revealed | Revealed | Valid reveal response | Tap Finish |
 | Finishing | Revealed with completion pending | Tap Finish | Confirmed completion → C2 closing; failure → Revealed with error |
 | C2 closing | Completed | Confirmed Finish | Message ends or Skip → Completed onward |
-| Completed onward | Completed | Closing exits or completed state restored | Evidence, Starpath, or global navigation |
+| Completed onward | Completed | Closing exits or completed state restored | Evidence, Starpath, or safe fullscreen dismissal |
 
 ## Required copy
 
@@ -228,6 +249,7 @@ The selected images communicate hierarchy and composition, not generated pixels.
 - Action order and lifecycle copy match the authoritative flow.
 - No extra post-reading actions appear.
 - No pre-Finish state says complete.
+- Ready through Completed contains no global utility header or bottom navigation and no ordinary-size scroll surface.
 
 ### Measured layout requirements
 
@@ -276,7 +298,9 @@ The implementation plan must name any additional focused test files before codin
 ### 3. Required widget and interaction tests
 
 - Opening Ritual leaves the page in Resting with no speech and no automatic reveal.
-- Start changes Resting to Ready without navigation.
+- Start enters the chrome-free fullscreen route and changes Resting to Ready without revealing or mutating the ritual.
+- The pre-start invitation retains global navigation; the fullscreen ceremony contains neither global top utilities nor bottom navigation.
+- Ready through Completed has no scroll surface at ordinary text sizes; accessibility scaling keeps complete content reachable through lower-region reflow/scroll only.
 - Holding for 4.9 seconds and releasing cancels.
 - Holding through five seconds accepts exactly once.
 - Leaving the hit region cancels before acceptance.
@@ -418,9 +442,9 @@ The rebuild is done only when:
 - Do not add dependencies or create a parallel design system unless the implementation plan proves the existing system cannot meet a confirmed requirement.
 - Do not calculate probabilities, Greeks, GEX, expected return, risk, or arbitrage economics in Flutter or TypeScript.
 
-## Requirements for the next implementation document
+## Implementation-plan receipt
 
-The implementation plan is a separate artifact and must be approved before code changes. It must include:
+The separate implementation plan was approved before code changes and is retained at [`../../../docs/plans/2026-09-02-1225-feat-daily-ritual-rebuild-plan.md`](../../../docs/plans/2026-09-02-1225-feat-daily-ritual-rebuild-plan.md). It includes:
 
 1. Exact files to inspect and files expected to change.
 2. A requirement-to-code-and-test traceability table covering every requirement ID.
@@ -431,7 +455,7 @@ The implementation plan is a separate artifact and must be approved before code 
 7. Exact focused, golden, accessibility, and simulator checks.
 8. A screenshot and log evidence plan with artifact paths.
 9. Pass/fail criteria, rollback conditions, and explicit non-goals.
-10. Confirmation that no code will be written until the implementation plan is approved.
+10. The recorded approval gate that preceded implementation.
 
 ## Historical baseline evidence
 

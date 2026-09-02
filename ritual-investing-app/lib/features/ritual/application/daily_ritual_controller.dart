@@ -13,6 +13,17 @@ export '../../../core/api/view_state.dart' show LoadPhase;
 
 enum _AuthorityMerge { accepted, obsolete, contradiction }
 
+@immutable
+class DailyRitualEvidenceSnapshotLoad {
+  DailyRitualEvidenceSnapshotLoad({
+    required this.phase,
+    List<RitualEvidenceDetail> details = const [],
+  }) : details = List.unmodifiable(details);
+
+  final LoadPhase phase;
+  final List<RitualEvidenceDetail> details;
+}
+
 class DailyRitualController extends ChangeNotifier {
   DailyRitualController({required DailyRitualRepository repository})
     : _repository = repository;
@@ -164,6 +175,37 @@ class DailyRitualController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Loads detail for one immutable completed-assignment snapshot.
+  ///
+  /// The result is deliberately detached from [evidenceState], so an open
+  /// sheet never starts rendering a newer assignment. Any authority-read
+  /// generation or lineage change invalidates the response before delivery.
+  Future<DailyRitualEvidenceSnapshotLoad> loadEvidenceSnapshot(
+    DailyRitual assignment,
+  ) async {
+    final lineage = assignment.lineage;
+    final generation = _readGeneration;
+    if (_state.value?.lineage != lineage) {
+      return DailyRitualEvidenceSnapshotLoad(phase: LoadPhase.conflict);
+    }
+    try {
+      final details = await _repository.loadEvidence(assignment.assignmentId);
+      if (generation != _readGeneration || _state.value?.lineage != lineage) {
+        return DailyRitualEvidenceSnapshotLoad(phase: LoadPhase.conflict);
+      }
+      return DailyRitualEvidenceSnapshotLoad(
+        phase: details.isEmpty ? LoadPhase.empty : LoadPhase.ready,
+        details: details,
+      );
+    } on OfflineException {
+      return DailyRitualEvidenceSnapshotLoad(phase: LoadPhase.retryableFailure);
+    } on LoadFailure catch (failure) {
+      return DailyRitualEvidenceSnapshotLoad(phase: failure.phase);
+    } on Object {
+      return DailyRitualEvidenceSnapshotLoad(phase: LoadPhase.terminalFailure);
+    }
+  }
+
   Future<void> loadHistory() async {
     final requestId = ++_historyRequestId;
     _historyState = const ViewState(phase: LoadPhase.loading);
@@ -185,26 +227,30 @@ class DailyRitualController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<RitualTransitionResult?> reveal({bool waitForHistory = true}) =>
+  Future<RitualTransitionResult?> reveal({bool refreshHistory = true}) =>
       _runTransition(
         operation: RitualOperation.reveal,
         target: DailyRitualState.revealed,
         allowed: (value) => value.state == DailyRitualState.assigned,
         action: _repository.reveal,
+        refreshHistory: refreshHistory,
       );
 
-  Future<RitualTransitionResult?> complete() => _runTransition(
-    operation: RitualOperation.complete,
-    target: DailyRitualState.completed,
-    allowed: (value) => value.state == DailyRitualState.revealed,
-    action: _repository.complete,
-  );
+  Future<RitualTransitionResult?> complete({bool refreshHistory = true}) =>
+      _runTransition(
+        operation: RitualOperation.complete,
+        target: DailyRitualState.completed,
+        allowed: (value) => value.state == DailyRitualState.revealed,
+        action: _repository.complete,
+        refreshHistory: refreshHistory,
+      );
 
   Future<RitualTransitionResult?> _runTransition({
     required RitualOperation operation,
     required DailyRitualState target,
     required bool Function(DailyRitual) allowed,
     required Future<RitualTransitionResult> Function(DailyRitual) action,
+    required bool refreshHistory,
   }) {
     final current = _state.value;
     if (current == null || !_mutationAuthorityEnabled || !allowed(current)) {
@@ -214,19 +260,21 @@ class DailyRitualController extends ChangeNotifier {
     final active = _activeTransitions[key];
     if (active != null) return active;
     late final Future<RitualTransitionResult?> future;
-    future = _performTransition(current, action).whenComplete(() {
-      if (identical(_activeTransitions[key], future)) {
-        _activeTransitions.remove(key);
-      }
-    });
+    future = _performTransition(current, action, refreshHistory: refreshHistory)
+        .whenComplete(() {
+          if (identical(_activeTransitions[key], future)) {
+            _activeTransitions.remove(key);
+          }
+        });
     _activeTransitions[key] = future;
     return future;
   }
 
   Future<RitualTransitionResult> _performTransition(
     DailyRitual current,
-    Future<RitualTransitionResult> Function(DailyRitual) action,
-  ) async {
+    Future<RitualTransitionResult> Function(DailyRitual) action, {
+    required bool refreshHistory,
+  }) async {
     _mutationPhase = RitualMutationPhase.committing;
     notifyListeners();
     final result = await action(current);
@@ -265,7 +313,7 @@ class DailyRitualController extends ChangeNotifier {
       }
       notifyListeners();
     }
-    unawaited(loadHistory());
+    if (refreshHistory) unawaited(loadHistory());
     return result;
   }
 
