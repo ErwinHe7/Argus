@@ -101,12 +101,15 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 13),
-                    const SizedBox(
-                      height: 13,
-                      child: Center(child: _DailySignalLabel()),
-                    ),
-                    const SizedBox(height: 3),
+                    if (ritual != null) ...[
+                      const SizedBox(height: 13),
+                      const SizedBox(
+                        height: 13,
+                        child: Center(child: _DailySignalLabel()),
+                      ),
+                      const SizedBox(height: 3),
+                    ] else
+                      const SizedBox(height: 13),
                     Padding(
                       padding: DailyRitualStageSpec.pageInsets,
                       child: ritual == null
@@ -114,7 +117,12 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
                               phase: widget.controller.state.phase,
                               onRetry: widget.controller.load,
                             )
-                          : _buildSequence(context, ritual, immersive: false),
+                          : ritual.state == DailyRitualState.assigned
+                          ? _buildSequence(context, ritual, immersive: false)
+                          : _RitualReturnInvitation(
+                              ritual: ritual,
+                              onPressed: () => _openImmersive(ritual),
+                            ),
                     ),
                     const SizedBox(height: 12),
                   ],
@@ -262,6 +270,77 @@ class _DailyRitualImmersivePage extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: stage,
                 ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RitualReturnInvitation extends StatelessWidget {
+  const _RitualReturnInvitation({
+    required this.ritual,
+    required this.onPressed,
+  });
+
+  final DailyRitual ritual;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed = ritual.state == DailyRitualState.completed;
+    final colors = context.ritualColors;
+    return Semantics(
+      container: true,
+      explicitChildNodes: true,
+      label: completed ? 'Today’s completed ritual' : 'Today’s revealed ritual',
+      child: Container(
+        key: const Key('daily-ritual-return-invitation'),
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+        decoration: BoxDecoration(
+          color: colors.screen,
+          border: Border.all(color: colors.gold.withValues(alpha: 0.42)),
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              completed ? Icons.auto_awesome : Icons.brightness_5_outlined,
+              color: colors.gold,
+              size: 32,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              completed
+                  ? 'Today’s ritual is complete.'
+                  : 'Your reading is ready.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.headlineSmall,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              completed
+                  ? 'Return to Leonidas to review your card and evidence.'
+                  : 'Return to Leonidas when you are ready to finish.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton(
+                key: const Key('daily-ritual-return-action'),
+                onPressed: onPressed,
+                child: Text(
+                  completed
+                      ? 'Review today’s ritual'
+                      : 'Continue your daily ritual',
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

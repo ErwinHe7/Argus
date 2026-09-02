@@ -42,6 +42,32 @@ void main() {
       expect(service.resultsCreated, 1);
     },
   );
+
+  test(
+    'offline Finish keeps the confirmed reading and disables blind replay',
+    () async {
+      final service = _OfflineFinishService();
+      final controller = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: service,
+          cache: MemoryReadCache(),
+        ),
+      );
+      await controller.load();
+
+      final outcome = await controller.complete(refreshHistory: false);
+      final replay = await controller.complete(refreshHistory: false);
+
+      expect(
+        outcome?.disposition,
+        RitualOperationDisposition.authorityUnavailable,
+      );
+      expect(controller.state.value?.state, DailyRitualState.revealed);
+      expect(controller.mutationAuthorityEnabled, isFalse);
+      expect(service.completeCalls, 1);
+      expect(replay, isNull);
+    },
+  );
 }
 
 class _OfflineService implements DailyRitualService {
@@ -77,3 +103,63 @@ class _LostResponseService implements MutationService<String> {
     return 'one-server-result';
   }
 }
+
+class _OfflineFinishService implements DailyRitualService {
+  int completeCalls = 0;
+
+  @override
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async =>
+      _revealedRitual();
+
+  @override
+  Future<DailyRitual> fetchAssignment(String assignmentId) =>
+      Future.error(const OfflineException());
+
+  @override
+  Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) =>
+      Future.error(const OfflineException());
+
+  @override
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) =>
+      Future.error(const OfflineException());
+
+  @override
+  Future<DailyRitual> reveal(String assignmentId, int version) =>
+      Future.error(const OfflineException());
+
+  @override
+  Future<DailyRitual> complete(String assignmentId, int version) {
+    completeCalls += 1;
+    return Future.error(const OfflineException());
+  }
+}
+
+DailyRitual _revealedRitual() => DailyRitual(
+  assignmentId: 'offline-assignment',
+  date: DateTime.utc(2026, 9, 2),
+  mode: DailyRitualMode.tarot,
+  revision: const RitualRevision(id: 'offline-revision', number: 1),
+  title: 'Strength',
+  art: const RitualArt(key: 'strength', alt: 'Strength tarot card'),
+  interpretation: 'Keep the confirmed reading visible.',
+  guidance: 'Retry only after authority is restored.',
+  marketLabel: 'Educational context',
+  ideas: const [],
+  evidence: const [],
+  rowan: const RitualCounsel(
+    scriptRevisionId: 'offline-counsel',
+    surface: 'daily_ritual',
+    body: 'The reading remains available.',
+    riskFooter: 'Not investment advice.',
+  ),
+  version: 2,
+  state: DailyRitualState.revealed,
+  revealedAt: DateTime.utc(2026, 9, 2, 12),
+  completedAt: null,
+  demo: RitualDisclosure(
+    isDemo: true,
+    observedAt: DateTime.utc(2026, 9, 2, 11),
+    sourceLabel: 'Deterministic fixture',
+    limitations: const ['No live provider data.'],
+  ),
+);

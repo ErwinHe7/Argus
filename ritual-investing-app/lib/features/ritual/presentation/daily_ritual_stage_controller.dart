@@ -235,7 +235,7 @@ class DailyRitualStageController extends ChangeNotifier {
   void cancel(HoldCancellation reason) {
     if (_disposed || _attemptStartedAt == null) return;
     final elapsed = _monotonicNow() - _attemptStartedAt!;
-    if (elapsed > holdDuration) {
+    if (elapsed >= holdDuration) {
       if (!_accepted) _accept(_runToken);
       return;
     }
@@ -327,7 +327,8 @@ class DailyRitualStageController extends ChangeNotifier {
   bool finish() {
     if (_disposed ||
         !_visible ||
-        _phase != DailyRitualStagePhase.revealed ||
+        (_phase != DailyRitualStagePhase.revealed &&
+            _phase != DailyRitualStagePhase.finishFailure) ||
         authority.current?.state != DailyRitualState.revealed ||
         authority.current?.hasExactArtIdentity != true ||
         !authority.mutationAuthorityEnabled) {

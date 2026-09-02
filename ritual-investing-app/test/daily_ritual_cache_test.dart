@@ -189,6 +189,217 @@ void main() {
     },
   );
 
+  for (final state in DailyRitualState.values.where(
+    (value) => value != DailyRitualState.unknown,
+  )) {
+    test(
+      'fresh controller restores ${state.name} before revalidation',
+      () async {
+        final storage = MemoryReadCache();
+        final authority = _authority(
+          state: state,
+          version: switch (state) {
+            DailyRitualState.assigned => 1,
+            DailyRitualState.revealed => 2,
+            DailyRitualState.completed => 3,
+            DailyRitualState.unknown => throw StateError('excluded'),
+          },
+        );
+        final first = _controller(
+          service: _ScriptedService(daily: [_async(authority)]),
+          cache: ScopedReadCache(storage: storage, scope: scope),
+        );
+        await first.load();
+        first.dispose();
+
+        final refresh = Completer<DailyRitual>();
+        final service = _ScriptedService(daily: [refresh.future]);
+        final restored = _controller(
+          service: service,
+          cache: ScopedReadCache(storage: storage, scope: scope),
+        );
+        addTearDown(restored.dispose);
+
+        await restored.load();
+        expect(restored.state.phase, LoadPhase.stale);
+        expect(restored.state.value?.state, state);
+        expect(restored.state.value?.version, authority.version);
+        await _waitForReads(service, 1);
+
+        refresh.complete(authority);
+        await restored.authorityIdle;
+        expect(restored.state.phase, LoadPhase.ready);
+        expect(restored.state.value?.state, state);
+      },
+    );
+  }
+
+  test(
+    'fresh controller reconciles a server commit made before response delivery',
+    () async {
+      final storage = MemoryReadCache();
+      final response = Completer<void>();
+      final service = _CommitBeforeResponseService(response: response);
+      final first = _controller(
+        service: service,
+        cache: ScopedReadCache(storage: storage, scope: scope),
+      );
+      addTearDown(first.dispose);
+      await first.load();
+
+      final transition = first.reveal(refreshHistory: false);
+      await service.revealStarted.future;
+      expect(service.current.state, DailyRitualState.revealed);
+
+      final restored = _controller(
+        service: service,
+        cache: ScopedReadCache(storage: storage, scope: scope),
+      );
+      addTearDown(restored.dispose);
+      await restored.load();
+      await restored.authorityIdle;
+
+      expect(restored.state.value?.state, DailyRitualState.revealed);
+      expect(restored.state.value?.version, 2);
+      expect(service.revealCalls, 1);
+
+      response.complete();
+      await transition;
+    },
+  );
+
+  test(
+    'fresh controller never replays a dispatched reveal before server commit',
+    () async {
+      final storage = MemoryReadCache();
+      final commit = Completer<void>();
+      final service = _DispatchBeforeCommitService(commit: commit);
+      final first = _controller(
+        service: service,
+        cache: ScopedReadCache(storage: storage, scope: scope),
+      );
+      addTearDown(first.dispose);
+      await first.load();
+
+      final transition = first.reveal(refreshHistory: false);
+      await service.revealStarted.future;
+      expect(service.current.state, DailyRitualState.assigned);
+
+      final restored = _controller(
+        service: service,
+        cache: ScopedReadCache(storage: storage, scope: scope),
+      );
+      addTearDown(restored.dispose);
+      await restored.load();
+      await restored.authorityIdle;
+
+      expect(restored.state.value?.state, DailyRitualState.assigned);
+      expect(service.revealCalls, 1);
+
+      commit.complete();
+      await transition;
+      await restored.revalidate();
+      expect(restored.state.value?.state, DailyRitualState.revealed);
+      expect(service.revealCalls, 1);
+    },
+  );
+
+  test(
+    'retired account rejects a late authority read without leaking to B',
+    () async {
+      const scopeB = CacheScope(accountId: 'member-b', resetGeneration: 8);
+      final storage = MemoryReadCache();
+      final cacheA = ScopedReadCache(storage: storage, scope: scope);
+      await _putRecord(cacheA, _authority());
+      final lateRead = Completer<DailyRitual>();
+      final serviceA = _ScriptedService(daily: [lateRead.future]);
+      final controllerA = _controller(service: serviceA, cache: cacheA);
+      addTearDown(controllerA.dispose);
+      await controllerA.load();
+      await _waitForReads(serviceA, 1);
+
+      await cacheA.clear();
+      final authorityB = _authority(
+        userId: 'member-b',
+        deletionEpoch: 8,
+        assignmentId: 'assignment-b',
+        contentIdentity: 'content-b',
+      );
+      final controllerB = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: _ScriptedService(daily: [_async(authorityB)]),
+          cache: ScopedReadCache(storage: storage, scope: scopeB),
+          scope: scopeB,
+          effectiveMode: DailyRitualMode.tarot,
+          now: () => DateTime.utc(2026, 8, 25, 12),
+          elapsed: () => Duration.zero,
+        ),
+      );
+      addTearDown(controllerB.dispose);
+      await controllerB.load();
+
+      lateRead.complete(
+        _authority(state: DailyRitualState.revealed, version: 2),
+      );
+      await controllerA.authorityIdle;
+
+      expect(controllerB.state.value?.assignmentId, 'assignment-b');
+      expect(controllerB.state.value?.state, DailyRitualState.assigned);
+      final retiredRead = await ScopedReadCache(storage: storage, scope: scope)
+          .get<DailyRitualCacheRecord>(
+            DailyRitualCacheRecord.cacheKey(DailyRitualMode.tarot),
+          );
+      expect(retiredRead, isNull);
+    },
+  );
+
+  test(
+    'retired account rejects a late mutation write while B is active',
+    () async {
+      const scopeB = CacheScope(accountId: 'member-b', resetGeneration: 8);
+      final storage = MemoryReadCache();
+      final response = Completer<void>();
+      final serviceA = _CommitBeforeResponseService(response: response);
+      final cacheA = ScopedReadCache(storage: storage, scope: scope);
+      final controllerA = _controller(service: serviceA, cache: cacheA);
+      addTearDown(controllerA.dispose);
+      await controllerA.load();
+      final transition = controllerA.reveal(refreshHistory: false);
+      await serviceA.revealStarted.future;
+
+      await cacheA.clear();
+      final authorityB = _authority(
+        userId: 'member-b',
+        deletionEpoch: 8,
+        assignmentId: 'assignment-b',
+        contentIdentity: 'content-b',
+      );
+      final controllerB = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: _ScriptedService(daily: [_async(authorityB)]),
+          cache: ScopedReadCache(storage: storage, scope: scopeB),
+          scope: scopeB,
+          effectiveMode: DailyRitualMode.tarot,
+          now: () => DateTime.utc(2026, 8, 25, 12),
+          elapsed: () => Duration.zero,
+        ),
+      );
+      addTearDown(controllerB.dispose);
+      await controllerB.load();
+
+      response.complete();
+      await transition;
+
+      expect(controllerB.state.value?.assignmentId, 'assignment-b');
+      expect(controllerB.state.value?.state, DailyRitualState.assigned);
+      final retiredRead = await ScopedReadCache(storage: storage, scope: scope)
+          .get<DailyRitualCacheRecord>(
+            DailyRitualCacheRecord.cacheKey(DailyRitualMode.tarot),
+          );
+      expect(retiredRead, isNull);
+    },
+  );
+
   test(
     'serialized reads expose only the latest noninvalidated generation',
     () async {
@@ -469,7 +680,7 @@ Future<void> _waitForReads(_ScriptedService service, int count) async {
 }
 
 DailyRitualRepository _repository({
-  required _ScriptedService service,
+  required DailyRitualService service,
   required ReadCache cache,
   DailyRitualMode mode = DailyRitualMode.tarot,
 }) => DailyRitualRepository(
@@ -482,7 +693,7 @@ DailyRitualRepository _repository({
 );
 
 DailyRitualController _controller({
-  required _ScriptedService service,
+  required DailyRitualService service,
   required ReadCache cache,
 }) => DailyRitualController(
   repository: _repository(service: service, cache: cache),
@@ -601,6 +812,84 @@ class _ScriptedService implements DailyRitualService {
     final result = revealResult;
     if (result != null) return Future.value(result);
     return Future.error(const OfflineException());
+  }
+
+  @override
+  Future<DailyRitual> complete(String assignmentId, int version) =>
+      Future.error(const OfflineException());
+}
+
+class _CommitBeforeResponseService implements DailyRitualService {
+  _CommitBeforeResponseService({required this.response});
+
+  final Completer<void> response;
+  final Completer<void> revealStarted = Completer<void>();
+  DailyRitual current = _authority();
+  int revealCalls = 0;
+
+  @override
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async => current;
+
+  @override
+  Future<DailyRitual> fetchAssignment(String assignmentId) async => current;
+
+  @override
+  Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) async =>
+      const [];
+
+  @override
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) async =>
+      RitualHistoryPage(items: const [], nextCursor: null, hasMore: false);
+
+  @override
+  Future<DailyRitual> reveal(String assignmentId, int version) async {
+    revealCalls += 1;
+    current = _authority(
+      state: DailyRitualState.revealed,
+      version: version + 1,
+    );
+    if (!revealStarted.isCompleted) revealStarted.complete();
+    await response.future;
+    return current;
+  }
+
+  @override
+  Future<DailyRitual> complete(String assignmentId, int version) =>
+      Future.error(const OfflineException());
+}
+
+class _DispatchBeforeCommitService implements DailyRitualService {
+  _DispatchBeforeCommitService({required this.commit});
+
+  final Completer<void> commit;
+  final Completer<void> revealStarted = Completer<void>();
+  DailyRitual current = _authority();
+  int revealCalls = 0;
+
+  @override
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async => current;
+
+  @override
+  Future<DailyRitual> fetchAssignment(String assignmentId) async => current;
+
+  @override
+  Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) async =>
+      const [];
+
+  @override
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) async =>
+      RitualHistoryPage(items: const [], nextCursor: null, hasMore: false);
+
+  @override
+  Future<DailyRitual> reveal(String assignmentId, int version) async {
+    revealCalls += 1;
+    if (!revealStarted.isCompleted) revealStarted.complete();
+    await commit.future;
+    current = _authority(
+      state: DailyRitualState.revealed,
+      version: version + 1,
+    );
+    return current;
   }
 
   @override

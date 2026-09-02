@@ -6,7 +6,7 @@ import 'support/fixture_services.dart';
 
 void main() {
   testWidgets(
-    'Daily Ritual uses the Leonidas sequence and keeps evidence one gesture away',
+    'restored Daily Ritual explicitly enters immersive Evidence and Starpath',
     (tester) async {
       tester.view.physicalSize = const Size(430, 932);
       tester.view.devicePixelRatio = 1;
@@ -16,6 +16,13 @@ void main() {
       await tester.pumpWidget(
         RitualInvestingApp(container: fixtureContainer()),
       );
+      await tester.pumpAndSettle();
+      expect(find.text('Review today’s ritual'), findsOneWidget);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+      expect(find.byKey(const Key('leonidas-ritual-sequence')), findsNothing);
+      expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
       await tester.pumpAndSettle();
       final ritualContext = tester.element(
         find.byKey(const Key('leonidas-ritual-sequence')),
@@ -32,20 +39,29 @@ void main() {
       await tester.pump();
 
       expect(find.byKey(const Key('leonidas-ritual-sequence')), findsOneWidget);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
       expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
       expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
       expect(find.text("TODAY'S REFLECTION"), findsNothing);
       expect(find.byKey(const Key('ritual-history')), findsNothing);
 
-      await tester.ensureVisible(find.byKey(const Key('leonidas-evidence')));
-      await tester.pump();
       await tester.tap(find.byKey(const Key('leonidas-evidence')));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('ritual-evidence-sheet')), findsOneWidget);
       expect(find.text('Observation'), findsOneWidget);
       expect(find.text('Summary'), findsOneWidget);
-      expect(find.textContaining('durable dividend momentum'), findsOneWidget);
+      expect(find.textContaining('durable dividend momentum'), findsWidgets);
+
+      await tester.tap(find.byKey(const Key('ritual-evidence-done')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('leonidas-starpath')));
+      await tester.pumpAndSettle();
+      expect(find.text('Walk the Stars'), findsWidgets);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
     },
   );
 }

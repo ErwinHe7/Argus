@@ -6,53 +6,39 @@ import 'package:ritual_investing_app/app/ritual_investing_app.dart';
 import 'support/fixture_services.dart';
 
 void main() {
-  testWidgets('opens on the approved daily ritual', (tester) async {
+  testWidgets('restores the approved daily ritual through explicit Review', (
+    tester,
+  ) async {
     await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
+    expect(find.text('Review today’s ritual'), findsOneWidget);
+    expect(find.text('Direction, not urgency.'), findsNothing);
+    expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+    await tester.pumpAndSettle();
+    final context = tester.element(
+      find.byKey(const Key('leonidas-ritual-sequence')),
+    );
+    await tester.runAsync<void>(
+      () => precacheImage(
+        const AssetImage(
+          'assets/images/tarot/modern-rider-waite/major/04-the-emperor.webp',
+        ),
+        context,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
     expect(find.text('Direction, not urgency.'), findsOneWidget);
-
-    await tester.drag(
-      find.byType(CustomScrollView).first,
-      const Offset(0, -500),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('MARKET-INFORMED · REVEAL THE PATTERN'), findsOneWidget);
-    expect(find.text('VIG'), findsOneWidget);
-
-    await tester.drag(
-      find.byType(CustomScrollView).first,
-      const Offset(0, -500),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Founders’ Coven'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.textContaining('Demo market scenario'),
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.textContaining('Demo market scenario'), findsOneWidget);
-
-    await tester.drag(
-      find.byType(CustomScrollView).first,
-      const Offset(0, 1000),
-    );
-    await tester.pumpAndSettle();
-    await tester.drag(
-      find.byType(CustomScrollView).first,
-      const Offset(0, -250),
-    );
-    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
     await tester.tap(find.byKey(const Key('leonidas-evidence')));
     await tester.pumpAndSettle();
     expect(find.text('Durable dividend momentum'), findsOneWidget);
-    expect(
-      find.textContaining('Inspect the evidence, compare risks'),
-      findsWidgets,
-    );
+    expect(find.byKey(const Key('ritual-evidence-done')), findsOneWidget);
   });
 
   testWidgets('primary navigation reaches the Coven', (tester) async {

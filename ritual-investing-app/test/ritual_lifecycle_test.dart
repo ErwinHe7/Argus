@@ -195,6 +195,66 @@ void main() {
     expect(outcome?.disposition, RitualOperationDisposition.provenNotReached);
   });
 
+  test('terminal Finish rejection preserves the confirmed reading', () async {
+    final service = _LifecycleService(
+      initial: _ritual(DailyRitualState.revealed, 2),
+      completeFailureBeforeCommit: const LoadFailure(LoadPhase.forbidden),
+    );
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+
+    await controller.load();
+    final outcome = await controller.complete(refreshHistory: false);
+
+    expect(service.completeVersions, [2]);
+    expect(service.assignmentReads, 0);
+    expect(controller.state.value?.state, DailyRitualState.revealed);
+    expect(controller.mutationPhase, RitualMutationPhase.terminalFailure);
+    expect(outcome?.disposition, RitualOperationDisposition.provenNotReached);
+  });
+
+  test(
+    'post-dispatch Finish ambiguity reconciles completed authority',
+    () async {
+      for (final failure in <Object>[
+        const RitualAmbiguousMutation(),
+        const FormatException('malformed authoritative response'),
+        const LoadFailure(LoadPhase.conflict),
+      ]) {
+        final service = _LifecycleService(
+          initial: _ritual(DailyRitualState.revealed, 2),
+          completeFailureAfterCommit: failure,
+        );
+        final controller = DailyRitualController(
+          repository: DailyRitualRepository(
+            service: service,
+            cache: MemoryReadCache(),
+          ),
+        );
+
+        await controller.load();
+        final outcome = await controller.complete(refreshHistory: false);
+
+        expect(service.completeVersions, [2], reason: '$failure');
+        expect(service.assignmentReads, 1, reason: '$failure');
+        expect(
+          controller.state.value?.state,
+          DailyRitualState.completed,
+          reason: '$failure',
+        );
+        expect(
+          outcome?.disposition,
+          RitualOperationDisposition.reconciledToTarget,
+          reason: '$failure',
+        );
+      }
+    },
+  );
+
   test('unavailable reconciliation disables blind mutation replay', () async {
     final service = _LifecycleService(
       revealFailureAfterCommit: const FormatException('malformed response'),
@@ -300,21 +360,26 @@ class _TransportTimeout extends OfflineException {
 
 class _LifecycleService implements DailyRitualService {
   _LifecycleService({
+    DailyRitual? initial,
     this.failRevealAfterCommit = false,
     this.revealFailureBeforeCommit,
     this.revealFailureAfterCommit,
+    this.completeFailureBeforeCommit,
+    this.completeFailureAfterCommit,
     this.revealReturnsWrongAssignment = false,
     this.assignmentFailure,
     this.historyGate,
-  });
+  }) : current = initial ?? _ritual(DailyRitualState.assigned, 1);
 
   final bool failRevealAfterCommit;
   final Object? revealFailureBeforeCommit;
   final Object? revealFailureAfterCommit;
+  final Object? completeFailureBeforeCommit;
+  final Object? completeFailureAfterCommit;
   final bool revealReturnsWrongAssignment;
   final Object? assignmentFailure;
   final Completer<RitualHistoryPage>? historyGate;
-  DailyRitual current = _ritual(DailyRitualState.assigned, 1);
+  DailyRitual current;
   final List<int> revealVersions = [];
   final List<int> completeVersions = [];
   int dailyReads = 0;
@@ -387,7 +452,11 @@ class _LifecycleService implements DailyRitualService {
   @override
   Future<DailyRitual> complete(String assignmentId, int version) async {
     completeVersions.add(version);
+    final failureBeforeCommit = completeFailureBeforeCommit;
+    if (failureBeforeCommit != null) throw failureBeforeCommit;
     current = _ritual(DailyRitualState.completed, version + 1);
+    final failureAfterCommit = completeFailureAfterCommit;
+    if (failureAfterCommit != null) throw failureAfterCommit;
     return current;
   }
 }

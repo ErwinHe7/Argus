@@ -659,18 +659,6 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
             height: 1.3,
           ),
         ),
-        if (_phase == DailyRitualStagePhase.finishFailure) ...[
-          const SizedBox(height: 6),
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              'Your reading is still here. Finish again when you are ready.',
-              key: Key('daily-ritual-finish-error'),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFFFFD6D6), fontSize: 12),
-            ),
-          ),
-        ],
       ],
     );
     if (largeText) {
@@ -725,10 +713,18 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
         ),
       );
     }
-    return _GoldAction(
-      key: const Key('ritual-complete'),
-      label: 'Finish today’s ritual',
-      onPressed: _stage.finish,
+    final failed = _phase == DailyRitualStagePhase.finishFailure;
+    return Semantics(
+      key: failed ? const Key('daily-ritual-finish-error') : null,
+      liveRegion: failed,
+      label: failed
+          ? 'Finish failed. Your reading is preserved. Try Finish again.'
+          : null,
+      child: _GoldAction(
+        key: const Key('ritual-complete'),
+        label: failed ? 'Try Finish again' : 'Finish today’s ritual',
+        onPressed: _stage.finish,
+      ),
     );
   }
 

@@ -44,6 +44,57 @@ void main() {
     },
   );
 
+  testWidgets(
+    'restored ritual uses explicit accessible entry and 2x immersive reflow',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(
+            accessibleNavigation: true,
+            disableAnimations: true,
+          );
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+
+      await tester.pumpWidget(
+        RitualInvestingApp(container: fixtureContainer()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Review today’s ritual'), findsOneWidget);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+
+      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+      expect(
+        find.byKey(const Key('daily-ritual-immersive-accessibility-scroll')),
+        findsOneWidget,
+      );
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byKey(const Key('ritual-search')), findsNothing);
+      expect(find.byKey(const Key('theme-toggle')), findsNothing);
+      expect(find.text('Today’s ritual is complete.'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('leonidas-starpath')));
+      await tester.pump();
+      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
+    },
+  );
+
   for (final brightness in Brightness.values) {
     testWidgets(
       'major member routes remain semantic and operable at 2x in ${brightness.name}',

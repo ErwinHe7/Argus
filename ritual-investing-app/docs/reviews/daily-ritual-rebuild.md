@@ -82,7 +82,7 @@ Open Ritual tab
 - **DR-ENTRY-01 — No forced start.** Opening the app or Ritual tab must not begin the ritual, start speech, animate the seal, reveal content, change lifecycle state, or present a blocking modal.
 - **DR-ENTRY-02 — Explicit daily entry.** A fresh assigned ritual presents **Start your daily ritual** as the only ritual-specific primary action.
 - **DR-ENTRY-03 — Reversible entry and immersive boundary.** Global navigation remains available before the member starts. Start opens a fullscreen ceremony without the global top utility row or bottom navigation. System Back/edge dismissal and assistive semantic dismissal may leave safely; Completed provides Evidence and Starpath as the visible onward exits.
-- **DR-ENTRY-04 — Once per day.** The entry state represents the current member's current daily assignment. Returning to an already completed daily ritual restores the completed onward state rather than offering Start again.
+- **DR-ENTRY-04 — Once per day.** The entry state represents the current member's current daily assignment. A restored revealed assignment shows a compact **Continue your daily ritual** invitation in the normal shell; a restored completed assignment shows **Review today’s ritual** and never offers Start. Neither state auto-presents fullscreen. The explicit invitation opens the immersive route directly in the authoritative Revealed or Completed onward state without replaying earlier ceremony steps.
 - **DR-ENTRY-05 — No outcome leak.** Before reveal, do not expose the assigned card face, title, interpretation, evidence summary, or another clue that reveals the outcome.
 - **DR-ENTRY-06 — Neutral time language.** Use **Today’s daily ritual** or equivalent time-neutral wording. Do not hard-code **Tonight**.
 
@@ -142,7 +142,7 @@ Strict replay-as-2xx idempotency and a two-phase prepare/commit reveal endpoint 
 - **DR-C2-08 — Automatic onward transition.** When the message ends or Skip is chosen, no additional confirmation tap is required. The card settles into a vertical keepsake rail and the onward actions appear.
 - **DR-C2-09 — Ordered handoff.** Show **Review evidence** as the primary action followed by **Continue to Starpath** as the secondary action.
 - **DR-C2-10 — No competing actions.** Do not show Replay, History, Coven promotion, practice, Ask Leonidas, or another ritual-specific destination in the completed handoff.
-- **DR-C2-11 — Restore completed state.** Returning later restores the keepsake/onward state directly. Do not replay Start, hold, reveal, Finish, or Leonidas's closing message.
+- **DR-C2-11 — Restore completed state.** Returning later shows the compact **Review today’s ritual** shell invitation without auto-presenting fullscreen. Its explicit tap restores the immersive keepsake/onward state directly. Do not replay Start, hold, reveal, Finish, or Leonidas's closing message, and never render Completed ceremony content beneath app chrome.
 - **DR-C2-12 — Evidence continuity.** Evidence opens in context with a visible Done/Close control. Dismissing it returns to the completed ritual rather than changing tabs unexpectedly.
 
 ### Voice, captions, haptics, and motion
@@ -181,10 +181,12 @@ The server domain remains `assigned → revealed → completed`. The UI may use 
 | Holding | Assigned | Continuous seal contact | Early release → Ready; five seconds → Reveal choreography |
 | Reveal choreography | Assigned or reveal request pending | Hold accepted | Valid reveal → Revealed; failure → Reveal unavailable |
 | Reveal unavailable | Assigned | Invalid/failed reveal | Retry or leave |
-| Revealed | Revealed | Valid reveal response | Tap Finish |
+| Revealed | Revealed | Valid reveal response, or explicit Continue from a restored shell invitation | Tap Finish |
 | Finishing | Revealed with completion pending | Tap Finish | Confirmed completion → C2 closing; failure → Revealed with error |
 | C2 closing | Completed | Confirmed Finish | Message ends or Skip → Completed onward |
-| Completed onward | Completed | Closing exits or completed state restored | Evidence, Starpath, or safe fullscreen dismissal |
+| Completed onward | Completed | Closing exits, or explicit Review from a restored shell invitation | Evidence, Starpath, or safe fullscreen dismissal |
+
+Restored Revealed and Completed assignments remain non-forcing at app or tab entry: the normal shell contains only the corresponding compact Continue/Review invitation. Ceremony content appears only after that explicit action opens the fullscreen route. Dismissing fullscreen returns to the same compact invitation.
 
 ## Required copy
 
@@ -299,6 +301,8 @@ The implementation plan must name any additional focused test files before codin
 
 - Opening Ritual leaves the page in Resting with no speech and no automatic reveal.
 - Start enters the chrome-free fullscreen route and changes Resting to Ready without revealing or mutating the ritual.
+- Restored Revealed shows **Continue your daily ritual** and restored Completed shows **Review today’s ritual** in the shell; neither auto-opens fullscreen, speaks, mutates, or renders ceremony content under app chrome.
+- Continue/Review opens fullscreen directly at the authoritative Revealed/Completed onward state; Back returns to the matching compact shell invitation without replaying any prior step.
 - The pre-start invitation retains global navigation; the fullscreen ceremony contains neither global top utilities nor bottom navigation.
 - Ready through Completed has no scroll surface at ordinary text sizes; accessibility scaling keeps complete content reachable through lower-region reflow/scroll only.
 - Holding for 4.9 seconds and releasing cancels.

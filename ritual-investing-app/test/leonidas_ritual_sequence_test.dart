@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show SemanticsAction;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -109,6 +110,59 @@ void main() {
     expect(revealCount, 1);
     await gesture.up();
   });
+
+  testWidgets(
+    'assistive semantic activation and cancel do not invoke pointer hold',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      _setPhoneViewport(tester);
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(
+            accessibleNavigation: true,
+            disableAnimations: true,
+          );
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+      var revealCount = 0;
+      await tester.pumpWidget(
+        _testApp(
+          ritual: _ritual(DailyRitualState.assigned),
+          voice: _UnavailableVoice(),
+          onReveal: () async {
+            revealCount += 1;
+            return true;
+          },
+        ),
+      );
+      await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+      await tester.pump();
+
+      var seal = tester.getSemantics(find.bySemanticsLabel('Begin ritual'));
+      expect(seal.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      tester.semantics.tap(find.semantics.byLabel('Begin ritual'));
+      await tester.pump(const Duration(milliseconds: 4900));
+
+      seal = tester.getSemantics(find.bySemanticsLabel('Begin ritual'));
+      expect(
+        seal.getSemanticsData().hasAction(SemanticsAction.dismiss),
+        isTrue,
+      );
+      tester.semantics.dismiss(find.semantics.byLabel('Begin ritual'));
+      await tester.pump(const Duration(milliseconds: 250));
+      expect(revealCount, 0);
+      expect(
+        find.text('You let go. Was the moment not right?'),
+        findsOneWidget,
+      );
+
+      tester.semantics.tap(find.semantics.byLabel('Begin ritual'));
+      await tester.pump(const Duration(seconds: 5));
+      await tester.pump();
+
+      expect(revealCount, 1);
+      expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
+      semantics.dispose();
+    },
+  );
 
   testWidgets('accepted hold waits concealed for delayed matching preflight', (
     tester,

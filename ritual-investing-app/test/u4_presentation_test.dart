@@ -166,6 +166,127 @@ void main() {
     },
   );
 
+  testWidgets(
+    'restored revealed waits in shell until Continue opens immersive reading',
+    (tester) async {
+      _setReducedMotionPhoneViewport(tester);
+      final service = _RitualService(
+        state: DailyRitualState.revealed,
+        version: 2,
+      );
+      final voice = _RecordingLeonidasVoice();
+      final controller = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: service,
+          cache: MemoryReadCache(),
+        ),
+      );
+      await controller.load();
+      await tester.pumpWidget(_screenApp(controller: controller, voice: voice));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+      expect(
+        find.byKey(const Key('daily-ritual-return-invitation')),
+        findsOneWidget,
+      );
+      expect(find.text('Continue your daily ritual'), findsOneWidget);
+      expect(find.text('Direction, not urgency.'), findsNothing);
+      expect(find.byKey(const Key('ritual-complete')), findsNothing);
+      expect(voice.lines, isEmpty);
+      expect(service.revealCalls, 0);
+      expect(service.completeCalls, 0);
+
+      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+      await tester.pumpAndSettle();
+      await _decodeExactArt(
+        tester,
+        'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+      );
+
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.text('Reading revealed'), findsOneWidget);
+      expect(find.text('Direction, not urgency.'), findsOneWidget);
+      expect(find.byKey(const Key('ritual-complete')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('leonidas-ritual-sequence')),
+          matching: find.byType(Scrollable),
+        ),
+        findsNothing,
+      );
+      expect(voice.lines, isEmpty);
+      expect(service.revealCalls, 0);
+      expect(service.completeCalls, 0);
+
+      Navigator.of(
+        tester.element(find.byKey(const Key('daily-ritual-immersive'))),
+      ).pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.text('Continue your daily ritual'), findsOneWidget);
+      expect(find.text('Direction, not urgency.'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'restored completed waits in shell until Review opens immersive onward',
+    (tester) async {
+      _setReducedMotionPhoneViewport(tester);
+      final service = _RitualService();
+      final voice = _RecordingLeonidasVoice();
+      final controller = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: service,
+          cache: MemoryReadCache(),
+        ),
+      );
+      await controller.load();
+      await tester.pumpWidget(_screenApp(controller: controller, voice: voice));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+      expect(find.text('Review today’s ritual'), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
+      expect(voice.lines, isEmpty);
+      expect(service.completeCalls, 0);
+
+      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+      await tester.pumpAndSettle();
+      await _decodeExactArt(
+        tester,
+        'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+      );
+
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.text('Today’s ritual is complete.'), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-closing-skip')), findsNothing);
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('leonidas-ritual-sequence')),
+          matching: find.byType(Scrollable),
+        ),
+        findsNothing,
+      );
+      expect(voice.lines, isEmpty);
+      expect(service.completeCalls, 0);
+
+      Navigator.of(
+        tester.element(find.byKey(const Key('daily-ritual-immersive'))),
+      ).pop();
+      await tester.pumpAndSettle();
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.text('Review today’s ritual'), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
+    },
+  );
+
   testWidgets('failed reveal remains actionable and announces the failure', (
     tester,
   ) async {
@@ -232,6 +353,61 @@ void main() {
     expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
   });
 
+  testWidgets('failed Finish preserves the reading and retries once', (
+    tester,
+  ) async {
+    _setReducedMotionPhoneViewport(tester);
+    final service = _RitualService(
+      state: DailyRitualState.revealed,
+      version: 2,
+      completeFailures: 1,
+    );
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+    await controller.load();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: DailyRitualScreen(
+            controller: controller,
+            onOpenCoven: () {},
+            leonidasVoice: const _ImmediateLeonidasVoice(),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+    await tester.pumpAndSettle();
+    await _decodeExactArt(
+      tester,
+      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+    );
+
+    await tester.tap(find.byKey(const Key('ritual-complete')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Finish paused safely'), findsOneWidget);
+    expect(find.text('Direction, not urgency.'), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
+    expect(find.byKey(const Key('daily-ritual-finish-error')), findsOneWidget);
+    expect(find.byKey(const Key('ritual-complete')), findsOneWidget);
+    expect(find.text('Today’s ritual is complete.'), findsNothing);
+    expect(controller.state.value?.state, DailyRitualState.revealed);
+
+    await tester.tap(find.byKey(const Key('ritual-complete')));
+    await tester.pumpAndSettle();
+
+    expect(service.completeCalls, 2);
+    expect(controller.state.value?.state, DailyRitualState.completed);
+    expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+  });
+
   testWidgets('production ritual shows only content for the drawn card', (
     tester,
   ) async {
@@ -253,6 +429,8 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+    await tester.pumpAndSettle();
     await _decodeExactArt(
       tester,
       'assets/images/tarot/modern-rider-waite/major/13-death.webp',
@@ -305,6 +483,8 @@ void main() {
         ),
       );
       await tester.pump();
+      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+      await tester.pumpAndSettle();
       await _decodeExactArt(
         tester,
         'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
@@ -371,6 +551,8 @@ void main() {
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+    await tester.pumpAndSettle();
     await _decodeExactArt(
       tester,
       'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
@@ -440,6 +622,8 @@ void main() {
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
+      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('ritual-history')), findsNothing);
       expect(find.textContaining('Coven'), findsNothing);
@@ -456,6 +640,7 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('leonidas-starpath')));
       await tester.pump();
       await tester.tap(find.byKey(const Key('leonidas-starpath')));
+      await tester.pumpAndSettle();
       expect(starpathOpened, isTrue);
       expect(tester.takeException(), isNull);
     },
@@ -523,9 +708,49 @@ class _ImmediateLeonidasVoice implements LeonidasVoice {
   Future<void> stop() async {}
 }
 
+class _RecordingLeonidasVoice implements LeonidasVoice {
+  final List<String> lines = [];
+  int stopCount = 0;
+
+  @override
+  Future<bool> speak(String text) async {
+    lines.add(text);
+    return true;
+  }
+
+  @override
+  Future<void> stop() async => stopCount += 1;
+}
+
+Widget _screenApp({
+  required DailyRitualController controller,
+  required LeonidasVoice voice,
+}) => MaterialApp(
+  theme: AppTheme.light,
+  home: Scaffold(
+    body: DailyRitualScreen(
+      controller: controller,
+      onOpenCoven: () {},
+      onOpenSearch: () {},
+      onOpenBriefings: () {},
+      onToggleTheme: () {},
+      onOpenStarpath: () {},
+      leonidasVoice: voice,
+      prepareExactMedia: (_) async => true,
+    ),
+    bottomNavigationBar: NavigationBar(
+      destinations: const [
+        NavigationDestination(icon: Icon(Icons.auto_awesome), label: 'Ritual'),
+        NavigationDestination(icon: Icon(Icons.stars), label: 'Starpath'),
+      ],
+    ),
+  ),
+);
+
 class _RitualService implements DailyRitualService {
   _RitualService({
     this.evidenceFailures = 0,
+    this.completeFailures = 0,
     this.state = DailyRitualState.completed,
     this.version = 3,
     this.failReveal = false,
@@ -533,10 +758,13 @@ class _RitualService implements DailyRitualService {
   });
 
   int evidenceFailures;
+  int completeFailures;
   DailyRitualState state;
   int version;
   final bool failReveal;
   final bool hasEvidence;
+  int revealCalls = 0;
+  int completeCalls = 0;
 
   @override
   Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async =>
@@ -583,6 +811,7 @@ class _RitualService implements DailyRitualService {
 
   @override
   Future<DailyRitual> reveal(String assignmentId, int expectedVersion) async {
+    revealCalls += 1;
     if (failReveal) {
       throw const LoadFailure(LoadPhase.terminalFailure);
     }
@@ -593,6 +822,11 @@ class _RitualService implements DailyRitualService {
 
   @override
   Future<DailyRitual> complete(String assignmentId, int expectedVersion) async {
+    completeCalls += 1;
+    if (completeFailures > 0) {
+      completeFailures -= 1;
+      throw const LoadFailure(LoadPhase.terminalFailure);
+    }
     state = DailyRitualState.completed;
     version = expectedVersion + 1;
     return _ritual(state: state, version: version, hasEvidence: hasEvidence);

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/core/api/pending_command_store.dart';
+import 'package:ritual_investing_app/core/api/view_state.dart' show LoadPhase;
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/ritual/application/leonidas_voice.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
@@ -15,7 +16,6 @@ void main() {
       const Duration(milliseconds: 100),
       const Duration(milliseconds: 4900),
       const Duration(milliseconds: 4999),
-      const Duration(seconds: 5),
     ]) {
       test('pointer release at ${boundary.inMicroseconds}us cancels', () async {
         final harness = _StageHarness();
@@ -35,6 +35,22 @@ void main() {
         expect(harness.haptics.acceptanceCount, 0);
       });
     }
+
+    test('pointer release at exactly five seconds accepts once', () async {
+      final harness = _StageHarness();
+      addTearDown(harness.dispose);
+
+      harness.stage.start();
+      harness.stage.beginPointerHold(7);
+      harness.clock.elapseWithoutRunning(const Duration(seconds: 5));
+      harness.stage.pointerUp(7);
+      harness.clock.runDue();
+      await _flush();
+
+      expect(harness.authority.revealCalls, 1);
+      expect(harness.haptics.acceptanceCount, 1);
+      expect(harness.stage.phase, DailyRitualStagePhase.revealed);
+    });
 
     test(
       '5.001 seconds accepts once and later release cannot roll it back',
@@ -77,6 +93,23 @@ void main() {
         expect(harness.stage.phase, DailyRitualStagePhase.revealed);
       },
     );
+
+    test('late preparation after release can warm but never reveals', () async {
+      final preparation = Completer<bool>();
+      final harness = _StageHarness(prepareResult: preparation.future);
+      addTearDown(harness.dispose);
+
+      harness.stage.start();
+      harness.stage.beginPointerHold(1);
+      harness.clock.advance(const Duration(milliseconds: 4900));
+      harness.stage.pointerUp(1);
+      preparation.complete(true);
+      await _flush();
+
+      expect(harness.stage.phase, DailyRitualStagePhase.ready);
+      expect(harness.authority.revealCalls, 0);
+      expect(harness.voice.lines, isEmpty);
+    });
 
     test('changed preflight lineage fails concealed without a POST', () async {
       final harness = _StageHarness();
@@ -147,10 +180,16 @@ void main() {
             harness.clock.runDue();
             await _flush();
 
-            expect(
-              harness.authority.revealCalls,
-              boundary > const Duration(seconds: 5) ? 1 : 0,
-            );
+            final cancellationUsesElapsedArbiter =
+                cancellation == HoldCancellation.pointerCancel ||
+                cancellation == HoldCancellation.pointerExit ||
+                cancellation == HoldCancellation.semanticCancel ||
+                cancellation == HoldCancellation.navigation;
+            final accepted =
+                boundary > const Duration(seconds: 5) ||
+                (boundary == const Duration(seconds: 5) &&
+                    cancellationUsesElapsedArbiter);
+            expect(harness.authority.revealCalls, accepted ? 1 : 0);
             expect(harness.stage.hasActiveHold, isFalse);
           },
         );
@@ -197,6 +236,62 @@ void main() {
       await _flush();
       expect(harness.stage.phase, DailyRitualStagePhase.completed);
     });
+
+    test('failed Finish preserves the reading and permits one retry', () async {
+      final revealed = _ritual(state: DailyRitualState.revealed, version: 2);
+      final harness = _StageHarness(
+        initial: revealed,
+        completeResult: Future.value(
+          RitualTransitionResult(
+            operation: RitualOperation.complete,
+            lineage: revealed.lineage,
+            target: DailyRitualState.completed,
+            disposition: RitualOperationDisposition.provenNotReached,
+            authoritative: revealed,
+            failurePhase: LoadPhase.retryableFailure,
+          ),
+        ),
+      );
+      addTearDown(harness.dispose);
+
+      expect(harness.stage.finish(), isTrue);
+      await _flush();
+      expect(harness.stage.phase, DailyRitualStagePhase.finishFailure);
+      expect(harness.authority.current, same(revealed));
+      expect(harness.voice.lines, isEmpty);
+
+      harness.authority.completeResult = null;
+      expect(harness.stage.finish(), isTrue);
+      expect(harness.stage.finish(), isFalse);
+      await _flush();
+      expect(harness.authority.completeCalls, 2);
+      expect(harness.stage.phase, DailyRitualStagePhase.closing);
+    });
+
+    test(
+      'leaving during closing stops speech and settles without replay',
+      () async {
+        final harness = _StageHarness(
+          initial: _ritual(state: DailyRitualState.revealed, version: 2),
+        );
+        addTearDown(harness.dispose);
+        await harness.stage.restoreVoicePreference();
+
+        harness.stage.finish();
+        await _flush();
+        expect(harness.stage.phase, DailyRitualStagePhase.closing);
+        expect(harness.voice.lines, hasLength(1));
+
+        harness.stage.setVisible(false, reason: HoldCancellation.tabHidden);
+        expect(harness.voice.stopCount, 1);
+        expect(harness.stage.phase, DailyRitualStagePhase.completed);
+
+        harness.stage.setVisible(true, reason: HoldCancellation.tabHidden);
+        await _flush();
+        expect(harness.stage.phase, DailyRitualStagePhase.completed);
+        expect(harness.voice.lines, hasLength(1));
+      },
+    );
 
     test('restored and offscreen completion bypass C2 and speech', () async {
       final restored = _StageHarness(
