@@ -72,6 +72,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Install provider-boundary audit dependency
+        run: sudo apt-get update && sudo apt-get install --yes ripgrep
       - name: Exercise provider-boundary fail-closed cases
         run: ./scripts/test-check-member-provider-boundaries.sh
       - name: Audit member dependencies, hosts, egress, and worker effects
@@ -284,6 +286,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - name: Install architecture-audit dependency
+        run: sudo apt-get update && sudo apt-get install --yes ripgrep
       - name: Exercise fail-closed Supabase architecture and history fixtures
         run: |
           ./scripts/test-check-supabase-architecture-contract.sh

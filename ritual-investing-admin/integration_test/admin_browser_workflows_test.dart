@@ -6,7 +6,7 @@ import 'package:ritual_investing_admin/data/admin_gateway.dart';
 import 'package:ritual_investing_admin/domain/admin_models.dart';
 import 'package:ritual_investing_admin/ui/admin_app.dart';
 
-import '../test/support/starpath_fixture.dart';
+import 'support/starpath_fixture.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
