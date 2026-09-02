@@ -111,6 +111,13 @@ printf '%s\n' "$literal_urls" | while IFS= read -r literal_url; do
   case "$literal_host" in
     PROJECT_REF.supabase.co|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|media-processor.internal|media-scanner.internal|push-provider.internal)
       ;;
+    # These are exact reviewed product, market-education, and public-calendar
+    # origins. Keep this list host-specific; do not replace it with wildcards.
+    leo.axio7.workers.dev|www.bls.gov|www.federalreserve.gov|www.finra.org|www.investor.gov|www.spglobal.com)
+      ;;
+    # Internal preview fixtures use reserved, non-routable DNS suffixes.
+    example.invalid|fixture-auth.test)
+      ;;
     # Frame messages are reviewed as an exact production/beta pair. Do not
     # broaden this to a wildcard subdomain allowlist.
     just-build-this.app|beta.just-build-this.app)
