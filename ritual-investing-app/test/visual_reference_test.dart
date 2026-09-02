@@ -25,15 +25,22 @@ void main() {
     await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.runAsync(() async {
       final context = tester.element(find.byType(Scaffold).first);
+      final decodeWidth = (150 * MediaQuery.devicePixelRatioOf(context)).ceil();
       await Future.wait([
         precacheImage(
-          const AssetImage(
-            'assets/images/tarot/modern-rider-waite/major/04-the-emperor.webp',
+          ResizeImage.resizeIfNeeded(
+            decodeWidth,
+            null,
+            const AssetImage(
+              'assets/images/tarot/modern-rider-waite/major/04-the-emperor.webp',
+            ),
           ),
           context,
         ),
         precacheImage(
-          const AssetImage('assets/images/persona-triptych.png'),
+          const AssetImage(
+            'assets/images/leonidas/leonidas-canonical-scholar-portrait-v1.png',
+          ),
           context,
         ),
       ]);

@@ -9,7 +9,7 @@ import '../../../core/presentation/demo_disclosure.dart';
 import '../../../core/presentation/server_time.dart';
 import '../application/daily_ritual_controller.dart';
 import '../domain/daily_ritual.dart';
-import 'ritual_tarot_art.dart';
+import 'leonidas_ritual_sequence.dart';
 import '../../rowan/application/controller.dart';
 import '../../rowan/domain/model.dart';
 import '../../rowan/presentation/rowan_counsel_panel.dart';
@@ -27,6 +27,7 @@ class DailyRitualScreen extends StatelessWidget {
     this.personalization = const MemberPersonalization(),
     this.useBundledArtwork = true,
     this.assetPackage,
+    this.leonidasVoice = const PlatformLeonidasVoice(),
   });
 
   final VoidCallback onOpenCoven;
@@ -39,6 +40,7 @@ class DailyRitualScreen extends StatelessWidget {
   final MemberPersonalization personalization;
   final bool useBundledArtwork;
   final String? assetPackage;
+  final LeonidasVoice leonidasVoice;
 
   @override
   Widget build(BuildContext context) {
@@ -132,39 +134,27 @@ class DailyRitualScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _CardStage(
-                    colors: colors,
-                    art: controller.state.value!.art,
-                    date: controller.state.value!.date,
-                    mode: controller.state.value!.mode,
-                    concealed:
-                        controller.state.value!.state ==
-                        DailyRitualState.assigned,
+                  LeonidasRitualSequence(
+                    key: ValueKey(
+                      'leonidas-${controller.state.value!.assignmentId}',
+                    ),
+                    ritual: controller.state.value!,
+                    onReveal: () async {
+                      await controller.reveal(waitForHistory: false);
+                      return switch (controller.state.value?.state) {
+                        DailyRitualState.revealed ||
+                        DailyRitualState.completed => true,
+                        _ => false,
+                      };
+                    },
+                    onShowEvidence: () => _showEvidence(context),
+                    voice: leonidasVoice,
                     useBundledArtwork: useBundledArtwork,
                     assetPackage: assetPackage,
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 14),
                   if (controller.state.value!.state ==
                       DailyRitualState.assigned) ...[
-                    Text(
-                      'Your ritual is ready. Reveal it when you have a quiet moment.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      key: const Key('ritual-reveal'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(48, 48),
-                      ),
-                      onPressed:
-                          controller.mutationPhase ==
-                              RitualMutationPhase.committing
-                          ? null
-                          : controller.reveal,
-                      icon: const Icon(Icons.auto_awesome),
-                      label: const Text('Reveal today’s ritual'),
-                    ),
                     if (controller.mutationPhase ==
                             RitualMutationPhase.retryableFailure ||
                         controller.mutationPhase ==
@@ -183,59 +173,6 @@ class DailyRitualScreen extends StatelessWidget {
                       ),
                     ],
                   ] else ...[
-                    Text(
-                      controller.state.value!.title,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.displaySmall,
-                    ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: Text(
-                          controller.state.value!.interpretation,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(fontSize: 14, height: 1.4),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: colors.screen,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: colors.line),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "TODAY'S REFLECTION",
-                                  style: TextStyle(
-                                    color: colors.gold,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  controller.state.value!.guidance,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(height: 1.45),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
                     if (_personalizationLabel(personalization)
                         case final label?) ...[
                       const SizedBox(height: 4),
@@ -246,27 +183,23 @@ class DailyRitualScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                     ],
-                    if (controller.state.value!.evidence.isNotEmpty) ...[
-                      Center(
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 44),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () => _showEvidence(context),
-                          icon: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: colors.positive,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const SizedBox(width: 8, height: 8),
-                          ),
-                          label: Text(controller.state.value!.marketLabel),
+                    if (controller.state.value!.guidance.trim().isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'TONIGHT’S PRACTICE',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: colors.gold,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.4,
                         ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        controller.state.value!.guidance,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
                     if (controller.state.value!.ideas.isNotEmpty) ...[
@@ -290,13 +223,7 @@ class DailyRitualScreen extends StatelessWidget {
                           controller.state.value!.assignmentId,
                         ),
                         personalization: personalization,
-                      )
-                    else
-                      _RowanCounsel(
-                        colors: colors,
-                        counsel: controller.state.value!.rowan,
-                        useBundledArtwork: useBundledArtwork,
-                        assetPackage: assetPackage,
+                        displayName: 'Leonidas',
                       ),
                     if (controller.state.value!.state ==
                         DailyRitualState.revealed) ...[
@@ -392,6 +319,7 @@ class DailyRitualScreen extends StatelessWidget {
                           controller: rowanController!,
                           request: RowanRequest.evidence(ritual.assignmentId),
                           personalization: personalization,
+                          displayName: 'Leonidas',
                         ),
                       ],
                       const SizedBox(height: 16),
@@ -575,125 +503,6 @@ class _Sigil extends StatelessWidget {
           border: Border.all(color: colors.gold),
         ),
         child: Icon(Icons.auto_awesome, color: colors.gold, size: 21),
-      ),
-    );
-  }
-}
-
-class _CardStage extends StatelessWidget {
-  const _CardStage({
-    required this.colors,
-    required this.art,
-    required this.date,
-    required this.mode,
-    required this.concealed,
-    required this.useBundledArtwork,
-    required this.assetPackage,
-  });
-
-  final RitualColors colors;
-  final RitualArt art;
-  final DateTime date;
-  final DailyRitualMode mode;
-  final bool concealed;
-  final bool useBundledArtwork;
-  final String? assetPackage;
-
-  @override
-  Widget build(BuildContext context) {
-    final viewportWidth = MediaQuery.sizeOf(context).width;
-    final artwork = !concealed && useBundledArtwork
-        ? resolveRitualTarotArtwork(art: art, date: date, mode: mode)
-        : null;
-    return SizedBox(
-      height: 296,
-      child: OverflowBox(
-        minWidth: viewportWidth,
-        maxWidth: viewportWidth,
-        minHeight: 296,
-        maxHeight: 296,
-        child: Container(
-          height: 296,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                colors.page,
-                Color.lerp(colors.primarySoft, colors.screenSoft, 0.55)!,
-                colors.screenSoft,
-              ],
-            ),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned(
-                left: 22,
-                right: 22,
-                child: Divider(color: colors.gold.withValues(alpha: 0.62)),
-              ),
-              Semantics(
-                image: true,
-                label: concealed
-                    ? 'Unrevealed ritual card'
-                    : artwork?.alt ?? art.alt,
-                child: ExcludeSemantics(
-                  child: Container(
-                    width: 155,
-                    height: 270,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: colors.gold.withValues(alpha: 0.78),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.22),
-                          blurRadius: 8,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: concealed
-                        ? DecoratedBox(
-                            key: const Key('daily-ritual-card-back'),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(13),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [colors.coven, colors.screenSoft],
-                              ),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.auto_awesome,
-                                color: colors.gold,
-                                size: 42,
-                              ),
-                            ),
-                          )
-                        : artwork != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(13),
-                            child: Image.asset(
-                              artwork.assetPath,
-                              key: const Key('daily-ritual-card-art'),
-                              package: assetPackage,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Icon(
-                            Icons.image_not_supported_outlined,
-                            color: colors.gold,
-                          ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -920,65 +729,6 @@ class _CovenStrip extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _RowanCounsel extends StatelessWidget {
-  const _RowanCounsel({
-    required this.colors,
-    required this.counsel,
-    required this.useBundledArtwork,
-    required this.assetPackage,
-  });
-
-  final RitualColors colors;
-  final RitualCounsel counsel;
-  final bool useBundledArtwork;
-  final String? assetPackage;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: colors.gold),
-          ),
-          child: useBundledArtwork
-              ? ClipOval(
-                  child: Image.asset(
-                    'assets/images/persona-triptych.png',
-                    package: assetPackage,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                  ),
-                )
-              : Icon(Icons.auto_awesome, color: colors.gold),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(fontSize: 13),
-              children: [
-                TextSpan(
-                  text: 'Rowan, your counsel: ',
-                  style: TextStyle(
-                    color: colors.ink,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                TextSpan(text: '“${counsel.body}”'),
-              ],
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -200,17 +200,19 @@ At 200 percent text or narrow widths, let headers and waypoint heights grow and 
 
 ### Daily Ritual Stage
 
-The generated Compass artwork is the dominant object. The order is fixed: date and theme, ritual label, art, interpretation, evidence reveal, constellation, Founders’ Coven, Rowan counsel, Demo limitation. Evidence remains one gesture from the mystical interpretation.
+Leonidas and the assigned card form one mobile cinematic stage. The sequence is fixed: date and theme, ritual label, Leonidas standing, assigned card flip, revealed card, Leonidas close-up, reviewed interpretation, evidence invitation, tonight's practice, constellation, Founders’ Coven, optional bounded counsel, Demo limitation. The close-up begins only after a successful reveal; a failed reveal leaves the card concealed and actionable.
+
+Native speech is optional presentation, never authority. Captions contain the complete reviewed script when speech is unavailable, interrupted, or disabled. Reduced Motion and accessible navigation make the transition immediate without changing order or meaning. Leonidas may speak only server-authorized ritual title, interpretation, counsel, and risk footer. Evidence remains one gesture from the interpretation, and no romance, character affinity, urgency, or animation may cross into a financial action.
 
 ## 6. Do's and Don'ts
 
 ### Do:
 
-- **Do** use the preserved Compass and Rowan assets as visual-fidelity anchors.
+- **Do** use the preserved Compass, Leonidas, and bounded Rowan assets as visual-fidelity anchors for their assigned surfaces.
 - **Do** keep factual observations, timestamp, uncertainty, and Demo status adjacent to every investment idea.
 - **Do** preserve system back gestures, safe areas, text scaling, VoiceOver, TalkBack, and reduced-motion behavior.
 - **Do** distinguish founder, owner, and chief-executive inclusion categories with a visible verification date.
-- **Do** let Rowan explain evidence and uncertainty while leaving the decision with the user.
+- **Do** let Leonidas explain Daily Ritual evidence and uncertainty while leaving the decision with the user; keep other Rowan surfaces bounded to their reviewed context.
 - **Do** keep Starpath mythic copy visually and semantically separate from its factual source, dates, limitations, and risk context.
 
 ### Don't:

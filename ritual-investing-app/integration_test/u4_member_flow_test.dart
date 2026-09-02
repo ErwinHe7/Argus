@@ -9,6 +9,7 @@ import 'package:ritual_investing_app/core/api/ritual_api.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/features/asset_codex/application/controller.dart';
 import 'package:ritual_investing_app/features/asset_codex/presentation/asset_codex_screen.dart';
+import 'package:ritual_investing_app/features/ritual/application/leonidas_voice.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_screen.dart';
 
@@ -28,9 +29,14 @@ void main() {
 
       await tester.pumpWidget(_U4FlowApp(harness: harness));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('ritual-reveal')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-sequence-start')), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('ritual-reveal')));
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('leonidas-sequence-start')),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
       await tester.pumpAndSettle();
       expect(find.text('Direction, not urgency.'), findsOneWidget);
       expect(
@@ -38,7 +44,9 @@ void main() {
         DailyRitualState.revealed,
       );
 
-      await tester.tap(find.text('Market-informed Demo evidence'));
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('leonidas-evidence')));
       await tester.pumpAndSettle();
       expect(find.textContaining('Demo Research Desk'), findsOneWidget);
       expect(
@@ -250,6 +258,7 @@ class _U4FlowAppState extends State<_U4FlowApp> {
               controller: widget.harness.ritualController,
               onOpenCoven: () {},
               onToggleTheme: () {},
+              leonidasVoice: const _ImmediateLeonidasVoice(),
               onOpenAsset: (id) {
                 final controller = widget.harness.assetController(assetId: id);
                 setState(() => _assetController = controller);
@@ -263,4 +272,14 @@ class _U4FlowAppState extends State<_U4FlowApp> {
             ),
           ),
   );
+}
+
+class _ImmediateLeonidasVoice implements LeonidasVoice {
+  const _ImmediateLeonidasVoice();
+
+  @override
+  Future<bool> speak(String text) async => true;
+
+  @override
+  Future<void> stop() async {}
 }

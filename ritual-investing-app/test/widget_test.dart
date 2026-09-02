@@ -19,8 +19,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Market-informed · reveal the pattern'), findsOneWidget);
+    expect(find.text('MARKET-INFORMED · REVEAL THE PATTERN'), findsOneWidget);
     expect(find.text('VIG'), findsOneWidget);
+
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Founders’ Coven'), findsOneWidget);
 
     await tester.scrollUntilVisible(
@@ -30,7 +36,17 @@ void main() {
     );
     expect(find.textContaining('Demo market scenario'), findsOneWidget);
 
-    await tester.tap(find.text('Market-informed · reveal the pattern'));
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, 1000),
+    );
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byType(CustomScrollView).first,
+      const Offset(0, -250),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('leonidas-evidence')));
     await tester.pumpAndSettle();
     expect(find.text('Durable dividend momentum'), findsOneWidget);
     expect(

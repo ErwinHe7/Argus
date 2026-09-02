@@ -6,7 +6,7 @@ Where should Leonidas enter the Daily Ritual, and when should his spoken interpr
 
 ## Prototype
 
-- Comparison surface: `screens/001-comparison.html`
+- Comparison surface: `index.html`
 - Tested in a portrait 390 × 844 mobile stage.
 - Used real CSS motion, a browser-synthesized placeholder voice, captions, and an evidence sheet.
 
@@ -36,9 +36,9 @@ Direction C's progressive disclosure may still inform the evidence treatment, bu
 - Keep captions complete when voice is unavailable or disabled.
 - Keep evidence, uncertainty, and the non-recommendation boundary explicit.
 
-## Open production items
+## Production status
 
-- Final Leonidas voice casting and speech system.
-- Production-grade transition timing and motion assets.
-- Mapping reviewed Daily Ritual output into the spoken script.
-- Accessibility behavior for reduced motion, VoiceOver/TalkBack, and interrupted audio.
+- Implemented in Flutter with the selected standing → flip → close-up order.
+- Reviewed Daily Ritual output is mapped into native iOS/Android speech with complete captions as fallback.
+- Reduced Motion, VoiceOver/TalkBack semantics, interrupted audio, and fail-closed reveal behavior are implemented and covered by focused tests.
+- Final Leonidas voice casting remains a production content decision; the native system voice is the current delivery mechanism.

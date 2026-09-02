@@ -6,6 +6,7 @@ import 'package:ritual_investing_app/core/api/view_state.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
+import 'package:ritual_investing_app/features/ritual/application/leonidas_voice.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_screen.dart';
@@ -22,6 +23,7 @@ void main() {
   testWidgets('assigned ritual conceals its artwork until reveal succeeds', (
     tester,
   ) async {
+    _setReducedMotionPhoneViewport(tester);
     final controller = DailyRitualController(
       repository: DailyRitualRepository(
         service: _RitualService(state: DailyRitualState.assigned),
@@ -33,7 +35,11 @@ void main() {
       MaterialApp(
         theme: AppTheme.light,
         home: Scaffold(
-          body: DailyRitualScreen(controller: controller, onOpenCoven: () {}),
+          body: DailyRitualScreen(
+            controller: controller,
+            onOpenCoven: () {},
+            leonidasVoice: const _ImmediateLeonidasVoice(),
+          ),
         ),
       ),
     );
@@ -48,7 +54,12 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.byKey(const Key('ritual-reveal')));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('leonidas-sequence-start')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
     await tester.pumpAndSettle();
 
     expect(find.bySemanticsLabel('Unrevealed ritual card'), findsNothing);
@@ -64,6 +75,7 @@ void main() {
   testWidgets('failed reveal remains actionable and announces the failure', (
     tester,
   ) async {
+    _setReducedMotionPhoneViewport(tester);
     final controller = DailyRitualController(
       repository: DailyRitualRepository(
         service: _RitualService(
@@ -78,24 +90,34 @@ void main() {
       MaterialApp(
         theme: AppTheme.light,
         home: Scaffold(
-          body: DailyRitualScreen(controller: controller, onOpenCoven: () {}),
+          body: DailyRitualScreen(
+            controller: controller,
+            onOpenCoven: () {},
+            leonidasVoice: const _ImmediateLeonidasVoice(),
+          ),
         ),
       ),
     );
 
-    await tester.tap(find.byKey(const Key('ritual-reveal')));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('leonidas-sequence-start')),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
     await tester.pumpAndSettle();
 
     expect(
       find.text('This ritual could not be updated. Refresh and try again.'),
       findsOneWidget,
     );
-    expect(find.byKey(const Key('ritual-reveal')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-sequence-start')), findsOneWidget);
   });
 
   testWidgets('production ritual shows only content for the drawn card', (
     tester,
   ) async {
+    _setReducedMotionPhoneViewport(tester);
     final ritual = _deathRitual();
     final controller = DailyRitualController(
       repository: DailyRitualRepository(
@@ -116,6 +138,8 @@ void main() {
 
     expect(find.text('Death'), findsOneWidget);
     expect(find.text(ritual.interpretation), findsOneWidget);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -720));
+    await tester.pumpAndSettle();
     expect(find.text(ritual.guidance), findsOneWidget);
     expect(
       find.bySemanticsLabel(
@@ -135,6 +159,7 @@ void main() {
   testWidgets(
     'daily ritual renders the explicitly assigned Major Arcana artwork',
     (tester) async {
+      _setReducedMotionPhoneViewport(tester);
       final controller = DailyRitualController(
         repository: DailyRitualRepository(
           service: _RitualService(),
@@ -161,29 +186,33 @@ void main() {
       final image = tester.widget<Image>(
         find.byKey(const Key('daily-ritual-card-art')),
       );
-      final provider = image.image as AssetImage;
+      final provider = image.image;
+      final assetProvider = provider is ResizeImage
+          ? provider.imageProvider as AssetImage
+          : provider as AssetImage;
       expect(
-        provider.assetName,
+        assetProvider.assetName,
         'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
       );
-      expect(provider.package, isNull);
+      expect(assetProvider.package, isNull);
       expect(
-        provider.keyName,
+        assetProvider.keyName,
         'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
       );
-      final artworkBytes = await rootBundle.load(provider.keyName);
+      final artworkBytes = await rootBundle.load(assetProvider.keyName);
       expect(artworkBytes.lengthInBytes, greaterThan(100000));
       final renderedSize = tester.getSize(
-        find.byKey(const Key('daily-ritual-card-art')),
+        find.byKey(const Key('leonidas-card-front')),
       );
-      expect(renderedSize.height, greaterThan(260));
-      expect(renderedSize.aspectRatio, closeTo(950 / 1655, 0.01));
+      expect(renderedSize.height, greaterThan(250));
+      expect(renderedSize.aspectRatio, closeTo(150 / 262, 0.02));
     },
   );
 
   testWidgets(
     'evidence opens while loading, retries live, and uses evidence Rowan context',
     (tester) async {
+      _setReducedMotionPhoneViewport(tester);
       final service = _RitualService(evidenceFailures: 1, hasEvidence: true);
       final ritual = DailyRitualController(
         repository: DailyRitualRepository(
@@ -216,12 +245,9 @@ void main() {
         ),
       );
 
-      await tester.scrollUntilVisible(
-        find.text('Market-informed Demo evidence'),
-        250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('Market-informed Demo evidence'));
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -300));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('leonidas-evidence')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('ritual-evidence-sheet')), findsOneWidget);
       expect(find.byKey(const Key('state-retryableFailure')), findsOneWidget);
@@ -331,6 +357,29 @@ void main() {
 
 const _assignmentId = '00000000-0000-4000-8000-000000000501';
 const _assetId = '00000000-0000-4000-8000-000000000502';
+
+void _setReducedMotionPhoneViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  tester.platformDispatcher.accessibilityFeaturesTestValue =
+      const FakeAccessibilityFeatures(
+        accessibleNavigation: true,
+        disableAnimations: true,
+      );
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.platformDispatcher.clearAllTestValues);
+}
+
+class _ImmediateLeonidasVoice implements LeonidasVoice {
+  const _ImmediateLeonidasVoice();
+
+  @override
+  Future<bool> speak(String text) async => true;
+
+  @override
+  Future<void> stop() async {}
+}
 
 class _RitualService implements DailyRitualService {
   _RitualService({

@@ -1,5 +1,7 @@
 // ignore_for_file: prefer_initializing_formals
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../../../core/api/view_state.dart';
@@ -22,6 +24,7 @@ class DailyRitualController extends ChangeNotifier {
   );
   RitualMutationPhase _mutationPhase = RitualMutationPhase.idle;
   Future<void>? _activeTransition;
+  int _historyRequestId = 0;
 
   ViewState<DailyRitual> get state => _state;
   ViewState<List<RitualEvidenceDetail>> get evidenceState => _evidenceState;
@@ -66,25 +69,30 @@ class DailyRitualController extends ChangeNotifier {
   }
 
   Future<void> loadHistory() async {
+    final requestId = ++_historyRequestId;
     _historyState = const ViewState(phase: LoadPhase.loading);
     notifyListeners();
     try {
       final value = await _repository.loadHistory();
+      if (requestId != _historyRequestId) return;
       _historyState = ViewState(
         phase: value.items.isEmpty ? LoadPhase.empty : LoadPhase.ready,
         value: value,
       );
     } on OfflineException {
+      if (requestId != _historyRequestId) return;
       _historyState = const ViewState(phase: LoadPhase.retryableFailure);
     } on LoadFailure catch (failure) {
+      if (requestId != _historyRequestId) return;
       _historyState = ViewState(phase: failure.phase);
     }
     notifyListeners();
   }
 
-  Future<void> reveal() => _runTransition(
+  Future<void> reveal({bool waitForHistory = true}) => _runTransition(
     allowed: (value) => value.state == DailyRitualState.assigned,
     action: _repository.reveal,
+    waitForHistory: waitForHistory,
   );
 
   Future<void> complete() => _runTransition(
@@ -95,12 +103,17 @@ class DailyRitualController extends ChangeNotifier {
   Future<void> _runTransition({
     required bool Function(DailyRitual) allowed,
     required Future<RitualTransitionResult> Function(DailyRitual) action,
+    bool waitForHistory = true,
   }) {
     final active = _activeTransition;
     if (active != null) return active;
     final current = _state.value;
     if (current == null || !allowed(current)) return Future.value();
-    final future = _performTransition(current, action);
+    final future = _performTransition(
+      current,
+      action,
+      waitForHistory: waitForHistory,
+    );
     _activeTransition = future;
     return future.whenComplete(() {
       if (identical(_activeTransition, future)) _activeTransition = null;
@@ -109,8 +122,9 @@ class DailyRitualController extends ChangeNotifier {
 
   Future<void> _performTransition(
     DailyRitual current,
-    Future<RitualTransitionResult> Function(DailyRitual) action,
-  ) async {
+    Future<RitualTransitionResult> Function(DailyRitual) action, {
+    required bool waitForHistory,
+  }) async {
     _mutationPhase = RitualMutationPhase.committing;
     notifyListeners();
     try {
@@ -119,7 +133,11 @@ class DailyRitualController extends ChangeNotifier {
       _mutationPhase = result.reconciled
           ? RitualMutationPhase.reconciled
           : RitualMutationPhase.committed;
-      await loadHistory();
+      if (waitForHistory) {
+        await loadHistory();
+      } else {
+        unawaited(loadHistory());
+      }
     } on OfflineException {
       _mutationPhase = RitualMutationPhase.retryableFailure;
       notifyListeners();

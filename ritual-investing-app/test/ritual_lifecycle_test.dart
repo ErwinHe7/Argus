@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
@@ -58,6 +60,54 @@ void main() {
     },
   );
 
+  test('successful reveal does not wait for ritual history refresh', () async {
+    final history = Completer<RitualHistoryPage>();
+    final service = _LifecycleService(historyGate: history);
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+
+    await controller.load();
+    await controller.reveal(waitForHistory: false);
+
+    expect(controller.state.value?.state, DailyRitualState.revealed);
+    expect(controller.historyState.phase, LoadPhase.loading);
+
+    history.complete(service.historyPage);
+    await Future<void>.delayed(Duration.zero);
+    expect(controller.historyState.phase, LoadPhase.ready);
+  });
+
+  test('a late reveal history response cannot replace completed history', () async {
+    final service = _OutOfOrderHistoryService();
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+
+    await controller.load();
+    await controller.reveal(waitForHistory: false);
+    final completion = controller.complete();
+    await Future<void>.delayed(Duration.zero);
+
+    service.completeHistory.complete(
+      service.pageFor(DailyRitualState.completed),
+    );
+    await completion;
+    service.revealHistory.complete(service.pageFor(DailyRitualState.revealed));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(
+      controller.historyState.value?.items.single.state,
+      DailyRitualState.completed,
+    );
+  });
+
   test(
     'evidence loads complete source context independently of interpretation',
     () async {
@@ -82,9 +132,10 @@ void main() {
 }
 
 class _LifecycleService implements DailyRitualService {
-  _LifecycleService({this.failRevealAfterCommit = false});
+  _LifecycleService({this.failRevealAfterCommit = false, this.historyGate});
 
   final bool failRevealAfterCommit;
+  final Completer<RitualHistoryPage>? historyGate;
   DailyRitual current = _ritual(DailyRitualState.assigned, 1);
   final List<int> revealVersions = [];
   final List<int> completeVersions = [];
@@ -117,13 +168,15 @@ class _LifecycleService implements DailyRitualService {
         ),
       ];
 
+  RitualHistoryPage get historyPage => RitualHistoryPage(
+    items: [RitualHistoryEntry.fromRitual(current)],
+    nextCursor: null,
+    hasMore: false,
+  );
+
   @override
   Future<RitualHistoryPage> fetchHistory({String? cursor}) async =>
-      RitualHistoryPage(
-        items: [RitualHistoryEntry.fromRitual(current)],
-        nextCursor: null,
-        hasMore: false,
-      );
+      historyGate?.future ?? historyPage;
 
   @override
   Future<DailyRitual> reveal(String assignmentId, int version) async {
@@ -139,6 +192,26 @@ class _LifecycleService implements DailyRitualService {
     current = _ritual(DailyRitualState.completed, version + 1);
     return current;
   }
+}
+
+class _OutOfOrderHistoryService extends _LifecycleService {
+  final Completer<RitualHistoryPage> revealHistory = Completer();
+  final Completer<RitualHistoryPage> completeHistory = Completer();
+  var _historyRequestCount = 0;
+
+  @override
+  Future<RitualHistoryPage> fetchHistory({String? cursor}) {
+    _historyRequestCount += 1;
+    return _historyRequestCount == 1
+        ? revealHistory.future
+        : completeHistory.future;
+  }
+
+  RitualHistoryPage pageFor(DailyRitualState state) => RitualHistoryPage(
+    items: [RitualHistoryEntry.fromRitual(_ritual(state, current.version))],
+    nextCursor: null,
+    hasMore: false,
+  );
 }
 
 DailyRitual _ritual(DailyRitualState state, int version) => DailyRitual(
