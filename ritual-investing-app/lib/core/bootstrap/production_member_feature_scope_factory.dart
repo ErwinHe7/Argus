@@ -198,6 +198,11 @@ class ProductionMemberFeatureScopeFactory {
         repository: DailyRitualRepository(
           service: GeneratedRitualApiService(client),
           cache: scopedCache,
+          scope: scope,
+          effectiveMode: dailyRitualModeFor(
+            bootstrap.personalization.ritualMode,
+          ),
+          now: now,
         ),
       ),
       starpathController: StarpathController(

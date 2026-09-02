@@ -1,12 +1,33 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:ritual_investing_app/core/api/view_state.dart' show LoadFailure;
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 
 void main() {
+  test(
+    'loading a daily assignment is read-only until an explicit transition',
+    () async {
+      final service = _LifecycleService();
+      final controller = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: service,
+          cache: MemoryReadCache(),
+        ),
+      );
+
+      await controller.load();
+
+      expect(service.dailyReads, 1);
+      expect(service.revealVersions, isEmpty);
+      expect(service.completeVersions, isEmpty);
+      expect(controller.state.value?.state, DailyRitualState.assigned);
+    },
+  );
+
   test(
     'reveal and complete each send one current version and refresh history',
     () async {
@@ -20,6 +41,7 @@ void main() {
 
       await controller.load();
       await Future.wait([controller.reveal(), controller.reveal()]);
+      await Future<void>.delayed(Duration.zero);
 
       expect(service.revealVersions, [1]);
       expect(controller.state.value?.state, DailyRitualState.revealed);
@@ -29,6 +51,7 @@ void main() {
       );
 
       await Future.wait([controller.complete(), controller.complete()]);
+      await Future<void>.delayed(Duration.zero);
 
       expect(service.completeVersions, [2]);
       expect(controller.state.value?.state, DailyRitualState.completed);
@@ -51,14 +74,152 @@ void main() {
       );
 
       await controller.load();
-      await controller.reveal();
+      final outcome = await controller.reveal();
 
       expect(service.revealVersions, [1]);
       expect(service.assignmentReads, 1);
       expect(controller.state.value?.state, DailyRitualState.revealed);
       expect(controller.mutationPhase, RitualMutationPhase.reconciled);
+      expect(
+        outcome?.disposition,
+        RitualOperationDisposition.reconciledToTarget,
+      );
     },
   );
+
+  test(
+    'malformed post-dispatch reveal reconciles before reporting its outcome',
+    () async {
+      final service = _LifecycleService(
+        revealFailureAfterCommit: const FormatException(
+          'malformed authoritative response',
+        ),
+      );
+      final controller = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: service,
+          cache: MemoryReadCache(),
+        ),
+      );
+
+      await controller.load();
+      final outcome = await controller.reveal();
+
+      expect(service.revealVersions, [1]);
+      expect(service.assignmentReads, 1);
+      expect(controller.state.value?.state, DailyRitualState.revealed);
+      expect(controller.mutationPhase, RitualMutationPhase.reconciled);
+      expect(
+        outcome?.disposition,
+        RitualOperationDisposition.reconciledToTarget,
+      );
+    },
+  );
+
+  test(
+    'transport timeout and conflict reconcile an accepted reveal once',
+    () async {
+      for (final failure in <Object>[
+        const _TransportTimeout(),
+        const LoadFailure(LoadPhase.conflict),
+      ]) {
+        final service = _LifecycleService(revealFailureAfterCommit: failure);
+        final controller = DailyRitualController(
+          repository: DailyRitualRepository(
+            service: service,
+            cache: MemoryReadCache(),
+          ),
+        );
+
+        await controller.load();
+        final outcome = await controller.reveal();
+
+        expect(service.revealVersions, [1], reason: '$failure');
+        expect(service.assignmentReads, 1, reason: '$failure');
+        expect(
+          controller.state.value?.state,
+          DailyRitualState.revealed,
+          reason: '$failure',
+        );
+        expect(
+          controller.mutationPhase,
+          RitualMutationPhase.reconciled,
+          reason: '$failure',
+        );
+        expect(
+          outcome?.disposition,
+          RitualOperationDisposition.reconciledToTarget,
+          reason: '$failure',
+        );
+      }
+    },
+  );
+
+  test('a wrong-lineage transition response is reconciled', () async {
+    final service = _LifecycleService(revealReturnsWrongAssignment: true);
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+
+    await controller.load();
+    final outcome = await controller.reveal();
+
+    expect(service.revealVersions, [1]);
+    expect(service.assignmentReads, 1);
+    expect(controller.state.value?.assignmentId, _assignmentId);
+    expect(controller.state.value?.state, DailyRitualState.revealed);
+    expect(outcome?.disposition, RitualOperationDisposition.reconciledToTarget);
+  });
+
+  test('terminal reveal rejection neither mutates nor reconciles', () async {
+    final service = _LifecycleService(
+      revealFailureBeforeCommit: const LoadFailure(LoadPhase.forbidden),
+    );
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+
+    await controller.load();
+    final outcome = await controller.reveal();
+
+    expect(service.revealVersions, [1]);
+    expect(service.assignmentReads, 0);
+    expect(controller.state.value?.state, DailyRitualState.assigned);
+    expect(controller.mutationPhase, RitualMutationPhase.terminalFailure);
+    expect(outcome?.disposition, RitualOperationDisposition.provenNotReached);
+  });
+
+  test('unavailable reconciliation disables blind mutation replay', () async {
+    final service = _LifecycleService(
+      revealFailureAfterCommit: const FormatException('malformed response'),
+      assignmentFailure: const OfflineException(),
+    );
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+
+    await controller.load();
+    final outcome = await controller.reveal();
+    final replay = await controller.reveal();
+
+    expect(
+      outcome?.disposition,
+      RitualOperationDisposition.authorityUnavailable,
+    );
+    expect(controller.state.value?.state, DailyRitualState.assigned);
+    expect(controller.mutationAuthorityEnabled, isFalse);
+    expect(replay, isNull);
+    expect(service.revealVersions, [1]);
+  });
 
   test('successful reveal does not wait for ritual history refresh', () async {
     final history = Completer<RitualHistoryPage>();
@@ -81,32 +242,37 @@ void main() {
     expect(controller.historyState.phase, LoadPhase.ready);
   });
 
-  test('a late reveal history response cannot replace completed history', () async {
-    final service = _OutOfOrderHistoryService();
-    final controller = DailyRitualController(
-      repository: DailyRitualRepository(
-        service: service,
-        cache: MemoryReadCache(),
-      ),
-    );
+  test(
+    'a late reveal history response cannot replace completed history',
+    () async {
+      final service = _OutOfOrderHistoryService();
+      final controller = DailyRitualController(
+        repository: DailyRitualRepository(
+          service: service,
+          cache: MemoryReadCache(),
+        ),
+      );
 
-    await controller.load();
-    await controller.reveal(waitForHistory: false);
-    final completion = controller.complete();
-    await Future<void>.delayed(Duration.zero);
+      await controller.load();
+      await controller.reveal(waitForHistory: false);
+      final completion = controller.complete();
+      await Future<void>.delayed(Duration.zero);
 
-    service.completeHistory.complete(
-      service.pageFor(DailyRitualState.completed),
-    );
-    await completion;
-    service.revealHistory.complete(service.pageFor(DailyRitualState.revealed));
-    await Future<void>.delayed(Duration.zero);
+      service.completeHistory.complete(
+        service.pageFor(DailyRitualState.completed),
+      );
+      await completion;
+      service.revealHistory.complete(
+        service.pageFor(DailyRitualState.revealed),
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    expect(
-      controller.historyState.value?.items.single.state,
-      DailyRitualState.completed,
-    );
-  });
+      expect(
+        controller.historyState.value?.items.single.state,
+        DailyRitualState.completed,
+      );
+    },
+  );
 
   test(
     'evidence loads complete source context independently of interpretation',
@@ -131,22 +297,43 @@ void main() {
   );
 }
 
+class _TransportTimeout extends OfflineException {
+  const _TransportTimeout();
+}
+
 class _LifecycleService implements DailyRitualService {
-  _LifecycleService({this.failRevealAfterCommit = false, this.historyGate});
+  _LifecycleService({
+    this.failRevealAfterCommit = false,
+    this.revealFailureBeforeCommit,
+    this.revealFailureAfterCommit,
+    this.revealReturnsWrongAssignment = false,
+    this.assignmentFailure,
+    this.historyGate,
+  });
 
   final bool failRevealAfterCommit;
+  final Object? revealFailureBeforeCommit;
+  final Object? revealFailureAfterCommit;
+  final bool revealReturnsWrongAssignment;
+  final Object? assignmentFailure;
   final Completer<RitualHistoryPage>? historyGate;
   DailyRitual current = _ritual(DailyRitualState.assigned, 1);
   final List<int> revealVersions = [];
   final List<int> completeVersions = [];
+  int dailyReads = 0;
   int assignmentReads = 0;
 
   @override
-  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async => current;
+  Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async {
+    dailyReads += 1;
+    return current;
+  }
 
   @override
   Future<DailyRitual> fetchAssignment(String assignmentId) async {
     assignmentReads += 1;
+    final failure = assignmentFailure;
+    if (failure != null) throw failure;
     return current;
   }
 
@@ -181,8 +368,19 @@ class _LifecycleService implements DailyRitualService {
   @override
   Future<DailyRitual> reveal(String assignmentId, int version) async {
     revealVersions.add(version);
+    final failureBeforeCommit = revealFailureBeforeCommit;
+    if (failureBeforeCommit != null) throw failureBeforeCommit;
     current = _ritual(DailyRitualState.revealed, version + 1);
+    final failureAfterCommit = revealFailureAfterCommit;
+    if (failureAfterCommit != null) throw failureAfterCommit;
     if (failRevealAfterCommit) throw const RitualAmbiguousMutation();
+    if (revealReturnsWrongAssignment) {
+      return _ritual(
+        DailyRitualState.revealed,
+        version + 1,
+        assignmentId: '00000000-0000-4000-8000-000000000999',
+      );
+    }
     return current;
   }
 
@@ -214,8 +412,14 @@ class _OutOfOrderHistoryService extends _LifecycleService {
   );
 }
 
-DailyRitual _ritual(DailyRitualState state, int version) => DailyRitual(
-  assignmentId: '00000000-0000-4000-8000-000000000101',
+const _assignmentId = '00000000-0000-4000-8000-000000000101';
+
+DailyRitual _ritual(
+  DailyRitualState state,
+  int version, {
+  String assignmentId = _assignmentId,
+}) => DailyRitual(
+  assignmentId: assignmentId,
   date: DateTime.utc(2026, 8, 25),
   mode: DailyRitualMode.tarot,
   revision: const RitualRevision(

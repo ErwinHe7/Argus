@@ -385,22 +385,24 @@ class _RitualService implements DailyRitualService {
   _RitualService({
     this.evidenceFailures = 0,
     this.state = DailyRitualState.completed,
+    this.version = 3,
     this.failReveal = false,
     this.hasEvidence = false,
   });
 
   int evidenceFailures;
   DailyRitualState state;
+  int version;
   final bool failReveal;
   final bool hasEvidence;
 
   @override
   Future<DailyRitual> fetchDaily({DailyRitualMode? mode}) async =>
-      _ritual(state: state, hasEvidence: hasEvidence);
+      _ritual(state: state, version: version, hasEvidence: hasEvidence);
 
   @override
   Future<DailyRitual> fetchAssignment(String assignmentId) async =>
-      _ritual(state: state, hasEvidence: hasEvidence);
+      _ritual(state: state, version: version, hasEvidence: hasEvidence);
 
   @override
   Future<List<RitualEvidenceDetail>> fetchEvidence(String assignmentId) async {
@@ -430,7 +432,7 @@ class _RitualService implements DailyRitualService {
       RitualHistoryPage(
         items: [
           RitualHistoryEntry.fromRitual(
-            _ritual(state: state, hasEvidence: hasEvidence),
+            _ritual(state: state, version: version, hasEvidence: hasEvidence),
           ),
         ],
         nextCursor: null,
@@ -438,23 +440,26 @@ class _RitualService implements DailyRitualService {
       );
 
   @override
-  Future<DailyRitual> reveal(String assignmentId, int version) async {
+  Future<DailyRitual> reveal(String assignmentId, int expectedVersion) async {
     if (failReveal) {
       throw const LoadFailure(LoadPhase.terminalFailure);
     }
     state = DailyRitualState.revealed;
-    return _ritual(state: state, hasEvidence: hasEvidence);
+    version = expectedVersion + 1;
+    return _ritual(state: state, version: version, hasEvidence: hasEvidence);
   }
 
   @override
-  Future<DailyRitual> complete(String assignmentId, int version) async {
+  Future<DailyRitual> complete(String assignmentId, int expectedVersion) async {
     state = DailyRitualState.completed;
-    return _ritual(state: state, hasEvidence: hasEvidence);
+    version = expectedVersion + 1;
+    return _ritual(state: state, version: version, hasEvidence: hasEvidence);
   }
 }
 
 class _SingleRitualService extends _RitualService {
-  _SingleRitualService(this.ritual) : super(state: ritual.state);
+  _SingleRitualService(this.ritual)
+    : super(state: ritual.state, version: ritual.version);
 
   final DailyRitual ritual;
 
@@ -498,6 +503,7 @@ class _SearchService implements SearchService {
 
 DailyRitual _ritual({
   DailyRitualState state = DailyRitualState.completed,
+  int version = 3,
   bool hasEvidence = false,
 }) => DailyRitual(
   assignmentId: _assignmentId,
@@ -541,7 +547,7 @@ DailyRitual _ritual({
     body: 'Notice without rushing.',
     riskFooter: 'Demo counsel; not advice.',
   ),
-  version: 3,
+  version: version,
   state: state,
   revealedAt: state == DailyRitualState.assigned
       ? null
