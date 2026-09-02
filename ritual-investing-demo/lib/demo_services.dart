@@ -45,6 +45,20 @@ class DemoServices {
       serverTime: _demoDate,
       contractVersion: 'demo-v2',
       themePreference: MemberThemePreference.light,
+      branchCapabilities: MemberNavigationCapabilities(
+        schemaVersion: 'member-branch-capabilities-v1',
+        capabilityVersion: 1,
+        environment: MemberReleaseEnvironment.beta,
+        evaluatedAt: _demoDate.subtract(const Duration(minutes: 1)),
+        expiresAt: _demoDate.add(const Duration(days: 1)),
+        enabled: const {
+          MemberBranchCapability.ritual,
+          MemberBranchCapability.starpath,
+          MemberBranchCapability.discover,
+          MemberBranchCapability.coven,
+          MemberBranchCapability.you,
+        },
+      ),
       personalization: const MemberPersonalization(
         explanationDepth: MemberExplanationDepth.guided,
         ritualVoice: MemberRitualVoice.mystical,
