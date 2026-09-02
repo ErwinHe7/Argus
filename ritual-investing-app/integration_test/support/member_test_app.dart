@@ -503,6 +503,8 @@ final _dailyRitualResponse = DailyRitualResponse(
     deletionEpoch: 0,
     id: '00000000-0000-4000-8000-000000000021',
     localDate: DateTime.utc(2026, 8, 25),
+    serverEvaluatedAt: DateTime.utc(2026, 8, 25, 12),
+    validUntil: DateTime.utc(2026, 8, 26, 4),
     mode: DailyRitualAssignmentModeEnum.tarot,
     payload: {
       'title': 'Direction, not urgency.',

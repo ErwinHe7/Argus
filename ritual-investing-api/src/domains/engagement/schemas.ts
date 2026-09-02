@@ -74,6 +74,8 @@ export const ritualAssignmentSchema = z.object({
   user_id: uuidSchema,
   deletion_epoch: z.coerce.number().int().nonnegative(),
   local_date: z.string().date(),
+  server_evaluated_at: z.string().datetime({ offset: true }),
+  valid_until: z.string().datetime({ offset: true }),
   mode: z.enum(["tarot", "astrology"]),
   schedule_id: uuidSchema,
   revision_id: uuidSchema,

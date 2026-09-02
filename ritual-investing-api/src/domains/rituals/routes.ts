@@ -97,7 +97,14 @@ export function registerRitualRoutes(
   const transitionBody = z.object({
     from: z.enum(["assigned", "revealed"]),
     to: z.enum(["revealed", "completed"]),
-  }).strict();
+  }).strict().refine(
+    (value) =>
+      (value.from === "assigned" && value.to === "revealed") ||
+      (value.from === "revealed" && value.to === "completed"),
+    { message: "Only assigned to revealed or revealed to completed is valid." },
+  ).describe(
+    "Only adjacent lifecycle edges are accepted: assigned to revealed or revealed to completed.",
+  );
   const transition = retainedRoute(
     "post",
     "/v1/rituals/{assignment_id}/transition",

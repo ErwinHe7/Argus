@@ -553,6 +553,8 @@ class U4HttpHarness {
     deletionEpoch: 0,
     id: u4AssignmentId,
     localDate: DateTime.utc(2026, 8, 25),
+    serverEvaluatedAt: DateTime.utc(2026, 8, 25, 12),
+    validUntil: DateTime.utc(2026, 8, 26, 4),
     mode: api.DailyRitualAssignmentModeEnum.tarot,
     payload: {
       'title': 'Direction, not urgency.',

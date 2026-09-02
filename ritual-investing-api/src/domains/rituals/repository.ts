@@ -23,9 +23,21 @@ export function createSupabaseRitualRepository(
                     'payload',document.document,
                     'body_template',rowan.body_template,
                     'allowed_tokens',rowan.allowed_tokens,
-                    'risk_footer',rowan.risk_footer
+                    'risk_footer',rowan.risk_footer,
+                    'server_evaluated_at',current_timestamp,
+                    'valid_until',(
+                      (assignment.local_date + 1)::timestamp
+                        at time zone preferences.timezone
+                    )
                   ) as projection
              from argus_app.daily_ritual_assignments assignment
+             join argus_app.members member
+               on member.user_id=assignment.user_id
+              and member.deletion_epoch=assignment.deletion_epoch
+              and member.status='active'
+             join argus_app.preferences preferences
+               on preferences.user_id=member.user_id
+              and preferences.deletion_epoch=member.deletion_epoch
              join argus_app.editorial_revisions revision
                on revision.id = assignment.revision_id
              join argus_app.editorial_render_documents document
@@ -124,16 +136,35 @@ export function createSupabaseRitualRepository(
       expectedVersion: number,
     ) => {
       const result = await database.query<{ id: string }>(
-        `update argus_app.daily_ritual_assignments
+        `update argus_app.daily_ritual_assignments assignment
               set state = $3,
                   revealed_at = case when $3 = 'revealed'
-                    then coalesce(revealed_at, clock_timestamp()) else revealed_at end,
+                    then coalesce(assignment.revealed_at, clock_timestamp())
+                    else assignment.revealed_at end,
                   completed_at = case when $3 = 'completed'
-                    then coalesce(completed_at, clock_timestamp()) else completed_at end,
-                  version = version + 1
-            where user_id = argus_private.trusted_request_user_id() and id = $1 and state = $2
-              and version = $4
-          returning id`,
+                    then coalesce(assignment.completed_at, clock_timestamp())
+                    else assignment.completed_at end,
+                  version = assignment.version + 1
+             from argus_app.members member
+             join argus_app.preferences preferences
+               on preferences.user_id=member.user_id
+              and preferences.deletion_epoch=member.deletion_epoch
+            where assignment.user_id=argus_private.trusted_request_user_id()
+              and assignment.id=$1
+              and assignment.state=$2
+              and assignment.version=$4
+              and member.user_id=assignment.user_id
+              and member.status='active'
+              and assignment.deletion_epoch=member.deletion_epoch
+              and assignment.local_date=(
+                current_timestamp at time zone preferences.timezone
+              )::date
+              and assignment.mode=preferences.ritual_mode
+              and (
+                ($2='assigned' and $3='revealed')
+                or ($2='revealed' and $3='completed')
+              )
+          returning assignment.id`,
         [assignmentId, from, to, expectedVersion],
       );
       if (result.rows.length !== 1) {

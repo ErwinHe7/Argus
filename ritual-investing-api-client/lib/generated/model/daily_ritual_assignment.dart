@@ -44,9 +44,13 @@ class DailyRitualAssignment {
 
     required this.scheduleId,
 
+    required this.serverEvaluatedAt,
+
     required this.state,
 
     required this.userId,
+
+    required this.validUntil,
 
     required this.version,
   });
@@ -96,6 +100,9 @@ class DailyRitualAssignment {
   @JsonKey(name: r'schedule_id', required: true, includeIfNull: false)
   final String scheduleId;
 
+  @JsonKey(name: r'server_evaluated_at', required: true, includeIfNull: false)
+  final DateTime serverEvaluatedAt;
+
   @JsonKey(
     name: r'state',
     required: true,
@@ -106,6 +113,9 @@ class DailyRitualAssignment {
 
   @JsonKey(name: r'user_id', required: true, includeIfNull: false)
   final String userId;
+
+  @JsonKey(name: r'valid_until', required: true, includeIfNull: false)
+  final DateTime validUntil;
 
   // minimum: 0
   @JsonKey(name: r'version', required: true, includeIfNull: false)
@@ -128,8 +138,10 @@ class DailyRitualAssignment {
           other.riskFooter == riskFooter &&
           other.rowanRevisionId == rowanRevisionId &&
           other.scheduleId == scheduleId &&
+          other.serverEvaluatedAt == serverEvaluatedAt &&
           other.state == state &&
           other.userId == userId &&
+          other.validUntil == validUntil &&
           other.version == version;
 
   @override
@@ -147,8 +159,10 @@ class DailyRitualAssignment {
       (riskFooter == null ? 0 : riskFooter.hashCode) +
       (rowanRevisionId == null ? 0 : rowanRevisionId.hashCode) +
       scheduleId.hashCode +
+      serverEvaluatedAt.hashCode +
       state.hashCode +
       userId.hashCode +
+      validUntil.hashCode +
       version.hashCode;
 
   factory DailyRitualAssignment.fromJson(Map<String, dynamic> json) =>

@@ -62,6 +62,8 @@ void main() {
           deletionEpoch: 0,
           id: 'assignment-1',
           localDate: DateTime.utc(2026, 8, 20),
+          serverEvaluatedAt: DateTime.utc(2026, 8, 20, 13, 35),
+          validUntil: DateTime.utc(2026, 8, 21, 4),
           mode: DailyRitualAssignmentModeEnum.tarot,
           payload: const {
             'title': 'The Compass',
