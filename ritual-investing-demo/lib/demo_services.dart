@@ -20,6 +20,9 @@ import 'package:ritual_investing_app/features/profile/domain/model.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
+import 'package:ritual_investing_app/features/starpath/application/starpath_controller.dart';
+import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
+import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
 
 /// A fresh, memory-only set of deterministic services for one demo document.
 class DemoServices {
@@ -57,6 +60,13 @@ class DemoServices {
           service: _DemoRitualService(),
           cache: cache,
         ),
+      ),
+      starpathController: StarpathController(
+        repository: StarpathRepository(
+          service: _DemoStarpathService(),
+          cache: cache,
+        ),
+        createKey: () => 'demo-starpath-command',
       ),
       discoverController: DiscoverController(
         repository: CachedDiscoverRepository(
@@ -174,6 +184,177 @@ class _DemoRitualService implements DailyRitualService {
     return _value;
   }
 }
+
+class _DemoStarpathService implements StarpathService {
+  final StarpathSnapshot _snapshot = _demoStarpathSnapshot();
+
+  @override
+  Future<StarpathSnapshot> fetch() async => _snapshot;
+
+  @override
+  Future<StarpathSnapshot> start({required String idempotencyKey}) async =>
+      _snapshot;
+
+  @override
+  Future<StarpathSnapshot> answer({
+    required String idempotencyKey,
+    required int version,
+    required StarpathAnswerCommand command,
+  }) async => _snapshot;
+
+  @override
+  Future<StarpathSnapshot> skipRecall({
+    required String idempotencyKey,
+    required int version,
+    required String sessionId,
+  }) async => _snapshot;
+}
+
+const _demoStarpathLessons = <List<String>>[
+  ['What Is Investing?', 'What Is a Stock?'],
+  ['Why Do Prices Move?', 'How the Market Works'],
+  ['Indexes + the S&P 500', 'SPX, SPY, VOO + ETFs'],
+  ['One Stock or a Basket?', 'Three Investing Principles'],
+  ['What Is a Portfolio?', 'Allocation & Concentration'],
+  ['Risk, Volatility & Drawdown', 'Compounding'],
+  ['Research an Investment'],
+  ['Make a Sample Investment'],
+];
+
+const _demoStarpathBodies = <List<String>>[
+  [
+    'Investing puts money into an asset that may grow or produce income, but returns are never guaranteed.',
+    'A stock is an ownership interest in a company. Its market value can rise or fall.',
+  ],
+  [
+    'Prices move as buyers and sellers react to new information and change what they will pay or accept.',
+    'A broker routes an order to a market, where the bid, ask, spread, and order type affect execution.',
+  ],
+  [
+    'An index measures a defined group of securities; the S&P 500 follows a published large-company methodology.',
+    'SPX is an index. SPY and VOO are exchange-traded funds designed to track it, with their own costs and structures.',
+  ],
+  [
+    'One company carries company-specific risk. A basket spreads exposure but cannot remove every possible loss.',
+    'Keep the plan understandable, know what the investment owns, and choose risk before committing money.',
+  ],
+  [
+    'A portfolio is the collection of investments you own, considered together rather than ticker by ticker.',
+    'Allocation describes the mix. Concentration rises when one holding, sector, or asset type dominates it.',
+  ],
+  [
+    'Volatility measures price movement and drawdown measures a decline from a prior peak.',
+    'Compounding lets gains earn gains over time; losses and fees compound too.',
+  ],
+  [
+    'Research begins with what an investment owns, how it may earn money, its costs, and what could break the thesis.',
+  ],
+  [
+    'A sample order lets a learner review an amount and assumptions without sending money to a broker.',
+  ],
+];
+
+StarpathSnapshot _demoStarpathSnapshot() => StarpathSnapshot(
+  availability: StarpathAvailability.available,
+  version: 1,
+  authority: const StarpathAuthority(
+    environment: StarpathEnvironment.beta,
+    jurisdiction: 'US',
+    capabilityVersion: 1,
+    policyVersion: 'starpath-no-advice-v1',
+    manifestId: 'demo-starpath-manifest',
+    manifestVersion: 'demo-starpath-v1',
+  ),
+  nodes: List.generate(8, (index) {
+    final ordinal = index + 1;
+    return StarpathNode(
+      lessonId: 'demo-starpath-lesson-$ordinal',
+      revisionId: 'demo-starpath-revision-$ordinal',
+      nodeOrdinal: ordinal,
+      pathwayOrdinal: (index ~/ 2) + 1,
+      pathwayPosition: (index % 2) + 1,
+      title: _demoStarpathLessons[index].first,
+      mythicMnemonic: 'Use the star as a memory marker for the definition, never as a prediction.',
+      factualSummary: _demoStarpathBodies[index].first,
+      materialLimitations:
+          'Rights, costs, and risks vary by product and governing documents.',
+      riskContext: 'Market value can fall and an investor can lose money.',
+      recallPrompt: 'What is the main idea from this constellation?',
+      rowanExplanation: 'The visual is only a memory aid. The written lesson and dated source carry the meaning.',
+      guide: const StarpathGuide(
+        tarotKey: 'the-star',
+        accessibleLabel: 'The Star, used only as a memory aid.',
+      ),
+      factualSections: [
+        for (
+          var lessonIndex = 0;
+          lessonIndex < _demoStarpathLessons[index].length;
+          lessonIndex += 1
+        )
+          StarpathFactualSection(
+            ordinal: lessonIndex + 1,
+            kind: StarpathFactualSectionKind.fact,
+            heading: _demoStarpathLessons[index][lessonIndex],
+            body: _demoStarpathBodies[index][lessonIndex],
+            observedAt: _demoDate,
+            uncertainty: 'Specific products and market conditions can differ.',
+            evidence: [
+              StarpathEvidence(
+                ordinal: 1,
+                publisher: 'Investor.gov',
+                sourceTitle: 'Introduction to Investing',
+                canonicalUrl: Uri.parse(
+                  'https://www.investor.gov/introduction-investing/investing-basics',
+                ),
+                claimSummary: 'Supports the reviewed educational definition and its risk boundary.',
+                retrievedAt: _demoDate,
+                sourceObservedAt: _demoDate,
+                currentUntil: DateTime.utc(2027, 8, 25),
+              ),
+            ],
+          ),
+      ],
+      knowledgeCheck: StarpathKnowledgeCheck(
+        id: 'demo-starpath-question-$ordinal',
+        prompt: 'Which statement respects the lesson?',
+        options: [
+          StarpathKnowledgeCheckOption(
+            id: 'demo-starpath-option-$ordinal-a',
+            ordinal: 1,
+            label: 'Risk and outcomes are never guaranteed.',
+          ),
+          StarpathKnowledgeCheckOption(
+            id: 'demo-starpath-option-$ordinal-b',
+            ordinal: 2,
+            label: 'The visual predicts the next return.',
+          ),
+        ],
+      ),
+      state: index == 0 ? StarpathNodeState.current : StarpathNodeState.locked,
+    );
+  }),
+  session: StarpathSession(
+    id: 'demo-starpath-session',
+    explicitStart: true,
+    startedAt: _demoDate,
+    lastActionAt: _demoDate,
+    state: StarpathSessionState.active,
+  ),
+  progress: StarpathProgress(
+    currentNodeOrdinal: 1,
+    version: 1,
+    updatedAt: _demoDate,
+  ),
+  theme: const StarpathTheme(
+    id: 'demo-starpath-theme',
+    key: 'starpath-foundations',
+    title: 'Starpath Foundations',
+    horoscopeFrame: 'A visual memory frame only, never a forecast.',
+    factualFocus: 'Four open constellations with fourteen short lessons.',
+    accessibleLabel: 'A beginner investment education path.',
+  ),
+  recall: null,
+);
 
 DailyRitual _ritual(DailyRitualState state) => DailyRitual(
   assignmentId: '00000000-0000-4000-8000-000000000101',

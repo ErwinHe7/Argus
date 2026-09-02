@@ -151,11 +151,14 @@ void _expectTransportBoundary(U4HttpHarness harness) {
     ),
     isTrue,
   );
-  final reveal = harness.requests.singleWhere(
-    (request) => request.uri.path.endsWith('/reveal'),
+  final transitions = harness.requests.where(
+    (request) => request.uri.path.endsWith('/transition'),
   );
-  final complete = harness.requests.singleWhere(
-    (request) => request.uri.path.endsWith('/complete'),
+  final reveal = transitions.singleWhere(
+    (request) => (jsonDecode(request.body) as Map)['to'] == 'revealed',
+  );
+  final complete = transitions.singleWhere(
+    (request) => (jsonDecode(request.body) as Map)['to'] == 'completed',
   );
   expect(reveal.ifMatch, '"v1"');
   expect(complete.ifMatch, '"v2"');
@@ -168,8 +171,8 @@ void _expectTransportBoundary(U4HttpHarness harness) {
   });
   final save = harness.requests.singleWhere(
     (request) =>
-        request.method == 'PUT' &&
-        request.uri.path == '/v1/me/saved-assets/$u4AssetId',
+        request.method == 'POST' &&
+        request.uri.path == '/v1/saved/asset/$u4AssetId',
   );
   expect(jsonDecode(save.body), {
     'source_id': u4AssignmentId,
@@ -185,14 +188,11 @@ void _expectTransportBoundary(U4HttpHarness harness) {
     'asset,circle_template,coven,grimoire',
   );
   final rowan = harness.requests.where(
-    (request) => request.uri.path == '/v1/rowan/counsel',
+    (request) => request.uri.path.startsWith('/v1/rowan/'),
   );
   expect(rowan, hasLength(2));
-  expect(rowan.last.uri.queryParameters, {
-    'surface': 'asset_codex',
-    'context_code': 'asset',
-    'resource_id': u4AssetId,
-  });
+  expect(rowan.last.uri.path, '/v1/rowan/asset_codex/asset');
+  expect(rowan.last.uri.queryParameters, isEmpty);
 
   final serialized = harness.requests
       .map((request) => '${request.uri} ${request.body}')

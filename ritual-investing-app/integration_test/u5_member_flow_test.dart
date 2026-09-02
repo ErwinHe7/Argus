@@ -168,15 +168,9 @@ void _expectSocketBoundary(U4HttpHarness harness) {
     '"v4"',
   );
   final covenRowan = harness.requests.singleWhere(
-    (request) =>
-        request.uri.path == '/v1/rowan/counsel' &&
-        request.uri.queryParameters['surface'] == 'coven',
+    (request) => request.uri.path == '/v1/rowan/coven/coven',
   );
-  expect(covenRowan.uri.queryParameters, {
-    'surface': 'coven',
-    'context_code': 'coven',
-    'resource_id': u5CovenId,
-  });
+  expect(covenRowan.uri.queryParameters, isEmpty);
   final serialized = harness.requests
       .map((request) => '${request.uri} ${request.body}')
       .join(' ')

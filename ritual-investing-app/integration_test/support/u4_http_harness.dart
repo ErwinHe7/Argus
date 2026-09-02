@@ -36,10 +36,11 @@ const _requestId = '00000000-0000-4000-8000-000000000407';
 const _token = 'u4-local-member-token';
 
 class U4HttpHarness {
-  U4HttpHarness._(this._server, this.client);
+  U4HttpHarness._(this._server, this.client, this._previousHttpOverrides);
 
   final HttpServer _server;
   final api.RitualInvestingApiClient client;
+  final HttpOverrides? _previousHttpOverrides;
   final List<U4CapturedRequest> requests = [];
   var ritualState = api.DailyRitualAssignmentStateEnum.assigned;
   var ritualVersion = 1;
@@ -73,14 +74,22 @@ class U4HttpHarness {
   );
 
   static Future<U4HttpHarness> start() async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final previousHttpOverrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    late final HttpServer server;
+    try {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    } catch (_) {
+      HttpOverrides.global = previousHttpOverrides;
+      rethrow;
+    }
     final client = api.RitualInvestingApiClient(
       basePathOverride: 'http://${server.address.address}:${server.port}',
       interceptors: [
         RitualAuthInterceptor(tokenProvider: const _TokenProvider()),
       ],
     );
-    final harness = U4HttpHarness._(server, client);
+    final harness = U4HttpHarness._(server, client, previousHttpOverrides);
     unawaited(harness._serve());
     return harness;
   }
@@ -104,6 +113,7 @@ class U4HttpHarness {
     rowanController.dispose();
     client.dio.close(force: true);
     await _server.close(force: true);
+    HttpOverrides.global = _previousHttpOverrides;
   }
 
   Future<void> _serve() async {

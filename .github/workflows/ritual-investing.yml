@@ -430,6 +430,7 @@ jobs:
           api-level: 35
           arch: x86_64
           profile: pixel_6
+          disk-size: 4096M
           disable-animations: true
           script: >-
             cd ritual-investing-app &&
@@ -500,8 +501,16 @@ jobs:
           --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_local_fixture_1234567890
       - name: Fixture-backed Chrome dashboard interaction (UI only)
         working-directory: ritual-investing-admin
+        timeout-minutes: 20
         run: |
+          set -euo pipefail
           chromedriver --port=4444 &
+          chromedriver_pid=$!
+          cleanup() {
+            kill "$chromedriver_pid" 2>/dev/null || true
+            wait "$chromedriver_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
           flutter drive --driver=test_driver/integration_test.dart --target=integration_test/admin_browser_workflows_test.dart -d chrome \
             --dart-define=ADMIN_API_BASE_URL=https://abcdefghijklmnopqrst.supabase.co/functions/v1/api \
             --dart-define=SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co \

@@ -247,22 +247,31 @@ class _Storage implements ProtectedStorage {
 }
 
 class _Harness {
-  _Harness._(this.server, this.client);
+  _Harness._(this.server, this.client, this._previousHttpOverrides);
 
   final HttpServer server;
   final RitualInvestingApiClient client;
+  final HttpOverrides? _previousHttpOverrides;
   final List<_Request> requests = [];
   bool briefingRead = false;
   bool allRead = false;
   bool dailyEnabled = true;
 
   static Future<_Harness> start() async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final previousHttpOverrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    late final HttpServer server;
+    try {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    } catch (_) {
+      HttpOverrides.global = previousHttpOverrides;
+      rethrow;
+    }
     final client = RitualInvestingApiClient(
       basePathOverride: 'http://${server.address.address}:${server.port}',
       interceptors: [RitualAuthInterceptor(tokenProvider: const _Token())],
     );
-    final harness = _Harness._(server, client);
+    final harness = _Harness._(server, client, previousHttpOverrides);
     unawaited(harness._serve());
     return harness;
   }
@@ -380,6 +389,7 @@ class _Harness {
   Future<void> close() async {
     client.dio.close(force: true);
     await server.close(force: true);
+    HttpOverrides.global = _previousHttpOverrides;
   }
 }
 
