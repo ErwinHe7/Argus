@@ -184,7 +184,7 @@ Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
     isTrue,
     reason: 'Timed out waiting for loopback UI state.',
   );
-  await tester.pumpAndSettle();
+  await tester.pump();
 }
 
 void _expectSocketBoundary(U4HttpHarness harness) {

@@ -28,7 +28,7 @@ test("the packaged demo reaches ready with static-only traffic and empty browser
   await expect(page.getByText("Founders’ Coven", { exact: true })).toBeVisible();
   await page.getByRole("tab", { name: "You" }).press("Enter");
   await expect(page.getByText("Your saved answers, active personalization, and Webull connection.")).toBeVisible();
-  await page.getByRole("tab", { name: "Ritual" }).press("Enter");
+  await page.getByRole("tab", { name: "Gospel" }).press("Enter");
   await expect(page.getByText("YOUR DAILY SIGNAL", { exact: true })).toBeVisible();
 
   const state = await page.evaluate(async () => ({

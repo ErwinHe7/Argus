@@ -181,7 +181,7 @@ Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
     isTrue,
     reason: 'Timed out waiting for loopback UI state.',
   );
-  await tester.pumpAndSettle();
+  await tester.pump();
 }
 
 class _Harness {
