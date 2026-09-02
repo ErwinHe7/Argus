@@ -3945,7 +3945,7 @@ body:has(.axio-pricing-shell) main.mx-auto {
   border-bottom: 1px solid #24242b;
 }
 
-.axio-whop-intro {
+.axio-pricing-shell .education-pricing .axio-whop-checkout > .axio-whop-intro {
   display: flex;
   max-width: 780px;
   align-items: flex-start;
@@ -3991,7 +3991,7 @@ body:has(.axio-pricing-shell) main.mx-auto {
   line-height: 1.6;
 }
 
-.axio-whop-offer {
+.axio-pricing-shell .education-pricing .axio-whop-checkout > .axio-whop-offer {
   display: grid;
   margin-top: 24px;
   padding: 20px;
