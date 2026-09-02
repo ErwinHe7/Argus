@@ -135,10 +135,7 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     super.dispose();
   }
 
-  String get _finalCaption => [
-    widget.ritual.rowan.body,
-    widget.ritual.rowan.riskFooter,
-  ].where((part) => part.trim().isNotEmpty).join(' ');
+  String get _finalCaption => dailyRitualClosingCaption(widget.ritual);
 
   bool get _reducedMotion =>
       MediaQuery.disableAnimationsOf(context) ||

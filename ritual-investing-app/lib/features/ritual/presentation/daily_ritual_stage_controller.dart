@@ -83,6 +83,11 @@ typedef DailyRitualStageSchedule = DailyRitualStageScheduled Function(
 typedef DailyRitualMonotonicNow = Duration Function();
 typedef DailyRitualMediaPreparer = Future<bool> Function(DailyRitual ritual);
 
+String dailyRitualClosingCaption(DailyRitual ritual) => [
+  ritual.rowan.body,
+  ritual.rowan.riskFooter,
+].where((part) => part.trim().isNotEmpty).join(' ');
+
 abstract interface class DailyRitualStageHaptics {
   Future<void> touchDown();
   Future<void> accepted();
@@ -275,6 +280,7 @@ class DailyRitualStageController extends ChangeNotifier {
     if (_disposed) return;
     final current = authority.current;
     final prior = _observedAuthority;
+    if (identical(prior, current)) return;
     _observedAuthority = current;
     if (current == null) {
       _invalidateForAuthorityChange(HoldCancellation.identityChanged);
@@ -651,10 +657,7 @@ class DailyRitualStageController extends ChangeNotifier {
   String get _closingLine {
     final current = authority.current;
     if (current == null) return 'Today’s ritual is complete.';
-    return [
-      current.rowan.body,
-      current.rowan.riskFooter,
-    ].where((part) => part.trim().isNotEmpty).join(' ');
+    return dailyRitualClosingCaption(current);
   }
 
   void _clearAttempt() {

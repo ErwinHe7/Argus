@@ -26,7 +26,11 @@ class DailyRitualController extends ChangeNotifier {
     phase: LoadPhase.idle,
   );
   RitualMutationPhase _mutationPhase = RitualMutationPhase.idle;
-  final Map<String, Future<RitualTransitionResult?>> _activeTransitions = {};
+  final Map<
+    (RitualOperation, RitualAssignmentLineage),
+    Future<RitualTransitionResult?>
+  >
+  _activeTransitions = {};
   Future<void> _authorityQueue = Future<void>.value();
   int _readGeneration = 0;
   int _historyRequestId = 0;
@@ -206,7 +210,7 @@ class DailyRitualController extends ChangeNotifier {
     if (current == null || !_mutationAuthorityEnabled || !allowed(current)) {
       return Future.value();
     }
-    final key = _operationKey(operation, current.lineage);
+    final key = (operation, current.lineage);
     final active = _activeTransitions[key];
     if (active != null) return active;
     late final Future<RitualTransitionResult?> future;
@@ -415,16 +419,6 @@ class DailyRitualController extends ChangeNotifier {
       (error is LoadFailure &&
           (error.phase == LoadPhase.retryableFailure ||
               error.phase == LoadPhase.throttled));
-
-  String _operationKey(
-    RitualOperation operation,
-    RitualAssignmentLineage lineage,
-  ) =>
-      '${operation.name}:${lineage.userId}:${lineage.deletionEpoch}:'
-      '${lineage.localDate.toUtc().toIso8601String()}:${lineage.mode.name}:'
-      '${lineage.assignmentId}:${lineage.assignmentVersion}:'
-      '${lineage.revision.id}:${lineage.revision.number}:'
-      '${lineage.contentIdentity}:${lineage.artKey}';
 
   void _set(ViewState<DailyRitual> value) {
     _state = value;
