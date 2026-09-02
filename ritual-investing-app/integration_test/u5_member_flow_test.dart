@@ -42,19 +42,28 @@ void main() {
       addTearDown(harness.close);
 
       await tester.pumpWidget(_U5FlowApp(harness: harness));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.text('Patient Compounding').evaluate().isNotEmpty,
+      );
 
       expect(find.text('A wider research lens'), findsOneWidget);
       expect(find.text('Patient Compounding'), findsOneWidget);
       await tester.tap(find.byKey(const Key('discover-lead')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.byKey(const Key('grimoire-save')).evaluate().isNotEmpty,
+      );
 
       expect(find.text('Patient Compounding'), findsOneWidget);
       await tester.tap(find.byKey(const Key('grimoire-save')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(tester, () => find.text('Saved').evaluate().isNotEmpty);
       expect(find.text('Saved'), findsOneWidget);
       await tester.tap(find.byKey(const Key('grimoire-asset-$u4AssetId')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.byKey(const Key('asset-codex-screen')).evaluate().isNotEmpty,
+      );
       expect(find.byKey(const Key('asset-codex-screen')), findsOneWidget);
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -67,10 +76,17 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Soft Power Circle'));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.byKey(const Key('template-copy')).evaluate().isNotEmpty,
+      );
       expect(find.text('Fictional seeded example · read-only'), findsOneWidget);
       await tester.tap(find.byKey(const Key('template-copy')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () =>
+            find.byKey(const Key('private-circle-save')).evaluate().isNotEmpty,
+      );
 
       expect(find.text('Private · editable'), findsOneWidget);
       await tester.enterText(
@@ -85,7 +101,13 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.byKey(const Key('private-circle-save')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find
+            .byKey(const Key('private-conflict-retry'))
+            .evaluate()
+            .isNotEmpty,
+      );
       expect(find.text('Review changes from another device'), findsOneWidget);
       expect(find.textContaining('pending edit is preserved'), findsOneWidget);
       await tester.scrollUntilVisible(
@@ -94,7 +116,10 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.byKey(const Key('private-conflict-retry')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.text('Version 4').evaluate().isNotEmpty,
+      );
       expect(find.text('Version 4'), findsOneWidget);
       expect(find.text('My preserved private draft'), findsOneWidget);
 
@@ -106,7 +131,10 @@ void main() {
       await tester.tap(find.byKey(const Key('private-circle-archive')));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Archive').last);
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.text('Archived · read-only').evaluate().isNotEmpty,
+      );
       expect(find.text('Archived · read-only'), findsOneWidget);
 
       await tester.pageBack();
@@ -119,7 +147,10 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.text('Aurora Healthworks'));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.byKey(const Key('rowan-explain')).evaluate().isNotEmpty,
+      );
       expect(find.text('Woman founder'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.byKey(const Key('rowan-explain')),
@@ -127,7 +158,13 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       await tester.tap(find.byKey(const Key('rowan-explain')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find
+            .text('Qualification evidence is dated, not assumed.')
+            .evaluate()
+            .isNotEmpty,
+      );
       expect(
         find.text('Qualification evidence is dated, not assumed.'),
         findsOneWidget,
@@ -136,6 +173,18 @@ void main() {
       _expectSocketBoundary(harness);
     },
   );
+}
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
+  for (var attempt = 0; attempt < 100 && !condition(); attempt += 1) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(
+    condition(),
+    isTrue,
+    reason: 'Timed out waiting for loopback UI state.',
+  );
+  await tester.pumpAndSettle();
 }
 
 void _expectSocketBoundary(U4HttpHarness harness) {

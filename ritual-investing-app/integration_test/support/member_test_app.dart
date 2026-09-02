@@ -212,6 +212,8 @@ class GuidedMemberTestHarness {
             '/v1/session/onboarding/birthday/finalize',
             '/v1/session/onboarding/finalize',
             '/v1/rituals/daily',
+            '/v1/brokerage/connection',
+            '/v1/brokerage/accounts',
           }.contains(requestPaths[index]) ||
           authorizationHeaders[index] != 'Bearer $_accessToken') {
         return false;

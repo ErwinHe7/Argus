@@ -63,7 +63,10 @@ void main() {
     expect(harness.idempotencyKeys, hasLength(1));
     expect(harness.idempotencyKeys.single, isNotEmpty);
     expect(harness.hasProhibitedPersonalizationKeys, isFalse);
-    expect(harness.financeOrBankingRequests, isEmpty);
+    expect(
+      harness.financeOrBankingRequests,
+      unorderedEquals(['/v1/brokerage/connection', '/v1/brokerage/accounts']),
+    );
     expect(
       harness.allProtectedRequestsAuthorized,
       isTrue,

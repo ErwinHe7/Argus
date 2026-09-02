@@ -64,13 +64,23 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('privacy-export-request')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.text('Export status: queued').evaluate().isNotEmpty,
+      );
       expect(find.text('Export status: queued'), findsOneWidget);
       await tester.tap(find.byKey(const Key('privacy-export-refresh')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () =>
+            find.byKey(const Key('privacy-export-share')).evaluate().isNotEmpty,
+      );
       expect(find.byKey(const Key('privacy-export-share')), findsOneWidget);
       await tester.tap(find.byKey(const Key('privacy-export-share')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.textContaining('shared and removed').evaluate().isNotEmpty,
+      );
 
       expect(find.textContaining('shared and removed'), findsOneWidget);
       expect(sharedPaths, hasLength(1));
@@ -105,6 +115,7 @@ void main() {
         tester,
         find.byKey(const Key('privacy-deletion-confirm')),
       );
+      await _pumpUntil(tester, () => deletionAccepted == 1);
 
       expect(deletionAccepted, 1);
       expect(harness.accountInactive, isTrue);
@@ -158,6 +169,18 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   }
   expect(finder.hitTestable(), findsOneWidget);
   await tester.tap(finder.hitTestable());
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
+  for (var attempt = 0; attempt < 100 && !condition(); attempt += 1) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(
+    condition(),
+    isTrue,
+    reason: 'Timed out waiting for loopback UI state.',
+  );
   await tester.pumpAndSettle();
 }
 

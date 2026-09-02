@@ -167,7 +167,7 @@ void _expectTransportBoundary(U4HttpHarness harness) {
     (request) => request.uri.path == '/v1/assets/compare',
   );
   expect(jsonDecode(comparison.body), {
-    'asset_ids': [u4AssetId, u4PeerId],
+    'assetIds': [u4AssetId, u4PeerId],
   });
   final save = harness.requests.singleWhere(
     (request) =>

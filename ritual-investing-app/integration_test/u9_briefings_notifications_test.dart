@@ -34,13 +34,25 @@ void main() {
       await tester.pumpAndSettle();
 
       await _tapVisible(tester, find.byKey(const Key('u9-open-briefings')));
+      await _pumpUntil(
+        tester,
+        () => find.text('Moon-cycle recap').evaluate().isNotEmpty,
+      );
       expect(find.textContaining('Symbolic reflection'), findsOneWidget);
       expect(find.text('Moon-cycle recap'), findsOneWidget);
       await _tapVisible(tester, find.text('Moon-cycle recap'));
+      await _pumpUntil(
+        tester,
+        () => find.textContaining('summary v1').evaluate().isNotEmpty,
+      );
       expect(find.textContaining('summary v1'), findsOneWidget);
       expect(find.text('Source sequence 44'), findsOneWidget);
       expect(find.textContaining('not financial advice'), findsWidgets);
       await _tapVisible(tester, find.byKey(const Key('briefing-read-toggle')));
+      await _pumpUntil(
+        tester,
+        () => harness.has('PUT', '/v1/briefings/$_briefingId/read-state'),
+      );
       expect(
         harness.single('PUT', '/v1/briefings/$_briefingId/read-state').body,
         {'read': true},
@@ -51,6 +63,10 @@ void main() {
       await tester.pumpAndSettle();
 
       await _tapVisible(tester, find.byKey(const Key('u9-open-notifications')));
+      await _pumpUntil(
+        tester,
+        () => find.textContaining('In-app only').evaluate().isNotEmpty,
+      );
       expect(find.textContaining('Symbolic inbox'), findsOneWidget);
       expect(find.textContaining('In-app only'), findsOneWidget);
       expect(find.textContaining('push token'), findsNothing);
@@ -63,6 +79,10 @@ void main() {
       await _tapVisible(
         tester,
         find.byKey(const Key('notification-preferences-save')),
+      );
+      await _pumpUntil(
+        tester,
+        () => harness.has('PATCH', '/v1/me/notification-preferences'),
       );
       final patch = harness.single('PATCH', '/v1/me/notification-preferences');
       expect(patch.ifMatch, '"v3"');
@@ -81,6 +101,10 @@ void main() {
       await _tapVisible(
         tester,
         find.byKey(const Key('notifications-confirm-read-all')),
+      );
+      await _pumpUntil(
+        tester,
+        () => harness.has('POST', '/v1/notifications/read-all'),
       );
       final readAll = harness.single('POST', '/v1/notifications/read-all');
       expect(readAll.idempotencyKey, 'u9-integration-read-all');
@@ -113,6 +137,18 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
   await tester.tap(finder);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpUntil(WidgetTester tester, bool Function() condition) async {
+  for (var attempt = 0; attempt < 100 && !condition(); attempt += 1) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(
+    condition(),
+    isTrue,
+    reason: 'Timed out waiting for loopback UI state.',
+  );
   await tester.pumpAndSettle();
 }
 
@@ -277,6 +313,10 @@ class _Harness {
   }
 
   _Request single(String method, String path) => requests.singleWhere(
+    (request) => request.method == method && request.path == path,
+  );
+
+  bool has(String method, String path) => requests.any(
     (request) => request.method == method && request.path == path,
   );
 
