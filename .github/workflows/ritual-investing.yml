@@ -155,9 +155,17 @@ jobs:
         run: flutter analyze
       - name: Fixture-backed Chrome curated journey and reset
         working-directory: ritual-investing-demo
+        timeout-minutes: 15
         run: |
+          set -euo pipefail
           chromedriver --port=4444 &
-          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/demo_browser_workflows_test.dart -d chrome
+          chromedriver_pid=$!
+          cleanup() {
+            kill "$chromedriver_pid" 2>/dev/null || true
+            wait "$chromedriver_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/demo_browser_workflows_test.dart -d web-server --browser-name=chrome --driver-port=4444
       - name: Build provider-neutral demo release
         working-directory: ritual-investing-demo
         run: >-
@@ -511,7 +519,7 @@ jobs:
             wait "$chromedriver_pid" 2>/dev/null || true
           }
           trap cleanup EXIT
-          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/admin_browser_workflows_test.dart -d chrome \
+          flutter drive --driver=test_driver/integration_test.dart --target=integration_test/admin_browser_workflows_test.dart -d web-server --browser-name=chrome --driver-port=4444 \
             --dart-define=ADMIN_API_BASE_URL=https://abcdefghijklmnopqrst.supabase.co/functions/v1/api \
             --dart-define=SUPABASE_URL=https://abcdefghijklmnopqrst.supabase.co \
             --dart-define=SUPABASE_PUBLISHABLE_KEY=sb_publishable_ci_local_fixture_1234567890
