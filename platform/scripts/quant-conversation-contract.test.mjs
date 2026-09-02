@@ -180,7 +180,7 @@ test('factor scan is a paid Rust-owned metadata-only shadow that fails closed', 
   assert.match(scannerPage, /40%/);
   assert.match(scannerPage, /20%/);
   assert.match(scannerPage, /CANDIDATE_NOT_PROMOTED/);
-  assert.match(scannerPage, /自动执行始终关闭/);
+  assert.match(scannerPage, /Automatic execution remains disabled/);
   assert.doesNotMatch(scannerPage, /runQuantScan|ReasonerConsole/);
   assert.match(middleware, /'\/quant\/scanner'/);
   assert.match(middleware, /'\/api\/quant\/scan'/);
@@ -624,7 +624,7 @@ test('research UI persists locale, shows interpreted inputs, recovery controls, 
   assert.match(conversation, /conversationLocale/);
   assert.match(route, /locale:\s*conversation\.locale/);
   assert.match(route, /X-AXIO7-Conversation-Locale/);
-  assert.match(chat, /AXIO7 interpreted query/);
+  assert.match(chat, /Research interpreted query/);
   assert.match(chat, /SPX → SPY \(price\/volume and VWAP proxy\)/);
   assert.match(chat, /Model-owned \(not assumed\)/);
   assert.match(chat, /No setup, direction, or horizon inferred from a ticker/);
@@ -805,10 +805,9 @@ test('query v2 rollout preserves stored v1 explicit-rule monitors', () => {
   assert.match(migration, /model_forecast/);
 });
 
-test('Google OAuth remains server-session based with the production callback', () => {
+test('legacy sign-in delegates to the member app while the production callback remains available', () => {
   const signin = read('app/auth/signin/page.tsx');
   const callback = read('app/auth/callback/route.ts');
-  assert.match(signin, /provider:\s*'google'/);
-  assert.match(signin, /window\.location\.origin}\/auth\/callback/);
+  assert.match(signin, /redirect\('\/app\/#\/sign-in'\)/);
   assert.match(callback, /exchangeCodeForSession/);
 });

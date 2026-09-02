@@ -67,7 +67,7 @@ void main() {
     expect(find.textContaining('INTERNAL PREVIEW'), findsOneWidget);
     expect(find.byType(NavigationDestination), findsNWidgets(5));
     for (final label in const [
-      'Ritual',
+      'Gospel',
       'Starpath',
       'Discover',
       'Coven',

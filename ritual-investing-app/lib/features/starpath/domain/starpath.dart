@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 const draftPreviewStarpathManifestVersion =
-    'draft-preview-starpath-curriculum-v1';
+    'draft-preview-starpath-curriculum-v2';
 
 enum StarpathAvailability { available, notStarted }
 

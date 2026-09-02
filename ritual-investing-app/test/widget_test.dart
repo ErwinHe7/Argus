@@ -24,11 +24,11 @@ void main() {
     expect(find.text('Founders’ Coven'), findsOneWidget);
 
     await tester.scrollUntilVisible(
-      find.textContaining('Demo market scenario'),
+      find.textContaining('Simulated market scenario'),
       250,
       scrollable: find.byType(Scrollable).first,
     );
-    expect(find.textContaining('Demo market scenario'), findsOneWidget);
+    expect(find.textContaining('Simulated market scenario'), findsOneWidget);
 
     await tester.tap(find.text('Market-informed · reveal the pattern'));
     await tester.pumpAndSettle();
@@ -48,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Founders’ Coven'), findsOneWidget);
-    expect(find.text('DEMO DIRECTORY'), findsOneWidget);
+    expect(find.text('RESEARCH DIRECTORY'), findsOneWidget);
     expect(
       find.textContaining('Effective Aug 20, 2026 · verified Aug 20, 2026'),
       findsWidgets,

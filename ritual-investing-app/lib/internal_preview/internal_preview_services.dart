@@ -13,6 +13,9 @@ import 'package:ritual_investing_app/core/bootstrap/dependency_container.dart';
 import 'package:ritual_investing_app/core/bootstrap/entry_coordinator.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
+import 'package:ritual_investing_app/features/ai_analysis/application/controller.dart';
+import 'package:ritual_investing_app/features/ai_analysis/data/repository.dart';
+import 'package:ritual_investing_app/features/ai_analysis/domain/model.dart';
 import 'package:ritual_investing_app/features/asset_codex/data/repository.dart';
 import 'package:ritual_investing_app/features/asset_codex/domain/model.dart';
 import 'package:ritual_investing_app/features/briefings/application/briefing_controller.dart';
@@ -47,6 +50,8 @@ import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/search/application/controller.dart';
 import 'package:ritual_investing_app/features/search/data/repository.dart';
 import 'package:ritual_investing_app/features/search/domain/model.dart';
+
+import 'ai_analysis_fixture.dart';
 
 class FeatureLoadTracker {
   final Map<MemberBranch, int> _counts = {};
@@ -177,6 +182,12 @@ DependencyContainer createInternalPreviewDependencyContainer({
           ),
           personalization: bootstrap.personalization,
         ),
+        aiAnalysisController: AiAnalysisController(
+          repository: AiAnalysisRepository(
+            service: _FixtureAiAnalysisService(),
+          ),
+          utcClock: () => DateTime.utc(2026, 9, 1, 12),
+        ),
         covenController: CovenController(repository: covenRepository),
         profileController: ProfileController(
           repository: CachedProfileRepository(
@@ -215,6 +226,305 @@ DependencyContainer createInternalPreviewDependencyContainer({
     },
   );
 }
+
+class _FixtureAiAnalysisService implements AiAnalysisService {
+  @override
+  Future<AiAnalysisSnapshot> fetch() async => buildFixtureAiAnalysisSnapshot();
+}
+
+class _PreviewStarpathLesson {
+  const _PreviewStarpathLesson({
+    required this.heading,
+    required this.body,
+    required this.uncertainty,
+    required this.sourceTitle,
+    required this.sourceUrl,
+    required this.publisher,
+  });
+
+  final String heading;
+  final String body;
+  final String uncertainty;
+  final String sourceTitle;
+  final String sourceUrl;
+  final String publisher;
+}
+
+class _PreviewStarpathPart {
+  const _PreviewStarpathPart({
+    required this.title,
+    required this.summary,
+    required this.tarotKey,
+    required this.mnemonic,
+    required this.limitations,
+    required this.riskContext,
+    required this.recallPrompt,
+    required this.rowanExplanation,
+    required this.checkPrompt,
+    required this.correctOption,
+    required this.distractor,
+    required this.lessons,
+  });
+
+  final String title;
+  final String summary;
+  final String tarotKey;
+  final String mnemonic;
+  final String limitations;
+  final String riskContext;
+  final String recallPrompt;
+  final String rowanExplanation;
+  final String checkPrompt;
+  final String correctOption;
+  final String distractor;
+  final List<_PreviewStarpathLesson> lessons;
+}
+
+const _previewStarpathParts = <_PreviewStarpathPart>[
+  _PreviewStarpathPart(
+    title: 'Market Basics: Ownership',
+    summary: 'Start with two plain ideas: what investing means and what one share actually represents.',
+    tarotKey: 'the-magician',
+    mnemonic:
+        'Before following a ticker, know what the asset is and what you own.',
+    limitations: 'These definitions explain ownership, not whether any asset is suitable for someone.',
+    riskContext:
+        'Investments can lose value, including shares of familiar companies.',
+    recallPrompt: 'What do you actually own when you buy one share?',
+    rowanExplanation: 'A share is one small unit of ownership in a company. Its price can rise or fall, and neither outcome is promised.',
+    checkPrompt: 'What is a share of common stock?',
+    correctOption: 'A small ownership interest in a company.',
+    distractor: 'A promise that the company will repay you with interest.',
+    lessons: [
+      _PreviewStarpathLesson(
+        heading: 'What Is Investing?',
+        body: 'Investing means putting capital into an asset because you expect it to create or preserve value over time. It usually involves longer-term ownership. Trading is different: it focuses on trying to profit from shorter-term price moves. Both involve risk, and neither promises a profit.',
+        uncertainty: 'The line between investing and trading is not always perfectly sharp, but they require different habits and time horizons.',
+        sourceTitle: 'Introduction to Investing',
+        sourceUrl:
+            'https://www.investor.gov/introduction-investing/investing-basics',
+        publisher: 'Investor.gov',
+      ),
+      _PreviewStarpathLesson(
+        heading: 'What Is a Stock?',
+        body: 'A stock is a piece of ownership in a company. One share is one small unit of that ownership, and a person who owns it is a shareholder. A ticker is the short code for the stock: Apple is AAPL, Nvidia is NVDA, and Tesla is TSLA.',
+        uncertainty: 'A familiar company can still have a falling share price. Ownership never guarantees a profit or a dividend.',
+        sourceTitle: 'Stocks',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks',
+        publisher: 'Investor.gov',
+      ),
+    ],
+  ),
+  _PreviewStarpathPart(
+    title: 'Market Basics: How It Works',
+    summary: 'See why prices move, how a broker reaches the market, and what a live quote is saying.',
+    tarotKey: 'the-hermit',
+    mnemonic: 'A quote is a conversation between buyers and sellers.',
+    limitations: 'A quote is a moment in time. Prices and available shares can change before an order arrives.',
+    riskContext: 'Fast or thin markets can have wider spreads and less predictable execution.',
+    recallPrompt: 'What do bid, ask, and spread tell you?',
+    rowanExplanation: 'The bid is the highest current buying price, the ask is the lowest current selling price, and the spread is the difference.',
+    checkPrompt:
+        'If the bid is \$199.98 and the ask is \$200.02, what is the spread?',
+    correctOption: '\$0.04.',
+    distractor: '\$399.00.',
+    lessons: [
+      _PreviewStarpathLesson(
+        heading: 'Why Do Prices Move?',
+        body: 'A stock price moves because buyers and sellers keep changing what they are willing to pay. Earnings, company news, expectations, and the broader market mood can all shift that balance. A good company can still have a down day because the price reflects expectations about the future, not only what the company is doing today.',
+        uncertainty: 'Most price moves have several causes, and a headline cannot tell you what the next move will be.',
+        sourceTitle: 'How Stock Markets Work',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work',
+        publisher: 'Investor.gov',
+      ),
+      _PreviewStarpathLesson(
+        heading: 'How the Market Works',
+        body: 'Your broker is the app or service that sends an order to the market: you, then the broker, then the market. On a quote, the bid is the highest current buying price and the ask is the lowest current selling price. Their difference is the spread. If AAPL shows a \$199.98 bid and a \$200.02 ask, the spread is \$0.04. Regular U.S. stock-market hours are 9:30 a.m. to 4:00 p.m. ET, with premarket and after-hours sessions around them.',
+        uncertainty: 'Outside regular hours, trading can be lighter and spreads can be wider. A displayed quote does not guarantee an execution price.',
+        sourceTitle: 'Executing an Order',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/executing-order',
+        publisher: 'Investor.gov',
+      ),
+    ],
+  ),
+  _PreviewStarpathPart(
+    title: 'The Art of Investing: Indexes',
+    summary: 'Meet the S&P 500, then separate the index itself from the ETFs designed to follow it.',
+    tarotKey: 'the-star',
+    mnemonic: 'The index is the map. An ETF is one vehicle built to follow it.',
+    limitations: 'An index describes a defined group of assets. It is not a company and cannot be purchased directly like a share.',
+    riskContext:
+        'An index can fall, and an ETF designed to track it can lose value.',
+    recallPrompt: 'How are SPX, SPY, and VOO related?',
+    rowanExplanation: 'SPX refers to the S&P 500 index. SPY and VOO are separate ETFs designed to track that index.',
+    checkPrompt: 'Which one is the S&P 500 index itself?',
+    correctOption: 'SPX.',
+    distractor: 'SPY and VOO are both the index itself.',
+    lessons: [
+      _PreviewStarpathLesson(
+        heading: 'Indexes and the S&P 500',
+        body: 'An index tracks the performance of a group of assets. It is not a company; think of it as a scoreboard built from a set of rules. The S&P 500 is the main beginner example: it represents roughly 500 large U.S. companies and is widely used as a reference for large U.S. stocks.',
+        uncertainty: 'The S&P 500 does not include every U.S. company, and its largest members have more influence on its movement.',
+        sourceTitle: 'S&P 500',
+        sourceUrl: 'https://www.spglobal.com/spdji/en/indices/equity/sp-500/',
+        publisher: 'S&P Dow Jones Indices',
+      ),
+      _PreviewStarpathLesson(
+        heading: 'SPX, SPY, VOO and ETFs',
+        body: 'SPX refers to the S&P 500 index itself. SPY and VOO are two different ETFs designed to track that index. An ETF is a fund that can hold a basket of investments and trade on an exchange, so one purchase can give exposure to many companies. SPX, SPY, and VOO are related, but they are not the same product.',
+        uncertainty: 'Two ETFs with a similar goal can still differ in fees, trading, structure, and how closely they follow an index.',
+        sourceTitle: 'Exchange-Traded Funds',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/investing-basics/investment-products/mutual-funds-and-exchange-traded-2',
+        publisher: 'Investor.gov',
+      ),
+    ],
+  ),
+  _PreviewStarpathPart(
+    title: 'The Art of Investing: Principles',
+    summary: 'Compare one company with a basket, then learn three habits that keep investment thinking clear.',
+    tarotKey: 'the-high-priestess',
+    mnemonic: 'Understand what you own, focus on the asset beneath the price, and leave room for uncertainty.',
+    limitations: 'Simple questions are a starting point, not a complete valuation or a recommendation.',
+    riskContext: 'Diversification can reduce concentration risk, but it cannot remove market risk or guarantee a gain.',
+    recallPrompt: 'What are the three basic principles in this lesson?',
+    rowanExplanation: 'Keep it understandable, focus on fundamentals, and manage how much one investment or assumption can affect the whole portfolio.',
+    checkPrompt: 'What can diversification do?',
+    correctOption:
+        'Reduce how much one holding can affect the whole portfolio.',
+    distractor: 'Guarantee that the portfolio will not lose money.',
+    lessons: [
+      _PreviewStarpathLesson(
+        heading: 'One Stock or a Basket?',
+        body: 'Owning NVDA gives you exposure to one company. Owning a broad basket such as SPY spreads exposure across many companies. That is diversification: one company usually has less control over the result. The opposite is concentration risk, when one investment becomes so large that the portfolio depends heavily on it.',
+        uncertainty: 'A basket can still be concentrated, and diversification does not eliminate a market-wide decline. An ETF is not automatically safe.',
+        sourceTitle: 'Asset Allocation and Diversification',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation',
+        publisher: 'Investor.gov',
+      ),
+      _PreviewStarpathLesson(
+        heading: 'The Three Principles of Investing',
+        body: 'First, keep it simple: understand what you own and why you own it instead of collecting random assets or following every trend. Second, focus on fundamentals: ask what the company sells, whether revenue and profit are growing, what advantage it may have, and what expectations are already in the price. Third, manage risk: notice concentration, diversification, time horizon, and the possibility of drawdowns. These are questions to investigate, not a formula for what to buy.',
+        uncertainty: 'Revenue, profit, growth, and valuation are only part of the picture. Past results do not guarantee future performance.',
+        sourceTitle: 'Researching Investments',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/getting-started/researching-investments',
+        publisher: 'Investor.gov',
+      ),
+    ],
+  ),
+  _PreviewStarpathPart(
+    title: 'Portfolio & Risk: Your Portfolio',
+    summary: 'Put the holdings together, then see how allocation changes the effect of each one.',
+    tarotKey: 'justice',
+    mnemonic: 'A portfolio is the whole picture; position weight shows how loudly each holding speaks.',
+    limitations: 'An example allocation is only an illustration. It is not a model portfolio or a recommendation.',
+    riskContext: 'Several holdings can still fall together when they share the same sector, market, or economic risk.',
+    recallPrompt: 'How do you calculate a position weight?',
+    rowanExplanation: 'Divide the position value by the total portfolio value. A \$2,000 position in a \$10,000 portfolio has a 20% weight.',
+    checkPrompt:
+        'What is the weight of a \$2,000 position in a \$10,000 portfolio?',
+    correctOption: '20%.',
+    distractor: '2%.',
+    lessons: [
+      _PreviewStarpathLesson(
+        heading: 'What Is a Portfolio?',
+        body: 'A portfolio is the collection of investments you own. Allocation means how much of the portfolio is exposed to each one. For example, a sample portfolio might show SPY at 45%, AAPL at 20%, NVDA at 15%, other holdings at 10%, and cash at 10%. Those numbers are just an illustration, not a suggested mix.',
+        uncertainty: 'A portfolio can contain many positions and still carry substantial risk if the holdings behave alike.',
+        sourceTitle: 'Asset Allocation',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation',
+        publisher: 'Investor.gov',
+      ),
+      _PreviewStarpathLesson(
+        heading: 'Allocation and Concentration',
+        body: 'Allocation changes how much each investment can affect the portfolio. Position weight equals position value divided by total portfolio value, so a \$2,000 NVDA position in a \$10,000 portfolio has a 20% weight. A portfolio that is 95% NVDA depends much more on NVDA than one where it is 15%.',
+        uncertainty: 'There is no single correct weight for everyone, and a lower position weight does not remove the chance of loss.',
+        sourceTitle: 'Diversification',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/getting-started/asset-allocation',
+        publisher: 'Investor.gov',
+      ),
+    ],
+  ),
+  _PreviewStarpathPart(
+    title: 'Portfolio & Risk: Risk Over Time',
+    summary: 'Understand price swings and drawdowns, then see how gains can build on earlier gains.',
+    tarotKey: 'the-chariot',
+    mnemonic: 'Volatility is the motion, drawdown is the fall, and compounding changes the base.',
+    limitations: 'Past volatility, past drawdowns, and simple compounding examples cannot predict future results.',
+    riskContext: 'A loss may be difficult or impossible to recover from, especially when money is needed soon.',
+    recallPrompt: 'Why is the second 10% gain larger in the example?',
+    rowanExplanation: 'After the first gain, the starting amount is larger. The next percentage change applies to that new amount.',
+    checkPrompt: 'After \$1,000 gains 10% twice, with no fees or withdrawals, what is the result?',
+    correctOption: '\$1,210.',
+    distractor: '\$1,200.',
+    lessons: [
+      _PreviewStarpathLesson(
+        heading: 'Risk, Volatility and Drawdown',
+        body: 'Volatility describes how much a price moves around. Drawdown measures a fall from an earlier high: if a portfolio rises to \$10,000 and then falls to \$8,000, the drawdown is 20%. Time horizon matters because money needed soon has less time to wait through a decline than capital intended for many years.',
+        uncertainty: 'Volatility does not capture every kind of risk. More time may allow a recovery, but recovery is never guaranteed.',
+        sourceTitle: 'Risk',
+        sourceUrl:
+            'https://www.finra.org/investors/investing/investing-basics/risk',
+        publisher: 'FINRA',
+      ),
+      _PreviewStarpathLesson(
+        heading: 'Compounding',
+        body: 'Compounding happens when a return builds on earlier gains. Start with \$1,000: after a 10% gain, it becomes \$1,100. Another 10% gain produces \$110, not \$100, so the total becomes \$1,210. The second gain applies to the larger amount.',
+        uncertainty: 'This is simple arithmetic, not a promised return. Real investments can gain, lose, charge fees, and compound unevenly.',
+        sourceTitle: 'Compound Interest Calculator',
+        sourceUrl: 'https://www.investor.gov/financial-tools-calculators/calculators/compound-interest-calculator',
+        publisher: 'Investor.gov',
+      ),
+    ],
+  ),
+  _PreviewStarpathPart(
+    title: 'Practice Investing: Research',
+    summary: 'Practice explaining an example asset before making any simulated order.',
+    tarotKey: 'the-moon',
+    mnemonic: 'A ticker is only a label. Say what the asset represents before looking at the order button.',
+    limitations: 'A short research checklist cannot determine suitability, fair value, or future performance.',
+    riskContext: 'Company-specific risk, market declines, valuation, and concentration can all affect an investment.',
+    recallPrompt: 'What are you actually buying when you choose SPY?',
+    rowanExplanation: 'SPY is an ETF designed to track the S&P 500, giving exposure to a basket of large U.S. companies.',
+    checkPrompt: 'What is the goal of this research exercise?',
+    correctOption:
+        'Understand what the example asset is and what risks it carries.',
+    distractor: 'Decide that everyone should buy the example asset.',
+    lessons: [
+      _PreviewStarpathLesson(
+        heading: 'Research an Investment',
+        body: 'Choose an example such as AAPL, NVDA, SPY, or VOO and explain it in plain language. Is it one company or an ETF? What does it represent? Why might someone study it: a business, broad-market exposure, or diversification? Then name what could go wrong, such as company-specific trouble, a market decline, a high valuation, or too much concentration. For SPY, the key fact is that it is an ETF designed to track the S&P 500 and hold exposure to many large U.S. companies.',
+        uncertainty: 'The question is “Do you understand what it is?” not “Should you buy it?” This exercise provides education, not a recommendation.',
+        sourceTitle: 'Researching Investments',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/getting-started/researching-investments',
+        publisher: 'Investor.gov',
+      ),
+    ],
+  ),
+  _PreviewStarpathPart(
+    title: 'Practice Investing: Sample Order',
+    summary: 'Walk through one simulated investment order and see how it would appear in a practice portfolio.',
+    tarotKey: 'justice',
+    mnemonic: 'Pause at the preview: asset, side, shares, order type, price boundary, value, and weight.',
+    limitations: 'A simulation cannot reproduce every live price, fill, fee, tax, or market condition.',
+    riskContext: 'A real order can create a real gain or loss. Nothing in this practice flow predicts the result.',
+    recallPrompt:
+        'What is the difference between a market order and a limit order?',
+    rowanExplanation: 'A market order uses the best prices available when it reaches the market. A limit order sets a price boundary but may not execute.',
+    checkPrompt: 'What does a buy limit order do?',
+    correctOption:
+        'It can execute only at the limit price or lower, but it may not fill.',
+    distractor: 'It guarantees an immediate fill at the displayed price.',
+    lessons: [
+      _PreviewStarpathLesson(
+        heading: 'Make a Sample Investment',
+        body: 'Use a hypothetical SPY price and enter a sample amount, such as \$1,000. The preview can estimate shares, position value, and portfolio weight. A market order tries to execute using the best available prices; a limit order executes only at the chosen price or better and may not fill. After “Simulate Order,” add it only to a fake portfolio and show average cost, current value, unrealized gain or loss, and position weight. The final check is simple: you simulated buying an ETF designed to track the S&P 500.',
+        uncertainty: 'All prices and results in this lesson are hypothetical. No real brokerage order is created, and an estimate is never a guaranteed execution price.',
+        sourceTitle: 'Types of Orders',
+        sourceUrl: 'https://www.investor.gov/introduction-investing/investing-basics/how-stock-markets-work/types-orders',
+        publisher: 'Investor.gov',
+      ),
+    ],
+  ),
+];
 
 class _FixtureStarpathService implements StarpathService {
   _FixtureStarpathService(this.tracker);
@@ -271,58 +581,65 @@ class _FixtureStarpathService implements StarpathService {
     ),
     nodes: List.generate(8, (index) {
       final ordinal = index + 1;
+      final part = _previewStarpathParts[index];
       return StarpathNode(
         lessonId: 'fixture-lesson-$ordinal',
         revisionId: 'fixture-revision-$ordinal',
         nodeOrdinal: ordinal,
         pathwayOrdinal: (index ~/ 2) + 1,
         pathwayPosition: (index % 2) + 1,
-        title: 'Star lesson $ordinal',
-        mythicMnemonic: 'A celestial memory image for lesson $ordinal.',
-        factualSummary: 'A factual investment concept for lesson $ordinal.',
-        materialLimitations: 'Definitions and terms can vary.',
-        riskContext: 'Investment values and outcomes can change.',
-        recallPrompt: 'Recall the factual concept.',
-        rowanExplanation: 'A reviewed factual restatement.',
-        guide: const StarpathGuide(
-          tarotKey: 'the-star',
-          accessibleLabel: 'The Star, used only as a memory aid.',
+        title: part.title,
+        mythicMnemonic: part.mnemonic,
+        factualSummary: part.summary,
+        materialLimitations: part.limitations,
+        riskContext: part.riskContext,
+        recallPrompt: part.recallPrompt,
+        rowanExplanation: part.rowanExplanation,
+        guide: StarpathGuide(
+          tarotKey: part.tarotKey,
+          accessibleLabel:
+              '${part.title} uses ${part.tarotKey.replaceAll('-', ' ')} only as a memory aid; it predicts nothing.',
         ),
         factualSections: [
-          StarpathFactualSection(
-            ordinal: 1,
-            kind: StarpathFactualSectionKind.fact,
-            heading: 'What it means',
-            body: 'This section explains an objective investment term.',
-            observedAt: DateTime.utc(2026, 8, 29),
-            uncertainty: 'Terms may differ across products and issuers.',
-            evidence: [
-              StarpathEvidence(
-                ordinal: 1,
-                publisher: 'Investor.gov',
-                sourceTitle: 'Investor education',
-                canonicalUrl: Uri.parse('https://www.investor.gov/'),
-                claimSummary: 'Primary investor-education source.',
-                retrievedAt: DateTime.utc(2026, 8, 29),
-                sourceObservedAt: DateTime.utc(2026, 8, 29),
-                currentUntil: DateTime.utc(2027, 8, 29),
-              ),
-            ],
-          ),
+          for (
+            var lessonIndex = 0;
+            lessonIndex < part.lessons.length;
+            lessonIndex += 1
+          )
+            StarpathFactualSection(
+              ordinal: lessonIndex + 1,
+              kind: StarpathFactualSectionKind.fact,
+              heading: part.lessons[lessonIndex].heading,
+              body: part.lessons[lessonIndex].body,
+              observedAt: DateTime.utc(2026, 8, 31),
+              uncertainty: part.lessons[lessonIndex].uncertainty,
+              evidence: [
+                StarpathEvidence(
+                  ordinal: 1,
+                  publisher: part.lessons[lessonIndex].publisher,
+                  sourceTitle: part.lessons[lessonIndex].sourceTitle,
+                  canonicalUrl: Uri.parse(part.lessons[lessonIndex].sourceUrl),
+                  claimSummary: 'Supports the reviewed educational definition and risk boundary.',
+                  retrievedAt: DateTime.utc(2026, 8, 31),
+                  sourceObservedAt: DateTime.utc(2026, 8, 31),
+                  currentUntil: DateTime.utc(2027, 2, 28),
+                ),
+              ],
+            ),
         ],
         knowledgeCheck: StarpathKnowledgeCheck(
           id: 'fixture-question-$ordinal',
-          prompt: 'Which answer repeats the factual definition?',
+          prompt: part.checkPrompt,
           options: [
             StarpathKnowledgeCheckOption(
               id: 'fixture-option-$ordinal-a',
               ordinal: 1,
-              label: 'The factual definition',
+              label: part.correctOption,
             ),
             StarpathKnowledgeCheckOption(
               id: 'fixture-option-$ordinal-b',
               ordinal: 2,
-              label: 'A guaranteed outcome',
+              label: part.distractor,
             ),
           ],
         ),
@@ -354,10 +671,10 @@ class _FixtureStarpathService implements StarpathService {
         : const StarpathTheme(
             id: 'fixture-theme',
             key: 'walk-the-stars',
-            title: 'Walk the Stars',
-            horoscopeFrame: 'A memory frame, not a prediction.',
-            factualFocus: 'Learn one objective concept at a time.',
-            accessibleLabel: 'A celestial learning path.',
+            title: 'StarPath Foundations',
+            horoscopeFrame: 'A memory frame for eight open beginner parts, not a prediction.',
+            factualFocus: 'Nineteen short lessons covering ownership, orders, risk, options, news, and process.',
+            accessibleLabel: 'Eight immediately accessible investment education parts with nineteen short lessons.',
           ),
     recall: null,
   );
@@ -504,7 +821,7 @@ class _FixtureRitualService implements DailyRitualService {
         scriptRevisionId: '10000000-0000-4000-8000-000000000002',
         surface: 'daily_ritual',
         body: 'I’ll show you what changed beneath the reading.',
-        riskFooter: 'This deterministic demo explains uncertainty and never tells you to trade.',
+        riskFooter: 'This simulated scenario explains uncertainty and never tells you to trade.',
       ),
       version: 3,
       state: DailyRitualState.completed,
@@ -515,7 +832,7 @@ class _FixtureRitualService implements DailyRitualService {
         observedAt: DateTime.utc(2026, 8, 20, 13, 35),
         sourceLabel: 'Ritual deterministic demonstration',
         limitations: const [
-          'Deterministic demo data; prices and signals are fictional.',
+          'Simulated sample data; prices and signals are fictional.',
           'Educational exploration only; not investment advice.',
         ],
       ),
@@ -537,7 +854,7 @@ class _FixtureRitualService implements DailyRitualService {
       uncertainty:
           'The scenario is simulated and short-term conditions can reverse.',
       source: RitualEvidenceSource(
-        publisher: 'Demo Research Desk',
+        publisher: 'Leo Research Desk',
         title: 'Provider-free scenario note',
         url: Uri.parse('https://example.invalid/ritual-evidence'),
         publishedAt: DateTime.utc(2026, 8, 20, 13),
@@ -620,7 +937,7 @@ class _FixtureCovenService implements CovenService {
     focus: 'Preventive health technology',
     summary: 'Fictional provider-free company research.',
     inclusionRationale: 'Dated founder evidence is present.',
-    limitations: 'Demo only; not investment advice.',
+    limitations: 'Simulated research only; not investment advice.',
     qualifications: [
       CovenQualification(
         category: CovenQualificationCategory.founder,
@@ -644,7 +961,7 @@ class _FixtureCovenService implements CovenService {
       observedAt: DateTime.utc(2026, 8, 20),
       summary: 'Fixture founder record.',
       uncertainty: 'Fictional evidence can be revised.',
-      publisher: 'Demo Registry',
+      publisher: 'Leo Research Registry',
       sourceTitle: 'Fixture founder record',
       sourceUrl: Uri.parse('https://example.invalid/coven'),
       publishedAt: DateTime.utc(2026, 8, 20),
@@ -1021,7 +1338,7 @@ class _FixtureBriefingService implements BriefingService {
       BriefingSummarySection(
         ordinal: 1,
         sourceSequence: _summary(briefingId).sourceSequence,
-        disclosure: 'Fixture Demo briefing $briefingId',
+        disclosure: 'Internal preview briefing $briefingId',
       ),
     ],
   );
@@ -1045,7 +1362,7 @@ class _FixtureNotificationService implements NotificationService {
     id: '00000000-0000-4000-8000-000000000093',
     kind: NotificationKind.briefingReady,
     title: 'Fixture briefing ready',
-    body: 'Open Ritual to review the Demo recap.',
+    body: 'Open Ritual to review the simulated recap.',
     destination: NotificationDestination.tryParse('/briefings'),
     scheduledAt: DateTime.utc(2026, 8, 25, 12),
     readAt: null,

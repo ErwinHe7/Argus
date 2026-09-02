@@ -181,7 +181,7 @@ def run() -> None:
             )
         composer.fill("SPX")
         composer.press("Enter")
-        page.get_by_text("AXIO7 interpreted query", exact=True).wait_for()
+        page.get_by_text("Research interpreted query", exact=True).wait_for()
         page.get_by_text("No live forecast was generated for this request.", exact=True).wait_for()
         page.get_by_text("SPX → SPY (price/volume and VWAP proxy)", exact=True).wait_for()
         page.get_by_role("button", name="Retry live").wait_for()
@@ -232,7 +232,7 @@ def run() -> None:
         scanner.get_by_text("排名暂未公开：验证仍在进行", exact=True).wait_for()
         assert scanner.get_by_text("40%", exact=True).count() == 2
         scanner.get_by_text("20%", exact=True).wait_for()
-        scanner.get_by_text("自动执行始终关闭。", exact=False).wait_for()
+        scanner.get_by_text("Automatic execution remains disabled.", exact=False).wait_for()
         assert scanner.get_by_text("看多倾向最强", exact=False).count() == 0
         scanner.screenshot(path=str(ARTIFACTS / "factor-shadow-zh.png"), full_page=True)
 

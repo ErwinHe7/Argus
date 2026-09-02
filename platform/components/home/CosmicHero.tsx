@@ -215,6 +215,7 @@ export function CosmicHero() {
           <span className={styles.brandName}>Leo</span>
         </a>
         <nav className={styles.navLinks} aria-label="Homepage navigation">
+          <Link href="/pricing">Plans</Link>
           <Link href="/app/">App</Link>
         </nav>
       </header>

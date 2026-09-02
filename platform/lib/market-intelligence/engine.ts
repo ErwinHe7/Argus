@@ -164,7 +164,7 @@ function buildDecisionFrame(
     stance,
     confidence: clamp(complianceSeverity === 'caution' ? avgConfidence - 12 : avgConfidence, 0, 100),
     rationale: [
-      `${officialCount} official event(s), ${reportedCount} reported event(s), ${demoCount} demo fallback event(s).`,
+      `${officialCount} official event(s), ${reportedCount} reported event(s), ${demoCount} fallback event(s).`,
       `Highest materiality score is ${maxMateriality}/100 with aggregate sentiment ${sentiment}.`,
       horizonText,
     ],

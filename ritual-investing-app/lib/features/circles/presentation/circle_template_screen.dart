@@ -64,7 +64,7 @@ class CircleTemplateScreen extends StatelessWidget {
           Semantics(
             button: onOpenCreator != null,
             label:
-                '${value.creator.displayName}, fictional read-only Demo creator',
+                '${value.creator.displayName}, fictional read-only research profile',
             child: ListTile(
               key: Key('template-creator-${value.creator.id}'),
               minTileHeight: 64,
@@ -83,7 +83,7 @@ class CircleTemplateScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(value.creator.bio),
-                  const Text('Fictional Demo creator'),
+                  const Text('Fictional research profile'),
                 ],
               ),
               trailing: onOpenCreator == null
@@ -190,7 +190,7 @@ class CircleTemplateScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Demo boundaries',
+                  'Simulation boundaries',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 for (final limitation in value.demo.limitations)

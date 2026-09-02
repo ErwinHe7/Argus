@@ -421,7 +421,7 @@ class PrivacyController extends ChangeNotifier {
       PrivacyPhase.exportPending
           when value.status == PrivacyExportStatus.completed =>
         'The export completed, but no fresh download is available. Refresh its status to request the latest one-time link.',
-      _ => 'Your coherent Demo account archive is still being prepared.',
+      _ => 'Your account archive is still being prepared.',
     };
   }
 

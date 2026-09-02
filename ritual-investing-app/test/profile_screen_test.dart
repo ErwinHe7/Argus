@@ -24,6 +24,7 @@ void main() {
             onOpenRitualPreferences: () => opened = 'ritual',
             onOpenAstrology: () => opened = 'astrology',
             onOpenPolicies: () => opened = 'policies',
+            onOpenPlansAndPayment: () => opened = 'plans-and-payment',
             onOpenAccount: () => opened = 'account',
             onOpenPortfolio: (_) => opened = 'portfolio',
           ),
@@ -36,13 +37,16 @@ void main() {
     expect(find.byKey(const Key('you-ritual-preferences')), findsOneWidget);
     expect(find.byKey(const Key('you-astrology')), findsOneWidget);
     expect(find.byKey(const Key('you-policies')), findsOneWidget);
+    expect(find.byKey(const Key('you-plans-and-payment')), findsOneWidget);
     expect(find.byKey(const Key('you-account')), findsOneWidget);
     expect(find.byKey(const Key('you-portfolio')), findsNothing);
     await tester.tap(find.byKey(const Key('you-investing')));
     expect(opened, 'investing');
+    await tester.tap(find.byKey(const Key('you-plans-and-payment')));
+    expect(opened, 'plans-and-payment');
   });
 
-  testWidgets('investing screen explains active Demo personalization', (
+  testWidgets('investing screen explains active simulation personalization', (
     tester,
   ) async {
     final controller = _controller();
@@ -58,7 +62,7 @@ void main() {
     );
 
     expect(find.text('Investing profile'), findsOneWidget);
-    expect(find.text('Demo profile'), findsOneWidget);
+    expect(find.text('Simulation profile'), findsOneWidget);
     expect(find.text('Foundational explanations'), findsOneWidget);
     expect(
       find.text('Long-term growth, Long horizon, Moderate risk framing'),
@@ -133,7 +137,7 @@ void main() {
     );
     expect(find.text('Practical, plain-language guidance'), findsOneWidget);
     expect(
-      find.text('New to ritual pacing · Practical research'),
+      find.text('New to Gospel guidance pacing · Practical research'),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const Key('theme-dark')));

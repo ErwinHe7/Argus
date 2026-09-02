@@ -300,7 +300,7 @@ void main() {
       expect(find.textContaining('Completed'), findsOneWidget);
       expect(find.textContaining('Tarot'), findsOneWidget);
       expect(find.textContaining('Aug 25, 2026'), findsOneWidget);
-      expect(find.textContaining('Demo'), findsWidgets);
+      expect(find.textContaining('Simulated'), findsWidgets);
     },
   );
 

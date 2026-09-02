@@ -41,7 +41,7 @@ class CreatorDetailScreen extends StatelessWidget {
                 const Center(child: DemoBadge()),
                 const SizedBox(height: 10),
                 const Text(
-                  'Fictional Demo creator',
+                  'Fictional research profile',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),

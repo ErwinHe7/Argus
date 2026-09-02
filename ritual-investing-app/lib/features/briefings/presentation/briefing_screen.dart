@@ -51,7 +51,9 @@ class _BriefingsScreenState extends State<BriefingsScreen> {
                   DemoBadge(),
                   SizedBox(width: 10),
                   Expanded(
-                    child: Text('Recorded Demo recaps · no real money moves'),
+                    child: Text(
+                      'Recorded simulated recaps · no real money moves',
+                    ),
                   ),
                 ],
               ),
@@ -215,7 +217,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Recorded Demo summary',
+                            'Recorded simulated summary',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
@@ -248,7 +250,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
                   ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Demo limitation: this recap reflects recorded fictional activity and saved research. It is not financial advice, a prediction, or evidence of supernatural market causation.',
+                  'Simulation limitation: this recap reflects recorded fictional activity and saved research. It is not financial advice, a prediction, or evidence of supernatural market causation.',
                 ),
               ],
             ],

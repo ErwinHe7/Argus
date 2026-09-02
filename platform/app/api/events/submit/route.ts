@@ -76,7 +76,11 @@ export async function POST(req: NextRequest) {
   const category = inferCategory(title, description, tags);
 
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ ok: true, note: 'Demo mode — event not persisted.', event: { title, status: 'pending' } });
+    return NextResponse.json({
+      ok: true,
+      note: 'Submission received for review; persistence is currently unavailable.',
+      event: { title, status: 'pending' },
+    });
   }
 
   // Get User Submission source

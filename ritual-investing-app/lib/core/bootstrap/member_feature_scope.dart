@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../features/asset_codex/data/repository.dart';
+import '../../features/ai_analysis/application/controller.dart';
 import '../../features/briefings/application/briefing_controller.dart';
 import '../../features/brokerage_connection/application/controller.dart';
 import '../../features/circles/data/repository.dart';
@@ -43,6 +44,7 @@ class MemberFeatureScope {
     required this.invalidationBus,
     this.capabilityPolicy = MemberCapabilityPolicy.native,
     this.brokerageConnectionController,
+    this.aiAnalysisController,
     this.brokeragePortfolioController,
     this.assetCodexRepository,
     this.searchController,
@@ -62,6 +64,7 @@ class MemberFeatureScope {
   final DailyRitualController dailyRitualController;
   final StarpathController starpathController;
   final DiscoverController discoverController;
+  final AiAnalysisController? aiAnalysisController;
   final CovenController covenController;
   final ProfileController profileController;
   final MemberCapabilityPolicy capabilityPolicy;
@@ -110,7 +113,10 @@ class MemberFeatureScope {
         case MemberBranch.starpath:
           await starpathController.load();
         case MemberBranch.discover:
-          await discoverController.load();
+          await Future.wait(<Future<void>>[
+            discoverController.load(),
+            if (aiAnalysisController case final controller?) controller.load(),
+          ]);
         case MemberBranch.coven:
           await covenController.load();
         case MemberBranch.you:
@@ -133,6 +139,7 @@ class MemberFeatureScope {
     dailyRitualController.dispose();
     starpathController.dispose();
     discoverController.dispose();
+    aiAnalysisController?.dispose();
     covenController.dispose();
     profileController.dispose();
     brokerageConnectionController?.dispose();

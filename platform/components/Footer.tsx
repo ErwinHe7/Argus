@@ -27,6 +27,7 @@ export function Footer() {
             title="PRODUCT"
             links={[
               { href: '/app/', label: 'Open Leo' },
+              { href: '/pricing', label: 'Plans & payment' },
             ]}
           />
           <FooterGroup

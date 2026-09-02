@@ -441,7 +441,7 @@ void main() {
       ),
     );
 
-    expect(find.text('Fictional Demo creator'), findsWidgets);
+    expect(find.text('Fictional research profile'), findsWidgets);
     expect(find.textContaining('read-only'), findsWidgets);
     await tester.scrollUntilVisible(
       find.byKey(const Key('template-copy')),

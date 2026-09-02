@@ -482,7 +482,7 @@ function labelForKind(kind: MarketSourceKind) {
     polygon: 'Polygon',
     reddit: 'Reddit',
     manual: 'Manual',
-    demo: 'Demo',
+    demo: 'Fallback',
   };
   return labels[kind];
 }

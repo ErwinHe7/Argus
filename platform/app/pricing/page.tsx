@@ -23,6 +23,7 @@ import {
 import { getPaddleBrowserConfig } from '@/lib/paddle';
 import { getPublicPaddleTiers, PADDLE_TIERS } from '@/lib/paddle-catalog';
 import { getPublicBillingPlans, type BillingPlanKey, type PublicBillingPlan } from '@/lib/stripe';
+import { WHOP_LIVE_TRADING_CHECKOUT } from './whop-checkout';
 
 export const dynamic = 'force-dynamic';
 
@@ -408,22 +409,66 @@ export default async function PricingPage({
           </div>
         )}
 
+        {!hasAccess ? <section className="axio-whop-checkout" aria-labelledby="whop-checkout-title">
+          <div className="axio-whop-intro">
+            <span className="axio-whop-mark" aria-hidden="true">W</span>
+            <div>
+              <p>Existing Whop checkout</p>
+              <h2 id="whop-checkout-title">Prefer to pay through Whop?</h2>
+              <span>
+                Continue to the verified AXIO7 checkout hosted by Whop.
+              </span>
+            </div>
+          </div>
+
+          <div className="axio-whop-offer">
+            <div className="axio-whop-product">
+              <strong>{WHOP_LIVE_TRADING_CHECKOUT.productName}</strong>
+              <span>{WHOP_LIVE_TRADING_CHECKOUT.description}</span>
+            </div>
+            <div className="axio-whop-price">
+              <strong>{WHOP_LIVE_TRADING_CHECKOUT.price}</strong>
+              <span>{WHOP_LIVE_TRADING_CHECKOUT.cadence}</span>
+              <small>Verified {WHOP_LIVE_TRADING_CHECKOUT.verifiedOn}</small>
+            </div>
+            <a
+              className="axio-whop-action"
+              href={WHOP_LIVE_TRADING_CHECKOUT.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Continue to Whop checkout; Leo app access is not activated automatically"
+            >
+              Continue on Whop
+              <ArrowUpRight aria-hidden="true" />
+            </a>
+          </div>
+
+          <p className="axio-whop-note">
+            <strong>Separate fulfillment:</strong> Whop manages this purchase separately from the
+            Paddle billing record above. A Whop receipt does not automatically unlock the Leo app
+            or change an existing Paddle plan. Manual account matching is required: use the same
+            email you use for AXIO7 and{' '}
+            <Link href="/support">contact support with the receipt</Link>. The total shown by Whop
+            at checkout is the authoritative price.
+          </p>
+        </section> : null}
+
         <section className="axio-pricing-detail-grid">
           <div className="axio-pricing-detail-card">
             <span>DELIVERY // 01</span>
             <h2>Digital delivery</h2>
-            <p>Paid access is tied to your AXIO7 account after payment confirmation. No physical goods are shipped.</p>
+            <p>Paddle access is tied to your AXIO7 account after verified payment. The Whop listing above is fulfilled separately. No physical goods are shipped.</p>
           </div>
           <div className="axio-pricing-detail-card">
             <span>BILLING // 02</span>
             <h2>Automatic renewal</h2>
-            <p>Plans renew at the selected billing frequency until cancelled. Any applicable tax is shown at checkout.</p>
+            <p>Paddle plans renew at the selected frequency until cancelled. Whop billing is shown and managed in Whop. Applicable tax is shown at checkout.</p>
           </div>
           <div className="axio-pricing-detail-card">
             <span>CONTROL // 03</span>
             <h2>Cancellation</h2>
             <p>
-              Recurring plans can be canceled in <Link href="/billing" className="underline">Billing</Link> to stop the next renewal.
+              Paddle renewals can be canceled in <Link href="/billing" className="underline">Billing</Link>. Whop purchases are managed in Whop.
             </p>
           </div>
         </section>
@@ -431,8 +476,8 @@ export default async function PricingPage({
         <section className="axio-pricing-detail-grid axio-pricing-detail-grid--trust">
           {[
             [LockKeyhole, 'Secure hosted checkout', 'AXIO7 never receives or stores your full card number.'],
-            [ShieldCheck, 'Verified payment events', 'Access changes only after a verified payment-provider event.'],
-            [CreditCard, 'Self-service billing', 'Update cards, view invoices, or cancel in the portal.'],
+            [ShieldCheck, 'Verified website access', 'Leo website access changes only after a verified Paddle event. A Whop receipt does not unlock the app automatically.'],
+            [CreditCard, 'Provider-specific billing', 'Manage Paddle plans in Billing and Whop purchases directly in Whop.'],
           ].map(([Icon, title, copy]) => {
             const ItemIcon = Icon as typeof LockKeyhole;
             return (

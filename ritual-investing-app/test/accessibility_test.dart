@@ -78,7 +78,7 @@ void main() {
         final router = GoRouter.of(tester.element(shell));
         final routes = <(String, String)>[
           (MemberRoutes.ritual.path, 'YOUR DAILY SIGNAL'),
-          (MemberRoutes.starpath.path, 'Walk the Stars'),
+          (MemberRoutes.starpath.path, 'Starpath'),
           (MemberRoutes.discover.path, 'Discover'),
           (MemberRoutes.coven.path, 'Founders’ Coven'),
           (MemberRoutes.you.path, 'You'),
@@ -96,6 +96,55 @@ void main() {
           await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
           await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
           await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
+
+          if (route.$1 == MemberRoutes.starpath.path) {
+            expect(
+              find.byKey(const Key('starpath-universe-selector')),
+              findsOneWidget,
+            );
+            expect(find.text('Investment'), findsOneWidget);
+            expect(find.text('Trading'), findsOneWidget);
+            for (var ordinal = 1; ordinal <= 4; ordinal += 1) {
+              expect(
+                find.byKey(Key('investment-constellation-$ordinal')),
+                findsOneWidget,
+              );
+            }
+            expect(
+              find.byKey(const Key('investment-constellation-5')),
+              findsNothing,
+            );
+
+            await tester.tap(find.text('Trading'));
+            await tester.pumpAndSettle();
+            for (var ordinal = 1; ordinal <= 4; ordinal += 1) {
+              expect(
+                find.byKey(Key('trading-constellation-$ordinal')),
+                findsOneWidget,
+              );
+            }
+            expect(
+              find.byKey(const Key('trading-constellation-5')),
+              findsNothing,
+            );
+            expect(
+              tester.takeException(),
+              isNull,
+              reason: '2x layout overflow on the Trading universe',
+            );
+            await expectLater(
+              tester,
+              meetsGuideline(labeledTapTargetGuideline),
+            );
+            await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+            await expectLater(
+              tester,
+              meetsGuideline(androidTapTargetGuideline),
+            );
+
+            await tester.tap(find.text('Investment'));
+            await tester.pumpAndSettle();
+          }
         }
 
         for (final route in const <(String, String)>[

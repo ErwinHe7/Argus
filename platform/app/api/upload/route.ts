@@ -11,7 +11,7 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'im
 
 export async function POST(req: Request) {
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ error: 'Storage not available in demo mode' }, { status: 503 });
+    return NextResponse.json({ error: 'Storage service is currently unavailable' }, { status: 503 });
   }
 
   let formData: FormData;

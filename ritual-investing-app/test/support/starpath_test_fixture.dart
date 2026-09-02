@@ -3,6 +3,72 @@ import 'package:ritual_investing_app/features/starpath/application/starpath_cont
 import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
 import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
 
+const _partTitles = [
+  'What Investing Is',
+  'How Markets Work',
+  'Indexes and Funds',
+  'Investing Principles',
+  'Build a Portfolio',
+  'Understand Risk',
+  'Research an Investment',
+  'Make a Sample Investment',
+];
+
+const _partSummaries = [
+  'Start with the purpose of investing and what owning a share actually means.',
+  'See why prices change and how an order moves from a broker to a market.',
+  'Understand broad indexes, the S&P 500, and the funds people use to follow them.',
+  'Compare a single stock with a basket and learn three durable investing habits.',
+  'Learn what belongs in a portfolio and why concentration changes its risk.',
+  'Make volatility, drawdown, time horizon, and compounding easier to reason about.',
+  'Use a short research checklist before considering any investment.',
+  'Walk through a simulated investment without placing a real trade.',
+];
+
+const _partLessons = [
+  ['What Is Investing?', 'What Is a Stock?'],
+  ['Why Do Prices Move?', 'How the Market Works'],
+  ['Indexes + the S&P 500', 'SPX, SPY, VOO + ETFs'],
+  ['One Stock or a Basket?', 'The Three Principles of Investing'],
+  ['What Is a Portfolio?', 'Allocation & Concentration'],
+  ['Risk, Volatility & Drawdown', 'Compounding'],
+  ['Research an Investment'],
+  ['Make a Sample Investment'],
+];
+
+const _partLessonBodies = [
+  [
+    'Investing means putting money into an asset with the hope that its value or income grows over time. Returns are never guaranteed.',
+    'A stock is a small ownership interest in a company. Its price can rise or fall, including to zero.',
+  ],
+  [
+    'Prices move when buyers and sellers change what they are willing to pay or accept as new information reaches the market.',
+    'A broker routes an order to a market where it can meet another order. The bid, ask, spread, and order type affect execution.',
+  ],
+  [
+    'An index measures a defined group of securities. The S&P 500 tracks large U.S. companies under a published methodology.',
+    'SPX is an index, while SPY and VOO are exchange-traded funds designed to follow it. Similar names do not make them identical products.',
+  ],
+  [
+    'One company can have company-specific risk. A basket spreads exposure across multiple holdings but cannot remove every loss.',
+    'Keep the plan simple, focus on what the investment owns, and decide how much risk you can accept before putting money in.',
+  ],
+  [
+    'A portfolio is the collection of investments you own. The mix matters more than any one ticker viewed alone.',
+    'Allocation is how the portfolio is divided. Concentration rises when one holding, sector, or asset type dominates the total.',
+  ],
+  [
+    'Volatility describes price movement; drawdown measures a fall from a prior peak. The time available before money is needed also matters.',
+    'Compounding happens when gains can earn further gains over time. Losses and fees compound too, so the path is not smooth or guaranteed.',
+  ],
+  [
+    'Research starts with what the investment owns, how it may earn money, its costs, and the risks that could change the thesis.',
+  ],
+  [
+    'A sample order lets a learner choose an amount, review assumptions, and observe a hypothetical result without sending money to a broker.',
+  ],
+];
+
 StarpathController starpathFixtureController({
   int version = 2,
   int currentOrdinal = 3,
@@ -10,6 +76,7 @@ StarpathController starpathFixtureController({
   StarpathAnswerFeedback? answer,
   bool offline = false,
   bool draftPreview = false,
+  bool started = true,
 }) {
   final snapshot = starpathFixtureSnapshot(
     version: version,
@@ -17,6 +84,7 @@ StarpathController starpathFixtureController({
     recall: recall,
     answer: answer,
     draftPreview: draftPreview,
+    started: started,
   );
   return StarpathController(
     repository: StarpathRepository(
@@ -64,8 +132,11 @@ StarpathSnapshot starpathFixtureSnapshot({
   bool recall = false,
   StarpathAnswerFeedback? answer,
   bool draftPreview = false,
+  bool started = true,
 }) => StarpathSnapshot(
-  availability: StarpathAvailability.available,
+  availability: started
+      ? StarpathAvailability.available
+      : StarpathAvailability.notStarted,
   version: version,
   authority: StarpathAuthority(
     environment: StarpathEnvironment.beta,
@@ -85,19 +156,9 @@ StarpathSnapshot starpathFixtureSnapshot({
       nodeOrdinal: ordinal,
       pathwayOrdinal: (index ~/ 2) + 1,
       pathwayPosition: (index % 2) + 1,
-      title: [
-        'The Share Sigil',
-        'The Market Lantern',
-        'The Many-Star Shield',
-        'The Fee Eclipse',
-        'The Filing Grimoire',
-        'The Fund and Bond Map',
-        'The False Sun',
-        'The Verification Compass',
-      ][index],
+      title: _partTitles[index],
       mythicMnemonic: 'Picture a steady star marking the definition, never predicting an outcome.',
-      factualSummary:
-          'A share generally represents an ownership interest in an issuer.',
+      factualSummary: _partSummaries[index],
       materialLimitations: 'Rights vary by security, share class, issuer, and governing documents.',
       riskContext:
           'A security’s market value can rise or fall, including to zero.',
@@ -108,28 +169,33 @@ StarpathSnapshot starpathFixtureSnapshot({
         accessibleLabel: 'The Star, used only as a memory aid.',
       ),
       factualSections: [
-        StarpathFactualSection(
-          ordinal: 1,
-          kind: StarpathFactualSectionKind.fact,
-          heading: 'Ownership units',
-          body: 'Common stock generally represents an ownership interest in an issuer.',
-          observedAt: DateTime.utc(2026, 8, 29),
-          uncertainty: 'Specific contractual rights can differ.',
-          evidence: [
-            StarpathEvidence(
-              ordinal: 1,
-              publisher: 'Investor.gov',
-              sourceTitle: 'Stocks',
-              canonicalUrl: Uri.parse(
-                'https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks',
+        for (
+          var lessonIndex = 0;
+          lessonIndex < _partLessons[index].length;
+          lessonIndex += 1
+        )
+          StarpathFactualSection(
+            ordinal: lessonIndex + 1,
+            kind: StarpathFactualSectionKind.fact,
+            heading: _partLessons[index][lessonIndex],
+            body: _partLessonBodies[index][lessonIndex],
+            observedAt: DateTime.utc(2026, 8, 29),
+            uncertainty: 'Specific contractual rights can differ.',
+            evidence: [
+              StarpathEvidence(
+                ordinal: 1,
+                publisher: 'Investor.gov',
+                sourceTitle: 'Stocks',
+                canonicalUrl: Uri.parse(
+                  'https://www.investor.gov/introduction-investing/investing-basics/investment-products/stocks',
+                ),
+                claimSummary: 'A stock is a security that can give holders an ownership interest.',
+                retrievedAt: DateTime.utc(2026, 8, 29),
+                sourceObservedAt: DateTime.utc(2026, 8, 29),
+                currentUntil: DateTime.utc(2027, 8, 29),
               ),
-              claimSummary: 'A stock is a security that can give holders an ownership interest.',
-              retrievedAt: DateTime.utc(2026, 8, 29),
-              sourceObservedAt: DateTime.utc(2026, 8, 29),
-              currentUntil: DateTime.utc(2027, 8, 29),
-            ),
-          ],
-        ),
+            ],
+          ),
       ],
       knowledgeCheck: StarpathKnowledgeCheck(
         id: 'question-$ordinal',
@@ -154,27 +220,33 @@ StarpathSnapshot starpathFixtureSnapshot({
           : StarpathNodeState.locked,
     );
   }),
-  session: StarpathSession(
-    id: 'session-1',
-    explicitStart: true,
-    startedAt: DateTime.utc(2026, 8, 29),
-    lastActionAt: DateTime.utc(2026, 8, 30),
-    state: StarpathSessionState.active,
-  ),
-  progress: StarpathProgress(
-    currentNodeOrdinal: currentOrdinal,
-    version: version,
-    updatedAt: DateTime.utc(2026, 8, 30),
-  ),
-  theme: const StarpathTheme(
-    id: 'theme-1',
-    key: 'walk-the-stars',
-    title: 'Walk the Stars',
-    horoscopeFrame: 'Virgo season asks for clear definitions—used here only as a memory frame.',
-    factualFocus: 'Learn how investment terms and records work.',
-    accessibleLabel: 'A constellation-shaped factual learning path.',
-  ),
-  recall: recall
+  session: started
+      ? StarpathSession(
+          id: 'session-1',
+          explicitStart: true,
+          startedAt: DateTime.utc(2026, 8, 29),
+          lastActionAt: DateTime.utc(2026, 8, 30),
+          state: StarpathSessionState.active,
+        )
+      : null,
+  progress: started
+      ? StarpathProgress(
+          currentNodeOrdinal: currentOrdinal,
+          version: version,
+          updatedAt: DateTime.utc(2026, 8, 30),
+        )
+      : null,
+  theme: started
+      ? const StarpathTheme(
+          id: 'theme-1',
+          key: 'starpath-foundations',
+          title: 'StarPath Foundations',
+          horoscopeFrame: 'A memory frame only—never evidence or a forecast.',
+          factualFocus: 'Four open constellations with fourteen short lessons.',
+          accessibleLabel: 'An open beginner investing learning path.',
+        )
+      : null,
+  recall: started && recall
       ? StarpathRecall(
           id: 'recall-1',
           lessonId: 'lesson-1',

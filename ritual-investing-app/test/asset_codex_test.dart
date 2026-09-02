@@ -132,7 +132,7 @@ void main() {
 
     expect(service.comparedIds, [_assetId, _peerId]);
     expect(find.byKey(const Key('asset-comparison-results')), findsOneWidget);
-    expect(find.text('Compared Demo research'), findsOneWidget);
+    expect(find.text('Compared research'), findsOneWidget);
   });
 }
 

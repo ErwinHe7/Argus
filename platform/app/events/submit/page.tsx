@@ -181,7 +181,7 @@ export default function SubmitEventPage() {
               required
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="Columbia Startup Demo Day"
+              placeholder="Columbia Startup Showcase"
               className={inputCls}
               style={inputStyle}
             />

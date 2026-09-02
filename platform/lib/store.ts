@@ -26,8 +26,8 @@ const g = globalThis as unknown as { __axio7_db?: DB };
 function seed(): DB {
   const seedUser = {
     id: 'seed-user-1',
-    name: 'Demo Human',
-    avatar: 'https://api.dicebear.com/9.x/thumbs/svg?seed=Demo',
+    name: 'Leo Member',
+    avatar: 'https://api.dicebear.com/9.x/thumbs/svg?seed=Leo-Member',
   };
 
   const posts: Post[] = [

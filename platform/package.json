@@ -24,6 +24,7 @@
     "test:public-context": "tsx --test scripts/public-context-contract.test.ts",
     "test:ui-navigation": "node --test scripts/ui-navigation-contract.test.mjs",
     "test:paddle-catalog": "node --test scripts/paddle-catalog-contract.test.mjs",
+    "test:whop-checkout": "node --test scripts/whop-checkout-contract.test.mjs",
     "test:growth-funnel": "tsx --test scripts/acquisition-attribution-contract.test.ts",
     "build:cloudflare": "opennextjs-cloudflare build",
     "preview:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare preview",

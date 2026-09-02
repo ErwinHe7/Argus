@@ -111,7 +111,7 @@ class AssetCodexScreen extends StatelessWidget {
       ),
     ),
     const SizedBox(height: 18),
-    Text('Demo metrics', style: Theme.of(context).textTheme.titleLarge),
+    Text('Simulated metrics', style: Theme.of(context).textTheme.titleLarge),
     const SizedBox(height: 6),
     for (final metric in value.metrics)
       ListTile(
@@ -172,7 +172,7 @@ class AssetCodexScreen extends StatelessWidget {
         style: FilledButton.styleFrom(minimumSize: const Size(48, 48)),
         onPressed: () => onPreviewDemoOrder!(value.id, value.symbol),
         icon: const Icon(Icons.receipt_long_outlined),
-        label: const Text('Preview Demo order'),
+        label: const Text('Preview simulated order'),
       ),
       const Text(
         'Opens an editable provider-free preview. Nothing is submitted automatically.',
@@ -225,13 +225,13 @@ class _ComparisonResults extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     container: true,
     explicitChildNodes: true,
-    label: 'Compared Demo research',
+    label: 'Compared research',
     child: Column(
       key: const Key('asset-comparison-results'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Compared Demo research',
+          'Compared research',
           style: Theme.of(context).textTheme.titleLarge,
         ),
         Text(

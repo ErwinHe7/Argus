@@ -3938,6 +3938,157 @@ body:has(.axio-pricing-shell) main.mx-auto {
   background: #111015 !important;
 }
 
+.axio-whop-checkout {
+  margin-top: 54px;
+  padding: 30px 0;
+  border-top: 1px solid #24242b;
+  border-bottom: 1px solid #24242b;
+}
+
+.axio-whop-intro {
+  display: flex;
+  max-width: 780px;
+  align-items: flex-start;
+  gap: 16px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.axio-whop-mark {
+  display: inline-flex;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  color: #0a0a0c !important;
+  background: #ff6243;
+  font-size: 17px;
+  font-weight: 850;
+}
+
+.axio-whop-intro p {
+  color: #ff8a72;
+  font-size: 11px;
+  font-weight: 720;
+}
+
+.axio-pricing-shell .education-pricing .axio-whop-intro h2 {
+  margin-top: 5px;
+  color: #f4f4f7 !important;
+  font-size: 23px;
+  font-weight: 650;
+  letter-spacing: -.025em;
+}
+
+.axio-whop-intro > div > span {
+  display: block;
+  margin-top: 7px;
+  color: rgba(235, 235, 242, .68);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.axio-whop-offer {
+  display: grid;
+  margin-top: 24px;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #24242b !important;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 22px;
+  background: #0b0b0e !important;
+  box-shadow: none !important;
+}
+
+.axio-whop-product,
+.axio-whop-price {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.axio-whop-product strong,
+.axio-whop-price strong {
+  color: #f5f5f7;
+  font-size: 14px;
+}
+
+.axio-whop-product span,
+.axio-whop-price span {
+  color: rgba(235, 235, 242, .68);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.axio-whop-price {
+  min-width: 112px;
+}
+
+.axio-whop-price small {
+  color: rgba(235, 235, 242, .62);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.axio-whop-action {
+  display: inline-flex;
+  min-height: 44px;
+  padding: 0 15px;
+  border: 1px solid #ff7357;
+  border-radius: 9px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #fff1ed;
+  background: #25130f;
+  font-size: 12px;
+  font-weight: 720;
+  text-decoration: none;
+  transition: border-color .2s ease, background .2s ease;
+}
+
+.axio-whop-action:hover {
+  border-color: #ff9a84;
+  background: #351a14;
+}
+
+.axio-whop-action:focus-visible {
+  outline: 2px solid #a893ff;
+  outline-offset: 3px;
+}
+
+.axio-whop-action svg {
+  width: 15px;
+  height: 15px;
+}
+
+.axio-whop-note {
+  max-width: 780px;
+  margin-top: 14px;
+  color: rgba(235, 235, 242, .7);
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.axio-whop-note strong {
+  color: rgba(245, 245, 247, .82);
+}
+
+.axio-whop-note a {
+  color: #ff9a84;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.axio-whop-note a:focus-visible {
+  outline: 2px solid #a893ff;
+  outline-offset: 3px;
+}
+
 .axio-pricing-detail-grid {
   gap: 16px;
 }
@@ -3981,6 +4132,21 @@ body:has(.axio-pricing-shell) main.mx-auto {
 
   .axio-pricing-heading {
     margin-top: 54px;
+  }
+
+  .axio-whop-offer {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .axio-whop-action {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .axio-whop-action {
+    transition: none;
   }
 }
 

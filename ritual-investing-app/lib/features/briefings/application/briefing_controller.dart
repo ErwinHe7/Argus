@@ -198,7 +198,7 @@ class BriefingController extends ChangeNotifier {
     if (event.resource != InvalidationResource.ledger) return;
     _isStale = true;
     if (_items.isNotEmpty) _phase = BriefingPhase.stale;
-    _message = 'Committed Demo state changed. Refreshing recap source sequences without changing saved content.';
+    _message = 'Recorded simulation state changed. Refreshing recap source sequences without changing saved content.';
     notifyListeners();
     unawaited(_refreshInvalidated());
   }

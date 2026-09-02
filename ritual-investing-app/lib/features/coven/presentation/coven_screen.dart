@@ -31,7 +31,7 @@ class CovenScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'A demo directory that states exactly why each company belongs.',
+            'A research directory that states exactly why each company belongs.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
           StateStatus(phase: controller.state.phase, onRetry: controller.load),
@@ -73,7 +73,7 @@ class CovenScreen extends StatelessWidget {
           ),
           const SizedBox(height: 22),
           Text(
-            'DEMO DIRECTORY',
+            'RESEARCH DIRECTORY',
             style: TextStyle(
               color: colors.gold,
               fontSize: 12,

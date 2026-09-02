@@ -97,7 +97,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('PEER · Patient Demo Fund'));
       await tester.pumpAndSettle();
-      expect(find.text('Compared Demo research'), findsOneWidget);
+      expect(find.text('Compared research'), findsOneWidget);
       expect(find.textContaining(u4PeerRevisionId), findsOneWidget);
 
       await tester.scrollUntilVisible(

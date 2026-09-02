@@ -7,6 +7,13 @@ const sentryEnabled = Boolean(
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  async rewrites() {
+    return [
+      // Flutter's web build lives in public/app. Next serves the files inside
+      // that folder, but it does not resolve its index.html for /app itself.
+      { source: '/app', destination: '/app/index.html' },
+    ];
+  },
   env: {
     // Make the build-time choice explicit so an unconfigured preview does not
     // carry the Sentry server SDK into a size-constrained edge bundle.

@@ -31,6 +31,7 @@ class ProfileScreen extends StatelessWidget {
     this.onOpenRitualPreferences,
     this.onOpenAstrology,
     this.onOpenPolicies,
+    this.onOpenPlansAndPayment,
     this.onOpenAccount,
     this.onOpenNotifications,
     this.onOpenPrivacy,
@@ -45,6 +46,7 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onOpenRitualPreferences;
   final VoidCallback? onOpenAstrology;
   final VoidCallback? onOpenPolicies;
+  final VoidCallback? onOpenPlansAndPayment;
   final VoidCallback? onOpenAccount;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenPrivacy;
@@ -94,7 +96,7 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.trending_up,
                 title: 'Investing profile',
                 subtitle: profile.investor == null
-                    ? 'Add your Demo research defaults'
+                    ? 'Add your research preferences'
                     : profile.investor!.explanationDepth,
                 onTap: onOpenInvesting,
               ),
@@ -123,6 +125,14 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Policy decisions',
                 subtitle: 'Onboarding consent status',
                 onTap: onOpenPolicies,
+              ),
+            if (onOpenPlansAndPayment != null)
+              _MenuTile(
+                key: const Key('you-plans-and-payment'),
+                icon: Icons.credit_card_outlined,
+                title: 'Plans & payment',
+                subtitle: 'Paddle plans and the existing Whop checkout',
+                onTap: onOpenPlansAndPayment,
               ),
             if (brokerageConnectionController case final brokerage?)
               _MenuTile(
@@ -284,7 +294,8 @@ class _InvestingProfileScreenState extends State<InvestingProfileScreen> {
                   onRetry: widget.controller.load,
                 ),
               if (profile?.investor case final investor?) ...[
-                if (investor.isDemo) const Chip(label: Text('Demo profile')),
+                if (investor.isDemo)
+                  const Chip(label: Text('Simulation profile')),
                 const SizedBox(height: 16),
                 Text(
                   'Active personalization',
@@ -707,7 +718,7 @@ class PolicyStatusScreen extends StatelessWidget {
                 value: 'A decision is required for current member v2 onboarding; receipt status is not exposed here.',
               ),
               const _DetailRow(
-                label: 'Demo disclosure',
+                label: 'Simulation disclosure',
                 value: 'A decision is required for current member v2 onboarding; receipt status is not exposed here.',
               ),
               _DetailRow(

@@ -1,269 +1,461 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../application/starpath_controller.dart';
+import '../application/starpath_narration_controller.dart';
+import '../domain/investment_constellation.dart';
 import '../domain/starpath.dart';
-import 'starpath_tarot_art.dart';
 
-const _night = Color(0xFF09020D);
+const _night = Color(0xFF0B0310);
 const _aubergine = Color(0xFF15061A);
-const _moonInk = Color(0xFFFFF7FF);
-const _mutedMoon = Color(0xFFCFBED2);
-const _candleGold = Color(0xFFEDBC70);
+const _moonInk = Color(0xFFF6ECF7);
+const _mutedMoon = Color(0xFFBDA4C2);
+const _candleGold = Color(0xFFECB667);
 const _softGold = Color(0xFFF7DCAE);
-const _lilac = Color(0xFFE5B4DF);
-const _factBlue = Color(0xFFB7DDFF);
-const _factBackground = Color(0xFF102C40);
+const _learnedGreen = Color(0xFF86BE8A);
+const _veilLine = Color(0xFF3F2545);
 
-enum _LessonStep { draw, memory, fact, check }
-
-class StarpathLessonScreen extends StatefulWidget {
+class StarpathLessonScreen extends StatelessWidget {
   const StarpathLessonScreen({
     super.key,
     required this.controller,
-    required this.node,
+    required this.constellation,
     required this.readOnly,
+    required this.narrationPreference,
     this.preview = false,
+    this.narrationEngineFactory = createStarpathNarrationEngine,
   });
 
   final StarpathController controller;
-  final StarpathNode node;
+  final InvestmentConstellation constellation;
   final bool readOnly;
   final bool preview;
+  final StarpathNarrationPreference narrationPreference;
+  final StarpathNarrationEngineFactory narrationEngineFactory;
 
   @override
-  State<StarpathLessonScreen> createState() => _StarpathLessonScreenState();
+  Widget build(BuildContext context) => Theme(
+    data: AppTheme.dark,
+    child: AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final currentConstellation = _latestConstellation();
+        return Scaffold(
+          backgroundColor: _night,
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF100414),
+            surfaceTintColor: Colors.transparent,
+            leading: IconButton(
+              tooltip: 'Return to StarPath',
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+            ),
+            title: Text(
+              'Constellation ${currentConstellation.displayIndex} of 4',
+            ),
+            actions: [
+              _NarrationPreferenceButton(preference: narrationPreference),
+              const SizedBox(width: 8),
+            ],
+          ),
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: ListView(
+                  key: const Key('starpath-activity-scroll'),
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                  children: [
+                    _ConstellationIntroduction(
+                      constellation: currentConstellation,
+                    ),
+                    const SizedBox(height: 28),
+                    const _SectionLabel('SHORT LESSONS'),
+                    const SizedBox(height: 12),
+                    for (
+                      var index = 0;
+                      index < currentConstellation.lessons.length;
+                      index += 1
+                    ) ...[
+                      _MicroLessonRow(
+                        key: Key(
+                          'starpath-constellation-${currentConstellation.displayIndex}-lesson-${index + 1}',
+                        ),
+                        index: index,
+                        section: currentConstellation.lessons[index].section,
+                        onPressed: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (context) => _StarpathMicroLessonScreen(
+                              controller: controller,
+                              constellation: currentConstellation,
+                              lessonIndex: index,
+                              readOnly: readOnly,
+                              preview: preview,
+                              narrationPreference: narrationPreference,
+                              narrationEngineFactory: narrationEngineFactory,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (index != currentConstellation.lessons.length - 1)
+                        const Divider(height: 1, color: _veilLine),
+                    ],
+                    const SizedBox(height: 24),
+                    FilledButton.icon(
+                      key: const Key('starpath-open-check'),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (context) => _StarpathCheckScreen(
+                            controller: controller,
+                            node: currentConstellation.authoritativeCheckNode,
+                            displayConstellationOrdinal:
+                                currentConstellation.displayIndex,
+                            readOnly: readOnly,
+                            preview: preview,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.check_circle_outline_rounded),
+                      label: const Text('Quick check'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+
+  InvestmentConstellation _latestConstellation() {
+    final snapshot = controller.state.snapshot;
+    if (snapshot == null) return constellation;
+    return projectInvestmentConstellations(
+      snapshot,
+    )[constellation.displayIndex - 1];
+  }
 }
 
-class _StarpathLessonScreenState extends State<StarpathLessonScreen> {
-  _LessonStep _step = _LessonStep.draw;
-  final ScrollController _scrollController = ScrollController();
+class _ConstellationIntroduction extends StatelessWidget {
+  const _ConstellationIntroduction({required this.constellation});
+
+  final InvestmentConstellation constellation;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        'Constellation ${constellation.displayIndex}',
+        style: const TextStyle(
+          color: _candleGold,
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 1.4,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Text(
+        constellation.title,
+        style: Theme.of(context).textTheme.headlineMedium,
+      ),
+      const SizedBox(height: 5),
+      Text(
+        constellation.leoSubtitle,
+        style: const TextStyle(
+          color: _softGold,
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      const SizedBox(height: 12),
+      Text(
+        constellation.summary,
+        style: const TextStyle(color: _mutedMoon, fontSize: 17, height: 1.5),
+      ),
+      const SizedBox(height: 14),
+      const Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.lock_open_rounded, color: _candleGold, size: 18),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'All four constellations are open. Start wherever you need.',
+              style: TextStyle(color: _mutedMoon, fontSize: 14, height: 1.4),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+class _MicroLessonRow extends StatelessWidget {
+  const _MicroLessonRow({
+    super.key,
+    required this.index,
+    required this.section,
+    required this.onPressed,
+  });
+
+  final int index;
+  final StarpathFactualSection section;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Lesson ${index + 1}, ${section.heading}',
+    child: Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _candleGold.withValues(alpha: 0.13),
+                  border: Border.all(
+                    color: _candleGold.withValues(alpha: 0.55),
+                  ),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: _softGold,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      section.heading,
+                      style: const TextStyle(
+                        color: _moonInk,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: _mutedMoon,
+                size: 24,
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class _StarpathMicroLessonScreen extends StatefulWidget {
+  const _StarpathMicroLessonScreen({
+    required this.controller,
+    required this.constellation,
+    required this.lessonIndex,
+    required this.readOnly,
+    required this.preview,
+    required this.narrationPreference,
+    required this.narrationEngineFactory,
+  });
+
+  final StarpathController controller;
+  final InvestmentConstellation constellation;
+  final int lessonIndex;
+  final bool readOnly;
+  final bool preview;
+  final StarpathNarrationPreference narrationPreference;
+  final StarpathNarrationEngineFactory narrationEngineFactory;
+
+  @override
+  State<_StarpathMicroLessonScreen> createState() =>
+      _StarpathMicroLessonScreenState();
+}
+
+class _StarpathMicroLessonScreenState extends State<_StarpathMicroLessonScreen>
+    with WidgetsBindingObserver {
+  late final StarpathNarrationController _narration;
+
+  InvestmentLessonEntry get entry =>
+      widget.constellation.lessons[widget.lessonIndex];
+
+  StarpathFactualSection get section => entry.section;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _narration = StarpathNarrationController(
+      widget.narrationEngineFactory(),
+      script: buildStarpathNarrationScript(
+        node: entry.node,
+        section: section,
+        sectionIndex: entry.sectionIndex,
+        displayConstellationOrdinal: widget.constellation.displayIndex,
+        displayConstellationTitle: widget.constellation.title,
+        displayLessonOrdinal: widget.lessonIndex + 1,
+      ),
+    );
+    widget.narrationPreference.addListener(_syncNarrationPreference);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !widget.narrationPreference.muted) {
+        unawaited(_narration.play());
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) {
+      unawaited(_narration.stop());
+    }
+  }
 
   @override
   void dispose() {
-    _scrollController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    widget.narrationPreference.removeListener(_syncNarrationPreference);
+    _narration.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) => Theme(
     data: AppTheme.dark,
-    child: Builder(
-      builder: (context) => AnimatedBuilder(
-        animation: widget.controller,
-        builder: (context, _) {
-          final state = widget.controller.state;
-          final answer = state.snapshot?.answer;
-          final canAnswer =
-              !widget.readOnly &&
-              widget.node.state == StarpathNodeState.current;
-          return Scaffold(
-            backgroundColor: _night,
-            appBar: AppBar(
-              backgroundColor: const Color(0xFF100414),
-              surfaceTintColor: Colors.transparent,
-              leading: IconButton(
-                tooltip: 'Close activity',
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close),
+    child: Scaffold(
+      backgroundColor: _night,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF100414),
+        surfaceTintColor: Colors.transparent,
+        title: Text(
+          'Lesson ${widget.lessonIndex + 1} of ${widget.constellation.lessons.length}',
+        ),
+        actions: [
+          _NarrationPreferenceButton(preference: widget.narrationPreference),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520),
+            child: ListView(
+              key: Key(
+                'starpath-micro-lesson-${widget.constellation.displayIndex}-${widget.lessonIndex + 1}',
               ),
-              centerTitle: true,
-              title: _ProgressPips(step: _step),
-              actions: const [
-                Center(
-                  child: Text(
-                    '3 min',
-                    style: TextStyle(color: _mutedMoon, fontSize: 12),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+              children: [
+                Text(
+                  'Constellation ${widget.constellation.displayIndex} · ${widget.constellation.title}',
+                  style: const TextStyle(
+                    color: _candleGold,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                SizedBox(width: 18),
+                const SizedBox(height: 8),
+                Text(
+                  section.heading,
+                  style: Theme.of(context).textTheme.headlineMedium
+                      ?.copyWith(color: _moonInk),
+                ),
+                const SizedBox(height: 16),
+                _StarpathNarrationControl(
+                  key: Key(
+                    'starpath-read-aloud-${widget.constellation.displayIndex}-${widget.lessonIndex + 1}',
+                  ),
+                  controller: _narration,
+                  preference: widget.narrationPreference,
+                ),
+                const SizedBox(height: 28),
+                Text(
+                  section.body,
+                  style: const TextStyle(
+                    color: _moonInk,
+                    fontSize: 18,
+                    height: 1.68,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                _KeepInMind(text: section.uncertainty),
+                const SizedBox(height: 22),
+                _Sources(section: section),
+                const SizedBox(height: 24),
+                TextButton.icon(
+                  onPressed: _showRowan,
+                  icon: const Icon(Icons.chat_bubble_outline_rounded),
+                  label: const Text('Explain it another way'),
+                ),
+                const SizedBox(height: 8),
+                FilledButton(
+                  onPressed: _advance,
+                  child: Text(
+                    widget.lessonIndex < widget.constellation.lessons.length - 1
+                        ? 'Next lesson'
+                        : 'Back to constellation ${widget.constellation.displayIndex}',
+                  ),
+                ),
               ],
             ),
-            body: SafeArea(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: ListView(
-                    key: const Key('starpath-activity-scroll'),
-                    controller: _scrollController,
-                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 36),
-                    children: switch (_step) {
-                      _LessonStep.draw => _drawStep(),
-                      _LessonStep.memory => _memoryStep(),
-                      _LessonStep.fact => _factStep(context),
-                      _LessonStep.check => _checkStep(
-                        context,
-                        answer: answer,
-                        canAnswer: canAnswer,
-                      ),
-                    },
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
+          ),
+        ),
       ),
     ),
   );
 
-  List<Widget> _drawStep() => [
-    const ExcludeSemantics(child: StarpathTarotDeck()),
-    const SizedBox(height: 2),
-    _Eyebrow(
-      'STAR ${widget.node.nodeOrdinal} · PATHWAY ${widget.node.pathwayOrdinal}',
-    ),
-    const SizedBox(height: 8),
-    const Text(
-      'Draw your guide',
-      textAlign: TextAlign.center,
-      style: TextStyle(
-        color: _moonInk,
-        fontFamily: 'LibreBaskerville',
-        fontSize: 27,
-        fontWeight: FontWeight.w700,
-      ),
-    ),
-    const SizedBox(height: 8),
-    const Text(
-      'Your card shapes how the concept is remembered—not what anyone should invest in.',
-      textAlign: TextAlign.center,
-      style: TextStyle(color: _mutedMoon, fontSize: 15, height: 1.5),
-    ),
-    const SizedBox(height: 20),
-    _PrimaryButton(
-      key: const Key('starpath-reveal-card'),
-      label: 'Draw a card',
-      onPressed: _advance,
-    ),
-  ];
-
-  List<Widget> _memoryStep() => [
-    Center(child: StarpathTarotArt(node: widget.node)),
-    const SizedBox(height: 22),
-    _Lens(
-      label: 'MYTHIC MEMORY AID',
-      body: widget.node.mythicMnemonic,
-      ritual: true,
-    ),
-    const SizedBox(height: 10),
-    const _BoundaryNote(
-      text: 'This tarot and horoscope frame is a mnemonic—not evidence or a forecast.',
-    ),
-    const SizedBox(height: 20),
-    _PrimaryButton(
-      key: const Key('starpath-reveal-fact'),
-      label: 'Reveal the financial fact',
-      onPressed: _advance,
-    ),
-  ];
-
-  List<Widget> _factStep(BuildContext context) => [
-    _SectionLabel(widget.preview ? 'DRAFT FINANCIAL LESSON' : 'FACTUAL LESSON'),
-    const SizedBox(height: 8),
-    Text(widget.node.title, style: Theme.of(context).textTheme.headlineMedium),
-    const SizedBox(height: 14),
-    _Lens(
-      label: widget.preview
-          ? 'DRAFT EDUCATIONAL CONCEPT'
-          : 'VERIFIED FINANCIAL FACT',
-      body: widget.node.factualSummary,
-      ritual: false,
-    ),
-    const SizedBox(height: 8),
-    for (final section in widget.node.factualSections)
-      _FactualSection(section: section),
-    const SizedBox(height: 6),
-    _FactBoundary(label: 'LIMITATIONS', body: widget.node.materialLimitations),
-    const SizedBox(height: 12),
-    _FactBoundary(label: 'RISK CONTEXT', body: widget.node.riskContext),
-    const SizedBox(height: 18),
-    OutlinedButton.icon(
-      onPressed: () => _showRowan(context),
-      icon: const Icon(Icons.chat_bubble_outline),
-      label: const Text('Ask Rowan to restate this fact'),
-    ),
-    const SizedBox(height: 24),
-    _PrimaryButton(
-      key: const Key('starpath-open-check'),
-      label: 'Test what you understand',
-      onPressed: _advance,
-    ),
-  ];
-
-  List<Widget> _checkStep(
-    BuildContext context, {
-    required StarpathAnswerFeedback? answer,
-    required bool canAnswer,
-  }) => [
-    _Eyebrow('${starpathTarotName(widget.node.guide.tarotKey)}’S THRESHOLD'),
-    const SizedBox(height: 16),
-    Text(
-      widget.node.knowledgeCheck.prompt,
-      style: Theme.of(context).textTheme.titleLarge,
-    ),
-    const SizedBox(height: 14),
-    for (final option in widget.node.knowledgeCheck.options)
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: OutlinedButton(
-          onPressed: canAnswer
-              ? () => widget.controller.answer(option.id)
-              : null,
-          style: OutlinedButton.styleFrom(
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.18)),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
+  Future<void> _advance() async {
+    await _narration.stop();
+    if (!mounted) return;
+    if (widget.lessonIndex < widget.constellation.lessons.length - 1) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (context) => _StarpathMicroLessonScreen(
+            controller: widget.controller,
+            constellation: widget.constellation,
+            lessonIndex: widget.lessonIndex + 1,
+            readOnly: widget.readOnly,
+            preview: widget.preview,
+            narrationEngineFactory: widget.narrationEngineFactory,
+            narrationPreference: widget.narrationPreference,
           ),
-          child: Text(option.label),
         ),
-      ),
-    if (answer case final feedback?) ...[
-      const SizedBox(height: 4),
-      Semantics(liveRegion: true, child: _AnswerFeedback(answer: feedback)),
-      if (feedback.isCorrect) ...[
-        const SizedBox(height: 20),
-        _Completion(onReturn: () => Navigator.of(context).pop()),
-      ],
-    ],
-    if (!canAnswer) ...[
-      const SizedBox(height: 8),
-      Text(
-        widget.preview
-            ? 'Draft preview only. Checks do not record answers or progress.'
-            : widget.readOnly
-            ? 'Checks are disabled while this reviewed lesson is offline.'
-            : 'Review complete. Your progress is unchanged.',
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
-      const SizedBox(height: 20),
-      _PrimaryButton(
-        label: 'Return to Starpath',
-        onPressed: () => Navigator.of(context).pop(),
-      ),
-    ],
-  ];
-
-  void _advance() {
-    if (_step == _LessonStep.check) return;
-    setState(() => _step = _LessonStep.values[_step.index + 1]);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _scrollController.hasClients) {
-        _scrollController.jumpTo(0);
-      }
-    });
+      );
+    } else {
+      Navigator.of(context).pop();
+    }
   }
 
-  Future<void> _showRowan(BuildContext context) async {
-    widget.controller.revealRowan(widget.node.nodeOrdinal);
+  Future<void> _showRowan() async {
+    await _narration.stop();
+    if (!mounted) return;
+    widget.controller.revealRowan(entry.node.nodeOrdinal);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (context) => SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -275,7 +467,7 @@ class _StarpathLessonScreenState extends State<StarpathLessonScreen> {
               ),
               const SizedBox(height: 12),
               Text(
-                widget.node.rowanExplanation,
+                entry.node.rowanExplanation,
                 style: Theme.of(context).textTheme.bodyLarge,
               ),
               const SizedBox(height: 12),
@@ -284,10 +476,10 @@ class _StarpathLessonScreenState extends State<StarpathLessonScreen> {
                     ? 'Draft lesson copy only. Rowan cannot recommend, predict, or change progress here.'
                     : 'Reviewed lesson copy only. Rowan cannot recommend, predict, or change progress here.',
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 16),
               FilledButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Got it'),
+                child: const Text('Close explanation'),
               ),
             ],
           ),
@@ -296,191 +488,335 @@ class _StarpathLessonScreenState extends State<StarpathLessonScreen> {
     );
     widget.controller.dismissRowan();
   }
+
+  void _syncNarrationPreference() {
+    if (widget.narrationPreference.muted) {
+      unawaited(_narration.stop());
+    } else {
+      unawaited(_narration.play());
+    }
+  }
 }
 
-class _ProgressPips extends StatelessWidget {
-  const _ProgressPips({required this.step});
-
-  final _LessonStep step;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    label: 'Step ${step.index + 1} of ${_LessonStep.values.length}',
-    child: ExcludeSemantics(
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (var index = 0; index < _LessonStep.values.length; index += 1)
-            Container(
-              width: 28,
-              height: 4,
-              margin: EdgeInsets.only(
-                right: index == _LessonStep.values.length - 1 ? 0 : 5,
-              ),
-              decoration: BoxDecoration(
-                color: index <= step.index
-                    ? _candleGold
-                    : Colors.white.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-        ],
-      ),
-    ),
-  );
-}
-
-class _PrimaryButton extends StatelessWidget {
-  const _PrimaryButton({
+class _StarpathNarrationControl extends StatelessWidget {
+  const _StarpathNarrationControl({
     super.key,
-    required this.label,
-    required this.onPressed,
+    required this.controller,
+    required this.preference,
   });
 
-  final String label;
-  final VoidCallback onPressed;
+  final StarpathNarrationController controller;
+  final StarpathNarrationPreference preference;
 
   @override
-  Widget build(BuildContext context) => FilledButton(
-    onPressed: onPressed,
-    style: FilledButton.styleFrom(
-      minimumSize: const Size.fromHeight(50),
-      backgroundColor: _softGold,
-      foregroundColor: const Color(0xFF251126),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      textStyle: const TextStyle(
-        fontFamily: 'Inter',
-        fontWeight: FontWeight.w800,
-      ),
-    ),
-    child: Text(label),
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: Listenable.merge([controller, preference]),
+    builder: (context, _) {
+      final phase = controller.phase;
+      final status = preference.muted
+          ? 'Automatic reading is muted.'
+          : switch (phase) {
+              StarpathNarrationPhase.idle => 'Ready to read aloud.',
+              StarpathNarrationPhase.starting => 'Getting the voice ready…',
+              StarpathNarrationPhase.speaking => 'Reading this lesson aloud…',
+              StarpathNarrationPhase.completed => 'Finished reading.',
+              StarpathNarrationPhase.unavailable => 'Voice is unavailable here. You can still read the lesson below.',
+              StarpathNarrationPhase.failure =>
+                'Voice stopped. Tap replay to try again.',
+            };
+      final actionIcon = switch (phase) {
+        StarpathNarrationPhase.speaking => Icons.stop_rounded,
+        _ => Icons.replay_rounded,
+      };
+      final isStarting = phase == StarpathNarrationPhase.starting;
+      final isSpeaking = phase == StarpathNarrationPhase.speaking;
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                preference.muted
+                    ? Icons.volume_off_rounded
+                    : Icons.graphic_eq_rounded,
+                color: _candleGold,
+                size: 22,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Semantics(
+                  key: const Key('starpath-read-aloud-status'),
+                  liveRegion: phase != StarpathNarrationPhase.idle,
+                  child: Text(
+                    status,
+                    style: const TextStyle(
+                      color: _mutedMoon,
+                      fontSize: 14,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ),
+              if (!preference.muted)
+                IconButton(
+                  key: Key(
+                    isSpeaking
+                        ? 'starpath-read-aloud-stop'
+                        : 'starpath-read-aloud-play',
+                  ),
+                  tooltip: isSpeaking ? 'Stop reading' : 'Read again',
+                  onPressed: isStarting
+                      ? null
+                      : isSpeaking
+                      ? controller.stop
+                      : controller.play,
+                  icon: isStarting
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : Icon(actionIcon),
+                ),
+              TextButton(
+                key: const Key('starpath-narration-mute-toggle'),
+                onPressed: preference.toggle,
+                child: Text(preference.muted ? 'Unmute' : 'Mute'),
+              ),
+            ],
+          ),
+          const Padding(
+            padding: EdgeInsets.only(left: 32),
+            child: Text(
+              'Uses the English voice on this device or browser.',
+              style: TextStyle(color: _mutedMoon, fontSize: 11, height: 1.35),
+            ),
+          ),
+        ],
+      );
+    },
   );
 }
 
-class _Eyebrow extends StatelessWidget {
-  const _Eyebrow(this.text);
+class _NarrationPreferenceButton extends StatelessWidget {
+  const _NarrationPreferenceButton({required this.preference});
+
+  final StarpathNarrationPreference preference;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: preference,
+    builder: (context, _) => IconButton(
+      key: const Key('starpath-global-narration-toggle'),
+      tooltip: preference.muted
+          ? 'Turn automatic reading on'
+          : 'Mute automatic reading',
+      onPressed: preference.toggle,
+      icon: Icon(
+        preference.muted ? Icons.volume_off_rounded : Icons.volume_up_rounded,
+      ),
+    ),
+  );
+}
+
+class _KeepInMind extends StatelessWidget {
+  const _KeepInMind({required this.text});
 
   final String text;
 
   @override
-  Widget build(BuildContext context) => Text(
-    text,
-    textAlign: TextAlign.center,
-    style: const TextStyle(
-      color: _candleGold,
-      fontSize: 12,
-      fontWeight: FontWeight.w800,
-      letterSpacing: 1.2,
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: const BoxDecoration(
+      border: Border(left: BorderSide(color: _candleGold, width: 2)),
     ),
-  );
-}
-
-class _Lens extends StatelessWidget {
-  const _Lens({required this.label, required this.body, required this.ritual});
-
-  final String label;
-  final String body;
-  final bool ritual;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(15),
-    decoration: BoxDecoration(
-      color: ritual
-          ? const Color(0xFF622260).withValues(alpha: 0.28)
-          : _factBackground,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(
-        color: (ritual ? _lilac : _factBlue).withValues(alpha: 0.5),
+    child: Padding(
+      padding: const EdgeInsets.only(left: 14),
+      child: Text.rich(
+        TextSpan(
+          style: const TextStyle(color: _mutedMoon, fontSize: 15, height: 1.55),
+          children: [
+            const TextSpan(
+              text: 'Keep in mind  ',
+              style: TextStyle(color: _softGold, fontWeight: FontWeight.w700),
+            ),
+            TextSpan(text: text),
+          ],
+        ),
       ),
     ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            color: ritual ? _lilac : _factBlue,
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.55,
+  );
+}
+
+class _StarpathCheckScreen extends StatelessWidget {
+  const _StarpathCheckScreen({
+    required this.controller,
+    required this.node,
+    required this.displayConstellationOrdinal,
+    required this.readOnly,
+    required this.preview,
+  });
+
+  final StarpathController controller;
+  final StarpathNode node;
+  final int displayConstellationOrdinal;
+  final bool readOnly;
+  final bool preview;
+
+  @override
+  Widget build(BuildContext context) => Theme(
+    data: AppTheme.dark,
+    child: AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final snapshot = controller.state.snapshot;
+        StarpathNode? latestNode;
+        for (final candidate in snapshot?.nodes ?? const <StarpathNode>[]) {
+          if (candidate.lessonId == node.lessonId) {
+            latestNode = candidate;
+            break;
+          }
+        }
+        final canAnswer =
+            !readOnly &&
+            !preview &&
+            snapshot?.session != null &&
+            latestNode?.state == StarpathNodeState.current;
+        final answer = snapshot?.answer;
+        return Scaffold(
+          backgroundColor: _night,
+          appBar: AppBar(
+            backgroundColor: const Color(0xFF100414),
+            surfaceTintColor: Colors.transparent,
+            title: Text('Constellation $displayConstellationOrdinal check'),
           ),
-        ),
-        const SizedBox(height: 7),
-        Text(
-          body,
-          style: const TextStyle(color: _moonInk, fontSize: 14, height: 1.52),
-        ),
-      ],
+          body: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 520),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                  children: [
+                    const _SectionLabel('CHECK IT'),
+                    const SizedBox(height: 12),
+                    Text(
+                      node.knowledgeCheck.prompt,
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    for (final option in node.knowledgeCheck.options)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: OutlinedButton(
+                          onPressed: canAnswer
+                              ? () => controller.answer(option.id)
+                              : null,
+                          style: OutlinedButton.styleFrom(
+                            alignment: Alignment.centerLeft,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 16,
+                            ),
+                          ),
+                          child: Text(option.label),
+                        ),
+                      ),
+                    if (answer case final feedback?) ...[
+                      const SizedBox(height: 4),
+                      Semantics(
+                        liveRegion: true,
+                        child: _AnswerFeedback(answer: feedback),
+                      ),
+                      if (feedback.isCorrect) ...[
+                        const SizedBox(height: 20),
+                        const _Completion(),
+                      ],
+                    ],
+                    if (!canAnswer) ...[
+                      const SizedBox(height: 8),
+                      _BoundaryNote(
+                        text: preview
+                            ? 'Preview only. Lessons are open, but checks do not save progress.'
+                            : readOnly
+                            ? 'Lessons remain open offline. Checks resume when the reviewed curriculum reconnects.'
+                            : snapshot?.session == null
+                            ? 'Start progress when you want answers to count. You can keep reading any constellation first.'
+                            : 'You can read every constellation now. This check records when this becomes your suggested progress step.',
+                      ),
+                      if (!preview &&
+                          !readOnly &&
+                          snapshot?.session == null) ...[
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          key: const Key('starpath-start-from-check'),
+                          onPressed: controller.start,
+                          icon: const Icon(Icons.play_arrow_rounded),
+                          label: const Text('Start tracking progress'),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     ),
   );
 }
 
-class _FactualSection extends StatelessWidget {
-  const _FactualSection({required this.section});
+class _Sources extends StatelessWidget {
+  const _Sources({required this.section});
 
   final StarpathFactualSection section;
 
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 14),
-    padding: const EdgeInsets.all(15),
-    decoration: BoxDecoration(
-      color: _factBackground,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: _factBlue.withValues(alpha: 0.42)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) => Theme(
+    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+    child: ExpansionTile(
+      key: const Key('starpath-sources'),
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: 12),
+      shape: const Border(),
+      collapsedShape: const Border(),
+      leading: const Icon(Icons.verified_outlined, color: _mutedMoon, size: 20),
+      title: const Text(
+        'Sources',
+        style: TextStyle(color: _mutedMoon, fontWeight: FontWeight.w600),
+      ),
+      subtitle: Text(
+        'Reviewed ${_date(section.observedAt)}',
+        style: const TextStyle(color: _mutedMoon),
+      ),
       children: [
-        Text(section.heading, style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Text(section.body, style: Theme.of(context).textTheme.bodyLarge),
-        const SizedBox(height: 12),
-        Text(
-          'Observed ${_date(section.observedAt)} · uncertainty: ${section.uncertainty}',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const Divider(height: 26),
         for (final evidence in section.evidence) ...[
-          Text(
-            evidence.publisher,
-            style: Theme.of(context).textTheme.labelLarge,
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              evidence.publisher,
+              style: Theme.of(context).textTheme.labelLarge,
+            ),
           ),
-          Text(evidence.sourceTitle),
-          const SizedBox(height: 3),
-          Text(
-            'Source observed ${_date(evidence.sourceObservedAt)} · reviewed ${_date(evidence.retrievedAt)}',
-            style: Theme.of(context).textTheme.bodySmall,
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              evidence.sourceTitle,
+              style: const TextStyle(color: _moonInk, fontSize: 15),
+            ),
           ),
-          Text(
-            evidence.canonicalUrl.host,
-            style: Theme.of(context).textTheme.bodySmall
-                ?.copyWith(decoration: TextDecoration.underline),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '${evidence.canonicalUrl.host} · source observed ${_date(evidence.sourceObservedAt)}',
+              style: const TextStyle(color: _mutedMoon, fontSize: 12),
+            ),
           ),
+          if (evidence != section.evidence.last)
+            const Divider(height: 24, color: _veilLine),
         ],
       ],
-    ),
-  );
-}
-
-class _FactBoundary extends StatelessWidget {
-  const _FactBoundary({required this.label, required this.body});
-
-  final String label;
-  final String body;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: _aubergine,
-      borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [_SectionLabel(label), const SizedBox(height: 6), Text(body)],
     ),
   );
 }
@@ -492,7 +828,7 @@ class _BoundaryNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
+    padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: const Color(0xFF3D2600).withValues(alpha: 0.72),
       borderRadius: BorderRadius.circular(12),
@@ -500,7 +836,7 @@ class _BoundaryNote extends StatelessWidget {
     ),
     child: Text(
       text,
-      style: const TextStyle(color: _moonInk, fontSize: 14, height: 1.42),
+      style: const TextStyle(color: _moonInk, fontSize: 15, height: 1.45),
     ),
   );
 }
@@ -517,7 +853,7 @@ class _SectionLabel extends StatelessWidget {
       color: _candleGold,
       fontSize: 12,
       fontWeight: FontWeight.w900,
-      letterSpacing: 1.25,
+      letterSpacing: 1.4,
     ),
   );
 }
@@ -536,9 +872,7 @@ class _AnswerFeedback extends StatelessWidget {
           : const Color(0xFF8A3838).withValues(alpha: 0.23),
       borderRadius: BorderRadius.circular(14),
       border: Border.all(
-        color: answer.isCorrect
-            ? const Color(0xFF9FD5A5)
-            : const Color(0xFFD89898),
+        color: answer.isCorrect ? _learnedGreen : const Color(0xFFD89898),
       ),
     ),
     child: Text(
@@ -548,43 +882,38 @@ class _AnswerFeedback extends StatelessWidget {
 }
 
 class _Completion extends StatelessWidget {
-  const _Completion({required this.onReturn});
-
-  final VoidCallback onReturn;
+  const _Completion();
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.fromLTRB(18, 22, 18, 18),
+    padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
       color: _aubergine,
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(60),
-        bottom: Radius.circular(14),
-      ),
-      border: Border.all(color: _candleGold.withValues(alpha: 0.5)),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: _learnedGreen.withValues(alpha: 0.65)),
     ),
-    child: Column(
+    child: const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Icon(Icons.auto_awesome, color: _candleGold, size: 48),
-        Text('Place the star.', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 8),
-        const Text(
-          'You separated financial fact from ritual interpretation. The next node can now open.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: _mutedMoon, height: 1.45),
+        Row(
+          children: [
+            Icon(Icons.check_circle_rounded, color: _learnedGreen),
+            SizedBox(width: 8),
+            Text(
+              'Check complete',
+              style: TextStyle(
+                color: _moonInk,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
         ),
-        const SizedBox(height: 8),
-        const Text(
-          'Learning progress only · no investment action required',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: Color(0xFF9FD5A5),
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-          ),
+        SizedBox(height: 8),
+        Text(
+          'Your suggested progress marker moves forward. Every constellation stays open.',
+          style: TextStyle(color: _mutedMoon, fontSize: 15, height: 1.45),
         ),
-        const SizedBox(height: 16),
-        _PrimaryButton(label: 'Return to your path', onPressed: onReturn),
       ],
     ),
   );
