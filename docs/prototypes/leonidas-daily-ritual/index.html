@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Leonidas Daily Ritual — Directional Prototype</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --ink: #f9f1e7;
+      --muted: #d6c7bd;
+      --soft: #aa9694;
+      --night: #100a17;
+      --aubergine: #241126;
+      --wine: #3b182d;
+      --gold: #e5bd6c;
+      --gold-bright: #ffe3a1;
+      --lilac: #c9b2e9;
+      --line: rgba(232, 194, 125, .23);
+      --glass: rgba(19, 10, 27, .76);
+      --shadow: 0 34px 90px rgba(4, 2, 8, .58);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 72% 0%, rgba(90, 49, 112, .28), transparent 34rem),
+        linear-gradient(145deg, #09070e, #150a18 42%, #0a0810);
+    }
+
+    button, input { font: inherit; }
+    button { color: inherit; }
+    button:focus-visible, input:focus-visible {
+      outline: 3px solid var(--gold-bright);
+      outline-offset: 3px;
+    }
+
+    .prototype-shell {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(270px, 340px) minmax(0, 1fr);
+    }
+
+    .control-rail {
+      border-right: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(8, 6, 12, .72);
+      backdrop-filter: blur(18px);
+      padding: 30px 26px;
+      overflow: auto;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--gold);
+      font-size: .72rem;
+      font-weight: 750;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+    h1, h2, .ritual-title, .card-name {
+      font-family: Iowan Old Style, Baskerville, "Times New Roman", serif;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: clamp(1.8rem, 3vw, 2.55rem);
+      font-weight: 500;
+      line-height: 1.02;
+    }
+
+    .intro {
+      color: var(--muted);
+      font-size: .94rem;
+      line-height: 1.55;
+      max-width: 34ch;
+    }
+
+    .judge-card {
+      margin: 24px 0 20px;
+      padding: 14px 15px;
+      border: 1px solid var(--line);
+      border-radius: 10px 22px 10px 10px;
+      background: linear-gradient(145deg, rgba(229, 189, 108, .1), rgba(74, 39, 78, .14));
+    }
+
+    .judge-card strong { color: var(--gold-bright); }
+    .judge-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .84rem;
+      line-height: 1.48;
+    }
+
+    .variant-list { display: grid; gap: 10px; }
+    .variant-button {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 11px;
+      align-items: start;
+      padding: 13px;
+      text-align: left;
+      border: 1px solid rgba(255, 255, 255, .11);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, .035);
+      cursor: pointer;
+      transition: border-color .2s ease, background .2s ease, transform .2s ease;
+    }
+
+    .variant-button:hover { transform: translateY(-1px); }
+    .variant-button[aria-pressed="true"] {
+      border-color: rgba(229, 189, 108, .66);
+      background: rgba(229, 189, 108, .1);
+    }
+
+    .variant-letter {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(229, 189, 108, .34);
+      border-radius: 50%;
+      color: var(--gold-bright);
+      font-family: Iowan Old Style, Baskerville, serif;
+      font-size: 1.15rem;
+    }
+
+    .variant-button strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: .9rem;
+    }
+
+    .variant-button small {
+      display: block;
+      color: var(--muted);
+      font-size: .77rem;
+      line-height: 1.38;
+    }
+
+    .prototype-note {
+      margin: 19px 0 0;
+      color: var(--soft);
+      font-size: .75rem;
+      line-height: 1.45;
+    }
+
+    .voice-status {
+      display: flex;
+      gap: 9px;
+      align-items: center;
+      margin-top: 18px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, .08);
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .voice-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 14px rgba(229, 189, 108, .72);
+    }
+
+    .experience {
+      min-width: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 16px 24px;
+    }
+
+    .ritual-window {
+      position: relative;
+      width: min(100%, 408px);
+      height: min(844px, calc(100vh - 32px));
+      min-height: 700px;
+      overflow: hidden;
+      border: 6px solid #09070d;
+      border-radius: 44px;
+      background: #130c19;
+      box-shadow: var(--shadow), 0 0 0 1px rgba(231, 197, 136, .24);
+      isolation: isolate;
+    }
+
+    .ritual-window::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -4;
+      background:
+        radial-gradient(circle at 70% 18%, rgba(198, 177, 230, .13) 0 1px, transparent 2px),
+        radial-gradient(circle at 25% 38%, rgba(255, 227, 161, .14) 0 1px, transparent 2px),
+        radial-gradient(circle at 90% 58%, rgba(198, 177, 230, .12) 0 1px, transparent 2px),
+        radial-gradient(circle at 42% 76%, rgba(255, 227, 161, .11) 0 1px, transparent 2px),
+        linear-gradient(155deg, rgba(15, 8, 20, .98), rgba(45, 19, 46, .9) 62%, rgba(16, 9, 24, .98));
+      background-size: 120px 140px, 160px 190px, 190px 150px, 230px 180px, auto;
+    }
+
+    .ritual-window::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 15;
+      pointer-events: none;
+      border-radius: inherit;
+      box-shadow: inset 0 0 100px rgba(0, 0, 0, .54), inset 0 0 0 1px rgba(255, 255, 255, .035);
+    }
+
+    .ritual-topbar {
+      position: absolute;
+      z-index: 20;
+      inset: 0 0 auto;
+      height: 92px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 18px 18px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, .07);
+      background: linear-gradient(to bottom, rgba(11, 7, 15, .88), rgba(11, 7, 15, .45));
+      backdrop-filter: blur(12px);
+    }
+
+    .ritual-meta strong { display: block; font-size: .82rem; }
+    .ritual-meta span { color: var(--muted); font-size: .63rem; }
+
+    .voice-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: .68rem;
+      cursor: pointer;
+    }
+
+    .voice-toggle input { accent-color: var(--gold); width: 16px; height: 16px; }
+
+    .scene {
+      position: absolute;
+      inset: 92px 0 0;
+      overflow: hidden;
+    }
+
+    .celestial-ring {
+      position: absolute;
+      z-index: -1;
+      width: min(132vw, 520px);
+      aspect-ratio: 1;
+      left: 50%;
+      top: 41%;
+      transform: translate(-50%, -50%);
+      border: 1px solid rgba(229, 189, 108, .13);
+      border-radius: 50%;
+      opacity: .7;
+    }
+
+    .celestial-ring::before, .celestial-ring::after {
+      content: "";
+      position: absolute;
+      inset: 12%;
+      border: 1px solid rgba(202, 178, 233, .12);
+      border-radius: 50%;
+      transform: rotate(29deg) scaleY(.54);
+    }
+
+    .celestial-ring::after { inset: 25%; transform: rotate(-38deg) scaleX(.6); }
+
+    .leonidas {
+      position: absolute;
+      z-index: 1;
+      object-fit: cover;
+      object-position: center top;
+      filter: saturate(.88) contrast(1.04);
+      transition: opacity 1s cubic-bezier(.2,.8,.2,1), transform 1.3s cubic-bezier(.2,.8,.2,1), filter .8s ease;
+      opacity: 0;
+      pointer-events: none;
+      mask-image: linear-gradient(to bottom, #000 82%, transparent 100%);
+    }
+
+    .card-stage {
+      position: absolute;
+      z-index: 5;
+      left: 50%;
+      top: 42%;
+      width: clamp(150px, 43vw, 174px);
+      aspect-ratio: 950 / 1655;
+      transform: translate(-50%, -50%) scale(.86);
+      perspective: 1200px;
+      transition: left 1s ease, top 1s ease, transform 1.2s cubic-bezier(.2,.8,.2,1), opacity .6s ease;
+    }
+
+    .card-glow {
+      position: absolute;
+      inset: -25%;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(229, 189, 108, .32), rgba(126, 74, 138, .12) 40%, transparent 67%);
+      filter: blur(18px);
+      opacity: .2;
+      transform: scale(.8);
+      transition: opacity 1s ease, transform 1.2s ease;
+    }
+
+    .card {
+      position: absolute;
+      inset: 0;
+      filter: drop-shadow(0 22px 35px rgba(0,0,0,.5));
+    }
+
+    .card-face {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      border: 1px solid rgba(255, 225, 166, .58);
+      border-radius: 12px;
+      backface-visibility: hidden;
+      transition: opacity .32s ease, transform 1.15s cubic-bezier(.16,.84,.3,1);
+    }
+
+    .card-back {
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle, transparent 18%, rgba(229, 189, 108, .18) 19% 20%, transparent 21%),
+        repeating-conic-gradient(from 0deg, rgba(229, 189, 108, .18) 0 4deg, transparent 4deg 18deg),
+        linear-gradient(145deg, #35162f, #160e24);
+    }
+
+    .card-back::after {
+      content: "♌";
+      width: 66%;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(229, 189, 108, .5);
+      border-radius: 50%;
+      color: var(--gold-bright);
+      font-size: 3.2rem;
+      text-shadow: 0 0 18px rgba(229, 189, 108, .45);
+    }
+
+    .card-back { opacity: 1; transform: rotateY(0deg); }
+    .card-front { opacity: 0; transform: rotateY(180deg); background: #e4d5c5; }
+    .card-front img { width: 100%; height: 100%; display: block; object-fit: cover; }
+
+    .phase-label {
+      position: absolute;
+      z-index: 9;
+      top: 58px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 7px 12px;
+      border: 1px solid rgba(229, 189, 108, .3);
+      border-radius: 99px;
+      color: var(--gold-bright);
+      background: rgba(21, 12, 28, .62);
+      backdrop-filter: blur(9px);
+      font-size: .7rem;
+      font-weight: 720;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      opacity: 0;
+      transition: opacity .4s ease, transform .4s ease;
+    }
+
+    .outcome {
+      position: absolute;
+      z-index: 8;
+      left: 16px;
+      right: 16px;
+      bottom: 180px;
+      display: grid;
+      justify-items: center;
+      text-align: center;
+      opacity: 0;
+      transform: translateY(18px);
+      transition: opacity .7s ease, transform .7s ease;
+    }
+
+    .outcome .market-label {
+      margin-bottom: 5px;
+      color: var(--gold);
+      font-size: .68rem;
+      font-weight: 750;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .ritual-title {
+      margin: 0;
+      font-size: clamp(1.65rem, 7vw, 2.05rem);
+      font-weight: 500;
+      line-height: 1;
+      text-shadow: 0 3px 24px #000;
+    }
+
+    .ritual-subtitle {
+      margin: 7px 0 0;
+      color: var(--muted);
+      font-size: .8rem;
+    }
+
+    .caption-panel {
+      position: absolute;
+      z-index: 20;
+      left: 50%;
+      bottom: 70px;
+      width: calc(100% - 22px);
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: 36px minmax(0, 1fr);
+      gap: 11px;
+      align-items: center;
+      min-height: 66px;
+      padding: 10px 12px;
+      border: 1px solid rgba(229, 189, 108, .24);
+      border-radius: 12px 20px 12px 12px;
+      background: rgba(10, 7, 14, .82);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 14px 45px rgba(0,0,0,.3);
+    }
+
+    .speaker-mark {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(229, 189, 108, .42);
+      border-radius: 50%;
+      color: var(--gold-bright);
+      font-family: Iowan Old Style, serif;
+      transition: box-shadow .25s ease, background .25s ease;
+    }
+
+    .scene[data-speaking="true"] .speaker-mark {
+      background: rgba(229, 189, 108, .13);
+      box-shadow: 0 0 0 5px rgba(229, 189, 108, .08), 0 0 22px rgba(229, 189, 108, .28);
+    }
+
+    .caption-copy strong {
+      display: block;
+      color: var(--gold-bright);
+      font-size: .7rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .caption-copy p {
+      margin: 2px 0 0;
+      color: var(--ink);
+      font-family: Iowan Old Style, Baskerville, serif;
+      font-size: clamp(.88rem, 4vw, 1rem);
+      line-height: 1.28;
+    }
+
+    .control-bar {
+      position: absolute;
+      z-index: 21;
+      inset: auto 0 0;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 7px 12px 11px;
+      background: linear-gradient(to top, rgba(9, 6, 12, .95), rgba(9, 6, 12, .5));
+    }
+
+    .primary-action, .secondary-action {
+      min-height: 40px;
+      border-radius: 99px;
+      cursor: pointer;
+    }
+
+    .primary-action {
+      min-width: 154px;
+      padding: 9px 15px;
+      border: 1px solid #f0cc82;
+      background: linear-gradient(135deg, #f1d08b, #c89343);
+      color: #21101d;
+      font-weight: 780;
+      box-shadow: 0 8px 24px rgba(204, 147, 66, .2);
+    }
+
+    .primary-action:disabled { cursor: wait; filter: grayscale(.25); opacity: .68; }
+    .secondary-action {
+      display: none;
+      padding: 8px 12px;
+      border: 1px solid rgba(229, 189, 108, .38);
+      background: rgba(229, 189, 108, .07);
+    }
+
+    .secondary-action.visible { display: inline-flex; align-items: center; }
+
+    .layer-stack {
+      position: absolute;
+      z-index: 10;
+      top: 84px;
+      right: 10px;
+      width: 46%;
+      height: 78px;
+      opacity: 0;
+      transform: translateX(18px);
+      transition: opacity .6s ease, transform .6s ease;
+    }
+
+    .layer {
+      position: absolute;
+      inset: 0;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.11);
+      border-radius: 9px 18px 9px 9px;
+      background: rgba(15, 9, 21, .77);
+      backdrop-filter: blur(12px);
+      opacity: 0;
+      transition: opacity .5s ease, border-color .5s ease, transform .5s ease;
+    }
+
+    .layer strong {
+      display: block;
+      margin-bottom: 2px;
+      color: var(--gold);
+      font-size: .67rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .layer span { color: var(--muted); font-size: .75rem; line-height: 1.3; }
+
+    .evidence-drawer {
+      position: absolute;
+      z-index: 25;
+      inset: auto 10px 72px;
+      padding: 16px 14px;
+      border: 1px solid rgba(229, 189, 108, .3);
+      border-radius: 14px 22px 14px 14px;
+      background: rgba(13, 8, 18, .95);
+      box-shadow: 0 24px 70px rgba(0,0,0,.5);
+      opacity: 0;
+      transform: translateY(24px);
+      pointer-events: none;
+      transition: opacity .35s ease, transform .35s ease;
+    }
+
+    .evidence-drawer.open { opacity: 1; transform: none; pointer-events: auto; }
+    .evidence-drawer h3 { margin-bottom: 8px; font-family: Iowan Old Style, serif; font-size: 1.25rem; }
+    .evidence-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+    .evidence-item { padding: 10px; border-left: 2px solid var(--gold); background: rgba(255,255,255,.035); }
+    .evidence-item strong { display: block; color: var(--gold-bright); font-size: .69rem; text-transform: uppercase; letter-spacing: .06em; }
+    .evidence-item span { color: var(--muted); font-size: .78rem; line-height: 1.35; }
+    .evidence-foot { margin: 10px 0 0; color: var(--soft); font-size: .72rem; }
+    .drawer-close { position: absolute; top: 10px; right: 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; }
+
+    /* Shared phase changes */
+    .scene[data-phase="enter"] .phase-label,
+    .scene[data-phase="summon"] .phase-label,
+    .scene[data-phase="reveal"] .phase-label,
+    .scene[data-phase="interpret"] .phase-label,
+    .scene[data-phase="symbol"] .phase-label,
+    .scene[data-phase="signal"] .phase-label,
+    .scene[data-phase="uncertainty"] .phase-label,
+    .scene[data-phase="complete"] .phase-label { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .scene[data-phase="summon"] .card-glow,
+    .scene[data-phase="reveal"] .card-glow,
+    .scene[data-phase="interpret"] .card-glow,
+    .scene[data-phase="symbol"] .card-glow,
+    .scene[data-phase="signal"] .card-glow,
+    .scene[data-phase="uncertainty"] .card-glow,
+    .scene[data-phase="complete"] .card-glow { opacity: .85; transform: scale(1.08); }
+
+    .scene[data-phase="reveal"] .card-back,
+    .scene[data-phase="interpret"] .card-back,
+    .scene[data-phase="signal"] .card-back,
+    .scene[data-phase="uncertainty"] .card-back,
+    .scene[data-phase="complete"] .card-back { opacity: 0; transform: rotateY(-180deg); }
+
+    .scene[data-phase="reveal"] .card-front,
+    .scene[data-phase="interpret"] .card-front,
+    .scene[data-phase="signal"] .card-front,
+    .scene[data-phase="uncertainty"] .card-front,
+    .scene[data-phase="complete"] .card-front { opacity: 1; transform: rotateY(0deg); }
+
+    .scene[data-phase="complete"] .outcome { opacity: 1; transform: none; }
+
+    /* Selected A+B hybrid — standing entrance, close interpretation */
+    .scene[data-variant="a"] .leonidas-primary {
+      display: block;
+      width: 112%;
+      height: 104%;
+      right: -43%;
+      bottom: -5%;
+      object-position: center 8%;
+      transform: translateX(40px) scale(1.04);
+    }
+    .scene[data-variant="a"] .leonidas-close {
+      display: block;
+      width: 112%;
+      height: 101%;
+      right: -39%;
+      bottom: -4%;
+      object-position: center 4%;
+      transform: translateX(55px) scale(1.04);
+    }
+    .scene[data-variant="a"][data-phase="enter"] .leonidas-primary,
+    .scene[data-variant="a"][data-phase="summon"] .leonidas-primary,
+    .scene[data-variant="a"][data-phase="reveal"] .leonidas-primary { opacity: .72; transform: translateX(0) scale(1); }
+    .scene[data-variant="a"][data-phase="interpret"] .leonidas-primary,
+    .scene[data-variant="a"][data-phase="complete"] .leonidas-primary { opacity: 0; transform: translateX(-28px) scale(.98); }
+    .scene[data-variant="a"][data-phase="interpret"] .leonidas-close,
+    .scene[data-variant="a"][data-phase="complete"] .leonidas-close { opacity: .9; transform: translateX(0) scale(1); filter: saturate(1) contrast(1.05); }
+    .scene[data-variant="a"] .card-stage { left: 31%; top: 43%; }
+    .scene[data-variant="a"][data-phase="summon"] .card-stage { transform: translate(-50%, -50%) scale(1); }
+    .scene[data-variant="a"][data-phase="interpret"] .card-stage,
+    .scene[data-variant="a"][data-phase="complete"] .card-stage { left: 27%; transform: translate(-50%, -50%) scale(.88); }
+
+    .scene:not([data-variant="a"]) .leonidas-close { display: none; }
+
+    /* B — card first, then Leonidas */
+    .scene[data-variant="b"] .leonidas {
+      width: 112%;
+      height: 101%;
+      right: -39%;
+      bottom: -4%;
+      object-position: center 4%;
+      transform: translateX(55px) scale(1.04);
+    }
+    .scene[data-variant="b"] .card-stage { top: 42%; }
+    .scene[data-variant="b"][data-phase="summon"] .card-stage { transform: translate(-50%, -50%) scale(1.06); }
+    .scene[data-variant="b"][data-phase="interpret"] .card-stage,
+    .scene[data-variant="b"][data-phase="complete"] .card-stage { left: 27%; transform: translate(-50%, -50%) scale(.88); }
+    .scene[data-variant="b"][data-phase="interpret"] .leonidas,
+    .scene[data-variant="b"][data-phase="complete"] .leonidas { opacity: .84; transform: translateX(0) scale(1); }
+
+    /* C — voice and ritual alternate */
+    .scene[data-variant="c"] .leonidas {
+      width: 110%;
+      height: 100%;
+      left: -41%;
+      bottom: -3%;
+      object-position: center 4%;
+      transform: translateX(-36px) scale(1.03);
+    }
+    .scene[data-variant="c"] .card-stage { left: 62%; top: 43%; transform: translate(-50%, -50%) scale(.88); }
+    .scene[data-variant="c"][data-phase="symbol"] .leonidas,
+    .scene[data-variant="c"][data-phase="signal"] .leonidas,
+    .scene[data-variant="c"][data-phase="uncertainty"] .leonidas,
+    .scene[data-variant="c"][data-phase="complete"] .leonidas { opacity: .74; transform: translateX(0) scale(1); }
+    .scene[data-variant="c"][data-phase="symbol"] .card-stage { transform: translate(-50%, -50%) scale(1.02); }
+    .scene[data-variant="c"][data-phase="symbol"] .layer-stack,
+    .scene[data-variant="c"][data-phase="signal"] .layer-stack,
+    .scene[data-variant="c"][data-phase="uncertainty"] .layer-stack { opacity: 1; transform: none; }
+    .scene[data-variant="c"][data-phase="symbol"] .layer[data-layer="symbol"],
+    .scene[data-variant="c"][data-phase="signal"] .layer[data-layer="signal"],
+    .scene[data-variant="c"][data-phase="uncertainty"] .layer[data-layer="uncertainty"] { opacity: 1; border-color: rgba(229, 189, 108, .5); transform: translateX(-4px); }
+
+    .scene[data-variant="c"] .phase-label {
+      left: 12px;
+      max-width: 44%;
+      transform: none;
+    }
+
+    .scene[data-variant="c"][data-phase="symbol"] .phase-label,
+    .scene[data-variant="c"][data-phase="signal"] .phase-label,
+    .scene[data-variant="c"][data-phase="uncertainty"] .phase-label,
+    .scene[data-variant="c"][data-phase="complete"] .phase-label { transform: none; }
+
+    @media (max-width: 840px) {
+      .prototype-shell { grid-template-columns: 1fr; }
+      .control-rail { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.08); padding: 20px; }
+      .control-rail h1 { font-size: 1.8rem; }
+      .intro { max-width: 62ch; }
+      .judge-card { margin: 16px 0; }
+      .variant-list { grid-template-columns: repeat(3, 1fr); }
+      .variant-button { grid-template-columns: 1fr; }
+      .variant-letter { width: 28px; height: 28px; }
+      .variant-button small { display: none; }
+      .prototype-note, .voice-status { display: none; }
+      .experience { min-height: 876px; padding: 16px; }
+      .ritual-window { height: 844px; min-height: 700px; border-radius: 44px; }
+    }
+
+    @media (max-width: 560px) {
+      .control-rail { padding: 15px; }
+      .judge-card { display: none; }
+      .variant-button { padding: 10px; }
+      .experience { padding: 0; min-height: 844px; }
+      .ritual-window { width: 100%; height: 844px; border: 0; border-radius: 0; }
+      .ritual-topbar { padding-inline: 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main class="prototype-shell">
+    <aside class="control-rail" aria-label="Prototype directions">
+      <p class="eyebrow">Directional prototype</p>
+      <h1>Leonidas in the Daily Ritual</h1>
+      <p class="intro">The selected mobile direction blends A’s commanding entrance with B’s intimate interpretation. The alternatives remain below for reference.</p>
+
+      <div class="judge-card">
+        <p><strong>Selected motion:</strong> Leonidas enters standing, reveals the card, then the camera closes in before he interprets it aloud.</p>
+      </div>
+
+      <div class="variant-list" role="group" aria-label="Choose a direction">
+        <button class="variant-button" type="button" data-select="a" aria-pressed="true">
+          <span class="variant-letter">✓</span>
+          <span><strong>Chosen · standing to close-up</strong><small>He owns the opening, flips the card, then moves close for the spoken interpretation.</small></span>
+        </button>
+        <button class="variant-button" type="button" data-select="b" aria-pressed="false">
+          <span class="variant-letter">B</span>
+          <span><strong>The card earns his entrance</strong><small>The reveal remains sacred and silent; he appears only to interpret it.</small></span>
+        </button>
+        <button class="variant-button" type="button" data-select="c" aria-pressed="false">
+          <span class="variant-letter">C</span>
+          <span><strong>Meaning unfolds as a duet</strong><small>His voice alternates with symbol, signal, and uncertainty layers.</small></span>
+        </button>
+      </div>
+
+      <div class="voice-status"><span class="voice-dot"></span><span id="voice-status">Loading a system voice…</span></div>
+      <p class="prototype-note">Voice is synthesized and deliberately provisional. Captions stay visible, and the reading remains complete when voice is off.</p>
+    </aside>
+
+    <section class="experience" aria-label="Daily Ritual prototype stage">
+      <div class="ritual-window">
+        <header class="ritual-topbar">
+          <div class="ritual-meta">
+            <strong>Tonight’s Daily Ritual</strong>
+            <span>Demo reading · Tuesday, September 2</span>
+          </div>
+          <label class="voice-toggle"><input id="voice-enabled" type="checkbox" checked /><span>Voice</span></label>
+        </header>
+
+        <div class="scene" id="scene" data-variant="a" data-phase="idle" data-speaking="false">
+          <div class="celestial-ring" aria-hidden="true"></div>
+          <img class="leonidas leonidas-primary" id="leonidas" src="img/leonidas-hero.png" alt="Leonidas standing in his mane-like jacket inside the Candlelit Observatory" />
+          <img class="leonidas leonidas-close" src="img/leonidas-scholar.png" alt="" aria-hidden="true" />
+
+          <div class="phase-label" id="phase-label">Awaiting the ritual</div>
+
+          <div class="card-stage" aria-label="Strength tarot card">
+            <div class="card-glow" aria-hidden="true"></div>
+            <div class="card" id="tarot-card">
+              <div class="card-face card-back" aria-hidden="true"></div>
+              <div class="card-face card-front"><img src="img/strength.webp" alt="The Strength tarot card" /></div>
+            </div>
+          </div>
+
+          <div class="layer-stack" aria-label="Interpretation layers">
+            <div class="layer" data-layer="symbol"><strong>Symbol</strong><span>Patience over impulse</span></div>
+            <div class="layer" data-layer="signal"><strong>Observed signal</strong><span>Margins improve in this demo</span></div>
+            <div class="layer" data-layer="uncertainty"><strong>Unresolved</strong><span>Demand persistence is uncertain</span></div>
+          </div>
+
+          <div class="outcome" id="outcome">
+            <span class="market-label">Market-informed · Demo scenario</span>
+            <h2 class="ritual-title">Strength</h2>
+            <p class="ritual-subtitle">Restraint is not hesitation. It is choosing what deserves your conviction.</p>
+          </div>
+
+          <div class="caption-panel" aria-live="polite">
+            <span class="speaker-mark" aria-hidden="true">L</span>
+            <div class="caption-copy">
+              <strong id="speaker-name">Leonidas</strong>
+              <p id="caption">Choose a direction, then begin the ritual.</p>
+            </div>
+          </div>
+
+          <div class="evidence-drawer" id="evidence-drawer" aria-hidden="true">
+            <button class="drawer-close" id="drawer-close" type="button" aria-label="Close evidence">✕</button>
+            <p class="eyebrow">Reveal the evidence</p>
+            <h3>What supports the reading—and what does not</h3>
+            <div class="evidence-grid">
+              <div class="evidence-item"><strong>Observed</strong><span>Operating-margin trend improved in this fictional demonstration.</span></div>
+              <div class="evidence-item"><strong>Uncertain</strong><span>Demand persistence has not been established.</span></div>
+            </div>
+            <p class="evidence-foot">Demo content · Not live market data · Not a recommendation or instruction to buy.</p>
+          </div>
+
+          <div class="control-bar">
+            <button class="primary-action" id="play-button" type="button">Begin chosen sequence</button>
+            <button class="secondary-action" id="evidence-button" type="button">Reveal the evidence</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const scene = document.querySelector('#scene');
+    const leonidas = document.querySelector('#leonidas');
+    const caption = document.querySelector('#caption');
+    const phaseLabel = document.querySelector('#phase-label');
+    const playButton = document.querySelector('#play-button');
+    const evidenceButton = document.querySelector('#evidence-button');
+    const evidenceDrawer = document.querySelector('#evidence-drawer');
+    const drawerClose = document.querySelector('#drawer-close');
+    const voiceEnabled = document.querySelector('#voice-enabled');
+    const voiceStatus = document.querySelector('#voice-status');
+    const variantButtons = [...document.querySelectorAll('[data-select]')];
+
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const phaseDelay = (milliseconds) => reducedMotion ? Math.min(milliseconds, 160) : milliseconds;
+    let variant = 'a';
+    let runToken = 0;
+    let selectedVoice = null;
+    let audioContext = null;
+
+    const variants = {
+      a: {
+        image: 'img/leonidas-hero.png',
+        alt: 'Leonidas standing in the Candlelit Observatory',
+        button: 'Begin chosen sequence',
+        idle: 'Leonidas enters standing, reveals the card, then moves close to interpret it.'
+      },
+      b: {
+        image: 'img/leonidas-scholar.png',
+        alt: 'Leonidas leaning across his observatory desk',
+        button: 'Begin direction B',
+        idle: 'The card reveals in silence. Leonidas enters only when interpretation begins.'
+      },
+      c: {
+        image: 'img/leonidas-analytical.png',
+        alt: 'Leonidas concentrating on the evidence',
+        button: 'Begin direction C',
+        idle: 'Leonidas and the ritual alternate through symbol, signal, and uncertainty.'
+      }
+    };
+
+    function loadVoices() {
+      if (!('speechSynthesis' in window)) {
+        voiceStatus.textContent = 'Speech is unavailable in this browser; captions will remain active.';
+        voiceEnabled.checked = false;
+        voiceEnabled.disabled = true;
+        return;
+      }
+      const voices = window.speechSynthesis.getVoices().filter((voice) => /^en[-_]/i.test(voice.lang));
+      const preferred = [/Reed/i, /Daniel/i, /Aaron/i, /Arthur/i, /Alex/i, /Ryan/i, /David/i, /Male/i];
+      selectedVoice = preferred.map((pattern) => voices.find((voice) => pattern.test(voice.name))).find(Boolean) || voices[0] || null;
+      voiceStatus.textContent = selectedVoice ? `System placeholder: ${selectedVoice.name}` : 'System voice will be selected when playback begins.';
+    }
+
+    loadVoices();
+    if ('speechSynthesis' in window) window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    function setPhase(phase, label) {
+      scene.dataset.phase = phase;
+      phaseLabel.textContent = label;
+    }
+
+    function setCaption(text) { caption.textContent = text; }
+
+    function wait(milliseconds, token) {
+      return new Promise((resolve) => setTimeout(() => resolve(token === runToken), phaseDelay(milliseconds)));
+    }
+
+    function speak(text, token) {
+      setCaption(text);
+      if (!voiceEnabled.checked || !('speechSynthesis' in window)) {
+        return wait(Math.max(1200, text.length * 34), token);
+      }
+      return new Promise((resolve) => {
+        if (token !== runToken) return resolve(false);
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        if (selectedVoice) utterance.voice = selectedVoice;
+        utterance.rate = .91;
+        utterance.pitch = .78;
+        scene.dataset.speaking = 'true';
+        const done = () => {
+          scene.dataset.speaking = 'false';
+          resolve(token === runToken);
+        };
+        utterance.onend = done;
+        utterance.onerror = done;
+        window.speechSynthesis.speak(utterance);
+      });
+    }
+
+    function chime() {
+      try {
+        audioContext ||= new (window.AudioContext || window.webkitAudioContext)();
+        const now = audioContext.currentTime;
+        [392, 523.25, 659.25].forEach((frequency, index) => {
+          const oscillator = audioContext.createOscillator();
+          const gain = audioContext.createGain();
+          oscillator.type = 'sine';
+          oscillator.frequency.value = frequency;
+          gain.gain.setValueAtTime(0, now);
+          gain.gain.linearRampToValueAtTime(.045, now + index * .08 + .03);
+          gain.gain.exponentialRampToValueAtTime(.001, now + .9 + index * .08);
+          oscillator.connect(gain).connect(audioContext.destination);
+          oscillator.start(now + index * .08);
+          oscillator.stop(now + 1.05 + index * .08);
+        });
+      } catch (_) {}
+    }
+
+    function resetScene() {
+      runToken += 1;
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      scene.dataset.speaking = 'false';
+      scene.dataset.phase = 'idle';
+      phaseLabel.textContent = 'Awaiting the ritual';
+      setCaption(variants[variant].idle);
+      playButton.disabled = false;
+      playButton.textContent = variants[variant].button;
+      evidenceButton.classList.remove('visible');
+      evidenceDrawer.classList.remove('open');
+      evidenceDrawer.setAttribute('aria-hidden', 'true');
+    }
+
+    async function runA(token) {
+      setPhase('enter', 'Leonidas enters');
+      if (!await speak('Come closer. We will let the card speak before we ask the market to agree.', token)) return;
+      setPhase('summon', 'The card is summoned');
+      chime();
+      if (!await wait(1250, token)) return;
+      setPhase('reveal', 'The card reveals');
+      chime();
+      if (!await wait(1450, token)) return;
+      setPhase('interpret', 'The camera moves close');
+      if (!await wait(650, token)) return;
+      if (!await speak('Strength. Not force—discipline. The pattern suggests resilience, but demand is still uncertain.', token)) return;
+      if (!await speak('Keep the symbol. Test the claim. The choice remains yours.', token)) return;
+      complete(token);
+    }
+
+    async function runB(token) {
+      setPhase('summon', 'The ritual begins in silence');
+      setCaption('The card takes the stage before Leonidas speaks.');
+      chime();
+      if (!await wait(1500, token)) return;
+      setPhase('reveal', 'The card reveals');
+      chime();
+      if (!await wait(1800, token)) return;
+      setPhase('interpret', 'Leonidas enters to interpret');
+      if (!await speak('Strength is tonight’s card. Its lesson is restraint. The demo pattern shows improving margins, while demand remains uncertain.', token)) return;
+      if (!await speak('Open the evidence before you decide.', token)) return;
+      complete(token);
+    }
+
+    async function runC(token) {
+      setPhase('symbol', 'Layer one · Symbol');
+      if (!await speak('First, the symbol. Strength asks for patience over impulse.', token)) return;
+      setPhase('signal', 'Layer two · Observed signal');
+      chime();
+      if (!await wait(850, token)) return;
+      if (!await speak('Now, the signal. Margins improve in this fictional demonstration.', token)) return;
+      setPhase('uncertainty', 'Layer three · Uncertainty');
+      if (!await speak('And what remains unresolved: demand may weaken. A promising pattern is not an instruction.', token)) return;
+      complete(token);
+    }
+
+    function complete(token) {
+      if (token !== runToken) return;
+      setPhase('complete', 'Reading complete');
+      setCaption('The interpretation is complete. The evidence remains one gesture away.');
+      playButton.disabled = false;
+      playButton.textContent = 'Replay this direction';
+      evidenceButton.classList.add('visible');
+    }
+
+    async function play() {
+      resetScene();
+      const token = runToken;
+      playButton.disabled = true;
+      playButton.textContent = 'Sequence playing…';
+      if (variant === 'a') await runA(token);
+      if (variant === 'b') await runB(token);
+      if (variant === 'c') await runC(token);
+    }
+
+    function selectVariant(next) {
+      variant = next;
+      scene.dataset.variant = next;
+      leonidas.src = variants[next].image;
+      leonidas.alt = variants[next].alt;
+      variantButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.select === next)));
+      resetScene();
+    }
+
+    variantButtons.forEach((button) => button.addEventListener('click', () => selectVariant(button.dataset.select)));
+    playButton.addEventListener('click', play);
+    voiceEnabled.addEventListener('change', () => {
+      if (!voiceEnabled.checked && 'speechSynthesis' in window) window.speechSynthesis.cancel();
+      scene.dataset.speaking = 'false';
+    });
+    evidenceButton.addEventListener('click', () => {
+      evidenceDrawer.classList.add('open');
+      evidenceDrawer.setAttribute('aria-hidden', 'false');
+    });
+    drawerClose.addEventListener('click', () => {
+      evidenceDrawer.classList.remove('open');
+      evidenceDrawer.setAttribute('aria-hidden', 'true');
+      evidenceButton.focus();
+    });
+
+    resetScene();
+  </script>
+</body>
+</html>
