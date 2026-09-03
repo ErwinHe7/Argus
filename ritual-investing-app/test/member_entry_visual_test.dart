@@ -37,7 +37,9 @@ void main() {
       await tester.runAsync(() async {
         final context = tester.element(find.byType(Scaffold));
         await precacheImage(
-          const AssetImage('assets/images/the-compass.png'),
+          const AssetImage(
+            'assets/images/leonidas/leonidas-canonical-observatory-hero-v1.png',
+          ),
           context,
         );
       });

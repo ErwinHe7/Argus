@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/features/onboarding/application/onboarding_controller.dart';
 import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
 import 'package:ritual_investing_app/features/onboarding/presentation/onboarding_flow.dart';
 
 void main() {
-  testWidgets('welcome leads with value, regular signup, and direct sign in', (
+  testWidgets('welcome opens with Leonidas and separate account actions', (
     tester,
   ) async {
     var accountCreationOpened = false;
@@ -19,18 +20,104 @@ void main() {
       ),
     );
 
-    expect(find.textContaining('personal ritual'), findsOneWidget);
-    expect(find.textContaining('about 3 minutes'), findsOneWidget);
-    expect(find.byKey(const Key('welcome-artwork')), findsOneWidget);
+    expect(find.text('Begin with a personal ritual'), findsOneWidget);
     expect(
-      find.text('Evidence and uncertainty stay within reach.'),
+      find.text(
+        'Leonidas makes investing knowledge feel worth approaching—while evidence and control stay yours.',
+      ),
       findsOneWidget,
     );
-    expect(find.text('Create account'), findsOneWidget);
+    expect(find.text('Ritual'), findsNothing);
+    expect(find.textContaining('about 3 minutes'), findsNothing);
+
+    final artwork = find.byKey(const Key('welcome-artwork'));
+    expect(artwork, findsOneWidget);
+    expect(tester.getTopLeft(artwork).dy, 0);
+    final image = tester.widget<Image>(
+      find.descendant(of: artwork, matching: find.byType(Image)),
+    );
+    expect(
+      (image.image as AssetImage).assetName,
+      'assets/images/leonidas/leonidas-canonical-observatory-hero-v1.png',
+    );
+    expect(
+      tester.getSemantics(artwork).label,
+      'Leonidas standing in the Candlelit Observatory.',
+    );
+
+    final heroSystemUi = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+      find.byKey(const Key('welcome-hero-system-ui')),
+    );
+    final bodySystemUi = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+      find.byKey(const Key('welcome-body-system-ui')),
+    );
+    expect(heroSystemUi.value.statusBarIconBrightness, Brightness.light);
+    expect(bodySystemUi.value.statusBarIconBrightness, Brightness.dark);
+
+    expect(find.widgetWithText(FilledButton, 'Create account'), findsOneWidget);
+    expect(
+      find.widgetWithText(OutlinedButton, 'I have an account'),
+      findsOneWidget,
+    );
+    await tester.ensureVisible(find.byKey(const Key('welcome-create-account')));
     await tester.tap(find.byKey(const Key('welcome-create-account')));
+    await tester.ensureVisible(find.byKey(const Key('welcome-sign-in')));
     await tester.tap(find.byKey(const Key('welcome-sign-in')));
     expect(accountCreationOpened, isTrue);
     expect(signedIn, isTrue);
+  });
+
+  testWidgets('welcome keeps compact safe-area actions reachable', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(430, 600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    var accountCreationOpened = false;
+    var signedIn = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(430, 600),
+            viewPadding: EdgeInsets.only(bottom: 34),
+            textScaler: TextScaler.linear(1.3),
+          ),
+          child: WelcomeScreen(
+            onCreateAccount: () => accountCreationOpened = true,
+            onSignIn: () => signedIn = true,
+          ),
+        ),
+      ),
+    );
+
+    final bodySystemUi = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+      find.byKey(const Key('welcome-body-system-ui')),
+    );
+    final bodyPadding = bodySystemUi.child as Padding;
+    expect((bodyPadding.padding as EdgeInsets).bottom, 58);
+
+    final createAccount = find.byKey(const Key('welcome-create-account'));
+    final signIn = find.byKey(const Key('welcome-sign-in'));
+    await tester.ensureVisible(createAccount);
+    await tester.tap(createAccount);
+    await tester.ensureVisible(signIn);
+    await tester.tap(signIn);
+    expect(accountCreationOpened, isTrue);
+    expect(signedIn, isTrue);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: WelcomeScreen(onCreateAccount: () {}, onSignIn: () {}),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final darkBodySystemUi = tester
+        .widget<AnnotatedRegion<SystemUiOverlayStyle>>(
+          find.byKey(const Key('welcome-body-system-ui')),
+        );
+    expect(darkBodySystemUi.value.statusBarIconBrightness, Brightness.light);
   });
 
   testWidgets('risk has no default and announces semantic progress', (

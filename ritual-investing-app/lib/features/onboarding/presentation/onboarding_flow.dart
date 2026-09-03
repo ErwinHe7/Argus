@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../application/onboarding_controller.dart';
 import '../domain/onboarding_draft.dart';
@@ -15,134 +16,130 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final spacious = constraints.maxHeight >= 760;
-          return Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
+    body: LayoutBuilder(
+      builder: (context, constraints) {
+        final artworkHeight = constraints.maxHeight >= 760 ? 455.0 : 280.0;
+        final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+        final pageBrightness = Theme.of(context).brightness;
+        return Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SizedBox(
+              width: double.infinity,
               child: SingleChildScrollView(
-                child: Padding(
-                  padding: EdgeInsets.fromLTRB(20, spacious ? 28 : 12, 20, 24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const _RitualBrandLockup(),
-                      SizedBox(height: spacious ? 24 : 12),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(16),
-                        child: SizedBox(
-                          key: const Key('welcome-artwork'),
-                          height: spacious ? 252 : 72,
-                          child: Image.asset(
-                            'assets/images/the-compass.png',
-                            fit: BoxFit.cover,
-                            alignment: const Alignment(0, -0.08),
-                            excludeFromSemantics: true,
-                          ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    AnnotatedRegion<SystemUiOverlayStyle>(
+                      key: const Key('welcome-hero-system-ui'),
+                      value: const SystemUiOverlayStyle(
+                        statusBarColor: Colors.transparent,
+                        statusBarIconBrightness: Brightness.light,
+                        statusBarBrightness: Brightness.dark,
+                      ),
+                      child: _LeonidasWelcomeArtwork(height: artworkHeight),
+                    ),
+                    AnnotatedRegion<SystemUiOverlayStyle>(
+                      key: const Key('welcome-body-system-ui'),
+                      value: SystemUiOverlayStyle(
+                        statusBarColor: Colors.transparent,
+                        statusBarIconBrightness:
+                            pageBrightness == Brightness.dark
+                            ? Brightness.light
+                            : Brightness.dark,
+                        statusBarBrightness: pageBrightness == Brightness.dark
+                            ? Brightness.dark
+                            : Brightness.light,
+                      ),
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(
+                          20,
+                          0,
+                          20,
+                          24 + bottomInset,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              'Begin with a personal ritual',
+                              style: Theme.of(context).textTheme.displaySmall,
+                            ),
+                            const SizedBox(height: 12),
+                            Text(
+                              'Leonidas makes investing knowledge feel worth approaching—while evidence and control stay yours.',
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                            const SizedBox(height: 24),
+                            FilledButton(
+                              key: const Key('welcome-create-account'),
+                              onPressed: onCreateAccount,
+                              child: const Text('Create account'),
+                            ),
+                            const SizedBox(height: 12),
+                            OutlinedButton(
+                              key: const Key('welcome-sign-in'),
+                              onPressed: onSignIn,
+                              child: const Text('I have an account'),
+                            ),
+                          ],
                         ),
                       ),
-                      SizedBox(height: spacious ? 28 : 16),
-                      Text(
-                        'Begin with a personal ritual',
-                        style: Theme.of(context).textTheme.displaySmall,
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        'Tell us how you invest and how you want Ritual to speak. Your answers shape explanations and research defaults, and you can change them later.',
-                        style: Theme.of(context).textTheme.bodyLarge,
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'This takes about 3 minutes. Personalized astrology is optional.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      SizedBox(height: spacious ? 28 : 16),
-                      FilledButton(
-                        key: const Key('welcome-create-account'),
-                        onPressed: onCreateAccount,
-                        child: const Text('Create account'),
-                      ),
-                      const SizedBox(height: 4),
-                      TextButton(
-                        key: const Key('welcome-sign-in'),
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(48, 48),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          textStyle: const TextStyle(
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        onPressed: onSignIn,
-                        child: const Text('I have an account'),
-                      ),
-                      SizedBox(height: spacious ? 24 : 16),
-                      const _TrustLine(
-                        icon: Icons.visibility_outlined,
-                        text: 'Evidence and uncertainty stay within reach.',
-                      ),
-                      const SizedBox(height: 8),
-                      const _TrustLine(
-                        icon: Icons.tune,
-                        text: 'Nothing is chosen or acted on for you.',
-                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+class _LeonidasWelcomeArtwork extends StatelessWidget {
+  const _LeonidasWelcomeArtwork({required this.height});
+
+  final double height;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    key: const Key('welcome-artwork'),
+    image: true,
+    label: 'Leonidas standing in the Candlelit Observatory.',
+    child: SizedBox(
+      height: height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/leonidas/leonidas-canonical-observatory-hero-v1.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
+            excludeFromSemantics: true,
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: IgnorePointer(
+              child: Container(
+                height: 112,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Theme.of(context).scaffoldBackgroundColor,
                     ],
                   ),
                 ),
               ),
             ),
-          );
-        },
+          ),
+        ],
       ),
     ),
-  );
-}
-
-class _RitualBrandLockup extends StatelessWidget {
-  const _RitualBrandLockup();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: scheme.secondary),
-          ),
-          child: Icon(Icons.auto_awesome, color: scheme.primary, size: 21),
-        ),
-        const SizedBox(width: 12),
-        Text('Ritual', style: Theme.of(context).textTheme.titleLarge),
-      ],
-    );
-  }
-}
-
-class _TrustLine extends StatelessWidget {
-  const _TrustLine({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-      const SizedBox(width: 10),
-      Expanded(
-        child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
-      ),
-    ],
   );
 }
 
