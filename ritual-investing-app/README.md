@@ -1,10 +1,10 @@
 # Ritual Investing
 
-Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS, Android, and a self-service mobile-web beta and does not import from, run, or modify the AXIO7 research services. The web beta preserves supported member behavior, including the launch-required privacy lifecycle; it does not enable unfinished financial behavior.
+Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS, Android, and a self-service mobile-web beta and does not import from, run, or modify the AXIO7 research services. Public-beta status labels the experience but does not restrict product capabilities; independently reviewed feature and safety flags own availability.
 
 ## Product authority
 
-Webull is authoritative for brokerage accounts, capabilities, restrictions, balances, positions, and orders. Argus is authoritative for ritual, editorial, community, preference, and privacy state. Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Cloudflare Pages continues to serve the unchanged static landing and standalone Demo assets. Cloudflare Workers Static Assets may deliver compiled member-beta files at the apex, with no request handler, binding, authentication, data, or backend authority.
+Webull is authoritative for brokerage accounts, capabilities, restrictions, balances, positions, and orders. Argus is authoritative for ritual, editorial, community, preference, and privacy state. Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Cloudflare Pages continues to serve the unchanged static landing and standalone Demo assets. Cloudflare Workers Static Assets may deliver compiled member-staging files at the apex, with no request handler, binding, authentication, data, or backend authority.
 
 The production member app is a frontend for an existing Webull brokerage relationship; it is not a brokerage ledger. Flutter never receives Webull credentials or raw provider payloads and never calls Webull directly. Brokerage reads and supported manual order commands cross the generated, versioned Argus API. Funding, account opening, recurring financial execution, autonomous trading, and rebalance execution are outside the product.
 
@@ -12,17 +12,17 @@ The standalone Demo is synthetic, memory-only, auth-free, provider-free, credent
 
 ## Public web beta
 
-The clearly labeled apex member beta uses regular email-and-password signup and binds only to the persistent `beta` branch's non-production Supabase Auth, the versioned beta Argus API, and canonical private tables. It does not use invitation-only entry, production endpoints, public Data API tables, or a parallel browser-owned application-data path. The current landing artifact remains the rollback target, and the standalone Demo remains independent.
+The clearly labeled apex member public beta uses regular email-and-password signup and binds only to staging Supabase Auth, the public-beta Argus API, and canonical private tables. The provider's historical physical branch label `beta` for project ref `zbgjjufjkhfhirbuuolv` is retained only as an external identity for logical staging. It does not use invitation-only entry, production endpoints, public Data API tables, or a parallel browser-owned application-data path. The current landing artifact remains the rollback target, and the standalone Demo remains independent.
 
 Capability labels have one meaning across the member app and release evidence:
 
-- `beta-backed` means the supported member behavior uses the versioned beta Argus API and private beta data boundary. Privacy export is beta-backed; deletion is beta-backed through the idempotent deletion path or a request/status path with a verified manual completion SLA.
-- `unavailable` means the control is visibly incomplete and performs no provider or financial request. Brokerage connection and reads, funding, and order mutations remain in this state for the beta.
+- `beta-backed` is a product-lifecycle capability label: supported public-beta behavior uses the staging Argus API and private staging data boundary. Privacy export is beta-backed; deletion is beta-backed through the idempotent deletion path or a request/status path with a verified manual completion SLA.
+- `unavailable` means an independent feature or safety flag has disabled the control. Public-beta lifecycle status never selects this state by itself.
 - `standalone Demo handoff` means an explicit, visibly labeled navigation to the independent synthetic Demo; Demo fixtures never fill gaps in the member app.
 
-Self-service signup is the beta entry path. Hosted signup enablement, custom SMTP, email confirmation, recovery, enumeration-safe errors, rate limits, CAPTCHA or equivalent abuse protection, deletion, and support proof must be recorded before public promotion. Invitation links are not part of the member journey. The unresolved hardening and product-definition work is tracked as P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](../docs/ritual-investing/public-beta-web-p1-follow-up-register.md); that register does not waive a launch gate or authorize an unavailable financial capability.
+Self-service signup is the beta entry path. Hosted signup enablement, custom SMTP, email confirmation, recovery, enumeration-safe errors, rate limits, CAPTCHA or equivalent abuse protection, deletion, and support proof must be recorded before public promotion. Invitation links are not part of the member journey. The unresolved hardening and product-definition work is tracked as P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](../docs/ritual-investing/public-beta-web-p1-follow-up-register.md); that register does not waive a launch gate or override an independent feature or safety flag.
 
-Every authenticated route labels the experience as a public beta and states that live brokerage connections, funding, and orders are unavailable. Privacy, support, about, beta-feedback, and legal information remain reachable from the member experience.
+Every authenticated route labels the experience as a public beta without using that label as an availability gate. Privacy, support, about, beta-feedback, and legal information remain reachable from the member experience.
 
 ## Member surfaces
 
@@ -54,23 +54,22 @@ flutter test integration_test/member_experience_test.dart -d <device-id> \
 ../scripts/check-member-provider-boundaries.sh
 ```
 
-For native development, launch the member app against the persistent `beta`
-branch of the hosted Ritual Investment Supabase project from the
-repository root:
+For native development, launch the member app against the hosted staging
+Supabase project from the repository root:
 
 ```sh
-./scripts/run-ritual-investing-beta.sh -d <device-id>
+./scripts/run-ritual-investing-staging.sh -d <device-id>
 ```
 
 The script reads the committed public client configuration from
-`ritual-investing-app/config/beta.json`. It contains only the beta branch URL,
-branch ref, Supabase publishable key, and its SHA-256 fingerprint; no server
+`ritual-investing-app/config/staging.json`. It contains only the staging URL,
+project ref, Supabase publishable key, and its SHA-256 fingerprint; no server
 secret or database credential is shipped to Flutter. The public web artifact
-binds to that same persistent beta branch and its versioned beta API after the
-release guard verifies the exact branch ref, origin, and publishable-key
+binds to that same staging project and public-beta API after the release guard
+verifies the exact project ref, origin, and publishable-key
 fingerprint.
 
-The visual baselines live under `test/goldens/`. Regenerate them only after comparing the result with the approved authority at `../docs/visual-references/standalone-ritual-investing/approved-light-dark-reference.html`.
+Visual authority is feature-owned. The current Daily Ritual direction, requirements, and approval record live in [`docs/reviews/daily-ritual-rebuild.md`](docs/reviews/daily-ritual-rebuild.md); its approved iPhone 17 sequence is [`docs/evidence/daily-ritual-rebuild/g1-fullscreen-approved-contact-sheet.jpg`](docs/evidence/daily-ritual-rebuild/g1-fullscreen-approved-contact-sheet.jpg). The corresponding light/dark widget baselines live under `test/goldens/daily_ritual_*` and are exercised by `test/visual_reference_test.dart`. Regenerate them only after a fresh simulator comparison and explicit product-owner approval. Other retained visual references continue to govern their own surfaces.
 
 ## Native prerequisites
 

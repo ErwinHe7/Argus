@@ -87,7 +87,10 @@ class _RitualBranchRootState extends State<_RitualBranchRoot> {
   @override
   Widget build(BuildContext context) => DailyRitualScreen(
     controller: widget.container.dailyRitualController,
+    cacheScope: widget.container.activeCacheScope,
+    voicePreferenceStore: widget.container.leonidasVoicePreferenceStore,
     onOpenCoven: () => context.go(MemberRoutes.coven.path),
+    onOpenStarpath: () => context.go(MemberRoutes.starpath.path),
     onToggleTheme: () => context.go(MemberRoutes.youRitualPreferencesPath),
     onOpenSearch: widget.container.optionalSearchController == null
         ? null

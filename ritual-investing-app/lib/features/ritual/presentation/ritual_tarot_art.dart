@@ -170,6 +170,8 @@ RitualTarotArtwork? resolveRitualTarotArtwork({
   required DateTime date,
   required DailyRitualMode mode,
 }) {
-  if (mode != DailyRitualMode.tarot) return null;
+  if (mode == DailyRitualMode.unknown || art.key.trim().isEmpty) {
+    return null;
+  }
   return _majorArcanaArtworkByKey[art.key];
 }

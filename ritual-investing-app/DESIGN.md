@@ -225,17 +225,23 @@ AI Analysis renders only a fresh, uncached snapshot. Expiry, a not-yet-valid tim
 
 ### Daily Ritual Stage
 
-The generated Compass artwork is the dominant object. The order is fixed: date and theme, ritual label, art, interpretation, evidence reveal, constellation, Founders’ Coven, Rowan counsel, simulation limitation. Evidence remains one gesture from the mystical interpretation.
+Leonidas and the assigned card form one measured mobile stage. The member first sees a passive invitation inside the normal navigable shell. **Start your daily ritual** enters a chrome-free fullscreen ceremony: Ready → five-second continuous Hold → Reading revealed → explicit Finish → one short skippable Leonidas close → Completed onward. Completed onward presents **Review evidence** as the primary action and **Continue to Starpath** as the secondary action. It does not add practices, constellations, Coven promotion, a second counsel surface, or another ending.
+
+The upper portrait and at least the top half of Leonidas's face remain visible throughout. The seal, real assigned card, interpretation, captions, and actions never intersect the measured face-clear zone. The card is concealed before an authoritative reveal, remains the same uncropped art through C2 expansion and keepsake settlement, and is never replaced by an imitation or fallback. The UI contains no finger, sensor, biometric, or supernatural-reading claim.
+
+Ready through Completed has no global top utility row, bottom navigation, or ordinary-size scroll surface. System Back remains available. At accessibility text sizes, only the adaptive lower region may reflow or scroll to keep complete copy and controls reachable.
+
+Native speech is optional presentation, never authority. Captions contain the complete reviewed close when speech is unavailable, interrupted, disabled, or skipped. Reduced Motion removes nonessential travel without changing order or meaning. The canonical requirements and approved iPhone 17 frames are in [`docs/reviews/daily-ritual-rebuild.md`](docs/reviews/daily-ritual-rebuild.md).
 
 ## 6. Do's and Don'ts
 
 ### Do:
 
-- **Do** use the preserved Compass and Rowan assets as visual-fidelity anchors.
+- **Do** use the preserved Compass, Leonidas, and bounded Rowan assets as visual-fidelity anchors for their assigned surfaces.
 - **Do** keep factual observations, timestamp, uncertainty, and simulation status adjacent to every investment idea.
 - **Do** preserve system back gestures, safe areas, text scaling, VoiceOver, TalkBack, and reduced-motion behavior.
 - **Do** distinguish founder, owner, and chief-executive inclusion categories with a visible verification date.
-- **Do** let Rowan explain evidence and uncertainty while leaving the decision with the user.
+- **Do** let Leonidas explain Daily Ritual evidence and uncertainty while leaving the decision with the user; keep other Rowan surfaces bounded to their reviewed context.
 - **Do** keep Starpath mythic copy visually and semantically separate from its factual source, dates, limitations, and risk context.
 
 ### Don't:

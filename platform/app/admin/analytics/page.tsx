@@ -2,28 +2,31 @@ import Link from 'next/link';
 import { LogIn, ShieldAlert } from 'lucide-react';
 import { LightPage } from '@/components/LightPage';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
+import { getGoogleAnalyticsId } from '@/lib/google-analytics';
 
 export const dynamic = 'force-dynamic';
+
+const googleAnalyticsProperty = 'a392413346p534405424';
 
 const cardLinks = [
   {
     label: 'Realtime · who is on the site right now',
-    href: 'https://analytics.google.com/analytics/web/#/p0/realtime/overview',
+    href: `https://analytics.google.com/analytics/web/#/${googleAnalyticsProperty}/realtime/overview`,
     hint: 'Live users, top pages, traffic sources (last 30 min)',
   },
   {
     label: 'Reports · traffic acquisition',
-    href: 'https://analytics.google.com/analytics/web/#/p0/reports/explorer?params=_u..nav%3Dmaui&r=all-pages-and-screens',
+    href: `https://analytics.google.com/analytics/web/#/${googleAnalyticsProperty}/reports/explorer?params=_u..nav%3Dmaui&r=all-pages-and-screens`,
     hint: 'Where visitors came from: Google, direct, social, referrals',
   },
   {
     label: 'Reports · engagement & pages',
-    href: 'https://analytics.google.com/analytics/web/#/p0/reports/explorer?params=_u..nav%3Dmaui&r=all-pages-and-screens',
+    href: `https://analytics.google.com/analytics/web/#/${googleAnalyticsProperty}/reports/explorer?params=_u..nav%3Dmaui&r=all-pages-and-screens`,
     hint: 'PV, sessions, average engagement time per page',
   },
   {
     label: 'Explore · custom funnels / UV',
-    href: 'https://analytics.google.com/analytics/web/#/p0/analysis',
+    href: `https://analytics.google.com/analytics/web/#/${googleAnalyticsProperty}/analysis`,
     hint: 'Build your own reports: UV by country, cohort retention, funnels',
   },
 ];
@@ -69,9 +72,8 @@ export default async function AdminAnalyticsPage() {
     );
   }
 
-  const gaId = process.env.NEXT_PUBLIC_GA_ID;
+  const gaId = getGoogleAnalyticsId();
   const lookerEmbed = process.env.NEXT_PUBLIC_LOOKER_STUDIO_EMBED;
-  const tracking = Boolean(gaId);
 
   return (
     <LightPage>
@@ -80,40 +82,15 @@ export default async function AdminAnalyticsPage() {
           <h1 className="text-2xl font-semibold tracking-tight">Admin · Analytics</h1>
           <p className="mt-1 text-sm opacity-70">
             Google Analytics 4 backend for <span className="font-mono">{user.email}</span>.
-            Data shows up ~30 seconds after first visit once{' '}
-            <code className="rounded bg-black/10 px-1 py-0.5 text-xs">NEXT_PUBLIC_GA_ID</code>{' '}
-            is set.
+            New activity normally appears shortly after the first tagged visit.
           </p>
         </div>
 
         <div
-          className={`rounded-xl border p-4 text-sm ${
-            tracking
-              ? 'border-emerald-300/60 bg-emerald-100/60 text-emerald-900'
-              : 'border-amber-300/60 bg-amber-100/60 text-amber-900'
-          }`}
+          className="rounded-xl border border-emerald-300/60 bg-emerald-100/60 p-4 text-sm text-emerald-900"
         >
-          {tracking ? (
-            <>
-              Tracking active — Measurement ID{' '}
-              <code className="rounded bg-white/70 px-1 py-0.5 text-xs">{gaId}</code>
-            </>
-          ) : (
-            <>
-              <strong>Tracking not set up.</strong> Create a GA4 property at{' '}
-              <a
-                className="underline"
-                href="https://analytics.google.com"
-                target="_blank"
-                rel="noreferrer"
-              >
-                analytics.google.com
-              </a>
-              , copy the Measurement ID (starts with <code>G-</code>), and set{' '}
-              <code className="rounded bg-white/70 px-1 py-0.5 text-xs">NEXT_PUBLIC_GA_ID</code>{' '}
-              in Vercel → Settings → Environment Variables. Redeploy and come back.
-            </>
-          )}
+          Tracking active — Measurement ID{' '}
+          <code className="rounded bg-white/70 px-1 py-0.5 text-xs">{gaId}</code>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

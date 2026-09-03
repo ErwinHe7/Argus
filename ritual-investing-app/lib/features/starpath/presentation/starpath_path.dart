@@ -337,7 +337,7 @@ class _ConstellationCopy extends StatelessWidget {
           shadows: [Shadow(color: Colors.black, blurRadius: 8)],
         ),
       ),
-      const SizedBox(height: 5),
+      const Flexible(flex: 5, fit: FlexFit.loose, child: SizedBox(height: 5)),
       Text(
         'Leo · ${constellation.leoSubtitle}',
         maxLines: 2,
@@ -351,7 +351,7 @@ class _ConstellationCopy extends StatelessWidget {
           shadows: const [Shadow(color: Colors.black, blurRadius: 8)],
         ),
       ),
-      const SizedBox(height: 6),
+      const Flexible(flex: 6, fit: FlexFit.loose, child: SizedBox(height: 6)),
       Text(
         constellation.summary,
         maxLines: 3,
@@ -364,7 +364,7 @@ class _ConstellationCopy extends StatelessWidget {
           shadows: [Shadow(color: Colors.black, blurRadius: 8)],
         ),
       ),
-      const SizedBox(height: 6),
+      const Flexible(flex: 6, fit: FlexFit.loose, child: SizedBox(height: 6)),
       Text(
         '${constellation.lessons.length} lessons · all open  →',
         textAlign: textAlign,

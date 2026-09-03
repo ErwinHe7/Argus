@@ -4,6 +4,10 @@ enum DailyRitualMode { tarot, astrology, unknown }
 
 enum DailyRitualState { assigned, revealed, completed, unknown }
 
+enum RitualMediaAvailability { exactIdentity, missingIdentity }
+
+enum RitualContentAvailability { available, unavailable }
+
 enum RitualMutationPhase {
   idle,
   committing,
@@ -33,8 +37,21 @@ class DailyRitual {
     required this.revealedAt,
     required this.completedAt,
     required this.demo,
+    this.userId,
+    this.deletionEpoch,
+    this.scheduleId = '',
+    this.serverEvaluatedAt,
+    this.validUntil,
+    this.contentIdentity = '',
+    RitualMediaAvailability? mediaAvailability,
+    this.contentAvailability = RitualContentAvailability.available,
   }) : ideas = List.unmodifiable(ideas),
-       evidence = List.unmodifiable(evidence);
+       evidence = List.unmodifiable(evidence),
+       mediaAvailability =
+           mediaAvailability ??
+           (art.key.trim().isEmpty
+               ? RitualMediaAvailability.missingIdentity
+               : RitualMediaAvailability.exactIdentity);
 
   final String assignmentId;
   final DateTime date;
@@ -53,6 +70,60 @@ class DailyRitual {
   final DateTime? revealedAt;
   final DateTime? completedAt;
   final RitualDisclosure demo;
+  final String? userId;
+  final int? deletionEpoch;
+  final String scheduleId;
+  final DateTime? serverEvaluatedAt;
+  final DateTime? validUntil;
+  final String contentIdentity;
+  final RitualMediaAvailability mediaAvailability;
+  final RitualContentAvailability contentAvailability;
+
+  bool get hasExactArtIdentity =>
+      mediaAvailability == RitualMediaAvailability.exactIdentity &&
+      art.key.trim().isNotEmpty;
+
+  RitualAssignmentLineage get lineage => RitualAssignmentLineage(
+    userId: userId,
+    deletionEpoch: deletionEpoch,
+    localDate: date,
+    mode: mode,
+    assignmentId: assignmentId,
+    assignmentVersion: version,
+    revision: revision,
+    contentIdentity: contentIdentity,
+    artKey: art.key,
+  );
+
+  bool hasSameAssignmentIdentity(DailyRitual other) =>
+      assignmentId == other.assignmentId &&
+      date == other.date &&
+      mode == other.mode &&
+      userId == other.userId &&
+      deletionEpoch == other.deletionEpoch;
+
+  bool hasSameImmutableContent(DailyRitual other) =>
+      revision == other.revision &&
+      scheduleId == other.scheduleId &&
+      contentIdentity == other.contentIdentity &&
+      title == other.title &&
+      art == other.art &&
+      mediaAvailability == other.mediaAvailability &&
+      contentAvailability == other.contentAvailability &&
+      interpretation == other.interpretation &&
+      guidance == other.guidance &&
+      marketLabel == other.marketLabel &&
+      listEquals(ideas, other.ideas) &&
+      listEquals(evidence, other.evidence) &&
+      rowan == other.rowan &&
+      demo == other.demo;
+
+  bool hasSameVersionPayload(DailyRitual other) =>
+      version == other.version &&
+      state == other.state &&
+      revealedAt == other.revealedAt &&
+      completedAt == other.completedAt &&
+      hasSameImmutableContent(other);
 
   @override
   bool operator ==(Object other) =>
@@ -73,10 +144,18 @@ class DailyRitual {
       other.state == state &&
       other.revealedAt == revealedAt &&
       other.completedAt == completedAt &&
-      other.demo == demo;
+      other.demo == demo &&
+      other.userId == userId &&
+      other.deletionEpoch == deletionEpoch &&
+      other.scheduleId == scheduleId &&
+      other.serverEvaluatedAt == serverEvaluatedAt &&
+      other.validUntil == validUntil &&
+      other.contentIdentity == contentIdentity &&
+      other.mediaAvailability == mediaAvailability &&
+      other.contentAvailability == contentAvailability;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
     assignmentId,
     date,
     mode,
@@ -94,6 +173,65 @@ class DailyRitual {
     revealedAt,
     completedAt,
     demo,
+    userId,
+    deletionEpoch,
+    scheduleId,
+    serverEvaluatedAt,
+    validUntil,
+    contentIdentity,
+    mediaAvailability,
+    contentAvailability,
+  ]);
+}
+
+@immutable
+class RitualAssignmentLineage {
+  const RitualAssignmentLineage({
+    required this.userId,
+    required this.deletionEpoch,
+    required this.localDate,
+    required this.mode,
+    required this.assignmentId,
+    required this.assignmentVersion,
+    required this.revision,
+    required this.contentIdentity,
+    required this.artKey,
+  });
+
+  final String? userId;
+  final int? deletionEpoch;
+  final DateTime localDate;
+  final DailyRitualMode mode;
+  final String assignmentId;
+  final int assignmentVersion;
+  final RitualRevision revision;
+  final String contentIdentity;
+  final String artKey;
+
+  @override
+  bool operator ==(Object other) =>
+      other is RitualAssignmentLineage &&
+      other.userId == userId &&
+      other.deletionEpoch == deletionEpoch &&
+      other.localDate == localDate &&
+      other.mode == mode &&
+      other.assignmentId == assignmentId &&
+      other.assignmentVersion == assignmentVersion &&
+      other.revision == revision &&
+      other.contentIdentity == contentIdentity &&
+      other.artKey == artKey;
+
+  @override
+  int get hashCode => Object.hash(
+    userId,
+    deletionEpoch,
+    localDate,
+    mode,
+    assignmentId,
+    assignmentVersion,
+    revision,
+    contentIdentity,
+    artKey,
   );
 }
 

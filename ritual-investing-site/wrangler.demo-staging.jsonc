@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "ritual-investing-demo-beta",
+  "name": "ritual-investing-demo-staging",
   "compatibility_date": "2026-08-25",
-  "pages_build_output_dir": "./dist/demo-beta"
+  "pages_build_output_dir": "./dist/demo-staging"
 }

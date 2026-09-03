@@ -4,7 +4,15 @@ Status date: 2026-08-30
 
 Current status: **LIVE / public beta** at
 <https://just-build-this.app>. The intentionally incomplete product is using
-the persistent Supabase `beta` branch, not the parent production environment.
+the logical Supabase staging project, not prod. Its provider-side physical
+branch label `beta` and ref `zbgjjufjkhfhirbuuolv` are retained historical
+identities for staging, not a fourth environment.
+
+This record predates the staging-named CI/CD cutover. Its recorded Worker
+preview alias and hosted CORS evidence may therefore still contain the legacy
+physical `beta` label. No live alias, domain, or backend setting was changed by
+the CI/CD repository work; the next approved manual release must create and
+verify the staging-named alias before retiring the legacy one.
 
 The apex is served by asset-only Worker `ritual-investing-member`, deployment
 `f578ff80-cbc3-4f3d-a978-45ca95bb06a6`, version
@@ -17,14 +25,14 @@ deployment `6f961977-758a-45af-aba0-7be48dd0cb3c`, version
 
 | Evidence | Owner | Status/value |
 | --- | --- | --- |
-| Release operator | Product/operations | Direct beta deployment authorized by repository owner |
+| Release operator | Product/operations | Direct public-beta deployment authorized by repository owner |
 | UTC window and exact Git revision | Release operator | `2026-08-30T09:40Z`; `84f6380de901c6b4a63268f8f63dcb2ae297c66a` |
 | Legacy Worker deployment/version/tag | Cloudflare operator | `6f961977-758a-45af-aba0-7be48dd0cb3c`; `0c7ea422-d2b6-4243-92f9-f2cc8d013b79`; `retention-a2bdeb9` |
 | New Worker deployment/version | Cloudflare operator | `f578ff80-cbc3-4f3d-a978-45ca95bb06a6`; `0f63d02e-f489-48b8-bd74-1d5e4f6b4246` |
 | Member artifact | Release operator | SHA-256 `f78044b40c78ac52204829adc0dc270252bc5ca35233377c73d84866e7ba669f`; 77 manifest files |
-| Persistent beta branch | Supabase operator | Branch `beta`; ref `zbgjjufjkhfhirbuuolv`; four pending migrations applied |
+| Staging backend | Supabase operator | Legacy physical branch `beta`; ref `zbgjjufjkhfhirbuuolv`; four pending migrations applied |
 | Edge Functions | Supabase operator | `api` v19, `worker` v13, `waitlist` v12, `webull-callback` v12; all `ACTIVE` |
-| Admission/CORS/build revision | Supabase operator | Web admission `open`; apex and beta origins; API reports exact Git revision |
+| Admission/CORS/build revision | Supabase operator | Web admission `open`; apex and staging origins; API reports exact Git revision |
 
 The `argus-member-web-release/v1` manifest has exactly these workflow-validated
 keys:
@@ -47,21 +55,23 @@ observations, and approvals beside the manifest, without credentials or member
 identifiers.
 
 The production custom-domain deployment disables the temporary workers.dev
-preview URL. The supported consumer origins remain the exact apex and beta
-subdomain values enforced by the API.
+preview URL. The recorded deployment used the exact apex and legacy physical
+preview origin enforced at that time; future releases must use the exact
+staging-named origin and update CORS and Auth atomically.
 
-## Persistent beta branch prerequisites
+## Staging backend prerequisites
 
 Before domain cutover, the Supabase operator must prove the target is the
-healthy persistent `beta` branch under parent project `punuomgshlypbntanomz`,
-with branch project ref `zbgjjufjkhfhirbuuolv`, and record:
+healthy logical staging project under parent project `punuomgshlypbntanomz`,
+with legacy physical branch label `beta` and project ref
+`zbgjjufjkhfhirbuuolv`, and record:
 
 - invite-only Auth with custom SMTP, resend, enumeration-resistant recovery,
   rate limits, exact apex/preview `/mobile/argus-auth/callback` redirects, a
   recovery email template that sends `token_hash` with `type=recovery`, and the
   accepted deletion path;
 - the reviewed publishable-key digest and exact `/functions/v1/api` URL on the
-  same beta Supabase origin; no elevated key in the bundle;
+  same staging Supabase origin; no elevated key in the bundle;
 - exact apex/preview/admin CORS, no browser application-table grants, private
   RLS, indexes, tenant denial, session validation, and Data API denial;
 - old Edge/new schema and new Edge/new schema bootstrap and supported
@@ -84,7 +94,7 @@ All mutations use protected credentials and pinned Wrangler. Replace angle
 brackets only from the reviewed record.
 
 1. While `ritual-investing-site` owns the apex, run the protected web workflow
-   with `action=preview`. Record the stable `beta` preview and member version.
+   with `action=preview`. Record the stable `staging` preview and member version.
    On mobile Safari and Chrome, accept invitation, recovery, refresh,
    onboarding, bodyless bootstrap, direct reload, supported routes, export,
    deletion/manual SLA, cross-tab logout, 200% text, reduced motion, narrow
@@ -143,8 +153,8 @@ brackets only from the reviewed record.
 
 | Boundary | Go only when | Status |
 | --- | --- | --- |
-| Backend | Beta migrations and Edge Functions deploy; public health returns the exact revision | `GO: passed` |
-| Preview | Root, callback route, beta CSP origin, and member asset checks pass | `GO: passed` |
+| Backend | Staging migrations and Edge Functions deploy; public health returns the exact revision | `GO: passed` |
+| Preview | Root, callback route, staging CSP origin, and member asset checks pass | `GO: passed` |
 | Domain | Apex serves the new Worker and legacy recovery values are frozen | `GO: passed` |
 | Promotion | Apex root, callback, main bundle, CSP, CORS, and API health pass | `GO: passed` |
 | Closure | Extended observation and recovery rehearsals | `Deferred follow-up; not a beta blocker` |
@@ -174,7 +184,7 @@ Record UTC start/end, owner, exact target, action, result, and evidence.
 | --- | --- | --- | --- |
 | Frontend | `<release-operator>` | Run protected web workflow `action=rollback` with the frozen manifest/digest and `landing_rollback_version_id`; verify apex landing and active deployment | `pending` |
 | Domain | `<cloudflare-operator>` | PUT the apex Worker domain back to `ritual-investing-site`; verify its frozen deployment/version/tag, DNS, TLS, and root/legal/support routes | `pending` |
-| Backend/Auth/data | `<supabase-operator>` | Set exact-beta `ARGUS_WEB_ADMISSION=contained`; if effects may be unsafe run `psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -f scripts/fence-supabase-deployment.sql`; prove privacy request/status remains reachable, then fix forward or use only the manifest-bound managed restore | `pending` |
+| Backend/Auth/data | `<supabase-operator>` | Set exact-staging `ARGUS_WEB_ADMISSION=contained`; if effects may be unsafe run `psql "$SUPABASE_DB_URL" -X -v ON_ERROR_STOP=1 -f scripts/fence-supabase-deployment.sql`; prove privacy request/status remains reachable, then fix forward or use only the manifest-bound managed restore | `pending` |
 
 Domain rollback command:
 

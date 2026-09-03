@@ -33,9 +33,13 @@ abstract class _$DailyRitualAssignmentCWProxy {
 
   DailyRitualAssignment scheduleId(String scheduleId);
 
+  DailyRitualAssignment serverEvaluatedAt(DateTime serverEvaluatedAt);
+
   DailyRitualAssignment state(DailyRitualAssignmentStateEnum state);
 
   DailyRitualAssignment userId(String userId);
+
+  DailyRitualAssignment validUntil(DateTime validUntil);
 
   DailyRitualAssignment version(int version);
 
@@ -59,8 +63,10 @@ abstract class _$DailyRitualAssignmentCWProxy {
     String? riskFooter,
     String? rowanRevisionId,
     String scheduleId,
+    DateTime serverEvaluatedAt,
     DailyRitualAssignmentStateEnum state,
     String userId,
+    DateTime validUntil,
     int version,
   });
 }
@@ -124,11 +130,19 @@ class _$DailyRitualAssignmentCWProxyImpl
       this(scheduleId: scheduleId);
 
   @override
+  DailyRitualAssignment serverEvaluatedAt(DateTime serverEvaluatedAt) =>
+      this(serverEvaluatedAt: serverEvaluatedAt);
+
+  @override
   DailyRitualAssignment state(DailyRitualAssignmentStateEnum state) =>
       this(state: state);
 
   @override
   DailyRitualAssignment userId(String userId) => this(userId: userId);
+
+  @override
+  DailyRitualAssignment validUntil(DateTime validUntil) =>
+      this(validUntil: validUntil);
 
   @override
   DailyRitualAssignment version(int version) => this(version: version);
@@ -154,8 +168,10 @@ class _$DailyRitualAssignmentCWProxyImpl
     Object? riskFooter = const $CopyWithPlaceholder(),
     Object? rowanRevisionId = const $CopyWithPlaceholder(),
     Object? scheduleId = const $CopyWithPlaceholder(),
+    Object? serverEvaluatedAt = const $CopyWithPlaceholder(),
     Object? state = const $CopyWithPlaceholder(),
     Object? userId = const $CopyWithPlaceholder(),
+    Object? validUntil = const $CopyWithPlaceholder(),
     Object? version = const $CopyWithPlaceholder(),
   }) {
     return DailyRitualAssignment(
@@ -211,6 +227,10 @@ class _$DailyRitualAssignmentCWProxyImpl
           ? _value.scheduleId
           // ignore: cast_nullable_to_non_nullable
           : scheduleId as String,
+      serverEvaluatedAt: serverEvaluatedAt == const $CopyWithPlaceholder()
+          ? _value.serverEvaluatedAt
+          // ignore: cast_nullable_to_non_nullable
+          : serverEvaluatedAt as DateTime,
       state: state == const $CopyWithPlaceholder()
           ? _value.state
           // ignore: cast_nullable_to_non_nullable
@@ -219,6 +239,10 @@ class _$DailyRitualAssignmentCWProxyImpl
           ? _value.userId
           // ignore: cast_nullable_to_non_nullable
           : userId as String,
+      validUntil: validUntil == const $CopyWithPlaceholder()
+          ? _value.validUntil
+          // ignore: cast_nullable_to_non_nullable
+          : validUntil as DateTime,
       version: version == const $CopyWithPlaceholder()
           ? _value.version
           // ignore: cast_nullable_to_non_nullable
@@ -260,8 +284,10 @@ DailyRitualAssignment _$DailyRitualAssignmentFromJson(
         'risk_footer',
         'rowan_revision_id',
         'schedule_id',
+        'server_evaluated_at',
         'state',
         'user_id',
+        'valid_until',
         'version',
       ],
     );
@@ -304,6 +330,10 @@ DailyRitualAssignment _$DailyRitualAssignmentFromJson(
         (v) => v as String?,
       ),
       scheduleId: $checkedConvert('schedule_id', (v) => v as String),
+      serverEvaluatedAt: $checkedConvert(
+        'server_evaluated_at',
+        (v) => DateTime.parse(v as String),
+      ),
       state: $checkedConvert(
         'state',
         (v) => $enumDecode(
@@ -313,6 +343,10 @@ DailyRitualAssignment _$DailyRitualAssignmentFromJson(
         ),
       ),
       userId: $checkedConvert('user_id', (v) => v as String),
+      validUntil: $checkedConvert(
+        'valid_until',
+        (v) => DateTime.parse(v as String),
+      ),
       version: $checkedConvert('version', (v) => (v as num).toInt()),
     );
     return val;
@@ -328,7 +362,9 @@ DailyRitualAssignment _$DailyRitualAssignmentFromJson(
     'riskFooter': 'risk_footer',
     'rowanRevisionId': 'rowan_revision_id',
     'scheduleId': 'schedule_id',
+    'serverEvaluatedAt': 'server_evaluated_at',
     'userId': 'user_id',
+    'validUntil': 'valid_until',
   },
 );
 
@@ -348,8 +384,10 @@ Map<String, dynamic> _$DailyRitualAssignmentToJson(
   'risk_footer': instance.riskFooter,
   'rowan_revision_id': instance.rowanRevisionId,
   'schedule_id': instance.scheduleId,
+  'server_evaluated_at': instance.serverEvaluatedAt.toIso8601String(),
   'state': _$DailyRitualAssignmentStateEnumEnumMap[instance.state]!,
   'user_id': instance.userId,
+  'valid_until': instance.validUntil.toIso8601String(),
   'version': instance.version,
 };
 

@@ -1,0 +1,26 @@
+Daily Ritual U6 — sanitized iPhone 17 verification log
+Date: 2026-09-02
+Workspace: ios/Runner.xcworkspace
+Scheme: Runner
+Configuration: Debug
+Simulator: iPhone 17, iOS 26.5, E13228D5-C858-430D-9BEB-99ADA5607450
+Bundle: com.ritualinvesting.ritualInvestingApp
+
+XcodeBuildMCP build/install/launch: PASS (68.8 s)
+Deterministic integration build: PASS (Xcode build 14.2 s on final run)
+Integration result: 00:12 +2 All tests passed
+Captured states: assigned invitation, hold 60%, revealed, C2 close, completed onward
+Post-capture assertions: Evidence opened and returned; Starpath dismissed fullscreen and invoked handoff
+Crashes: 0
+Uncaught exceptions: 0
+Flow-attributable error messages: 0
+Failed fixture requests: 0
+
+Non-blocking build note: Flutter reported that all current iOS plugins are Swift
+Packages while legacy CocoaPods integration remains. No migration was performed because
+it is unrelated to Daily Ritual and did not affect the build or test result.
+
+Environment note: a normal application launch without runtime configuration correctly
+showed the existing fail-closed RITUAL_API_BASE_URL configuration surface. The approved
+ritual capture used the repository's deterministic local HTTP authority harness; no
+credentials, external services, or production member data were used.

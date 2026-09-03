@@ -6,32 +6,33 @@ import { describe, expect, it } from "vitest";
 
 import {
   assembleAssets,
+  DEPLOYMENT_TARGETS,
   injectWaitlistConfiguration,
   injectTurnstileSiteKey,
   MAX_ASSET_BYTES,
   renderDemoHeaders,
   renderLandingHeaders,
   renderMemberHeaders,
-  resolveMemberBetaAssemblyInputs,
+  resolveMemberStagingAssemblyInputs,
   resolveWaitlistFunctionUrl,
   resolveTurnstileSiteKey,
 } from "../scripts/build-assets.ts";
 
 const MEMBER_PROJECT_REF = "abcdefghijklmnopqrst";
 const MEMBER_ORIGIN = `https://${MEMBER_PROJECT_REF}.supabase.co`;
-const RITUAL_BETA_BRANCH_REF = "zbgjjufjkhfhirbuuolv";
-const RITUAL_BETA_BRANCH_ORIGIN = `https://${RITUAL_BETA_BRANCH_REF}.supabase.co`;
-const RITUAL_BETA_KEY = "sb_publishable_A4POPCI9WnO-VnSb1IQXFg_4GM58St0";
-const MEMBER_KEY = "sb_publishable_member_beta_fixture_1234567890";
+const RITUAL_STAGING_PROJECT_REF = "zbgjjufjkhfhirbuuolv";
+const RITUAL_STAGING_PROJECT_ORIGIN = `https://${RITUAL_STAGING_PROJECT_REF}.supabase.co`;
+const RITUAL_STAGING_KEY = "sb_publishable_A4POPCI9WnO-VnSb1IQXFg_4GM58St0";
+const MEMBER_KEY = "sb_publishable_member_staging_fixture_1234567890";
 const MEMBER_INPUTS = {
   projectRef: MEMBER_PROJECT_REF,
   publishableKeySha256: createHash("sha256").update(MEMBER_KEY).digest("hex"),
   supabaseOrigin: MEMBER_ORIGIN,
 } as const;
-const RITUAL_BETA_INPUTS = {
-  projectRef: RITUAL_BETA_BRANCH_REF,
-  publishableKeySha256: createHash("sha256").update(RITUAL_BETA_KEY).digest("hex"),
-  supabaseOrigin: RITUAL_BETA_BRANCH_ORIGIN,
+const RITUAL_STAGING_INPUTS = {
+  projectRef: RITUAL_STAGING_PROJECT_REF,
+  publishableKeySha256: createHash("sha256").update(RITUAL_STAGING_KEY).digest("hex"),
+  supabaseOrigin: RITUAL_STAGING_PROJECT_ORIGIN,
 } as const;
 
 function contentSecurityPolicyDirective(headers: string, name: string): string | undefined {
@@ -61,33 +62,54 @@ describe("deterministic demo asset assembly", () => {
   });
 
   it("requires both environment-specific site keys for a release assembly", () => {
-    expect(resolveTurnstileSiteKey("production", {
-      TURNSTILE_SITE_KEY_PRODUCTION: "0x4AAAAAAAsyntheticProductionKey",
+    expect(resolveTurnstileSiteKey("prod", {
+      TURNSTILE_SITE_KEY_PROD: "0x4AAAAAAAsyntheticProductionKey",
     }, true)).toBe("0x4AAAAAAAsyntheticProductionKey");
-    expect(() => resolveTurnstileSiteKey("beta", {}, true)).toThrow(/beta.*site key/i);
-    expect(resolveTurnstileSiteKey("beta", {}, false)).toBeUndefined();
+    expect(() => resolveTurnstileSiteKey("staging", {}, true)).toThrow(/staging.*site key/i);
+    expect(resolveTurnstileSiteKey("staging", {}, false)).toBeUndefined();
   });
 
   it("accepts only an exact public Supabase waitlist endpoint and injects it once", () => {
     const endpoint = "https://project-ref.supabase.co/functions/v1/waitlist";
-    expect(resolveWaitlistFunctionUrl("production", {
-      WAITLIST_FUNCTION_URL_PRODUCTION: endpoint,
+    expect(resolveWaitlistFunctionUrl("prod", {
+      WAITLIST_FUNCTION_URL_PROD: endpoint,
     }, true)).toBe(endpoint);
-    expect(resolveWaitlistFunctionUrl("beta", {}, false)).toBeUndefined();
+    expect(resolveWaitlistFunctionUrl("staging", {}, false)).toBeUndefined();
     for (const invalid of [
       "http://project-ref.supabase.co/functions/v1/waitlist",
       "https://project-ref.supabase.co/functions/v1/worker",
       "https://evil.example/functions/v1/waitlist",
       `${endpoint}?apikey=forbidden`,
     ]) {
-      expect(() => resolveWaitlistFunctionUrl("production", {
-        WAITLIST_FUNCTION_URL_PRODUCTION: invalid,
+      expect(() => resolveWaitlistFunctionUrl("prod", {
+        WAITLIST_FUNCTION_URL_PROD: invalid,
       }, true)).toThrow(/Supabase waitlist function URL/i);
     }
     const html = '<form action="" method="post" data-waitlist-form data-waitlist-enabled="false"></form>';
     expect(injectWaitlistConfiguration(html, endpoint)).toContain(
       `action="${endpoint}" method="post" data-waitlist-form data-waitlist-enabled="true"`,
     );
+  });
+
+  it("publishes only canonical staging and prod asset directories", () => {
+    expect(DEPLOYMENT_TARGETS).toEqual([
+      {
+        environment: "staging",
+        landingDirectory: "dist/landing-staging",
+        demoDirectory: "dist/demo-staging",
+      },
+      {
+        environment: "prod",
+        landingDirectory: "dist/landing-prod",
+        demoDirectory: "dist/demo-prod",
+      },
+    ]);
+  });
+
+  it("marks the static 404 response as non-cacheable on landing and Demo", () => {
+    for (const headers of [renderLandingHeaders("staging"), renderDemoHeaders("staging")]) {
+      expect(headers).toContain("/404.html\n  Cache-Control: no-cache, no-store, must-revalidate");
+    }
   });
 
   it("copies validated assets, drops Flutter's zero-byte service-worker placeholder, and emits a hash manifest", async () => {
@@ -169,34 +191,34 @@ describe("deterministic demo asset assembly", () => {
     );
   });
 
-  it("requires exact beta assembly inputs and accepts the verified persistent beta branch", () => {
-    expect(resolveMemberBetaAssemblyInputs({
-      MEMBER_BETA_SUPABASE_PROJECT_REF: MEMBER_PROJECT_REF,
-      MEMBER_BETA_SUPABASE_ORIGIN: MEMBER_ORIGIN,
-      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: MEMBER_INPUTS.publishableKeySha256,
+  it("requires exact staging assembly inputs and accepts the verified staging project", () => {
+    expect(resolveMemberStagingAssemblyInputs({
+      MEMBER_STAGING_SUPABASE_PROJECT_REF: MEMBER_PROJECT_REF,
+      MEMBER_STAGING_SUPABASE_ORIGIN: MEMBER_ORIGIN,
+      MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256: MEMBER_INPUTS.publishableKeySha256,
     })).toEqual(MEMBER_INPUTS);
-    expect(resolveMemberBetaAssemblyInputs({
-      MEMBER_BETA_SUPABASE_PROJECT_REF: RITUAL_BETA_BRANCH_REF,
-      MEMBER_BETA_SUPABASE_ORIGIN: RITUAL_BETA_BRANCH_ORIGIN,
-      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: RITUAL_BETA_INPUTS.publishableKeySha256,
-    })).toEqual(RITUAL_BETA_INPUTS);
+    expect(resolveMemberStagingAssemblyInputs({
+      MEMBER_STAGING_SUPABASE_PROJECT_REF: RITUAL_STAGING_PROJECT_REF,
+      MEMBER_STAGING_SUPABASE_ORIGIN: RITUAL_STAGING_PROJECT_ORIGIN,
+      MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256: RITUAL_STAGING_INPUTS.publishableKeySha256,
+    })).toEqual(RITUAL_STAGING_INPUTS);
   });
 
-  it("assembles only the exact member beta Supabase origin, Edge URL, and key fingerprint", async () => {
+  it("assembles only the exact member staging Supabase origin, Edge URL, and key fingerprint", async () => {
     const paths = await fixture();
     await writeFile(
       join(paths.source, "main.dart.js"),
-      `${RITUAL_BETA_BRANCH_ORIGIN} ${RITUAL_BETA_BRANCH_ORIGIN}/functions/v1/api /v1/session/bootstrap ${RITUAL_BETA_KEY}`,
+      `${RITUAL_STAGING_PROJECT_ORIGIN} ${RITUAL_STAGING_PROJECT_ORIGIN}/functions/v1/api /v1/session/bootstrap ${RITUAL_STAGING_KEY}`,
     );
-    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: RITUAL_BETA_INPUTS }))
+    await expect(assembleAssets({ ...paths, surface: "member", memberStaging: RITUAL_STAGING_INPUTS }))
       .resolves.toMatchObject({ algorithm: "sha256", fileCount: 2 });
 
     await writeFile(join(paths.source, "main.dart.js"), `${MEMBER_ORIGIN}/functions/v1/api ${MEMBER_KEY} https://otherprojectref00001.supabase.co`);
-    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: MEMBER_INPUTS }))
+    await expect(assembleAssets({ ...paths, surface: "member", memberStaging: MEMBER_INPUTS }))
       .rejects.toThrow(/unapproved Supabase origin/i);
 
     await writeFile(join(paths.source, "main.dart.js"), `${MEMBER_ORIGIN}/functions/v1/api sb_publishable_wrong_key_1234567890`);
-    await expect(assembleAssets({ ...paths, surface: "member", memberBeta: MEMBER_INPUTS }))
+    await expect(assembleAssets({ ...paths, surface: "member", memberStaging: MEMBER_INPUTS }))
       .rejects.toThrow(/fingerprint/i);
   });
 
@@ -205,9 +227,9 @@ describe("deterministic demo asset assembly", () => {
     expect(headers).toContain("default-src 'none'");
     expect(headers).toContain("script-src 'self' 'wasm-unsafe-eval'");
     expect(contentSecurityPolicyDirective(headers, "img-src")).toBe("img-src 'self' blob:");
-    expect(contentSecurityPolicyDirective(renderLandingHeaders("beta"), "img-src"))
+    expect(contentSecurityPolicyDirective(renderLandingHeaders("staging"), "img-src"))
       .toBe("img-src 'self'");
-    expect(contentSecurityPolicyDirective(renderDemoHeaders("beta"), "img-src"))
+    expect(contentSecurityPolicyDirective(renderDemoHeaders("staging"), "img-src"))
       .toBe("img-src 'self' data: blob:");
     expect(headers).toContain(`connect-src 'self' ${MEMBER_ORIGIN}`);
     expect(headers).toContain("X-Frame-Options: DENY");

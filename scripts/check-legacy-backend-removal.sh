@@ -9,6 +9,8 @@ fail() {
   exit 1
 }
 
+command -v rg >/dev/null 2>&1 || fail "ripgrep (rg) is required"
+
 for retired_path in \
   ritual-investing-api/wrangler.jsonc \
   ritual-investing-api/wrangler.beta.jsonc \
@@ -65,7 +67,10 @@ if rg -n -i \
   ritual-investing-admin/pubspec.yaml \
   ritual-investing-admin/pubspec.lock \
   ritual-investing-admin/lib \
-  .github/workflows/ritual-investing.yml \
+  .github/workflows/ritual-investing-ci.yml \
+  .github/workflows/ritual-investing-release-evidence.yml \
+  .github/workflows/ritual-investing-web-release.yml \
+  .github/workflows/ritual-investing-supabase-remediation.yml \
   docs/ritual-investing \
   --glob '!**/Pods/**' \
   --glob '!**/GeneratedPluginRegistrant.*' >/dev/null
@@ -74,9 +79,9 @@ then
 fi
 
 for pages_config in \
-  ritual-investing-site/wrangler.beta.jsonc \
+  ritual-investing-site/wrangler.staging.jsonc \
   ritual-investing-site/wrangler.demo.jsonc \
-  ritual-investing-site/wrangler.demo-beta.jsonc
+  ritual-investing-site/wrangler.demo-staging.jsonc
 do
   node --input-type=module -e '
     import { readFileSync } from "node:fs";
@@ -85,6 +90,38 @@ do
     if (typeof config.pages_build_output_dir !== "string" || forbidden.some((key) => key in config)) process.exit(1);
   ' "$pages_config" || fail "Cloudflare Pages config is not static-only: $pages_config"
 done
+
+for former_stage_path in \
+  ritual-investing-app/config/beta.json \
+  scripts/run-ritual-investing-beta.sh \
+  ritual-investing-site/wrangler.beta.jsonc \
+  ritual-investing-site/wrangler.demo-beta.jsonc
+do
+  test ! -e "$former_stage_path" || \
+    fail "active configuration remains under the former stage name: $former_stage_path"
+done
+
+if rg -n \
+  'RITUAL_ENVIRONMENT["[:space:]:=]+beta|DemoEnvironment\.(beta|production)|data-demo-environment="(beta|production)"|environment=(beta|production)|landing-beta|demo-beta|member-beta|assets:build:member-beta|beta\.just-build-this\.app|TURNSTILE_SITE_KEY_(BETA|PRODUCTION)|WAITLIST_FUNCTION_URL_(BETA|PRODUCTION)' \
+  ritual-investing-app/config \
+  ritual-investing-app/lib/core/config/runtime_config.dart \
+  ritual-investing-demo/lib/demo_bootstrap.dart \
+  ritual-investing-site/public \
+  ritual-investing-site/scripts/build-assets.ts \
+  ritual-investing-site/scripts/check-staging-evidence.ts \
+  ritual-investing-site/package.json \
+  ritual-investing-site/wrangler.staging.jsonc \
+  ritual-investing-site/wrangler.demo.jsonc \
+  ritual-investing-site/wrangler.demo-staging.jsonc \
+  ritual-investing-site/wrangler.jsonc \
+  .github/workflows/ritual-investing-ci.yml \
+  .github/workflows/ritual-investing-release-evidence.yml \
+  .github/workflows/ritual-investing-web-release.yml \
+  scripts/run-ritual-investing-dev.sh \
+  scripts/run-ritual-investing-staging.sh
+then
+  fail "an active environment-stage use of beta or production remains"
+fi
 
 for worker_config in \
   ritual-investing-site/wrangler.jsonc \

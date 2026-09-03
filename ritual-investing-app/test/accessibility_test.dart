@@ -11,7 +11,7 @@ import 'support/fixture_services.dart';
 
 void main() {
   testWidgets(
-    'public web beta shell stays mobile-width and keeps its financial disclosure visible',
+    'public web beta shell stays mobile-width without capability restrictions',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
@@ -30,7 +30,7 @@ void main() {
       expect(find.byKey(const Key('public-beta-disclosure')), findsOneWidget);
       expect(
         find.textContaining(
-          'Live brokerage, funding, and orders are unavailable',
+          'Features may evolve as we learn from early access',
         ),
         findsOneWidget,
       );
@@ -40,7 +40,53 @@ void main() {
             .width,
         480,
       );
-      expect(find.byKey(const Key('you-brokerage')), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'restored ritual keeps shell chrome and provides 2x accessible reflow',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      tester.view.physicalSize = const Size(430, 932);
+      tester.view.devicePixelRatio = 1;
+      tester.platformDispatcher.textScaleFactorTestValue = 2;
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          const FakeAccessibilityFeatures(
+            accessibleNavigation: true,
+            disableAnimations: true,
+          );
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.platformDispatcher.clearAllTestValues);
+
+      await tester.pumpWidget(
+        RitualInvestingApp(container: fixtureContainer()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+      expect(
+        find.byKey(const Key('daily-ritual-accessibility-scroll')),
+        findsOneWidget,
+      );
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('ritual-search')), findsNothing);
+      expect(find.byKey(const Key('theme-toggle')), findsOneWidget);
+      expect(find.text('Today’s ritual is complete.'), findsOneWidget);
+      await tester.ensureVisible(find.byKey(const Key('leonidas-starpath')));
+      await tester.pump();
+      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+      await expectLater(tester, meetsGuideline(textContrastGuideline));
+      semantics.dispose();
     },
   );
 
@@ -77,8 +123,8 @@ void main() {
         expect(shell, findsOneWidget);
         final router = GoRouter.of(tester.element(shell));
         final routes = <(String, String)>[
-          (MemberRoutes.ritual.path, 'YOUR DAILY SIGNAL'),
-          (MemberRoutes.starpath.path, 'Starpath'),
+          (MemberRoutes.ritual.path, 'TODAY’S DAILY RITUAL'),
+          (MemberRoutes.starpath.path, 'Your Investment path'),
           (MemberRoutes.discover.path, 'Discover'),
           (MemberRoutes.coven.path, 'Founders’ Coven'),
           (MemberRoutes.you.path, 'You'),
@@ -96,55 +142,6 @@ void main() {
           await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
           await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
           await expectLater(tester, meetsGuideline(androidTapTargetGuideline));
-
-          if (route.$1 == MemberRoutes.starpath.path) {
-            expect(
-              find.byKey(const Key('starpath-universe-selector')),
-              findsOneWidget,
-            );
-            expect(find.text('Investment'), findsOneWidget);
-            expect(find.text('Trading'), findsOneWidget);
-            for (var ordinal = 1; ordinal <= 4; ordinal += 1) {
-              expect(
-                find.byKey(Key('investment-constellation-$ordinal')),
-                findsOneWidget,
-              );
-            }
-            expect(
-              find.byKey(const Key('investment-constellation-5')),
-              findsNothing,
-            );
-
-            await tester.tap(find.text('Trading'));
-            await tester.pumpAndSettle();
-            for (var ordinal = 1; ordinal <= 4; ordinal += 1) {
-              expect(
-                find.byKey(Key('trading-constellation-$ordinal')),
-                findsOneWidget,
-              );
-            }
-            expect(
-              find.byKey(const Key('trading-constellation-5')),
-              findsNothing,
-            );
-            expect(
-              tester.takeException(),
-              isNull,
-              reason: '2x layout overflow on the Trading universe',
-            );
-            await expectLater(
-              tester,
-              meetsGuideline(labeledTapTargetGuideline),
-            );
-            await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
-            await expectLater(
-              tester,
-              meetsGuideline(androidTapTargetGuideline),
-            );
-
-            await tester.tap(find.text('Investment'));
-            await tester.pumpAndSettle();
-          }
         }
 
         for (final route in const <(String, String)>[

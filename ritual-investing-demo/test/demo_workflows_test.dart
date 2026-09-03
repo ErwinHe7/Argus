@@ -5,6 +5,37 @@ import '../lib/demo_bootstrap.dart';
 import '../lib/demo_services.dart';
 
 void main() {
+  test('frame identity accepts only prod and staging protocol values', () {
+    expect(
+      DemoFrameIdentity.fromUri(
+        Uri.parse('https://demo.just-build-this.app/?environment=prod'),
+      ).environment,
+      DemoEnvironment.prod,
+    );
+    expect(
+      DemoFrameIdentity.fromUri(
+        Uri.parse(
+          'https://demo-staging.just-build-this.app/?environment=staging',
+        ),
+      ).environment,
+      DemoEnvironment.staging,
+    );
+    expect(
+      DemoFrameIdentity.fromUri(Uri.parse('https://demo.just-build-this.app/'))
+          .environment,
+      DemoEnvironment.prod,
+    );
+    for (final environment in const ['beta', 'production', 'unknown']) {
+      expect(
+        () => DemoFrameIdentity.fromUri(
+          Uri.parse('https://demo.example/?environment=$environment'),
+        ),
+        throwsFormatException,
+        reason: environment,
+      );
+    }
+  });
+
   testWidgets('curated shell resets document-owned mutations', (tester) async {
     tester.view.physicalSize = const Size(1280, 1024);
     tester.view.devicePixelRatio = 1;
@@ -16,7 +47,7 @@ void main() {
       DemoRitualInvestingApp(
         runtime: first.runtime,
         frameIdentity: const DemoFrameIdentity(
-          environment: DemoEnvironment.production,
+          environment: DemoEnvironment.prod,
           attemptId: 'test-first',
         ),
         frameChannel: firstChannel,

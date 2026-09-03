@@ -30,30 +30,30 @@ const steps = promotion?.steps ?? [];
 const runText = steps.map((step) => step.run ?? "").join("\n");
 
 describe("public-beta API promotion evidence", () => {
-  it("binds the protected job to the dedicated beta target and exact web origins", () => {
+  it("binds the protected job to the dedicated staging target and exact web origins", () => {
     expect(promotion?.env).toMatchObject({
-      RITUAL_EXPECTED_BETA_PROJECT_ID: expect.any(String),
-      RITUAL_BETA_ADMIN_ORIGIN: expect.any(String),
-      RITUAL_BETA_PREVIEW_ORIGIN: expect.any(String),
+      RITUAL_EXPECTED_SUPABASE_PROJECT_ID: expect.any(String),
+      RITUAL_STAGING_ADMIN_ORIGIN: expect.any(String),
+      RITUAL_STAGING_PREVIEW_ORIGIN: expect.any(String),
     });
     expect(runText).toContain(
-      "RITUAL_BETA_CONSUMER_ORIGINS=https://just-build-this.app,$RITUAL_BETA_PREVIEW_ORIGIN",
+      "RITUAL_STAGING_CONSUMER_ORIGINS=https://just-build-this.app,$RITUAL_STAGING_PREVIEW_ORIGIN",
     );
     expect(runText).toContain("workers\\.dev");
     expect(runText).toMatch(
-      /SUPABASE_PROJECT_ID[^\n]*RITUAL_EXPECTED_BETA_PROJECT_ID/,
+      /SUPABASE_PROJECT_ID[^\n]*RITUAL_EXPECTED_SUPABASE_PROJECT_ID/,
     );
   });
 
   it("deploys and records the exact origin, admission, project, and revision bindings", () => {
     expect(runText).toMatch(
-      /ARGUS_CONSUMER_ORIGINS=.*RITUAL_BETA_CONSUMER_ORIGINS/,
+      /ARGUS_CONSUMER_ORIGINS=.*RITUAL_STAGING_CONSUMER_ORIGINS/,
     );
-    expect(runText).toMatch(/ARGUS_ADMIN_ORIGIN=.*RITUAL_BETA_ADMIN_ORIGIN/);
-    expect(runText).toMatch(/ARGUS_WEB_ADMISSION=.*RITUAL_BETA_WEB_ADMISSION/);
+    expect(runText).toMatch(/ARGUS_ADMIN_ORIGIN=.*RITUAL_STAGING_ADMIN_ORIGIN/);
+    expect(runText).toMatch(/ARGUS_WEB_ADMISSION=.*RITUAL_STAGING_WEB_ADMISSION/);
     expect(runText).toMatch(/public-beta-api-evidence\.txt/);
 
-    const upload = steps.find((step) => step.uses === "actions/upload-artifact@v4");
+    const upload = steps.find((step) => step.uses?.startsWith("actions/upload-artifact@"));
     expect(String(upload?.with?.path ?? "")).toContain(
       "public-beta-api-evidence.txt",
     );

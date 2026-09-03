@@ -23,6 +23,7 @@ import 'package:ritual_investing_app/features/profile/application/controller.dar
 import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
+import 'package:ritual_investing_app/features/ritual/data/leonidas_voice_preference_store.dart';
 import 'package:ritual_investing_app/features/starpath/application/starpath_controller.dart';
 import 'package:ritual_investing_app/features/starpath/data/generated_starpath_api_service.dart';
 import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
@@ -273,6 +274,7 @@ class GuidedMemberTestHarness {
         final invalidationBus = InvalidationBus();
         return MemberFeatureScope(
           scope: scope,
+          leonidasVoicePreferenceStore: LeonidasVoicePreferenceStore(storage),
           dailyRitualController: DailyRitualController(
             repository: DailyRitualRepository(
               service: GeneratedRitualApiService(client),
@@ -525,6 +527,8 @@ final _dailyRitualResponse = DailyRitualResponse(
     deletionEpoch: 0,
     id: '00000000-0000-4000-8000-000000000021',
     localDate: DateTime.utc(2026, 8, 25),
+    serverEvaluatedAt: DateTime.utc(2026, 8, 25, 12),
+    validUntil: DateTime.utc(2026, 8, 26, 4),
     mode: DailyRitualAssignmentModeEnum.tarot,
     payload: {
       'title': 'Direction, not urgency.',

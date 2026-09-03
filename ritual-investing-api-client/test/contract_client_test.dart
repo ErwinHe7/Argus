@@ -89,6 +89,48 @@ void main() {
     expect(adapter.requests.single.contentType, 'application/json');
   });
 
+  test('decodes server-owned Daily Ritual day authority', () {
+    final response = DailyRitualResponse.fromJson({
+      'data': _dailyRitualAssignmentData(),
+      'meta': {'request_id': requestId},
+    });
+
+    expect(
+      response.data.toJson(),
+      containsPair('server_evaluated_at', '2026-11-01T16:00:00.000Z'),
+    );
+    expect(
+      response.data.toJson(),
+      containsPair('valid_until', '2026-11-02T05:00:00.000Z'),
+    );
+    expect(response.data.localDate, DateTime.parse('2026-11-01'));
+  });
+
+  test('sends the adjacent Ritual transition with If-Match', () async {
+    final adapter = _RecordingAdapter(data: _dailyRitualAssignmentData());
+    final dio = Dio()..httpClientAdapter = adapter;
+
+    await RitualsApi(dio).transitionRitual(
+      assignmentId: '018f3c2a-4b67-7a89-8abc-123456789021',
+      ifMatch: '"v1"',
+      transitionRitualRequest: TransitionRitualRequest(
+        from: TransitionRitualRequestFromEnum.assigned,
+        to: TransitionRitualRequestToEnum.revealed,
+      ),
+    );
+
+    expect(adapter.requests.single.method, 'POST');
+    expect(
+      adapter.requests.single.path,
+      '/v1/rituals/018f3c2a-4b67-7a89-8abc-123456789021/transition',
+    );
+    expect(adapter.requests.single.headers['if-match'], '"v1"');
+    expect(jsonDecode(adapter.requests.single.data as String), {
+      'from': 'assigned',
+      'to': 'revealed',
+    });
+  });
+
   test(
     'binds manual order confirmation to preview and idempotency header',
     () async {
@@ -408,6 +450,34 @@ Map<String, Object?> _defaultData(String path) {
     };
   }
   return const {};
+}
+
+Map<String, Object?> _dailyRitualAssignmentData() {
+  return {
+    'id': '018f3c2a-4b67-7a89-8abc-123456789021',
+    'user_id': '018f3c2a-4b67-7a89-8abc-123456789001',
+    'deletion_epoch': 0,
+    'local_date': '2026-11-01',
+    'server_evaluated_at': '2026-11-01T16:00:00.000Z',
+    'valid_until': '2026-11-02T05:00:00.000Z',
+    'mode': 'tarot',
+    'schedule_id': '018f3c2a-4b67-7a89-8abc-123456789022',
+    'revision_id': '018f3c2a-4b67-7a89-8abc-123456789023',
+    'rowan_revision_id': null,
+    'state': 'assigned',
+    'revealed_at': null,
+    'completed_at': null,
+    'version': 1,
+    'payload': {
+      'title': 'Strength',
+      'art_key': 'strength',
+      'art_alt': 'Strength tarot card',
+      'interpretation': 'Patience is the stronger path.',
+    },
+    'body_template': null,
+    'allowed_tokens': null,
+    'risk_footer': null,
+  };
 }
 
 Map<String, Object?> _starpathSnapshotData() {

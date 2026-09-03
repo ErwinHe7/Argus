@@ -11,11 +11,13 @@ class RowanCounselPanel extends StatelessWidget {
     required this.controller,
     required this.request,
     required this.personalization,
+    this.displayName = 'Rowan',
   });
 
   final RowanController controller;
   final RowanRequest request;
   final MemberPersonalization personalization;
+  final String displayName;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -34,7 +36,7 @@ class RowanCounselPanel extends StatelessWidget {
                 ? null
                 : () => controller.explain(request),
             icon: const Icon(Icons.auto_awesome_outlined),
-            label: const Text('Ask Rowan to explain'),
+            label: Text('Ask $displayName to explain'),
           ),
           if (matches && state.phase == LoadPhase.loading)
             const Padding(
@@ -69,8 +71,8 @@ class RowanCounselPanel extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 state.phase == LoadPhase.throttled
-                    ? 'Rowan is resting for a moment. Your research remains available.'
-                    : 'Rowan has no counsel for this context right now. Your research remains available.',
+                    ? '$displayName is resting for a moment. Your research remains available.'
+                    : '$displayName has no counsel for this context right now. Your research remains available.',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),

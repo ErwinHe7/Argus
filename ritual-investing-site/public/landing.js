@@ -1,6 +1,6 @@
 const DEMO_PEERS = Object.freeze({
-  production: "https://demo.just-build-this.app",
-  beta: "https://demo-beta.just-build-this.app",
+  prod: "https://demo.just-build-this.app",
+  staging: "https://demo-staging.just-build-this.app",
 });
 
 const LOCAL_COPY = Object.freeze({
@@ -10,7 +10,7 @@ const LOCAL_COPY = Object.freeze({
   "timed-out": "The Demo is taking longer than expected. Retry here or open it in a new tab.",
 });
 
-/** @typedef {'production' | 'beta'} DemoEnvironment */
+/** @typedef {'prod' | 'staging'} DemoEnvironment */
 /** @typedef {{ environment: DemoEnvironment, demoOrigin: string, protocols: readonly number[] }} DemoConfiguration */
 /** @typedef {{ node: unknown, sourceWindow: unknown }} DemoFrame */
 
@@ -329,7 +329,7 @@ function installDemo() {
 
   const environment = root.dataset.demoEnvironment;
   const demoOrigin = root.dataset.demoOrigin;
-  if ((environment !== "production" && environment !== "beta") || demoOrigin === undefined) return;
+  if ((environment !== "prod" && environment !== "staging") || demoOrigin === undefined) return;
   const configuration = /** @type {DemoConfiguration} */ ({ environment, demoOrigin, protocols: [2, 1] });
   const lifecycle = createDemoLifecycle({
     configuration,

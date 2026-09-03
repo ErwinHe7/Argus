@@ -40,6 +40,7 @@ import 'package:ritual_investing_app/features/starpath/application/starpath_cont
 import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
 import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
+import 'package:ritual_investing_app/features/ritual/data/leonidas_voice_preference_store.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/search/application/controller.dart';
 import 'package:ritual_investing_app/features/search/data/repository.dart';
@@ -84,6 +85,8 @@ DependencyContainer fixtureContainer({
   bool includeU11 = false,
   bool includeSearch = false,
   PrivacyRepository? privacyRepository,
+  DailyRitualController? dailyRitualController,
+  LeonidasVoicePreferencePersistence? leonidasVoicePreferenceStore,
   MemberCapabilityPolicy capabilityPolicy = MemberCapabilityPolicy.native,
 }) {
   final storage = cache ?? MemoryReadCache();
@@ -155,12 +158,17 @@ DependencyContainer fixtureContainer({
       return MemberFeatureScope(
         scope: scope,
         capabilityPolicy: capabilityPolicy,
-        dailyRitualController: DailyRitualController(
-          repository: DailyRitualRepository(
-            service: _FixtureRitualService(tracker),
-            cache: scopedCache,
-          ),
-        ),
+        dailyRitualController:
+            dailyRitualController ??
+            DailyRitualController(
+              repository: DailyRitualRepository(
+                service: _FixtureRitualService(tracker),
+                cache: scopedCache,
+              ),
+            ),
+        leonidasVoicePreferenceStore:
+            leonidasVoicePreferenceStore ??
+            LeonidasVoicePreferenceStore(_MemoryProtectedStorage()),
         starpathController: StarpathController(
           repository: StarpathRepository(
             service: _FixtureStarpathService(tracker),
@@ -398,6 +406,9 @@ class _FixtureSessionBootstrapService implements SessionBootstrapService {
     defaultPortfolioId: 'fixture-portfolio',
     serverTime: DateTime.utc(2026, 8, 24),
     contractVersion: '1.0.0',
+    personalization: const MemberPersonalization(
+      ritualMode: MemberRitualMode.tarot,
+    ),
     themePreference: switch (state.theme) {
       ProfileTheme.system => MemberThemePreference.system,
       ProfileTheme.light => MemberThemePreference.light,

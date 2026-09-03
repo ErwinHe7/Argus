@@ -7,7 +7,7 @@ import { parse } from "yaml";
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 const ordinaryWorkflowPath = resolve(
   repositoryRoot,
-  ".github/workflows/ritual-investing.yml",
+  ".github/workflows/ritual-investing-ci.yml",
 );
 const remediationWorkflowPath = resolve(
   repositoryRoot,
@@ -111,7 +111,7 @@ describe("U9 protected Supabase promotion contract", () => {
     const environment = typeof job?.environment === "string"
       ? job.environment
       : job?.environment?.name;
-    expect(environment).toMatch(/ritual-supabase-(?:development|remediation)/);
+    expect(environment).toBe("ritual-supabase-remediation");
 
     const concurrency = job?.concurrency ?? remediation.concurrency;
     expect(concurrency?.group).toMatch(
@@ -179,7 +179,7 @@ describe("U9 protected Supabase promotion contract", () => {
       const [label, pattern] of Object.entries({
         manifest: /supabase-promotion-manifest/i,
         exactTarget: /check-supabase-deploy-target|exact target/i,
-        revision: /GITHUB_SHA|git revision/i,
+        revision: /RITUAL_SOURCE_SHA|git revision/i,
         migrationChecksum: /migration checksum|migration-inventory/i,
         fingerprint: /fingerprint/i,
         inventory: /inventory/i,

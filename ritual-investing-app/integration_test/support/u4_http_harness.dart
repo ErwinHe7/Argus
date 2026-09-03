@@ -107,8 +107,8 @@ class U4HttpHarness {
         ),
       );
 
-  Future<void> close() async {
-    ritualController.dispose();
+  Future<void> close({bool disposeRitualController = true}) async {
+    if (disposeRitualController) ritualController.dispose();
     searchController.dispose();
     rowanController.dispose();
     client.dio.close(force: true);
@@ -563,11 +563,13 @@ class U4HttpHarness {
     deletionEpoch: 0,
     id: u4AssignmentId,
     localDate: DateTime.utc(2026, 8, 25),
+    serverEvaluatedAt: DateTime.utc(2026, 8, 25, 12),
+    validUntil: DateTime.utc(2026, 8, 26, 4),
     mode: api.DailyRitualAssignmentModeEnum.tarot,
     payload: {
       'title': 'Direction, not urgency.',
-      'art_key': 'the_compass',
-      'art_alt': 'The Compass at a celestial crossroads',
+      'art_key': 'the_emperor',
+      'art_alt': 'The Emperor tarot card: a ruler sits on a ram-carved throne before mountains',
       'interpretation': 'Direction is an invitation, not an instruction.',
       'guidance': 'Inspect sources before choosing what to research.',
       'market_label': 'Market-informed Demo evidence',

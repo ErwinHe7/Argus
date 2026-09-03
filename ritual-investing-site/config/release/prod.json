@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "identity": "ritual-release-prod-v1-withheld",
+  "environment": "prod",
+  "targets": {
+    "landing": {
+      "pagesProject": "ritual-investing-site",
+      "host": "just-build-this.app",
+      "backendDependency": {
+        "classification": "requires",
+        "requiredFingerprint": null,
+        "target": {
+          "status": "withheld",
+          "reason": "approved-prod-target-not-configured"
+        }
+      }
+    },
+    "demo": {
+      "pagesProject": "ritual-investing-demo",
+      "host": "demo.just-build-this.app",
+      "backendDependency": {
+        "classification": "backend-independent",
+        "requiredFingerprint": null,
+        "target": {
+          "status": "not-applicable"
+        }
+      }
+    }
+  }
+}

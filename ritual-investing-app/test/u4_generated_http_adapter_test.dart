@@ -31,6 +31,7 @@ void main() {
         harness.ritualController.state.value?.state,
         DailyRitualState.revealed,
       );
+      await harness.ritualController.loadHistory();
       expect(harness.ritualController.historyState.phase, LoadPhase.ready);
       expect(
         harness.ritualController.historyState.value?.items.single.state,
@@ -41,6 +42,7 @@ void main() {
         harness.ritualController.state.value?.state,
         DailyRitualState.completed,
       );
+      await harness.ritualController.loadHistory();
       expect(
         harness.ritualController.historyState.value?.items.single.state,
         DailyRitualState.completed,

@@ -42,6 +42,7 @@ import 'package:ritual_investing_app/features/profile/data/repository.dart';
 import 'package:ritual_investing_app/features/profile/domain/model.dart';
 import 'package:ritual_investing_app/features/public_beta/domain/member_capability_policy.dart';
 import 'package:ritual_investing_app/features/ritual/application/daily_ritual_controller.dart';
+import 'package:ritual_investing_app/features/ritual/data/leonidas_voice_preference_store.dart';
 import 'package:ritual_investing_app/features/starpath/application/starpath_controller.dart';
 import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
 import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
@@ -162,6 +163,7 @@ DependencyContainer createInternalPreviewDependencyContainer({
       return MemberFeatureScope(
         scope: scope,
         capabilityPolicy: capabilityPolicy,
+        leonidasVoicePreferenceStore: _PreviewLeonidasVoicePreferenceStore(),
         dailyRitualController: DailyRitualController(
           repository: DailyRitualRepository(
             service: _FixtureRitualService(tracker),
@@ -225,6 +227,26 @@ DependencyContainer createInternalPreviewDependencyContainer({
       );
     },
   );
+}
+
+class _PreviewLeonidasVoicePreferenceStore
+    implements LeonidasVoicePreferencePersistence {
+  LeonidasVoicePreference _preference = LeonidasVoicePreference.enabled;
+
+  @override
+  Future<LeonidasVoicePreference> read(CacheScope scope) async => _preference;
+
+  @override
+  Future<void> write(CacheScope scope, {required bool enabled}) async {
+    _preference = enabled
+        ? LeonidasVoicePreference.enabled
+        : LeonidasVoicePreference.disabled;
+  }
+
+  @override
+  Future<void> clearScope(CacheScope scope) async {
+    _preference = LeonidasVoicePreference.enabled;
+  }
 }
 
 class _FixtureAiAnalysisService implements AiAnalysisService {

@@ -1,6 +1,10 @@
 contract_version: supabase-boundary-manifest-v1
 
 .github/workflows/platform-ci.yml
+.github/workflows/ritual-investing-ci.yml
+.github/workflows/ritual-investing-prod.yml
+.github/workflows/ritual-investing-release-evidence.yml
+.github/workflows/ritual-investing-staging.yml
 .github/workflows/ritual-investing-supabase-remediation.yml
 .github/workflows/ritual-investing-web-release.yml
 .github/workflows/ritual-investing.yml
@@ -15,6 +19,7 @@ docs/ritual-investing/member-data-inventory.md
 docs/ritual-investing/member-release-gates.md
 docs/ritual-investing/privacy-runbook.md
 docs/ritual-investing/production-launch-gates.md
+docs/ritual-investing/production-release-runbook.md
 docs/ritual-investing/public-beta-web-p1-follow-up-register.md
 docs/ritual-investing/site-demo-runbook.md
 docs/ritual-investing/staging-evidence-template.md
@@ -26,6 +31,7 @@ docs/ritual-investing/supabase-schema-authoring.md
 docs/ritual-investing/webull-connect-contract.md
 docs/ritual-investing/webull-operations-runbook.md
 docs/solutions/architecture-patterns/ritual-investing-app-current-intent-and-architecture.md
+infra/terraform/ritual-investing/README.md
 platform/.dockerignore
 platform/.env.example
 platform/.github/workflows/ci.yml
@@ -241,6 +247,7 @@ ritual-investing-api/test/domains/brokerage-assets.test.ts
 ritual-investing-api/test/domains/brokerage-connections.test.ts
 ritual-investing-api/test/domains/privacy-supabase.test.ts
 ritual-investing-api/test/domains/retained-scenarios.test.ts
+ritual-investing-api/test/domains/ritual-transitions.test.ts
 ritual-investing-api/test/domains/u7-member-routes.test.ts
 ritual-investing-api/test/edge/api-edge-integration.test.ts
 ritual-investing-api/test/edge/member-branch-capabilities.test.ts
@@ -266,6 +273,8 @@ ritual-investing-app/AGENTS.md
 ritual-investing-app/PRODUCT.md
 ritual-investing-app/README.md
 ritual-investing-app/config/beta.json
+ritual-investing-app/config/dev.json
+ritual-investing-app/config/staging.json
 ritual-investing-app/integration_test/u4_supabase_member_auth_test.dart
 ritual-investing-app/lib/core/api/ritual_api.dart
 ritual-investing-app/lib/core/auth/member_step_up.dart
@@ -290,20 +299,29 @@ ritual-investing-app/tool/check_demo_import_boundary.dart
 ritual-investing-demo/pubspec_overrides.yaml
 ritual-investing-demo/tool/provider_stubs/supabase_flutter/pubspec.yaml
 ritual-investing-site/PRODUCT.md
+ritual-investing-site/README.md
 ritual-investing-site/public/landing.js
 ritual-investing-site/public/privacy/waitlist/index.html
 ritual-investing-site/scripts/build-assets.ts
+ritual-investing-site/scripts/release/build-release-bundle.ts
+ritual-investing-site/scripts/release/verify-release-bundle.ts
 ritual-investing-site/test/browser/security-headers.spec.ts
 ritual-investing-site/test/browser/support.ts
 ritual-investing-site/test/build-assets.test.ts
 ritual-investing-site/test/ci-workflow.test.ts
 ritual-investing-site/test/landing.test.ts
 ritual-investing-site/test/operations/runbook-contract.test.ts
+ritual-investing-site/test/release/prod-workflow.test.ts
+ritual-investing-site/test/release/release-bundle.test.ts
+ritual-investing-site/test/release/release-evidence-workflow.test.ts
+ritual-investing-site/test/release/staging-workflow.test.ts
+ritual-investing-site/test/release/terraform-contract.test.ts
 ritual-investing-site/test/static-policies.test.ts
 scripts/audit-supabase-architecture.sql
 scripts/check-demo-provider-boundaries.sh
 scripts/check-legacy-backend-removal.sh
 scripts/check-member-provider-boundaries.sh
+scripts/check-no-hosted-dev-targets.sh
 scripts/check-supabase-architecture-contract.sh
 scripts/check-supabase-deploy-target.ts
 scripts/check-supabase-hosted-acceptance.sh
@@ -313,6 +331,7 @@ scripts/measure-u5-brokerage-plans.sql
 scripts/render-supabase-target-manifest.sql
 scripts/test-check-demo-provider-boundaries.sh
 scripts/test-check-member-provider-boundaries.sh
+scripts/test-check-no-hosted-dev-targets.sh
 scripts/test-check-supabase-architecture-contract.sh
 scripts/test-check-supabase-migration-inventory.sh
 supabase/.gitignore

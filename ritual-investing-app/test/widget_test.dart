@@ -6,37 +6,37 @@ import 'package:ritual_investing_app/app/ritual_investing_app.dart';
 import 'support/fixture_services.dart';
 
 void main() {
-  testWidgets('opens on the approved daily ritual', (tester) async {
+  testWidgets('restores the approved daily ritual in place', (tester) async {
     await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
-    expect(find.text('Direction, not urgency.'), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-ritual-sequence')), findsOneWidget);
+    expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
 
-    await tester.drag(
-      find.byType(CustomScrollView).first,
-      const Offset(0, -500),
+    final context = tester.element(
+      find.byKey(const Key('leonidas-ritual-sequence')),
+    );
+    await tester.runAsync<void>(
+      () => precacheImage(
+        const AssetImage(
+          'assets/images/tarot/modern-rider-waite/major/04-the-emperor.webp',
+        ),
+        context,
+      ),
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Market-informed · reveal the pattern'), findsOneWidget);
-    expect(find.text('VIG'), findsOneWidget);
-    expect(find.text('Founders’ Coven'), findsOneWidget);
-
-    await tester.scrollUntilVisible(
-      find.textContaining('Simulated market scenario'),
-      250,
-      scrollable: find.byType(Scrollable).first,
-    );
-    expect(find.textContaining('Simulated market scenario'), findsOneWidget);
-
-    await tester.tap(find.text('Market-informed · reveal the pattern'));
+    expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.text('Direction, not urgency.'), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('leonidas-evidence')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('leonidas-evidence')));
     await tester.pumpAndSettle();
     expect(find.text('Durable dividend momentum'), findsOneWidget);
-    expect(
-      find.textContaining('Inspect the evidence, compare risks'),
-      findsWidgets,
-    );
+    expect(find.byKey(const Key('ritual-evidence-done')), findsOneWidget);
   });
 
   testWidgets('primary navigation reaches the Coven', (tester) async {

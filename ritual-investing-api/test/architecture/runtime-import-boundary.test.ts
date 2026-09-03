@@ -6,6 +6,10 @@ import { describe, expect, it } from "vitest";
 
 const repositoryRoot = resolve(import.meta.dirname, "../../..");
 
+function repositoryPath(absolutePath: string): string {
+  return relative(repositoryRoot, absolutePath).replaceAll("\\", "/");
+}
+
 describe("portable API runtime import boundary", () => {
   it("keeps every accepted Edge/shared transitive import free of legacy runtimes", async () => {
     const sharedModules = (await readdir(
@@ -36,7 +40,7 @@ describe("portable API runtime import boundary", () => {
       if (visited.has(absolutePath)) return;
       visited.add(absolutePath);
       const source = await readFile(absolutePath, "utf8");
-      const displayPath = relative(repositoryRoot, absolutePath);
+      const displayPath = repositoryPath(absolutePath);
 
       for (const marker of forbidden) {
         expect(
@@ -78,7 +82,7 @@ describe("portable API runtime import boundary", () => {
       await visit(resolve(repositoryRoot, path));
     }
 
-    expect([...visited].map((path) => relative(repositoryRoot, path))).toEqual(
+    expect([...visited].map(repositoryPath)).toEqual(
       expect.arrayContaining(acceptedEntries),
     );
   });

@@ -1,0 +1,736 @@
+name: Ritual Investing Prod Promotion
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Exact successful Ritual Investing Fast CI run ID from main
+        required: true
+        type: string
+      source_artifact_id:
+        description: Exact retained release artifact ID from the source run
+        required: true
+        type: string
+      source_sha:
+        description: Exact 40-character main release SHA
+        required: true
+        type: string
+      release_digest:
+        description: Exact release-bundle.tar SHA-256 promoted through staging
+        required: true
+        type: string
+      manifest_sha256:
+        description: Exact release-manifest.json SHA-256
+        required: true
+        type: string
+      staging_run_id:
+        description: Exact successful Ritual Investing Staging run ID
+        required: true
+        type: string
+      staging_receipt_artifact_id:
+        description: Exact retained staging deployment receipt artifact ID
+        required: true
+        type: string
+      evidence_run_id:
+        description: Exact successful Ritual Investing Manual Release Evidence run ID
+        required: true
+        type: string
+      evidence_artifact_id:
+        description: Exact retained prod evidence artifact ID
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: ritual-investing-prod-promotion
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22.22.0
+
+jobs:
+  preflight:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: prod
+    outputs:
+      source_attempt: ${{ steps.metadata.outputs.source_attempt }}
+      staging_attempt: ${{ steps.metadata.outputs.staging_attempt }}
+      evidence_attempt: ${{ steps.metadata.outputs.evidence_attempt }}
+      evidence_controller_sha: ${{ steps.metadata.outputs.evidence_controller_sha }}
+      evidence_actor: ${{ steps.metadata.outputs.evidence_actor }}
+      demo_probe_manifest_sha256: ${{ steps.verify.outputs.demo_probe_manifest_sha256 }}
+      landing_probe_manifest_sha256: ${{ steps.verify.outputs.landing_probe_manifest_sha256 }}
+      prod_target_fingerprint: ${{ steps.verify.outputs.prod_target_fingerprint }}
+      prod_profile_identity: ${{ steps.verify.outputs.prod_profile_identity }}
+      evidence_response_sha256: ${{ steps.verify.outputs.evidence_response_sha256 }}
+      infrastructure_receipt_sha256: ${{ steps.readiness.outputs.infrastructure_receipt_sha256 }}
+      terraform_snapshot_sha256: ${{ steps.readiness.outputs.terraform_snapshot_sha256 }}
+      lock_proof_digest: ${{ steps.readiness.outputs.lock_proof_digest }}
+      backend_receipt_sha256: ${{ steps.readiness.outputs.backend_receipt_sha256 }}
+      landing_eligible: ${{ steps.readiness.outputs.landing_eligible }}
+      mutation_ready: ${{ steps.readiness.outputs.mutation_ready }}
+    steps:
+      - name: Validate canonical run and exact artifact metadata
+        id: metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          STAGING_RUN_ID: ${{ inputs.staging_run_id }}
+          STAGING_RECEIPT_ARTIFACT_ID: ${{ inputs.staging_receipt_artifact_id }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_ARTIFACT_ID: ${{ inputs.evidence_artifact_id }}
+        run: |
+          set -euo pipefail
+          for id in "$SOURCE_RUN_ID" "$SOURCE_ARTIFACT_ID" "$STAGING_RUN_ID" "$STAGING_RECEIPT_ARTIFACT_ID" "$EVIDENCE_RUN_ID" "$EVIDENCE_ARTIFACT_ID"; do
+            [[ "$id" =~ ^[1-9][0-9]*$ ]]
+          done
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" >"$RUNNER_TEMP/source-run.json"
+          jq -e --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --argjson id "$SOURCE_RUN_ID" '
+            .id == $id and .repository.full_name == $repository and .head_repository.full_name == $repository and
+            .event == "push" and .head_branch == "main" and .head_sha == $sha and .conclusion == "success" and
+            .path == ".github/workflows/ritual-investing-ci.yml"
+          ' "$RUNNER_TEMP/source-run.json" >/dev/null
+          source_attempt="$(jq -er '.run_attempt' "$RUNNER_TEMP/source-run.json")"
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$STAGING_RUN_ID" >"$RUNNER_TEMP/staging-run.json"
+          jq -e --arg repository "$GITHUB_REPOSITORY" --argjson id "$STAGING_RUN_ID" '
+            .id == $id and .repository.full_name == $repository and .head_repository.full_name == $repository and
+            .event == "workflow_run" and .head_branch == "main" and .conclusion == "success" and
+            .path == ".github/workflows/ritual-investing-staging.yml"
+          ' "$RUNNER_TEMP/staging-run.json" >/dev/null
+          staging_attempt="$(jq -er '.run_attempt' "$RUNNER_TEMP/staging-run.json")"
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$EVIDENCE_RUN_ID" >"$RUNNER_TEMP/evidence-run.json"
+          jq -e --arg repository "$GITHUB_REPOSITORY" --argjson id "$EVIDENCE_RUN_ID" '
+            .id == $id and .repository.full_name == $repository and .head_repository.full_name == $repository and
+            .event == "workflow_dispatch" and .head_branch == "main" and .conclusion == "success" and
+            .path == ".github/workflows/ritual-investing-release-evidence.yml"
+          ' "$RUNNER_TEMP/evidence-run.json" >/dev/null
+          evidence_attempt="$(jq -er '.run_attempt' "$RUNNER_TEMP/evidence-run.json")"
+          evidence_controller_sha="$(jq -er '.head_sha' "$RUNNER_TEMP/evidence-run.json")"
+          evidence_actor="$(jq -er '.actor.login' "$RUNNER_TEMP/evidence-run.json")"
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_ARTIFACT_ID" >"$RUNNER_TEMP/source-artifact-metadata.json"
+          expected_source_name="ritual-release-$SOURCE_SHA-$SOURCE_RUN_ID-$source_attempt"
+          jq -e --arg name "$expected_source_name" --arg sha "$SOURCE_SHA" --argjson artifact "$SOURCE_ARTIFACT_ID" --argjson run "$SOURCE_RUN_ID" '
+            .id == $artifact and .workflow_run.id == $run and .workflow_run.head_branch == "main" and
+            .workflow_run.head_sha == $sha and .name == $name and .expired == false
+          ' "$RUNNER_TEMP/source-artifact-metadata.json" >/dev/null
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$STAGING_RECEIPT_ARTIFACT_ID" >"$RUNNER_TEMP/staging-artifact-metadata.json"
+          expected_staging_name="ritual-staging-receipt-$SOURCE_RUN_ID-$STAGING_RUN_ID-$staging_attempt"
+          jq -e --arg name "$expected_staging_name" --argjson artifact "$STAGING_RECEIPT_ARTIFACT_ID" --argjson run "$STAGING_RUN_ID" '
+            .id == $artifact and .workflow_run.id == $run and .workflow_run.head_branch == "main" and
+            .name == $name and .expired == false
+          ' "$RUNNER_TEMP/staging-artifact-metadata.json" >/dev/null
+
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$EVIDENCE_ARTIFACT_ID" >"$RUNNER_TEMP/evidence-artifact-metadata.json"
+          expected_evidence_name="ritual-prod-evidence-$SOURCE_SHA-$EVIDENCE_RUN_ID-$evidence_attempt"
+          jq -e --arg name "$expected_evidence_name" --argjson artifact "$EVIDENCE_ARTIFACT_ID" --argjson run "$EVIDENCE_RUN_ID" '
+            .id == $artifact and .workflow_run.id == $run and .workflow_run.head_branch == "main" and
+            .name == $name and .expired == false
+          ' "$RUNNER_TEMP/evidence-artifact-metadata.json" >/dev/null
+
+          echo "source_attempt=$source_attempt" >>"$GITHUB_OUTPUT"
+          echo "staging_attempt=$staging_attempt" >>"$GITHUB_OUTPUT"
+          echo "evidence_attempt=$evidence_attempt" >>"$GITHUB_OUTPUT"
+          echo "evidence_controller_sha=$evidence_controller_sha" >>"$GITHUB_OUTPUT"
+          echo "evidence_actor=$evidence_actor" >>"$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.source_artifact_id }}
+          path: ${{ runner.temp }}/source-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+          merge-multiple: true
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.staging_receipt_artifact_id }}
+          path: ${{ runner.temp }}/staging-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.staging_run_id }}
+          merge-multiple: true
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.evidence_artifact_id }}
+          path: ${{ runner.temp }}/evidence-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.evidence_run_id }}
+          merge-multiple: true
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          path: main-source
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: controller-source
+          persist-credentials: false
+
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+
+      - working-directory: ritual-investing-site
+        run: npm ci
+
+      - name: Verify source ancestry, immutable bundle, snapshots, staging receipt, and prod evidence
+        id: verify
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          SOURCE_ATTEMPT: ${{ steps.metadata.outputs.source_attempt }}
+          RELEASE_DIGEST: ${{ inputs.release_digest }}
+          MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+          STAGING_RUN_ID: ${{ inputs.staging_run_id }}
+          STAGING_ATTEMPT: ${{ steps.metadata.outputs.staging_attempt }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+          EVIDENCE_ATTEMPT: ${{ steps.metadata.outputs.evidence_attempt }}
+          EVIDENCE_CONTROLLER_SHA: ${{ steps.metadata.outputs.evidence_controller_sha }}
+          EVIDENCE_ACTOR: ${{ steps.metadata.outputs.evidence_actor }}
+          PROD_READINESS_URL: ${{ vars.AXIO7_PROD_READINESS_URL }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_DIGEST" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$MANIFEST_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          node -e '
+            const value = process.env.PROD_READINESS_URL;
+            const url = new URL(value);
+            if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash ||
+                url.pathname !== "/api/v1/system/readiness" || url.toString() !== value) process.exit(1);
+          '
+          prod_target_fingerprint="$(printf '%s\n' "$PROD_READINESS_URL" | sha256sum | cut -d' ' -f1)"
+          artifact="$RUNNER_TEMP/source-artifact"
+          test "$(sha256sum "$artifact/release-bundle.tar" | cut -d' ' -f1)" = "$RELEASE_DIGEST"
+          test "$(sha256sum "$artifact/release-bundle/release-manifest.json" | cut -d' ' -f1)" = "$MANIFEST_SHA256"
+          test "$(cut -d' ' -f1 "$artifact/archive.sha256")" = "$RELEASE_DIGEST"
+          test "$(cut -d' ' -f1 "$artifact/manifest.sha256")" = "$MANIFEST_SHA256"
+          export RELEASE_BUNDLE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --arg runId "$SOURCE_RUN_ID" --argjson attempt "$SOURCE_ATTEMPT" '{expectedSubject:{repository:$repository,sha:$sha,runId:$runId,attempt:$attempt},expectedController:{workflow:"Ritual Investing Fast CI",ref:"refs/heads/main",sha:$sha,runId:$runId,attempt:$attempt}}')"
+          npm --prefix ritual-investing-site run --silent release:verify -- "$artifact/release-bundle"
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          git -C main-source merge-base --is-ancestor "$SOURCE_SHA" HEAD
+          test "$(git -C controller-source rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          test -f controller-source/.github/workflows/ritual-investing-prod.yml
+          diff -qr "$artifact/release-bundle/snapshots/infra/terraform/ritual-investing" infra/terraform/ritual-investing
+          diff -qr "$artifact/release-bundle/snapshots/supabase/migrations" supabase/migrations
+          diff -qr "$artifact/release-bundle/snapshots/supabase/functions" supabase/functions
+          for document in member-data-inventory.md supabase-boundary-manifest-v1.txt supabase-migration-inventory-v1.txt; do
+            cmp "$artifact/release-bundle/snapshots/docs/ritual-investing/$document" "docs/ritual-investing/$document"
+          done
+          prod_profile_identity="$(jq -er '.profiles[] | select(.environment == "prod") | .identity' "$artifact/release-bundle/release-manifest.json")"
+          test "$prod_profile_identity" = "$(jq -er '.identity' "$artifact/release-bundle/profiles/prod/profile.json")"
+          jq -e 'any(.trees[]; .environment == "prod" and any(.surfaces[]; .surface == "demo") and any(.surfaces[]; .surface == "landing"))' "$artifact/release-bundle/release-manifest.json" >/dev/null
+          demo_probe_manifest_sha256="$(jq -er '.trees[] | select(.environment == "prod") | .surfaces[] | select(.surface == "demo") | .probeManifestSha256' "$artifact/release-bundle/release-manifest.json")"
+          landing_probe_manifest_sha256="$(jq -er '.trees[] | select(.environment == "prod") | .surfaces[] | select(.surface == "landing") | .probeManifestSha256' "$artifact/release-bundle/release-manifest.json")"
+
+          staging_controller_sha="$(jq -er '.controller.sha' "$RUNNER_TEMP/staging-artifact/staging-receipt.json")"
+          [[ "$staging_controller_sha" =~ ^[a-f0-9]{40}$ ]]
+          git -C main-source merge-base --is-ancestor "$staging_controller_sha" HEAD
+          git -C main-source show "$staging_controller_sha:.github/workflows/ritual-investing-staging.yml" >/dev/null
+          export RELEASE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --arg sourceRun "$SOURCE_RUN_ID" --argjson sourceAttempt "$SOURCE_ATTEMPT" --arg stagingSha "$staging_controller_sha" --arg stagingRun "$STAGING_RUN_ID" --argjson stagingAttempt "$STAGING_ATTEMPT" --arg manifest "$MANIFEST_SHA256" --arg release "$RELEASE_DIGEST" '{expectedSubject:{repository:$repository,sha:$sha,runId:$sourceRun,attempt:$sourceAttempt},expectedController:{workflow:"Ritual Investing Staging",ref:"refs/heads/main",sha:$stagingSha,runId:$stagingRun,attempt:$stagingAttempt},expectedManifestSha256:$manifest,expectedReleaseDigest:$release,expectedProfileIdentity:"ritual-release-staging-v1",prodLandingEligible:false}')"
+          npm --prefix ritual-investing-site run --silent release:receipt:verify -- "$RUNNER_TEMP/staging-artifact/staging-receipt.json" >"$RUNNER_TEMP/staging-verification.json"
+          jq -e '.promotable == true and .reconstructable == true and .scope == "full"' "$RUNNER_TEMP/staging-verification.json" >/dev/null
+
+          test "$(cut -d' ' -f1 "$RUNNER_TEMP/evidence-artifact/prod-evidence.sha256")" = "$(sha256sum "$RUNNER_TEMP/evidence-artifact/prod-evidence.json" | cut -d' ' -f1)"
+          preflight_started_at="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+          export PROD_EVIDENCE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --arg sourceRun "$SOURCE_RUN_ID" --argjson sourceAttempt "$SOURCE_ATTEMPT" --arg artifact "$SOURCE_ARTIFACT_ID" --arg release "$RELEASE_DIGEST" --arg manifest "$MANIFEST_SHA256" --arg target "$prod_target_fingerprint" --arg evidenceActor "$EVIDENCE_ACTOR" --arg evidenceSha "$EVIDENCE_CONTROLLER_SHA" --arg evidenceRun "$EVIDENCE_RUN_ID" --argjson evidenceAttempt "$EVIDENCE_ATTEMPT" --arg started "$preflight_started_at" '{expectedSubject:{repository:$repository,sha:$sha,runId:$sourceRun,attempt:$sourceAttempt},expectedController:{workflow:"Ritual Investing Fast CI",ref:"refs/heads/main",sha:$sha,runId:$sourceRun,attempt:$sourceAttempt},expectedArtifact:{id:$artifact,archiveSha256:$release,manifestSha256:$manifest},expectedProdTargetFingerprint:$target,expectedRunningRevision:$sha,expectedEvidence:{actor:$evidenceActor,workflow:"Ritual Investing Manual Release Evidence",ref:"refs/heads/main",sha:$evidenceSha,runId:$evidenceRun,attempt:$evidenceAttempt},preflightStartedAt:$started}')"
+          npm --prefix ritual-investing-site run --silent release:receipt:verify -- --prod-evidence "$RUNNER_TEMP/evidence-artifact/prod-evidence.json" >"$RUNNER_TEMP/prod-evidence-verification.json"
+          evidence_response_sha256="$(jq -er '.responseSha256' "$RUNNER_TEMP/prod-evidence-verification.json")"
+
+          echo "demo_probe_manifest_sha256=$demo_probe_manifest_sha256" >>"$GITHUB_OUTPUT"
+          echo "landing_probe_manifest_sha256=$landing_probe_manifest_sha256" >>"$GITHUB_OUTPUT"
+          echo "prod_target_fingerprint=$prod_target_fingerprint" >>"$GITHUB_OUTPUT"
+          echo "prod_profile_identity=$prod_profile_identity" >>"$GITHUB_OUTPUT"
+          echo "evidence_response_sha256=$evidence_response_sha256" >>"$GITHUB_OUTPUT"
+
+      - name: Require current prod infrastructure and evaluate exact backend eligibility
+        id: readiness
+        env:
+          INFRASTRUCTURE_RECEIPT: ${{ vars.RITUAL_PROD_INFRASTRUCTURE_RECEIPT }}
+          INFRASTRUCTURE_RECEIPT_SHA256: ${{ vars.RITUAL_PROD_INFRASTRUCTURE_RECEIPT_SHA256 }}
+          BACKEND_RECEIPT: ${{ vars.RITUAL_PROD_BACKEND_RECEIPT }}
+          BACKEND_RECEIPT_SHA256: ${{ vars.RITUAL_PROD_BACKEND_RECEIPT_SHA256 }}
+          PROD_PROFILE_IDENTITY: ${{ steps.verify.outputs.prod_profile_identity }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$INFRASTRUCTURE_RECEIPT" || -z "$INFRASTRUCTURE_RECEIPT_SHA256" ]]; then
+            echo "::error::prod infrastructure readiness is not enabled; live inventory, R2 state-safety, and a fresh no-op remain required"
+            exit 1
+          fi
+          [[ "$INFRASTRUCTURE_RECEIPT_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          test "$(printf '%s' "$INFRASTRUCTURE_RECEIPT" | sha256sum | cut -d' ' -f1)" = "$INFRASTRUCTURE_RECEIPT_SHA256"
+          printf '%s' "$INFRASTRUCTURE_RECEIPT" >"$RUNNER_TEMP/prod-infrastructure-receipt.json"
+          lock_sha256="$(sha256sum infra/terraform/ritual-investing/environments/prod/.terraform.lock.hcl | cut -d' ' -f1)"
+          manifest="$RUNNER_TEMP/source-artifact/release-bundle/release-manifest.json"
+          terraform_snapshot_sha256="$(jq -er '.snapshots[] | select(.name == "terraform") | .sha256' "$manifest")"
+          jq -e --arg lock "$lock_sha256" --arg profile "$PROD_PROFILE_IDENTITY" --arg snapshot "$terraform_snapshot_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+            keys == ["environment","expiresAt","liveInventoryDigest","lockProofDigest","pages","profileIdentity","providerLockSha256","schemaVersion","state","status","terraformPlanDigest","terraformSnapshotSha256"] and
+            .schemaVersion == 2 and .environment == "prod" and .status == "ready" and
+            .profileIdentity == $profile and .providerLockSha256 == $lock and
+            .terraformSnapshotSha256 == $snapshot and
+            (.terraformPlanDigest | test("^[a-f0-9]{64}$")) and (.liveInventoryDigest | test("^[a-f0-9]{64}$")) and
+            (.lockProofDigest | test("^[a-f0-9]{64}$")) and
+            (.state.lineage | type == "string" and length > 0) and (.state.serial | type == "number" and floor == . and . >= 0) and
+            .pages == {demo:{project:"ritual-investing-demo",host:"demo.just-build-this.app"},landing:{project:"ritual-investing-site",host:"just-build-this.app"}} and
+            .expiresAt > $now
+          ' "$RUNNER_TEMP/prod-infrastructure-receipt.json" >/dev/null
+
+          target_status="$(jq -er '.backendDependencies[] | select(.environment == "prod" and .surface == "landing") | .targetStatus' "$manifest")"
+          required_fingerprint="$(jq -r '.backendDependencies[] | select(.environment == "prod" and .surface == "landing") | .requiredFingerprint // empty' "$manifest")"
+          required_source_sha256="$(jq -er '.backendDependencies[] | select(.environment == "prod" and .surface == "landing") | .requiredSourceSha256' "$manifest")"
+          landing_eligible=false
+          backend_receipt_sha256=
+          if [[ "$target_status" == "approved" ]]; then
+            [[ "$required_fingerprint" =~ ^[a-f0-9]{64}$ ]]
+            [[ -n "$BACKEND_RECEIPT" && "$BACKEND_RECEIPT_SHA256" =~ ^[a-f0-9]{64}$ ]]
+            test "$(printf '%s' "$BACKEND_RECEIPT" | sha256sum | cut -d' ' -f1)" = "$BACKEND_RECEIPT_SHA256"
+            printf '%s' "$BACKEND_RECEIPT" >"$RUNNER_TEMP/prod-backend-receipt.json"
+            jq -e --arg fingerprint "$required_fingerprint" --arg source "$required_source_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+              keys == ["environment","expiresAt","fingerprint","observedAt","schemaVersion","sourceSha256","status"] and
+              .schemaVersion == 2 and .environment == "prod" and .status == "ready" and
+              .fingerprint == $fingerprint and .sourceSha256 == $source and
+              (.observedAt | type == "string" and length > 0) and .expiresAt > $now
+            ' "$RUNNER_TEMP/prod-backend-receipt.json" >/dev/null
+            landing_eligible=true
+            backend_receipt_sha256="$BACKEND_RECEIPT_SHA256"
+          elif [[ "$target_status" == "withheld" ]]; then
+            [[ -z "$required_fingerprint" && -z "$BACKEND_RECEIPT" && -z "$BACKEND_RECEIPT_SHA256" ]]
+          else
+            echo "::error::prod landing release target is neither approved nor explicitly withheld"
+            exit 1
+          fi
+          echo "infrastructure_receipt_sha256=$INFRASTRUCTURE_RECEIPT_SHA256" >>"$GITHUB_OUTPUT"
+          echo "terraform_snapshot_sha256=$terraform_snapshot_sha256" >>"$GITHUB_OUTPUT"
+          echo "lock_proof_digest=$(jq -er '.lockProofDigest' "$RUNNER_TEMP/prod-infrastructure-receipt.json")" >>"$GITHUB_OUTPUT"
+          echo "backend_receipt_sha256=$backend_receipt_sha256" >>"$GITHUB_OUTPUT"
+          echo "landing_eligible=$landing_eligible" >>"$GITHUB_OUTPUT"
+          echo "mutation_ready=true" >>"$GITHUB_OUTPUT"
+
+      - name: Record a truthful failure before any prod environment job
+        if: failure()
+        env:
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          STAGING_RUN_ID: ${{ inputs.staging_run_id }}
+          EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+        run: |
+          jq -n --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --arg sourceRunId "$SOURCE_RUN_ID" --arg stagingRunId "$STAGING_RUN_ID" --arg evidenceRunId "$EVIDENCE_RUN_ID" --arg at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '{schemaVersion:1,kind:"ritual-prod-preflight",outcome:"failed-before-mutation",environment:"prod",subject:{repository:$repository,sha:$sha,runId:$sourceRunId},stagingRunId:$stagingRunId,evidenceRunId:$evidenceRunId,mutationScheduled:false,recordedAt:$at,nextAction:"supply-current-exact-retained-evidence-and-live-infrastructure-readiness"}' >"$RUNNER_TEMP/prod-preflight-failure.json"
+
+      - name: Publish failed-before-mutation evidence
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ritual-prod-preflight-failure-${{ inputs.source_run_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/prod-preflight-failure.json
+          if-no-files-found: error
+          retention-days: 30
+
+  prod-infrastructure:
+    needs: preflight
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.mutation_ready == 'true'
+    runs-on: ubuntu-24.04
+    environment: prod
+    concurrency:
+      group: ritual-investing-prod-infrastructure
+      cancel-in-progress: false
+    outputs:
+      no_op_ready: ${{ steps.noop.outputs.no_op_ready }}
+      terraform_plan_digest: ${{ steps.noop.outputs.terraform_plan_digest }}
+      live_inventory_digest: ${{ steps.noop.outputs.live_inventory_digest }}
+      state_lineage: ${{ steps.noop.outputs.state_lineage }}
+      state_serial: ${{ steps.noop.outputs.state_serial }}
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      AWS_ACCESS_KEY_ID: ${{ secrets.RITUAL_PROD_TERRAFORM_STATE_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.RITUAL_PROD_TERRAFORM_STATE_SECRET_ACCESS_KEY }}
+      AWS_ENDPOINT_URL_S3: ${{ vars.RITUAL_PROD_TERRAFORM_STATE_ENDPOINT }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTROL_PLANE_API_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.RITUAL_PROD_TERRAFORM_GITHUB_TOKEN }}
+      TERRAFORM_VARS_JSON: ${{ secrets.RITUAL_PROD_TERRAFORM_VARS_JSON }}
+      INFRASTRUCTURE_RECEIPT: ${{ vars.RITUAL_PROD_INFRASTRUCTURE_RECEIPT }}
+      EXPECTED_INFRASTRUCTURE_RECEIPT_SHA256: ${{ needs.preflight.outputs.infrastructure_receipt_sha256 }}
+      EXPECTED_TERRAFORM_SNAPSHOT_SHA256: ${{ needs.preflight.outputs.terraform_snapshot_sha256 }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.0
+          terraform_wrapper: false
+
+      - name: Run a fresh read-only prod refresh and require a no-op plan
+        id: noop
+        working-directory: infra/terraform/ritual-investing/environments/prod
+        run: |
+          set -euo pipefail
+          for value in "$AWS_ACCESS_KEY_ID" "$AWS_SECRET_ACCESS_KEY" "$AWS_ENDPOINT_URL_S3" "$CLOUDFLARE_API_TOKEN" "$GITHUB_TOKEN" "$TERRAFORM_VARS_JSON" "$INFRASTRUCTURE_RECEIPT"; do
+            test -n "$value"
+          done
+          test "$(printf '%s' "$INFRASTRUCTURE_RECEIPT" | sha256sum | cut -d' ' -f1)" = "$EXPECTED_INFRASTRUCTURE_RECEIPT_SHA256"
+          printf '%s' "$INFRASTRUCTURE_RECEIPT" >"$RUNNER_TEMP/prod-infrastructure-receipt.json"
+          test "$(jq -er '.terraformSnapshotSha256' "$RUNNER_TEMP/prod-infrastructure-receipt.json")" = "$EXPECTED_TERRAFORM_SNAPSHOT_SHA256"
+          printf '%s' "$TERRAFORM_VARS_JSON" >"$RUNNER_TEMP/prod.tfvars.json"
+          jq -e --slurpfile receipt "$RUNNER_TEMP/prod-infrastructure-receipt.json" '
+            .adoption_phase == "ready" and .enable_brownfield_imports == true and .enable_remote_changes == true and
+            .environment == "prod" and .pages_project_name == "ritual-investing-site" and .pages_domain == "just-build-this.app" and
+            .demo_pages_project_name == "ritual-investing-demo" and .demo_pages_domain == "demo.just-build-this.app" and
+            .adoption_evidence.no_op_plan_sha256 == $receipt[0].terraformPlanDigest and
+            .adoption_evidence.live_inventory_sha256 == $receipt[0].liveInventoryDigest and
+            .adoption_evidence.backend_lock_proof_sha256 == $receipt[0].lockProofDigest and
+            .adoption_evidence.provider_lock_sha256 == $receipt[0].providerLockSha256 and
+            .adoption_evidence.readiness_receipt_sha256 == env.EXPECTED_INFRASTRUCTURE_RECEIPT_SHA256
+          ' "$RUNNER_TEMP/prod.tfvars.json" >/dev/null
+          terraform init -input=false -backend-config=../../backends/prod.hcl
+          terraform state pull >"$RUNNER_TEMP/state-before.json"
+          set +e
+          terraform plan -input=false -lock-timeout=60s -detailed-exitcode -var-file="$RUNNER_TEMP/prod.tfvars.json" -out="$RUNNER_TEMP/prod-noop.tfplan"
+          plan_exit=$?
+          set -e
+          test "$plan_exit" = "0"
+          terraform show -json "$RUNNER_TEMP/prod-noop.tfplan" >"$RUNNER_TEMP/prod-noop-plan.json"
+          jq -e 'all(.resource_changes[]?; .change.actions == ["no-op"])' "$RUNNER_TEMP/prod-noop-plan.json" >/dev/null
+          terraform state pull >"$RUNNER_TEMP/state-after.json"
+          state_lineage="$(jq -er '.lineage' "$RUNNER_TEMP/state-after.json")"
+          state_serial="$(jq -er '.serial' "$RUNNER_TEMP/state-after.json")"
+          test "$state_lineage" = "$(jq -er '.state.lineage' "$RUNNER_TEMP/prod-infrastructure-receipt.json")"
+          test "$state_serial" = "$(jq -er '.state.serial' "$RUNNER_TEMP/prod-infrastructure-receipt.json")"
+          test "$state_lineage" = "$(jq -er '.lineage' "$RUNNER_TEMP/state-before.json")"
+          test "$state_serial" = "$(jq -er '.serial' "$RUNNER_TEMP/state-before.json")"
+          jq -S -c '[.resource_changes[]? | {address,mode,type,provider_name,index,actions:.change.actions,before:.change.before,after:.change.after}]' "$RUNNER_TEMP/prod-noop-plan.json" >"$RUNNER_TEMP/plan-evidence.json"
+          jq -S -c '[.resource_changes[]? | {address,mode,type,provider_name,index,attributes:.change.before}]' "$RUNNER_TEMP/prod-noop-plan.json" >"$RUNNER_TEMP/live-inventory.json"
+          terraform_plan_digest="$(sha256sum "$RUNNER_TEMP/plan-evidence.json" | cut -d' ' -f1)"
+          live_inventory_digest="$(sha256sum "$RUNNER_TEMP/live-inventory.json" | cut -d' ' -f1)"
+          test "$terraform_plan_digest" = "$(jq -er '.terraformPlanDigest' "$RUNNER_TEMP/prod-infrastructure-receipt.json")"
+          test "$live_inventory_digest" = "$(jq -er '.liveInventoryDigest' "$RUNNER_TEMP/prod-infrastructure-receipt.json")"
+          echo "no_op_ready=true" >>"$GITHUB_OUTPUT"
+          echo "terraform_plan_digest=$terraform_plan_digest" >>"$GITHUB_OUTPUT"
+          echo "live_inventory_digest=$live_inventory_digest" >>"$GITHUB_OUTPUT"
+          echo "state_lineage=$state_lineage" >>"$GITHUB_OUTPUT"
+          echo "state_serial=$state_serial" >>"$GITHUB_OUTPUT"
+
+  prod-content:
+    needs: [preflight, prod-infrastructure]
+    if: needs.preflight.result == 'success' && needs.prod-infrastructure.result == 'success' && needs.prod-infrastructure.outputs.no_op_ready == 'true'
+    runs-on: ubuntu-24.04
+    environment: prod
+    concurrency:
+      group: ritual-investing-prod-content
+      cancel-in-progress: false
+    env:
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+      SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      SOURCE_ATTEMPT: ${{ needs.preflight.outputs.source_attempt }}
+      RELEASE_DIGEST: ${{ inputs.release_digest }}
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+      EVIDENCE_RUN_ID: ${{ inputs.evidence_run_id }}
+      EVIDENCE_ATTEMPT: ${{ needs.preflight.outputs.evidence_attempt }}
+      EVIDENCE_CONTROLLER_SHA: ${{ needs.preflight.outputs.evidence_controller_sha }}
+      EVIDENCE_ACTOR: ${{ needs.preflight.outputs.evidence_actor }}
+      PROD_READINESS_URL: ${{ vars.AXIO7_PROD_READINESS_URL }}
+      PROD_TARGET_FINGERPRINT: ${{ needs.preflight.outputs.prod_target_fingerprint }}
+      PROD_PROFILE_IDENTITY: ${{ needs.preflight.outputs.prod_profile_identity }}
+      EVIDENCE_RESPONSE_SHA256: ${{ needs.preflight.outputs.evidence_response_sha256 }}
+      DEMO_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.demo_probe_manifest_sha256 }}
+      LANDING_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.landing_probe_manifest_sha256 }}
+      LANDING_ELIGIBLE: ${{ needs.preflight.outputs.landing_eligible }}
+      EXPECTED_INFRASTRUCTURE_RECEIPT_SHA256: ${{ needs.preflight.outputs.infrastructure_receipt_sha256 }}
+      EXPECTED_TERRAFORM_SNAPSHOT_SHA256: ${{ needs.preflight.outputs.terraform_snapshot_sha256 }}
+      EXPECTED_BACKEND_RECEIPT_SHA256: ${{ needs.preflight.outputs.backend_receipt_sha256 }}
+      INFRA_PLAN_DIGEST: ${{ needs.prod-infrastructure.outputs.terraform_plan_digest }}
+      INFRA_INVENTORY_DIGEST: ${{ needs.prod-infrastructure.outputs.live_inventory_digest }}
+      INFRA_LOCK_DIGEST: ${{ needs.preflight.outputs.lock_proof_digest }}
+      INFRA_STATE_LINEAGE: ${{ needs.prod-infrastructure.outputs.state_lineage }}
+      INFRA_STATE_SERIAL: ${{ needs.prod-infrastructure.outputs.state_serial }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_CONTENT_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTENT_API_TOKEN }}
+      PROD_RESEARCH_TOKEN: ${{ secrets.AXIO7_PROD_RESEARCH_TOKEN }}
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.source_artifact_id }}
+          path: ${{ runner.temp }}/source-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+          merge-multiple: true
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.evidence_artifact_id }}
+          path: ${{ runner.temp }}/evidence-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.evidence_run_id }}
+          merge-multiple: true
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+
+      - working-directory: ritual-investing-site
+        run: npm ci
+
+      - name: Revalidate fresh evidence, exact target, bundle, infrastructure, and backend before mutation
+        env:
+          INFRASTRUCTURE_RECEIPT: ${{ vars.RITUAL_PROD_INFRASTRUCTURE_RECEIPT }}
+          BACKEND_RECEIPT: ${{ vars.RITUAL_PROD_BACKEND_RECEIPT }}
+          BACKEND_RECEIPT_SHA256: ${{ vars.RITUAL_PROD_BACKEND_RECEIPT_SHA256 }}
+        run: |
+          set -euo pipefail
+          artifact="$RUNNER_TEMP/source-artifact"
+          test "$(sha256sum "$artifact/release-bundle.tar" | cut -d' ' -f1)" = "$RELEASE_DIGEST"
+          test "$(sha256sum "$artifact/release-bundle/release-manifest.json" | cut -d' ' -f1)" = "$MANIFEST_SHA256"
+          export RELEASE_BUNDLE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --arg runId "$SOURCE_RUN_ID" --argjson attempt "$SOURCE_ATTEMPT" '{expectedSubject:{repository:$repository,sha:$sha,runId:$runId,attempt:$attempt},expectedController:{workflow:"Ritual Investing Fast CI",ref:"refs/heads/main",sha:$sha,runId:$runId,attempt:$attempt}}')"
+          npm --prefix ritual-investing-site run --silent release:verify -- "$artifact/release-bundle"
+          test "$(printf '%s' "$INFRASTRUCTURE_RECEIPT" | sha256sum | cut -d' ' -f1)" = "$EXPECTED_INFRASTRUCTURE_RECEIPT_SHA256"
+          printf '%s' "$INFRASTRUCTURE_RECEIPT" >"$RUNNER_TEMP/current-infrastructure-receipt.json"
+          terraform_snapshot_sha256="$(jq -er '.snapshots[] | select(.name == "terraform") | .sha256' "$artifact/release-bundle/release-manifest.json")"
+          test "$terraform_snapshot_sha256" = "$EXPECTED_TERRAFORM_SNAPSHOT_SHA256"
+          test "$(jq -er '.terraformSnapshotSha256' "$RUNNER_TEMP/current-infrastructure-receipt.json")" = "$terraform_snapshot_sha256"
+          test "$(jq -er '.terraformPlanDigest' "$RUNNER_TEMP/current-infrastructure-receipt.json")" = "$INFRA_PLAN_DIGEST"
+          test "$(jq -er '.liveInventoryDigest' "$RUNNER_TEMP/current-infrastructure-receipt.json")" = "$INFRA_INVENTORY_DIGEST"
+          test "$(jq -er '.state.lineage' "$RUNNER_TEMP/current-infrastructure-receipt.json")" = "$INFRA_STATE_LINEAGE"
+          test "$(jq -er '.state.serial' "$RUNNER_TEMP/current-infrastructure-receipt.json")" = "$INFRA_STATE_SERIAL"
+          test "$(jq -er '.expiresAt' "$RUNNER_TEMP/current-infrastructure-receipt.json")" \> "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [[ "$LANDING_ELIGIBLE" == "true" ]]; then
+            test "$BACKEND_RECEIPT_SHA256" = "$EXPECTED_BACKEND_RECEIPT_SHA256"
+            test "$(printf '%s' "$BACKEND_RECEIPT" | sha256sum | cut -d' ' -f1)" = "$EXPECTED_BACKEND_RECEIPT_SHA256"
+            required_fingerprint="$(jq -er '.backendDependencies[] | select(.environment == "prod" and .surface == "landing") | .requiredFingerprint' "$artifact/release-bundle/release-manifest.json")"
+            required_source_sha256="$(jq -er '.backendDependencies[] | select(.environment == "prod" and .surface == "landing") | .requiredSourceSha256' "$artifact/release-bundle/release-manifest.json")"
+            printf '%s' "$BACKEND_RECEIPT" >"$RUNNER_TEMP/current-backend-receipt.json"
+            jq -e --arg fingerprint "$required_fingerprint" --arg source "$required_source_sha256" --arg now "$(date -u +%Y-%m-%dT%H:%M:%SZ)" 'keys == ["environment","expiresAt","fingerprint","observedAt","schemaVersion","sourceSha256","status"] and .schemaVersion == 2 and .environment == "prod" and .status == "ready" and .fingerprint == $fingerprint and .sourceSha256 == $source and .expiresAt > $now' "$RUNNER_TEMP/current-backend-receipt.json" >/dev/null
+          fi
+
+          test "$(cut -d' ' -f1 "$RUNNER_TEMP/evidence-artifact/prod-evidence.sha256")" = "$(sha256sum "$RUNNER_TEMP/evidence-artifact/prod-evidence.json" | cut -d' ' -f1)"
+          revalidation_started_at="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+          export PROD_EVIDENCE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --arg sourceRun "$SOURCE_RUN_ID" --argjson sourceAttempt "$SOURCE_ATTEMPT" --arg artifact "$SOURCE_ARTIFACT_ID" --arg release "$RELEASE_DIGEST" --arg manifest "$MANIFEST_SHA256" --arg target "$PROD_TARGET_FINGERPRINT" --arg evidenceActor "$EVIDENCE_ACTOR" --arg evidenceSha "$EVIDENCE_CONTROLLER_SHA" --arg evidenceRun "$EVIDENCE_RUN_ID" --argjson evidenceAttempt "$EVIDENCE_ATTEMPT" --arg started "$revalidation_started_at" '{expectedSubject:{repository:$repository,sha:$sha,runId:$sourceRun,attempt:$sourceAttempt},expectedController:{workflow:"Ritual Investing Fast CI",ref:"refs/heads/main",sha:$sha,runId:$sourceRun,attempt:$sourceAttempt},expectedArtifact:{id:$artifact,archiveSha256:$release,manifestSha256:$manifest},expectedProdTargetFingerprint:$target,expectedRunningRevision:$sha,expectedEvidence:{actor:$evidenceActor,workflow:"Ritual Investing Manual Release Evidence",ref:"refs/heads/main",sha:$evidenceSha,runId:$evidenceRun,attempt:$evidenceAttempt},preflightStartedAt:$started}')"
+          npm --prefix ritual-investing-site run --silent release:receipt:verify -- --prod-evidence "$RUNNER_TEMP/evidence-artifact/prod-evidence.json" >"$RUNNER_TEMP/revalidated-prod-evidence.json"
+          test "$(jq -er '.responseSha256' "$RUNNER_TEMP/revalidated-prod-evidence.json")" = "$EVIDENCE_RESPONSE_SHA256"
+
+          target_fingerprint="$(printf '%s\n' "$PROD_READINESS_URL" | sha256sum | cut -d' ' -f1)"
+          test "$target_fingerprint" = "$PROD_TARGET_FINGERPRINT"
+          test -n "$PROD_RESEARCH_TOKEN"
+          http_status="$(curl --silent --show-error --fail-with-body --connect-timeout 10 --max-time 30 --header "X-Research-Token: $PROD_RESEARCH_TOKEN" --dump-header "$RUNNER_TEMP/current-readiness.headers" --output "$RUNNER_TEMP/current-readiness.json" --write-out '%{http_code}' "$PROD_READINESS_URL")"
+          test "$http_status" = "200"
+          jq -e '.status == "READY" and .public_realtime_research_ready == true' "$RUNNER_TEMP/current-readiness.json" >/dev/null
+          running_revision="$(awk -F ': *' 'tolower($1) == "x-axio7-revision" {gsub("\\r", "", $2); print tolower($2)}' "$RUNNER_TEMP/current-readiness.headers" | tail -n 1)"
+          test "$running_revision" = "$SOURCE_SHA"
+          [[ -n "$CLOUDFLARE_ACCOUNT_ID" && -n "$CLOUDFLARE_CONTENT_API_TOKEN" ]]
+          echo "DEPLOYMENT_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$GITHUB_ENV"
+
+      - name: Capture prior prod deployment identities
+        run: |
+          set -euo pipefail
+          for surface in demo landing; do
+            project="ritual-investing-demo"
+            host="demo.just-build-this.app"
+            [[ "$surface" == "landing" ]] && project="ritual-investing-site"
+            [[ "$surface" == "landing" ]] && host="just-build-this.app"
+            curl --silent --show-error --fail --connect-timeout 10 --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments" >"$RUNNER_TEMP/$surface-before.json"
+            jq -e '.success == true' "$RUNNER_TEMP/$surface-before.json" >/dev/null
+            prior_id="$(jq -r '[.result[] | select(.environment == "production")][0].id // empty' "$RUNNER_TEMP/$surface-before.json")"
+            prior_digest=
+            echo "${surface^^}_PRIOR_ID=$prior_id" >>"$GITHUB_ENV"
+            echo "${surface^^}_PRIOR_DIGEST=" >>"$GITHUB_ENV"
+            echo "${surface^^}_FINAL_ID=$prior_id" >>"$GITHUB_ENV"
+            if [[ -n "$prior_id" ]]; then
+              http_status="$(curl --silent --show-error --fail --connect-timeout 10 --max-time 30 --output "$RUNNER_TEMP/$surface-prior-version.json" --write-out '%{http_code}' "https://$host/version.json")"
+              test "$http_status" = "200"
+              jq -e 'keys == ["manifestSha256","revision","schemaVersion"] and .schemaVersion == 1 and (.revision | test("^[a-f0-9]{40}$")) and (.manifestSha256 | test("^[a-f0-9]{64}$"))' "$RUNNER_TEMP/$surface-prior-version.json" >/dev/null
+              prior_digest="$(jq -er '.manifestSha256' "$RUNNER_TEMP/$surface-prior-version.json")"
+            fi
+            echo "${surface^^}_PRIOR_DIGEST=$prior_digest" >>"$GITHUB_ENV"
+          done
+
+      - name: Deploy exact immutable prod Demo subtree
+        working-directory: ritual-investing-site
+        run: >-
+          npx --no-install wrangler pages deploy
+          "$RUNNER_TEMP/source-artifact/release-bundle/trees/prod/demo"
+          --project-name=ritual-investing-demo
+          --branch=main
+          --commit-hash="$SOURCE_SHA"
+
+      - name: Capture exact prod Demo deployment identity
+        run: |
+          curl --silent --show-error --fail --connect-timeout 10 --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/ritual-investing-demo/deployments" >"$RUNNER_TEMP/demo-after.json"
+          jq -e '.success == true' "$RUNNER_TEMP/demo-after.json" >/dev/null
+          demo_new_id="$(jq -er --arg sha "$SOURCE_SHA" '([.result[] | select(.environment == "production")][0] | select(.deployment_trigger.metadata.commit_hash == $sha) | .id)' "$RUNNER_TEMP/demo-after.json")"
+          echo "DEMO_NEW_ID=$demo_new_id" >>"$GITHUB_ENV"
+          echo "DEMO_FINAL_ID=$demo_new_id" >>"$GITHUB_ENV"
+
+      - name: Probe prod Demo host and exact release identity
+        working-directory: ritual-investing-site
+        env:
+          RELEASE_PROBE_ORIGIN: https://demo.just-build-this.app
+          RELEASE_PROBE_EXPECTED_HOST: demo.just-build-this.app
+          RELEASE_PROBE_REVISION: ${{ inputs.source_sha }}
+          RELEASE_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.demo_probe_manifest_sha256 }}
+          RELEASE_PROBE_REQUIRED_HEADERS: '{"x-content-type-options":"nosniff"}'
+          RELEASE_PROBE_UNKNOWN_ROUTE_POLICY: not-found
+        run: |
+          npm run --silent release:probe
+          echo "DEMO_PROBE_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$GITHUB_ENV"
+
+      - name: Deploy exact immutable prod landing subtree
+        if: env.LANDING_ELIGIBLE == 'true'
+        working-directory: ritual-investing-site
+        run: >-
+          npx --no-install wrangler pages deploy
+          "$RUNNER_TEMP/source-artifact/release-bundle/trees/prod/landing"
+          --project-name=ritual-investing-site
+          --branch=main
+          --commit-hash="$SOURCE_SHA"
+
+      - name: Capture exact prod landing deployment identity
+        if: env.LANDING_ELIGIBLE == 'true'
+        run: |
+          curl --silent --show-error --fail --connect-timeout 10 --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/ritual-investing-site/deployments" >"$RUNNER_TEMP/landing-after.json"
+          jq -e '.success == true' "$RUNNER_TEMP/landing-after.json" >/dev/null
+          landing_new_id="$(jq -er --arg sha "$SOURCE_SHA" '([.result[] | select(.environment == "production")][0] | select(.deployment_trigger.metadata.commit_hash == $sha) | .id)' "$RUNNER_TEMP/landing-after.json")"
+          echo "LANDING_NEW_ID=$landing_new_id" >>"$GITHUB_ENV"
+          echo "LANDING_FINAL_ID=$landing_new_id" >>"$GITHUB_ENV"
+
+      - name: Probe prod landing host and exact release identity
+        if: env.LANDING_ELIGIBLE == 'true'
+        working-directory: ritual-investing-site
+        env:
+          RELEASE_PROBE_ORIGIN: https://just-build-this.app
+          RELEASE_PROBE_EXPECTED_HOST: just-build-this.app
+          RELEASE_PROBE_REVISION: ${{ inputs.source_sha }}
+          RELEASE_PROBE_MANIFEST_SHA256: ${{ needs.preflight.outputs.landing_probe_manifest_sha256 }}
+          RELEASE_PROBE_REQUIRED_HEADERS: '{"x-content-type-options":"nosniff"}'
+          RELEASE_PROBE_UNKNOWN_ROUTE_POLICY: not-found
+        run: |
+          npm run --silent release:probe
+          echo "LANDING_PROBE_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >>"$GITHUB_ENV"
+
+      - name: Restore prior prod content after a deploy or probe failure
+        if: failure()
+        run: |
+          set +e
+          for surface in demo landing; do
+            project="ritual-investing-demo"
+            [[ "$surface" == "landing" ]] && project="ritual-investing-site"
+            prior_name="${surface^^}_PRIOR_ID"
+            prior_id="${!prior_name:-}"
+            if ! curl --silent --show-error --fail --connect-timeout 10 --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments" >"$RUNNER_TEMP/$surface-failure-state.json" || ! jq -e '.success == true' "$RUNNER_TEMP/$surface-failure-state.json" >/dev/null; then
+              echo "${surface^^}_ROLLBACK_OUTCOME=failed" >>"$GITHUB_ENV"
+              echo "${surface^^}_FINAL_ID=" >>"$GITHUB_ENV"
+              continue
+            fi
+            observed_id="$(jq -r --arg sha "$SOURCE_SHA" '([.result[] | select(.environment == "production")][0] | select(.deployment_trigger.metadata.commit_hash == $sha) | .id) // empty' "$RUNNER_TEMP/$surface-failure-state.json")"
+            if [[ -z "$observed_id" || "$observed_id" == "$prior_id" ]]; then
+              echo "${surface^^}_ROLLBACK_OUTCOME=not-attempted" >>"$GITHUB_ENV"
+              echo "${surface^^}_FINAL_ID=$prior_id" >>"$GITHUB_ENV"
+              continue
+            fi
+            echo "${surface^^}_NEW_ID=$observed_id" >>"$GITHUB_ENV"
+            rollback_outcome=failed
+            rollback_response_valid=false
+            if [[ -n "$prior_id" ]]; then
+              curl --silent --show-error --fail --connect-timeout 10 --max-time 30 -X POST -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments/$prior_id/rollback" >"$RUNNER_TEMP/$surface-rollback.json"
+              [[ $? == 0 ]] && jq -e '.success == true' "$RUNNER_TEMP/$surface-rollback.json" >/dev/null && rollback_response_valid=true
+            fi
+            final_id=
+            if curl --silent --show-error --fail --connect-timeout 10 --max-time 30 -H "Authorization: Bearer $CLOUDFLARE_CONTENT_API_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/$project/deployments" >"$RUNNER_TEMP/$surface-final.json" && jq -e '.success == true' "$RUNNER_TEMP/$surface-final.json" >/dev/null; then
+              final_id="$(jq -r '[.result[] | select(.environment == "production")][0].id // empty' "$RUNNER_TEMP/$surface-final.json")"
+            fi
+            [[ "$rollback_response_valid" == "true" && "$final_id" == "$prior_id" ]] && rollback_outcome=recovered
+            echo "${surface^^}_FINAL_ID=$final_id" >>"$GITHUB_ENV"
+            echo "${surface^^}_ROLLBACK_OUTCOME=$rollback_outcome" >>"$GITHUB_ENV"
+          done
+
+      - name: Record and verify strict prod deployment receipt
+        id: receipt
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          outcome=success
+          scope=full
+          promotable=true
+          reasons='[]'
+          next_action=none
+          if [[ "$JOB_STATUS" != "success" ]]; then
+            outcome=partial
+            scope=none
+            promotable=false
+            reasons='["prod-content-deploy-or-probe-failed"]'
+            next_action=inspect-and-fix-forward
+            if [[ "${DEMO_ROLLBACK_OUTCOME:-not-attempted}" == "failed" || "${LANDING_ROLLBACK_OUTCOME:-not-attempted}" == "failed" ]]; then
+              outcome=rollback-failed
+              next_action=operator-recovery-required
+            elif [[ "${DEMO_ROLLBACK_OUTCOME:-not-attempted}" == "recovered" || "${LANDING_ROLLBACK_OUTCOME:-not-attempted}" == "recovered" ]]; then
+              outcome=recovered
+            fi
+          elif [[ "$LANDING_ELIGIBLE" != "true" ]]; then
+            outcome=withheld-dependency
+            scope=demo-only
+            promotable=false
+            reasons='["approved-exact-prod-backend-target-and-receipt-are-absent"]'
+            next_action=approve-exact-prod-backend-and-create-new-main-release
+          fi
+          demo_rollback="${DEMO_ROLLBACK_OUTCOME:-not-needed}"
+          landing_rollback="${LANDING_ROLLBACK_OUTCOME:-not-needed}"
+          [[ "$LANDING_ELIGIBLE" != "true" && -z "${LANDING_NEW_ID:-}" ]] && landing_rollback=not-attempted
+          [[ "$outcome" == "success" ]] && [[ -n "${DEMO_NEW_ID:-}" && -n "${DEMO_FINAL_ID:-}" && -n "${DEMO_PROBE_AT:-}" && -n "${LANDING_NEW_ID:-}" && -n "${LANDING_FINAL_ID:-}" && -n "${LANDING_PROBE_AT:-}" ]]
+          if [[ "$outcome" == "withheld-dependency" ]]; then
+            [[ -n "${DEMO_NEW_ID:-}" && -n "${DEMO_FINAL_ID:-}" && -n "${DEMO_PROBE_AT:-}" && -z "${LANDING_NEW_ID:-}" ]]
+            LANDING_FINAL_ID="${LANDING_PRIOR_ID:-}"
+          fi
+          completed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          jq -n --arg artifactId "$SOURCE_ARTIFACT_ID" --arg releaseDigest "$RELEASE_DIGEST" --arg manifestSha256 "$MANIFEST_SHA256" --arg profileIdentity "$PROD_PROFILE_IDENTITY" --arg repository "$GITHUB_REPOSITORY" --arg sourceSha "$SOURCE_SHA" --arg sourceRunId "$SOURCE_RUN_ID" --arg sourceAttempt "$SOURCE_ATTEMPT" --arg outcome "$outcome" --arg scope "$scope" --argjson promotable "$promotable" --argjson reasons "$reasons" --arg demoPrior "${DEMO_PRIOR_ID:-}" --arg demoPriorDigest "${DEMO_PRIOR_DIGEST:-}" --arg demoNew "${DEMO_NEW_ID:-}" --arg landingPrior "${LANDING_PRIOR_ID:-}" --arg landingPriorDigest "${LANDING_PRIOR_DIGEST:-}" --arg landingNew "${LANDING_NEW_ID:-}" --arg demoFinal "${DEMO_FINAL_ID:-}" --arg landingFinal "${LANDING_FINAL_ID:-}" --arg demoProbeAt "${DEMO_PROBE_AT:-}" --arg landingProbeAt "${LANDING_PROBE_AT:-}" --arg demoRollback "$demo_rollback" --arg landingRollback "$landing_rollback" --arg plan "$INFRA_PLAN_DIGEST" --arg inventory "$INFRA_INVENTORY_DIGEST" --arg lock "$INFRA_LOCK_DIGEST" --arg lineage "$INFRA_STATE_LINEAGE" --argjson serial "$INFRA_STATE_SERIAL" --arg actor "$GITHUB_ACTOR" --arg startedAt "${DEPLOYMENT_STARTED_AT:-$completed_at}" --arg completedAt "$completed_at" --arg controllerWorkflow "$GITHUB_WORKFLOW" --arg controllerRef "$GITHUB_REF" --arg controllerSha "$GITHUB_WORKFLOW_SHA" --arg controllerRunId "$GITHUB_RUN_ID" --argjson controllerAttempt "$GITHUB_RUN_ATTEMPT" --arg nextAction "$next_action" '
+            def nullIfEmpty: if . == "" then null else . end;
+            def probes($host; $at): if $at == "" then [] else [{url:("https://"+$host+"/"),status:200,passed:true,observedAt:$at}] end;
+            {schemaVersion:1,environment:"prod",artifact:{id:$artifactId,digest:$releaseDigest,availability:"retained"},subject:{repository:$repository,sha:$sourceSha,runId:$sourceRunId,attempt:($sourceAttempt|tonumber)},controller:{workflow:$controllerWorkflow,ref:$controllerRef,sha:$controllerSha,runId:$controllerRunId,attempt:$controllerAttempt},manifestSha256:$manifestSha256,releaseDigest:$releaseDigest,profileIdentity:$profileIdentity,infrastructure:{terraformPlanDigest:$plan,liveInventoryDigest:$inventory,lockProofDigest:$lock,beforeState:{lineage:$lineage,serial:$serial},afterState:{lineage:$lineage,serial:$serial}},surfaces:{demo:{target:{pagesProject:"ritual-investing-demo",host:"demo.just-build-this.app"},prior:{deploymentId:($demoPrior|nullIfEmpty),artifactDigest:($demoPriorDigest|nullIfEmpty)},attemptedDeploymentId:($demoNew|nullIfEmpty),resultingDeploymentId:($demoNew|nullIfEmpty),finalDeploymentId:($demoFinal|nullIfEmpty),probes:probes("demo.just-build-this.app";$demoProbeAt),rollback:{outcome:$demoRollback,deploymentId:(if $demoRollback=="recovered" then ($demoPrior|nullIfEmpty) else null end)}},landing:{target:{pagesProject:"ritual-investing-site",host:"just-build-this.app"},prior:{deploymentId:($landingPrior|nullIfEmpty),artifactDigest:($landingPriorDigest|nullIfEmpty)},attemptedDeploymentId:($landingNew|nullIfEmpty),resultingDeploymentId:($landingNew|nullIfEmpty),finalDeploymentId:($landingFinal|nullIfEmpty),probes:probes("just-build-this.app";$landingProbeAt),rollback:{outcome:$landingRollback,deploymentId:(if $landingRollback=="recovered" then ($landingPrior|nullIfEmpty) else null end)}}},actor:$actor,startedAt:$startedAt,completedAt:$completedAt,recoveryOwner:"ritual-prod-operator",nextAction:$nextAction,outcome:$outcome,eligibility:{scope:$scope,promotable:$promotable,reasons:$reasons}}
+          ' >"$RUNNER_TEMP/prod-receipt.json"
+          export RELEASE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sourceSha "$SOURCE_SHA" --arg sourceRunId "$SOURCE_RUN_ID" --argjson sourceAttempt "$SOURCE_ATTEMPT" --arg controllerWorkflow "$GITHUB_WORKFLOW" --arg controllerRef "$GITHUB_REF" --arg controllerSha "$GITHUB_WORKFLOW_SHA" --arg controllerRunId "$GITHUB_RUN_ID" --argjson controllerAttempt "$GITHUB_RUN_ATTEMPT" --arg manifest "$MANIFEST_SHA256" --arg release "$RELEASE_DIGEST" --arg profile "$PROD_PROFILE_IDENTITY" --argjson landingEligible "$LANDING_ELIGIBLE" '{expectedSubject:{repository:$repository,sha:$sourceSha,runId:$sourceRunId,attempt:$sourceAttempt},expectedController:{workflow:$controllerWorkflow,ref:$controllerRef,sha:$controllerSha,runId:$controllerRunId,attempt:$controllerAttempt},expectedManifestSha256:$manifest,expectedReleaseDigest:$release,expectedProfileIdentity:$profile,prodLandingEligible:$landingEligible}')"
+          npm --prefix ritual-investing-site run --silent release:receipt:verify -- "$RUNNER_TEMP/prod-receipt.json"
+
+      - name: Publish checksum-bound prod deployment receipt
+        if: always() && steps.receipt.outcome == 'success'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ritual-prod-receipt-${{ inputs.source_run_id }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/prod-receipt.json
+          if-no-files-found: error
+          retention-days: 90

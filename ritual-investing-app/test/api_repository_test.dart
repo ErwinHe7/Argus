@@ -62,11 +62,13 @@ void main() {
           deletionEpoch: 0,
           id: 'assignment-1',
           localDate: DateTime.utc(2026, 8, 20),
+          serverEvaluatedAt: DateTime.utc(2026, 8, 20, 13, 35),
+          validUntil: DateTime.utc(2026, 8, 21, 4),
           mode: DailyRitualAssignmentModeEnum.tarot,
           payload: const {
             'title': 'The Compass',
-            'art_key': 'the_compass',
-            'art_alt': 'Compass art',
+            'art_key': 'the_star',
+            'art_alt': 'The Star art',
             'interpretation': 'Direction, not urgency.',
             'guidance': 'Compare the evidence.',
             'market_label': 'Market-informed',
@@ -108,8 +110,17 @@ void main() {
     final ritual = await GeneratedRitualApiService(client).fetchDaily();
 
     expect(ritual.assignmentId, 'assignment-1');
+    expect(ritual.date.isUtc, isTrue);
+    expect(ritual.date, DateTime.utc(2026, 8, 20));
     expect(ritual.revision, const RitualRevision(id: 'revision-1', number: 3));
-    expect(ritual.art.alt, 'Compass art');
+    expect(ritual.art.alt, 'The Star art');
+    expect(ritual.userId, 'user-1');
+    expect(ritual.deletionEpoch, 0);
+    expect(ritual.scheduleId, 'schedule-1');
+    expect(ritual.serverEvaluatedAt, DateTime.utc(2026, 8, 20, 13, 35));
+    expect(ritual.validUntil, DateTime.utc(2026, 8, 21, 4));
+    expect(ritual.contentIdentity, hasLength(64));
+    expect(ritual.hasExactArtIdentity, isTrue);
     expect(ritual.guidance, 'Compare the evidence.');
     expect(ritual.ideas.single.symbol, 'VIG');
     expect(ritual.ideas.single.riskSummary, 'It can decline.');
@@ -119,6 +130,57 @@ void main() {
     expect(ritual.completedAt, DateTime.utc(2026, 8, 20, 14, 5));
     expect(ritual.demo.limitations, const ['Educational context only.']);
   });
+
+  test(
+    'missing assigned art preserves completed lifecycle authority',
+    () async {
+      final client = RitualInvestingApiClient(
+        basePathOverride: 'https://api.ritual-investing.invalid',
+      );
+      client.dio.httpClientAdapter = _JsonAdapter(
+        DailyRitualResponse(
+          data: DailyRitualAssignment(
+            allowedTokens: const [],
+            bodyTemplate: 'Keep the evidence close.',
+            completedAt: DateTime.utc(2026, 8, 20, 14, 5),
+            deletionEpoch: 7,
+            id: 'assignment-without-art',
+            localDate: DateTime.utc(2026, 8, 20),
+            mode: DailyRitualAssignmentModeEnum.astrology,
+            payload: const {
+              'title': 'A measured horizon',
+              'interpretation': 'Context can change.',
+              'guidance': 'Review the retained evidence.',
+              'market_label': 'Market-informed',
+              'revision_number': 2,
+              'uncertainty': 'Conditions remain uncertain.',
+            },
+            revealedAt: DateTime.utc(2026, 8, 20, 14),
+            revisionId: 'revision-without-art',
+            riskFooter: 'Not advice.',
+            rowanRevisionId: 'rowan-without-art',
+            scheduleId: 'schedule-without-art',
+            serverEvaluatedAt: DateTime.utc(2026, 8, 20, 13, 35),
+            state: DailyRitualAssignmentStateEnum.completed,
+            userId: 'user-without-art',
+            validUntil: DateTime.utc(2026, 8, 21, 4),
+            version: 4,
+          ),
+          meta: ListAdminAudit200ResponseMeta(requestId: 'request-without-art'),
+        ).toJson(),
+      );
+
+      final ritual = await GeneratedRitualApiService(client).fetchDaily();
+
+      expect(ritual.state, DailyRitualState.completed);
+      expect(ritual.version, 4);
+      expect(ritual.userId, 'user-without-art');
+      expect(ritual.deletionEpoch, 7);
+      expect(ritual.art.key, isEmpty);
+      expect(ritual.mediaAvailability, RitualMediaAvailability.missingIdentity);
+      expect(ritual.hasExactArtIdentity, isFalse);
+    },
+  );
 
   test(
     'unknown generated error code maps safely without reading message text',
