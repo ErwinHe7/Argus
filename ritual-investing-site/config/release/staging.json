@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "identity": "ritual-release-staging-v1",
+  "environment": "staging",
+  "targets": {
+    "landing": {
+      "pagesProject": "ritual-investing-site-staging",
+      "host": "staging.just-build-this.app",
+      "backendDependency": {
+        "classification": "requires",
+        "requiredFingerprint": null,
+        "target": {
+          "status": "withheld",
+          "reason": "public-waitlist-configuration-not-configured"
+        }
+      }
+    },
+    "demo": {
+      "pagesProject": "ritual-investing-demo-staging",
+      "host": "demo-staging.just-build-this.app",
+      "backendDependency": {
+        "classification": "backend-independent",
+        "requiredFingerprint": null,
+        "target": {
+          "status": "not-applicable"
+        }
+      }
+    }
+  }
+}

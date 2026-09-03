@@ -1,0 +1,293 @@
+name: Ritual Investing Fast CI
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/ritual-investing-ci.yml"
+      - ".github/workflows/ritual-investing-release-evidence.yml"
+      - ".github/workflows/ritual-investing-staging.yml"
+      - ".github/workflows/ritual-investing-prod.yml"
+      - ".github/workflows/ritual-investing-supabase-remediation.yml"
+      - ".github/workflows/ritual-investing-web-release.yml"
+      - "infra/terraform/ritual-investing/**"
+      - "ritual-investing-*/**"
+      - "supabase/**"
+      - "docs/ritual-investing/**"
+      - "scripts/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/ritual-investing-ci.yml"
+      - ".github/workflows/ritual-investing-release-evidence.yml"
+      - ".github/workflows/ritual-investing-staging.yml"
+      - ".github/workflows/ritual-investing-prod.yml"
+      - ".github/workflows/ritual-investing-supabase-remediation.yml"
+      - ".github/workflows/ritual-investing-web-release.yml"
+      - "infra/terraform/ritual-investing/**"
+      - "ritual-investing-*/**"
+      - "supabase/**"
+      - "docs/ritual-investing/**"
+      - "scripts/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ritual-investing-fast-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DENO_VERSION: 2.9.6
+  NODE_VERSION: 22.22.0
+  FLUTTER_VERSION: 3.47.1
+  RITUAL_ENVIRONMENT: staging
+
+jobs:
+  source-guard:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sudo apt-get install -y ripgrep
+      - run: ./scripts/check-no-ignored-sources.sh
+      - run: ./scripts/check-legacy-backend-removal.sh
+      - run: ./scripts/test-check-no-hosted-dev-targets.sh
+
+  member-provider-boundary:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sudo apt-get install -y ripgrep
+      - run: ./scripts/test-check-member-provider-boundaries.sh
+      - run: ./scripts/check-member-provider-boundaries.sh
+
+  demo-web-fast:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sudo apt-get install -y ripgrep
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-app
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-app
+        run: flutter analyze
+      - working-directory: ritual-investing-app
+        run: flutter test --exclude-tags golden
+      - working-directory: ritual-investing-demo
+        run: flutter pub get --enforce-lockfile
+      - working-directory: ritual-investing-demo
+        run: flutter analyze
+      - name: Build provider-neutral Demo
+        working-directory: ritual-investing-demo
+        run: >-
+          flutter build web --release
+          --no-web-resources-cdn
+          --no-source-maps
+          --no-wasm-dry-run
+          --pwa-strategy=none
+      - name: Audit the built Demo artifact provider boundary
+        run: ./scripts/check-demo-provider-boundaries.sh
+
+  demo-provider-boundary:
+    needs: demo-web-fast
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sudo apt-get install -y ripgrep
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: ./scripts/test-check-demo-provider-boundaries.sh
+
+  site:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - working-directory: ritual-investing-site
+        run: npm ci
+      - working-directory: ritual-investing-site
+        run: npm run typecheck
+      - working-directory: ritual-investing-site
+        run: npm test
+      - working-directory: ritual-investing-site
+        run: npm audit --audit-level=high
+      - working-directory: ritual-investing-site
+        run: npm run pages:config:check
+
+  terraform-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: 1.15.1
+          terraform_wrapper: false
+      - run: terraform fmt -check -recursive infra/terraform/ritual-investing
+      - run: terraform -chdir=infra/terraform/ritual-investing/environments/staging init -backend=false -input=false
+      - run: terraform -chdir=infra/terraform/ritual-investing/environments/staging validate
+      - run: terraform -chdir=infra/terraform/ritual-investing/environments/prod init -backend=false -input=false
+      - run: terraform -chdir=infra/terraform/ritual-investing/environments/prod validate
+
+  site-waitlist-edge:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      - working-directory: supabase/functions/waitlist
+        run: deno task check
+      - working-directory: supabase/functions/waitlist
+        run: deno task test
+
+  api-security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: sudo apt-get install -y ripgrep
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-api/package-lock.json
+      - working-directory: ritual-investing-api
+        run: npm ci
+      - working-directory: ritual-investing-api
+        run: npm run typecheck
+      - working-directory: ritual-investing-api
+        run: npm test
+      - working-directory: ritual-investing-api
+        run: npm run openapi:check
+      - working-directory: ritual-investing-api
+        run: npm run cutover:check
+
+  supabase-edge:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: denoland/setup-deno@e95548e56dfa95d4e1a28d6f422fafe75c4c26fb # v2.0.3
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+      - working-directory: supabase/functions/api
+        run: deno task check && deno task test
+      - working-directory: supabase/functions/webull-callback
+        run: deno task check && deno task test
+      - working-directory: supabase/functions/worker
+        run: deno task check && deno task test
+      - working-directory: supabase/functions/waitlist
+        run: deno task check && deno task test
+
+  contract-client:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-api/package-lock.json
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-api
+        run: npm ci
+      - working-directory: ritual-investing-api
+        run: npm run drift:check
+      - working-directory: ritual-investing-api-client
+        run: dart pub get
+      - working-directory: ritual-investing-api-client
+        run: dart analyze
+      - working-directory: ritual-investing-api-client
+        run: dart test
+
+  release-bundle:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.fork == false
+    needs: [source-guard, member-provider-boundary, demo-web-fast, demo-provider-boundary, site, terraform-contract, site-waitlist-edge, api-security, supabase-edge, contract-client]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ritual-investing-site/package-lock.json
+      - uses: subosito/flutter-action@fd55f4c5af5b953cc57a2be44cb082c8f6635e8e # v2.21.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - working-directory: ritual-investing-demo
+        run: flutter pub get --enforce-lockfile
+      - name: Build the provider-neutral Demo release tree
+        working-directory: ritual-investing-demo
+        run: >-
+          flutter build web --release
+          --no-web-resources-cdn
+          --no-source-maps
+          --no-wasm-dry-run
+          --pwa-strategy=none
+      - working-directory: ritual-investing-site
+        run: npm ci
+      - name: Build and verify the immutable release bundle
+        working-directory: ritual-investing-site
+        run: |
+          set -euo pipefail
+          export SOURCE_DATE_EPOCH="$(git show -s --format=%ct "$GITHUB_SHA")"
+          export RELEASE_OUTPUT_DIRECTORY="$PWD/release"
+          npm run --silent release:bundle | tee release-result.log
+          tail -n 1 release-result.log | jq -ce \
+            'select((.archiveSha256 | type) == "string" and (.manifestSha256 | type) == "string")' \
+            >release-result.json
+          npm run --silent release:verify -- release/release-bundle
+          archive_sha256="$(jq -er '.archiveSha256' release-result.json)"
+          manifest_sha256="$(jq -er '.manifestSha256' release-result.json)"
+          printf '%s  %s\n' "$archive_sha256" release-bundle.tar >release/archive.sha256
+          printf '%s  %s\n' "$manifest_sha256" release-bundle/release-manifest.json >release/manifest.sha256
+          cd release
+          sha256sum --check archive.sha256
+          sha256sum --check manifest.sha256
+      - name: Upload the exact release for staging and later manual evidence
+        id: release-artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ritual-release-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ritual-investing-site/release
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 30

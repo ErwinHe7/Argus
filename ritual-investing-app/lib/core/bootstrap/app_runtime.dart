@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../features/asset_codex/application/controller.dart';
 import '../../features/asset_codex/domain/model.dart';
+import '../../features/ai_analysis/application/controller.dart';
 import '../../features/briefings/application/briefing_controller.dart';
 import '../../features/brokerage_connection/application/controller.dart';
 import '../../features/circles/application/controller.dart';
@@ -21,6 +22,7 @@ import '../../features/profile/application/controller.dart';
 import '../../features/profile/domain/model.dart';
 import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
+import '../../features/ritual/data/leonidas_voice_preference_store.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
 import '../../features/starpath/application/starpath_controller.dart';
@@ -55,10 +57,14 @@ extension AppRuntimeFeatureAccess on AppRuntime {
 
   DailyRitualController get dailyRitualController =>
       _requireScope().dailyRitualController;
+  LeonidasVoicePreferencePersistence get leonidasVoicePreferenceStore =>
+      _requireScope().leonidasVoicePreferenceStore;
   StarpathController get starpathController =>
       _requireScope().starpathController;
   DiscoverController get discoverController =>
       _requireScope().discoverController;
+  AiAnalysisController? get optionalAiAnalysisController =>
+      featureScope?.aiAnalysisController;
   CovenController get covenController => _requireScope().covenController;
   ProfileController get profileController => _requireScope().profileController;
   BrokerageConnectionController get brokerageConnectionController => _required(
@@ -114,6 +120,7 @@ extension AppRuntimeFeatureAccess on AppRuntime {
   }
 
   bool get hasAssetCodex => featureScope?.assetCodexRepository != null;
+  bool get hasAiAnalysis => featureScope?.aiAnalysisController != null;
   bool get hasBrokerageOrders => featureScope?.brokerageOrderController != null;
   bool get hasBrokeragePortfolio =>
       featureScope?.brokerageConnectionController != null &&

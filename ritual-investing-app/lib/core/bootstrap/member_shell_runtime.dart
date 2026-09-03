@@ -268,7 +268,14 @@ class MemberShellRuntime extends ChangeNotifier implements AppRuntime {
     final deletion = _onDeletionAccepted;
     if (deletion != null) {
       scope.privacyController?.bindAccountTransitions(
-        onDeletionAccepted: deletion,
+        onDeletionAccepted: () async {
+          await _bestEffort(
+            Future<void>.sync(
+              () => scope.leonidasVoicePreferenceStore.clearScope(scope.scope),
+            ),
+          );
+          await deletion();
+        },
       );
     }
   }

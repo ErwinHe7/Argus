@@ -41,13 +41,13 @@ jobs:
     timeout-minutes: 45
     environment: ritual-investing-web-release
     env:
-      MEMBER_BETA_SUPABASE_PROJECT_REF: ${{ vars.BETA_SUPABASE_PROJECT_ID }}
-      MEMBER_BETA_SUPABASE_ORIGIN: ${{ vars.BETA_SUPABASE_PROJECT_URL }}
-      MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256: ${{ vars.BETA_SUPABASE_PUBLISHABLE_KEY_SHA256 }}
-      RITUAL_BETA_PREVIEW_ORIGIN: ${{ vars.BETA_MEMBER_PREVIEW_ORIGIN }}
+      MEMBER_STAGING_SUPABASE_PROJECT_REF: ${{ vars.STAGING_SUPABASE_PROJECT_ID }}
+      MEMBER_STAGING_SUPABASE_ORIGIN: ${{ vars.STAGING_SUPABASE_PROJECT_URL }}
+      MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256: ${{ vars.STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256 }}
+      RITUAL_STAGING_PREVIEW_ORIGIN: ${{ vars.STAGING_MEMBER_PREVIEW_ORIGIN }}
       RITUAL_MEMBER_WORKER_NAME: ${{ vars.MEMBER_WORKER_NAME }}
       RITUAL_EXPECTED_MEMBER_WORKER_NAME: ${{ vars.EXPECTED_MEMBER_WORKER_NAME }}
-      RITUAL_EXPECTED_BETA_PROJECT_ID: ${{ vars.EXPECTED_BETA_SUPABASE_PROJECT_ID }}
+      RITUAL_EXPECTED_STAGING_PROJECT_ID: ${{ vars.EXPECTED_STAGING_SUPABASE_PROJECT_ID }}
       RITUAL_APPROVED_RELEASE_MANIFEST_SHA256: ${{ vars.APPROVED_MEMBER_WEB_RELEASE_MANIFEST_SHA256 }}
       RITUAL_APPROVED_ARTIFACT_SHA256: ${{ vars.APPROVED_MEMBER_WEB_ARTIFACT_SHA256 }}
       RITUAL_APPROVED_SCHEMA_SHA256: ${{ vars.APPROVED_MEMBER_WEB_SCHEMA_SHA256 }}
@@ -115,10 +115,10 @@ jobs:
           test "$(jq -r '.git_revision' "$canonical")" = "$RELEASE_GIT_REVISION"
           test "$RITUAL_MEMBER_WORKER_NAME" = "$RITUAL_EXPECTED_MEMBER_WORKER_NAME"
           test "$(jq -r '.worker_name' "$canonical")" = "$RITUAL_MEMBER_WORKER_NAME"
-          test "$(jq -r '.supabase_project_ref' "$canonical")" = "$MEMBER_BETA_SUPABASE_PROJECT_REF"
-          test "$MEMBER_BETA_SUPABASE_PROJECT_REF" = "$RITUAL_EXPECTED_BETA_PROJECT_ID"
-          test "$MEMBER_BETA_SUPABASE_ORIGIN" = "https://$MEMBER_BETA_SUPABASE_PROJECT_REF.supabase.co"
-          node -e 'const value=process.env.RITUAL_BETA_PREVIEW_ORIGIN; const url=new URL(value); if (url.origin !== value || url.protocol !== "https:" || !/^beta-[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/.test(url.hostname)) process.exit(1)'
+          test "$(jq -r '.supabase_project_ref' "$canonical")" = "$MEMBER_STAGING_SUPABASE_PROJECT_REF"
+          test "$MEMBER_STAGING_SUPABASE_PROJECT_REF" = "$RITUAL_EXPECTED_STAGING_PROJECT_ID"
+          test "$MEMBER_STAGING_SUPABASE_ORIGIN" = "https://$MEMBER_STAGING_SUPABASE_PROJECT_REF.supabase.co"
+          node -e 'const value=process.env.RITUAL_STAGING_PREVIEW_ORIGIN; const url=new URL(value); if (url.origin !== value || url.protocol !== "https:" || !/^staging-[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/.test(url.hostname)) process.exit(1)'
           test "$(jq -r '.artifact_manifest_sha256' "$canonical")" = "$RITUAL_APPROVED_ARTIFACT_SHA256"
           test "$(jq -r '.schema_sha256' "$canonical")" = "$RITUAL_APPROVED_SCHEMA_SHA256"
           test "$(jq -r '.edge_revision' "$canonical")" = "$RITUAL_APPROVED_EDGE_REVISION"
@@ -161,20 +161,20 @@ jobs:
       - name: Build the exact reviewed member artifact for preview
         if: inputs.action == 'preview'
         env:
-          MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY }}
+          MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY }}
         run: |
           set -eu
-          test "$(printf '%s' "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY" | sha256sum | cut -d' ' -f1)" = "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256"
+          test "$(printf '%s' "$MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY" | sha256sum | cut -d' ' -f1)" = "$MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256"
           jq -n \
-            --arg environment beta \
-            --arg api "$MEMBER_BETA_SUPABASE_ORIGIN/functions/v1/api" \
-            --arg url "$MEMBER_BETA_SUPABASE_ORIGIN" \
-            --arg key "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY" \
-            --arg project_ref "$MEMBER_BETA_SUPABASE_PROJECT_REF" \
-            --arg key_sha256 "$MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256" \
-            --arg auth_redirects "https://just-build-this.app/mobile/argus-auth/callback,$RITUAL_BETA_PREVIEW_ORIGIN/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback" \
-            '{RITUAL_ENVIRONMENT:$environment,RITUAL_API_BASE_URL:$api,SUPABASE_URL:$url,SUPABASE_PUBLISHABLE_KEY:$key,BETA_SUPABASE_PROJECT_REF:$project_ref,BETA_SUPABASE_PUBLISHABLE_KEY_SHA256:$key_sha256,ARGUS_AUTH_REDIRECT_ALLOWLIST:$auth_redirects}' \
-            >"$RUNNER_TEMP/member-beta-defines.json"
+            --arg environment staging \
+            --arg api "$MEMBER_STAGING_SUPABASE_ORIGIN/functions/v1/api" \
+            --arg url "$MEMBER_STAGING_SUPABASE_ORIGIN" \
+            --arg key "$MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY" \
+            --arg project_ref "$MEMBER_STAGING_SUPABASE_PROJECT_REF" \
+            --arg key_sha256 "$MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256" \
+            --arg auth_redirects "https://just-build-this.app/mobile/argus-auth/callback,$RITUAL_STAGING_PREVIEW_ORIGIN/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback" \
+            '{RITUAL_ENVIRONMENT:$environment,RITUAL_API_BASE_URL:$api,SUPABASE_URL:$url,SUPABASE_PUBLISHABLE_KEY:$key,STAGING_SUPABASE_PROJECT_REF:$project_ref,STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256:$key_sha256,ARGUS_AUTH_REDIRECT_ALLOWLIST:$auth_redirects}' \
+            >"$RUNNER_TEMP/member-staging-defines.json"
           cd ritual-investing-app
           flutter pub get --enforce-lockfile
           flutter build web --release \
@@ -182,12 +182,12 @@ jobs:
             --no-source-maps \
             --no-wasm-dry-run \
             --pwa-strategy=none \
-            --dart-define-from-file="$RUNNER_TEMP/member-beta-defines.json"
+            --dart-define-from-file="$RUNNER_TEMP/member-staging-defines.json"
           cd ../ritual-investing-site
-          npm run assets:build:member-beta
-          test "$(sha256sum dist/member-beta/asset-manifest.json | cut -d' ' -f1)" = "$RITUAL_ARTIFACT_MANIFEST_SHA256"
+          npm run assets:build:member-staging
+          test "$(sha256sum dist/member-staging/asset-manifest.json | cut -d' ' -f1)" = "$RITUAL_ARTIFACT_MANIFEST_SHA256"
 
-      - name: Upload the reviewed version to the stable beta preview alias
+      - name: Upload the reviewed version to the stable staging preview alias
         if: inputs.action == 'preview'
         working-directory: ritual-investing-site
         env:
@@ -208,7 +208,7 @@ jobs:
           npx --no-install wrangler versions upload \
             --config wrangler.jsonc \
             --name "$RITUAL_MEMBER_WORKER_NAME" \
-            --preview-alias beta \
+            --preview-alias staging \
             --tag "$RITUAL_ARTIFACT_MANIFEST_SHA256" \
             --message "manifest:$RITUAL_RELEASE_MANIFEST_SHA256" \
             --strict

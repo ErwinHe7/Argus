@@ -29,7 +29,7 @@ void main() {
     expect(controller.state.phase, LoadPhase.ready);
     expect(service.requestedIds, [_creatorId]);
     expect(find.text('Mira Vale'), findsOneWidget);
-    expect(find.text('Fictional Demo creator'), findsOneWidget);
+    expect(find.text('Fictional research profile'), findsOneWidget);
     expect(find.textContaining('read-only'), findsOneWidget);
     expect(find.textContaining('follow'), findsNothing);
     expect(find.textContaining('message'), findsNothing);

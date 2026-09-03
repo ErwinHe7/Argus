@@ -11,7 +11,7 @@ This is the U1 migration authority for the member app, admin app, API, backgroun
 - Supabase owns Argus identity, application data, server compute, durable jobs, and retained object storage. Application and brokerage data stays in private, non-Data-API schemas behind the versioned Argus API.
 - The standalone Demo is synthetic, memory-only, auth-free, provider-free, credential-free, and network-isolated.
 - Cloudflare Pages continues to serve the unchanged static landing and standalone Demo assets. Cloudflare Workers Static Assets may deliver the compiled member beta, but Cloudflare has no Auth, application-data, database, provider, or stateful backend authority.
-- The clearly labeled, self-service member web beta uses regular email-and-password signup against only the persistent `beta` branch's non-production Supabase Auth, the versioned beta Argus API, and canonical private tables. Browser code receives no direct application-table authority. Privacy export and deletion are launch-required beta-backed behaviors; brokerage connection and reads, funding, and order mutations remain unavailable and fail closed.
+- The clearly labeled, self-service member web beta uses regular email-and-password signup against only staging Supabase Auth, the public-beta Argus API, and canonical private tables. The provider's legacy physical branch label `beta` and project ref `zbgjjufjkhfhirbuuolv` map only to logical staging. Browser code receives no direct application-table authority. Privacy export and deletion are launch-required beta-backed behaviors; brokerage connection and reads, funding, and order mutations remain unavailable and fail closed.
 - Rowan cannot issue financial commands or receive Webull credentials, raw provider payloads, balances, or positions as prompt context.
 
 ## Classification meanings
@@ -25,7 +25,7 @@ This is the U1 migration authority for the member app, admin app, API, backgroun
 
 ## Data handling contract
 
-The public-beta capability state is a delivery boundary, not a reclassification of the inventory below. `beta-backed` behavior is served through the beta API and private beta data boundary; it includes authorized privacy export and deletion through either the idempotent automated path or an API-backed request/status path with a verified manual completion SLA. `unavailable` behavior performs no provider or financial request and includes brokerage connection and reads, funding, and order mutations. `standalone Demo handoff` leaves the member app through an explicit, visibly labeled origin change to the synthetic, network-isolated Demo. No failure substitutes fixtures, production data, a legacy backend, or an automatic Demo redirect. These capability labels do not classify stored identity or member data as non-sensitive and do not relax existing handling controls.
+The public-beta capability state is a delivery boundary, not a reclassification of the inventory below. `beta-backed` is product-lifecycle language; that behavior is served through the staging API and private staging data boundary. It includes authorized privacy export and deletion through either the idempotent automated path or an API-backed request/status path with a verified manual completion SLA. `unavailable` behavior performs no provider or financial request and includes brokerage connection and reads, funding, and order mutations. `standalone Demo handoff` leaves the member app through an explicit, visibly labeled origin change to the synthetic, network-isolated Demo. No failure substitutes fixtures, production data, a legacy backend, or an automatic Demo redirect. These capability labels do not classify stored identity or member data as non-sensitive and do not relax existing handling controls.
 
 Webull credentials, authorization codes, signing secrets, wrapped data keys, raw provider payloads, and provider-identifying callback material are server-only. They are excluded from Flutter, admin clients, public or exposed database objects, Data API grants, queue payloads, logs, analytics, crash breadcrumbs, exports, screenshots, and CI artifacts.
 
@@ -373,7 +373,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `storage-object:DELETION_DENY_JOURNAL` | retained-argus | Supabase private deletion recovery state |
 | `provider-dependency:auth0` | deleted | Replace member and staff identity with Supabase Auth |
 | `provider-dependency:neon` | deleted | Replace synthetic Neon schema with clean Supabase Postgres baseline |
-| `provider-dependency:cloudflare-workers` | retained-argus | Static member-beta asset delivery only; API/site compute remains deleted in favor of Supabase Edge |
+| `provider-dependency:cloudflare-workers` | retained-argus | Static member-staging asset delivery only; API/site compute remains deleted in favor of Supabase Edge |
 | `provider-dependency:cloudflare-queues` | deleted | Replace with private Supabase Queues |
 | `provider-dependency:r2` | deleted | Replace retained objects with private Supabase Storage |
 | `provider-dependency:cloudflare-access` | deleted | Replace staff gate with Supabase Auth and database authorization |
@@ -389,7 +389,7 @@ Each surface below appears exactly once. The contract test derives current table
 | `secret-family:Supabase runtime role and worker secret` | retained-argus | Vault/Edge-secret custody and rotation; never client-exposed |
 | `secret-family:Webull client, signing, token-wrapping keys` | replaced-webull | Edge-secret custody with versioned rotation and redaction |
 | `runbook:admin-operations-runbook.md` | retained-argus | Rewrite for Supabase staff auth and redacted brokerage diagnostics |
-| `runbook:cloudflare-runbook.md` | retained-argus | Static Pages plus static member-beta delivery guidance; no Cloudflare backend authority |
+| `runbook:cloudflare-runbook.md` | retained-argus | Static Pages plus static member-staging delivery guidance; no Cloudflare backend authority |
 | `runbook:member-release-gates.md` | retained-argus | Rewrite for Supabase/Auth/Webull hosted evidence |
 | `runbook:neon-runbook.md` | deleted | Replace with Supabase local/hosted database operations |
 | `runbook:privacy-runbook.md` | retained-argus | Rewrite for deletion epoch and Supabase Storage |
@@ -422,7 +422,7 @@ Provider facts are not repurposed as Rowan context, marketing analytics, or a se
 
 ## Development and launch gates
 
-Branches and pull requests use a fresh local Supabase CLI stack. Serialized approved beta-web deployments target the exact persistent `beta` branch of the Ritual Investment Supabase project and its versioned beta Argus API; the parent project's default branch remains outside the public-beta data authority. Pull requests receive no hosted credentials. The self-service beta requires custom SMTP, hosted email confirmation, enumeration-resistant recovery, rate limits, CAPTCHA or equivalent abuse protection, deletion, and support ownership. Production promotion, production Webull registration, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting remain separate production launch gates.
+Branches and pull requests use a fresh local Supabase CLI stack. Serialized approved public-beta web deployments target the exact logical staging Supabase project and public-beta Argus API; the parent project's default branch remains outside the public-beta data authority. Pull requests receive no hosted credentials. The self-service beta requires custom SMTP, hosted email confirmation, enumeration-resistant recovery, rate limits, CAPTCHA or equivalent abuse protection, deletion, and support ownership. Production promotion, production Webull registration, backups, recovery, reliability thresholds, capacity limits, compliance/retention approval, and admin hosting remain separate production launch gates.
 
 All unresolved public-beta web review work is P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md). Nothing in that register waives the privacy launch gate or enables brokerage connection or reads, funding, order mutations, or another unavailable financial capability.
 

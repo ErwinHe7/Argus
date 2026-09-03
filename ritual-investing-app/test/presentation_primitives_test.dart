@@ -18,7 +18,7 @@ void main() {
     );
   });
 
-  testWidgets('shared Demo badge has a non-color semantic label', (
+  testWidgets('shared simulation badge has a non-color semantic label', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -28,14 +28,14 @@ void main() {
       ),
     );
 
-    expect(find.text('DEMO'), findsOneWidget);
+    expect(find.text('SIMULATED'), findsOneWidget);
     expect(
-      find.bySemanticsLabel('Demo experience; no real money moves'),
+      find.bySemanticsLabel('Simulated experience; no real money moves'),
       findsOneWidget,
     );
     expect(
       DemoDisclosureCopy.marketScenario,
-      'Demo market scenario · educational exploration only',
+      'Simulated market scenario · educational exploration only',
     );
   });
 }

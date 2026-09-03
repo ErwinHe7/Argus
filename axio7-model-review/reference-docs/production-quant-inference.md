@@ -1217,3 +1217,28 @@ Remaining non-billing production blockers found during the same live audit:
   60-second command window and were terminated; the resulting
   `.next/export-detail.json` reported `success:false`, so this run does not
   claim a successful production build. CMake remained unavailable.
+
+## 2026-08-31 -- Production-promotion evidence protocol
+
+Current promotion status: **NO-GO**.
+
+The historical observations in this document are not a deployable readiness
+receipt. In particular, the checked-in evidence still records
+`production_ready=false`, incomplete realtime equity and OPRA entitlement,
+unpromoted model evidence, and unavailable or incomplete runtime proof. It
+cannot satisfy prod preflight.
+
+The only eligible machine envelope is `ritual-prod-evidence.v1`, emitted by the
+manual `.github/workflows/ritual-investing-release-evidence.yml` run for one
+exact retained release. It binds the release subject and controller, source
+run and attempt, artifact ID and both release digests, Rust/Python/TypeScript/
+Docker outcomes, the native availability decision and outcome, prod target
+fingerprint, running revision, readiness-response digest and `ready` status,
+UTC observation time, and evidence actor/run. Prod preflight must validate all
+of those fields against its exact expected release and reject missing,
+blocked, incomplete, differently digested, wrong-target, wrong-revision,
+future-dated, or more-than-15-minute-old evidence.
+
+No ready envelope is checked in. A future manual evidence run must query the
+actual prod readiness endpoint and independently produce a fresh conforming
+artifact; operator dispatch alone is not readiness proof.

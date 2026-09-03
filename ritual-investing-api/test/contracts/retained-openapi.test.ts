@@ -155,6 +155,33 @@ describe("Supabase retained OpenAPI contract", () => {
     }
   });
 
+  it("retains adjacent Ritual transitions and server-owned day authority", () => {
+    const document = buildRetainedOpenApiDocument(contractApp());
+    const paths = document.paths as Record<string, Record<string, any>>;
+    const schemas = document.components?.schemas as Record<string, any>;
+
+    expect(schemas.DailyRitualAssignment.required).toEqual(
+      expect.arrayContaining([
+        "local_date",
+        "server_evaluated_at",
+        "valid_until",
+      ]),
+    );
+    expect(schemas.DailyRitualAssignment.properties).toMatchObject({
+      local_date: { type: "string", format: "date" },
+      server_evaluated_at: { type: "string", format: "date-time" },
+      valid_until: { type: "string", format: "date-time" },
+    });
+
+    const transition = paths["/v1/rituals/{assignment_id}/transition"]?.post;
+    expect(transition?.security).toEqual([{ SupabaseBearer: [] }]);
+    expect(JSON.stringify(transition?.parameters)).toContain("if-match");
+    expect(
+      transition?.requestBody?.content?.["application/json"]?.schema
+        ?.description,
+    ).toContain("assigned to revealed or revealed to completed");
+  });
+
   it("requires authoritative member branch capabilities in session snapshots", () => {
     const schemas = buildRetainedOpenApiDocument(contractApp()).components
       ?.schemas as Record<string, any>;

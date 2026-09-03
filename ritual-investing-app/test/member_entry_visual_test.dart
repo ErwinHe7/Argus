@@ -1,3 +1,6 @@
+@Tags(['golden'])
+library;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -33,6 +36,10 @@ void main() {
       );
       await tester.runAsync(() async {
         final context = tester.element(find.byType(Scaffold));
+        await precacheImage(
+          const AssetImage('assets/images/brand/leo-lion.png'),
+          context,
+        );
         await precacheImage(
           const AssetImage('assets/images/the-compass.png'),
           context,

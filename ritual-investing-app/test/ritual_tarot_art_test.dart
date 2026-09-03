@@ -82,7 +82,7 @@ void main() {
     expect(nextDay, isNull);
   });
 
-  test('unknown keys and non-tarot rituals retain the existing fallback', () {
+  test('supported modes resolve the exact assigned tarot art key', () {
     final unknown = resolveRitualTarotArtwork(
       art: const RitualArt(key: 'future_art', alt: 'Future art'),
       date: DateTime(2026, 8, 26),
@@ -95,6 +95,41 @@ void main() {
     );
 
     expect(unknown, isNull);
-    expect(astrology, isNull);
+    expect(astrology, isNotNull);
+    expect(astrology?.key, 'the_star');
+    expect(
+      astrology?.assetPath,
+      'assets/images/tarot/modern-rider-waite/major/17-the-star.webp',
+    );
+
+    for (final mode in const [
+      DailyRitualMode.tarot,
+      DailyRitualMode.astrology,
+    ]) {
+      for (final expected in majorArcanaArtwork) {
+        final resolved = resolveRitualTarotArtwork(
+          art: RitualArt(key: expected.key, alt: expected.alt),
+          date: DateTime(2026, 8, 26),
+          mode: mode,
+        );
+        expect(
+          resolved,
+          same(expected),
+          reason: '${mode.name}:${expected.key}',
+        );
+      }
+    }
+  });
+
+  test('missing and unknown art keys fail closed without substitution', () {
+    for (final key in ['', 'future_art', 'the_compass']) {
+      final artwork = resolveRitualTarotArtwork(
+        art: RitualArt(key: key, alt: 'Unavailable assigned art'),
+        date: DateTime(2026, 8, 26),
+        mode: DailyRitualMode.tarot,
+      );
+
+      expect(artwork, isNull, reason: '$key must not select fallback art');
+    }
   });
 }

@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 import 'package:ritual_investing_api_client/ritual_investing_api_client.dart';
 
@@ -119,44 +122,69 @@ class GeneratedRitualApiService implements DailyRitualService {
         throw const RitualAmbiguousMutation();
       }
       ApiFailureMapper.throwFailure(error);
+    } on RitualAmbiguousMutation {
+      rethrow;
+    } on Object {
+      // The request was handed to the generated client. A decode or mapping
+      // failure after that point cannot prove whether the transition committed.
+      throw const RitualAmbiguousMutation();
     }
   }
 }
 
 DailyRitual _map(DailyRitualAssignment value) {
   final payload = value.payload;
-  final title = _string(payload, 'title');
-  final observedAt = _timestamp(payload['observation_at']) ?? value.localDate;
+  final localDate = DateTime.utc(
+    value.localDate.year,
+    value.localDate.month,
+    value.localDate.day,
+  );
+  final title = _optionalString(payload, 'title') ?? '';
+  final interpretation = _optionalString(payload, 'interpretation') ?? '';
+  final guidance = _optionalString(payload, 'guidance') ?? '';
+  final marketLabel = _optionalString(payload, 'market_label') ?? '';
+  final uncertainty = _optionalString(payload, 'uncertainty') ?? '';
+  final revisionNumber = _integer(payload['revision_number']) ?? 0;
+  final ideaValues = _tryObjects(payload['ideas']);
+  final evidenceValues = _tryObjects(payload['evidence']);
+  final ideas = _tryIdeas(ideaValues);
+  final evidence = _tryEvidence(evidenceValues);
+  final contentAvailable =
+      title.isNotEmpty &&
+      interpretation.isNotEmpty &&
+      guidance.isNotEmpty &&
+      marketLabel.isNotEmpty &&
+      uncertainty.isNotEmpty &&
+      revisionNumber > 0 &&
+      ideas != null &&
+      evidence != null;
+  final artKey = _optionalString(payload, 'art_key') ?? '';
+  final observedAt = _timestamp(payload['observation_at']) ?? localDate;
   return DailyRitual(
     assignmentId: value.id,
-    date: value.localDate,
+    date: localDate,
     mode: switch (value.mode) {
       DailyRitualAssignmentModeEnum.tarot => DailyRitualMode.tarot,
       DailyRitualAssignmentModeEnum.astrology => DailyRitualMode.astrology,
       DailyRitualAssignmentModeEnum.unknownDefaultOpenApi =>
         DailyRitualMode.unknown,
     },
-    revision: RitualRevision(
-      id: value.revisionId,
-      number: _integer(payload['revision_number']) ?? 1,
-    ),
+    revision: RitualRevision(id: value.revisionId, number: revisionNumber),
     title: title,
     art: RitualArt(
-      key: _optionalString(payload, 'art_key') ?? 'the-fool',
+      key: artKey,
       alt: _optionalString(payload, 'art_alt') ?? title,
     ),
-    interpretation: _string(payload, 'interpretation'),
-    guidance: _string(payload, 'guidance'),
-    marketLabel: _string(payload, 'market_label'),
-    ideas: _objects(payload['ideas']).map(_idea).toList(growable: false),
-    evidence: _objects(payload['evidence'])
-        .map(_evidence)
-        .toList(growable: false),
+    interpretation: interpretation,
+    guidance: guidance,
+    marketLabel: marketLabel,
+    ideas: ideas ?? const [],
+    evidence: evidence ?? const [],
     rowan: RitualCounsel(
       scriptRevisionId: value.rowanRevisionId ?? value.revisionId,
       surface: 'daily_ritual',
-      body: value.bodyTemplate ?? _string(payload, 'guidance'),
-      riskFooter: value.riskFooter ?? _string(payload, 'uncertainty'),
+      body: value.bodyTemplate ?? guidance,
+      riskFooter: value.riskFooter ?? uncertainty,
     ),
     version: value.version,
     state: switch (value.state) {
@@ -174,6 +202,20 @@ DailyRitual _map(DailyRitualAssignment value) {
       sourceLabel: 'Leo editorial',
       limitations: const ['Educational context only.'],
     ),
+    userId: value.userId,
+    deletionEpoch: value.deletionEpoch,
+    scheduleId: value.scheduleId,
+    serverEvaluatedAt: value.serverEvaluatedAt.toUtc(),
+    validUntil: value.validUntil.toUtc(),
+    contentIdentity: sha256
+        .convert(utf8.encode(jsonEncode(_canonicalJson(payload))))
+        .toString(),
+    mediaAvailability: artKey.isEmpty
+        ? RitualMediaAvailability.missingIdentity
+        : RitualMediaAvailability.exactIdentity,
+    contentAvailability: contentAvailable
+        ? RitualContentAvailability.available
+        : RitualContentAvailability.unavailable,
   );
 }
 
@@ -225,4 +267,41 @@ List<Map<String, Object?>> _objects(Object? value) {
         return Map<String, Object?>.from(entry);
       })
       .toList(growable: false);
+}
+
+List<Map<String, Object?>>? _tryObjects(Object? value) {
+  try {
+    return _objects(value);
+  } on LoadFailure {
+    return null;
+  }
+}
+
+List<RitualIdea>? _tryIdeas(List<Map<String, Object?>>? values) {
+  if (values == null) return null;
+  try {
+    return values.map(_idea).toList(growable: false);
+  } on LoadFailure {
+    return null;
+  }
+}
+
+List<RitualEvidence>? _tryEvidence(List<Map<String, Object?>>? values) {
+  if (values == null) return null;
+  try {
+    return values.map(_evidence).toList(growable: false);
+  } on LoadFailure {
+    return null;
+  }
+}
+
+Object? _canonicalJson(Object? value) {
+  if (value is Map) {
+    final keys = value.keys.whereType<String>().toList()..sort();
+    return <String, Object?>{
+      for (final key in keys) key: _canonicalJson(value[key]),
+    };
+  }
+  if (value is List) return value.map(_canonicalJson).toList(growable: false);
+  return value;
 }

@@ -6,11 +6,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:ritual_investing_app/app/theme/app_theme.dart';
 import 'package:ritual_investing_app/core/api/ritual_api.dart';
-import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
-import 'package:ritual_investing_app/features/asset_codex/application/controller.dart';
-import 'package:ritual_investing_app/features/asset_codex/presentation/asset_codex_screen.dart';
+import 'package:ritual_investing_app/features/ritual/application/leonidas_voice.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_screen.dart';
+import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_stage_spec.dart';
 
 import 'support/u4_http_harness.dart';
 
@@ -18,7 +17,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'generated HTTP flow reveals evidence, Codex, search/save/compare, and non-blocking Rowan',
+    'generated HTTP ritual stays authoritative through immersive Evidence and Starpath',
     (tester) async {
       late U4HttpHarness harness;
       await tester.runAsync(() async {
@@ -28,110 +27,59 @@ void main() {
 
       await tester.pumpWidget(_U4FlowApp(harness: harness));
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('ritual-reveal')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-sequence-start')), findsOneWidget);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
 
-      await tester.tap(find.byKey(const Key('ritual-reveal')));
+      await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.text('Ready to hold'), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
+
+      final hold = await tester.startGesture(
+        tester.getCenter(find.byKey(DailyRitualStageSpec.sealHitKey)),
+      );
+      await tester.pump(const Duration(seconds: 5, milliseconds: 1));
+      await tester.pump();
+      await hold.up();
+      await tester.pumpAndSettle();
+
       expect(find.text('Direction, not urgency.'), findsOneWidget);
+      expect(find.byKey(const Key('ritual-complete')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
       expect(
         harness.ritualController.state.value?.state,
         DailyRitualState.revealed,
       );
 
-      await tester.tap(find.text('Market-informed Demo evidence'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Demo Research Desk'), findsOneWidget);
-      expect(
-        find.textContaining('Provider-free evidence note'),
-        findsOneWidget,
-      );
-      Navigator.of(
-        tester.element(find.byKey(const Key('ritual-evidence-sheet'))),
-      ).pop();
-      await tester.pumpAndSettle();
-
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('ritual-complete')),
-        350,
-        scrollable: find.byType(Scrollable).first,
-      );
       await tester.tap(find.byKey(const Key('ritual-complete')));
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
       expect(
         harness.ritualController.state.value?.state,
         DailyRitualState.completed,
       );
-      expect(
-        harness.ritualController.historyState.value?.items.single.state,
-        DailyRitualState.completed,
-      );
 
-      await tester.scrollUntilVisible(
-        find.text('VIG'),
-        -300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.text('VIG'));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('asset-codex-screen')), findsOneWidget);
-      expect(find.text('Vigilant Demo ETF'), findsOneWidget);
-      expect(find.text('PRACTICAL INTERPRETATION'), findsOneWidget);
-
-      await tester.tap(find.byKey(const Key('asset-evidence')));
+      await tester.tap(find.byKey(const Key('leonidas-evidence')));
       await tester.pumpAndSettle();
       expect(find.textContaining('Demo Research Desk'), findsOneWidget);
       expect(
         find.textContaining('Provider-free evidence note'),
         findsOneWidget,
       );
+      await tester.tap(find.byKey(const Key('ritual-evidence-done')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
 
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('asset-compare')),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const Key('asset-compare')));
+      await tester.tap(find.byKey(const Key('leonidas-starpath')));
       await tester.pumpAndSettle();
-      await tester.enterText(find.byKey(const Key('codex-search-field')), 'pe');
-      await tester.pump(const Duration(milliseconds: 80));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('PEER · Patient Demo Fund'));
-      await tester.pumpAndSettle();
-      expect(find.text('Compared Demo research'), findsOneWidget);
-      expect(find.textContaining(u4PeerRevisionId), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('asset-save')),
-        -250,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const Key('asset-save')));
-      await tester.pumpAndSettle();
-      expect(find.text('Saved'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('asset-save')));
-      await tester.pumpAndSettle();
-      expect(find.text('Save research'), findsOneWidget);
-
-      await tester.scrollUntilVisible(
-        find.byKey(const Key('rowan-explain')),
-        400,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.byKey(const Key('rowan-explain')));
-      await tester.pumpAndSettle();
-      expect(
-        find.textContaining('Your research remains available'),
-        findsOneWidget,
-      );
-      expect(find.text('VIG'), findsOneWidget);
-
-      harness.rowanUnavailable = false;
-      await tester.tap(find.byKey(const Key('rowan-explain')));
-      await tester.pumpAndSettle();
-      expect(
-        find.text('Use the published evidence to compare uncertainty.'),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('u5-starpath-destination')), findsOneWidget);
 
       await tester.runAsync(() async {
         final assignment = await GeneratedRitualApiService(harness.client)
@@ -151,48 +99,28 @@ void _expectTransportBoundary(U4HttpHarness harness) {
     ),
     isTrue,
   );
-  final reveal = harness.requests.singleWhere(
-    (request) => request.uri.path.endsWith('/reveal'),
+  final transitions = harness.requests.where(
+    (request) => request.uri.path.endsWith('/transition'),
   );
-  final complete = harness.requests.singleWhere(
-    (request) => request.uri.path.endsWith('/complete'),
+  expect(transitions, hasLength(2));
+  final reveal = transitions.singleWhere(
+    (request) =>
+        (jsonDecode(request.body) as Map<String, dynamic>)['to'] == 'revealed',
+  );
+  final complete = transitions.singleWhere(
+    (request) =>
+        (jsonDecode(request.body) as Map<String, dynamic>)['to'] == 'completed',
   );
   expect(reveal.ifMatch, '"v1"');
   expect(complete.ifMatch, '"v2"');
-
-  final comparison = harness.requests.singleWhere(
-    (request) => request.uri.path == '/v1/assets/compare',
-  );
-  expect(jsonDecode(comparison.body), {
-    'asset_ids': [u4AssetId, u4PeerId],
-  });
-  final save = harness.requests.singleWhere(
-    (request) =>
-        request.method == 'PUT' &&
-        request.uri.path == '/v1/me/saved-assets/$u4AssetId',
-  );
-  expect(jsonDecode(save.body), {
-    'source_id': u4AssignmentId,
-    'source_kind': 'ritual',
-  });
-
-  final search = harness.requests.singleWhere(
-    (request) => request.uri.path == '/v1/search',
-  );
-  expect(search.uri.queryParameters['q'], 'pe');
+  expect(jsonDecode(reveal.body), {'from': 'assigned', 'to': 'revealed'});
+  expect(jsonDecode(complete.body), {'from': 'revealed', 'to': 'completed'});
   expect(
-    search.uri.queryParameters['kinds'],
-    'asset,circle_template,coven,grimoire',
+    harness.requests.where(
+      (request) => request.uri.path == '/v1/rituals/$u4AssignmentId/evidence',
+    ),
+    hasLength(1),
   );
-  final rowan = harness.requests.where(
-    (request) => request.uri.path == '/v1/rowan/counsel',
-  );
-  expect(rowan, hasLength(2));
-  expect(rowan.last.uri.queryParameters, {
-    'surface': 'asset_codex',
-    'context_code': 'asset',
-    'resource_id': u4AssetId,
-  });
 
   final serialized = harness.requests
       .map((request) => '${request.uri} ${request.body}')
@@ -216,7 +144,7 @@ class _U4FlowApp extends StatefulWidget {
 }
 
 class _U4FlowAppState extends State<_U4FlowApp> {
-  AssetCodexController? _assetController;
+  bool _starpathOpened = false;
 
   @override
   void initState() {
@@ -225,42 +153,46 @@ class _U4FlowAppState extends State<_U4FlowApp> {
   }
 
   @override
-  void dispose() {
-    _assetController?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) => MaterialApp(
     theme: AppTheme.light,
     darkTheme: AppTheme.dark,
-    home: _assetController != null
-        ? AssetCodexScreen(
-            controller: _assetController!,
-            rowanController: widget.harness.rowanController,
-            searchController: widget.harness.searchController,
-            personalization: const MemberPersonalization(
-              explanationDepth: MemberExplanationDepth.guided,
-              ritualVoice: MemberRitualVoice.practical,
-              riskFraming: MemberRiskFraming.high,
-            ),
-          )
-        : Scaffold(
-            body: DailyRitualScreen(
+    home: Scaffold(
+      body: _starpathOpened
+          ? const Center(
+              child: Text(
+                'Starpath destination',
+                key: Key('u5-starpath-destination'),
+              ),
+            )
+          : DailyRitualScreen(
               controller: widget.harness.ritualController,
               onOpenCoven: () {},
+              onOpenSearch: () {},
+              onOpenBriefings: () {},
               onToggleTheme: () {},
-              onOpenAsset: (id) {
-                final controller = widget.harness.assetController(assetId: id);
-                setState(() => _assetController = controller);
-                unawaited(controller.load());
-              },
-              personalization: const MemberPersonalization(
-                explanationDepth: MemberExplanationDepth.guided,
-                ritualVoice: MemberRitualVoice.practical,
-                riskFraming: MemberRiskFraming.high,
-              ),
+              onOpenStarpath: () => setState(() => _starpathOpened = true),
+              leonidasVoice: const _ImmediateLeonidasVoice(),
+              prepareExactMedia: (_) async => true,
             ),
+      bottomNavigationBar: NavigationBar(
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.auto_awesome),
+            label: 'Ritual',
           ),
+          NavigationDestination(icon: Icon(Icons.stars), label: 'Starpath'),
+        ],
+      ),
+    ),
   );
+}
+
+class _ImmediateLeonidasVoice implements LeonidasVoice {
+  const _ImmediateLeonidasVoice();
+
+  @override
+  Future<bool> speak(String text) async => true;
+
+  @override
+  Future<void> stop() async {}
 }

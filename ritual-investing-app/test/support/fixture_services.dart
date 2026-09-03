@@ -7,6 +7,9 @@ import 'package:ritual_investing_app/core/bootstrap/dependency_container.dart';
 import 'package:ritual_investing_app/core/bootstrap/entry_coordinator.dart';
 import 'package:ritual_investing_app/core/bootstrap/member_bootstrap.dart';
 import 'package:ritual_investing_app/core/cache/read_cache.dart';
+import 'package:ritual_investing_app/features/ai_analysis/application/controller.dart';
+import 'package:ritual_investing_app/features/ai_analysis/data/repository.dart';
+import 'package:ritual_investing_app/features/ai_analysis/domain/model.dart';
 import 'package:ritual_investing_app/features/asset_codex/data/repository.dart';
 import 'package:ritual_investing_app/features/asset_codex/domain/model.dart';
 import 'package:ritual_investing_app/features/briefings/application/briefing_controller.dart';
@@ -37,10 +40,12 @@ import 'package:ritual_investing_app/features/starpath/application/starpath_cont
 import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
 import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
+import 'package:ritual_investing_app/features/ritual/data/leonidas_voice_preference_store.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/search/application/controller.dart';
 import 'package:ritual_investing_app/features/search/data/repository.dart';
 import 'package:ritual_investing_app/features/search/domain/model.dart';
+import 'package:ritual_investing_app/internal_preview/ai_analysis_fixture.dart';
 
 class FeatureLoadTracker {
   final Map<MemberBranch, int> _counts = {};
@@ -80,6 +85,8 @@ DependencyContainer fixtureContainer({
   bool includeU11 = false,
   bool includeSearch = false,
   PrivacyRepository? privacyRepository,
+  DailyRitualController? dailyRitualController,
+  LeonidasVoicePreferencePersistence? leonidasVoicePreferenceStore,
   MemberCapabilityPolicy capabilityPolicy = MemberCapabilityPolicy.native,
 }) {
   final storage = cache ?? MemoryReadCache();
@@ -151,12 +158,17 @@ DependencyContainer fixtureContainer({
       return MemberFeatureScope(
         scope: scope,
         capabilityPolicy: capabilityPolicy,
-        dailyRitualController: DailyRitualController(
-          repository: DailyRitualRepository(
-            service: _FixtureRitualService(tracker),
-            cache: scopedCache,
-          ),
-        ),
+        dailyRitualController:
+            dailyRitualController ??
+            DailyRitualController(
+              repository: DailyRitualRepository(
+                service: _FixtureRitualService(tracker),
+                cache: scopedCache,
+              ),
+            ),
+        leonidasVoicePreferenceStore:
+            leonidasVoicePreferenceStore ??
+            LeonidasVoicePreferenceStore(_MemoryProtectedStorage()),
         starpathController: StarpathController(
           repository: StarpathRepository(
             service: _FixtureStarpathService(tracker),
@@ -170,6 +182,12 @@ DependencyContainer fixtureContainer({
             cache: scopedCache,
           ),
           personalization: bootstrap.personalization,
+        ),
+        aiAnalysisController: AiAnalysisController(
+          repository: AiAnalysisRepository(
+            service: _FixtureAiAnalysisService(),
+          ),
+          utcClock: () => DateTime.utc(2026, 9, 1, 12),
         ),
         covenController: CovenController(repository: covenRepository),
         profileController: ProfileController(
@@ -208,6 +226,11 @@ DependencyContainer fixtureContainer({
       );
     },
   );
+}
+
+class _FixtureAiAnalysisService implements AiAnalysisService {
+  @override
+  Future<AiAnalysisSnapshot> fetch() async => buildFixtureAiAnalysisSnapshot();
 }
 
 class _FixtureStarpathService implements StarpathService {
@@ -383,6 +406,9 @@ class _FixtureSessionBootstrapService implements SessionBootstrapService {
     defaultPortfolioId: 'fixture-portfolio',
     serverTime: DateTime.utc(2026, 8, 24),
     contractVersion: '1.0.0',
+    personalization: const MemberPersonalization(
+      ritualMode: MemberRitualMode.tarot,
+    ),
     themePreference: switch (state.theme) {
       ProfileTheme.system => MemberThemePreference.system,
       ProfileTheme.light => MemberThemePreference.light,

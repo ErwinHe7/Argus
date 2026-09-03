@@ -36,10 +36,11 @@ const _requestId = '00000000-0000-4000-8000-000000000407';
 const _token = 'u4-local-member-token';
 
 class U4HttpHarness {
-  U4HttpHarness._(this._server, this.client);
+  U4HttpHarness._(this._server, this.client, this._previousHttpOverrides);
 
   final HttpServer _server;
   final api.RitualInvestingApiClient client;
+  final HttpOverrides? _previousHttpOverrides;
   final List<U4CapturedRequest> requests = [];
   var ritualState = api.DailyRitualAssignmentStateEnum.assigned;
   var ritualVersion = 1;
@@ -73,14 +74,22 @@ class U4HttpHarness {
   );
 
   static Future<U4HttpHarness> start() async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final previousHttpOverrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    late final HttpServer server;
+    try {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    } catch (_) {
+      HttpOverrides.global = previousHttpOverrides;
+      rethrow;
+    }
     final client = api.RitualInvestingApiClient(
       basePathOverride: 'http://${server.address.address}:${server.port}',
       interceptors: [
         RitualAuthInterceptor(tokenProvider: const _TokenProvider()),
       ],
     );
-    final harness = U4HttpHarness._(server, client);
+    final harness = U4HttpHarness._(server, client, previousHttpOverrides);
     unawaited(harness._serve());
     return harness;
   }
@@ -98,12 +107,13 @@ class U4HttpHarness {
         ),
       );
 
-  Future<void> close() async {
-    ritualController.dispose();
+  Future<void> close({bool disposeRitualController = true}) async {
+    if (disposeRitualController) ritualController.dispose();
     searchController.dispose();
     rowanController.dispose();
     client.dio.close(force: true);
     await _server.close(force: true);
+    HttpOverrides.global = _previousHttpOverrides;
   }
 
   Future<void> _serve() async {
@@ -553,11 +563,13 @@ class U4HttpHarness {
     deletionEpoch: 0,
     id: u4AssignmentId,
     localDate: DateTime.utc(2026, 8, 25),
+    serverEvaluatedAt: DateTime.utc(2026, 8, 25, 12),
+    validUntil: DateTime.utc(2026, 8, 26, 4),
     mode: api.DailyRitualAssignmentModeEnum.tarot,
     payload: {
       'title': 'Direction, not urgency.',
-      'art_key': 'the_compass',
-      'art_alt': 'The Compass at a celestial crossroads',
+      'art_key': 'the_emperor',
+      'art_alt': 'The Emperor tarot card: a ruler sits on a ram-carved throne before mountains',
       'interpretation': 'Direction is an invitation, not an instruction.',
       'guidance': 'Inspect sources before choosing what to research.',
       'market_label': 'Market-informed Demo evidence',

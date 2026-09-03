@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
+import '../../../core/api/view_state.dart';
 import '../../../core/api/state_status.dart';
 import '../../../core/bootstrap/member_bootstrap.dart';
 import '../../../core/presentation/demo_disclosure.dart';
+import '../../ai_analysis/application/controller.dart';
+import '../../ai_analysis/domain/model.dart';
 import '../application/controller.dart';
 import '../domain/model.dart';
 
@@ -11,14 +14,18 @@ class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({
     super.key,
     required this.controller,
+    this.aiAnalysisController,
     this.onOpenSearch,
+    this.onOpenAiAnalysis,
     this.onOpenItem,
     this.onOpenCreator,
     this.onOpenPrivateCircles,
   });
 
   final DiscoverController controller;
+  final AiAnalysisController? aiAnalysisController;
   final VoidCallback? onOpenSearch;
+  final VoidCallback? onOpenAiAnalysis;
   final ValueChanged<DiscoverItemView>? onOpenItem;
   final ValueChanged<SeededCreatorView>? onOpenCreator;
   final VoidCallback? onOpenPrivateCircles;
@@ -81,6 +88,13 @@ class DiscoverScreen extends StatelessWidget {
                 ),
               ),
             ),
+            if (aiAnalysisController case final analysisController?) ...[
+              const SizedBox(height: 22),
+              _AiAnalysisEntry(
+                controller: analysisController,
+                onTap: onOpenAiAnalysis,
+              ),
+            ],
             if (lead != null) ...[
               const SizedBox(height: 26),
               Text(
@@ -127,7 +141,7 @@ class DiscoverScreen extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Fictional, read-only Demo voices with transparent authorship.',
+                'Fictional, read-only research voices with transparent authorship.',
               ),
               const SizedBox(height: 8),
               for (final creator in value.creators)
@@ -164,7 +178,7 @@ class DiscoverScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     const Text(
-                      'Organize Demo research privately. Only you can edit these collections.',
+                      'Organize research privately. Only you can edit these collections.',
                     ),
                     const SizedBox(height: 14),
                     SizedBox(
@@ -188,6 +202,190 @@ class DiscoverScreen extends StatelessWidget {
   }
 }
 
+class _AiAnalysisEntry extends StatelessWidget {
+  const _AiAnalysisEntry({required this.controller, required this.onTap});
+
+  final AiAnalysisController controller;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: controller,
+    builder: (context, _) {
+      final state = controller.state;
+      final snapshot = state.value;
+      final isReady = state.phase == LoadPhase.ready && snapshot != null;
+      final colors = context.ritualColors;
+
+      return Semantics(
+        button: isReady && onTap != null,
+        label: isReady
+            ? 'AI Analysis. ${snapshot.riskRegime.levelLabel} market risk. '
+                  '${snapshot.models.length} historical research portfolios. '
+                  'Open dated analysis.'
+            : 'AI Analysis is not currently available with fresh data.',
+        child: Material(
+          color: colors.screenSoft,
+          borderRadius: BorderRadius.circular(16),
+          child: InkWell(
+            key: const Key('discover-ai-analysis'),
+            borderRadius: BorderRadius.circular(16),
+            onTap: isReady ? onTap : null,
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: colors.primarySoft,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: Icon(Icons.insights_outlined),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  'AI Analysis',
+                                  style: Theme.of(context).textTheme.titleLarge,
+                                ),
+                                if (snapshot?.isDemo ?? false)
+                                  const DemoBadge(horizontalPadding: 9),
+                              ],
+                            ),
+                            const SizedBox(height: 5),
+                            const Text(
+                              'AI strategies, public portfolios, and dated market-risk monitoring.',
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (isReady) const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  if (isReady)
+                    _AiAnalysisEntrySummary(snapshot: snapshot)
+                  else
+                    _AiAnalysisEntryStatus(
+                      phase: state.phase,
+                      onRetry: controller.load,
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+class _AiAnalysisEntrySummary extends StatelessWidget {
+  const _AiAnalysisEntrySummary({required this.snapshot});
+
+  final AiAnalysisSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    final regime = snapshot.riskRegime;
+    return Wrap(
+      spacing: 18,
+      runSpacing: 10,
+      children: [
+        _EntryFact(
+          icon: _riskIcon(regime.level),
+          label: '${regime.levelLabel} risk pressure',
+          key: const Key('discover-ai-risk-level'),
+        ),
+        _EntryFact(
+          icon: Icons.query_stats_outlined,
+          label: '${snapshot.models.length} research portfolios',
+        ),
+        _EntryFact(
+          icon: Icons.schedule_outlined,
+          label: 'Updated ${_date(snapshot.observedAt)}',
+          key: const Key('discover-ai-risk-as-of'),
+        ),
+      ],
+    );
+  }
+}
+
+class _EntryFact extends StatelessWidget {
+  const _EntryFact({super.key, required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Icon(icon, size: 18, color: context.ritualColors.gold),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelLarge
+              ?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ),
+    ],
+  );
+}
+
+class _AiAnalysisEntryStatus extends StatelessWidget {
+  const _AiAnalysisEntryStatus({required this.phase, required this.onRetry});
+
+  final LoadPhase phase;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    if (phase == LoadPhase.loading || phase == LoadPhase.idle) {
+      return const Row(
+        children: [
+          SizedBox.square(
+            dimension: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 10),
+          Expanded(child: Text('Checking the latest dated snapshot…')),
+        ],
+      );
+    }
+    final canRetry = phase == LoadPhase.retryableFailure;
+    return Row(
+      children: [
+        const Icon(Icons.info_outline),
+        const SizedBox(width: 8),
+        const Expanded(
+          child: Text(
+            'Fresh analysis is unavailable. Old market-risk alerts are never reused.',
+          ),
+        ),
+        if (canRetry)
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+      ],
+    );
+  }
+}
+
 class _EditorialLead extends StatelessWidget {
   const _EditorialLead({
     required this.item,
@@ -204,7 +402,7 @@ class _EditorialLead extends StatelessWidget {
     final colors = context.ritualColors;
     return Semantics(
       button: onTap != null,
-      label: '${item.title}, personalized Demo research',
+      label: '${item.title}, personalized research',
       child: Material(
         color: colors.coven,
         borderRadius: BorderRadius.circular(18),
@@ -281,7 +479,7 @@ class _ResearchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     button: onTap != null,
-    label: '${item.title}, ${_kindLabel(item.kind)}, read-only Demo research',
+    label: '${item.title}, ${_kindLabel(item.kind)}, read-only research',
     child: ListTile(
       key: const Key('discover-secondary'),
       contentPadding: const EdgeInsets.symmetric(vertical: 6),
@@ -310,7 +508,7 @@ class _CreatorRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     button: onTap != null,
-    label: '${creator.displayName}, fictional read-only Demo creator',
+    label: '${creator.displayName}, fictional read-only research profile',
     child: ListTile(
       key: Key('discover-creator-${creator.id}'),
       contentPadding: const EdgeInsets.symmetric(vertical: 5),
@@ -324,7 +522,7 @@ class _CreatorRow extends StatelessWidget {
         creator.displayName,
         style: const TextStyle(fontWeight: FontWeight.w700),
       ),
-      subtitle: Text('${creator.bio} · Fictional Demo creator'),
+      subtitle: Text('${creator.bio} · Fictional research profile'),
       trailing: const Icon(Icons.chevron_right),
     ),
   );
@@ -379,6 +577,13 @@ IconData _kindIcon(DiscoverItemKind kind) => switch (kind) {
   DiscoverItemKind.grimoire => Icons.menu_book_outlined,
   DiscoverItemKind.circleTemplate => Icons.blur_circular_outlined,
   DiscoverItemKind.coven => Icons.nightlight_outlined,
+};
+
+IconData _riskIcon(MarketRiskLevel level) => switch (level) {
+  MarketRiskLevel.normal => Icons.check_circle_outline,
+  MarketRiskLevel.watch => Icons.visibility_outlined,
+  MarketRiskLevel.elevated => Icons.warning_amber_rounded,
+  MarketRiskLevel.highStress => Icons.crisis_alert_outlined,
 };
 
 String _date(DateTime value) {

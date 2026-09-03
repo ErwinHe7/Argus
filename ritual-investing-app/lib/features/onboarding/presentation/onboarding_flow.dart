@@ -791,8 +791,8 @@ class OnboardingReviewScreen extends StatelessWidget {
                       _ReviewConsent(
                         key: const Key('consent-demo'),
                         value: controller.draft.demoAccepted,
-                        title: 'Demo disclosure · version 2026-08',
-                        subtitle: 'I understand this is a Demo and no real money moves.',
+                        title: 'Simulation disclosure · version 2026-08',
+                        subtitle: 'I understand this experience includes simulated research and no real money moves.',
                         onChanged: (value) => _setConsent(demo: value),
                       ),
                       const SizedBox(height: 18),

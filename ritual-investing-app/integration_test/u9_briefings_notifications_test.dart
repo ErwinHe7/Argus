@@ -34,13 +34,25 @@ void main() {
       await tester.pumpAndSettle();
 
       await _tapVisible(tester, find.byKey(const Key('u9-open-briefings')));
+      await _pumpUntil(
+        tester,
+        () => find.text('Moon-cycle recap').evaluate().isNotEmpty,
+      );
       expect(find.textContaining('Symbolic reflection'), findsOneWidget);
       expect(find.text('Moon-cycle recap'), findsOneWidget);
       await _tapVisible(tester, find.text('Moon-cycle recap'));
+      await _pumpUntil(
+        tester,
+        () => find.textContaining('summary v1').evaluate().isNotEmpty,
+      );
       expect(find.textContaining('summary v1'), findsOneWidget);
       expect(find.text('Source sequence 44'), findsOneWidget);
       expect(find.textContaining('not financial advice'), findsWidgets);
       await _tapVisible(tester, find.byKey(const Key('briefing-read-toggle')));
+      await _pumpUntil(
+        tester,
+        () => harness.has('PUT', '/v1/briefings/$_briefingId/read-state'),
+      );
       expect(
         harness.single('PUT', '/v1/briefings/$_briefingId/read-state').body,
         {'read': true},
@@ -51,6 +63,10 @@ void main() {
       await tester.pumpAndSettle();
 
       await _tapVisible(tester, find.byKey(const Key('u9-open-notifications')));
+      await _pumpUntil(
+        tester,
+        () => find.textContaining('In-app only').evaluate().isNotEmpty,
+      );
       expect(find.textContaining('Symbolic inbox'), findsOneWidget);
       expect(find.textContaining('In-app only'), findsOneWidget);
       expect(find.textContaining('push token'), findsNothing);
@@ -63,6 +79,10 @@ void main() {
       await _tapVisible(
         tester,
         find.byKey(const Key('notification-preferences-save')),
+      );
+      await _pumpUntil(
+        tester,
+        () => harness.has('PATCH', '/v1/me/notification-preferences'),
       );
       final patch = harness.single('PATCH', '/v1/me/notification-preferences');
       expect(patch.ifMatch, '"v3"');
@@ -81,6 +101,10 @@ void main() {
       await _tapVisible(
         tester,
         find.byKey(const Key('notifications-confirm-read-all')),
+      );
+      await _pumpUntil(
+        tester,
+        () => harness.has('POST', '/v1/notifications/read-all'),
       );
       final readAll = harness.single('POST', '/v1/notifications/read-all');
       expect(readAll.idempotencyKey, 'u9-integration-read-all');
@@ -114,6 +138,29 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
   await tester.tap(finder);
   await tester.pumpAndSettle();
+}
+
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 10),
+  Duration pollInterval = const Duration(milliseconds: 100),
+}) async {
+  final stopwatch = Stopwatch()..start();
+  while (!condition()) {
+    final remaining = timeout - stopwatch.elapsed;
+    if (remaining <= Duration.zero) break;
+    final delay = remaining < pollInterval ? remaining : pollInterval;
+    await tester.runAsync<void>(() => Future<void>.delayed(delay));
+    await tester.pump();
+  }
+  stopwatch.stop();
+  expect(
+    condition(),
+    isTrue,
+    reason: 'Timed out waiting for loopback UI state.',
+  );
+  await tester.pump();
 }
 
 class _FlowApp extends StatefulWidget {
@@ -247,27 +294,40 @@ class _Storage implements ProtectedStorage {
 }
 
 class _Harness {
-  _Harness._(this.server, this.client);
+  _Harness._(this.server, this.client, this._previousHttpOverrides);
 
   final HttpServer server;
   final RitualInvestingApiClient client;
+  final HttpOverrides? _previousHttpOverrides;
   final List<_Request> requests = [];
   bool briefingRead = false;
   bool allRead = false;
   bool dailyEnabled = true;
 
   static Future<_Harness> start() async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final previousHttpOverrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    late final HttpServer server;
+    try {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    } catch (_) {
+      HttpOverrides.global = previousHttpOverrides;
+      rethrow;
+    }
     final client = RitualInvestingApiClient(
       basePathOverride: 'http://${server.address.address}:${server.port}',
       interceptors: [RitualAuthInterceptor(tokenProvider: const _Token())],
     );
-    final harness = _Harness._(server, client);
+    final harness = _Harness._(server, client, previousHttpOverrides);
     unawaited(harness._serve());
     return harness;
   }
 
   _Request single(String method, String path) => requests.singleWhere(
+    (request) => request.method == method && request.path == path,
+  );
+
+  bool has(String method, String path) => requests.any(
     (request) => request.method == method && request.path == path,
   );
 
@@ -380,6 +440,7 @@ class _Harness {
   Future<void> close() async {
     client.dio.close(force: true);
     await server.close(force: true);
+    HttpOverrides.global = _previousHttpOverrides;
   }
 }
 

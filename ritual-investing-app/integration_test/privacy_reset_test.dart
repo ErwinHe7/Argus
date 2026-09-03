@@ -64,13 +64,23 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('privacy-export-request')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.text('Export status: queued').evaluate().isNotEmpty,
+      );
       expect(find.text('Export status: queued'), findsOneWidget);
       await tester.tap(find.byKey(const Key('privacy-export-refresh')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () =>
+            find.byKey(const Key('privacy-export-share')).evaluate().isNotEmpty,
+      );
       expect(find.byKey(const Key('privacy-export-share')), findsOneWidget);
       await tester.tap(find.byKey(const Key('privacy-export-share')));
-      await tester.pumpAndSettle();
+      await _pumpUntil(
+        tester,
+        () => find.textContaining('shared and removed').evaluate().isNotEmpty,
+      );
 
       expect(find.textContaining('shared and removed'), findsOneWidget);
       expect(sharedPaths, hasLength(1));
@@ -105,6 +115,7 @@ void main() {
         tester,
         find.byKey(const Key('privacy-deletion-confirm')),
       );
+      await _pumpUntil(tester, () => deletionAccepted == 1);
 
       expect(deletionAccepted, 1);
       expect(harness.accountInactive, isTrue);
@@ -161,11 +172,35 @@ Future<void> _tapVisible(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 10),
+  Duration pollInterval = const Duration(milliseconds: 100),
+}) async {
+  final stopwatch = Stopwatch()..start();
+  while (!condition()) {
+    final remaining = timeout - stopwatch.elapsed;
+    if (remaining <= Duration.zero) break;
+    final delay = remaining < pollInterval ? remaining : pollInterval;
+    await tester.runAsync<void>(() => Future<void>.delayed(delay));
+    await tester.pump();
+  }
+  stopwatch.stop();
+  expect(
+    condition(),
+    isTrue,
+    reason: 'Timed out waiting for loopback UI state.',
+  );
+  await tester.pump();
+}
+
 class _Harness {
-  _Harness._(this.server, this.client);
+  _Harness._(this.server, this.client, this._previousHttpOverrides);
 
   final HttpServer server;
   final RitualInvestingApiClient client;
+  final HttpOverrides? _previousHttpOverrides;
   final List<_Request> requests = [];
   final List<String> statusTokens = [];
   final List<String> downloadTokens = [];
@@ -177,14 +212,22 @@ class _Harness {
   String get baseUrl => 'http://${server.address.address}:${server.port}';
 
   static Future<_Harness> start() async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final previousHttpOverrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    late final HttpServer server;
+    try {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    } catch (_) {
+      HttpOverrides.global = previousHttpOverrides;
+      rethrow;
+    }
     final client = RitualInvestingApiClient(
       basePathOverride: 'http://${server.address.address}:${server.port}',
       interceptors: [
         RitualAuthInterceptor(tokenProvider: const _TokenProvider()),
       ],
     );
-    final harness = _Harness._(server, client);
+    final harness = _Harness._(server, client, previousHttpOverrides);
     unawaited(harness._serve());
     return harness;
   }
@@ -233,7 +276,11 @@ class _Harness {
     }
   }
 
-  Future<void> close() => server.close(force: true);
+  Future<void> close() async {
+    client.dio.close(force: true);
+    await server.close(force: true);
+    HttpOverrides.global = _previousHttpOverrides;
+  }
 }
 
 void _json(HttpRequest request, Map<String, Object?> body) {

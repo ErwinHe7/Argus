@@ -144,12 +144,14 @@ export function registerBrokerageRoutes(
     if (
       origin !== undefined &&
       context.env.consumerOrigins.includes(origin) &&
+      context.env.webAdmission === "contained" &&
       body.action !== "argus_delete"
     ) {
       throw new HttpBoundaryError(
         503,
-        "web_capability_unavailable",
-        "This capability is not available on the public beta website.",
+        "web_admission_closed",
+        "Public beta web traffic is temporarily contained.",
+        true,
       );
     }
     const authenticatedAt = context.get("principal").authenticatedAt;

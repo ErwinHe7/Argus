@@ -151,6 +151,8 @@ function ritualProjection(
     user_id: userA,
     deletion_epoch: "0",
     local_date: "2026-08-29",
+    server_evaluated_at: "2026-08-29T16:00:00.000Z",
+    valid_until: "2026-08-30T04:00:00.000Z",
     mode: "tarot",
     schedule_id: "018f3c2a-4b67-7a89-8abc-123456789022",
     revision_id: "018f3c2a-4b67-7a89-8abc-123456789023",

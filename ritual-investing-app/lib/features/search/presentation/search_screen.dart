@@ -73,7 +73,7 @@ class _SearchScreenState extends State<SearchScreen> {
               onChanged: _controller.updateQuery,
               textInputAction: TextInputAction.search,
               decoration: const InputDecoration(
-                labelText: 'Search published Demo research',
+                labelText: 'Search published research',
                 helperText: 'Enter at least 2 characters',
                 prefixIcon: Icon(Icons.search),
               ),

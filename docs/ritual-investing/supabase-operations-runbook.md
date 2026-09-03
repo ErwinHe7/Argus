@@ -19,24 +19,38 @@ token.
 
 Pull requests, pushes, and ordinary manual CI runs continue to use fresh local
 stacks so untrusted or unapproved code never receives hosted credentials. The
-ordinary `.github/workflows/ritual-investing.yml` workflow has no hosted schema,
-Edge, secret, fence, or deployment mutation authority. Approved remediation
-promotions use only the separate
+ordinary `.github/workflows/ritual-investing-ci.yml` workflow has no hosted
+schema, Edge, secret, fence, or deployment mutation authority. Approved
+remediation promotions use only the separate manual
 `.github/workflows/ritual-investing-supabase-remediation.yml` workflow and
-target the dedicated Supabase beta project. The replaceable staging branch and
-the production project are both forbidden release targets. The beta project
-has its own database, Auth, API credentials, Edge secrets, Cron, Queues, and
-Storage boundary.
+target the dedicated Supabase staging project. The provider still exposes the
+historical physical branch label `beta` for project ref `zbgjjufjkhfhirbuuolv`;
+that unrenameable provider identity maps only to logical `staging` and is not a
+fourth environment. The production project is a forbidden remediation target.
+The staging project has its own database, Auth, API credentials, Edge secrets,
+Cron, Queues, and Storage boundary.
 
-## Hosted-development promotion
+## Hosted staging remediation
 
 Only an explicit `workflow_dispatch` run may enter the protected
-`ritual-supabase-remediation` GitHub environment. Pushes never promote. Its
-project variables and database credentials must resolve to the persistent
-Supabase `beta` branch, never the parent production branch. Promotions are
-serialized and never cancel an in-flight deployment. Environment reviewers
-approve exact manifest-bound values; approval of a prior run or similarly named
-target does not carry forward.
+`ritual-supabase-remediation` GitHub authority environment. This is an
+existing protected authority lane, not a fourth deployment environment, and
+pushes never run this backend remediation. The
+credential-free preflight selects one canonical main Fast CI run, its exact
+attempt, retained artifact ID, source SHA, archive digest, and manifest digest.
+It verifies the release contract, independently checks out the source and
+workflow controller, and byte-compares the frozen migrations, functions, and
+inventories. Only that independent source checkout may execute. The serialized
+staging job then rechecks those bytes before any mutation. Existing authority
+reviewers approve the exact manifest-bound values; no branch protection,
+required status check, or push gate is added.
+
+Staging variables and credentials must resolve to the logical staging project
+(the legacy physical provider label described above), never production.
+Promotions never cancel an in-flight deployment. A frozen source inventory is
+provenance, not proof that hosted schema or functions are current: static
+content requiring new backend behavior remains blocked until a matching,
+unexpired staging backend receipt exists.
 
 Before any fence or remote mutation, the operator prepares the canonical JSON
 specified by `supabase-promotion-manifest.md`. The workflow recomputes its

@@ -8,8 +8,12 @@ import 'package:ritual_investing_app/core/navigation/member_app_router.dart';
 
 const demoCurrentProtocolVersion = 2;
 const demoPreviousProtocolVersion = 1;
+const demoSupportedProtocolVersions = [
+  demoCurrentProtocolVersion,
+  demoPreviousProtocolVersion,
+];
 
-enum DemoEnvironment { production, beta }
+enum DemoEnvironment { prod, staging }
 
 enum DemoFrameEventType { ready, error }
 
@@ -20,9 +24,16 @@ class DemoFrameIdentity {
   final String attemptId;
 
   factory DemoFrameIdentity.fromUri(Uri uri) {
-    final environment = uri.queryParameters['environment'] == 'beta'
-        ? DemoEnvironment.beta
-        : DemoEnvironment.production;
+    final environment = switch (uri.queryParameters['environment']) {
+      'prod' => DemoEnvironment.prod,
+      'staging' => DemoEnvironment.staging,
+      null when uri.host == 'demo.just-build-this.app' => DemoEnvironment.prod,
+      null when uri.host == 'demo-staging.just-build-this.app' =>
+        DemoEnvironment.staging,
+      _ => throw const FormatException(
+        'Demo environment must be exactly prod or staging.',
+      ),
+    };
     final rawAttempt = uri.queryParameters['attempt'];
     final attempt =
         rawAttempt != null &&
@@ -47,8 +58,8 @@ class DemoFrameEvent {
   final String attemptId;
 
   String get targetOrigin => switch (environment) {
-    DemoEnvironment.production => 'https://just-build-this.app',
-    DemoEnvironment.beta => 'https://beta.just-build-this.app',
+    DemoEnvironment.prod => 'https://just-build-this.app',
+    DemoEnvironment.staging => 'https://staging.just-build-this.app',
   };
 
   Map<String, Object> toMessage() => {
@@ -132,10 +143,7 @@ class _DemoRitualInvestingAppState extends State<DemoRitualInvestingApp> {
   }
 
   void _sendCompatible(DemoFrameEventType type) {
-    for (final version in const [
-      demoCurrentProtocolVersion,
-      demoPreviousProtocolVersion,
-    ]) {
+    for (final version in demoSupportedProtocolVersions) {
       widget.frameChannel.send(
         DemoFrameEvent(
           type: type,
@@ -195,10 +203,7 @@ class _DemoStartupFailureAppState extends State<DemoStartupFailureApp> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      for (final version in const [
-        demoCurrentProtocolVersion,
-        demoPreviousProtocolVersion,
-      ]) {
+      for (final version in demoSupportedProtocolVersions) {
         widget.frameChannel.send(
           DemoFrameEvent(
             type: DemoFrameEventType.error,

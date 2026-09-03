@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../features/asset_codex/data/repository.dart';
+import '../../features/ai_analysis/application/controller.dart';
 import '../../features/briefings/application/briefing_controller.dart';
 import '../../features/brokerage_connection/application/controller.dart';
 import '../../features/circles/data/repository.dart';
@@ -17,6 +18,8 @@ import '../../features/privacy/application/privacy_controller.dart';
 import '../../features/profile/application/controller.dart';
 import '../../features/public_beta/domain/member_capability_policy.dart';
 import '../../features/ritual/application/daily_ritual_controller.dart';
+import '../../features/ritual/data/leonidas_voice_preference_store.dart';
+import '../../features/ritual/domain/daily_ritual.dart';
 import '../../features/rowan/application/controller.dart';
 import '../../features/search/application/controller.dart';
 import '../../features/starpath/application/starpath_controller.dart';
@@ -36,6 +39,7 @@ class MemberFeatureScope {
   MemberFeatureScope({
     required this.scope,
     required this.dailyRitualController,
+    required this.leonidasVoicePreferenceStore,
     required this.starpathController,
     required this.discoverController,
     required this.covenController,
@@ -43,6 +47,7 @@ class MemberFeatureScope {
     required this.invalidationBus,
     this.capabilityPolicy = MemberCapabilityPolicy.native,
     this.brokerageConnectionController,
+    this.aiAnalysisController,
     this.brokeragePortfolioController,
     this.assetCodexRepository,
     this.searchController,
@@ -60,8 +65,10 @@ class MemberFeatureScope {
 
   final CacheScope scope;
   final DailyRitualController dailyRitualController;
+  final LeonidasVoicePreferencePersistence leonidasVoicePreferenceStore;
   final StarpathController starpathController;
   final DiscoverController discoverController;
+  final AiAnalysisController? aiAnalysisController;
   final CovenController covenController;
   final ProfileController profileController;
   final MemberCapabilityPolicy capabilityPolicy;
@@ -99,6 +106,12 @@ class MemberFeatureScope {
     briefingController?.updatePersonalization(bootstrap.personalization);
     notificationController?.updatePersonalization(bootstrap.personalization);
     privacyController?.updatePersonalization(bootstrap.personalization);
+    if (dailyRitualController.updateMode(
+          dailyRitualModeFor(bootstrap.personalization.ritualMode),
+        ) &&
+        _loads.remove(MemberBranch.ritual) != null) {
+      unawaited(load(MemberBranch.ritual));
+    }
   }
 
   Future<void> load(MemberBranch branch) {
@@ -110,7 +123,10 @@ class MemberFeatureScope {
         case MemberBranch.starpath:
           await starpathController.load();
         case MemberBranch.discover:
-          await discoverController.load();
+          await Future.wait(<Future<void>>[
+            discoverController.load(),
+            if (aiAnalysisController case final controller?) controller.load(),
+          ]);
         case MemberBranch.coven:
           await covenController.load();
         case MemberBranch.you:
@@ -133,6 +149,7 @@ class MemberFeatureScope {
     dailyRitualController.dispose();
     starpathController.dispose();
     discoverController.dispose();
+    aiAnalysisController?.dispose();
     covenController.dispose();
     profileController.dispose();
     brokerageConnectionController?.dispose();
@@ -147,3 +164,9 @@ class MemberFeatureScope {
     rowanController?.dispose();
   }
 }
+
+DailyRitualMode dailyRitualModeFor(MemberRitualMode mode) => switch (mode) {
+  MemberRitualMode.tarot => DailyRitualMode.tarot,
+  MemberRitualMode.astrology => DailyRitualMode.astrology,
+  MemberRitualMode.unavailable => DailyRitualMode.unknown,
+};

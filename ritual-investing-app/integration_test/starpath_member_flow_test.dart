@@ -19,6 +19,17 @@ import 'package:ritual_investing_app/features/starpath/domain/starpath.dart';
 import 'package:ritual_investing_app/features/starpath/presentation/starpath_lesson_screen.dart';
 import 'package:ritual_investing_app/features/starpath/presentation/starpath_screen.dart';
 
+const _investmentLessonHeadings = <List<String>>[
+  ['What Is Investing?', 'What Is a Stock?'],
+  ['Why Do Prices Move?', 'How the Market Works'],
+  ['Indexes and the S&P 500', 'SPX, SPY, VOO, and ETFs'],
+  ['One Stock or a Basket?', 'The Three Principles of Investing'],
+  ['What Is a Portfolio?', 'Allocation and Concentration'],
+  ['Risk, Volatility, and Drawdown', 'Compounding'],
+  ['Research an Investment'],
+  ['Make a Sample Investment'],
+];
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   registerStarpathMemberFlowTests();
@@ -26,7 +37,7 @@ void main() {
 
 void registerStarpathMemberFlowTests() {
   testWidgets(
-    'generated member boundary completes the factual eight-node path',
+    'projects eight progress nodes into four open Investment constellations and records progress',
     (tester) async {
       late _StarpathHttpHarness harness;
       await tester.runAsync(() async {
@@ -43,7 +54,49 @@ void registerStarpathMemberFlowTests() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Begin Starpath'), findsOneWidget);
+      expect(find.text('Your Investment path'), findsOneWidget);
+      expect(
+        find.byKey(const Key('starpath-universe-selector')),
+        findsOneWidget,
+      );
+      expect(find.text('Investment'), findsOneWidget);
+      expect(find.text('Trading'), findsOneWidget);
+      expect(
+        find.text('4 constellations · 14 short lessons · all open'),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('starpath-start-progress')), findsOneWidget);
+      for (var ordinal = 1; ordinal <= 4; ordinal += 1) {
+        expect(
+          find.byKey(Key('investment-constellation-$ordinal')),
+          findsOneWidget,
+        );
+      }
+      expect(find.byKey(const Key('investment-constellation-5')), findsNothing);
+
+      final requestsBeforeUniverseSwitch = harness.requests.length;
+      await tester.tap(find.text('Trading'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('starpath-trade-roadmap')), findsOneWidget);
+      expect(find.text('Reading the Market'), findsOneWidget);
+      expect(find.text('Price Action'), findsOneWidget);
+      expect(find.text('Execution & Risk'), findsOneWidget);
+      expect(find.text('Advanced Markets'), findsOneWidget);
+      for (var ordinal = 1; ordinal <= 4; ordinal += 1) {
+        expect(
+          find.byKey(Key('trading-constellation-$ordinal')),
+          findsOneWidget,
+        );
+      }
+      expect(find.byKey(const Key('trading-constellation-5')), findsNothing);
+      expect(harness.requests, hasLength(requestsBeforeUniverseSwitch));
+
+      await tester.tap(find.text('Investment'));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const Key('investment-constellation-1')),
+        findsOneWidget,
+      );
 
       await tester.runAsync(harness.controller.start);
       await tester.pumpAndSettle();
@@ -51,20 +104,27 @@ void registerStarpathMemberFlowTests() {
       expect(harness.controller.state.snapshot?.nodes, hasLength(8));
       expect(harness.controller.state.snapshot?.currentNode?.nodeOrdinal, 1);
 
-      final firstNode = find.byKey(const Key('starpath-node-1'));
-      await tester.tap(
-        find.descendant(of: firstNode, matching: find.byType(InkWell)),
+      final firstConstellation = find.byKey(
+        const Key('investment-constellation-1'),
       );
+      await tester.ensureVisible(firstConstellation);
+      await tester.pumpAndSettle();
+      await tester.tap(firstConstellation);
       await tester.pumpAndSettle();
       expect(find.byType(StarpathLessonScreen), findsOneWidget);
+      expect(find.text('Constellation 1 of 4'), findsOneWidget);
+      for (var lesson = 1; lesson <= 4; lesson += 1) {
+        expect(
+          find.byKey(Key('starpath-constellation-1-lesson-$lesson')),
+          findsOneWidget,
+        );
+      }
+      expect(
+        find.byKey(const Key('starpath-constellation-1-lesson-5')),
+        findsNothing,
+      );
 
-      await _scrollLessonTo(tester, 'Draw a card');
-      await tester.tap(find.byKey(const Key('starpath-reveal-card')));
-      await tester.pumpAndSettle();
-      await _scrollLessonTo(tester, 'Reveal the financial fact');
-      await tester.tap(find.byKey(const Key('starpath-reveal-fact')));
-      await tester.pumpAndSettle();
-      await _scrollLessonTo(tester, 'Test what you understand');
+      await _scrollLessonTo(tester, 'Quick check');
       await tester.tap(find.byKey(const Key('starpath-open-check')));
       await tester.pumpAndSettle();
       await _scrollLessonTo(tester, 'Guaranteed return');
@@ -78,7 +138,9 @@ void registerStarpathMemberFlowTests() {
       await tester.runAsync(() => harness.controller.answer('option-a-1'));
       await tester.pumpAndSettle();
       expect(harness.controller.state.snapshot?.currentNode?.nodeOrdinal, 2);
-      await tester.tap(find.byTooltip('Close activity'));
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Return to StarPath'));
       await tester.pumpAndSettle();
 
       for (var ordinal = 2; ordinal <= 8; ordinal += 1) {
@@ -97,8 +159,11 @@ void registerStarpathMemberFlowTests() {
         ),
         isTrue,
       );
-      expect(find.byKey(const Key('starpath-node-8')), findsOneWidget);
-      expect(find.byKey(const Key('starpath-node-9')), findsNothing);
+      expect(
+        find.byKey(const Key('investment-constellation-4')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const Key('investment-constellation-5')), findsNothing);
       expect(harness.answerMutations, 9);
       expect(
         harness.commandKeys.toSet(),
@@ -442,11 +507,12 @@ class _StarpathHttpHarness {
             'Picture a steady star marking a definition, never an outcome.',
         'factual_summary':
             'A share generally represents an ownership interest in an issuer.',
-        'factual_sections': [
-          {
-            'ordinal': 1,
+        'factual_sections': List.generate(
+          _investmentLessonHeadings[index].length,
+          (sectionIndex) => {
+            'ordinal': sectionIndex + 1,
             'kind': 'fact',
-            'heading': 'Ownership units',
+            'heading': _investmentLessonHeadings[index][sectionIndex],
             'body': 'Common stock generally represents an ownership interest.',
             'uncertainty': 'Rights vary by security and governing documents.',
             'observed_at': '2026-08-29T00:00:00.000Z',
@@ -464,7 +530,7 @@ class _StarpathHttpHarness {
               },
             ],
           },
-        ],
+        ),
         'material_limitations': 'Share classes and rights differ.',
         'risk_context': 'Market value may fall, including to zero.',
         'recall_prompt': 'What does a share generally represent?',

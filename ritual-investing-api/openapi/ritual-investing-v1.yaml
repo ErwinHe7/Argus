@@ -2426,6 +2426,9 @@ components:
         schedule_id:
           format: uuid
           type: string
+        server_evaluated_at:
+          format: date-time
+          type: string
         state:
           enum:
             - assigned
@@ -2434,6 +2437,9 @@ components:
           type: string
         user_id:
           format: uuid
+          type: string
+        valid_until:
+          format: date-time
           type: string
         version:
           exclusiveMinimum: true
@@ -2444,6 +2450,8 @@ components:
         - user_id
         - deletion_epoch
         - local_date
+        - server_evaluated_at
+        - valid_until
         - mode
         - schedule_id
         - revision_id
@@ -29438,6 +29446,7 @@ paths:
           application/json:
             schema:
               additionalProperties: false
+              description: "Only adjacent lifecycle edges are accepted: assigned to revealed or revealed to completed."
               properties:
                 from:
                   enum:

@@ -154,7 +154,7 @@ done <"$transitive_file"
 discover_supabase_surfaces >"$surface_file"
 sed -n '3,$p' "$boundary_manifest" >"$recorded_inventory"
 test -s "$recorded_inventory" || fail "boundary manifest has no registered surfaces"
-if rg -n -v '^[A-Za-z0-9_.@/+ -]+$' "$recorded_inventory"; then
+if rg -n -v '^[A-Za-z0-9_.@/+ \[\]-]+$' "$recorded_inventory"; then
   fail "boundary manifest contains a malformed direct-surface path"
 fi
 if ! cmp -s "$surface_file" "$recorded_inventory"; then

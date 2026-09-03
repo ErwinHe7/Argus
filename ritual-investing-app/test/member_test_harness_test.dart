@@ -33,7 +33,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Complete onboarding to continue.'), findsOneWidget);
+    expect(find.text('Add your birth date to finish setup.'), findsOneWidget);
     expect(find.byKey(const Key('app-shell-scaffold')), findsNothing);
   });
 }

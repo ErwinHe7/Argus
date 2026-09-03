@@ -5,7 +5,7 @@ import test from 'node:test';
 const repositoryRoot = new URL('../', import.meta.url);
 const source = (relativePath) => readFile(new URL(relativePath, repositoryRoot), 'utf8');
 
-test('research, astrology, plans, and membership routes are connected without dead anchors', async () => {
+test('Leo app, plans, and account routes are connected without dead anchors', async () => {
   const [shell, nav, footer, chat] = await Promise.all([
     source('components/AppShell.tsx'),
     source('components/Nav.tsx'),
@@ -17,21 +17,17 @@ test('research, astrology, plans, and membership routes are connected without de
     shell,
     /const isResearchHome =[\s\S]*pathname === '\/'[\s\S]*pathname === '\/acceptance\/research'/
   );
-  for (const route of ['/', '/#research-workspace', '/apps/astrology', '/pricing', '/billing']) {
+  for (const route of ['/', '/app/', '/pricing']) {
     assert.ok(nav.includes(`href="${route}"`), `Nav is missing ${route}`);
   }
-  assert.match(footer, /\{ href: '\/#research-workspace', label: 'Research workspace' \}/);
-  assert.match(footer, /\{ href: '\/apps\/astrology', label: 'Astrology app' \}/);
-  assert.match(footer, /\{ href: '\/pricing', label: 'Plans' \}/);
-  assert.match(footer, /\{ href: '\/billing', label: 'Membership' \}/);
-  assert.doesNotMatch(`${nav}\n${footer}`, /\/#(?:overview|pricing)/);
+  assert.match(footer, /\{ href: '\/app\/', label: 'Open Leo' \}/);
+  assert.match(footer, /\{ href: '\/pricing', label: 'Plans & payment' \}/);
+  assert.doesNotMatch(`${nav}\n${footer}`, /\/#(?:overview|pricing|research-workspace)/);
   assert.match(chat, /href="\/pricing"/);
   assert.match(chat, /href="\/billing"/);
   assert.match(chat, /className=\{styles\.accountIdentity\}/);
-  assert.match(chat, /aria-label="Sign in to AXIO7"/);
+  assert.match(chat, /aria-label="Open the Leo app"/);
   assert.doesNotMatch(chat, /aria-label="Sign in with Google"/);
-  assert.match(nav, /action="\/auth\/signout\?next=%2F"/);
-  assert.match(nav, /method="post"/);
 });
 
 test('research chrome retains its shared palette while pricing uses the restrained dark theme', async () => {
@@ -103,10 +99,7 @@ test('account, welcome, and sign-in pages use accessible light surfaces', async 
   assert.match(billing, /href="\/"/);
   assert.match(welcome, /axio-account-card/);
   assert.match(welcome, /Open research/);
-  assert.match(signin, /axio-auth-card/);
-  assert.match(signin, /role="alert"/);
-  assert.match(signin, /role="status"/);
-  assert.match(signin, /Continue with Google\s*<\/button>/);
+  assert.match(signin, /redirect\('\/app\/#\/sign-in'\)/);
 });
 
 test('fail-closed research is readable and mobile-safe without hiding the audit reason', async () => {
@@ -183,13 +176,13 @@ test('public copy keeps research boundaries within the unified AXIO7 product', a
     source('app/account/delete/page.tsx'),
   ]);
 
-  assert.match(layout, /AXIO7 — Evidence and reflection/);
-  assert.match(home, /AXIO7 — Navigate uncertainty/);
-  assert.match(cosmicHero, /Navigate[\s\S]*uncertainty\./);
-  assert.match(cosmicHero, /Evidence-first Research/);
+  assert.match(layout, /Leo — Reflection with evidence/);
+  assert.match(home, /Leo — Reflection with evidence/);
+  assert.match(cosmicHero, /Read the world\./);
+  assert.match(cosmicHero, /Meet yourself\./);
   assert.match(
     chat,
-    /What would you like to predict or research\?/
+    /What would you like to investigate\?/
   );
   assert.match(
     chat,
@@ -234,7 +227,7 @@ test('public copy keeps research boundaries within the unified AXIO7 product', a
   );
 });
 
-test('cosmic homepage and private astrology practice keep their product boundaries', async () => {
+test('cosmic homepage and redirected astrology practice keep their product boundaries', async () => {
   const [hero, heroStyles, astrologyPage, astrology, astrologyStyles, nav, sitemap] =
     await Promise.all([
       source('components/home/CosmicHero.tsx'),
@@ -246,13 +239,13 @@ test('cosmic homepage and private astrology practice keep their product boundari
       source('app/sitemap.ts'),
     ]);
 
-  assert.match(hero, /href="\/apps\/astrology"/);
-  assert.match(hero, /href="#research-workspace"/);
+  assert.match(hero, /href="\/pricing"/);
+  assert.match(hero, /href="\/app\/"/);
   assert.match(hero, /requestAnimationFrame/);
   assert.match(hero, /prefers-reduced-motion/);
   assert.match(heroStyles, /@media \(prefers-reduced-motion: reduce\)/);
 
-  assert.match(astrologyPage, /Daily Star Map — AXIO7 Astrology/);
+  assert.match(astrologyPage, /redirect\('\/app\/'\)/);
   assert.match(astrology, /localStorage\.setItem/);
   assert.match(astrology, /localStorage\.removeItem/);
   assert.match(astrology, /Approximate Western sun sign/);
@@ -260,7 +253,8 @@ test('cosmic homepage and private astrology practice keep their product boundari
   assert.match(astrology, /never sent to AXIO7/);
   assert.match(astrology, /Delete birth date/);
   assert.match(astrologyStyles, /@media \(prefers-reduced-motion: reduce\)/);
-  assert.match(nav, /href="\/apps\/astrology"/);
+  assert.match(nav, /href="\/pricing"/);
+  assert.match(nav, /href="\/app\/"/);
   assert.match(sitemap, /path: '\/apps\/astrology'/);
 
   for (const launchSurface of [hero, astrologyPage, astrology]) {

@@ -296,7 +296,10 @@ void main() {
     expect(find.textContaining('Foundational explanations'), findsOneWidget);
     expect(find.text('Terms · version 2026-08'), findsOneWidget);
     expect(find.text('Privacy Policy · version 2026-08'), findsOneWidget);
-    expect(find.text('Demo disclosure · version 2026-08'), findsOneWidget);
+    expect(
+      find.text('Simulation disclosure · version 2026-08'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Astrology decision: declined'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(const Key('review-create-account')),

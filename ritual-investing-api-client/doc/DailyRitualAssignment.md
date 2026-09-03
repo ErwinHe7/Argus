@@ -21,8 +21,10 @@ Name | Type | Description | Notes
 **riskFooter** | **String** |  | 
 **rowanRevisionId** | **String** |  | 
 **scheduleId** | **String** |  | 
+**serverEvaluatedAt** | [**DateTime**](DateTime.md) |  | 
 **state** | **String** |  | 
 **userId** | **String** |  | 
+**validUntil** | [**DateTime**](DateTime.md) |  | 
 **version** | **int** |  | 
 
 [[Back to Model list]](../README.md#documentation-for-models) [[Back to API list]](../README.md#documentation-for-api-endpoints) [[Back to README]](../README.md)

@@ -340,15 +340,6 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     const path = context.req.path;
     const isPrivacyCapability = path.startsWith("/v1/privacy/") ||
       path === "/v1/member/step-up";
-    const sensitiveCapability = path.startsWith("/v1/brokerage/");
-    if (sensitiveCapability) {
-      throw new HttpBoundaryError(
-        503,
-        "web_capability_unavailable",
-        "This capability is not available on the public beta website.",
-      );
-    }
-
     const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(
       context.req.method,
     );

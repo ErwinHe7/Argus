@@ -170,10 +170,9 @@ test('Free Paddle membership stays read-only across research surfaces', async ()
     'app/api/quant/stat-arb/route.ts',
     'app/api/research/serenity/route.ts',
   ];
-  const [billing, access, home, chat, ...routes] = await Promise.all([
+  const [billing, access, chat, ...routes] = await Promise.all([
     source('lib/billing.ts'),
     source('lib/research-access.ts'),
-    source('app/page.tsx'),
     source('components/AxioChat.tsx'),
     ...protectedRoutes.map((route) => source(route)),
   ]);
@@ -181,7 +180,6 @@ test('Free Paddle membership stays read-only across research surfaces', async ()
   assert.match(billing, /PADDLE_PRICE_FREE_MONTH/);
   assert.match(access, /paid_research_required/);
   assert.match(access, /status: 402/);
-  assert.match(home, /researchAccess/);
   assert.match(chat, /Free access is read-only/);
   for (const [index, route] of routes.entries()) {
     assert.match(

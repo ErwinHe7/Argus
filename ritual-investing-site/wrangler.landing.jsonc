@@ -3,7 +3,7 @@
   "name": "ritual-investing-member",
   "compatibility_date": "2026-08-25",
   "assets": {
-    "directory": "./dist/landing",
+    "directory": "./dist/landing-prod",
     "html_handling": "none",
     "not_found_handling": "none"
   }

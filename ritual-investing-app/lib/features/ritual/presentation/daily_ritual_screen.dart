@@ -5,19 +5,22 @@ import 'package:flutter/material.dart';
 import '../../../app/theme/app_theme.dart';
 import '../../../core/api/state_status.dart';
 import '../../../core/bootstrap/member_bootstrap.dart';
-import '../../../core/presentation/demo_disclosure.dart';
+import '../../../core/cache/read_cache.dart';
 import '../../../core/presentation/server_time.dart';
-import '../application/daily_ritual_controller.dart';
-import '../domain/daily_ritual.dart';
-import 'ritual_tarot_art.dart';
 import '../../rowan/application/controller.dart';
-import '../../rowan/domain/model.dart';
-import '../../rowan/presentation/rowan_counsel_panel.dart';
+import '../application/daily_ritual_controller.dart';
+import '../data/daily_ritual_repository.dart';
+import '../data/leonidas_voice_preference_store.dart';
+import '../domain/daily_ritual.dart';
+import 'daily_ritual_stage_controller.dart';
+import 'daily_ritual_stage_spec.dart';
+import 'leonidas_ritual_sequence.dart';
 
-class DailyRitualScreen extends StatelessWidget {
+class DailyRitualScreen extends StatefulWidget {
   const DailyRitualScreen({
     super.key,
     required this.onOpenCoven,
+    this.onOpenStarpath,
     this.onToggleTheme,
     required this.controller,
     this.onOpenAsset,
@@ -27,987 +30,548 @@ class DailyRitualScreen extends StatelessWidget {
     this.personalization = const MemberPersonalization(),
     this.useBundledArtwork = true,
     this.assetPackage,
+    this.leonidasVoice = const PlatformLeonidasVoice(),
+    this.cacheScope,
+    this.voicePreferenceStore,
+    this.monotonicNow,
+    this.prepareExactMedia,
   });
 
+  /// Retained for source compatibility; Daily Ritual no longer promotes Coven.
   final VoidCallback onOpenCoven;
+  final VoidCallback? onOpenStarpath;
   final VoidCallback? onToggleTheme;
   final DailyRitualController controller;
+
+  /// Retained for source compatibility; ideas are available inside Evidence.
   final ValueChanged<String>? onOpenAsset;
   final VoidCallback? onOpenSearch;
   final VoidCallback? onOpenBriefings;
+
+  /// Retained for composition compatibility; the rebuilt ritual has one
+  /// deterministic Leonidas close rather than a second counsel surface.
   final RowanController? rowanController;
   final MemberPersonalization personalization;
   final bool useBundledArtwork;
   final String? assetPackage;
+  final LeonidasVoice leonidasVoice;
+  final CacheScope? cacheScope;
+  final LeonidasVoicePreferencePersistence? voicePreferenceStore;
+  final DailyRitualMonotonicNow? monotonicNow;
+  final DailyRitualMediaPreparer? prepareExactMedia;
 
   @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) => _buildContent(context),
-    );
+  State<DailyRitualScreen> createState() => _DailyRitualScreenState();
+}
+
+class _DailyRitualScreenState extends State<DailyRitualScreen> {
+  final ValueNotifier<bool> _evidenceOpen = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    _evidenceOpen.dispose();
+    super.dispose();
   }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: _evidenceOpen,
+    builder: (context, _) => ListenableBuilder(
+      listenable: widget.controller,
+      builder: (context, _) => _buildContent(context),
+    ),
+  );
 
   Widget _buildContent(BuildContext context) {
     final colors = context.ritualColors;
+    final ritual = widget.controller.state.value;
+    final largeText = MediaQuery.textScalerOf(context).scale(16) >= 24;
     return ColoredBox(
       color: colors.page,
-      child: CustomScrollView(
-        key: const PageStorageKey('daily-ritual-scroll'),
-        slivers: [
-          SliverToBoxAdapter(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-                child: Row(
-                  children: [
-                    _Sigil(colors: colors),
-                    Expanded(
-                      child: Text(
-                        _formatDate(controller.state.value?.date),
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ),
-                    if (onOpenSearch != null)
-                      IconButton(
-                        key: const Key('ritual-search'),
-                        onPressed: onOpenSearch,
-                        tooltip: 'Search the Asset Codex',
-                        constraints: const BoxConstraints.tightFor(
-                          width: 48,
-                          height: 48,
-                        ),
-                        icon: const Icon(Icons.search),
-                      ),
-                    if (onOpenBriefings != null)
-                      IconButton(
-                        key: const Key('ritual-briefings'),
-                        onPressed: onOpenBriefings,
-                        tooltip: 'Open Gospel briefings',
-                        constraints: const BoxConstraints.tightFor(
-                          width: 48,
-                          height: 48,
-                        ),
-                        icon: const Icon(Icons.auto_stories_outlined),
-                      ),
-                    if (onToggleTheme != null)
-                      IconButton(
-                        key: const Key('theme-toggle'),
-                        onPressed: onToggleTheme,
-                        tooltip: 'Switch theme',
-                        constraints: const BoxConstraints.tightFor(
-                          width: 48,
-                          height: 48,
-                        ),
-                        icon: Icon(
-                          Theme.of(context).brightness == Brightness.dark
-                              ? Icons.light_mode_outlined
-                              : Icons.dark_mode_outlined,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
-            sliver: SliverList.list(
-              children: [
-                StateStatus(
-                  phase: controller.state.phase,
-                  onRetry: controller.load,
-                ),
-                if (controller.state.value != null) ...[
-                  Text(
-                    'YOUR DAILY SIGNAL',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.gold,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 2.2,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  _CardStage(
-                    colors: colors,
-                    art: controller.state.value!.art,
-                    date: controller.state.value!.date,
-                    mode: controller.state.value!.mode,
-                    concealed:
-                        controller.state.value!.state ==
-                        DailyRitualState.assigned,
-                    useBundledArtwork: useBundledArtwork,
-                    assetPackage: assetPackage,
-                  ),
-                  const SizedBox(height: 18),
-                  if (controller.state.value!.state ==
-                      DailyRitualState.assigned) ...[
-                    Text(
-                      'Your Gospel is ready. Reveal it when you have a quiet moment.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      key: const Key('ritual-reveal'),
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(48, 48),
-                      ),
-                      onPressed:
-                          controller.mutationPhase ==
-                              RitualMutationPhase.committing
-                          ? null
-                          : controller.reveal,
-                      icon: const Icon(Icons.auto_awesome),
-                      label: const Text('Reveal today’s Gospel'),
-                    ),
-                    if (controller.mutationPhase ==
-                            RitualMutationPhase.retryableFailure ||
-                        controller.mutationPhase ==
-                            RitualMutationPhase.terminalFailure) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        controller.mutationPhase ==
-                                RitualMutationPhase.retryableFailure
-                            ? 'Could not update this Gospel. Try again.'
-                            : 'This Gospel could not be updated. Refresh and try again.',
-                        key: const Key('ritual-mutation-status'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                    ],
-                  ] else ...[
-                    Text(
-                      controller.state.value!.title,
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.displaySmall,
-                    ),
-                    const SizedBox(height: 10),
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: Text(
-                          controller.state.value!.interpretation,
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(fontSize: 14, height: 1.4),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 420),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: colors.screen,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: colors.line),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  "TODAY'S REFLECTION",
-                                  style: TextStyle(
-                                    color: colors.gold,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 1.4,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  controller.state.value!.guidance,
-                                  style: Theme.of(context).textTheme.bodyMedium
-                                      ?.copyWith(height: 1.45),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (_personalizationLabel(personalization)
-                        case final label?) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        label,
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.labelMedium,
-                      ),
-                      const SizedBox(height: 4),
-                    ],
-                    if (controller.state.value!.evidence.isNotEmpty) ...[
-                      Center(
-                        child: TextButton.icon(
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, 44),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                          ),
-                          onPressed: () => _showEvidence(context),
-                          icon: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: colors.positive,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const SizedBox(width: 8, height: 8),
-                          ),
-                          label: Text(controller.state.value!.marketLabel),
-                        ),
-                      ),
-                    ],
-                    if (controller.state.value!.ideas.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Divider(color: colors.line),
-                      const SizedBox(height: 8),
-                      _Constellation(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stageHeight = ritual == null
+              ? DailyRitualStageSpec.baseStageSize.height
+              : DailyRitualStageSpec.stageHeight(
+                  MediaQuery.textScalerOf(context),
+                );
+          final requiredHeight =
+              MediaQuery.paddingOf(context).top +
+              DailyRitualStageSpec.pageChromeHeight +
+              stageHeight;
+          final needsCompactFallback = constraints.maxHeight < requiredHeight;
+          final content = SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: DailyRitualStageSpec.pageInsets,
+                    child: SizedBox(
+                      height: 48,
+                      child: _RitualHeader(
+                        date: ritual?.date,
                         colors: colors,
-                        ideas: controller.state.value!.ideas,
-                        onOpenAsset: onOpenAsset,
+                        onOpenSearch: widget.onOpenSearch,
+                        onOpenBriefings: widget.onOpenBriefings,
+                        onToggleTheme: widget.onToggleTheme,
                       ),
-                      const SizedBox(height: 16),
-                    ] else
-                      const SizedBox(height: 16),
-                    _CovenStrip(colors: colors, onTap: onOpenCoven),
-                    const SizedBox(height: 14),
-                    if (rowanController != null)
-                      RowanCounselPanel(
-                        controller: rowanController!,
-                        request: RowanRequest.dailyRitual(
-                          controller.state.value!.assignmentId,
-                        ),
-                        personalization: personalization,
-                      )
-                    else
-                      _RowanCounsel(
-                        colors: colors,
-                        counsel: controller.state.value!.rowan,
-                        useBundledArtwork: useBundledArtwork,
-                        assetPackage: assetPackage,
-                      ),
-                    if (controller.state.value!.state ==
-                        DailyRitualState.revealed) ...[
-                      const SizedBox(height: 12),
-                      OutlinedButton.icon(
-                        key: const Key('ritual-complete'),
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: const Size(48, 48),
-                        ),
-                        onPressed:
-                            controller.mutationPhase ==
-                                RitualMutationPhase.committing
-                            ? null
-                            : controller.complete,
-                        icon: const Icon(Icons.check_circle_outline),
-                        label: const Text('Complete today’s Gospel'),
-                      ),
-                    ],
-                    if (controller.state.value!.demo.isDemo) ...[
-                      const SizedBox(height: 18),
-                      Text(
-                        DemoDisclosureCopy.marketScenario,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: colors.faint, fontSize: 12),
-                      ),
-                    ],
-                  ],
-                  const SizedBox(height: 10),
-                  TextButton.icon(
-                    key: const Key('ritual-history'),
-                    style: TextButton.styleFrom(
-                      minimumSize: const Size(48, 48),
                     ),
-                    onPressed: () => _showHistory(context),
-                    icon: const Icon(Icons.history),
-                    label: const Text('Gospel history'),
                   ),
+                  const SizedBox(height: 8),
+                  if (ritual == null)
+                    Padding(
+                      padding: DailyRitualStageSpec.pageInsets,
+                      child: _RitualAuthorityStage(
+                        phase: widget.controller.state.phase,
+                        onRetry: widget.controller.load,
+                      ),
+                    )
+                  else if (!largeText && !needsCompactFallback)
+                    Expanded(child: _buildSequence(context, ritual))
+                  else
+                    _buildSequence(context, ritual),
                 ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _showEvidence(BuildContext context) async {
-    final sheet = showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) {
-          final ritual = controller.state.value;
-          if (ritual == null) return const SizedBox.shrink();
-          final colors = context.ritualColors;
-          return FractionallySizedBox(
-            heightFactor: 0.9,
-            child: SafeArea(
-              child: Padding(
-                key: const Key('ritual-evidence-sheet'),
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'What moved beneath the reading',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Observed ${ServerTime.timestamp(ritual.demo.observedAt)} by ${ritual.demo.sourceLabel}. These are research cues, not predictions or instructions to buy.',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 18),
-                      StateStatus(
-                        phase: controller.evidenceState.phase,
-                        onRetry: controller.loadEvidence,
-                      ),
-                      for (final evidence
-                          in controller.evidenceState.value ??
-                              const <RitualEvidenceDetail>[])
-                        _EvidenceRow(
-                          symbol: evidence.factorLabel,
-                          factor:
-                              '${evidence.summary}\nUncertainty: ${evidence.uncertainty}\n${evidence.source.publisher} · ${evidence.source.title} · observed ${ServerTime.timestamp(evidence.observedAt)}',
-                        ),
-                      if (rowanController != null) ...[
-                        const SizedBox(height: 8),
-                        RowanCounselPanel(
-                          controller: rowanController!,
-                          request: RowanRequest.evidence(ritual.assignmentId),
-                          personalization: personalization,
-                        ),
-                      ],
-                      const SizedBox(height: 16),
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: colors.goldSoft,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
-                          child: Text.rich(
-                            TextSpan(
-                              style: TextStyle(color: colors.ink, height: 1.4),
-                              children: [
-                                TextSpan(text: ritual.guidance),
-                                TextSpan(text: '\n${ritual.rowan.riskFooter}'),
-                                for (final limitation
-                                    in ritual.demo.limitations)
-                                  TextSpan(text: '\n$limitation'),
-                                if (ritual.evidence.isNotEmpty)
-                                  TextSpan(
-                                    text:
-                                        '\n${ritual.evidence.first.uncertainty}',
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      if (ritual.ideas.isNotEmpty) ...[
-                        const SizedBox(height: 18),
-                        Text(
-                          'Ideas shown in this reading',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
-                        const SizedBox(height: 10),
-                        for (final idea in ritual.ideas)
-                          _EvidenceRow(
-                            symbol: idea.symbol,
-                            factor:
-                                '${idea.appearanceReason}. ${idea.riskSummary}',
-                          ),
-                      ],
-                    ],
-                  ),
-                ),
               ),
             ),
+          );
+          if (!largeText && !needsCompactFallback) return content;
+          return SingleChildScrollView(
+            key: Key(
+              largeText
+                  ? 'daily-ritual-accessibility-scroll'
+                  : 'daily-ritual-compact-scroll',
+            ),
+            child: content,
           );
         },
       ),
     );
-    unawaited(controller.loadEvidence());
-    await sheet;
   }
 
-  Future<void> _showHistory(BuildContext context) async {
-    final sheet = showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      builder: (sheetContext) => ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) {
-          final state = controller.historyState;
-          return FractionallySizedBox(
-            heightFactor: 0.9,
-            child: SafeArea(
-              child: Padding(
-                key: const Key('ritual-history-sheet'),
-                padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Gospel history',
-                        style: Theme.of(context).textTheme.headlineMedium,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Lifecycle states come from the server. Completing a Gospel records reflection, not market action.',
-                      ),
-                      const SizedBox(height: 14),
-                      StateStatus(
-                        phase: state.phase,
-                        onRetry: controller.loadHistory,
-                      ),
-                      for (final item
-                          in state.value?.items ?? const <RitualHistoryEntry>[])
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          minTileHeight: 56,
-                          leading: item.demo.isDemo
-                              ? const DemoBadge(horizontalPadding: 7)
-                              : null,
-                          title: Text(item.title),
-                          subtitle: Text(
-                            '${_historyDate(item.date)} · ${_modeLabel(item.mode)} · ${_stateLabel(item.state)}\n${item.demo.sourceLabel} · observed ${ServerTime.timestamp(item.demo.observedAt)}',
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-    unawaited(controller.loadHistory());
-    await sheet;
+  Widget _buildSequence(
+    BuildContext sequenceContext,
+    DailyRitual ritual,
+  ) => LeonidasRitualSequence(
+    key: ValueKey('leonidas-${ritual.assignmentId}'),
+    ritual: ritual,
+    authorityController: widget.controller,
+    cacheScope: widget.cacheScope,
+    voicePreferenceStore: widget.voicePreferenceStore,
+    suspendVisibilityTracking: _evidenceOpen.value,
+    onRevalidate: widget.controller.revalidate,
+    onReveal: () async {
+      final result = await widget.controller.reveal(refreshHistory: false);
+      return result?.disposition == RitualOperationDisposition.committed ||
+          result?.disposition == RitualOperationDisposition.reconciledToTarget;
+    },
+    onComplete: () async {
+      final result = await widget.controller.complete(refreshHistory: false);
+      return result?.disposition == RitualOperationDisposition.committed ||
+          result?.disposition == RitualOperationDisposition.reconciledToTarget;
+    },
+    onShowEvidence: () {
+      final snapshot = widget.controller.state.value;
+      if (snapshot != null && snapshot.state == DailyRitualState.completed) {
+        unawaited(_openEvidence(sequenceContext, snapshot));
+      }
+    },
+    onOpenStarpath: widget.onOpenStarpath,
+    voice: widget.leonidasVoice,
+    monotonicNow: widget.monotonicNow,
+    prepareExactMedia: widget.prepareExactMedia,
+    useBundledArtwork: widget.useBundledArtwork,
+    assetPackage: widget.assetPackage,
+  );
+
+  Future<void> _openEvidence(
+    BuildContext context,
+    DailyRitual completedSnapshot,
+  ) async {
+    if (_evidenceOpen.value || !mounted) return;
+    _evidenceOpen.value = true;
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !context.mounted) {
+      if (mounted) _evidenceOpen.value = false;
+      return;
+    }
+    try {
+      await _showEvidence(context, completedSnapshot);
+    } finally {
+      if (mounted) _evidenceOpen.value = false;
+    }
   }
 
-  String _formatDate(DateTime? value) {
-    if (value == null) return 'Daily Gospel';
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-    return '${months[value.month - 1]} ${value.day}';
-  }
+  Future<void> _showEvidence(
+    BuildContext context,
+    DailyRitual completedSnapshot,
+  ) => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) => _RitualEvidenceSheet(
+      controller: widget.controller,
+      snapshot: completedSnapshot,
+    ),
+  );
 }
 
-String _historyDate(DateTime value) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[value.month - 1]} ${value.day}, ${value.year}';
-}
-
-String _modeLabel(DailyRitualMode value) => switch (value) {
-  DailyRitualMode.tarot => 'Tarot',
-  DailyRitualMode.astrology => 'Astrology',
-  DailyRitualMode.unknown => 'Mode unavailable',
-};
-
-String _stateLabel(DailyRitualState value) => switch (value) {
-  DailyRitualState.assigned => 'Assigned',
-  DailyRitualState.revealed => 'Revealed',
-  DailyRitualState.completed => 'Completed',
-  DailyRitualState.unknown => 'State unavailable',
-};
-
-class _Sigil extends StatelessWidget {
-  const _Sigil({required this.colors});
-
-  final RitualColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: 'Gospel blessing',
-      child: Container(
-        width: 42,
-        height: 42,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: colors.gold),
-        ),
-        child: Icon(Icons.auto_stories_outlined, color: colors.gold, size: 21),
-      ),
-    );
-  }
-}
-
-class _CardStage extends StatelessWidget {
-  const _CardStage({
-    required this.colors,
-    required this.art,
+class _RitualHeader extends StatelessWidget {
+  const _RitualHeader({
     required this.date,
-    required this.mode,
-    required this.concealed,
-    required this.useBundledArtwork,
-    required this.assetPackage,
-  });
-
-  final RitualColors colors;
-  final RitualArt art;
-  final DateTime date;
-  final DailyRitualMode mode;
-  final bool concealed;
-  final bool useBundledArtwork;
-  final String? assetPackage;
-
-  @override
-  Widget build(BuildContext context) {
-    final viewportWidth = MediaQuery.sizeOf(context).width;
-    final artwork = !concealed && useBundledArtwork
-        ? resolveRitualTarotArtwork(art: art, date: date, mode: mode)
-        : null;
-    return SizedBox(
-      height: 296,
-      child: OverflowBox(
-        minWidth: viewportWidth,
-        maxWidth: viewportWidth,
-        minHeight: 296,
-        maxHeight: 296,
-        child: Container(
-          height: 296,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                colors.page,
-                Color.lerp(colors.primarySoft, colors.screenSoft, 0.55)!,
-                colors.screenSoft,
-              ],
-            ),
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned(
-                left: 22,
-                right: 22,
-                child: Divider(color: colors.gold.withValues(alpha: 0.62)),
-              ),
-              Semantics(
-                image: true,
-                label: concealed
-                    ? 'Unrevealed Gospel card'
-                    : artwork?.alt ?? art.alt,
-                child: ExcludeSemantics(
-                  child: Container(
-                    width: 155,
-                    height: 270,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(
-                        color: colors.gold.withValues(alpha: 0.78),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.22),
-                          blurRadius: 8,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
-                    ),
-                    child: concealed
-                        ? DecoratedBox(
-                            key: const Key('daily-ritual-card-back'),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(13),
-                              gradient: LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [colors.coven, colors.screenSoft],
-                              ),
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.auto_awesome,
-                                color: colors.gold,
-                                size: 42,
-                              ),
-                            ),
-                          )
-                        : artwork != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(13),
-                            child: Image.asset(
-                              artwork.assetPath,
-                              key: const Key('daily-ritual-card-art'),
-                              package: assetPackage,
-                              fit: BoxFit.cover,
-                            ),
-                          )
-                        : Icon(
-                            Icons.image_not_supported_outlined,
-                            color: colors.gold,
-                          ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Constellation extends StatelessWidget {
-  const _Constellation({
     required this.colors,
-    required this.ideas,
-    required this.onOpenAsset,
+    required this.onOpenSearch,
+    required this.onOpenBriefings,
+    required this.onToggleTheme,
   });
 
+  final DateTime? date;
   final RitualColors colors;
-  final List<RitualIdea> ideas;
-  final ValueChanged<String>? onOpenAsset;
+  final VoidCallback? onOpenSearch;
+  final VoidCallback? onOpenBriefings;
+  final VoidCallback? onToggleTheme;
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'THE CARD’S CONSTELLATION',
-                style: TextStyle(
-                  color: colors.ink,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.4,
-                ),
-              ),
+  Widget build(BuildContext context) => Row(
+    children: [
+      Semantics(
+        label: 'Ritual sigil',
+        image: true,
+        child: ExcludeSemantics(
+          child: Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: colors.gold),
             ),
-            Text(
-              '${ideas.length} of 5 aligned',
-              style: TextStyle(color: colors.faint, fontSize: 12),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Stack(
-          alignment: Alignment.topCenter,
-          children: [
-            Positioned(
-              top: 14,
-              left: 42,
-              right: 42,
-              child: Divider(color: colors.gold.withValues(alpha: 0.6)),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                for (final (index, idea) in ideas.take(5).indexed)
-                  _AssetStar(
-                    symbol: idea.symbol,
-                    change: idea.changeLabel,
-                    note: idea.appearanceReason,
-                    selected: index == 1,
-                    onTap: onOpenAsset == null
-                        ? null
-                        : () => onOpenAsset!(idea.assetId),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-class _AssetStar extends StatelessWidget {
-  const _AssetStar({
-    required this.symbol,
-    this.change,
-    required this.note,
-    this.selected = false,
-    this.onTap,
-  });
-
-  final String symbol;
-  final String? change;
-  final String note;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.ritualColors;
-    return Expanded(
-      child: Semantics(
-        button: true,
-        label: [symbol, ?change, note, 'Gospel research idea'].join(', '),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Column(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: selected
-                        ? Theme.of(context).colorScheme.primary
-                        : colors.screen,
-                    border: Border.all(
-                      color: selected
-                          ? Theme.of(context).colorScheme.primary
-                          : colors.gold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  symbol,
-                  style: Theme.of(context).textTheme.titleLarge
-                      ?.copyWith(fontSize: 18),
-                ),
-                if (change != null)
-                  Text(
-                    change!,
-                    style: TextStyle(
-                      color: colors.positive,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                const SizedBox(height: 2),
-                Text(
-                  note,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: colors.faint, fontSize: 11),
-                ),
-              ],
-            ),
+            child: Icon(Icons.auto_awesome, color: colors.gold, size: 21),
           ),
         ),
       ),
+      const SizedBox(width: 8),
+      Expanded(
+        child: Text(
+          _formatDate(date),
+          maxLines: 1,
+          overflow: TextOverflow.fade,
+          softWrap: false,
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+      ),
+      if (onOpenSearch != null)
+        _HeaderAction(
+          key: const Key('ritual-search'),
+          onPressed: onOpenSearch!,
+          tooltip: 'Search the Asset Codex',
+          icon: Icons.search,
+        ),
+      if (onOpenBriefings != null)
+        _HeaderAction(
+          key: const Key('ritual-briefings'),
+          onPressed: onOpenBriefings!,
+          tooltip: 'Open Ritual briefings',
+          icon: Icons.auto_stories_outlined,
+        ),
+      if (onToggleTheme != null)
+        _HeaderAction(
+          key: const Key('theme-toggle'),
+          onPressed: onToggleTheme!,
+          tooltip: 'Switch theme',
+          icon: Theme.of(context).brightness == Brightness.dark
+              ? Icons.light_mode_outlined
+              : Icons.dark_mode_outlined,
+        ),
+    ],
+  );
+}
+
+class _HeaderAction extends StatelessWidget {
+  const _HeaderAction({
+    super.key,
+    required this.onPressed,
+    required this.tooltip,
+    required this.icon,
+  });
+
+  final VoidCallback onPressed;
+  final String tooltip;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+    onPressed: onPressed,
+    tooltip: tooltip,
+    constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+    padding: EdgeInsets.zero,
+    icon: Icon(icon),
+  );
+}
+
+class _RitualAuthorityStage extends StatelessWidget {
+  const _RitualAuthorityStage({required this.phase, required this.onRetry});
+
+  final LoadPhase phase;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: DailyRitualStageSpec.stageKey,
+    width: double.infinity,
+    height: DailyRitualStageSpec.baseStageSize.height,
+    decoration: BoxDecoration(
+      color: const Color(0xFF120B17),
+      borderRadius: BorderRadius.circular(DailyRitualStageSpec.radius),
+      border: Border.all(
+        color: context.ritualColors.gold.withValues(alpha: 0.36),
+      ),
+    ),
+    child: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: StateStatus(phase: phase, onRetry: onRetry),
+      ),
+    ),
+  );
+}
+
+class _RitualEvidenceSheet extends StatefulWidget {
+  const _RitualEvidenceSheet({
+    required this.controller,
+    required this.snapshot,
+  });
+
+  final DailyRitualController controller;
+  final DailyRitual snapshot;
+
+  @override
+  State<_RitualEvidenceSheet> createState() => _RitualEvidenceSheetState();
+}
+
+class _RitualEvidenceSheetState extends State<_RitualEvidenceSheet> {
+  LoadPhase _phase = LoadPhase.loading;
+  List<RitualEvidenceDetail> _details = const [];
+  int _generation = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load());
+  }
+
+  Future<void> _load() async {
+    final generation = ++_generation;
+    if (mounted) setState(() => _phase = LoadPhase.loading);
+    final result = await widget.controller.loadEvidenceSnapshot(
+      widget.snapshot,
     );
+    if (!mounted || generation != _generation) return;
+    setState(() {
+      _phase = result.phase;
+      if (result.phase == LoadPhase.ready || result.phase == LoadPhase.empty) {
+        _details = result.details;
+      }
+    });
   }
-}
-
-String? _personalizationLabel(MemberPersonalization value) {
-  if (value.ritualVoice == MemberRitualVoice.unavailable &&
-      value.explanationDepth == MemberExplanationDepth.unavailable) {
-    return null;
-  }
-  final voice = switch (value.ritualVoice) {
-    MemberRitualVoice.practical => 'Practical reading',
-    MemberRitualVoice.mystical => 'Mystical reading',
-    MemberRitualVoice.balanced => 'Balanced reading',
-    MemberRitualVoice.unavailable => 'Interpretation',
-  };
-  final depth = switch (value.explanationDepth) {
-    MemberExplanationDepth.beginner => 'more context',
-    MemberExplanationDepth.guided => 'guided context',
-    MemberExplanationDepth.advanced => 'concise context',
-    MemberExplanationDepth.unavailable => 'standard context',
-  };
-  return '$voice · $depth · server-personalized';
-}
-
-class _CovenStrip extends StatelessWidget {
-  const _CovenStrip({required this.colors, required this.onTap});
-
-  final RitualColors colors;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: 'Open Founders’ Coven, companies with women at the helm',
-      child: Material(
-        color: colors.coven,
-        borderRadius: BorderRadius.circular(16),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
+    final snapshot = widget.snapshot;
+    return FractionallySizedBox(
+      heightFactor: 0.9,
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 8, 12, 4),
             child: Row(
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: colors.gold),
-                  ),
-                  child: Icon(Icons.nightlight_round, color: colors.gold),
-                ),
-                const SizedBox(width: 12),
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Founders’ Coven',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'LibreBaskerville',
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        'Explore companies with women at the helm',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.76),
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    'Evidence for today’s reading',
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                 ),
-                Icon(Icons.arrow_forward, color: colors.gold),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RowanCounsel extends StatelessWidget {
-  const _RowanCounsel({
-    required this.colors,
-    required this.counsel,
-    required this.useBundledArtwork,
-    required this.assetPackage,
-  });
-
-  final RitualColors colors;
-  final RitualCounsel counsel;
-  final bool useBundledArtwork;
-  final String? assetPackage;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: colors.gold),
-          ),
-          child: useBundledArtwork
-              ? ClipOval(
-                  child: Image.asset(
-                    'assets/images/persona-triptych.png',
-                    package: assetPackage,
-                    fit: BoxFit.cover,
-                    alignment: Alignment.center,
-                  ),
-                )
-              : Icon(Icons.auto_awesome, color: colors.gold),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text.rich(
-            TextSpan(
-              style: Theme.of(context).textTheme.bodyMedium
-                  ?.copyWith(fontSize: 13),
-              children: [
-                TextSpan(
-                  text: 'Rowan, your counsel: ',
-                  style: TextStyle(
-                    color: colors.ink,
-                    fontWeight: FontWeight.w800,
-                  ),
+                TextButton(
+                  key: const Key('ritual-evidence-done'),
+                  style: TextButton.styleFrom(minimumSize: const Size(44, 44)),
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Done'),
                 ),
-                TextSpan(text: '“${counsel.body}”'),
               ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _EvidenceRow extends StatelessWidget {
-  const _EvidenceRow({required this.symbol, required this.factor});
-
-  final String symbol;
-  final String factor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 54,
-            child: Text(
-              symbol,
-              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
           Expanded(
-            child: Text(factor, style: Theme.of(context).textTheme.bodyMedium),
+            child: SingleChildScrollView(
+              key: const Key('ritual-evidence-sheet'),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TrustSection(
+                    title: 'Observation',
+                    body:
+                        'Observed ${ServerTime.timestamp(snapshot.demo.observedAt)} by ${snapshot.demo.sourceLabel}.',
+                  ),
+                  if (snapshot.serverEvaluatedAt case final evaluated?)
+                    _TrustSection(
+                      title: 'Freshness',
+                      body:
+                          'Server checked ${ServerTime.timestamp(evaluated)}${snapshot.validUntil == null ? '' : ' · valid through ${ServerTime.timestamp(snapshot.validUntil!)}'}.',
+                    ),
+                  _TrustSection(
+                    title: 'Summary',
+                    body: snapshot.evidence.isEmpty
+                        ? snapshot.interpretation
+                        : snapshot.evidence
+                              .map((item) => item.summary)
+                              .join('\n'),
+                  ),
+                  _TrustSection(
+                    title: 'Uncertainty',
+                    body: snapshot.evidence.isEmpty
+                        ? 'No additional research claim is attached to this reading.'
+                        : snapshot.evidence
+                              .map((item) => item.uncertainty)
+                              .join('\n'),
+                  ),
+                  _TrustSection(
+                    title: 'Limitations',
+                    body: snapshot.demo.limitations.isEmpty
+                        ? 'Educational context only.'
+                        : snapshot.demo.limitations.join('\n'),
+                  ),
+                  _TrustSection(
+                    title: 'Risk context',
+                    body: snapshot.rowan.riskFooter,
+                  ),
+                  const _TrustSection(
+                    title: 'Use boundary',
+                    body: 'These are research cues, not predictions or instructions to buy.',
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Supporting detail',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDetailState(),
+                ],
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildDetailState() {
+    if (_phase == LoadPhase.loading) {
+      return Semantics(
+        label: 'Loading supporting evidence detail',
+        child: const LinearProgressIndicator(),
+      );
+    }
+    if (_phase == LoadPhase.ready) {
+      return Column(
+        children: [
+          for (final detail in _details) _EvidenceDetailCard(detail: detail),
+        ],
+      );
+    }
+    if (_phase == LoadPhase.empty) {
+      return const Text(
+        'No additional detail is attached. The validated summary above remains available.',
+      );
+    }
+    return Semantics(
+      liveRegion: true,
+      label: 'Supporting evidence detail unavailable',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Supporting detail is unavailable. The validated summary above remains available.',
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton(
+            key: const Key('ritual-evidence-retry'),
+            onPressed: _load,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TrustSection extends StatelessWidget {
+  const _TrustSection({required this.title, required this.body});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        Text(body),
+      ],
+    ),
+  );
+}
+
+class _EvidenceDetailCard extends StatelessWidget {
+  const _EvidenceDetailCard({required this.detail});
+
+  final RitualEvidenceDetail detail;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.only(bottom: 10),
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            detail.factorLabel,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 4),
+          Text(detail.summary),
+          const SizedBox(height: 4),
+          Text('Uncertainty: ${detail.uncertainty}'),
+          const SizedBox(height: 4),
+          Text(
+            '${detail.source.publisher} · ${detail.source.title} · observed ${ServerTime.timestamp(detail.observedAt)}',
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+String _formatDate(DateTime? value) {
+  if (value == null) return 'Daily ritual';
+  const months = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  return '${months[value.month - 1]} ${value.day}';
 }

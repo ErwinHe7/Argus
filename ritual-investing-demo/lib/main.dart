@@ -11,7 +11,12 @@ Future<void> main() async {
   try {
     final services = await DemoServices.bootstrap();
     runApp(
-      _OwnedDemo(services: services, identity: identity, channel: channel),
+      _OwnedDemo(
+        key: UniqueKey(),
+        services: services,
+        identity: identity,
+        channel: channel,
+      ),
     );
   } on Object {
     runApp(
@@ -22,6 +27,7 @@ Future<void> main() async {
 
 class _OwnedDemo extends StatefulWidget {
   const _OwnedDemo({
+    super.key,
     required this.services,
     required this.identity,
     required this.channel,

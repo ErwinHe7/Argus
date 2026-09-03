@@ -18,8 +18,8 @@ class RuntimeConfig {
     required String apiBaseUrl,
     required String supabaseUrl,
     required String supabasePublishableKey,
-    String betaSupabaseProjectRef = '',
-    String betaSupabasePublishableKeySha256 = '',
+    String stagingSupabaseProjectRef = '',
+    String stagingSupabasePublishableKeySha256 = '',
     this.allowSelfServiceSignup = false,
     String argusAuthRedirectAllowlist =
         'https://just-build-this.app/mobile/argus-auth/callback,'
@@ -27,8 +27,8 @@ class RuntimeConfig {
     String webullCompletionAllowlist =
         'https://just-build-this.app/mobile/webull/complete,'
         'com.ritualinvesting.ritual-investing-app.webull://webull/complete',
-  }) : apiBaseUrl = _httpsUrl(apiBaseUrl, 'RITUAL_API_BASE_URL'),
-       supabaseUrl = _supabaseUrl(supabaseUrl),
+  }) : apiBaseUrl = _serviceUrl(apiBaseUrl, 'RITUAL_API_BASE_URL', environment),
+       supabaseUrl = _supabaseUrl(supabaseUrl, environment),
        supabasePublishableKey = _publishableKey(supabasePublishableKey),
        nativeLinks = _nativeLinks(
          argusAuthRedirectAllowlist,
@@ -39,8 +39,8 @@ class RuntimeConfig {
       apiBaseUrl: this.apiBaseUrl,
       supabaseUrl: this.supabaseUrl,
       publishableKey: this.supabasePublishableKey,
-      betaProjectRef: betaSupabaseProjectRef,
-      betaKeySha256: betaSupabasePublishableKeySha256,
+      stagingProjectRef: stagingSupabaseProjectRef,
+      stagingKeySha256: stagingSupabasePublishableKeySha256,
       allowSelfServiceSignup: allowSelfServiceSignup,
     );
   }
@@ -68,11 +68,11 @@ class RuntimeConfig {
     supabasePublishableKey: const String.fromEnvironment(
       'SUPABASE_PUBLISHABLE_KEY',
     ),
-    betaSupabaseProjectRef: const String.fromEnvironment(
-      'BETA_SUPABASE_PROJECT_REF',
+    stagingSupabaseProjectRef: const String.fromEnvironment(
+      'STAGING_SUPABASE_PROJECT_REF',
     ),
-    betaSupabasePublishableKeySha256: const String.fromEnvironment(
-      'BETA_SUPABASE_PUBLISHABLE_KEY_SHA256',
+    stagingSupabasePublishableKeySha256: const String.fromEnvironment(
+      'STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256',
     ),
     allowSelfServiceSignup: const bool.fromEnvironment(
       'ALLOW_SELF_SERVICE_SIGNUP',
@@ -99,29 +99,46 @@ class RuntimeConfig {
     return normalized;
   }
 
-  static String _httpsUrl(String value, String name) {
+  static bool _isLoopbackHost(String host) =>
+      host == 'localhost' || host == '127.0.0.1' || host == '::1';
+
+  static String _serviceUrl(String value, String name, String environment) {
     final normalized = _required(value, name);
     final uri = Uri.tryParse(normalized);
     if (uri == null ||
-        uri.scheme != 'https' ||
+        (uri.scheme != 'https' &&
+            !(environment == 'dev' && uri.scheme == 'http')) ||
         uri.host.isEmpty ||
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
-        uri.hasFragment) {
-      throw RuntimeConfigException('$name must be an exact HTTPS URL.');
+        uri.hasFragment ||
+        (environment == 'dev' && !_isLoopbackHost(uri.host)) ||
+        (environment != 'dev' && _isLoopbackHost(uri.host))) {
+      throw RuntimeConfigException(
+        environment == 'dev'
+            ? '$name must be an exact loopback HTTP or HTTPS URL.'
+            : '$name must be an exact non-loopback HTTPS URL.',
+      );
     }
     return normalized;
   }
 
-  static Uri _supabaseUrl(String value) {
-    final normalized = _httpsUrl(value, 'SUPABASE_URL');
+  static Uri _supabaseUrl(String value, String environment) {
+    final normalized = _serviceUrl(value, 'SUPABASE_URL', environment);
     final uri = Uri.parse(normalized);
-    if (uri.hasPort || (uri.path.isNotEmpty && uri.path != '/')) {
-      throw const RuntimeConfigException(
-        'SUPABASE_URL must be an origin without a path or port.',
+    if ((environment != 'dev' && uri.hasPort) ||
+        (uri.path.isNotEmpty && uri.path != '/')) {
+      throw RuntimeConfigException(
+        environment == 'dev'
+            ? 'SUPABASE_URL must be a loopback origin without a path.'
+            : 'SUPABASE_URL must be a non-loopback HTTPS origin without a path or port.',
       );
     }
-    return Uri(scheme: uri.scheme, host: uri.host);
+    return Uri(
+      scheme: uri.scheme,
+      host: uri.host,
+      port: uri.hasPort ? uri.port : null,
+    );
   }
 
   static String _publishableKey(String value) {
@@ -156,33 +173,35 @@ class RuntimeConfig {
     required String apiBaseUrl,
     required Uri supabaseUrl,
     required String publishableKey,
-    required String betaProjectRef,
-    required String betaKeySha256,
+    required String stagingProjectRef,
+    required String stagingKeySha256,
     required bool allowSelfServiceSignup,
   }) {
-    if (environment != 'staging' && environment != 'beta') {
+    if (environment != 'dev' &&
+        environment != 'staging' &&
+        environment != 'prod') {
       throw const RuntimeConfigException(
-        'RITUAL_ENVIRONMENT must explicitly be staging or beta.',
+        'RITUAL_ENVIRONMENT must explicitly be dev, staging, or prod.',
       );
     }
     final api = Uri.parse(apiBaseUrl);
-    if (api.host != supabaseUrl.host || api.path != '/functions/v1/api') {
+    if (api.origin != supabaseUrl.origin || api.path != '/functions/v1/api') {
       throw const RuntimeConfigException(
         'Auth and Edge API must use the same Supabase project and exact API path.',
       );
     }
-    if (environment != 'beta') return;
-    if (!RegExp(r'^[a-z]{20}$').hasMatch(betaProjectRef) ||
-        supabaseUrl.host != '$betaProjectRef.supabase.co') {
+    if (environment != 'staging') return;
+    if (!RegExp(r'^[a-z]{20}$').hasMatch(stagingProjectRef) ||
+        supabaseUrl.host != '$stagingProjectRef.supabase.co') {
       throw const RuntimeConfigException(
-        'The public beta requires its exact Supabase branch project ref.',
+        'The staging profile requires its exact Supabase project ref.',
       );
     }
     final fingerprint = sha256.convert(utf8.encode(publishableKey)).toString();
-    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(betaKeySha256) ||
-        fingerprint != betaKeySha256) {
+    if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(stagingKeySha256) ||
+        fingerprint != stagingKeySha256) {
       throw const RuntimeConfigException(
-        'The public beta publishable-key fingerprint does not match.',
+        'The staging publishable-key fingerprint does not match.',
       );
     }
     if (allowSelfServiceSignup) {

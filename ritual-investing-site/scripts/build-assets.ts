@@ -16,23 +16,46 @@ import { pathToFileURL } from "node:url";
 
 export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
 
-type DeploymentEnvironment = "production" | "beta";
+type DeploymentEnvironment = "dev" | "staging" | "prod";
 type DeploymentSurface = "landing" | "demo" | "member";
 
-export type MemberBetaAssemblyInputs = {
+export type DeploymentWaitlistConfiguration = {
+  functionUrl: string;
+  turnstileSiteKey: string;
+};
+
+export type DeploymentWaitlistConfigurations = Record<
+  "staging" | "prod",
+  DeploymentWaitlistConfiguration | null
+>;
+
+export const DEPLOYMENT_TARGETS = [
+  {
+    environment: "staging",
+    landingDirectory: "dist/landing-staging",
+    demoDirectory: "dist/demo-staging",
+  },
+  {
+    environment: "prod",
+    landingDirectory: "dist/landing-prod",
+    demoDirectory: "dist/demo-prod",
+  },
+] as const;
+
+export type MemberStagingAssemblyInputs = {
   projectRef: string;
   publishableKeySha256: string;
   supabaseOrigin: string;
 };
 
 const HOSTS = {
-  production: {
+  prod: {
     landing: "https://just-build-this.app",
     demo: "https://demo.just-build-this.app",
   },
-  beta: {
-    landing: "https://beta.just-build-this.app",
-    demo: "https://demo-beta.just-build-this.app",
+  staging: {
+    landing: "https://staging.just-build-this.app",
+    demo: "https://demo-staging.just-build-this.app",
   },
 } as const;
 
@@ -56,9 +79,12 @@ export function resolveTurnstileSiteKey(
   variables: Record<string, string | undefined>,
   required: boolean,
 ): string | undefined {
-  const variable = environment === "production"
-    ? "TURNSTILE_SITE_KEY_PRODUCTION"
-    : "TURNSTILE_SITE_KEY_BETA";
+  if (environment === "dev") {
+    throw new Error("Dev assets are local-only and cannot be assembled for deployment.");
+  }
+  const variable = environment === "prod"
+    ? "TURNSTILE_SITE_KEY_PROD"
+    : "TURNSTILE_SITE_KEY_STAGING";
   const siteKey = variables[variable]?.trim();
   if (siteKey === undefined || siteKey === "") {
     if (required) throw new Error(`${environment} Turnstile site key is required for release assembly.`);
@@ -75,9 +101,12 @@ export function resolveWaitlistFunctionUrl(
   variables: Record<string, string | undefined>,
   required: boolean,
 ): string | undefined {
-  const variable = environment === "production"
-    ? "WAITLIST_FUNCTION_URL_PRODUCTION"
-    : "WAITLIST_FUNCTION_URL_BETA";
+  if (environment === "dev") {
+    throw new Error("Dev assets are local-only and cannot be assembled for deployment.");
+  }
+  const variable = environment === "prod"
+    ? "WAITLIST_FUNCTION_URL_PROD"
+    : "WAITLIST_FUNCTION_URL_STAGING";
   const value = variables[variable]?.trim();
   if (value === undefined || value === "") {
     if (required) {
@@ -118,8 +147,8 @@ export function injectWaitlistConfiguration(
   if (html.split(WAITLIST_CONFIGURATION_SEAM).length !== 2) {
     throw new Error("The landing must contain exactly one disabled waitlist seam.");
   }
-  resolveWaitlistFunctionUrl("production", {
-    WAITLIST_FUNCTION_URL_PRODUCTION: functionUrl,
+  resolveWaitlistFunctionUrl("prod", {
+    WAITLIST_FUNCTION_URL_PROD: functionUrl,
   }, true);
   return html.replace(
     WAITLIST_CONFIGURATION_SEAM,
@@ -135,6 +164,9 @@ export function renderLandingHeaders(
   environment: DeploymentEnvironment,
   waitlistFunctionUrl?: string,
 ): string {
+  if (environment === "dev") {
+    throw new Error("Dev assets are local-only and have no hosted response policy.");
+  }
   const peer = HOSTS[environment];
   const waitlistOrigin = waitlistFunctionUrl === undefined
     ? undefined
@@ -160,7 +192,7 @@ export function renderLandingHeaders(
     "worker-src 'none'",
     "upgrade-insecure-requests",
   ].join("; ");
-  const indexPolicy = environment === "beta" ? `\n  ${NOINDEX}` : "";
+  const indexPolicy = environment === "staging" ? `\n  ${NOINDEX}` : "";
   return `/*
   Content-Security-Policy: ${csp}
   Permissions-Policy: accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()
@@ -170,7 +202,7 @@ export function renderLandingHeaders(
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin${indexPolicy}
 
-${entryCacheRules(["/", "/index.html", "/privacy/waitlist", "/privacy/waitlist/", "/privacy/waitlist/index.html", "/landing.js", "/styles.css", "/robots.txt", "/sitemap.xml"])}
+${entryCacheRules(["/", "/index.html", "/404.html", "/privacy/waitlist", "/privacy/waitlist/", "/privacy/waitlist/index.html", "/landing.js", "/styles.css", "/robots.txt", "/sitemap.xml"])}
 
 /assets/immutable/*
   Cache-Control: public, max-age=31536000, immutable
@@ -178,6 +210,9 @@ ${entryCacheRules(["/", "/index.html", "/privacy/waitlist", "/privacy/waitlist/"
 }
 
 export function renderDemoHeaders(environment: DeploymentEnvironment): string {
+  if (environment === "dev") {
+    throw new Error("Dev assets are local-only and have no hosted response policy.");
+  }
   const peer = HOSTS[environment];
   const csp = [
     "default-src 'none'",
@@ -205,25 +240,25 @@ export function renderDemoHeaders(environment: DeploymentEnvironment): string {
   Cross-Origin-Resource-Policy: same-origin
   ${NOINDEX}
 
-${entryCacheRules(["/", "/index.html", "/flutter.js", "/flutter_bootstrap.js", "/main.dart.js", "/manifest.json", "/version.json", "/asset-manifest.json"])}
+${entryCacheRules(["/", "/index.html", "/404.html", "/flutter.js", "/flutter_bootstrap.js", "/main.dart.js", "/manifest.json", "/version.json", "/asset-manifest.json"])}
 `;
 }
 
-export function resolveMemberBetaAssemblyInputs(
+export function resolveMemberStagingAssemblyInputs(
   variables: Record<string, string | undefined>,
-): MemberBetaAssemblyInputs {
-  const projectRef = variables.MEMBER_BETA_SUPABASE_PROJECT_REF?.trim() ?? "";
-  const supabaseOrigin = variables.MEMBER_BETA_SUPABASE_ORIGIN?.trim() ?? "";
+): MemberStagingAssemblyInputs {
+  const projectRef = variables.MEMBER_STAGING_SUPABASE_PROJECT_REF?.trim() ?? "";
+  const supabaseOrigin = variables.MEMBER_STAGING_SUPABASE_ORIGIN?.trim() ?? "";
   const publishableKeySha256 =
-    variables.MEMBER_BETA_SUPABASE_PUBLISHABLE_KEY_SHA256?.trim().toLowerCase() ?? "";
+    variables.MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256?.trim().toLowerCase() ?? "";
   if (!/^[a-z0-9]{20}$/.test(projectRef)) {
-    throw new Error("The beta Supabase branch project ref is required.");
+    throw new Error("The staging Supabase project ref is required.");
   }
   if (supabaseOrigin !== `https://${projectRef}.supabase.co`) {
-    throw new Error("The member beta Supabase origin must exactly match its project ref.");
+    throw new Error("The member staging Supabase origin must exactly match its project ref.");
   }
   if (!/^[a-f0-9]{64}$/.test(publishableKeySha256)) {
-    throw new Error("The member beta publishable-key SHA-256 fingerprint is required.");
+    throw new Error("The member staging publishable-key SHA-256 fingerprint is required.");
   }
   return { projectRef, publishableKeySha256, supabaseOrigin };
 }
@@ -319,7 +354,7 @@ type AssembleOptions = {
   source: string;
   destination: string;
   surface?: DeploymentSurface;
-  memberBeta?: MemberBetaAssemblyInputs;
+  memberStaging?: MemberStagingAssemblyInputs;
 };
 
 function posixPath(path: string): string {
@@ -436,9 +471,9 @@ function validateProviderBoundary(
   }
 }
 
-function validateMemberBetaBoundary(
+function validateMemberStagingBoundary(
   assets: ReadonlyArray<{ path: string; contents: Uint8Array }>,
-  inputs: MemberBetaAssemblyInputs,
+  inputs: MemberStagingAssemblyInputs,
 ): void {
   const text = assets
     .filter((asset) => TEXT_EXTENSIONS.has(extension(asset.path)))
@@ -446,7 +481,7 @@ function validateMemberBetaBoundary(
     .join("\n");
   const apiUrl = `${inputs.supabaseOrigin}/functions/v1/api`;
   if (!text.includes(inputs.supabaseOrigin) || !text.includes(apiUrl)) {
-    throw new Error("The member artifact is missing its exact beta Supabase origin or Edge API URL.");
+    throw new Error("The member artifact is missing its exact staging Supabase origin or Edge API URL.");
   }
   const origins = new Set(
     [...text.matchAll(/https:\/\/[a-z0-9-]+\.supabase\.co/gi)].map((match) => match[0]),
@@ -488,8 +523,8 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
   const source = resolve(options.source);
   const destination = resolve(options.destination);
   const surface = options.surface ?? "demo";
-  if (surface === "member" && options.memberBeta === undefined) {
-    throw new Error("Member beta assembly requires exact Supabase inputs.");
+  if (surface === "member" && options.memberStaging === undefined) {
+    throw new Error("Member staging assembly requires exact staging Supabase inputs.");
   }
   if (source === destination || source.startsWith(`${destination}${sep}`)) {
     throw new Error("Asset source and destination must be separate directories.");
@@ -522,7 +557,7 @@ export async function assembleAssets(options: AssembleOptions): Promise<AssetMan
     deployable.push({ path, contents });
   }
 
-  if (surface === "member") validateMemberBetaBoundary(deployable, options.memberBeta!);
+  if (surface === "member") validateMemberStagingBoundary(deployable, options.memberStaging!);
 
   const deployablePaths = new Set(deployable.map((asset) => asset.path));
   for (const file of deployable) {
@@ -595,19 +630,28 @@ async function prepareLandingStage(
   packageRoot: string,
   stage: string,
   environment: DeploymentEnvironment,
+  reviewedConfiguration?: DeploymentWaitlistConfiguration | null,
 ): Promise<void> {
   await cp(resolve(packageRoot, "public"), stage, { recursive: true });
   await addLandingIdentityAssets(packageRoot, stage);
-  const publicSiteKey = resolveTurnstileSiteKey(
-    environment,
-    process.env,
-    process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
-  );
-  const waitlistFunctionUrl = resolveWaitlistFunctionUrl(
-    environment,
-    process.env,
-    process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
-  );
+  const publicSiteKey = reviewedConfiguration === null
+    ? undefined
+    : resolveTurnstileSiteKey(
+      environment,
+      reviewedConfiguration === undefined
+        ? process.env
+        : { [`TURNSTILE_SITE_KEY_${environment.toUpperCase()}`]: reviewedConfiguration.turnstileSiteKey },
+      reviewedConfiguration !== undefined || process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
+    );
+  const waitlistFunctionUrl = reviewedConfiguration === null
+    ? undefined
+    : resolveWaitlistFunctionUrl(
+      environment,
+      reviewedConfiguration === undefined
+        ? process.env
+        : { [`WAITLIST_FUNCTION_URL_${environment.toUpperCase()}`]: reviewedConfiguration.functionUrl },
+      reviewedConfiguration !== undefined || process.env.REQUIRE_WAITLIST_CONFIGURATION === "true",
+    );
   if ((publicSiteKey === undefined) !== (waitlistFunctionUrl === undefined)) {
     throw new Error(
       `${environment} waitlist activation requires both the public Turnstile key and function URL.`,
@@ -628,15 +672,15 @@ async function prepareLandingStage(
     join(stage, "_headers"),
     renderLandingHeaders(environment, waitlistFunctionUrl),
   );
-  if (environment === "beta") {
+  if (environment === "staging") {
     for (const relativePath of ["index.html", "privacy/waitlist/index.html"]) {
       const path = join(stage, relativePath);
-      const production = await readFile(path, "utf8");
-      const beta = production
+      const prod = await readFile(path, "utf8");
+      const staging = prod
         .replaceAll('content="index,follow"', 'content="noindex,nofollow"')
-        .replaceAll('data-demo-environment="production"', 'data-demo-environment="beta"')
-        .replaceAll("https://demo.just-build-this.app", "https://demo-beta.just-build-this.app");
-      await writeFile(path, beta);
+        .replaceAll('data-demo-environment="prod"', 'data-demo-environment="staging"')
+        .replaceAll("https://demo.just-build-this.app", "https://demo-staging.just-build-this.app");
+      await writeFile(path, staging);
     }
     await writeFile(join(stage, "robots.txt"), "User-agent: *\nDisallow: /\n");
   }
@@ -655,7 +699,7 @@ async function prepareDemoStage(
 async function prepareMemberStage(
   memberSource: string,
   stage: string,
-  inputs: MemberBetaAssemblyInputs,
+  inputs: MemberStagingAssemblyInputs,
 ): Promise<void> {
   await cp(memberSource, stage, { recursive: true });
   const paths = await walk(stage);
@@ -673,8 +717,8 @@ async function prepareMemberStage(
   await writeFile(join(stage, "robots.txt"), "User-agent: *\nDisallow: /\n");
 }
 
-export async function buildMemberBetaAssets(
-  inputs: MemberBetaAssemblyInputs,
+export async function buildMemberStagingAssets(
+  inputs: MemberStagingAssemblyInputs,
 ): Promise<AssetManifest> {
   const packageRoot = resolve(import.meta.dirname, "..");
   const memberSource = resolve(packageRoot, "../ritual-investing-app/build/web");
@@ -683,29 +727,37 @@ export async function buildMemberBetaAssets(
     await prepareMemberStage(memberSource, stage, inputs);
     return await assembleAssets({
       source: stage,
-      destination: resolve(packageRoot, "dist/member-beta"),
+      destination: resolve(packageRoot, "dist/member-staging"),
       surface: "member",
-      memberBeta: inputs,
+      memberStaging: inputs,
     });
   } finally {
     await rm(stage, { recursive: true, force: true });
   }
 }
 
-export async function buildDeploymentAssets(): Promise<void> {
+export async function buildDeploymentAssets(
+  reviewedConfigurations?: DeploymentWaitlistConfigurations,
+): Promise<void> {
   const packageRoot = resolve(import.meta.dirname, "..");
   const demoSource = resolve(packageRoot, "../ritual-investing-demo/build/web");
   const stagingRoot = await mkdtemp(join(tmpdir(), "ritual-site-assets-"));
   try {
     const manifests: Array<{ surface: string; manifest: AssetManifest }> = [];
-    for (const environment of ["production", "beta"] as const) {
+    for (const target of DEPLOYMENT_TARGETS) {
+      const { environment } = target;
       const landingStage = join(stagingRoot, `landing-${environment}`);
-      await prepareLandingStage(packageRoot, landingStage, environment);
+      await prepareLandingStage(
+        packageRoot,
+        landingStage,
+        environment,
+        reviewedConfigurations?.[environment],
+      );
       manifests.push({
-        surface: environment === "production" ? "landing" : "landing-beta",
+        surface: `landing-${environment}`,
         manifest: await assembleAssets({
           source: landingStage,
-          destination: resolve(packageRoot, environment === "production" ? "dist/landing" : "dist/landing-beta"),
+          destination: resolve(packageRoot, target.landingDirectory),
           surface: "landing",
         }),
       });
@@ -713,10 +765,10 @@ export async function buildDeploymentAssets(): Promise<void> {
       const demoStage = join(stagingRoot, `demo-${environment}`);
       await prepareDemoStage(demoSource, demoStage, environment);
       manifests.push({
-        surface: environment === "production" ? "demo" : "demo-beta",
+        surface: `demo-${environment}`,
         manifest: await assembleAssets({
           source: demoStage,
-          destination: resolve(packageRoot, environment === "production" ? "dist/demo" : "dist/demo-beta"),
+          destination: resolve(packageRoot, target.demoDirectory),
           surface: "demo",
         }),
       });
@@ -730,9 +782,9 @@ export async function buildDeploymentAssets(): Promise<void> {
 }
 
 if (process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  if (process.argv[2] === "member-beta") {
-    const manifest = await buildMemberBetaAssets(resolveMemberBetaAssemblyInputs(process.env));
-    process.stdout.write(`member-beta: ${manifest.fileCount} files (${manifest.totalBytes} bytes)\n`);
+  if (process.argv[2] === "member-staging") {
+    const manifest = await buildMemberStagingAssets(resolveMemberStagingAssemblyInputs(process.env));
+    process.stdout.write(`member-staging: ${manifest.fileCount} files (${manifest.totalBytes} bytes)\n`);
   } else {
     await buildDeploymentAssets();
   }

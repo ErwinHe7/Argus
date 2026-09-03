@@ -14,8 +14,8 @@ describe("static Pages and Supabase waitlist runbook", () => {
       "Cloudflare Pages",
       "static assets only",
       "Supabase Edge Function",
-      "WAITLIST_FUNCTION_URL_PRODUCTION",
-      "WAITLIST_FUNCTION_URL_BETA",
+      "WAITLIST_FUNCTION_URL_PROD",
+      "WAITLIST_FUNCTION_URL_STAGING",
       "WAITLIST_SUBMISSIONS=off",
       "exact landing origin",
       "Turnstile",
@@ -24,6 +24,37 @@ describe("static Pages and Supabase waitlist runbook", () => {
       "privacy@just-build-this.app",
     ]) expect(runbook).toContain(phrase);
     expect(runbook).not.toMatch(/WAITLIST_NEON_URL|waitlist_runtime|Neon project/i);
+  });
+
+  it("documents the velocity-first dev, staging, prod release and recovery contract", async () => {
+    const [runbook, terraformReadme] = await Promise.all([
+      readFile(
+        resolve(repositoryRoot, "docs/ritual-investing/production-release-runbook.md"),
+        "utf8",
+      ),
+      readFile(
+        resolve(repositoryRoot, "infra/terraform/ritual-investing/README.md"),
+        "utf8",
+      ),
+    ]);
+    for (const phrase of [
+      "`dev`, `staging`, and `prod`",
+      "Direct pushes remain allowed",
+      "downloads the same artifact",
+      "Artifact expired or missing",
+      "automatic schema rollback",
+      "Terraform state/backend",
+      "Evidence custody",
+      "Production remains NO-GO",
+    ]) expect(runbook).toContain(phrase);
+    expect(runbook).toContain("does not configure branch protection");
+    expect(runbook).toMatch(/does not require a GitHub\s+deployment environment/);
+    expect(runbook).toMatch(/repository-level GitHub\s+Actions variables/);
+    expect(runbook).toContain("credential-free staging preflight");
+    expect(runbook).toMatch(/authorizes Wrangler content deployment\s+only/);
+    expect(runbook).toContain("does not authorize a Terraform apply");
+    expect(terraformReadme).toContain("repository-level GitHub Actions variables");
+    expect(terraformReadme).toContain("operator-local state");
   });
 
   it("moves the route and retention proof to Supabase and keeps Pages free of backend bindings", async () => {

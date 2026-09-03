@@ -102,7 +102,7 @@ class GrimoireDetailScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Demo boundaries',
+                  'Simulation boundaries',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 5),

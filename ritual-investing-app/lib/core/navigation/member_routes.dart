@@ -37,6 +37,7 @@ abstract final class MemberRoutes {
   static const youPoliciesPath = '/you/policies';
   static const youAccountPath = '/you/account';
   static const discoverSearchPath = '/discover/search';
+  static const discoverAiAnalysisPath = '/discover/ai-analysis';
   static const discoverCirclesPath = '/discover/circles';
   static const ritualBriefingsPath = '/gospel/briefings';
   static const youNotificationsPath = '/you/notifications';

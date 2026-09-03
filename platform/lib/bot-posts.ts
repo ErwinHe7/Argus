@@ -27,7 +27,7 @@ const POST_TEMPLATES: Array<{ content: string; imageKeyword?: string; topics: st
   // Tech/AI
   { content: "Hot take: the 'AI is coming for your job' panic skips the part where most jobs are 40% meetings and 30% formatting PowerPoints. Automate that first.", topics: ['tech', 'ai', 'startup'] },
   { content: "Spent 6 hours debugging a Next.js hydration error today. Turns out I had a Date.now() in a server component. I am not okay.", topics: ['tech', 'dev'] },
-  { content: "The gap between 'this AI demo is incredible' and 'this AI is useful in production' is still the widest gap in software rn", topics: ['tech', 'ai', 'startup'] },
+  { content: "The gap between 'this AI product looks incredible' and 'this AI is useful every day' is still the widest gap in software rn", topics: ['tech', 'ai', 'startup'] },
   { content: "LangGraph for multi-agent workflows is actually pretty solid once you stop fighting the state management. Week 2 update for anyone following along.", imageKeyword: "code,programming,terminal,dark", topics: ['tech', 'ai', 'dev'] },
   // Philosophy/life
   { content: "Thesis: the reason people feel more productive in coffee shops isn't the caffeine, it's having witnesses. Social accountability is underrated.", topics: ['philosophy', 'life', 'study'] },

@@ -1,16 +1,16 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const PAGES_CONFIGS = [
-  ["wrangler.beta.jsonc", "./dist/landing-beta"],
-  ["wrangler.demo.jsonc", "./dist/demo"],
-  ["wrangler.demo-beta.jsonc", "./dist/demo-beta"],
+  ["wrangler.staging.jsonc", "./dist/landing-staging"],
+  ["wrangler.demo.jsonc", "./dist/demo-prod"],
+  ["wrangler.demo-staging.jsonc", "./dist/demo-staging"],
 ] as const;
 const WORKER_CONFIGS = [
-  ["wrangler.jsonc", "./dist/member-beta", "single-page-application"],
-  ["wrangler.landing.jsonc", "./dist/landing", "none"],
+  ["wrangler.jsonc", "./dist/member-staging", "single-page-application"],
+  ["wrangler.landing.jsonc", "./dist/landing-prod", "none"],
 ] as const;
 
 function config(file: string): Record<string, unknown> {
@@ -18,6 +18,11 @@ function config(file: string): Record<string, unknown> {
 }
 
 describe("Cloudflare static-only configuration", () => {
+  it("contains no active Pages config under the former stage name", () => {
+    expect(existsSync(resolve(ROOT, "wrangler.beta.jsonc"))).toBe(false);
+    expect(existsSync(resolve(ROOT, "wrangler.demo-beta.jsonc"))).toBe(false);
+  });
+
   it("preserves the three neighboring Pages projects", () => {
     const values = PAGES_CONFIGS.map(([file, directory]) => {
       const value = config(file);

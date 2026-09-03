@@ -93,7 +93,7 @@ Interaction remains familiar on each operating system. Brand expression belongs 
 - Original image-first ritual composition.
 - Restrained lilac and aubergine surfaces with rare candle-gold emphasis.
 - Editorial serif display moments paired with platform-native sans-serif controls.
-- Evidence and Demo state visible in the same flow as the mystical interpretation.
+- Evidence and simulated-state disclosure visible in the same flow as the mystical interpretation.
 - iOS and Android navigation behavior adapted without duplicating the product UI.
 
 ## 2. Colors
@@ -139,7 +139,7 @@ The palette moves between a lunar-lilac morning atmosphere and aubergine night w
 - **Headline** (700, `28sp`, 1.08): meaningful product sections such as Intentions and Future Mirror.
 - **Title** (700, `18–22sp`, 1.1): assets, collections, and feature names.
 - **Body** (400, `15–17sp`, 1.45): explanations and disclosures, with readable scaling and no fixed-height containers.
-- **Label** (800, `11–12sp`, tracked): rare ritual labels and explicit Demo markers.
+- **Label** (800, `11–12sp`, tracked): rare ritual labels and explicit simulation markers.
 
 **The Split Voice Rule.** Display serif is forbidden in buttons, evidence data, form labels, transaction values, and navigation.
 
@@ -164,7 +164,7 @@ Depth comes primarily from tonal layering. The tarot card alone receives a compa
 
 ### Chips
 
-- **Style:** full-pill status labels for Demo and compact filters only.
+- **Style:** full-pill status labels for simulation state and compact filters only.
 - **State:** selected state uses both fill and text/icon changes.
 
 ### Cards / Containers
@@ -187,30 +187,61 @@ Navigation is derived from the trusted member capability contract, never a clien
 
 ### Starpath Learning Path
 
-Starpath is an original downward “Walk the Stars” progression with eight semantic waypoints grouped into four pathways. Alternate waypoints left and right to create a constellation rhythm, but preserve reading, focus, and screen-reader order from one through eight. The connecting line and decorative stars carry no semantics. Starpath waypoints are signature navigation objects rather than ordinary cards and may use the larger rounded constellation shape shown in the approved component.
+Starpath begins with one familiar segmented control for `Invest` and `Trade`, followed by the selected universe in the same continuous page. Do not render the universes as oversized nested cards. Invest uses an original downward “Walk the Stars” progression with eight semantic constellation waypoints and nineteen short lessons. Trade uses a simple seven-stop roadmap and no fabricated progress. Every Invest waypoint is enabled from first load; connecting lines and decorative stars carry no semantics.
 
-The hierarchy is fixed: celestial memory frame and no-recommendation boundary, current downward path, optional single recall, then the selected lesson. A lesson reveals one original tarot-style memory card before showing two unmistakable content zones:
+The Invest header states `8 constellations · 19 short lessons · all open`, explains that progress is a suggested route, and shows recorded completion without urgency. The fixed labels are:
+
+1. `The Market`: `What Is Investing?`; `What Is a Stock?`; `Why Do Stock Prices Move?`; `What Is a Broker?`.
+2. `The S&P 500`: `What Is an Index?`; `What Is the S&P 500?`; `SPX vs SPY vs VOO`.
+3. `ETFs & Diversification`: `What Is an ETF?`; `One Stock vs a Basket`.
+4. `How to Buy`: `Buy and Sell`; `Market Order vs Limit Order`.
+5. `Your Portfolio`: `What Is a Portfolio?`; `Concentration`.
+6. `Understanding Risk`: `Price Risk and Volatility`; `Drawdown and Time Horizon`.
+7. `Understanding a Company`: `What Does the Company Sell?`; `Revenue and Profit`.
+8. `Practice Your First Investment`: `Know What You’re Buying`; `Preview a Sample Order`.
+
+Opening a constellation shows its factual summary, open micro-lesson list, optional original tarot-style memory aid, and one knowledge check. A micro-lesson reads like one short human explanation: title, compact voice status, continuous body copy, one `Keep in mind` boundary, understated sources, and next action. Do not split the same lesson into stacked `THE IDEA`, `PROTECT YOURSELF`, `RISK`, and `LIMITS` cards.
 
 1. `MYTHIC MEMORY AID`, immediately followed by “mnemonic—not evidence or a forecast.”
-2. `FACTUAL LESSON`, with claim, observed/reviewed dates, source, uncertainty, limitations, risk context, and the definition check.
+2. `FACTUAL LESSON`, with claim, observed/reviewed dates, source, uncertainty, limitations, and risk context.
 
-Completed waypoints remain reviewable, the current waypoint is the only new lesson action, and locked waypoints explain the sequence. Wrong answers use calm factual feedback and retain the choices. Completion adds no streak pressure, lives, countdown, deposit, trade, or security-choice affordance. Rowan opens a bounded sheet containing only reviewed lesson copy, a no-recommendation boundary, and a dismiss action; it has no text field.
+All Part and micro-lesson rows remain reviewable and tappable. The current suggested Part is the only Part whose check can record the next sequential completion; opening later Parts never mutates progress. Wrong answers use calm factual feedback and retain the choices. Completion adds no streak pressure, lives, countdown, deposit, trade, or security-choice affordance. Risk examples must never present a universal 25% stop, a universal position size, a guaranteed outcome, or `1:3` as a probability. Rowan opens a bounded sheet containing only reviewed lesson copy, a no-recommendation boundary, and a dismiss action; it has no text field.
+
+Each micro-lesson starts best-effort narration on entry and exposes a compact status/replay row plus a clear Mute/Unmute control. The preference is shared across lesson routes. Status changes are announced as one live region, never word by word. Leaving the lesson, opening Rowan, advancing, or backgrounding stops the current narration; entering the next lesson starts it only when unmuted. Copy discloses that the English system voice varies by device or browser; do not imply a fixed GPT, celebrity, character, or cloud-neural voice. If a browser blocks autoplay, written content and manual replay remain available.
 
 At 200 percent text or narrow widths, let headers and waypoint heights grow and preserve downward scrolling. Reduced Motion and accessible navigation remove any nonessential movement; no meaning may depend on flip, bounce, shimmer, parallax, auto-scroll, or the left/right geometry. The visual language may learn from the clarity of guided-learning products but must not copy Alinea, Duolingo, Labyrinthos, or any proprietary character, wording, art, or path composition.
 
+### Discover AI Analysis
+
+AI Analysis is an optional Discover destination introduced by one calm feature row. The destination opens with a compact, expandable risk strip followed by three scannable shelves: Leo Models, AI Model Experiments, and Public Filing Reconstructions. Leo and AI experiments use compact rows with mini charts. Public reconstructions switch to person-led Smart Money cards so the associated investor, top holdings, allocation, reconstruction return, and disclosure date can be understood at a glance. Hypothetical research, unofficial simulations, and filing reconstructions remain visibly distinguished.
+
+The detail opens with a timestamped Market Risk regime, its monitoring horizon, supporting indicators, limitations, and freshness. Pair every risk color with a written level and icon. Copy must say that the regime monitors market pressure; never render a crash countdown, bear-market probability, sell command, flashing warning, or other claim that it forecasts a bear market.
+
+Each non-public row pairs its title and short summary with a dedicated 92-pixel strategy illustration and a compact strip of its largest holding avatars; the layout stacks at large text sizes. It keeps status, exact dates, return, and mini chart legible without expansion. Selecting it opens an in-screen detail with a larger 3M/6M/1Y chart, same-period benchmark, maximum drawdown, a fixed-amount historical replay, holdings, sector allocation, source date, model or filing method, and material fee, slippage, dividend, universe, and rebalance assumptions. The replay is not a forecast. Holdings may explain the research rationale but provide no Buy, Sell, Follow, Copy, or order action.
+
+Third-party model experiments use text names only and say `Unofficial historical simulation`; they never imply the provider generated or endorsed the basket. Public reconstruction cards show a rights-cleared portrait in the center of a holding-allocation ring, pair the person with the filing entity, expose the top holdings as compact identity avatars, display the reconstruction period and source date, and say `Filing reconstruction`. Portrait attribution is stored with the assets. Holding avatars use Simple Icons only for supported companies, keep the library brand color when it meets contrast, and fall back to a themed ticker tile otherwise. They are nominative identifiers—not provider, manager, or issuer endorsement—and remain paired with text, accessible labels, and visible non-affiliation copy. Returns from different methods or periods are not combined into a misleading leaderboard.
+
+AI Analysis renders only a fresh, uncached snapshot. Expiry, a not-yet-valid timestamp, or any fetch error replaces the analysis with an unavailable state and retry action; it never displays stale returns or risk as current. Layouts grow at 200 percent text, charts are decorative only when an equivalent text summary is present, and no recommendation, suitability claim, guaranteed outcome, or personalized security ranking appears.
+
 ### Daily Ritual Stage
 
-The generated Compass artwork is the dominant object. The order is fixed: date and theme, ritual label, art, interpretation, evidence reveal, constellation, Founders’ Coven, Rowan counsel, Demo limitation. Evidence remains one gesture from the mystical interpretation.
+Leonidas and the assigned card form one measured mobile stage. The member first sees a passive invitation inside the normal navigable shell. **Start your daily ritual** enters a chrome-free fullscreen ceremony: Ready → five-second continuous Hold → Reading revealed → explicit Finish → one short skippable Leonidas close → Completed onward. Completed onward presents **Review evidence** as the primary action and **Continue to Starpath** as the secondary action. It does not add practices, constellations, Coven promotion, a second counsel surface, or another ending.
+
+The upper portrait and at least the top half of Leonidas's face remain visible throughout. The seal, real assigned card, interpretation, captions, and actions never intersect the measured face-clear zone. The card is concealed before an authoritative reveal, remains the same uncropped art through C2 expansion and keepsake settlement, and is never replaced by an imitation or fallback. The UI contains no finger, sensor, biometric, or supernatural-reading claim.
+
+Ready through Completed has no global top utility row, bottom navigation, or ordinary-size scroll surface. System Back remains available. At accessibility text sizes, only the adaptive lower region may reflow or scroll to keep complete copy and controls reachable.
+
+Native speech is optional presentation, never authority. Captions contain the complete reviewed close when speech is unavailable, interrupted, disabled, or skipped. Reduced Motion removes nonessential travel without changing order or meaning. The canonical requirements and approved iPhone 17 frames are in [`docs/reviews/daily-ritual-rebuild.md`](docs/reviews/daily-ritual-rebuild.md).
 
 ## 6. Do's and Don'ts
 
 ### Do:
 
-- **Do** use the preserved Compass and Rowan assets as visual-fidelity anchors.
-- **Do** keep factual observations, timestamp, uncertainty, and Demo status adjacent to every investment idea.
+- **Do** use the preserved Compass, Leonidas, and bounded Rowan assets as visual-fidelity anchors for their assigned surfaces.
+- **Do** keep factual observations, timestamp, uncertainty, and simulation status adjacent to every investment idea.
 - **Do** preserve system back gestures, safe areas, text scaling, VoiceOver, TalkBack, and reduced-motion behavior.
 - **Do** distinguish founder, owner, and chief-executive inclusion categories with a visible verification date.
-- **Do** let Rowan explain evidence and uncertainty while leaving the decision with the user.
+- **Do** let Leonidas explain Daily Ritual evidence and uncertainty while leaving the decision with the user; keep other Rowan surfaces bounded to their reviewed context.
 - **Do** keep Starpath mythic copy visually and semantically separate from its factual source, dates, limitations, and risk context.
 
 ### Don't:

@@ -10,7 +10,7 @@ const TURNSTILE_VERIFY_URL =
   "https://challenges.cloudflare.com/turnstile/v0/siteverify";
 const ACTIVE_ORIGINS = new Set([
   "https://just-build-this.app",
-  "https://beta.just-build-this.app",
+  "https://staging.just-build-this.app",
 ]);
 
 type RatePolicy = Readonly<{ limit: number; windowSeconds: number }>;
@@ -288,7 +288,7 @@ function createRuntime(databaseUrl: string): WaitlistRuntime {
 }
 
 async function deadline<T>(operation: Promise<T>, milliseconds: number): Promise<T> {
-  let timeout: number | undefined;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
   const expired = new Promise<never>((_resolve, reject) => {
     timeout = setTimeout(() => reject(new Error("dependency_timeout")), milliseconds);
   });

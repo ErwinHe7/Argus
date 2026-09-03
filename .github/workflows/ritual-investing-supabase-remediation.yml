@@ -3,6 +3,30 @@ name: Ritual Investing Supabase Remediation
 on:
   workflow_dispatch:
     inputs:
+      source_run_id:
+        description: Exact successful Ritual Investing Fast CI run ID from main
+        required: true
+        type: string
+      source_attempt:
+        description: Exact source workflow run attempt
+        required: true
+        type: string
+      artifact_id:
+        description: Exact retained release artifact ID from the source run
+        required: true
+        type: string
+      source_sha:
+        description: Exact 40-character release source SHA
+        required: true
+        type: string
+      archive_sha256:
+        description: Exact release-bundle.tar SHA-256
+        required: true
+        type: string
+      manifest_sha256:
+        description: Exact release-manifest.json SHA-256
+        required: true
+        type: string
       promotion_manifest:
         description: Canonical argus-supabase-promotion/v1 JSON approved for this exact run
         required: true
@@ -13,6 +37,7 @@ on:
         type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -23,24 +48,132 @@ env:
   SUPABASE_CLI_VERSION: 2.115.0
 
 jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    outputs:
+      mutation_ready: ${{ steps.verify.outputs.mutation_ready }}
+    steps:
+      - name: Validate canonical source run and exact retained artifact
+        id: metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ATTEMPT: ${{ inputs.source_attempt }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+        run: |
+          set -euo pipefail
+          for id in "$SOURCE_RUN_ID" "$SOURCE_ATTEMPT" "$ARTIFACT_ID"; do [[ "$id" =~ ^[1-9][0-9]*$ ]]; done
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" >"$RUNNER_TEMP/source-run.json"
+          jq -e --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --argjson run "$SOURCE_RUN_ID" --argjson attempt "$SOURCE_ATTEMPT" '
+            .id == $run and .run_attempt == $attempt and
+            .repository.full_name == $repository and .head_repository.full_name == $repository and
+            .event == "push" and .head_branch == "main" and .head_sha == $sha and
+            .conclusion == "success" and .path == ".github/workflows/ritual-investing-ci.yml"
+          ' "$RUNNER_TEMP/source-run.json" >/dev/null
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$ARTIFACT_ID" >"$RUNNER_TEMP/source-artifact.json"
+          expected_name="ritual-release-$SOURCE_SHA-$SOURCE_RUN_ID-$SOURCE_ATTEMPT"
+          jq -e --slurpfile source "$RUNNER_TEMP/source-run.json" --arg name "$expected_name" --arg sha "$SOURCE_SHA" --argjson run "$SOURCE_RUN_ID" --argjson artifact "$ARTIFACT_ID" '
+            .id == $artifact and .name == $name and .expired == false and
+            .workflow_run.id == $run and .workflow_run.head_sha == $sha and .workflow_run.head_branch == "main" and
+            .workflow_run.repository_id == $source[0].repository.id and
+            .workflow_run.head_repository_id == $source[0].head_repository.id
+          ' "$RUNNER_TEMP/source-artifact.json" >/dev/null
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ inputs.artifact_id }}
+          path: ${{ runner.temp }}/source-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+          merge-multiple: true
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: release-source
+          persist-credentials: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: controller-source
+          persist-credentials: false
+
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version: 22.22.0
+          cache: npm
+          cache-dependency-path: release-source/ritual-investing-site/package-lock.json
+
+      - working-directory: release-source/ritual-investing-site
+        run: npm ci
+
+      - name: Verify release identity and byte-compare frozen Supabase sources
+        id: verify
+        env:
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_ATTEMPT: ${{ inputs.source_attempt }}
+          SOURCE_SHA: ${{ inputs.source_sha }}
+          EXPECTED_ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+          PROMOTION_MANIFEST_INPUT: ${{ inputs.promotion_manifest }}
+          PROMOTION_MANIFEST_SHA256_INPUT: ${{ inputs.promotion_manifest_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_ARCHIVE_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$EXPECTED_MANIFEST_SHA256" =~ ^[a-f0-9]{64}$ ]]
+          artifact="$RUNNER_TEMP/source-artifact"
+          test "$(sha256sum "$artifact/release-bundle.tar" | cut -d' ' -f1)" = "$EXPECTED_ARCHIVE_SHA256"
+          test "$(sha256sum "$artifact/release-bundle/release-manifest.json" | cut -d' ' -f1)" = "$EXPECTED_MANIFEST_SHA256"
+          test "$(cut -d' ' -f1 "$artifact/archive.sha256")" = "$EXPECTED_ARCHIVE_SHA256"
+          test "$(cut -d' ' -f1 "$artifact/manifest.sha256")" = "$EXPECTED_MANIFEST_SHA256"
+          export RELEASE_BUNDLE_VERIFICATION_CONTEXT="$(jq -cn --arg repository "$GITHUB_REPOSITORY" --arg sha "$SOURCE_SHA" --arg runId "$SOURCE_RUN_ID" --argjson attempt "$SOURCE_ATTEMPT" '{expectedSubject:{repository:$repository,sha:$sha,runId:$runId,attempt:$attempt},expectedController:{workflow:"Ritual Investing Fast CI",ref:"refs/heads/main",sha:$sha,runId:$runId,attempt:$attempt}}')"
+          npm --prefix release-source/ritual-investing-site run --silent release:verify -- "$artifact/release-bundle"
+          test "$(git -C release-source rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$(git -C controller-source rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          test -f controller-source/.github/workflows/ritual-investing-supabase-remediation.yml
+          diff -qr "$artifact/release-bundle/snapshots/supabase/migrations" release-source/supabase/migrations
+          diff -qr "$artifact/release-bundle/snapshots/supabase/functions" release-source/supabase/functions
+          for document in supabase-boundary-manifest-v1.txt supabase-migration-inventory-v1.txt; do
+            cmp "$artifact/release-bundle/snapshots/docs/ritual-investing/$document" "release-source/docs/ritual-investing/$document"
+          done
+          canonical="$RUNNER_TEMP/supabase-promotion-manifest.preflight.json"
+          printf '%s' "$PROMOTION_MANIFEST_INPUT" | jq -S -c . >"$canonical"
+          test "$(sha256sum "$canonical" | cut -d' ' -f1)" = "$PROMOTION_MANIFEST_SHA256_INPUT"
+          test "$(jq -r '.contract_version' "$canonical")" = "argus-supabase-promotion/v1"
+          test "$(jq -r '.branch_ref' "$canonical")" = "refs/heads/main"
+          test "$(jq -r '.git_revision' "$canonical")" = "$SOURCE_SHA"
+          test "$(jq -r '.migration_checksum' "$canonical")" = "$(sha256sum release-source/docs/ritual-investing/supabase-migration-inventory-v1.txt | cut -d' ' -f1)"
+          test "$(jq -r '.inventory_sha256' "$canonical")" = "$(sha256sum release-source/docs/ritual-investing/supabase-boundary-manifest-v1.txt | cut -d' ' -f1)"
+          echo "mutation_ready=true" >>"$GITHUB_OUTPUT"
+
   promote:
+    needs: preflight
+    if: needs.preflight.result == 'success' && needs.preflight.outputs.mutation_ready == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     environment: ritual-supabase-remediation
+    defaults:
+      run:
+        working-directory: release-source
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      SUPABASE_PROJECT_ID: ${{ vars.SUPABASE_PROJECT_ID }}
-      SUPABASE_PROJECT_URL: ${{ vars.SUPABASE_PROJECT_URL }}
+      SUPABASE_PROJECT_ID: ${{ vars.STAGING_SUPABASE_PROJECT_ID }}
+      SUPABASE_PROJECT_URL: ${{ vars.STAGING_SUPABASE_PROJECT_URL }}
       RITUAL_EXPECTED_REPOSITORY: ErwinHe7/Argus
-      RITUAL_EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.EXPECTED_SUPABASE_PROJECT_ID }}
-      RITUAL_EXPECTED_BETA_PROJECT_ID: ${{ vars.BETA_SUPABASE_PROJECT_ID }}
-      RITUAL_EXPECTED_SUPABASE_DB_HOST: ${{ vars.EXPECTED_SUPABASE_DB_HOST }}
-      RITUAL_HOSTED_API_URL: ${{ vars.RITUAL_HOSTED_API_URL }}
-      RITUAL_BETA_PREVIEW_ORIGIN: ${{ vars.BETA_MEMBER_PREVIEW_ORIGIN }}
-      RITUAL_BETA_ADMIN_ORIGIN: ${{ vars.BETA_ADMIN_ORIGIN }}
-      RITUAL_BETA_WEB_ADMISSION: ${{ vars.BETA_WEB_ADMISSION }}
+      RITUAL_EXPECTED_SUPABASE_PROJECT_ID: ${{ vars.EXPECTED_STAGING_SUPABASE_PROJECT_ID }}
+      RITUAL_EXPECTED_SUPABASE_DB_HOST: ${{ vars.EXPECTED_STAGING_SUPABASE_DB_HOST }}
+      RITUAL_HOSTED_API_URL: ${{ vars.RITUAL_STAGING_HOSTED_API_URL }}
+      RITUAL_STAGING_PREVIEW_ORIGIN: ${{ vars.STAGING_MEMBER_PREVIEW_ORIGIN }}
+      RITUAL_STAGING_ADMIN_ORIGIN: ${{ vars.STAGING_ADMIN_ORIGIN }}
+      RITUAL_STAGING_WEB_ADMISSION: ${{ vars.STAGING_WEB_ADMISSION }}
+      RITUAL_SOURCE_SHA: ${{ inputs.source_sha }}
+      RITUAL_SOURCE_REF: refs/heads/main
       RITUAL_APPROVED_MANIFEST_SHA256: ${{ vars.APPROVED_MANIFEST_SHA256 }}
       RITUAL_APPROVED_MIGRATION_CHECKSUM: ${{ vars.APPROVED_MIGRATION_CHECKSUM }}
       RITUAL_APPROVED_SOURCE_FINGERPRINT: ${{ vars.APPROVED_SOURCE_FINGERPRINT }}
@@ -53,14 +186,40 @@ jobs:
       RITUAL_APPROVED_RECOVERY_APPROVAL: ${{ vars.APPROVED_RECOVERY_APPROVAL }}
       RITUAL_APPROVED_SECURITY_APPROVAL: ${{ vars.APPROVED_SECURITY_APPROVAL }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          ref: ${{ github.sha }}
+          artifact-ids: ${{ inputs.artifact_id }}
+          path: ${{ runner.temp }}/source-artifact
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+          merge-multiple: true
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          path: release-source
           persist-credentials: false
 
-      - uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@b60b5899c73b63a2d2d651b1e90db8d4c9392f51 # v1.6.0
         with:
           version: ${{ env.SUPABASE_CLI_VERSION }}
+
+      - name: Reverify frozen source inside the serialized staging job
+        env:
+          EXPECTED_ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          EXPECTED_MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
+        run: |
+          set -euo pipefail
+          artifact="$RUNNER_TEMP/source-artifact"
+          test "$(git rev-parse HEAD)" = "$RITUAL_SOURCE_SHA"
+          test "$(sha256sum "$artifact/release-bundle.tar" | cut -d' ' -f1)" = "$EXPECTED_ARCHIVE_SHA256"
+          test "$(sha256sum "$artifact/release-bundle/release-manifest.json" | cut -d' ' -f1)" = "$EXPECTED_MANIFEST_SHA256"
+          diff -qr "$artifact/release-bundle/snapshots/supabase/migrations" supabase/migrations
+          diff -qr "$artifact/release-bundle/snapshots/supabase/functions" supabase/functions
+          for document in supabase-boundary-manifest-v1.txt supabase-migration-inventory-v1.txt; do
+            cmp "$artifact/release-bundle/snapshots/docs/ritual-investing/$document" "docs/ritual-investing/$document"
+          done
 
       - name: Materialize the immutable Supabase promotion manifest
         env:
@@ -75,8 +234,8 @@ jobs:
           test "$(sha256sum "$canonical" | cut -d' ' -f1)" = "$PROMOTION_MANIFEST_SHA256_INPUT"
           test "$(jq -r '.contract_version' "$canonical")" = "argus-supabase-promotion/v1"
           test "$(jq -r '.project_ref' "$canonical")" = "$SUPABASE_PROJECT_ID"
-          test "$(jq -r '.branch_ref' "$canonical")" = "$GITHUB_REF"
-          test "$(jq -r '.git_revision' "$canonical")" = "$GITHUB_SHA"
+          test "$(jq -r '.branch_ref' "$canonical")" = "$RITUAL_SOURCE_REF"
+          test "$(jq -r '.git_revision' "$canonical")" = "$RITUAL_SOURCE_SHA"
           jq -e '
             keys == [
               "background_workers", "backup_id", "branch_ref", "captured_at",
@@ -135,11 +294,11 @@ jobs:
       - name: Rebind exact target, Git revision, migration checksum, target fingerprint, inventory, recovery, and approvals
         run: |
           set -eu
-          test "$SUPABASE_PROJECT_ID" = "$RITUAL_EXPECTED_BETA_PROJECT_ID"
-          node -e 'const value=process.env.RITUAL_BETA_PREVIEW_ORIGIN; const url=new URL(value); if (url.origin !== value || url.protocol !== "https:" || !/^beta-[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/.test(url.hostname)) process.exit(1)'
-          echo "RITUAL_BETA_CONSUMER_ORIGINS=https://just-build-this.app,$RITUAL_BETA_PREVIEW_ORIGIN" >>"$GITHUB_ENV"
-          test "$RITUAL_BETA_WEB_ADMISSION" = "open" || test "$RITUAL_BETA_WEB_ADMISSION" = "contained"
-          node -e 'const value=process.env.RITUAL_BETA_ADMIN_ORIGIN; const url=new URL(value); if (url.origin !== value || !["http:", "https:"].includes(url.protocol)) process.exit(1)'
+          test "$SUPABASE_PROJECT_ID" = "$RITUAL_EXPECTED_SUPABASE_PROJECT_ID"
+          node -e 'const value=process.env.RITUAL_STAGING_PREVIEW_ORIGIN; const url=new URL(value); if (url.origin !== value || url.protocol !== "https:" || !/^staging-[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/.test(url.hostname)) process.exit(1)'
+          echo "RITUAL_STAGING_CONSUMER_ORIGINS=https://just-build-this.app,$RITUAL_STAGING_PREVIEW_ORIGIN" >>"$GITHUB_ENV"
+          test "$RITUAL_STAGING_WEB_ADMISSION" = "open"
+          node -e 'const value=process.env.RITUAL_STAGING_ADMIN_ORIGIN; const url=new URL(value); if (url.origin !== value || !["http:", "https:"].includes(url.protocol)) process.exit(1)'
           ./scripts/check-supabase-migration-inventory.sh --check-cli
           test "$(sha256sum docs/ritual-investing/supabase-migration-inventory-v1.txt | cut -d' ' -f1)" = "$RITUAL_MIGRATION_CHECKSUM"
           test "$(sha256sum docs/ritual-investing/supabase-boundary-manifest-v1.txt | cut -d' ' -f1)" = "$RITUAL_INVENTORY_SHA256"
@@ -193,10 +352,10 @@ jobs:
       - name: Bind the new Edge revision and deploy new Edge functions
         run: |
           supabase secrets set --project-ref "$SUPABASE_PROJECT_ID" \
-            ARGUS_BUILD_REVISION="$GITHUB_SHA" \
-            ARGUS_CONSUMER_ORIGINS="$RITUAL_BETA_CONSUMER_ORIGINS" \
-            ARGUS_ADMIN_ORIGIN="$RITUAL_BETA_ADMIN_ORIGIN" \
-            ARGUS_WEB_ADMISSION="$RITUAL_BETA_WEB_ADMISSION"
+            ARGUS_BUILD_REVISION="$RITUAL_SOURCE_SHA" \
+            ARGUS_CONSUMER_ORIGINS="$RITUAL_STAGING_CONSUMER_ORIGINS" \
+            ARGUS_ADMIN_ORIGIN="$RITUAL_STAGING_ADMIN_ORIGIN" \
+            ARGUS_WEB_ADMISSION="$RITUAL_STAGING_WEB_ADMISSION"
           supabase functions deploy webull-callback --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
           supabase functions deploy worker --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
           supabase functions deploy waitlist --project-ref "$SUPABASE_PROJECT_ID" --no-verify-jwt
@@ -204,10 +363,10 @@ jobs:
           {
             echo "contract_version=argus-public-beta-api/v1"
             echo "project_ref=$SUPABASE_PROJECT_ID"
-            echo "git_revision=$GITHUB_SHA"
-            echo "consumer_origins=$RITUAL_BETA_CONSUMER_ORIGINS"
-            echo "admin_origin=$RITUAL_BETA_ADMIN_ORIGIN"
-            echo "web_admission=$RITUAL_BETA_WEB_ADMISSION"
+            echo "git_revision=$RITUAL_SOURCE_SHA"
+            echo "consumer_origins=$RITUAL_STAGING_CONSUMER_ORIGINS"
+            echo "admin_origin=$RITUAL_STAGING_ADMIN_ORIGIN"
+            echo "web_admission=$RITUAL_STAGING_WEB_ADMISSION"
           } >"$RUNNER_TEMP/public-beta-api-evidence.txt"
 
       - name: Prove new Edge/new schema hosted acceptance
@@ -228,7 +387,7 @@ jobs:
           {
             echo "contract_version=argus-supabase-observation/v1"
             echo "promotion_manifest_sha256=$RITUAL_PROMOTION_MANIFEST_SHA256"
-            echo "git_revision=$GITHUB_SHA"
+            echo "git_revision=$RITUAL_SOURCE_SHA"
             echo "immediate=$(date -u +%Y-%m-%dT%H:%M:%SZ):passed"
             echo "+1h=pending:must be attached before checkpoint deadline"
             echo "+4h=pending:must be attached before checkpoint deadline"
@@ -237,7 +396,7 @@ jobs:
 
       - name: Upload immutable manifest, inventory, recovery, and observation evidence artifact
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: supabase-remediation-evidence-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
@@ -248,7 +407,7 @@ jobs:
             ${{ runner.temp }}/supabase-fixture-inventory-after.txt
             ${{ runner.temp }}/supabase-observation-evidence.txt
             ${{ runner.temp }}/public-beta-api-evidence.txt
-            docs/ritual-investing/supabase-recovery-coverage.md
+            release-source/docs/ritual-investing/supabase-recovery-coverage.md
           if-no-files-found: warn
           retention-days: 30
 

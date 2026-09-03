@@ -17,7 +17,9 @@ enum MemberCapability {
 
 enum MemberCapabilityState { betaBacked, unavailable, standaloneDemoHandoff }
 
-/// The reviewed product boundary for the incomplete public web beta.
+/// Presentation metadata plus independently supplied capability states.
+///
+/// Public-beta lifecycle status never disables a capability by itself.
 class MemberCapabilityPolicy {
   const MemberCapabilityPolicy._({
     required this.isPublicBeta,
@@ -41,10 +43,10 @@ class MemberCapabilityPolicy {
       MemberCapability.privacy: MemberCapabilityState.betaBacked,
       MemberCapability.memberScenarios: MemberCapabilityState.betaBacked,
       MemberCapability.notifications: MemberCapabilityState.betaBacked,
-      MemberCapability.brokerageConnection: MemberCapabilityState.unavailable,
-      MemberCapability.brokeragePortfolio: MemberCapabilityState.unavailable,
-      MemberCapability.funding: MemberCapabilityState.unavailable,
-      MemberCapability.brokerageOrders: MemberCapabilityState.unavailable,
+      MemberCapability.brokerageConnection: MemberCapabilityState.betaBacked,
+      MemberCapability.brokeragePortfolio: MemberCapabilityState.betaBacked,
+      MemberCapability.funding: MemberCapabilityState.betaBacked,
+      MemberCapability.brokerageOrders: MemberCapabilityState.betaBacked,
       MemberCapability.standaloneDemo:
           MemberCapabilityState.standaloneDemoHandoff,
     },
@@ -54,10 +56,7 @@ class MemberCapabilityPolicy {
   final Map<MemberCapability, MemberCapabilityState> _states;
 
   MemberCapabilityState stateOf(MemberCapability capability) =>
-      _states[capability] ??
-      (isPublicBeta
-          ? MemberCapabilityState.unavailable
-          : MemberCapabilityState.betaBacked);
+      _states[capability] ?? MemberCapabilityState.betaBacked;
 
   bool permits(MemberCapability capability) =>
       stateOf(capability) == MemberCapabilityState.betaBacked;
