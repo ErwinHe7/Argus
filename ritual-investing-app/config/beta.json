@@ -1,0 +1,9 @@
+{
+  "RITUAL_ENVIRONMENT": "staging",
+  "RITUAL_API_BASE_URL": "https://rbqkuyjknoaqwnetbcst.supabase.co/functions/v1/api",
+  "SUPABASE_URL": "https://rbqkuyjknoaqwnetbcst.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_a1CYogdPesbRqND5GRKa8A_F9zHQ-KI",
+  "STAGING_SUPABASE_PROJECT_REF": "rbqkuyjknoaqwnetbcst",
+  "STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256": "f8b3fc78ee94cb553c4c90bcd72374d0e0d982f48ce46cee17c6729f3dcc1aea",
+  "ARGUS_AUTH_REDIRECT_ALLOWLIST": "https://leo.axio7.workers.dev/app/,https://just-build-this.app/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback"
+}

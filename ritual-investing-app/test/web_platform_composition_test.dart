@@ -19,12 +19,27 @@ void main() {
     expect(source, contains('createProductionProtectedStorage()'));
   });
 
-  test('web scaffold is local-only and has no service-worker bootstrap', () {
+  test('web scaffold allowlists only Leo Google Analytics', () {
     final source = File('web/index.html').readAsStringSync();
+    final analytics = File('web/leo_analytics.js').readAsStringSync();
+    const googleAnalyticsUrl =
+        'https://www.googletagmanager.com/gtag/js?id=G-07JFEYSPTV';
+    final remoteUrls = RegExp(r'https?://[^"\s<]+')
+        .allMatches(source)
+        .map((match) => match.group(0))
+        .toList();
 
     expect(source, contains('flutter_bootstrap.js'));
     expect(source, isNot(contains('http://')));
-    expect(source, isNot(contains('https://')));
+    expect(remoteUrls, const [googleAnalyticsUrl]);
+    expect(
+      source,
+      contains('<script async src="$googleAnalyticsUrl"></script>'),
+    );
+    expect(source, contains('<script src="leo_analytics.js" defer></script>'));
+    expect(analytics, contains("var measurementId = 'G-07JFEYSPTV';"));
+    expect(analytics, isNot(contains('http://')));
+    expect(analytics, isNot(contains('https://')));
     expect(source, isNot(contains('serviceWorker')));
   });
 

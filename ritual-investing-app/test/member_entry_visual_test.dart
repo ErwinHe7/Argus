@@ -31,15 +31,17 @@ void main() {
           theme: brightness == Brightness.light
               ? AppTheme.light
               : AppTheme.dark,
-          home: WelcomeScreen(onCreateAccount: () {}, onSignIn: () {}),
+          home: WelcomeScreen(onContinueWithGoogle: () async {}),
         ),
       );
       await tester.runAsync(() async {
         final context = tester.element(find.byType(Scaffold));
         await precacheImage(
-          const AssetImage(
-            'assets/images/leonidas/leonidas-canonical-observatory-hero-v1.png',
-          ),
+          const AssetImage('assets/images/brand/leo-lion.png'),
+          context,
+        );
+        await precacheImage(
+          const AssetImage('assets/images/the-compass.png'),
           context,
         );
       });
@@ -52,7 +54,7 @@ void main() {
       );
     });
 
-    testWidgets('captures credential entry in ${brightness.name}', (
+    testWidgets('captures Google member entry in ${brightness.name}', (
       tester,
     ) async {
       await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -64,7 +66,7 @@ void main() {
           theme: brightness == Brightness.light
               ? AppTheme.light
               : AppTheme.dark,
-          home: const MemberSignInScreen(),
+          home: MemberSignInScreen(onContinueWithGoogle: () async {}),
         ),
       );
       await tester.pumpAndSettle();

@@ -6,12 +6,16 @@ import type {
   SessionRepositorySnapshot,
 } from "./ports.ts";
 import {
+  birthdayOnboardingFinalizeBodySchema,
   memberBranchCapabilitiesSchema,
   onboardingFinalizeBodySchema,
 } from "./schemas.ts";
 
 export type SessionServiceRepository = SessionRepository;
 type FinalizeOnboardingBody = z.infer<typeof onboardingFinalizeBodySchema>;
+type FinalizeBirthdayOnboardingBody = z.infer<
+  typeof birthdayOnboardingFinalizeBodySchema
+>;
 
 async function withBranchCapabilities(
   snapshot: SessionRepositorySnapshot,
@@ -33,6 +37,29 @@ export function createSessionService(
   return Object.freeze({
     bootstrap: async () =>
       await withBranchCapabilities(await repository.bootstrap(), evaluator),
+    finalizeBirthdayOnboarding: async (
+      input: FinalizeBirthdayOnboardingBody,
+      idempotencyKey: string,
+    ) =>
+      withBranchCapabilities(
+        await repository.finalizeBirthdayOnboarding(
+          {
+            expectedOnboardingVersion: input.expected_onboarding_version,
+            birthDate: input.astrology.birth_date,
+            consents: Object.fromEntries(
+              Object.entries(input.consents).map(([policyCode, consent]) => [
+                policyCode,
+                {
+                  policyVersion: consent.policy_version,
+                  decision: consent.decision,
+                },
+              ]),
+            ),
+          },
+          idempotencyKey,
+        ),
+        evaluator,
+      ),
     finalizeOnboarding: async (
       input: FinalizeOnboardingBody,
       idempotencyKey: string,

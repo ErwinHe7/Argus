@@ -1,6 +1,9 @@
 type EnvironmentReader = (name: string) => string | undefined;
 
-const publicBetaOrigin = "https://just-build-this.app";
+const leoPublicBetaConsumerOrigins = Object.freeze([
+  "https://leo.axio7.workers.dev",
+]);
+const ritualPublicBetaOrigin = "https://just-build-this.app";
 const stagingMemberPreviewOrigin =
   /^https:\/\/staging-ritual-investing-member\.[a-z0-9-]+\.workers\.dev$/;
 
@@ -22,18 +25,26 @@ export function requiredConsumerOrigins(
   const values = configured.split(",").map((value) => value.trim()).filter(
     (value) => value.length > 0,
   );
+  const uniqueValues = new Set(values);
+  if (
+    values.length === leoPublicBetaConsumerOrigins.length &&
+    uniqueValues.size === values.length &&
+    leoPublicBetaConsumerOrigins.every((origin) => values.includes(origin))
+  ) {
+    return leoPublicBetaConsumerOrigins;
+  }
   const previewOrigin = values.find((origin) =>
     stagingMemberPreviewOrigin.test(origin)
   );
   if (
     values.length !== 2 ||
-    new Set(values).size !== values.length ||
-    !values.includes(publicBetaOrigin) ||
+    uniqueValues.size !== values.length ||
+    !values.includes(ritualPublicBetaOrigin) ||
     previewOrigin === undefined
   ) {
     throw new Error("invalid_argus_consumer_origins");
   }
-  return Object.freeze([publicBetaOrigin, previewOrigin]);
+  return Object.freeze([ritualPublicBetaOrigin, previewOrigin]);
 }
 
 export function requiredExactOrigin(

@@ -38,11 +38,13 @@ dependencies:
   crypto: ^3.0.7
   dio: ^5.9.2
   flutter_secure_storage: ^10.3.1
+  flutter_tts: 4.2.5
   go_router: ^17.5.0
   path_provider: ^2.1.6
   ritual_investing_api_client:
     path: ../ritual-investing-api-client
   share_plus: ^13.3.0
+  simple_icons: ^16.23.0
   supabase_flutter: 2.17.2
   url_launcher: 6.3.2
   web: 1.1.1
@@ -73,12 +75,19 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/images/brand/leo-lion.png
     - assets/images/the-compass.png
     - assets/images/persona-triptych.png
     - assets/images/leonidas/
     - assets/images/starpath/celestial-path.png
+    - assets/images/ai_analysis/
     - assets/images/tarot/modern-rider-waite/major/
     - assets/images/tarot/modern-vector/major/
+    - assets/portraits/warren_buffett.jpg
+    - assets/portraits/cathie_wood.jpg
+    - assets/portraits/george_soros.jpg
+    - assets/portraits/leopold_aschenbrenner.png
+    - assets/portraits/donald_trump.png
 
   fonts:
     - family: Inter

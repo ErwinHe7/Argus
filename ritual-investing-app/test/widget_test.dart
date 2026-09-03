@@ -48,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Founders’ Coven'), findsOneWidget);
-    expect(find.text('DEMO DIRECTORY'), findsOneWidget);
+    expect(find.text('RESEARCH DIRECTORY'), findsOneWidget);
     expect(
       find.textContaining('Effective Aug 20, 2026 · verified Aug 20, 2026'),
       findsWidgets,
@@ -74,7 +74,7 @@ void main() {
     expect(find.bySemanticsLabel('You, Ritual Member'), findsOneWidget);
     expect(find.text('Demo Portfolio'), findsNothing);
     expect(find.text('Investing profile'), findsOneWidget);
-    expect(find.text('Ritual and appearance'), findsOneWidget);
+    expect(find.text('Gospel and appearance'), findsOneWidget);
     expect(find.text('Future Mirror'), findsNothing);
     expect(find.text('Link a fictional bank'), findsNothing);
     semantics.dispose();
@@ -92,7 +92,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('theme-toggle')));
     await tester.pumpAndSettle();
-    expect(find.text('Ritual and appearance'), findsOneWidget);
+    expect(find.text('Gospel and appearance'), findsOneWidget);
     await tester.tap(find.byKey(const Key('theme-dark')));
     await tester.scrollUntilVisible(
       find.byKey(const Key('preferences-save')),

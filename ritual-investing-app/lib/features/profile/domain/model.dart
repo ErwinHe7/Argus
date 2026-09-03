@@ -94,7 +94,7 @@ class SavedRitualPreferences {
   String get activeVoice => switch (ritualLanguage) {
     RitualLanguage.practical => 'Practical, plain-language guidance',
     RitualLanguage.mystical => 'Mystical language with practical grounding',
-    RitualLanguage.balanced => 'Balanced practical and ritual language',
+    RitualLanguage.balanced => 'Balanced practical and Gospel language',
     RitualLanguage.preferNotToSay || null => 'Neutral, practical language',
   };
 }

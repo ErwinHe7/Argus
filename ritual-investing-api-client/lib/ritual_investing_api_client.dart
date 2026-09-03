@@ -52,6 +52,7 @@ export 'package:ritual_investing_api_client/generated/model/asset_risk.dart';
 export 'package:ritual_investing_api_client/generated/model/asset_summary.dart';
 export 'package:ritual_investing_api_client/generated/model/astrology_profile.dart';
 export 'package:ritual_investing_api_client/generated/model/astrology_profile_response.dart';
+export 'package:ritual_investing_api_client/generated/model/birthday_accepted_onboarding_consent.dart';
 export 'package:ritual_investing_api_client/generated/model/briefing_collection_response.dart';
 export 'package:ritual_investing_api_client/generated/model/briefing_detail.dart';
 export 'package:ritual_investing_api_client/generated/model/briefing_detail_response.dart';
@@ -133,6 +134,9 @@ export 'package:ritual_investing_api_client/generated/model/evidence_detail.dart
 export 'package:ritual_investing_api_client/generated/model/evidence_detail_source.dart';
 export 'package:ritual_investing_api_client/generated/model/evidence_source.dart';
 export 'package:ritual_investing_api_client/generated/model/evidence_summary.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_birthday_onboarding_request.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_birthday_onboarding_request_astrology.dart';
+export 'package:ritual_investing_api_client/generated/model/finalize_birthday_onboarding_request_consents.dart';
 export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request.dart';
 export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_astrology.dart';
 export 'package:ritual_investing_api_client/generated/model/finalize_onboarding_request_consents.dart';

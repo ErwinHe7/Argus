@@ -11,22 +11,14 @@ import 'member_step_up.dart';
 
 enum AuthPhase { signedOut, loading, signedIn, failure }
 
-enum MemberAuthResult { authenticated, cancelled, unavailable }
+enum MemberAuthResult { authenticated, started, cancelled, unavailable }
 
 @immutable
 class AuthState {
-  const AuthState({
-    required this.phase,
-    this.message,
-    this.canLogout = false,
-    this.isPasswordRecovery = false,
-    this.emailConfirmationRequired = false,
-  });
+  const AuthState({required this.phase, this.message, this.canLogout = false});
   final AuthPhase phase;
   final String? message;
   final bool canLogout;
-  final bool isPasswordRecovery;
-  final bool emailConfirmationRequired;
 }
 
 class AuthController extends ChangeNotifier implements AccessTokenProvider {
@@ -75,32 +67,28 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       _repository.memberClientExpectation;
   Stream<void> get recoveredSessions => _recoveries.stream;
   Stream<void> get invalidatedSessions => _invalidations.stream;
-  Future<void> restore() =>
-      _run(_repository.recover, useInitialPasswordRecovery: true);
-  Future<MemberAuthResult> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    final PasswordSessionRepository repository;
-    if (_repository case final PasswordSessionRepository supported) {
+  Future<void> restore() => _run(_repository.recover);
+
+  Future<MemberAuthResult> signInWithGoogle() async {
+    final GoogleOAuthSessionRepository repository;
+    if (_repository case final GoogleOAuthSessionRepository supported) {
       repository = supported;
     } else {
       _set(
         const AuthState(
           phase: AuthPhase.failure,
-          message: 'Sign-in is temporarily unavailable.',
+          message: 'Google sign-in is temporarily unavailable.',
         ),
       );
       return MemberAuthResult.unavailable;
     }
     _set(const AuthState(phase: AuthPhase.loading));
     try {
-      final session = await repository.signInWithPassword(
-        email: email,
-        password: password,
-      );
-      _adoptSession(session);
-      return MemberAuthResult.authenticated;
+      final session = await repository.signInWithGoogle();
+      if (session != null) _adoptSession(session);
+      if (_activeSession != null) return MemberAuthResult.authenticated;
+      _set(const AuthState(phase: AuthPhase.signedOut));
+      return MemberAuthResult.started;
     } on MemberAuthCancelled {
       _set(const AuthState(phase: AuthPhase.signedOut));
       return MemberAuthResult.cancelled;
@@ -108,7 +96,7 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       _set(
         AuthState(
           phase: AuthPhase.failure,
-          message: _passwordSignInMessage(error.reason),
+          message: _googleSignInMessage(error.reason),
         ),
       );
       return MemberAuthResult.unavailable;
@@ -116,123 +104,33 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       _set(
         const AuthState(
           phase: AuthPhase.failure,
-          message: 'Sign-in is temporarily unavailable.',
+          message: 'Google sign-in is temporarily unavailable.',
         ),
       );
       return MemberAuthResult.unavailable;
     }
   }
 
-  Future<MemberAuthResult> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    final PasswordSessionRepository repository;
-    if (_repository case final PasswordSessionRepository supported) {
-      repository = supported;
-    } else {
-      _set(
-        const AuthState(
-          phase: AuthPhase.failure,
-          message: 'Account creation is temporarily unavailable.',
-        ),
-      );
-      return MemberAuthResult.unavailable;
-    }
-    _set(const AuthState(phase: AuthPhase.loading));
-    try {
-      final session = await repository.signUpWithPassword(
-        email: email,
-        password: password,
-      );
-      _adoptSession(session);
-      return MemberAuthResult.authenticated;
-    } on MemberAuthCancelled {
-      _set(const AuthState(phase: AuthPhase.signedOut));
-      return MemberAuthResult.cancelled;
-    } on MemberAuthUnavailable catch (error) {
-      _set(
-        AuthState(
-          phase: AuthPhase.failure,
-          message: _passwordSignUpMessage(error.reason),
-          emailConfirmationRequired:
-              error.reason == 'email_confirmation_required',
-        ),
-      );
-      return MemberAuthResult.unavailable;
-    } on Object {
-      _set(
-        const AuthState(
-          phase: AuthPhase.failure,
-          message: 'Account creation is temporarily unavailable.',
-        ),
-      );
-      return MemberAuthResult.unavailable;
-    }
-  }
-
-  Future<void> requestPasswordRecovery(String email) async {
-    if (_repository case final PasswordRecoverySessionRepository supported) {
-      try {
-        await supported.requestPasswordRecovery(email: email);
-      } on Object {
-        // Always return the same result to avoid disclosing account existence.
-      }
-    }
-  }
-
-  Future<bool> updatePassword(String password) async {
-    if (_state.phase != AuthPhase.signedIn || !_state.isPasswordRecovery) {
-      return false;
-    }
-    if (_repository case final PasswordRecoverySessionRepository supported) {
-      try {
-        await supported.updatePassword(password: password);
-        final session = _activeSession;
-        if (session != null) _adoptSession(session);
-        return true;
-      } on Object {
-        return false;
-      }
-    }
-    return false;
-  }
-
-  static String _passwordSignInMessage(String reason) => switch (reason) {
-    'invalid_credentials' ||
-    'user_not_found' => 'Email or password is incorrect.',
-    'email_not_confirmed' => 'Confirm your email before signing in.',
-    'email_provider_disabled' => 'Email sign-in is not enabled for this beta.',
-    'user_banned' => 'This account cannot sign in.',
-    'over_request_rate_limit' ||
-    'over_email_send_rate_limit' ||
-    'over_sms_send_rate_limit' => 'Too many sign-in attempts. Try again later.',
-    _ => 'Sign-in is temporarily unavailable.',
-  };
-
-  static String _passwordSignUpMessage(String reason) => switch (reason) {
-    'email_confirmation_required' =>
-      'Check your email to confirm your account, then sign in.',
-    'email_exists' ||
-    'user_already_exists' => 'An account already exists for this email.',
-    'weak_password' => 'Choose a stronger password and try again.',
-    'email_provider_disabled' => 'Email account creation is not enabled.',
-    'over_request_rate_limit' ||
-    'over_email_send_rate_limit' => 'Too many attempts. Try again later.',
-    _ => 'Account creation is temporarily unavailable.',
+  static String _googleSignInMessage(String reason) => switch (reason) {
+    'provider_disabled' || 'oauth_provider_not_supported' =>
+      'Google sign-in is not enabled for this app yet.',
+    'user_banned' => 'This Google account cannot sign in.',
+    'over_request_rate_limit' =>
+      'Too many sign-in attempts. Please try again later.',
+    _ => 'Google sign-in is temporarily unavailable.',
   };
 
   Future<AuthSession> reauthenticate(Duration maxAge) async {
     final session = _activeSession ?? await _repository.recover();
     if (session == null) {
-      throw const MemberAuthUnavailable('password_credentials_required');
+      throw const MemberAuthUnavailable('recent_authentication_required');
     }
     final authenticatedAt = session.authenticatedAt;
     final now = DateTime.now().toUtc();
     if (authenticatedAt == null ||
         authenticatedAt.isAfter(now.add(const Duration(seconds: 30))) ||
         now.difference(authenticatedAt) > maxAge) {
-      throw const MemberAuthUnavailable('password_credentials_required');
+      throw const MemberAuthUnavailable('recent_authentication_required');
     }
     if (_activeSession == null) _adoptSession(session);
     return session;
@@ -258,10 +156,7 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
     return receipt;
   }
 
-  Future<void> _run(
-    Future<AuthSession?> Function() action, {
-    bool useInitialPasswordRecovery = false,
-  }) async {
+  Future<void> _run(Future<AuthSession?> Function() action) async {
     final recoveryVersion = _recoveryVersion;
     _set(const AuthState(phase: AuthPhase.loading));
     try {
@@ -270,12 +165,7 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       if (s == null) {
         _clearSession();
       } else {
-        final isPasswordRecovery =
-            useInitialPasswordRecovery &&
-            _repository is InitialPasswordRecoveryRepository &&
-            (_repository as InitialPasswordRecoveryRepository)
-                .consumeInitialPasswordRecovery();
-        _adoptSession(s, isPasswordRecovery: isPasswordRecovery);
+        _adoptSession(s);
       }
     } catch (_) {
       _set(
@@ -311,17 +201,9 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
           }
         }
       case MemberSessionEvent.passwordRecovery:
-        final session = change.session;
-        if (session != null) {
-          _recoveryVersion++;
-          try {
-            _adoptSession(session, isPasswordRecovery: true);
-            _recoveries.add(null);
-          } on MemberAccountMismatch {
-            _clearSession();
-            _authSignal.publishLogout();
-          }
-        }
+        // Password recovery is not an accepted member-auth lifecycle.
+        _clearSession();
+        _authSignal.publishLogout();
     }
   }
 
@@ -337,7 +219,7 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
     );
   }
 
-  void _adoptSession(AuthSession session, {bool isPasswordRecovery = false}) {
+  void _adoptSession(AuthSession session) {
     final currentUser = _activeSession?.userId;
     if (currentUser != null &&
         session.userId != null &&
@@ -352,12 +234,7 @@ class AuthController extends ChangeNotifier implements AccessTokenProvider {
       throw const MemberAccountMismatch();
     }
     _activeSession = session;
-    _set(
-      AuthState(
-        phase: AuthPhase.signedIn,
-        isPasswordRecovery: isPasswordRecovery,
-      ),
-    );
+    _set(const AuthState(phase: AuthPhase.signedIn));
   }
 
   void _clearSession() {

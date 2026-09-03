@@ -38,7 +38,7 @@ class _BriefingsScreenState extends State<BriefingsScreen> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.controller,
     builder: (context, _) => Scaffold(
-      appBar: AppBar(title: const Text('Ritual briefings')),
+      appBar: AppBar(title: const Text('Gospel briefings')),
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: widget.controller.load,
@@ -51,7 +51,9 @@ class _BriefingsScreenState extends State<BriefingsScreen> {
                   DemoBadge(),
                   SizedBox(width: 10),
                   Expanded(
-                    child: Text('Recorded Demo recaps · no real money moves'),
+                    child: Text(
+                      'Recorded simulated recaps · no real money moves',
+                    ),
                   ),
                 ],
               ),
@@ -155,7 +157,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
     builder: (context, _) {
       final detail = widget.controller.selected;
       return Scaffold(
-        appBar: AppBar(title: const Text('Ritual briefing')),
+        appBar: AppBar(title: const Text('Gospel briefing')),
         body: SafeArea(
           child: ListView(
             key: const PageStorageKey('briefing-detail-scroll'),
@@ -215,7 +217,7 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Recorded Demo summary',
+                            'Recorded simulated summary',
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           const SizedBox(height: 8),
@@ -244,11 +246,11 @@ class _BriefingDetailScreenState extends State<BriefingDetailScreen> {
                       minimumSize: const Size(48, 48),
                     ),
                     onPressed: widget.onOpenRitual,
-                    child: const Text('Open Daily Ritual'),
+                    child: const Text('Open today’s Gospel'),
                   ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Demo limitation: this recap reflects recorded fictional activity and saved research. It is not financial advice, a prediction, or evidence of supernatural market causation.',
+                  'Simulation limitation: this recap reflects recorded fictional activity and saved research. It is not financial advice, a prediction, or evidence of supernatural market causation.',
                 ),
               ],
             ],

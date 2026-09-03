@@ -446,6 +446,10 @@ class _RitualEvidenceSheetState extends State<_RitualEvidenceSheet> {
                     title: 'Risk context',
                     body: snapshot.rowan.riskFooter,
                   ),
+                  const _TrustSection(
+                    title: 'Use boundary',
+                    body: 'These are research cues, not predictions or instructions to buy.',
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     'Supporting detail',

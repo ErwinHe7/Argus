@@ -57,6 +57,7 @@ Set<String> _dateOnlyQueryFields(RequestOptions options) {
 
 Set<String> _dateOnlyFields(RequestOptions options) {
   if (options.path == '/v1/session/onboarding/finalize' ||
+      options.path == '/v1/session/onboarding/birthday/finalize' ||
       (options.path == '/v1/astrology-profile' && options.method == 'PUT')) {
     return options.path == '/v1/astrology-profile'
         ? const {'birthDate'}

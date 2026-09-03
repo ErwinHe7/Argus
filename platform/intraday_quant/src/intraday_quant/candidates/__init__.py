@@ -1,0 +1,1 @@
+"""Interpretable candidate setup rules."""

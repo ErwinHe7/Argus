@@ -11,6 +11,7 @@ write_fixture() {
   mkdir -p \
     "$fixture/.github/workflows" \
     "$fixture/docs/ritual-investing" \
+    "$fixture/platform/app/events/[id]" \
     "$fixture/scripts" \
     "$fixture/supabase/migrations" \
     "$fixture/supabase/functions/api" \
@@ -35,7 +36,10 @@ contract_version: supabase-remediation-register-v1
 <!-- scope:supabase/tests/* -->
 <!-- scope:scripts/* -->
 <!-- scope:docs/ritual-investing/* -->
+<!-- scope:platform/* -->
+<!-- scope:.github/workflows/ritual-investing.yml -->
 <!-- scope:.github/workflows/ritual-investing-supabase-remediation.yml -->
+<!-- scope:.github/workflows/ritual-investing-*.yml -->
 <!-- transitive:supabase/functions/api -->
 
 ### api ingress
@@ -113,6 +117,13 @@ verify_jwt = false
 EOF
   cat >"$fixture/supabase/functions/api/index.ts" <<'EOF'
 // Supabase-facing fixture entrypoint.
+EOF
+  cat >"$fixture/platform/app/events/[id]/page.tsx" <<'EOF'
+// Supabase-facing dynamic-route fixture.
+EOF
+  cat >"$fixture/.github/workflows/ritual-investing.yml" <<'EOF'
+env:
+  SUPABASE_CLI_VERSION: 2.115.0
 EOF
   cat >"$fixture/.github/workflows/ritual-investing-supabase-remediation.yml" <<'EOF'
 env:

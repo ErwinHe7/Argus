@@ -4,7 +4,7 @@ import '../../app/theme/app_theme.dart';
 
 abstract final class DemoDisclosureCopy {
   static const marketScenario =
-      'Demo market scenario · educational exploration only';
+      'Simulated market scenario · educational exploration only';
 }
 
 class DemoBadge extends StatelessWidget {
@@ -14,7 +14,7 @@ class DemoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-    label: 'Demo experience; no real money moves',
+    label: 'Simulated experience; no real money moves',
     excludeSemantics: true,
     child: DecoratedBox(
       decoration: BoxDecoration(
@@ -27,7 +27,7 @@ class DemoBadge extends StatelessWidget {
           vertical: 7,
         ),
         child: Text(
-          'DEMO',
+          'SIMULATED',
           style: TextStyle(
             color: context.ritualColors.ink,
             fontSize: 11,

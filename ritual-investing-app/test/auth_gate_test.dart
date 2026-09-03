@@ -22,10 +22,7 @@ void main() {
 
     repository.completeRestore(null);
     await tester.pumpAndSettle();
-    expect(
-      find.text('Sign in to continue your private ritual.'),
-      findsOneWidget,
-    );
+    expect(find.text('Sign in to continue to Leo.'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
   });
 
@@ -67,10 +64,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.logoutCalls, 1);
-    expect(
-      find.text('Sign in to continue your private ritual.'),
-      findsOneWidget,
-    );
+    expect(find.text('Sign in to continue to Leo.'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
   });
 
@@ -84,15 +78,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Sign in'));
     await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-email')),
-      'member@example.com',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'local-test-password',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.tap(find.byKey(const Key('member-google-sign-in')));
     await tester.pumpAndSettle();
     expect(container.memberBootstrap, isNotNull);
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
@@ -100,7 +86,7 @@ void main() {
 }
 
 class _GateSessionRepository
-    implements SessionRepository, PasswordSessionRepository {
+    implements SessionRepository, GoogleOAuthSessionRepository {
   _GateSessionRepository._({required this.restore, this.failRestore = false});
 
   factory _GateSessionRepository.pending() =>
@@ -140,16 +126,8 @@ class _GateSessionRepository
   }
 
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async => const AuthSession(accessToken: 'access-token');
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async => const AuthSession(accessToken: 'access-token');
+  Future<AuthSession?> signInWithGoogle() async =>
+      const AuthSession(accessToken: 'access-token');
 
   @override
   Future<void> logout() async {

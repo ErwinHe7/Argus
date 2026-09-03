@@ -1,0 +1,21 @@
+{
+  "dataset": "OPRA.PILLAR",
+  "download_started": false,
+  "estimated_bytes": null,
+  "estimated_records": null,
+  "estimated_vendor_charge_usd": null,
+  "missing_credential": "DATABENTO_API_KEY",
+  "parent": "SPXW",
+  "provider": "Databento",
+  "requested_dte": [
+    0,
+    1
+  ],
+  "requested_schema": "definition",
+  "selected_dates": {
+    "end_inclusive": "2026-07-17",
+    "start": "2024-07-18"
+  },
+  "status": "DATA_SOURCE_NOT_CONFIGURED",
+  "warning": "Parent-wide estimate is an upper bound. Resolve point-in-time definitions before producing a 0/1DTE raw-symbol estimate. No data was downloaded."
+}

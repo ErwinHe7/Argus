@@ -23,4 +23,29 @@ void main() {
     expect(router.state.uri.path, MemberRoutes.discoverSearchPath);
     expect(find.byKey(const Key('codex-search-field')), findsOneWidget);
   });
+
+  testWidgets('AI Analysis route uses the fresh Discover snapshot', (
+    tester,
+  ) async {
+    final container = fixtureContainer();
+    await tester.pumpWidget(RitualInvestingApp(container: container));
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
+
+    router.go(MemberRoutes.discoverAiAnalysisPath);
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.path, MemberRoutes.discoverAiAnalysisPath);
+    expect(find.byKey(const Key('ai-analysis-screen')), findsOneWidget);
+    expect(find.byKey(const Key('discover-ai-risk-level')), findsOneWidget);
+    expect(find.textContaining('Elevated'), findsWidgets);
+    expect(find.textContaining('not a forecast'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('discover-ai-risk-toggle')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('not a forecast'), findsWidgets);
+  });
 }

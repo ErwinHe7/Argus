@@ -1,123 +1,113 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/features/onboarding/application/onboarding_controller.dart';
 import 'package:ritual_investing_app/features/onboarding/domain/onboarding_draft.dart';
 import 'package:ritual_investing_app/features/onboarding/presentation/onboarding_flow.dart';
 
 void main() {
-  testWidgets('welcome opens with Leonidas and separate account actions', (
+  testWidgets('welcome offers one direct Google sign-in action', (
     tester,
   ) async {
-    var accountCreationOpened = false;
-    var signedIn = false;
+    var googleSignInCalls = 0;
     await tester.pumpWidget(
       MaterialApp(
         home: WelcomeScreen(
-          onCreateAccount: () => accountCreationOpened = true,
-          onSignIn: () => signedIn = true,
+          onContinueWithGoogle: () async => googleSignInCalls++,
         ),
       ),
     );
 
-    expect(find.text('Begin with a personal ritual'), findsOneWidget);
+    expect(find.text('Welcome to Leo'), findsOneWidget);
+    expect(find.textContaining('only your birth date'), findsOneWidget);
+    expect(find.textContaining('only sign-in method'), findsOneWidget);
+    expect(find.byKey(const Key('welcome-artwork')), findsOneWidget);
     expect(
-      find.text(
-        'Leonidas makes investing knowledge feel worth approaching—while evidence and control stay yours.',
-      ),
+      find.text('Evidence and uncertainty stay within reach.'),
       findsOneWidget,
     );
-    expect(find.text('Ritual'), findsNothing);
-    expect(find.textContaining('about 3 minutes'), findsNothing);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Create account'), findsNothing);
+    expect(find.text('I have an account'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
 
-    final artwork = find.byKey(const Key('welcome-artwork'));
-    expect(artwork, findsOneWidget);
-    expect(tester.getTopLeft(artwork).dy, 0);
-    final image = tester.widget<Image>(
-      find.descendant(of: artwork, matching: find.byType(Image)),
-    );
-    expect(
-      (image.image as AssetImage).assetName,
-      'assets/images/leonidas/leonidas-canonical-observatory-hero-v1.png',
-    );
-    expect(
-      tester.getSemantics(artwork).label,
-      'Leonidas standing in the Candlelit Observatory.',
-    );
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
+    await tester.pumpAndSettle();
 
-    final heroSystemUi = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
-      find.byKey(const Key('welcome-hero-system-ui')),
-    );
-    final bodySystemUi = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
-      find.byKey(const Key('welcome-body-system-ui')),
-    );
-    expect(heroSystemUi.value.statusBarIconBrightness, Brightness.light);
-    expect(bodySystemUi.value.statusBarIconBrightness, Brightness.dark);
-
-    expect(find.widgetWithText(FilledButton, 'Create account'), findsOneWidget);
-    expect(
-      find.widgetWithText(OutlinedButton, 'I have an account'),
-      findsOneWidget,
-    );
-    await tester.ensureVisible(find.byKey(const Key('welcome-create-account')));
-    await tester.tap(find.byKey(const Key('welcome-create-account')));
-    await tester.ensureVisible(find.byKey(const Key('welcome-sign-in')));
-    await tester.tap(find.byKey(const Key('welcome-sign-in')));
-    expect(accountCreationOpened, isTrue);
-    expect(signedIn, isTrue);
+    expect(googleSignInCalls, 1);
   });
 
-  testWidgets('welcome keeps compact safe-area actions reachable', (
+  testWidgets('welcome reports Google progress and auth failures', (
     tester,
   ) async {
-    await tester.binding.setSurfaceSize(const Size(430, 600));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    var accountCreationOpened = false;
-    var signedIn = false;
-
+    final barrier = Completer<void>();
     await tester.pumpWidget(
       MaterialApp(
-        home: MediaQuery(
-          data: const MediaQueryData(
-            size: Size(430, 600),
-            viewPadding: EdgeInsets.only(bottom: 34),
-            textScaler: TextScaler.linear(1.3),
-          ),
-          child: WelcomeScreen(
-            onCreateAccount: () => accountCreationOpened = true,
-            onSignIn: () => signedIn = true,
-          ),
+        home: WelcomeScreen(
+          message: 'Google sign-in is temporarily unavailable.',
+          onContinueWithGoogle: () => barrier.future,
         ),
       ),
     );
 
-    final bodySystemUi = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(
-      find.byKey(const Key('welcome-body-system-ui')),
+    expect(find.byKey(const Key('welcome-auth-message')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('welcome-google-sign-in')));
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
+    await tester.pump();
+
+    expect(find.text('Opening Google…'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('welcome-google-sign-in')))
+          .onPressed,
+      isNull,
     );
-    final bodyPadding = bodySystemUi.child as Padding;
-    expect((bodyPadding.padding as EdgeInsets).bottom, 58);
 
-    final createAccount = find.byKey(const Key('welcome-create-account'));
-    final signIn = find.byKey(const Key('welcome-sign-in'));
-    await tester.ensureVisible(createAccount);
-    await tester.tap(createAccount);
-    await tester.ensureVisible(signIn);
-    await tester.tap(signIn);
-    expect(accountCreationOpened, isTrue);
-    expect(signedIn, isTrue);
+    barrier.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Continue with Google'), findsOneWidget);
+  });
 
+  testWidgets('authenticated entry asks for birth date only', (tester) async {
+    final controller = OnboardingController(
+      now: () => DateTime.utc(2026, 8, 24),
+    );
+    var finishCalls = 0;
     await tester.pumpWidget(
       MaterialApp(
-        theme: ThemeData.dark(),
-        home: WelcomeScreen(onCreateAccount: () {}, onSignIn: () {}),
+        home: BirthdayOnboardingScreen(
+          controller: controller,
+          onFinish: () async => finishCalls++,
+          onLogout: () async {},
+        ),
       ),
     );
+
+    expect(find.text('One detail for your sky'), findsOneWidget);
+    expect(find.byKey(const Key('birth-date-manual')), findsOneWidget);
+    expect(find.text('How familiar are you with investing?'), findsNothing);
+    expect(find.textContaining('risk'), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(const Key('recovery-continue')))
+          .onPressed,
+      isNull,
+    );
+
+    await tester.enterText(
+      find.byKey(const Key('birth-date-manual')),
+      '1994-05-14',
+    );
+    await tester.pump();
+    expect(controller.draft.birthDate, DateTime.utc(1994, 5, 14));
+    expect(controller.draft.experience, isNull);
+    expect(controller.draft.ritualLanguage, isNull);
+
+    await tester.ensureVisible(find.byKey(const Key('recovery-continue')));
+    await tester.tap(find.byKey(const Key('recovery-continue')));
     await tester.pumpAndSettle();
-    final darkBodySystemUi = tester
-        .widget<AnnotatedRegion<SystemUiOverlayStyle>>(
-          find.byKey(const Key('welcome-body-system-ui')),
-        );
-    expect(darkBodySystemUi.value.statusBarIconBrightness, Brightness.light);
+    expect(finishCalls, 1);
   });
 
   testWidgets('risk has no default and announces semantic progress', (
@@ -306,7 +296,10 @@ void main() {
     expect(find.textContaining('Foundational explanations'), findsOneWidget);
     expect(find.text('Terms · version 2026-08'), findsOneWidget);
     expect(find.text('Privacy Policy · version 2026-08'), findsOneWidget);
-    expect(find.text('Demo disclosure · version 2026-08'), findsOneWidget);
+    expect(
+      find.text('Simulation disclosure · version 2026-08'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Astrology decision: declined'), findsOneWidget);
     await tester.scrollUntilVisible(
       find.byKey(const Key('review-create-account')),

@@ -1,0 +1,135 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  source-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject ignored source files
+        run: bash scripts/check-no-ignored-sources.sh
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:public-context
+      - run: npm run test:quant-conversation
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: 'placeholder'
+          SUPABASE_SERVICE_ROLE_KEY: 'placeholder'
+          OPENAI_API_KEY: 'placeholder'
+          OPENAI_BASE_URL: 'https://api.openai.com/v1'
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: quant_engine_rs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          components: clippy,rustfmt
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  python-base:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: intraday_quant/pyproject.toml
+      - name: Install base research dependencies
+        working-directory: intraday_quant
+        run: |
+          python -m venv .venv-ci
+          .venv-ci/bin/python -m pip install --upgrade pip
+          .venv-ci/bin/python -m pip install -e ".[dev]"
+          .venv-ci/bin/python -m pip check
+      - name: Verify torch remains an explicit optional dependency
+        working-directory: intraday_quant
+        run: |
+          .venv-ci/bin/python - <<'PY'
+          import importlib.util
+
+          if importlib.util.find_spec("torch") is not None:
+              raise SystemExit("base install unexpectedly contains torch")
+
+          try:
+              import intraday_quant.models.causal_tcn
+          except ModuleNotFoundError as error:
+              if error.name != "torch":
+                  raise
+              print("Expected optional dependency error; install .[neural] to enable causal_tcn.")
+          else:
+              raise SystemExit("causal_tcn unexpectedly imported without the neural extra")
+          PY
+      - name: Run base Python tests
+        working-directory: intraday_quant
+        run: .venv-ci/bin/python -m pytest --basetemp .pytest-tmp -p no:cacheprovider
+
+  python-neural:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: intraday_quant/pyproject.toml
+      - name: Install CPU torch and the neural extra
+        working-directory: intraday_quant
+        run: |
+          python -m venv .venv-neural-ci
+          .venv-neural-ci/bin/python -m pip install --upgrade pip
+          .venv-neural-ci/bin/python -m pip install \
+            --index-url https://download.pytorch.org/whl/cpu \
+            "torch>=2.6,<3"
+          .venv-neural-ci/bin/python -m pip install -e ".[dev,neural]"
+          .venv-neural-ci/bin/python -m pip check
+      - name: Verify neural import and CPU model contracts
+        working-directory: intraday_quant
+        run: |
+          .venv-neural-ci/bin/python -c "import torch; from intraday_quant.models.causal_tcn import RegimeGatedDistributionalTCN; print(f'torch={torch.__version__}, cuda={torch.cuda.is_available()}')"
+          .venv-neural-ci/bin/python -m pytest tests/test_cuda_challenger.py tests/test_packaging_contract.py --basetemp .pytest-neural-tmp -p no:cacheprovider
+
+  cpp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes cmake ninja-build libsqlite3-dev libssl-dev
+      - name: Configure
+        run: cmake -S quant_core_cpp -B quant_core_cpp/build -G Ninja -DAXIO_WARNINGS_AS_ERRORS=ON
+      - name: Build
+        run: cmake --build quant_core_cpp/build --parallel 4
+      - name: Test
+        run: ctest --test-dir quant_core_cpp/build --output-on-failure

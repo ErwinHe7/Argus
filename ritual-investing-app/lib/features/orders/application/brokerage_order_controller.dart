@@ -562,7 +562,7 @@ String _commandMessage(
   BrokerageProviderCommandState.dispatching => 'The command is persisted and dispatch has started. Do not submit another order.',
   BrokerageProviderCommandState.accepted => 'Webull acknowledged the command. The order remains nonterminal until provider state resolves.',
   BrokerageProviderCommandState.ambiguous => 'The provider outcome is ambiguous. New mutations for this account are blocked.',
-  BrokerageProviderCommandState.reconciling => 'Argus is reconciling by the original provider identifier; it is not resubmitting the order.',
+  BrokerageProviderCommandState.reconciling => 'Leo is reconciling by the original provider identifier; it is not resubmitting the order.',
   BrokerageProviderCommandState.resolved =>
     'The command resolved from authoritative Webull evidence.',
   BrokerageProviderCommandState.failed =>

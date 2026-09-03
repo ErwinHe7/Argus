@@ -30,148 +30,73 @@ void main() {
     },
   );
 
-  test(
-    'returning sign in bypasses questionnaire for incomplete accounts',
-    () async {
-      final sessions = _SessionRepository(restoredSession: null);
-      final fixture = await _fixture(
-        sessionRepository: sessions,
-        bootstraps: [_bootstrap(complete: false, version: 4)],
-      );
-
-      await fixture.coordinator.signInWithPassword(
-        email: 'beta@example.com',
-        password: 'correct horse battery staple',
-      );
-
-      expect(sessions.passwordSignIns, [
-        (email: 'beta@example.com', password: 'correct horse battery staple'),
-      ]);
-      expect(
-        fixture.coordinator.state.destination,
-        EntryDestination.authenticatedRecovery,
-      );
-    },
-  );
-
-  test(
-    'regular signup starts onboarding once without an invitation recovery step',
-    () async {
-      final sessions = _SessionRepository(restoredSession: null);
-      final fixture = await _fixture(
-        sessionRepository: sessions,
-        bootstraps: [_bootstrap(complete: false, version: 1)],
-      );
-
-      await fixture.coordinator.signUpWithPassword(
-        email: 'new-member@example.com',
-        password: 'correct horse battery staple',
-      );
-
-      expect(sessions.passwordSignUps, [
-        (
-          email: 'new-member@example.com',
-          password: 'correct horse battery staple',
-        ),
-      ]);
-      expect(
-        fixture.coordinator.state.destination,
-        EntryDestination.questionnaire,
-      );
-      expect(fixture.coordinator.state.draft, const OnboardingDraft());
-      expect(
-        fixture.coordinator.state.destination,
-        isNot(EntryDestination.authenticatedRecovery),
-      );
-    },
-  );
-
-  test(
-    'failed signup stays on account creation with an existing draft intact',
-    () async {
-      final sessions = _SessionRepository(
-        restoredSession: null,
-        authenticationError: const MemberAuthUnavailable('email_exists'),
-      );
-      final fixture = await _fixture(
-        sessionRepository: sessions,
-        bootstraps: const [],
-      );
-      await fixture.store.save(_draft());
-      await fixture.coordinator.restore();
-
-      await fixture.coordinator.signUpWithPassword(
-        email: 'existing@example.com',
-        password: 'correct horse battery staple',
-      );
-
-      expect(fixture.coordinator.state.destination, EntryDestination.welcome);
-      expect(fixture.coordinator.state.draft, _draft());
-      expect((await fixture.store.read()).draft, _draft());
-      expect(
-        fixture.coordinator.state.message,
-        'An account already exists for this email.',
-      );
-    },
-  );
-
-  test(
-    'confirmation-required signup records a dedicated email state',
-    () async {
-      final sessions = _SessionRepository(
-        restoredSession: null,
-        authenticationError: const MemberAuthUnavailable(
-          'email_confirmation_required',
-        ),
-      );
-      final fixture = await _fixture(
-        sessionRepository: sessions,
-        bootstraps: const [],
-      );
-
-      await fixture.coordinator.signUpWithPassword(
-        email: '  new-member@example.com ',
-        password: 'correct horse battery staple',
-      );
-
-      expect(
-        fixture.coordinator.state.destination,
-        EntryDestination.emailConfirmation,
-      );
-      expect(
-        fixture.coordinator.state.confirmationEmail,
-        'new-member@example.com',
-      );
-    },
-  );
-
-  test('regular signup resumes an existing partial draft directly', () async {
+  test('Google sign in reconciles an incomplete returning account', () async {
     final sessions = _SessionRepository(restoredSession: null);
     final fixture = await _fixture(
       sessionRepository: sessions,
-      bootstraps: [_bootstrap(complete: false, version: 1)],
+      bootstraps: [_bootstrap(complete: false, version: 4)],
     );
-    const partialDraft = OnboardingDraft(
-      experience: InvestingExperience.someExperience,
-    );
-    await fixture.store.save(partialDraft);
-    await fixture.coordinator.restore();
-    fixture.coordinator.pauseQuestionnaire();
 
-    await fixture.coordinator.signUpWithPassword(
-      email: 'new-member@example.com',
-      password: 'correct horse battery staple',
+    await fixture.coordinator.signInWithGoogle();
+
+    expect(sessions.googleSignIns, 1);
+    expect(
+      fixture.coordinator.state.destination,
+      EntryDestination.authenticatedRecovery,
     );
+  });
+
+  test('started Google OAuth keeps a reviewed draft editable', () async {
+    final sessions = _SessionRepository(
+      restoredSession: null,
+      returnsPending: true,
+    );
+    final fixture = await _fixture(
+      sessionRepository: sessions,
+      bootstraps: const [],
+    );
+    await fixture.coordinator.beginQuestionnaire(_draft());
+    fixture.coordinator.pauseQuestionnaire();
+    fixture.coordinator.resumeQuestionnaire();
+
+    await fixture.coordinator.signInWithGoogle();
 
     expect(
       fixture.coordinator.state.destination,
       EntryDestination.questionnaire,
     );
-    expect(fixture.coordinator.state.draft, partialDraft);
-    expect((await fixture.store.read()).draft, partialDraft);
+    expect(fixture.coordinator.state.draft, _draft());
+    expect((await fixture.store.read()).draft, _draft());
   });
 
-  test('cancelled regular signup returns to account creation', () async {
+  test(
+    'Google provider failure preserves the draft and actionable copy',
+    () async {
+      final sessions = _SessionRepository(
+        restoredSession: null,
+        authenticationError: const MemberAuthUnavailable('provider_disabled'),
+      );
+      final fixture = await _fixture(
+        sessionRepository: sessions,
+        bootstraps: const [],
+      );
+      await fixture.coordinator.beginQuestionnaire(_draft());
+
+      await fixture.coordinator.signInWithGoogle();
+
+      expect(
+        fixture.coordinator.state.destination,
+        EntryDestination.questionnaire,
+      );
+      expect(fixture.coordinator.state.draft, _draft());
+      expect(
+        fixture.coordinator.state.message,
+        'Google sign-in is not enabled for this app yet.',
+      );
+    },
+  );
+
+  test('cancelled Google OAuth returns without discarding the draft', () async {
     final sessions = _SessionRepository(
       restoredSession: null,
       authenticationError: const MemberAuthCancelled(),
@@ -180,58 +105,17 @@ void main() {
       sessionRepository: sessions,
       bootstraps: const [],
     );
+    await fixture.coordinator.beginQuestionnaire(_draft());
 
-    await fixture.coordinator.signUpWithPassword(
-      email: 'new-member@example.com',
-      password: 'correct horse battery staple',
-    );
+    await fixture.coordinator.signInWithGoogle();
 
-    expect(fixture.coordinator.state.destination, EntryDestination.welcome);
-    expect(fixture.coordinator.state.message, isNull);
-  });
-
-  test('password sign in preserves the actionable auth failure', () async {
-    final sessions = _SessionRepository(
-      restoredSession: null,
-      authenticationError: const MemberAuthUnavailable('email_not_confirmed'),
-    );
-    final fixture = await _fixture(sessionRepository: sessions, bootstraps: []);
-
-    await fixture.coordinator.signInWithPassword(
-      email: 'beta@example.com',
-      password: 'correct horse battery staple',
-    );
-
-    expect(fixture.coordinator.state.destination, EntryDestination.failure);
     expect(
-      fixture.coordinator.state.message,
-      'Confirm your email before signing in.',
+      fixture.coordinator.state.destination,
+      EntryDestination.questionnaire,
     );
+    expect(fixture.coordinator.state.message, isNull);
+    expect((await fixture.store.read()).draft, _draft());
   });
-
-  test(
-    'Auth cancellation returns to editable review with draft intact',
-    () async {
-      final sessions = _SessionRepository(
-        restoredSession: null,
-        authenticationError: const MemberAuthCancelled(),
-      );
-      final fixture = await _fixture(
-        sessionRepository: sessions,
-        bootstraps: [],
-      );
-
-      await fixture.coordinator.createAccountWithPassword(
-        reviewedDraft: _draft(),
-        email: 'new-member@example.com',
-        password: 'correct horse battery staple',
-      );
-
-      expect(fixture.coordinator.state.destination, EntryDestination.review);
-      expect(fixture.coordinator.state.message, isNull);
-      expect((await fixture.store.read()).draft, _draft());
-    },
-  );
 
   test(
     'conflict refetch preserves draft and retry uses the same key',
@@ -342,26 +226,6 @@ void main() {
       expect(fixture.coordinator.state.canRetry, isTrue);
     },
   );
-
-  test('review save failure does not launch hosted sign-up', () async {
-    final sessions = _SessionRepository(restoredSession: null);
-    final fixture = await _fixture(sessionRepository: sessions, bootstraps: []);
-    fixture.storage.writeError = const ProtectedStorageLocked();
-
-    await expectLater(
-      fixture.coordinator.createAccountWithPassword(
-        reviewedDraft: _draft(),
-        email: 'new-member@example.com',
-        password: 'correct horse battery staple',
-      ),
-      completes,
-    );
-
-    expect(fixture.coordinator.state.destination, EntryDestination.review);
-    expect(fixture.coordinator.state.draft, _draft());
-    expect(fixture.coordinator.state.message, contains('device'));
-    expect(sessions.passwordSignUps, isEmpty);
-  });
 
   test('discard failure becomes a safe actionable state', () async {
     final fixture = await _fixture(bootstraps: []);
@@ -553,12 +417,16 @@ class _Fixture {
 }
 
 class _SessionRepository
-    implements SessionRepository, PasswordSessionRepository {
-  _SessionRepository({required this.restoredSession, this.authenticationError});
+    implements SessionRepository, GoogleOAuthSessionRepository {
+  _SessionRepository({
+    required this.restoredSession,
+    this.authenticationError,
+    this.returnsPending = false,
+  });
   final AuthSession? restoredSession;
   final Object? authenticationError;
-  final List<({String email, String password})> passwordSignIns = [];
-  final List<({String email, String password})> passwordSignUps = [];
+  final bool returnsPending;
+  int googleSignIns = 0;
   int logoutCalls = 0;
 
   @override
@@ -567,25 +435,11 @@ class _SessionRepository
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignIns.add((email: email, password: password));
+  Future<AuthSession?> signInWithGoogle() async {
+    googleSignIns += 1;
     final error = authenticationError;
     if (error != null) throw error;
-    return const AuthSession(accessToken: 'token');
-  }
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignUps.add((email: email, password: password));
-    final error = authenticationError;
-    if (error != null) throw error;
-    return const AuthSession(accessToken: 'token');
+    return returnsPending ? null : const AuthSession(accessToken: 'token');
   }
 
   @override

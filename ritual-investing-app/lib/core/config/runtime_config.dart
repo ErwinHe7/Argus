@@ -52,8 +52,11 @@ class RuntimeConfig {
   final MemberNativeLinkPolicy nativeLinks;
   final bool allowSelfServiceSignup;
 
-  Uri get passwordRecoveryRedirect =>
+  Uri get googleAuthRedirect =>
       selectArgusAuthRedirect(nativeLinks.argusAuthTargets);
+
+  @Deprecated('Google OAuth is the only member entry flow.')
+  Uri get passwordRecoveryRedirect => googleAuthRedirect;
 
   factory RuntimeConfig.fromEnvironment() => RuntimeConfig(
     environment: const String.fromEnvironment(

@@ -93,3 +93,29 @@ axio7-model-review/apps/spy-price-demo/playwright-report/
 axio7-model-review/apps/spy-price-demo/test-results/
 axio7-model-review/apps/spy-price-demo/public/generated/
 axio7-model-review/apps/spy-price-demo/src/features/replay/artifact/generated/
+
+# ---------------------------------------------------------------------------
+# Complete product source transferred under platform/.
+#
+# The broad rules above intentionally keep runtime market data out of Git, but
+# Argus must retain the immutable model artifacts and small, sanitized
+# fixtures/configuration that are part of the build. Keep these exceptions
+# narrow: raw/normalized data, rights receipts, ledgers, and secrets remain
+# ignored by platform/.gitignore.
+# ---------------------------------------------------------------------------
+!platform/infra/single-vm/.env.server.example
+!platform/docs/handoffs/icpc-gold-model-review-2026-07-26/inventory.csv
+!platform/research/reports/
+!platform/research/reports/**
+
+!platform/quant_engine_rs/data/
+platform/quant_engine_rs/data/*
+!platform/quant_engine_rs/data/estimates/
+!platform/quant_engine_rs/data/estimates/*.json
+!platform/quant_engine_rs/data/live/
+platform/quant_engine_rs/data/live/*
+!platform/quant_engine_rs/data/live/fixture_*.jsonl
+!platform/quant_engine_rs/data/models/
+!platform/quant_engine_rs/data/models/**
+!platform/quant_engine_rs/data/quality/
+!platform/quant_engine_rs/data/quality/*.json

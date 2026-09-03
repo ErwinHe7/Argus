@@ -124,7 +124,7 @@ void main() {
         final router = GoRouter.of(tester.element(shell));
         final routes = <(String, String)>[
           (MemberRoutes.ritual.path, 'TODAY’S DAILY RITUAL'),
-          (MemberRoutes.starpath.path, 'Walk the Stars'),
+          (MemberRoutes.starpath.path, 'Your Investment path'),
           (MemberRoutes.discover.path, 'Discover'),
           (MemberRoutes.coven.path, 'Founders’ Coven'),
           (MemberRoutes.you.path, 'You'),

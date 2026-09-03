@@ -1,0 +1,26 @@
+name: global-signal-alerts
+
+on:
+  schedule:
+    - cron: '*/5 * * * 1-5'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Trigger AXIO7 global signal alerts
+        env:
+          ALERT_URL: ${{ secrets.GLOBAL_SIGNAL_ALERT_URL }}
+          ALERT_SECRET: ${{ secrets.GLOBAL_SIGNAL_ALERT_SECRET }}
+        run: |
+          set -euo pipefail
+          url="${ALERT_URL:-https://axio7.com/api/cron/global-signal-alerts}"
+          if [ -n "${ALERT_SECRET:-}" ]; then
+            curl --fail --silent --show-error --max-time 90 \
+              -H "Authorization: Bearer ${ALERT_SECRET}" \
+              "${url}"
+          else
+            curl --fail --silent --show-error --max-time 90 "${url}"
+          fi

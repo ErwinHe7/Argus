@@ -283,12 +283,15 @@ export function createWebullClient(
     if (!endpointAllowed) {
       throw new WebullTransientProviderError();
     }
+    const requestBody = init.body === undefined
+      ? undefined
+      : Uint8Array.from(init.body);
     let response: Response;
     try {
       response = await send(url, {
         method: init.method,
         headers,
-        ...(init.body === undefined ? {} : { body: new Uint8Array(init.body) }),
+        ...(requestBody === undefined ? {} : { body: requestBody }),
         redirect: "error",
         signal: AbortSignal.timeout(10_000),
       });

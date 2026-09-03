@@ -1,143 +1,348 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../application/onboarding_controller.dart';
 import '../domain/onboarding_draft.dart';
 
-class WelcomeScreen extends StatelessWidget {
+class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({
     super.key,
-    required this.onCreateAccount,
-    required this.onSignIn,
+    required this.onContinueWithGoogle,
+    this.message,
   });
 
-  final VoidCallback onCreateAccount;
-  final VoidCallback onSignIn;
+  final Future<void> Function() onContinueWithGoogle;
+  final String? message;
+
+  @override
+  State<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends State<WelcomeScreen> {
+  bool _isSubmitting = false;
+
+  Future<void> _continueWithGoogle() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await widget.onContinueWithGoogle();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: LayoutBuilder(
-      builder: (context, constraints) {
-        final artworkHeight = constraints.maxHeight >= 760 ? 455.0 : 280.0;
-        final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
-        final pageBrightness = Theme.of(context).brightness;
-        return Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: SizedBox(
-              width: double.infinity,
+    body: SafeArea(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final spacious = constraints.maxHeight >= 760;
+          return Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 560),
               child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    AnnotatedRegion<SystemUiOverlayStyle>(
-                      key: const Key('welcome-hero-system-ui'),
-                      value: const SystemUiOverlayStyle(
-                        statusBarColor: Colors.transparent,
-                        statusBarIconBrightness: Brightness.light,
-                        statusBarBrightness: Brightness.dark,
-                      ),
-                      child: _LeonidasWelcomeArtwork(height: artworkHeight),
-                    ),
-                    AnnotatedRegion<SystemUiOverlayStyle>(
-                      key: const Key('welcome-body-system-ui'),
-                      value: SystemUiOverlayStyle(
-                        statusBarColor: Colors.transparent,
-                        statusBarIconBrightness:
-                            pageBrightness == Brightness.dark
-                            ? Brightness.light
-                            : Brightness.dark,
-                        statusBarBrightness: pageBrightness == Brightness.dark
-                            ? Brightness.dark
-                            : Brightness.light,
-                      ),
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          20,
-                          0,
-                          20,
-                          24 + bottomInset,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'Begin with a personal ritual',
-                              style: Theme.of(context).textTheme.displaySmall,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              'Leonidas makes investing knowledge feel worth approaching—while evidence and control stay yours.',
-                              style: Theme.of(context).textTheme.bodyLarge,
-                            ),
-                            const SizedBox(height: 24),
-                            FilledButton(
-                              key: const Key('welcome-create-account'),
-                              onPressed: onCreateAccount,
-                              child: const Text('Create account'),
-                            ),
-                            const SizedBox(height: 12),
-                            OutlinedButton(
-                              key: const Key('welcome-sign-in'),
-                              onPressed: onSignIn,
-                              child: const Text('I have an account'),
-                            ),
-                          ],
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(20, spacious ? 28 : 12, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const _LeoBrandLockup(),
+                      SizedBox(height: spacious ? 24 : 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: SizedBox(
+                          key: const Key('welcome-artwork'),
+                          height: spacious ? 252 : 72,
+                          child: Image.asset(
+                            'assets/images/the-compass.png',
+                            fit: BoxFit.cover,
+                            alignment: const Alignment(0, -0.08),
+                            excludeFromSemantics: true,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    ),
-  );
-}
-
-class _LeonidasWelcomeArtwork extends StatelessWidget {
-  const _LeonidasWelcomeArtwork({required this.height});
-
-  final double height;
-
-  @override
-  Widget build(BuildContext context) => Semantics(
-    key: const Key('welcome-artwork'),
-    image: true,
-    label: 'Leonidas standing in the Candlelit Observatory.',
-    child: SizedBox(
-      height: height,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.asset(
-            'assets/images/leonidas/leonidas-canonical-observatory-hero-v1.png',
-            fit: BoxFit.cover,
-            alignment: Alignment.topCenter,
-            excludeFromSemantics: true,
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: IgnorePointer(
-              child: Container(
-                height: 112,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.transparent,
-                      Theme.of(context).scaffoldBackgroundColor,
+                      SizedBox(height: spacious ? 28 : 16),
+                      Text(
+                        'Welcome to Leo',
+                        style: Theme.of(context).textTheme.displaySmall,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Continue with Google, then add only your birth date for astrology. There is no setup questionnaire.',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Google is the only sign-in method. Investing and voice preferences stay optional in You.',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      if (widget.message != null) ...[
+                        const SizedBox(height: 16),
+                        _WelcomeAuthMessage(message: widget.message!),
+                      ],
+                      SizedBox(height: spacious ? 28 : 16),
+                      SizedBox(
+                        height: 52,
+                        child: FilledButton(
+                          key: const Key('welcome-google-sign-in'),
+                          onPressed: _isSubmitting ? null : _continueWithGoogle,
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (_isSubmitting)
+                                const SizedBox.square(
+                                  dimension: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              else
+                                Text(
+                                  'G',
+                                  semanticsLabel: 'Google',
+                                  style: Theme.of(context).textTheme.titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                              const SizedBox(width: 12),
+                              Text(
+                                _isSubmitting
+                                    ? 'Opening Google…'
+                                    : 'Continue with Google',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: spacious ? 24 : 16),
+                      const _TrustLine(
+                        icon: Icons.visibility_outlined,
+                        text: 'Evidence and uncertainty stay within reach.',
+                      ),
+                      const SizedBox(height: 8),
+                      const _TrustLine(
+                        icon: Icons.tune,
+                        text: 'Nothing is chosen or acted on for you.',
+                      ),
                     ],
                   ),
                 ),
               ),
             ),
+          );
+        },
+      ),
+    ),
+  );
+}
+
+class _WelcomeAuthMessage extends StatelessWidget {
+  const _WelcomeAuthMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Semantics(
+      liveRegion: true,
+      child: Material(
+        key: const Key('welcome-auth-message'),
+        color: scheme.errorContainer,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.info_outline,
+                color: scheme.onErrorContainer,
+                size: 20,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium
+                      ?.copyWith(color: scheme.onErrorContainer),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LeoBrandLockup extends StatelessWidget {
+  const _LeoBrandLockup();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Image.asset(
+          'assets/images/brand/leo-lion.png',
+          width: 48,
+          height: 48,
+          fit: BoxFit.contain,
+          semanticLabel: 'Leo lion',
+        ),
+        const SizedBox(width: 12),
+        Text('Leo', style: Theme.of(context).textTheme.titleLarge),
+      ],
+    );
+  }
+}
+
+class _TrustLine extends StatelessWidget {
+  const _TrustLine({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
+      const SizedBox(width: 10),
+      Expanded(
+        child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
+      ),
+    ],
+  );
+}
+
+class BirthdayOnboardingScreen extends StatefulWidget {
+  const BirthdayOnboardingScreen({
+    super.key,
+    required this.controller,
+    required this.onFinish,
+    required this.onLogout,
+    this.onDraftChanged,
+    this.persistenceMessage,
+    this.onRetryPersistence,
+  });
+
+  final OnboardingController controller;
+  final Future<void> Function() onFinish;
+  final Future<void> Function() onLogout;
+  final ValueChanged<OnboardingDraft>? onDraftChanged;
+  final String? persistenceMessage;
+  final VoidCallback? onRetryPersistence;
+
+  @override
+  State<BirthdayOnboardingScreen> createState() =>
+      _BirthdayOnboardingScreenState();
+}
+
+class _BirthdayOnboardingScreenState extends State<BirthdayOnboardingScreen> {
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.controller.draft.astrologyEnabled != true) {
+      widget.controller.setAstrologyEnabled(true);
+    }
+  }
+
+  Future<void> _finish() async {
+    if (_isSubmitting || !widget.controller.isBirthDateReady) return;
+    setState(() => _isSubmitting = true);
+    try {
+      await widget.onFinish();
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.controller,
+    builder: (context, _) => Scaffold(
+      appBar: AppBar(
+        title: const _LeoBrandLockup(),
+        actions: [
+          TextButton(
+            key: const Key('birthday-logout'),
+            onPressed: _isSubmitting ? null : widget.onLogout,
+            child: const Text('Log out'),
           ),
         ],
+      ),
+      body: SafeArea(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Icon(
+                    Icons.auto_awesome_outlined,
+                    size: 44,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'One detail for your sky',
+                    style: Theme.of(context).textTheme.displaySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your birth date lets Leo personalize astrology. We never ask for a birth time or place.',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Investment and Gospel preferences stay optional in You and never block access.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  if (widget.persistenceMessage != null) ...[
+                    const SizedBox(height: 16),
+                    _PersistenceNotice(
+                      message: widget.persistenceMessage!,
+                      onRetry: widget.onRetryPersistence,
+                    ),
+                  ],
+                  const SizedBox(height: 28),
+                  _BirthDateQuestion(
+                    controller: widget.controller,
+                    onChanged: () =>
+                        widget.onDraftChanged?.call(widget.controller.draft),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'By continuing, you agree to Leo’s Terms, Privacy Policy, public beta disclosure, and birth-date processing for personalized astrology.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 52,
+                    child: FilledButton(
+                      key: const Key('recovery-continue'),
+                      onPressed:
+                          widget.controller.isBirthDateReady && !_isSubmitting
+                          ? _finish
+                          : null,
+                      child: _isSubmitting
+                          ? const SizedBox.square(
+                              dimension: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Text('Save birthday & enter Leo'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -180,7 +385,7 @@ class OnboardingFlow extends StatelessWidget {
             onPressed: () => onBack(_previous(step)),
             icon: const Icon(Icons.arrow_back),
           ),
-          title: const Text('Your Ritual'),
+          title: const Text('Your Gospel'),
         ),
         body: SafeArea(
           child: Align(
@@ -359,7 +564,7 @@ class OnboardingFlow extends StatelessWidget {
       context,
       controller.draft.ritualFamiliarity,
       const {
-        RitualFamiliarity.newToRitual: 'New to ritual practices',
+        RitualFamiliarity.newToRitual: 'New to Gospel guidance',
         RitualFamiliarity.curious: 'Curious and exploring',
         RitualFamiliarity.familiar: 'Familiar',
         RitualFamiliarity.practiced: 'Part of my regular practice',
@@ -512,7 +717,7 @@ class OnboardingReviewScreen extends StatelessWidget {
                   onPressed: onBack,
                   icon: const Icon(Icons.arrow_back),
                 ),
-          title: const Text('Review your Ritual'),
+          title: const Text('Review your Gospel'),
         ),
         body: SafeArea(
           child: Align(
@@ -554,7 +759,7 @@ class OnboardingReviewScreen extends StatelessWidget {
                         onEdit: () => onEdit(OnboardingStep.experience),
                       ),
                       _ReviewLine(
-                        label: 'Ritual language',
+                        label: 'Gospel language',
                         value: _label(controller.draft.ritualLanguage),
                         onEdit: () => onEdit(OnboardingStep.ritualLanguage),
                       ),
@@ -586,8 +791,8 @@ class OnboardingReviewScreen extends StatelessWidget {
                       _ReviewConsent(
                         key: const Key('consent-demo'),
                         value: controller.draft.demoAccepted,
-                        title: 'Demo disclosure · version 2026-08',
-                        subtitle: 'I understand this is a Demo and no real money moves.',
+                        title: 'Simulation disclosure · version 2026-08',
+                        subtitle: 'I understand this experience includes simulated research and no real money moves.',
                         onChanged: (value) => _setConsent(demo: value),
                       ),
                       const SizedBox(height: 18),
@@ -769,6 +974,17 @@ class _BirthDateQuestionState extends State<_BirthDateQuestion> {
             hintText: 'YYYY-MM-DD',
             helperText: 'Enter a date, or use the date picker below.',
           ),
+          onChanged: (raw) {
+            final selectedValue = selected == null
+                ? null
+                : onboardingDateOnly(selected);
+            if (raw == selectedValue) return;
+            if (widget.controller.draft.birthDate != null) {
+              widget.controller.clearBirthDate();
+              widget.onChanged();
+            }
+            if (raw.length == 10) _submit(raw);
+          },
           onFieldSubmitted: _submit,
         ),
         if (_errorText != null)
@@ -812,9 +1028,10 @@ String _title(OnboardingStep step) => switch (step) {
   OnboardingStep.horizon => 'What time horizon feels relevant?',
   OnboardingStep.risk => 'How much uncertainty feels comfortable?',
   OnboardingStep.contributionRhythm => 'What contribution rhythm fits you?',
-  OnboardingStep.ritualLanguage => 'How should Ritual speak to you?',
-  OnboardingStep.ritualFamiliarity => 'How familiar are ritual practices?',
-  OnboardingStep.ritualInterests => 'What would you like in your ritual?',
+  OnboardingStep.ritualLanguage => 'How should Gospel speak to you?',
+  OnboardingStep.ritualFamiliarity =>
+    'How familiar are you with Gospel guidance?',
+  OnboardingStep.ritualInterests => 'What would you like in your Gospel?',
   OnboardingStep.astrologyOptIn => 'Would you like personalized astrology?',
   OnboardingStep.birthDate => 'Add your birth date',
   OnboardingStep.welcome => 'Welcome',
@@ -829,7 +1046,7 @@ String _supportingCopy(OnboardingStep step) => switch (step) {
   OnboardingStep.astrologyOptIn =>
     'Tarot and general astrology remain available either way.',
   OnboardingStep.birthDate =>
-    'We ask only for the date. Ritual does not ask for birth time or place.',
+    'We ask only for the date. Leo does not ask for birth time or place.',
   OnboardingStep.ritualInterests => 'Choose one or more.',
   _ => 'Your answer sets a visible default that you can change later.',
 };

@@ -30,8 +30,7 @@ void main() {
           ritualContext,
         ),
       );
-      await tester.pump();
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('leonidas-ritual-sequence')), findsOneWidget);
       expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
@@ -57,7 +56,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('leonidas-starpath')));
       await tester.pumpAndSettle();
-      expect(find.text('Walk the Stars'), findsWidgets);
+      expect(find.text('Starpath'), findsWidgets);
     },
   );
 }

@@ -32,13 +32,14 @@ class MemberRouteDefinition {
 
 abstract final class MemberRoutes {
   static const youInvestingPath = '/you/investing';
-  static const youRitualPreferencesPath = '/you/ritual-preferences';
+  static const youRitualPreferencesPath = '/you/gospel-preferences';
   static const youAstrologyPath = '/you/astrology';
   static const youPoliciesPath = '/you/policies';
   static const youAccountPath = '/you/account';
   static const discoverSearchPath = '/discover/search';
+  static const discoverAiAnalysisPath = '/discover/ai-analysis';
   static const discoverCirclesPath = '/discover/circles';
-  static const ritualBriefingsPath = '/ritual/briefings';
+  static const ritualBriefingsPath = '/gospel/briefings';
   static const youNotificationsPath = '/you/notifications';
   static const youNotificationPreferencesPath = '/you/notification-preferences';
   static const youPrivacyPath = '/you/privacy';
@@ -46,7 +47,7 @@ abstract final class MemberRoutes {
 
   static const ritual = MemberRouteDefinition(
     name: 'ritual',
-    path: '/ritual',
+    path: '/gospel',
     branch: MemberBranch.ritual,
   );
   static const discover = MemberRouteDefinition(
@@ -72,7 +73,7 @@ abstract final class MemberRoutes {
 
   static const ritualReading = MemberRouteDefinition(
     name: 'ritual-reading',
-    path: '/ritual/readings',
+    path: '/gospel/readings',
     relativeResourcePath: 'readings/:stableId',
     branch: MemberBranch.ritual,
   );
@@ -222,6 +223,16 @@ abstract final class MemberRoutes {
     }
     return '$ritualBriefingsPath/${Uri.encodeComponent(briefingId)}';
   }
+
+  static String normalizeLegacyLocation(String path) {
+    if (path == '/ritual' || path.startsWith('/ritual/')) {
+      return '/gospel${path.substring('/ritual'.length)}';
+    }
+    if (path == '/you/ritual-preferences') {
+      return youRitualPreferencesPath;
+    }
+    return path;
+  }
 }
 
 class MemberNavigationPolicy {
@@ -274,8 +285,10 @@ class MemberNavigationPolicy {
   bool contains(MemberBranch branch) => branches.contains(branch);
 
   String? redirectFor(String path) {
-    final requested = switch (path) {
-      final value when value == '/ritual' || value.startsWith('/ritual/') =>
+    final normalizedPath = MemberRoutes.normalizeLegacyLocation(path);
+    if (normalizedPath != path) return normalizedPath;
+    final requested = switch (normalizedPath) {
+      final value when value == '/gospel' || value.startsWith('/gospel/') =>
         MemberBranch.ritual,
       final value when value == '/starpath' || value.startsWith('/starpath/') =>
         MemberBranch.starpath,

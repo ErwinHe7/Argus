@@ -9,6 +9,10 @@ const apiSourceRoot = resolve(repositoryRoot, "ritual-investing-api/src");
 const domainSourceRoot = resolve(apiSourceRoot, "domains");
 const edgeSourceRoot = resolve(repositoryRoot, "supabase/functions");
 
+function repositoryPath(absolutePath: string): string {
+  return relative(repositoryRoot, absolutePath).replaceAll("\\", "/");
+}
+
 const approvedRepositoryCompositionRoots = new Set([
   "supabase/functions/api/index.ts",
   "supabase/functions/webull-callback/index.ts",
@@ -39,7 +43,7 @@ async function listTypeScriptFiles(root: string): Promise<string[]> {
 }
 
 async function parseSource(absolutePath: string): Promise<ParsedSource> {
-  const displayPath = relative(repositoryRoot, absolutePath);
+  const displayPath = repositoryPath(absolutePath);
   const source = await readFile(absolutePath, "utf8");
   return {
     absolutePath,
@@ -140,7 +144,7 @@ describe("domain and Supabase composition boundaries", () => {
       for (const specifier of importedModuleSpecifiers(importer.source)) {
         const importedPath = resolveLocalImport(importer, specifier);
         if (importedPath === undefined) continue;
-        const importedDisplayPath = relative(repositoryRoot, importedPath);
+        const importedDisplayPath = repositoryPath(importedPath);
         const importedDomain = domainName(importedDisplayPath);
         if (
           importedDomain !== undefined &&
@@ -160,7 +164,7 @@ describe("domain and Supabase composition boundaries", () => {
 
   it("keeps route and service policy independent from concrete adapters", async () => {
     const policyFiles = (await listTypeScriptFiles(domainSourceRoot)).filter(
-      (path) => /\/(?:routes|service)\.ts$/.test(path),
+      (path) => /\/(?:routes|service)\.ts$/.test(repositoryPath(path)),
     );
     const violations: string[] = [];
 
@@ -168,7 +172,7 @@ describe("domain and Supabase composition boundaries", () => {
       for (const specifier of importedModuleSpecifiers(importer.source)) {
         const importedPath = resolveLocalImport(importer, specifier);
         if (importedPath === undefined) continue;
-        const importedDisplayPath = relative(repositoryRoot, importedPath);
+        const importedDisplayPath = repositoryPath(importedPath);
         if (isConcreteDomainAdapter(importedDisplayPath)) {
           violations.push(`${importer.displayPath} -> ${importedDisplayPath}`);
         }
@@ -223,7 +227,7 @@ describe("domain and Supabase composition boundaries", () => {
     const repositoryFiles = [
       resolve(apiSourceRoot, "db/supabase-repositories.ts"),
       ...(await listTypeScriptFiles(domainSourceRoot)).filter((path) =>
-        isConcreteDomainAdapter(relative(repositoryRoot, path))
+        isConcreteDomainAdapter(repositoryPath(path))
       ),
     ];
     const violations: string[] = [];
@@ -250,7 +254,7 @@ describe("domain and Supabase composition boundaries", () => {
 
   it("constructs request repositories from the current transaction executor", async () => {
     const repositoryFiles = (await listTypeScriptFiles(domainSourceRoot)).filter((path) =>
-      isConcreteDomainAdapter(relative(repositoryRoot, path))
+      isConcreteDomainAdapter(repositoryPath(path))
     );
     const violations: string[] = [];
     const transactionOwners =
@@ -297,7 +301,7 @@ describe("domain and Supabase composition boundaries", () => {
     const retainedAdapterImports = importedModuleSpecifiers(retainedApp.source)
       .map((specifier) => resolveLocalImport(retainedApp, specifier))
       .filter((path): path is string => path !== undefined)
-      .map((path) => relative(repositoryRoot, path))
+      .map(repositoryPath)
       .filter((path) =>
         path === "ritual-investing-api/src/db/supabase-repositories.ts" ||
         isConcreteDomainAdapter(path)

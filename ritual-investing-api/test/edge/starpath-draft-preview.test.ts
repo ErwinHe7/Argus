@@ -9,7 +9,7 @@ import { StarpathError } from "../../src/domains/starpath/ports.ts";
 import { starpathSnapshotSchema } from "../../src/domains/starpath/schemas.ts";
 
 describe("Starpath draft beta preview", () => {
-  it("serves the complete eight-node curriculum as read-only draft content", async () => {
+  it("serves all eight Parts and nineteen micro-lessons as browse-accessible draft content", async () => {
     const repository = createDraftPreviewStarpathRepository();
     const snapshot = await repository.read();
 
@@ -28,16 +28,49 @@ describe("Starpath draft beta preview", () => {
     });
     expect(snapshot.theme).not.toBeNull();
     expect(snapshot.nodes.map((node) => node.title)).toEqual([
-      "The Share Sigil",
-      "The Market Lantern",
-      "The Many-Star Shield",
-      "The Fee Eclipse",
-      "The Filing Grimoire",
-      "The Fund and Bond Map",
-      "The False Sun",
-      "The Verification Compass",
+      "Start Here",
+      "Buying and Selling",
+      "ETFs and Diversification",
+      "Read a Stock",
+      "Protect Your Money",
+      "Options, Simply",
+      "News and Scams",
+      "Build Your System",
     ]);
     expect(snapshot.nodes).toHaveLength(8);
+    expect(snapshot.nodes.map((node) =>
+      node.factual_sections.map((section) => section.heading)
+    )).toEqual([
+      [
+        "What Is a Stock?",
+        "How Do You Make—or Lose—Money?",
+        "Three Rules Before You Buy Anything",
+      ],
+      ["How a Trade Works", "Market Orders vs Limit Orders"],
+      ["What Is an ETF?", "Why One Big Bet Can Wipe You Out"],
+      ["Revenue, Profit, and Debt", "Share Price vs Market Cap"],
+      [
+        "Position Size: Decide Dollar Risk First",
+        "Stop-Loss: What It Can and Cannot Do",
+        "Risk/Reward: Why 1:3 Is a Plan, Not a Promise",
+      ],
+      [
+        "Calls and Puts",
+        "Strike, Premium, and Expiration",
+        "Time, Volatility, and Greeks",
+      ],
+      [
+        "Economic Calendar: What Can Move the Market",
+        "News, Hype, Fake Gurus, and FOMO",
+      ],
+      ["Your Before-Trade Checklist", "Paper Trade, Journal, Review"],
+    ]);
+    expect(
+      snapshot.nodes.flatMap((node) => node.factual_sections),
+    ).toHaveLength(19);
+    expect(snapshot.nodes.slice(1).every((node) =>
+      node.state === "locked" && node.factual_sections.length > 0
+    )).toBe(true);
     expect(snapshot.nodes.every((node) =>
       node.factual_sections.length > 0 &&
       node.factual_sections.every((section) => section.evidence.length > 0) &&

@@ -119,3 +119,34 @@ export const onboardingFinalizeBodySchema = z.object({
     }).strict(),
   }).strict(),
 }).strict().openapi("FinalizeOnboardingRequest");
+
+const acceptedOnboardingConsentSchema = z.object({
+  policy_version: z.string().min(1).max(40),
+  decision: z.literal("accepted"),
+}).strict().openapi("BirthdayAcceptedOnboardingConsent");
+
+const onboardingBirthDateSchema = z.string().date().superRefine(
+  (value, issue) => {
+    const today = new Date().toISOString().slice(0, 10);
+    if (value < "1900-01-01" || value > today) {
+      issue.addIssue({
+        code: "custom",
+        message: "birth_date must be between 1900-01-01 and today",
+      });
+    }
+  },
+);
+
+export const birthdayOnboardingFinalizeBodySchema = z.object({
+  schema_version: z.number().int().min(3).max(3),
+  expected_onboarding_version: z.number().int().positive(),
+  astrology: z.object({
+    birth_date: onboardingBirthDateSchema,
+  }).strict(),
+  consents: z.object({
+    terms: acceptedOnboardingConsentSchema,
+    privacy: acceptedOnboardingConsentSchema,
+    demo_disclosure: acceptedOnboardingConsentSchema,
+    astrology: acceptedOnboardingConsentSchema,
+  }).strict(),
+}).strict().openapi("FinalizeBirthdayOnboardingRequest");

@@ -521,26 +521,19 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
           duration: opacityDuration,
           curve: DailyRitualStageSpec.enterCurve,
           opacity: _cardShouldShow ? 1 : 0,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ExcludeSemantics(
-                child: _ExactCardFrame(
-                  provider: provider,
-                  attempt: _mediaAttempt,
-                  colors: context.ritualColors,
-                  onReady: _markMediaReady,
-                  onUnavailable: _markMediaUnavailable,
-                ),
-              ),
-              if (_cardShouldShow)
-                Semantics(
-                  key: const Key('leonidas-card-front'),
-                  image: true,
-                  label: _artwork!.alt,
-                  child: const SizedBox.expand(),
-                ),
-            ],
+          child: ExcludeSemantics(
+            excluding: !_cardShouldShow,
+            child: _ExactCardFlip(
+              revealed: _cardShouldShow,
+              reducedMotion: _reducedMotion,
+              duration: DailyRitualStageSpec.reveal,
+              provider: provider,
+              attempt: _mediaAttempt,
+              alt: _artwork!.alt,
+              colors: context.ritualColors,
+              onReady: _markMediaReady,
+              onUnavailable: _markMediaUnavailable,
+            ),
           ),
         ),
       ),
@@ -559,31 +552,32 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     _ => DailyRitualStageSpec.reveal,
   };
 
-  List<Widget> _buildPhaseContent(
-    double dx, {
-    required bool largeText,
-  }) => switch (_phase) {
-    DailyRitualStagePhase.resting => _buildResting(dx, largeText: largeText),
-    DailyRitualStagePhase.ready ||
-    DailyRitualStagePhase.holding ||
-    DailyRitualStagePhase.acceptedWaiting ||
-    DailyRitualStagePhase.revealFailure => _buildSeal(dx),
-    DailyRitualStagePhase.revealed ||
-    DailyRitualStagePhase.finishPending ||
-    DailyRitualStagePhase.finishFailure => _buildReading(
-      dx,
-      largeText: largeText,
-    ),
-    DailyRitualStagePhase.closing => _buildClosing(dx),
-    DailyRitualStagePhase.completed => _buildCompleted(
-      dx,
-      largeText: largeText,
-    ),
-    DailyRitualStagePhase.mediaUnavailable => _buildMediaUnavailable(
-      dx,
-      completed: widget.ritual.state == DailyRitualState.completed,
-    ),
-  };
+  List<Widget> _buildPhaseContent(double dx, {required bool largeText}) =>
+      switch (_phase) {
+        DailyRitualStagePhase.resting => _buildResting(
+          dx,
+          largeText: largeText,
+        ),
+        DailyRitualStagePhase.ready ||
+        DailyRitualStagePhase.holding ||
+        DailyRitualStagePhase.acceptedWaiting ||
+        DailyRitualStagePhase.revealFailure => _buildSeal(dx),
+        DailyRitualStagePhase.revealed ||
+        DailyRitualStagePhase.finishPending ||
+        DailyRitualStagePhase.finishFailure => _buildReading(
+          dx,
+          largeText: largeText,
+        ),
+        DailyRitualStagePhase.closing => _buildClosing(dx),
+        DailyRitualStagePhase.completed => _buildCompleted(
+          dx,
+          largeText: largeText,
+        ),
+        DailyRitualStagePhase.mediaUnavailable => _buildMediaUnavailable(
+          dx,
+          completed: widget.ritual.state == DailyRitualState.completed,
+        ),
+      };
 
   Key get _phaseLayerKey => switch (_phase) {
     DailyRitualStagePhase.resting => const Key('daily-ritual-resting-layer'),
@@ -937,7 +931,7 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
         top: DailyRitualStageSpec.keepsakeCard.top,
         bottom: 10,
         child: SingleChildScrollView(
-          key: const Key('daily-ritual-accessibility-scroll'),
+          key: const Key('leonidas-completed-content-scroll'),
           child: content,
         ),
       ),
@@ -1152,6 +1146,165 @@ class _SealHold extends StatelessWidget {
       },
     );
   }
+}
+
+class _ExactCardFlip extends StatefulWidget {
+  const _ExactCardFlip({
+    required this.revealed,
+    required this.reducedMotion,
+    required this.duration,
+    required this.provider,
+    required this.attempt,
+    required this.alt,
+    required this.colors,
+    required this.onReady,
+    required this.onUnavailable,
+  });
+
+  final bool revealed;
+  final bool reducedMotion;
+  final Duration duration;
+  final ImageProvider provider;
+  final int attempt;
+  final String alt;
+  final RitualColors colors;
+  final VoidCallback onReady;
+  final VoidCallback onUnavailable;
+
+  @override
+  State<_ExactCardFlip> createState() => _ExactCardFlipState();
+}
+
+class _ExactCardFlipState extends State<_ExactCardFlip>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+      value: widget.revealed ? 1 : 0,
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _ExactCardFlip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.duration != widget.duration) {
+      _controller.duration = widget.duration;
+    }
+    if (widget.reducedMotion) {
+      _controller.value = widget.revealed ? 1 : 0;
+    } else if (widget.revealed != oldWidget.revealed ||
+        oldWidget.reducedMotion) {
+      if (widget.revealed) {
+        _controller.forward();
+      } else {
+        _controller.reverse();
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final frame = _ExactCardFrame(
+      provider: widget.provider,
+      attempt: widget.attempt,
+      colors: widget.colors,
+      onReady: widget.onReady,
+      onUnavailable: widget.onUnavailable,
+    );
+    Widget face({required bool showFront}) => showFront
+        ? Semantics(
+            key: const Key('leonidas-card-front'),
+            image: true,
+            label: widget.alt,
+            child: ExcludeSemantics(child: frame),
+          )
+        : ExcludeSemantics(
+            key: const Key('leonidas-card-back'),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Opacity(opacity: 0, child: frame),
+                _ExactCardBack(colors: widget.colors),
+              ],
+            ),
+          );
+
+    if (widget.reducedMotion) {
+      return face(showFront: widget.revealed);
+    }
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final progress = Curves.easeOutCubic.transform(_controller.value);
+        final showFront = progress >= 0.5;
+        final angle = showFront ? math.pi * (1 - progress) : math.pi * progress;
+        return Transform(
+          key: showFront
+              ? const Key('daily-ritual-card-front-flip')
+              : const Key('daily-ritual-card-back-flip'),
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.001)
+            ..rotateY(angle),
+          child: face(showFront: showFront),
+        );
+      },
+    );
+  }
+}
+
+class _ExactCardBack extends StatelessWidget {
+  const _ExactCardBack({required this.colors});
+
+  final RitualColors colors;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    key: const Key('daily-ritual-card-back'),
+    decoration: BoxDecoration(
+      color: const Color(0xFF0A070C),
+      borderRadius: BorderRadius.circular(9),
+      border: Border.all(color: colors.gold, width: 2),
+    ),
+    child: ClipRRect(
+      borderRadius: BorderRadius.circular(7),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [Color(0xFF3B182D), Color(0xFF160E24)],
+          ),
+        ),
+        child: Center(
+          child: Container(
+            width: 58,
+            height: 58,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: colors.gold.withValues(alpha: 0.7)),
+            ),
+            child: Text(
+              '♌',
+              style: TextStyle(color: colors.gold, fontSize: 30),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }
 
 class _ExactCardFrame extends StatelessWidget {

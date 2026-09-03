@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/bootstrap/app_runtime.dart';
 import '../../core/navigation/member_routes.dart';
@@ -190,7 +191,7 @@ List<RouteBase> _settingsRoutes(
     ),
   ),
   GoRoute(
-    path: 'ritual-preferences',
+    path: 'gospel-preferences',
     builder: (context, state) => RitualPreferencesScreen(
       controller: container.profileController,
       onSave: container.updateMemberPreferences,
@@ -256,6 +257,10 @@ class _YouBranchRoot extends StatefulWidget {
 }
 
 class _YouBranchRootState extends State<_YouBranchRoot> {
+  static final Uri _pricingUri = Uri.parse(
+    'https://leo.axio7.workers.dev/pricing',
+  );
+
   @override
   void initState() {
     super.initState();
@@ -276,6 +281,29 @@ class _YouBranchRootState extends State<_YouBranchRoot> {
         context.push(MemberRoutes.youRitualPreferencesPath),
     onOpenAstrology: () => context.push(MemberRoutes.youAstrologyPath),
     onOpenPolicies: () => context.push(MemberRoutes.youPoliciesPath),
+    onOpenPlansAndPayment: () async {
+      try {
+        final opened = await launchUrl(
+          _pricingUri,
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened && context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open Plans & payment. Try again.'),
+            ),
+          );
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not open Plans & payment. Try again.'),
+            ),
+          );
+        }
+      }
+    },
     onOpenAccount: widget.showAccount
         ? () => context.push(MemberRoutes.youAccountPath)
         : null,

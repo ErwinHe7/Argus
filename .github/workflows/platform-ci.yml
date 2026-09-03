@@ -1,0 +1,114 @@
+name: platform-ci
+
+on:
+  push:
+    branches:
+      - codex/live-model-integration
+    paths:
+      - "platform/**"
+      - ".github/workflows/platform-ci.yml"
+  pull_request:
+    branches:
+      - main
+      - codex/live-model-integration
+    paths:
+      - "platform/**"
+      - ".github/workflows/platform-ci.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source-and-model-integrity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reject ignored source files
+        working-directory: platform
+        run: bash scripts/check-no-ignored-sources.sh
+      - name: Require the exact nine-model bundle
+        working-directory: platform
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -r quant_engine_rs/data/models/universe/registry.json
+          count="$(find quant_engine_rs/data/models/universe -maxdepth 1 -type f -name '*.frozen.json' | wc -l)"
+          test "${count}" -eq 9
+
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: platform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: npm
+          cache-dependency-path: platform/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run test:public-context
+      - run: npm run test:quant-conversation
+      - run: npm run build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+          NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
+          SUPABASE_SERVICE_ROLE_KEY: "placeholder"
+          OPENAI_API_KEY: "placeholder"
+          OPENAI_BASE_URL: "https://api.openai.com/v1"
+
+  rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    defaults:
+      run:
+        working-directory: platform/quant_engine_rs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.97.1
+          components: clippy,rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: platform/quant_engine_rs
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  python:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: platform/intraday_quant
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: platform/intraday_quant/pyproject.toml
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest --basetemp .pytest-tmp -p no:cacheprovider
+
+  cpp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: platform
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update
+      - run: sudo apt-get install --yes cmake ninja-build libsqlite3-dev libssl-dev
+      - run: cmake -S quant_core_cpp -B quant_core_cpp/build -G Ninja -DAXIO_WARNINGS_AS_ERRORS=ON
+      - run: cmake --build quant_core_cpp/build --parallel 4
+      - run: ctest --test-dir quant_core_cpp/build --output-on-failure

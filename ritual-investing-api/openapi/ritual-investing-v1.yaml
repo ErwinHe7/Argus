@@ -391,6 +391,21 @@ components:
         - data
         - meta
       type: object
+    BirthdayAcceptedOnboardingConsent:
+      additionalProperties: false
+      properties:
+        decision:
+          enum:
+            - accepted
+          type: string
+        policy_version:
+          maxLength: 40
+          minLength: 1
+          type: string
+      required:
+        - policy_version
+        - decision
+      type: object
     BriefingCollectionResponse:
       additionalProperties: false
       properties:
@@ -2727,6 +2742,49 @@ components:
         - summary
         - observed_at
         - uncertainty
+      type: object
+    FinalizeBirthdayOnboardingRequest:
+      additionalProperties: false
+      properties:
+        astrology:
+          additionalProperties: false
+          properties:
+            birth_date:
+              format: date
+              type: string
+          required:
+            - birth_date
+          type: object
+        consents:
+          additionalProperties: false
+          properties:
+            astrology:
+              $ref: "#/components/schemas/BirthdayAcceptedOnboardingConsent"
+            demo_disclosure:
+              $ref: "#/components/schemas/BirthdayAcceptedOnboardingConsent"
+            privacy:
+              $ref: "#/components/schemas/BirthdayAcceptedOnboardingConsent"
+            terms:
+              $ref: "#/components/schemas/BirthdayAcceptedOnboardingConsent"
+          required:
+            - terms
+            - privacy
+            - demo_disclosure
+            - astrology
+          type: object
+        expected_onboarding_version:
+          exclusiveMinimum: true
+          minimum: 0
+          type: integer
+        schema_version:
+          maximum: 3
+          minimum: 3
+          type: integer
+      required:
+        - schema_version
+        - expected_onboarding_version
+        - astrology
+        - consents
       type: object
     FinalizeOnboardingRequest:
       additionalProperties: false
@@ -31037,6 +31095,233 @@ paths:
   /v1/session/bootstrap:
     post:
       operationId: bootstrapSession
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SessionBootstrapResponse"
+          description: Argus response.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Session
+  /v1/session/onboarding/birthday/finalize:
+    post:
+      operationId: finalizeBirthdayOnboarding
+      parameters:
+        - in: header
+          name: idempotency-key
+          required: true
+          schema:
+            maxLength: 64
+            minLength: 16
+            pattern: ^[\x21-\x7E]+$
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FinalizeBirthdayOnboardingRequest"
+        required: true
       responses:
         "200":
           content:

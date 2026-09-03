@@ -270,8 +270,7 @@ class PrivacyController extends ChangeNotifier {
       if (_deactivated) return;
       _knownExportRequestId = null;
       _phase = PrivacyPhase.shared;
-      _message =
-          'A private local copy was shared and removed from Ritual Investing.';
+      _message = 'A private local copy was shared and removed from Leo.';
     } on Object catch (error) {
       if (!_deactivated) _setFailure(error);
     } finally {
@@ -422,7 +421,7 @@ class PrivacyController extends ChangeNotifier {
       PrivacyPhase.exportPending
           when value.status == PrivacyExportStatus.completed =>
         'The export completed, but no fresh download is available. Refresh its status to request the latest one-time link.',
-      _ => 'Your coherent Demo account archive is still being prepared.',
+      _ => 'Your account archive is still being prepared.',
     };
   }
 

@@ -179,6 +179,7 @@ Class | Method | HTTP request | Description
 [*SavedApi*](doc/SavedApi.md) | [**unsaveItem**](doc/SavedApi.md#unsaveitem) | **DELETE** /v1/saved/{item_kind}/{item_id} | 
 [*SearchApi*](doc/SearchApi.md) | [**search**](doc/SearchApi.md#search) | **GET** /v1/search | 
 [*SessionApi*](doc/SessionApi.md) | [**bootstrapSession**](doc/SessionApi.md#bootstrapsession) | **POST** /v1/session/bootstrap | 
+[*SessionApi*](doc/SessionApi.md) | [**finalizeBirthdayOnboarding**](doc/SessionApi.md#finalizebirthdayonboarding) | **POST** /v1/session/onboarding/birthday/finalize | 
 [*SessionApi*](doc/SessionApi.md) | [**finalizeOnboarding**](doc/SessionApi.md#finalizeonboarding) | **POST** /v1/session/onboarding/finalize | 
 [*StarpathApi*](doc/StarpathApi.md) | [**answerStarpathQuestion**](doc/StarpathApi.md#answerstarpathquestion) | **POST** /v1/starpath/answers | 
 [*StarpathApi*](doc/StarpathApi.md) | [**getStarpath**](doc/StarpathApi.md#getstarpath) | **GET** /v1/starpath | 
@@ -202,6 +203,7 @@ Class | Method | HTTP request | Description
  - [AssetSummary](doc/AssetSummary.md)
  - [AstrologyProfile](doc/AstrologyProfile.md)
  - [AstrologyProfileResponse](doc/AstrologyProfileResponse.md)
+ - [BirthdayAcceptedOnboardingConsent](doc/BirthdayAcceptedOnboardingConsent.md)
  - [BriefingCollectionResponse](doc/BriefingCollectionResponse.md)
  - [BriefingDetail](doc/BriefingDetail.md)
  - [BriefingDetailResponse](doc/BriefingDetailResponse.md)
@@ -283,6 +285,9 @@ Class | Method | HTTP request | Description
  - [EvidenceDetailSource](doc/EvidenceDetailSource.md)
  - [EvidenceSource](doc/EvidenceSource.md)
  - [EvidenceSummary](doc/EvidenceSummary.md)
+ - [FinalizeBirthdayOnboardingRequest](doc/FinalizeBirthdayOnboardingRequest.md)
+ - [FinalizeBirthdayOnboardingRequestAstrology](doc/FinalizeBirthdayOnboardingRequestAstrology.md)
+ - [FinalizeBirthdayOnboardingRequestConsents](doc/FinalizeBirthdayOnboardingRequestConsents.md)
  - [FinalizeOnboardingRequest](doc/FinalizeOnboardingRequest.md)
  - [FinalizeOnboardingRequestAstrology](doc/FinalizeOnboardingRequestAstrology.md)
  - [FinalizeOnboardingRequestConsents](doc/FinalizeOnboardingRequestConsents.md)

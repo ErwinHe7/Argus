@@ -9,7 +9,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    'member auth preserves restore, password sign-in, recovery, and global logout states',
+    'member auth preserves restore, Google sign-in, and global logout states',
     (tester) async {
       final repository = _IntegrationSessionRepository();
       final controller = AuthController(repository: repository);
@@ -20,10 +20,7 @@ void main() {
       expect(controller.state.phase, AuthPhase.signedOut);
 
       expect(
-        await controller.signInWithPassword(
-          email: 'member@example.com',
-          password: 'local-test-password',
-        ),
+        await controller.signInWithGoogle(),
         MemberAuthResult.authenticated,
       );
       expect(controller.state.phase, AuthPhase.signedIn);
@@ -31,10 +28,6 @@ void main() {
         controller.activeSession?.userId,
         _IntegrationSessionRepository.userId,
       );
-
-      repository.emitRecovery();
-      await tester.pump();
-      expect(controller.state.isPasswordRecovery, isTrue);
 
       await controller.logoutEverywhere();
       expect(repository.logoutScopes, [MemberLogoutScope.global]);
@@ -46,7 +39,7 @@ void main() {
 class _IntegrationSessionRepository
     implements
         SessionRepository,
-        PasswordSessionRepository,
+        GoogleOAuthSessionRepository,
         SessionChangeRepository,
         ScopedSessionLogout {
   static const userId = '11111111-1111-4111-8111-111111111111';
@@ -75,10 +68,7 @@ class _IntegrationSessionRepository
   Stream<MemberSessionChange> get sessionChanges => _changes.stream;
 
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
+  Future<AuthSession?> signInWithGoogle() async {
     current = session;
     _changes.add(
       const MemberSessionChange(
@@ -88,19 +78,6 @@ class _IntegrationSessionRepository
     );
     return session;
   }
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) => signInWithPassword(email: email, password: password);
-
-  void emitRecovery() => _changes.add(
-    const MemberSessionChange(
-      event: MemberSessionEvent.passwordRecovery,
-      session: session,
-    ),
-  );
 
   @override
   Future<AuthSession?> recover() async => current;

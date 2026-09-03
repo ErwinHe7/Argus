@@ -31,6 +31,7 @@ class ProfileScreen extends StatelessWidget {
     this.onOpenRitualPreferences,
     this.onOpenAstrology,
     this.onOpenPolicies,
+    this.onOpenPlansAndPayment,
     this.onOpenAccount,
     this.onOpenNotifications,
     this.onOpenPrivacy,
@@ -45,6 +46,7 @@ class ProfileScreen extends StatelessWidget {
   final VoidCallback? onOpenRitualPreferences;
   final VoidCallback? onOpenAstrology;
   final VoidCallback? onOpenPolicies;
+  final VoidCallback? onOpenPlansAndPayment;
   final VoidCallback? onOpenAccount;
   final VoidCallback? onOpenNotifications;
   final VoidCallback? onOpenPrivacy;
@@ -94,7 +96,7 @@ class ProfileScreen extends StatelessWidget {
                 icon: Icons.trending_up,
                 title: 'Investing profile',
                 subtitle: profile.investor == null
-                    ? 'Add your Demo research defaults'
+                    ? 'Add your research preferences'
                     : profile.investor!.explanationDepth,
                 onTap: onOpenInvesting,
               ),
@@ -102,7 +104,7 @@ class ProfileScreen extends StatelessWidget {
               _MenuTile(
                 key: const Key('you-ritual-preferences'),
                 icon: Icons.tune,
-                title: 'Ritual and appearance',
+                title: 'Gospel and appearance',
                 subtitle: profile.preferences.activeVoice,
                 onTap: onOpenRitualPreferences,
               ),
@@ -123,6 +125,14 @@ class ProfileScreen extends StatelessWidget {
                 title: 'Policy decisions',
                 subtitle: 'Onboarding consent status',
                 onTap: onOpenPolicies,
+              ),
+            if (onOpenPlansAndPayment != null)
+              _MenuTile(
+                key: const Key('you-plans-and-payment'),
+                icon: Icons.credit_card_outlined,
+                title: 'Plans & payment',
+                subtitle: 'Paddle plans and the existing Whop checkout',
+                onTap: onOpenPlansAndPayment,
               ),
             if (brokerageConnectionController case final brokerage?)
               _MenuTile(
@@ -148,7 +158,7 @@ class ProfileScreen extends StatelessWidget {
                     'Brokerage reads and actions are disabled',
                   BrokerageConnectionPhase.pending =>
                     'Finish in the secure browser',
-                  _ => 'Ritual and discovery work without a connection',
+                  _ => 'Gospel and discovery work without a connection',
                 },
                 onTap: _brokerageAction(brokerage, onOpenPortfolio),
               ),
@@ -284,7 +294,8 @@ class _InvestingProfileScreenState extends State<InvestingProfileScreen> {
                   onRetry: widget.controller.load,
                 ),
               if (profile?.investor case final investor?) ...[
-                if (investor.isDemo) const Chip(label: Text('Demo profile')),
+                if (investor.isDemo)
+                  const Chip(label: Text('Simulation profile')),
                 const SizedBox(height: 16),
                 Text(
                   'Active personalization',
@@ -412,7 +423,7 @@ class _RitualPreferencesScreenState extends State<RitualPreferencesScreen> {
       final profile = widget.controller.state.value;
       if (profile != null) _initialize(profile.preferences);
       return Scaffold(
-        appBar: AppBar(title: const Text('Ritual and appearance')),
+        appBar: AppBar(title: const Text('Gospel and appearance')),
         body: SafeArea(
           child: ListView(
             padding: const EdgeInsets.all(20),
@@ -429,7 +440,7 @@ class _RitualPreferencesScreenState extends State<RitualPreferencesScreen> {
                 ),
                 const SizedBox(height: 8),
                 _DetailRow(
-                  label: 'Ritual voice',
+                  label: 'Gospel voice',
                   value: profile.preferences.activeVoice,
                 ),
                 _DetailRow(
@@ -454,7 +465,7 @@ class _RitualPreferencesScreenState extends State<RitualPreferencesScreen> {
                   ),
                 const SizedBox(height: 12),
                 _Dropdown<ProfileRitualMode>(
-                  label: 'Ritual mode',
+                  label: 'Gospel mode',
                   value: _mode,
                   values: ProfileRitualMode.values,
                   text: (value) =>
@@ -462,14 +473,14 @@ class _RitualPreferencesScreenState extends State<RitualPreferencesScreen> {
                   onChanged: (value) => setState(() => _mode = value!),
                 ),
                 _Dropdown<RitualLanguage>(
-                  label: 'Ritual language',
+                  label: 'Gospel language',
                   value: _language,
                   values: RitualLanguage.values,
                   text: _ritualLanguageLabel,
                   onChanged: (value) => setState(() => _language = value),
                 ),
                 _Dropdown<RitualFamiliarity>(
-                  label: 'Ritual familiarity',
+                  label: 'Gospel familiarity',
                   value: _familiarity,
                   values: RitualFamiliarity.values,
                   text: _ritualFamiliarityLabel,
@@ -560,7 +571,7 @@ class _AstrologySettingsScreenState extends State<AstrologySettingsScreen> {
             padding: const EdgeInsets.all(20),
             children: [
               const Text(
-                'Astrology is optional. Ritual stores a birth date only—never a birth time or place.',
+                'Astrology is optional. Leo stores a birth date only—never a birth time or place.',
               ),
               if (profile == null)
                 StateStatus(
@@ -707,7 +718,7 @@ class PolicyStatusScreen extends StatelessWidget {
                 value: 'A decision is required for current member v2 onboarding; receipt status is not exposed here.',
               ),
               const _DetailRow(
-                label: 'Demo disclosure',
+                label: 'Simulation disclosure',
                 value: 'A decision is required for current member v2 onboarding; receipt status is not exposed here.',
               ),
               _DetailRow(
@@ -871,7 +882,7 @@ String _ritualLanguageLabel(RitualLanguage value) => switch (value) {
 };
 
 String _ritualFamiliarityLabel(RitualFamiliarity value) => switch (value) {
-  RitualFamiliarity.newToRitual => 'New to ritual',
+  RitualFamiliarity.newToRitual => 'New to Gospel guidance',
   RitualFamiliarity.curious => 'Curious',
   RitualFamiliarity.familiar => 'Familiar',
   RitualFamiliarity.practiced => 'Practiced',

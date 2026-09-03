@@ -47,6 +47,12 @@ Deno.test("public-beta consumer origins are an exact bounded set", () => {
     "https://staging-ritual-investing-member.xiaolonggao521.workers.dev";
   assertEquals(
     requiredConsumerOrigins(reader({
+      ARGUS_CONSUMER_ORIGINS: "https://leo.axio7.workers.dev",
+    })),
+    ["https://leo.axio7.workers.dev"],
+  );
+  assertEquals(
+    requiredConsumerOrigins(reader({
       ARGUS_CONSUMER_ORIGINS:
         `https://just-build-this.app,${stagingPreviewOrigin}`,
     })),
@@ -59,9 +65,13 @@ Deno.test("public-beta consumer origins are an exact bounded set", () => {
       "*",
       "null",
       "https://just-build-this.app",
+      "https://leo.axio7.workers.dev,https://branch.pages.dev",
+      "https://leo.axio7.workers.dev/app/",
       "https://just-build-this.app,https://branch.pages.dev",
       "https://just-build-this.app,https://staging.just-build-this.app",
       `https://just-build-this.app,${stagingPreviewOrigin}/route`,
+      `https://leo.axio7.workers.dev,${stagingPreviewOrigin}`,
+      "https://leo.axio7.workers.dev,https://leo.axio7.workers.dev",
     ]
   ) {
     assertThrows(

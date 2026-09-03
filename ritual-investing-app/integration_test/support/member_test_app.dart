@@ -29,7 +29,11 @@ import 'package:ritual_investing_app/features/starpath/data/generated_starpath_a
 import 'package:ritual_investing_app/features/starpath/data/starpath_repository.dart';
 
 class MemberTestHarness {
-  MemberTestHarness._({required this.container, required this._server});
+  MemberTestHarness._({
+    required this.container,
+    required this._server,
+    required this._previousHttpOverrides,
+  });
 
   static const _accountId = '00000000-0000-4000-8000-000000000001';
   static const _testIdentity = String.fromEnvironment(
@@ -39,13 +43,22 @@ class MemberTestHarness {
   static const _accessToken = '$_testIdentity:bootstrap';
 
   final HttpServer _server;
+  final HttpOverrides? _previousHttpOverrides;
   final DependencyContainer container;
   String? lastAuthorization;
   String get accountId => _accountId;
   String get expectedAuthorization => 'Bearer $_accessToken';
 
   static Future<MemberTestHarness> start() async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final previousHttpOverrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    late final HttpServer server;
+    try {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    } catch (_) {
+      HttpOverrides.global = previousHttpOverrides;
+      rethrow;
+    }
     final repository = _LocalMemberSessionRepository();
     final auth = AuthController(repository: repository);
     final client = RitualInvestingApiClient(
@@ -62,7 +75,11 @@ class MemberTestHarness {
         'The onboarding gate must not construct member feature fixtures.',
       ),
     );
-    final harness = MemberTestHarness._(server: server, container: container);
+    final harness = MemberTestHarness._(
+      server: server,
+      container: container,
+      previousHttpOverrides: previousHttpOverrides,
+    );
     unawaited(harness._serve());
     return harness;
   }
@@ -84,7 +101,10 @@ class MemberTestHarness {
     }
   }
 
-  Future<void> close() => _server.close(force: true);
+  Future<void> close() async {
+    await _server.close(force: true);
+    HttpOverrides.global = _previousHttpOverrides;
+  }
 
   static const Map<String, Object?> _bootstrapResponse = {
     'data': {
@@ -145,6 +165,7 @@ class GuidedMemberTestHarness {
     this._sessions,
     bool initiallyComplete,
     this._failFirstFinalize,
+    this._previousHttpOverrides,
   ) : _complete = initiallyComplete;
 
   static const _accountId = '00000000-0000-4000-8000-000000000011';
@@ -159,6 +180,7 @@ class GuidedMemberTestHarness {
   final _LocalProtectedStorage _storage;
   final _GuidedSessionRepository _sessions;
   final bool _failFirstFinalize;
+  final HttpOverrides? _previousHttpOverrides;
   bool _complete;
   int _finalizeAttempts = 0;
   final List<String> requestPaths = [];
@@ -166,10 +188,7 @@ class GuidedMemberTestHarness {
   final List<Map<String, dynamic>> finalizationPayloads = [];
   final List<String> idempotencyKeys = [];
 
-  List<({String email, String password})> get passwordSignIns =>
-      List.unmodifiable(_sessions.passwordSignIns);
-  List<({String email, String password})> get passwordSignUps =>
-      List.unmodifiable(_sessions.passwordSignUps);
+  int get googleSignIns => _sessions.googleSignIns;
   Map<String, String> get protectedValues => Map.unmodifiable(_storage.values);
   List<String> get financeOrBankingRequests => requestPaths
       .where(
@@ -191,8 +210,11 @@ class GuidedMemberTestHarness {
     for (var index = 0; index < requestPaths.length; index += 1) {
       if (!const {
             '/v1/session/bootstrap',
+            '/v1/session/onboarding/birthday/finalize',
             '/v1/session/onboarding/finalize',
             '/v1/rituals/daily',
+            '/v1/brokerage/connection',
+            '/v1/brokerage/accounts',
           }.contains(requestPaths[index]) ||
           authorizationHeaders[index] != 'Bearer $_accessToken') {
         return false;
@@ -212,7 +234,15 @@ class GuidedMemberTestHarness {
     bool initiallyComplete = false,
     bool failFirstFinalize = false,
   }) async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    final previousHttpOverrides = HttpOverrides.current;
+    HttpOverrides.global = null;
+    late final HttpServer server;
+    try {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    } catch (_) {
+      HttpOverrides.global = previousHttpOverrides;
+      rethrow;
+    }
     final sessions = _GuidedSessionRepository();
     final auth = AuthController(repository: sessions);
     final client = RitualInvestingApiClient(
@@ -288,6 +318,7 @@ class GuidedMemberTestHarness {
       sessions,
       initiallyComplete,
       failFirstFinalize,
+      previousHttpOverrides,
     );
     unawaited(harness._serve());
     return harness;
@@ -304,7 +335,10 @@ class GuidedMemberTestHarness {
           request.uri.path == '/v1/session/bootstrap') {
         request.response.write(jsonEncode(_bootstrapResponse(_complete)));
       } else if (request.method == 'POST' &&
-          request.uri.path == '/v1/session/onboarding/finalize') {
+          const {
+            '/v1/session/onboarding/birthday/finalize',
+            '/v1/session/onboarding/finalize',
+          }.contains(request.uri.path)) {
         _finalizeAttempts += 1;
         final payload = jsonDecode(
           await utf8.decoder.bind(request).join(),
@@ -340,7 +374,10 @@ class GuidedMemberTestHarness {
     }
   }
 
-  Future<void> close() => _server.close(force: true);
+  Future<void> close() async {
+    await _server.close(force: true);
+    HttpOverrides.global = _previousHttpOverrides;
+  }
 
   static Map<String, Object?> _bootstrapResponse(bool complete) => {
     'data': {
@@ -434,9 +471,8 @@ class _LocalProtectedStorage implements ProtectedStorage {
 }
 
 class _GuidedSessionRepository
-    implements SessionRepository, PasswordSessionRepository {
-  final List<({String email, String password})> passwordSignIns = [];
-  final List<({String email, String password})> passwordSignUps = [];
+    implements SessionRepository, GoogleOAuthSessionRepository {
+  int googleSignIns = 0;
   AuthSession? _session;
 
   @override
@@ -447,22 +483,8 @@ class _GuidedSessionRepository
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
 
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignIns.add((email: email, password: password));
-    return _session = const AuthSession(
-      accessToken: GuidedMemberTestHarness._accessToken,
-    );
-  }
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignUps.add((email: email, password: password));
+  Future<AuthSession?> signInWithGoogle() async {
+    googleSignIns += 1;
     return _session = const AuthSession(
       accessToken: GuidedMemberTestHarness._accessToken,
     );

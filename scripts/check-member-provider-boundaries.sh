@@ -50,7 +50,20 @@ for required in \
   test -f "$required" || fail "missing required audit input ${required#"$audit_root"/}"
 done
 
-dependency_inputs="$app_manifest $api_manifest"
+# The delimiters cover Dart/npm names plus native coordinates and manifests,
+# such as `com.stripe:stripe-android`, `pod 'Plaid'`, and PBX product names.
+check_dependency_input() {
+  dependency_input=$1
+  test -f "$dependency_input" || return 0
+  if rg -n -i "(^|[\"'[:space:]/_.-])($prohibited_dependencies)([\"'[:space:]/_.:;(),-]|$)" \
+    "$dependency_input"; then
+    fail "a retired auth, bank, broker, payment, market-data, purchase, or push SDK is present"
+  fi
+}
+
+prohibited_dependencies='auth0_flutter|auth0\.swift|com\.auth0|flutter_stripe|stripe_sdk|stripe|plaid_flutter|plaid|braintree|paypal|square_in_app_payments|alpaca|snaptrade|coinmarketcap|firebase_messaging|onesignal_flutter|onesignal|braze_plugin|braze|purchases_flutter|revenuecat|in_app_purchase'
+check_dependency_input "$app_manifest"
+check_dependency_input "$api_manifest"
 for native_manifest_or_lock in \
   "$audit_root/ritual-investing-app/pubspec.lock" \
   "$audit_root/ritual-investing-api/package-lock.json" \
@@ -67,49 +80,51 @@ for native_manifest_or_lock in \
   "$audit_root/ritual-investing-app/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved" \
   "$audit_root/ritual-investing-app/ios/Runner.xcworkspace/xcshareddata/swiftpm/Package.resolved"; do
   if test -f "$native_manifest_or_lock"; then
-    dependency_inputs="$dependency_inputs $native_manifest_or_lock"
+    check_dependency_input "$native_manifest_or_lock"
   fi
 done
 
-prohibited_dependencies='auth0_flutter|auth0\.swift|com\.auth0|flutter_stripe|stripe_sdk|stripe|plaid_flutter|plaid|braintree|paypal|square_in_app_payments|alpaca|snaptrade|coinmarketcap|firebase_messaging|onesignal_flutter|onesignal|braze_plugin|braze|purchases_flutter|revenuecat|in_app_purchase'
-# The delimiters cover Dart/npm names plus native coordinates and manifests,
-# such as `com.stripe:stripe-android`, `pod 'Plaid'`, and PBX product names.
-# shellcheck disable=SC2086
-if rg -n -i "(^|[\"'[:space:]/_.-])($prohibited_dependencies)([\"'[:space:]/_.:;(),-]|$)" $dependency_inputs; then
-  fail "a retired auth, bank, broker, payment, market-data, purchase, or push SDK is present"
-fi
-
-production_inputs=""
+prohibited_hosts='api\.plaid\.com|sandbox\.plaid\.com|api\.stripe\.com|api\.braintreegateway\.com|api-m\.paypal\.com|api\.paypal\.com|paper-api\.alpaca\.markets|api\.alpaca\.markets|api\.snaptrade\.com|pro-api\.coinmarketcap\.com|api\.coinmarketcap\.com|api\.onesignal\.com|fcm\.googleapis\.com'
 for directory in \
   "$audit_root/ritual-investing-app/lib" \
   "$audit_root/ritual-investing-app/android/app/src/main" \
   "$audit_root/ritual-investing-app/ios/Runner" \
   "$audit_root/ritual-investing-api/src"; do
-  if test -d "$directory"; then
-    production_inputs="$production_inputs $directory"
+  if test -d "$directory" && \
+    rg -n -i "https?://[^\"'[:space:]]*($prohibited_hosts)" "$directory" \
+      --glob '!**/generated/**' --glob '!**/*.g.dart'; then
+    fail "a prohibited provider egress host is present in production code"
   fi
 done
-
-prohibited_hosts='api\.plaid\.com|sandbox\.plaid\.com|api\.stripe\.com|api\.braintreegateway\.com|api-m\.paypal\.com|api\.paypal\.com|paper-api\.alpaca\.markets|api\.alpaca\.markets|api\.snaptrade\.com|pro-api\.coinmarketcap\.com|api\.coinmarketcap\.com|api\.onesignal\.com|fcm\.googleapis\.com'
-# shellcheck disable=SC2086
-if test -n "$production_inputs" && \
-  rg -n -i "https?://[^\"'[:space:]]*($prohibited_hosts)" $production_inputs \
-    --glob '!**/generated/**' --glob '!**/*.g.dart'; then
-  fail "a prohibited provider egress host is present in production code"
-fi
 
 # Literal production URLs are fail-closed. Runtime-supplied Supabase values are
 # validated by typed configuration seams and do not appear in this list; a new
 # literal must be reviewed here before it can ship.
-# shellcheck disable=SC2086
-literal_urls=$(rg -o -N --no-filename "https?://[^\"'[:space:]<>),;\x60]+" \
-  $production_inputs --glob '!**/generated/**' --glob '!**/*.g.dart' || true)
+literal_urls=$(
+  for directory in \
+    "$audit_root/ritual-investing-app/lib" \
+    "$audit_root/ritual-investing-app/android/app/src/main" \
+    "$audit_root/ritual-investing-app/ios/Runner" \
+    "$audit_root/ritual-investing-api/src"; do
+    if test -d "$directory"; then
+      rg -o -N --no-filename "https?://[^\"'[:space:]<>),;\x60]+" \
+        "$directory" --glob '!**/generated/**' --glob '!**/*.g.dart' || true
+    fi
+  done
+)
 printf '%s\n' "$literal_urls" | while IFS= read -r literal_url; do
   test -n "$literal_url" || continue
   literal_host=${literal_url#*://}
   literal_host=${literal_host%%/*}
   case "$literal_host" in
     PROJECT_REF.supabase.co|api.just-build-this.app|api.ritual-investing.example|research.ritual-investing.test|ritual-investing.app|schemas.android.com|developer.android.com|www.apple.com|www.investor.gov|www.sec.gov|media-processor.internal|media-scanner.internal|push-provider.internal)
+      ;;
+    # These are exact reviewed product, market-education, and public-calendar
+    # origins. Keep this list host-specific; do not replace it with wildcards.
+    leo.axio7.workers.dev|www.bls.gov|www.federalreserve.gov|www.finra.org|www.spglobal.com)
+      ;;
+    # Internal preview fixtures use reserved, non-routable DNS suffixes.
+    example.invalid|fixture-auth.test)
       ;;
     # Frame messages are reviewed as an exact prod/staging pair. Do not
     # broaden this to a wildcard subdomain allowlist.

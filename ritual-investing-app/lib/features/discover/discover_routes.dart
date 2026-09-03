@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/bootstrap/app_runtime.dart';
 import '../../core/bootstrap/member_bootstrap.dart';
 import '../../core/navigation/member_routes.dart';
+import '../ai_analysis/presentation/ai_analysis_screen.dart';
 import '../asset_codex/application/controller.dart';
 import '../asset_codex/domain/model.dart';
 import '../asset_codex/presentation/asset_codex_screen.dart';
@@ -106,6 +107,16 @@ StatefulShellBranch buildDiscoverBranch({
       builder: (context, state) => _PrivateCirclesRoute(container: container),
     ),
     GoRoute(
+      path: 'ai-analysis',
+      name: 'discover-ai-analysis',
+      redirect: (context, state) =>
+          container.optionalAiAnalysisController == null
+          ? MemberRoutes.discover.path
+          : null,
+      builder: (context, state) =>
+          AiAnalysisScreen(controller: container.optionalAiAnalysisController!),
+    ),
+    GoRoute(
       path: 'search',
       redirect: (context, state) => container.optionalSearchController == null
           ? MemberRoutes.discover.path
@@ -152,9 +163,13 @@ class _DiscoverBranchRootState extends State<_DiscoverBranchRoot> {
   @override
   Widget build(BuildContext context) => DiscoverScreen(
     controller: widget.container.discoverController,
+    aiAnalysisController: widget.container.optionalAiAnalysisController,
     onOpenSearch: widget.container.optionalSearchController == null
         ? null
         : () => context.push(MemberRoutes.discoverSearchPath),
+    onOpenAiAnalysis: widget.container.optionalAiAnalysisController == null
+        ? null
+        : () => context.push(MemberRoutes.discoverAiAnalysisPath),
     onOpenItem: (item) => _openDiscoverItem(context, item),
     onOpenCreator: (creator) =>
         context.push(MemberRoutes.discoverCreator.location(creator.id)),

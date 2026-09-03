@@ -91,7 +91,7 @@ void main() {
     }
   });
 
-  test('hidden route fallback prefers Starpath then Ritual', () {
+  test('hidden route fallback prefers Starpath then Gospel', () {
     final withStarpath = MemberNavigationPolicy.fromBootstrap(
       _bootstrapWithBranches(
         environment: MemberReleaseEnvironment.production,
@@ -113,11 +113,16 @@ void main() {
     );
 
     expect(withStarpath.redirectFor('/discover/assets/id'), '/starpath');
-    expect(rollback.redirectFor('/coven/entries/id'), '/ritual');
+    expect(rollback.redirectFor('/coven/entries/id'), '/gospel');
+    expect(rollback.redirectFor('/ritual'), '/gospel');
+    expect(
+      rollback.redirectFor('/you/ritual-preferences'),
+      '/you/gospel-preferences',
+    );
     expect(withStarpath.redirectFor('/you/account'), isNull);
   });
 
-  testWidgets('production shell renders Ritual, Starpath, You only', (
+  testWidgets('production shell renders Gospel, Starpath, You only', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -140,7 +145,7 @@ void main() {
         .widgetList<NavigationDestination>(find.byType(NavigationDestination))
         .map((destination) => destination.label)
         .toList();
-    expect(destinations, ['Ritual', 'Starpath', 'You']);
+    expect(destinations, ['Gospel', 'Starpath', 'You']);
 
     router.go('/discover/assets/hidden-id');
     await tester.pumpAndSettle();
@@ -162,7 +167,7 @@ void main() {
         find.byType(CupertinoTabBar),
       );
       expect(tabBar.items.map((item) => item.label), [
-        'Ritual',
+        'Gospel',
         'Starpath',
         'Discover',
         'Coven',
@@ -173,7 +178,7 @@ void main() {
     }
   });
 
-  testWidgets('clean install signs up before starting onboarding', (
+  testWidgets('clean install authenticates with Google before onboarding', (
     tester,
   ) async {
     final sessions = _SignedOutSessionRepository(
@@ -203,9 +208,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('welcome-create-account')), findsOneWidget);
+    expect(find.byKey(const Key('welcome-google-sign-in')), findsOneWidget);
+    expect(find.text('Create account'), findsNothing);
+    expect(find.text('I have an account'), findsNothing);
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('welcome-create-account'))),
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
     );
     router.go(MemberRoutes.ritual.path);
     await tester.pumpAndSettle();
@@ -214,86 +221,24 @@ void main() {
     await tester.pumpAndSettle();
     expect(router.state.uri.path, '/welcome');
 
-    await tester.tap(find.byKey(const Key('welcome-create-account')));
-    await tester.pumpAndSettle();
-    expect(router.state.uri.path, '/sign-up');
-    expect(find.text('Create account'), findsAtLeastNWidgets(1));
-
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-email')),
-      'new-member@example.com',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'correct horse battery staple',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password-confirmation')),
-      'correct horse battery staple',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
-    await tester.pumpAndSettle();
-
-    expect(router.state.uri.path, '/onboarding/experience');
-    expect(find.text('How familiar are you with investing?'), findsOneWidget);
-    expect(find.byKey(const Key('recovery-continue')), findsNothing);
-    expect(sessions.passwordSignUpCredentials, [
-      (
-        email: 'new-member@example.com',
-        password: 'correct horse battery staple',
-      ),
-    ]);
-
-    await tester.tap(find.byKey(const Key('onboarding-back')));
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
     await tester.pumpAndSettle();
 
     expect(router.state.uri.path, '/onboarding/recovery');
-    expect(find.byKey(const Key('welcome-create-account')), findsNothing);
     expect(find.byKey(const Key('recovery-continue')), findsOneWidget);
-  });
-
-  testWidgets('existing account opens credential sign in without OAuth', (
-    tester,
-  ) async {
-    final sessions = _SignedOutSessionRepository();
-    final auth = AuthController(repository: sessions);
-    final coordinator = EntryCoordinator(
-      authController: auth,
-      bootstrapService: _UnusedBootstrapService(),
-      draftStore: OnboardingDraftStore(
-        storage: _MemoryProtectedStorage(),
-        installation: const FixedInstallationBinding('install-a'),
-        now: () => DateTime.utc(2026, 8, 24),
-      ),
-      onboardingRepository: _UnusedOnboardingRepository(),
-    );
-    final container = fixtureContainer(
-      authController: auth,
-      entryCoordinator: coordinator,
-    );
-    await coordinator.restore();
-    await tester.pumpWidget(
-      RitualInvestingApp(container: container, bootstrapOnStart: false),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('I have an account'), findsOneWidget);
-    await tester.tap(find.byKey(const Key('welcome-sign-in')));
-    await tester.pumpAndSettle();
-
-    final router = GoRouter.of(
-      tester.element(find.byKey(const Key('member-sign-in-email'))),
-    );
-    expect(router.state.uri.path, '/sign-in');
-    expect(find.byKey(const Key('member-sign-in-password')), findsOneWidget);
+    expect(sessions.passwordSignUpCredentials, isEmpty);
     expect(sessions.passwordCredentials, isEmpty);
+
+    expect(find.byKey(const Key('birth-date-manual')), findsOneWidget);
+    expect(find.text('How familiar are you with investing?'), findsNothing);
+    expect(router.state.uri.path, '/onboarding/recovery');
   });
 
-  testWidgets('signup failure stays on account creation without onboarding', (
+  testWidgets('cancelled Google sign-in stays on the direct welcome entry', (
     tester,
   ) async {
     final sessions = _SignedOutSessionRepository(
-      authenticationError: const MemberAuthUnavailable('email_exists'),
+      authenticationError: const MemberAuthCancelled(),
     );
     final auth = AuthController(repository: sessions);
     final coordinator = EntryCoordinator(
@@ -316,118 +261,105 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('welcome-create-account')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-email')),
-      'existing@example.com',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'correct horse battery staple',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password-confirmation')),
-      'correct horse battery staple',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    expect(find.byKey(const Key('welcome-google-sign-in')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
     await tester.pumpAndSettle();
 
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('member-sign-in-email'))),
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
     );
-    expect(router.state.uri.path, '/sign-up');
+    expect(router.state.uri.path, '/welcome');
+    expect(find.byType(TextField), findsNothing);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(sessions.passwordCredentials, isEmpty);
+  });
+
+  testWidgets('Google provider failure stays on the single entry screen', (
+    tester,
+  ) async {
+    final sessions = _SignedOutSessionRepository(
+      authenticationError: const MemberAuthUnavailable('provider_disabled'),
+    );
+    final auth = AuthController(repository: sessions);
+    final coordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: _UnusedBootstrapService(),
+      draftStore: OnboardingDraftStore(
+        storage: _MemoryProtectedStorage(),
+        installation: const FixedInstallationBinding('install-a'),
+        now: () => DateTime.utc(2026, 8, 24),
+      ),
+      onboardingRepository: _UnusedOnboardingRepository(),
+    );
+    final container = fixtureContainer(
+      authController: auth,
+      entryCoordinator: coordinator,
+    );
+    await coordinator.restore();
+    await tester.pumpWidget(
+      RitualInvestingApp(container: container, bootstrapOnStart: false),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
+    await tester.pumpAndSettle();
+
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
+    );
+    expect(router.state.uri.path, '/welcome');
     expect(
-      find.text('An account already exists for this email.'),
+      find.text('Google sign-in is not enabled for this app yet.'),
       findsOneWidget,
     );
     expect(find.text('How familiar are you with investing?'), findsNothing);
   });
 
-  testWidgets(
-    'confirmation-required signup replaces the form with a check-email screen',
-    (tester) async {
-      final signUpBarrier = Completer<void>();
-      final sessions = _SignedOutSessionRepository(
-        authenticationError: const MemberAuthUnavailable(
-          'email_confirmation_required',
-        ),
-        signUpBarrier: signUpBarrier.future,
-      );
-      final auth = AuthController(repository: sessions);
-      final coordinator = EntryCoordinator(
-        authController: auth,
-        bootstrapService: _UnusedBootstrapService(),
-        draftStore: OnboardingDraftStore(
-          storage: _MemoryProtectedStorage(),
-          installation: const FixedInstallationBinding('install-a'),
-          now: () => DateTime.utc(2026, 8, 24),
-        ),
-        onboardingRepository: _UnusedOnboardingRepository(),
-      );
-      final container = fixtureContainer(
-        authController: auth,
-        entryCoordinator: coordinator,
-      );
-      await coordinator.restore();
-      await tester.pumpWidget(
-        RitualInvestingApp(container: container, bootstrapOnStart: false),
-      );
-      await tester.pumpAndSettle();
+  testWidgets('Google OAuth shows progress and allows cancellation', (
+    tester,
+  ) async {
+    final oauthBarrier = Completer<void>();
+    final sessions = _SignedOutSessionRepository(
+      authenticationError: const MemberAuthCancelled(),
+      signUpBarrier: oauthBarrier.future,
+    );
+    final auth = AuthController(repository: sessions);
+    final coordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: _UnusedBootstrapService(),
+      draftStore: OnboardingDraftStore(
+        storage: _MemoryProtectedStorage(),
+        installation: const FixedInstallationBinding('install-a'),
+        now: () => DateTime.utc(2026, 8, 24),
+      ),
+      onboardingRepository: _UnusedOnboardingRepository(),
+    );
+    final container = fixtureContainer(
+      authController: auth,
+      entryCoordinator: coordinator,
+    );
+    await coordinator.restore();
+    await tester.pumpWidget(
+      RitualInvestingApp(container: container, bootstrapOnStart: false),
+    );
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('welcome-create-account')));
-      await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const Key('member-sign-in-email')),
-        'new-member@example.com',
-      );
-      await tester.enterText(
-        find.byKey(const Key('member-sign-in-password')),
-        'correct horse battery staple',
-      );
-      await tester.enterText(
-        find.byKey(const Key('member-sign-in-password-confirmation')),
-        'correct horse battery staple',
-      );
-      final router = GoRouter.of(
-        tester.element(find.byKey(const Key('member-sign-in-email'))),
-      );
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
+    );
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
+    await tester.pump();
+    expect(find.text('Opening Google…'), findsOneWidget);
 
-      await tester.tap(find.byKey(const Key('member-sign-in-submit')));
-      await tester.pump();
-      await tester.pump();
-      expect(router.state.uri.path, '/sign-up');
+    oauthBarrier.complete();
+    await tester.pumpAndSettle();
 
-      signUpBarrier.complete();
-      await tester.pumpAndSettle();
+    expect(router.state.uri.path, '/welcome');
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
+  });
 
-      expect(router.state.uri.path, '/check-email');
-      expect(find.text('Check your email'), findsOneWidget);
-      expect(find.text('new-member@example.com'), findsOneWidget);
-      expect(find.byKey(const Key('member-sign-in-email')), findsNothing);
-      expect(find.byKey(const Key('member-sign-in-password')), findsNothing);
-      expect(
-        find.widgetWithText(FilledButton, 'Go to sign in'),
-        findsOneWidget,
-      );
-      expect(
-        find.widgetWithText(TextButton, 'Use a different email'),
-        findsOneWidget,
-      );
-      expect(find.byKey(const Key('welcome-create-account')), findsNothing);
-      expect(find.text('How familiar are you with investing?'), findsNothing);
-
-      await tester.tap(
-        find.byKey(const Key('email-confirmation-change-email')),
-      );
-      await tester.pumpAndSettle();
-
-      expect(router.state.uri.path, '/sign-up');
-      expect(find.byKey(const Key('member-sign-in-email')), findsOneWidget);
-    },
-  );
-
-  testWidgets('fallback signed-out gate opens password form without OAuth', (
+  testWidgets('fallback signed-out gate opens Google-only entry', (
     tester,
   ) async {
     final sessions = _SignedOutSessionRepository();
@@ -442,17 +374,17 @@ void main() {
     await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('member-sign-in-email')), findsOneWidget);
-    expect(find.byKey(const Key('member-sign-in-password')), findsOneWidget);
+    expect(find.byKey(const Key('member-google-sign-in')), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
     expect(sessions.passwordCredentials, isEmpty);
   });
 
-  testWidgets('valid credentials enter the completed member shell', (
+  testWidgets('valid Google session enters the completed member shell', (
     tester,
   ) async {
     final sessions = _SignedOutSessionRepository(
       passwordSession: const AuthSession(
-        accessToken: 'password-token',
+        accessToken: 'google-token',
         userId: '11111111-1111-4111-8111-111111111111',
       ),
     );
@@ -482,28 +414,16 @@ void main() {
     await tester.pumpAndSettle();
 
     final router = GoRouter.of(
-      tester.element(find.byKey(const Key('welcome-sign-in'))),
+      tester.element(find.byKey(const Key('welcome-google-sign-in'))),
     );
     router.go(MemberRoutes.youPrivacyPath);
     await tester.pumpAndSettle();
     expect(router.state.uri.path, '/welcome');
 
-    await tester.tap(find.byKey(const Key('welcome-sign-in')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-email')),
-      'beta@example.com',
-    );
-    await tester.enterText(
-      find.byKey(const Key('member-sign-in-password')),
-      'correct horse battery staple',
-    );
-    await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+    await tester.tap(find.byKey(const Key('welcome-google-sign-in')));
     await tester.pumpAndSettle();
 
-    expect(sessions.passwordCredentials, [
-      (email: 'beta@example.com', password: 'correct horse battery staple'),
-    ]);
+    expect(sessions.passwordCredentials, isEmpty);
     expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
     final signedInRouter = GoRouter.of(
       tester.element(find.byKey(const Key('app-shell-scaffold'))),
@@ -511,55 +431,45 @@ void main() {
     expect(signedInRouter.state.uri.path, MemberRoutes.youPrivacyPath);
   });
 
-  testWidgets(
-    'exact recovery callback permits one recovery-bound password update',
-    (tester) async {
-      final sessions = _RecoverySessionRepository();
-      final auth = AuthController(repository: sessions);
-      final bootstrap = _CompletedBootstrapService();
-      final coordinator = EntryCoordinator(
-        authController: auth,
-        bootstrapService: bootstrap,
-        draftStore: OnboardingDraftStore(
-          storage: _MemoryProtectedStorage(),
-          installation: const FixedInstallationBinding('install-recovery'),
-          now: () => DateTime.utc(2026, 8, 30),
-        ),
-        onboardingRepository: _UnusedOnboardingRepository(),
-      );
-      final container = fixtureContainer(
-        authController: auth,
-        entryCoordinator: coordinator,
-        sessionBootstrapService: bootstrap,
-      );
-      await coordinator.restore();
-      await tester.pumpWidget(
-        RitualInvestingApp(container: container, bootstrapOnStart: false),
-      );
-      await tester.pumpAndSettle();
-      final router = GoRouter.of(
-        tester.element(find.byKey(const Key('app-shell-scaffold'))),
-      );
+  testWidgets('retired recovery URL cannot expose a password surface', (
+    tester,
+  ) async {
+    final sessions = _RecoverySessionRepository();
+    final auth = AuthController(repository: sessions);
+    final bootstrap = _CompletedBootstrapService();
+    final coordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: bootstrap,
+      draftStore: OnboardingDraftStore(
+        storage: _MemoryProtectedStorage(),
+        installation: const FixedInstallationBinding('install-recovery'),
+        now: () => DateTime.utc(2026, 8, 30),
+      ),
+      onboardingRepository: _UnusedOnboardingRepository(),
+    );
+    final container = fixtureContainer(
+      authController: auth,
+      entryCoordinator: coordinator,
+      sessionBootstrapService: bootstrap,
+    );
+    await coordinator.restore();
+    await tester.pumpWidget(
+      RitualInvestingApp(container: container, bootstrapOnStart: false),
+    );
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.byKey(const Key('app-shell-scaffold'))),
+    );
 
-      router.go('/mobile/argus-auth/callback');
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, '/auth/recovery');
-      expect(find.byKey(const Key('member-new-password')), findsOneWidget);
-
-      await tester.enterText(
-        find.byKey(const Key('member-new-password')),
-        'new-password',
-      );
-      await tester.tap(find.byKey(const Key('member-password-submit')));
-      await tester.pumpAndSettle();
-
-      expect(sessions.passwordUpdates, 1);
-      expect(router.state.uri.path, MemberRoutes.ritual.path);
-    },
-  );
+    router.go('/mobile/argus-auth/callback');
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.ritual.path);
+    expect(find.byType(TextField), findsNothing);
+    expect(sessions.passwordUpdates, 0);
+  });
 
   testWidgets(
-    'authenticated onboarding finishes setup without creating another account',
+    'authenticated onboarding asks only for birth date and enters Leo',
     (tester) async {
       final sessions = _SignedOutSessionRepository(
         restoredSession: const AuthSession(
@@ -586,44 +496,33 @@ void main() {
         sessionBootstrapService: bootstrap,
       );
       await coordinator.restore();
-      container.onboardingController.replaceDraft(_reviewedDraft());
       await tester.pumpWidget(
         RitualInvestingApp(container: container, bootstrapOnStart: false),
       );
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('recovery-continue')), findsOneWidget);
-      await tester.tap(find.byKey(const Key('recovery-continue')));
-      await tester.pumpAndSettle();
-      expect(container.entryGate, MemberEntryGate.onboarding);
-
-      final router = GoRouter.of(
-        tester.element(find.text('How familiar are you with investing?')),
+      expect(find.text('One detail for your sky'), findsOneWidget);
+      expect(find.text('How familiar are you with investing?'), findsNothing);
+      await tester.enterText(
+        find.byKey(const Key('birth-date-manual')),
+        '1994-05-14',
       );
-      router.go('/onboarding/review');
-      await tester.pumpAndSettle();
-
-      final finishSetup = find.widgetWithText(FilledButton, 'Finish setup');
-      await _scrollTo(tester, finishSetup);
-      expect(finishSetup, findsOneWidget);
-
-      router.go('/create-account');
-      await tester.pumpAndSettle();
-      expect(router.state.uri.path, '/onboarding/review');
-      expect(find.byKey(const Key('member-sign-in-email')), findsNothing);
-
-      await _scrollTo(tester, finishSetup);
-      await tester.tap(finishSetup);
+      await tester.pump();
+      await tester.ensureVisible(find.byKey(const Key('recovery-continue')));
+      await tester.tap(find.byKey(const Key('recovery-continue')));
       await tester.pumpAndSettle();
 
       expect(onboarding.commands, hasLength(1));
+      expect(onboarding.commands.single.isBirthdayOnly, isTrue);
       expect(find.byKey(const Key('app-shell-scaffold')), findsOneWidget);
+      expect(container.entryGate, MemberEntryGate.member);
       expect(sessions.passwordSignUpCredentials, isEmpty);
     },
   );
 
   testWidgets(
-    'onboarding account creation uses password credentials without OAuth',
+    'reviewed onboarding continues through Google without credential fields',
     (tester) async {
       final sessions = _SignedOutSessionRepository(
         authenticationError: const MemberAuthCancelled(),
@@ -662,37 +561,17 @@ void main() {
       await tester.tap(createAccount);
       await tester.pumpAndSettle();
 
-      expect(find.byKey(const Key('member-sign-in-email')), findsOneWidget);
-      expect(find.byKey(const Key('member-sign-in-password')), findsOneWidget);
-      expect(
-        find.widgetWithText(FilledButton, 'Create account'),
-        findsOneWidget,
-      );
+      expect(find.byKey(const Key('member-google-sign-in')), findsOneWidget);
+      expect(find.byType(TextField), findsNothing);
       final router = GoRouter.of(
-        tester.element(find.byKey(const Key('member-sign-in-email'))),
+        tester.element(find.byKey(const Key('member-google-sign-in'))),
       );
-      expect(router.state.uri.path, '/create-account');
-      await tester.enterText(
-        find.byKey(const Key('member-sign-in-email')),
-        'new-member@example.com',
-      );
-      await tester.enterText(
-        find.byKey(const Key('member-sign-in-password')),
-        'correct horse battery staple',
-      );
-      await tester.enterText(
-        find.byKey(const Key('member-sign-in-password-confirmation')),
-        'correct horse battery staple',
-      );
-      await tester.tap(find.byKey(const Key('member-sign-in-submit')));
+      expect(router.state.uri.path, '/sign-in');
+      await tester.tap(find.byKey(const Key('member-google-sign-in')));
       await tester.pumpAndSettle();
 
-      expect(sessions.passwordSignUpCredentials, [
-        (
-          email: 'new-member@example.com',
-          password: 'correct horse battery staple',
-        ),
-      ]);
+      expect(router.state.uri.path, '/sign-in');
+      expect(sessions.passwordSignUpCredentials, isEmpty);
     },
   );
 
@@ -752,16 +631,16 @@ void main() {
       authController: auth,
       entryCoordinator: coordinator,
     );
-    await coordinator.createAccountWithPassword(
-      reviewedDraft: _reviewedDraft(),
-      email: 'setup@example.com',
-      password: 'setup-password',
-    );
+    await coordinator.beginQuestionnaire(_reviewedDraft());
     await tester.pumpWidget(
       RitualInvestingApp(container: container, bootstrapOnStart: false),
     );
     await tester.pumpAndSettle();
-    final router = GoRouter.of(tester.element(find.text('Review your Ritual')));
+    final router = GoRouter.of(
+      tester.element(find.text('How familiar are you with investing?')),
+    );
+    router.go('/onboarding/review');
+    await tester.pumpAndSettle();
     storage.writeError = null;
 
     await tester.tap(find.text('Retry'));
@@ -769,103 +648,96 @@ void main() {
 
     expect(sessions.passwordSignUpCredentials, isEmpty);
     expect(storage.values, contains(OnboardingDraftStore.storageKey));
-    expect(coordinator.state.destination, EntryDestination.review);
+    expect(coordinator.state.destination, EntryDestination.questionnaire);
     expect(router.state.uri.path, '/onboarding/review');
-    expect(find.text('Review your Ritual'), findsOneWidget);
+    expect(find.text('Review your Gospel'), findsOneWidget);
   });
 
-  testWidgets(
-    'cancelled sign-up review Edit resumes questionnaire with draft intact',
-    (tester) async {
-      final sessions = _SignedOutSessionRepository(
-        authenticationError: const MemberAuthCancelled(),
-      );
-      final auth = AuthController(repository: sessions);
-      final coordinator = EntryCoordinator(
-        authController: auth,
-        bootstrapService: _UnusedBootstrapService(),
-        draftStore: OnboardingDraftStore(
-          storage: _MemoryProtectedStorage(),
-          installation: const FixedInstallationBinding('install-a'),
-          now: () => DateTime.utc(2026, 8, 24),
-        ),
-        onboardingRepository: _UnusedOnboardingRepository(),
-      );
-      final container = fixtureContainer(
-        authController: auth,
-        entryCoordinator: coordinator,
-      );
-      final draft = _reviewedDraft();
-      await coordinator.createAccountWithPassword(
-        reviewedDraft: draft,
-        email: 'setup@example.com',
-        password: 'setup-password',
-      );
-      await tester.pumpWidget(
-        RitualInvestingApp(container: container, bootstrapOnStart: false),
-      );
-      await tester.pumpAndSettle();
-      final router = GoRouter.of(
-        tester.element(find.text('Review your Ritual')),
-      );
+  testWidgets('review Edit resumes questionnaire with draft intact', (
+    tester,
+  ) async {
+    final sessions = _SignedOutSessionRepository(
+      authenticationError: const MemberAuthCancelled(),
+    );
+    final auth = AuthController(repository: sessions);
+    final coordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: _UnusedBootstrapService(),
+      draftStore: OnboardingDraftStore(
+        storage: _MemoryProtectedStorage(),
+        installation: const FixedInstallationBinding('install-a'),
+        now: () => DateTime.utc(2026, 8, 24),
+      ),
+      onboardingRepository: _UnusedOnboardingRepository(),
+    );
+    final container = fixtureContainer(
+      authController: auth,
+      entryCoordinator: coordinator,
+    );
+    final draft = _reviewedDraft();
+    await coordinator.beginQuestionnaire(draft);
+    container.onboardingController.replaceDraft(draft);
+    await tester.pumpWidget(
+      RitualInvestingApp(container: container, bootstrapOnStart: false),
+    );
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.text('How familiar are you with investing?')),
+    );
+    router.go('/onboarding/review');
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(TextButton, 'Edit').first);
-      await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(TextButton, 'Edit').first);
+    await tester.pumpAndSettle();
 
-      expect(coordinator.state.destination, EntryDestination.questionnaire);
-      expect(container.onboardingController.draft, draft);
-      expect(router.state.uri.path, '/onboarding/experience');
-      expect(find.text('How familiar are you with investing?'), findsOneWidget);
-    },
-  );
+    expect(coordinator.state.destination, EntryDestination.questionnaire);
+    expect(container.onboardingController.draft, draft);
+    expect(router.state.uri.path, '/onboarding/experience');
+    expect(find.text('How familiar are you with investing?'), findsOneWidget);
+  });
 
-  testWidgets(
-    'cancelled sign-up review Back resumes prior question with draft intact',
-    (tester) async {
-      final sessions = _SignedOutSessionRepository(
-        authenticationError: const MemberAuthCancelled(),
-      );
-      final auth = AuthController(repository: sessions);
-      final coordinator = EntryCoordinator(
-        authController: auth,
-        bootstrapService: _UnusedBootstrapService(),
-        draftStore: OnboardingDraftStore(
-          storage: _MemoryProtectedStorage(),
-          installation: const FixedInstallationBinding('install-a'),
-          now: () => DateTime.utc(2026, 8, 24),
-        ),
-        onboardingRepository: _UnusedOnboardingRepository(),
-      );
-      final container = fixtureContainer(
-        authController: auth,
-        entryCoordinator: coordinator,
-      );
-      final draft = _reviewedDraft();
-      await coordinator.createAccountWithPassword(
-        reviewedDraft: draft,
-        email: 'setup@example.com',
-        password: 'setup-password',
-      );
-      await tester.pumpWidget(
-        RitualInvestingApp(container: container, bootstrapOnStart: false),
-      );
-      await tester.pumpAndSettle();
-      final router = GoRouter.of(
-        tester.element(find.text('Review your Ritual')),
-      );
+  testWidgets('review Back resumes prior question with draft intact', (
+    tester,
+  ) async {
+    final sessions = _SignedOutSessionRepository(
+      authenticationError: const MemberAuthCancelled(),
+    );
+    final auth = AuthController(repository: sessions);
+    final coordinator = EntryCoordinator(
+      authController: auth,
+      bootstrapService: _UnusedBootstrapService(),
+      draftStore: OnboardingDraftStore(
+        storage: _MemoryProtectedStorage(),
+        installation: const FixedInstallationBinding('install-a'),
+        now: () => DateTime.utc(2026, 8, 24),
+      ),
+      onboardingRepository: _UnusedOnboardingRepository(),
+    );
+    final container = fixtureContainer(
+      authController: auth,
+      entryCoordinator: coordinator,
+    );
+    final draft = _reviewedDraft();
+    await coordinator.beginQuestionnaire(draft);
+    container.onboardingController.replaceDraft(draft);
+    await tester.pumpWidget(
+      RitualInvestingApp(container: container, bootstrapOnStart: false),
+    );
+    await tester.pumpAndSettle();
+    final router = GoRouter.of(
+      tester.element(find.text('How familiar are you with investing?')),
+    );
+    router.go('/onboarding/review');
+    await tester.pumpAndSettle();
 
-      await tester.tap(find.byKey(const Key('review-back')));
-      await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('review-back')));
+    await tester.pumpAndSettle();
 
-      expect(coordinator.state.destination, EntryDestination.questionnaire);
-      expect(container.onboardingController.draft, draft);
-      expect(router.state.uri.path, '/onboarding/astrologyOptIn');
-      expect(
-        find.text('Would you like personalized astrology?'),
-        findsOneWidget,
-      );
-    },
-  );
+    expect(coordinator.state.destination, EntryDestination.questionnaire);
+    expect(container.onboardingController.draft, draft);
+    expect(router.state.uri.path, '/onboarding/astrologyOptIn');
+    expect(find.text('Would you like personalized astrology?'), findsOneWidget);
+  });
 
   testWidgets(
     'beta shell has five lazy branches with independent back stacks',
@@ -909,7 +781,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('asset-codex-screen')), findsOneWidget);
 
-      await tester.tap(find.text('Ritual').last);
+      await tester.tap(find.text('Gospel').last);
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('detail-ritual-reading')), findsOneWidget);
       await tester.tap(find.text('Discover').last);
@@ -1147,6 +1019,11 @@ void main() {
       tester.element(find.byKey(const Key('app-shell-scaffold'))),
     );
 
+    router.go('/ritual/briefings/$briefingA');
+    await tester.pumpAndSettle();
+    expect(router.state.uri.path, MemberRoutes.briefingLocation(briefingA));
+    expect(find.byKey(const ValueKey('briefing-$briefingA')), findsOneWidget);
+
     router.go(MemberRoutes.briefingLocation(briefingA));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('briefing-$briefingA')), findsOneWidget);
@@ -1160,7 +1037,7 @@ void main() {
     expect(find.textContaining('briefing $briefingB'), findsOneWidget);
     expect(container.briefingController.selected?.id, briefingB);
 
-    router.go('/ritual/briefings/not-a-uuid');
+    router.go('/gospel/briefings/not-a-uuid');
     await tester.pumpAndSettle();
     expect(router.state.uri.path, MemberRoutes.ritual.path);
     expect(find.textContaining('not-a-uuid'), findsNothing);
@@ -1211,7 +1088,7 @@ Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
 }
 
 class _SignedOutSessionRepository
-    implements SessionRepository, PasswordSessionRepository {
+    implements SessionRepository, GoogleOAuthSessionRepository {
   _SignedOutSessionRepository({
     this.authenticationError,
     this.passwordSession,
@@ -1231,26 +1108,11 @@ class _SignedOutSessionRepository
   @override
   Stream<AuthSession> get recoveredSessions => const Stream.empty();
   @override
-  Future<AuthSession> signInWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordCredentials.add((email: email, password: password));
-    final error = authenticationError;
-    if (error != null) throw error;
-    return passwordSession ?? const AuthSession(accessToken: 'password-token');
-  }
-
-  @override
-  Future<AuthSession> signUpWithPassword({
-    required String email,
-    required String password,
-  }) async {
-    passwordSignUpCredentials.add((email: email, password: password));
+  Future<AuthSession?> signInWithGoogle() async {
     await signUpBarrier;
     final error = authenticationError;
     if (error != null) throw error;
-    return passwordSession ?? const AuthSession(accessToken: 'password-token');
+    return passwordSession ?? const AuthSession(accessToken: 'google-token');
   }
 
   @override
@@ -1259,11 +1121,7 @@ class _SignedOutSessionRepository
   Future<void> logout() async {}
 }
 
-class _RecoverySessionRepository
-    implements
-        SessionRepository,
-        PasswordRecoverySessionRepository,
-        InitialPasswordRecoveryRepository {
+class _RecoverySessionRepository implements SessionRepository {
   bool _initialRecovery = true;
   int passwordUpdates = 0;
 
@@ -1277,16 +1135,13 @@ class _RecoverySessionRepository
     accessToken: 'recovery-token',
     userId: '11111111-1111-4111-8111-111111111111',
   );
-  @override
   bool consumeInitialPasswordRecovery() {
     final value = _initialRecovery;
     _initialRecovery = false;
     return value;
   }
 
-  @override
   Future<void> requestPasswordRecovery({required String email}) async {}
-  @override
   Future<void> updatePassword({required String password}) async {
     passwordUpdates += 1;
   }

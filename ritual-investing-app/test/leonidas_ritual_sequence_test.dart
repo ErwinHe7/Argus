@@ -391,6 +391,14 @@ void main() {
 
       expect(revealCount, 1);
       expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
+      expect(
+        find.byKey(const Key('daily-ritual-card-front-flip')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const Key('daily-ritual-card-back-flip')),
+        findsNothing,
+      );
       expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
       expect(find.text('Strength'), findsOneWidget);
       expect(find.byKey(const Key('ritual-complete')), findsOneWidget);
@@ -639,6 +647,10 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.text(longInterpretation), findsOneWidget);
     expect(find.textContaining(longCounsel), findsNothing);
+    expect(
+      find.byKey(const Key('leonidas-completed-content-scroll')),
+      findsOneWidget,
+    );
     expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
   });
 }

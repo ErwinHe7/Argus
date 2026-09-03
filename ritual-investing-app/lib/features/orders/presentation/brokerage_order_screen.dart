@@ -93,7 +93,7 @@ class _BrokerageOrderScreenState extends State<BrokerageOrderScreen> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 40),
             children: [
               const Text(
-                'Webull owns account authority and order state. Argus sends only the exact manual command you review and confirm.',
+                'Webull owns account authority and order state. Leo sends only the exact manual command you review and confirm.',
                 key: Key('webull-order-authority-copy'),
               ),
               const SizedBox(height: 16),

@@ -2,27 +2,45 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_theme.dart';
 import '../application/starpath_controller.dart';
+import '../application/starpath_narration_controller.dart';
+import '../domain/investment_constellation.dart';
 import '../domain/starpath.dart';
+import '../domain/starpath_universe.dart';
 import 'starpath_lesson_screen.dart';
 import 'starpath_path.dart';
 import 'starpath_recall.dart';
+import 'starpath_trading_path.dart';
 
 class StarpathScreen extends StatefulWidget {
-  const StarpathScreen({super.key, required this.controller});
+  const StarpathScreen({
+    super.key,
+    required this.controller,
+    this.narrationEngineFactory = createStarpathNarrationEngine,
+  });
 
   final StarpathController controller;
+  final StarpathNarrationEngineFactory narrationEngineFactory;
 
   @override
   State<StarpathScreen> createState() => _StarpathScreenState();
 }
 
 class _StarpathScreenState extends State<StarpathScreen> {
+  late final StarpathNarrationPreference _narrationPreference;
+
   @override
   void initState() {
     super.initState();
+    _narrationPreference = StarpathNarrationPreference();
     if (widget.controller.state.phase == StarpathViewPhase.idle) {
       widget.controller.load();
     }
+  }
+
+  @override
+  void dispose() {
+    _narrationPreference.dispose();
+    super.dispose();
   }
 
   @override
@@ -66,6 +84,8 @@ class _StarpathScreenState extends State<StarpathScreen> {
               _ => _Content(
                 snapshot: snapshot,
                 controller: widget.controller,
+                narrationEngineFactory: widget.narrationEngineFactory,
+                narrationPreference: _narrationPreference,
                 readOnly: state.isReadOnly,
                 preview: preview,
                 stale:
@@ -84,6 +104,8 @@ class _Content extends StatefulWidget {
   const _Content({
     required this.snapshot,
     required this.controller,
+    required this.narrationEngineFactory,
+    required this.narrationPreference,
     required this.readOnly,
     required this.preview,
     required this.stale,
@@ -91,6 +113,8 @@ class _Content extends StatefulWidget {
 
   final StarpathSnapshot snapshot;
   final StarpathController controller;
+  final StarpathNarrationEngineFactory narrationEngineFactory;
+  final StarpathNarrationPreference narrationPreference;
   final bool readOnly;
   final bool preview;
   final bool stale;
@@ -103,60 +127,58 @@ class _ContentState extends State<_Content> {
   final GlobalKey _currentNodeKey = GlobalKey(
     debugLabel: 'starpath-current-node',
   );
+  final ScrollController _scrollController = ScrollController();
+  StarpathUniverseId _selectedUniverse = StarpathUniverseId.invest;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.snapshot.availability == StarpathAvailability.notStarted) {
-      return _StartPath(
-        controller: widget.controller,
-        readOnly: widget.readOnly,
-      );
-    }
+    final showingInvest = _selectedUniverse == StarpathUniverseId.invest;
+    final investmentConstellations = projectInvestmentConstellations(
+      widget.snapshot,
+    );
     return Stack(
       children: [
         RefreshIndicator(
           onRefresh: widget.controller.load,
           child: CustomScrollView(
             key: const PageStorageKey('starpath-scroll'),
+            controller: _scrollController,
             slivers: [
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(8, 12, 8, 40),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 48),
                 sliver: SliverToBoxAdapter(
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 440),
-                      child: Container(
+                      constraints: const BoxConstraints(maxWidth: 520),
+                      child: Column(
                         key: const Key('starpath-stage'),
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF09020D),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.18),
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _UniverseHeader(
+                            selected: _selectedUniverse,
+                            onSelected: _selectUniverse,
                           ),
-                        ),
-                        child: Column(
-                          children: [
+                          const SizedBox(height: 28),
+                          if (showingInvest) ...[
                             _PathHeader(
-                              theme: widget.snapshot.theme,
-                              nodes: widget.snapshot.nodes,
-                              currentNode:
-                                  widget.snapshot.currentNode ??
-                                  (widget.snapshot.nodes.isEmpty
-                                      ? null
-                                      : widget.snapshot.nodes.last),
+                              constellations: investmentConstellations,
+                              availability: widget.snapshot.availability,
+                              onStart: widget.controller.start,
+                              readOnly: widget.readOnly,
                               preview: widget.preview,
                               stale: widget.stale,
                             ),
+                            const SizedBox(height: 8),
                             if (widget.preview) const _DraftPreviewBanner(),
                             if (widget.snapshot.recall case final recall?)
                               Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  12,
-                                  12,
-                                  12,
-                                  0,
-                                ),
+                                padding: const EdgeInsets.only(top: 12),
                                 child: StarpathRecallCard(
                                   recall: recall,
                                   controller: widget.controller,
@@ -168,19 +190,42 @@ class _ContentState extends State<_Content> {
                               readOnly: widget.readOnly,
                               preview: widget.preview,
                               currentNodeKey: _currentNodeKey,
-                              onOpenNode: (node) => Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (context) => StarpathLessonScreen(
-                                    controller: widget.controller,
-                                    node: node,
-                                    readOnly: widget.readOnly,
-                                    preview: widget.preview,
+                              onOpenNode: (node) {
+                                final constellation =
+                                    investmentConstellations[(node.nodeOrdinal -
+                                            1) ~/
+                                        2];
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (context) => StarpathLessonScreen(
+                                      controller: widget.controller,
+                                      constellation: constellation,
+                                      narrationEngineFactory:
+                                          widget.narrationEngineFactory,
+                                      narrationPreference:
+                                          widget.narrationPreference,
+                                      readOnly: widget.readOnly,
+                                      preview: widget.preview,
+                                    ),
                                   ),
-                                ),
-                              ),
+                                );
+                              },
                             ),
-                          ],
-                        ),
+                          ] else
+                            TradingStarpathPath(
+                              universe: tradeStarpathUniverse,
+                            ),
+                          const SizedBox(height: 28),
+                          const Text(
+                            'Education only. No predictions or personalized recommendations.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Color(0xFF9F899F),
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -189,14 +234,14 @@ class _ContentState extends State<_Content> {
             ],
           ),
         ),
-        if (widget.snapshot.currentNode != null)
+        if (showingInvest && widget.snapshot.currentNode != null)
           Positioned(
             left: 0,
             right: 0,
             bottom: 16,
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
+                constraints: const BoxConstraints(maxWidth: 520),
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: Padding(
@@ -235,67 +280,143 @@ class _ContentState extends State<_Content> {
       curve: Curves.easeOutCubic,
     );
   }
+
+  void _selectUniverse(StarpathUniverseId universe) {
+    if (universe == _selectedUniverse) return;
+    setState(() => _selectedUniverse = universe);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
+  }
+}
+
+class _UniverseHeader extends StatelessWidget {
+  const _UniverseHeader({required this.selected, required this.onSelected});
+
+  final StarpathUniverseId selected;
+  final ValueChanged<StarpathUniverseId> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final universe = starpathUniverseFor(selected);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Starpath',
+          style: TextStyle(
+            color: Color(0xFFFFF7FF),
+            fontFamily: 'LibreBaskerville',
+            fontSize: 34,
+            fontWeight: FontWeight.w700,
+            height: 1.1,
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: SegmentedButton<StarpathUniverseId>(
+            key: const Key('starpath-universe-selector'),
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: StarpathUniverseId.invest,
+                label: Text('Investment'),
+              ),
+              ButtonSegment(
+                value: StarpathUniverseId.trade,
+                label: Text('Trading'),
+              ),
+            ],
+            selected: {selected},
+            onSelectionChanged: (selection) => onSelected(selection.first),
+          ),
+        ),
+        const SizedBox(height: 22),
+        Text(
+          universe.introduction,
+          key: Key('starpath-universe-${selected.name}-introduction'),
+          style: const TextStyle(
+            color: Color(0xFFFFF7FF),
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            height: 1.3,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          universe.topicSummary,
+          style: const TextStyle(
+            color: Color(0xFFBDA4C2),
+            fontSize: 15,
+            height: 1.45,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _PathHeader extends StatelessWidget {
   const _PathHeader({
-    required this.theme,
-    required this.nodes,
-    required this.currentNode,
+    required this.constellations,
+    required this.availability,
+    required this.onStart,
+    required this.readOnly,
     required this.preview,
     required this.stale,
   });
 
-  final StarpathTheme? theme;
-  final List<StarpathNode> nodes;
-  final StarpathNode? currentNode;
+  final List<InvestmentConstellation> constellations;
+  final StarpathAvailability availability;
+  final Future<void> Function() onStart;
+  final bool readOnly;
   final bool preview;
   final bool stale;
 
   @override
   Widget build(BuildContext context) {
-    final completed = nodes
-        .where((node) => node.state == StarpathNodeState.completed)
+    final completed = constellations
+        .where(
+          (constellation) =>
+              constellation.state == InvestmentConstellationState.completed,
+        )
         .length;
-    final pathway = (currentNode?.pathwayOrdinal ?? 1).clamp(1, 4).toInt();
-    const pathNames = [
-      'Foundations',
-      'Risk & resilience',
-      'Evidence',
-      'Verification',
-    ];
-    const roman = ['I', 'II', 'III', 'IV'];
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF100414).withValues(alpha: 0.96),
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
-        ),
-      ),
+    final lessonCount = constellations.fold<int>(
+      0,
+      (total, constellation) => total + constellation.lessons.length,
+    );
+    final totalParts = constellations.length;
+    return Padding(
+      padding: const EdgeInsets.only(top: 4, bottom: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Celestial Curriculum',
-                      style: TextStyle(color: Color(0xFFCFBED2), fontSize: 12),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      'Path ${roman[pathway - 1]} · ${pathNames[pathway - 1]}',
-                      style: const TextStyle(
+                      'Your Investment path',
+                      style: TextStyle(
                         color: Color(0xFFFFF7FF),
                         fontFamily: 'LibreBaskerville',
-                        fontSize: 19,
+                        fontSize: 22,
                         fontWeight: FontWeight.w700,
-                        height: 1.15,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$totalParts constellations · $lessonCount short lessons · all open',
+                      style: const TextStyle(
+                        color: Color(0xFFCFBED2),
+                        fontSize: 15,
+                        height: 1.45,
                       ),
                     ),
                   ],
@@ -305,7 +426,7 @@ class _PathHeader extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    preview ? '8 draft nodes' : '$completed / 8',
+                    '$completed / $totalParts',
                     style: const TextStyle(
                       color: Color(0xFFFFF7FF),
                       fontSize: 15,
@@ -328,7 +449,7 @@ class _PathHeader extends StatelessWidget {
             child: SizedBox(
               height: 6,
               child: LinearProgressIndicator(
-                value: preview ? 0 : completed / 8,
+                value: totalParts == 0 ? 0 : completed / totalParts,
                 backgroundColor: Colors.white.withValues(alpha: 0.12),
                 valueColor: const AlwaysStoppedAnimation(Color(0xFFEDBC70)),
               ),
@@ -351,25 +472,12 @@ class _PathHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      theme?.horoscopeFrame ??
-                          (preview
-                              ? 'Celestial imagery is used only to remember draft educational concepts.'
-                              : 'Celestial imagery is used only to remember reviewed facts.'),
-                      style: const TextStyle(
-                        color: Color(0xFFEADDEC),
-                        fontSize: 13,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
                     const Text(
-                      'Memory frame only · no prediction · no investment recommendation',
+                      'Open any constellation in any order. Progress only shows a suggested route.',
                       style: TextStyle(
-                        color: Color(0xFFEDBC70),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        height: 1.3,
+                        color: Color(0xFFEADDEC),
+                        fontSize: 15,
+                        height: 1.45,
                       ),
                     ),
                   ],
@@ -377,6 +485,15 @@ class _PathHeader extends StatelessWidget {
               ),
             ],
           ),
+          if (availability == StarpathAvailability.notStarted) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              key: const Key('starpath-start-progress'),
+              onPressed: readOnly ? null : onStart,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('Start tracking progress'),
+            ),
+          ],
           if (stale) ...[const SizedBox(height: 14), const _OfflineBanner()],
         ],
       ),
@@ -388,11 +505,9 @@ class _DraftPreviewBanner extends StatelessWidget {
   const _DraftPreviewBanner();
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => Padding(
     key: const Key('starpath-draft-preview-banner'),
-    width: double.infinity,
-    padding: const EdgeInsets.fromLTRB(18, 12, 18, 13),
-    color: const Color(0xFF3A193F),
+    padding: const EdgeInsets.symmetric(vertical: 10),
     child: const Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -400,8 +515,7 @@ class _DraftPreviewBanner extends StatelessWidget {
         SizedBox(width: 10),
         Expanded(
           child: Text(
-            'DRAFT BETA PREVIEW · All eight lessons are open for reading. '
-            'Checks and progress are disabled until publication.',
+            'Preview copy · all lessons are open. Progress is paused until publication.',
             style: TextStyle(
               color: Color(0xFFFFF7FF),
               fontSize: 12,
@@ -432,44 +546,6 @@ class _OfflineBanner extends StatelessWidget {
         style: TextStyle(color: Colors.white),
       ),
     ),
-  );
-}
-
-class _StartPath extends StatelessWidget {
-  const _StartPath({required this.controller, required this.readOnly});
-  final StarpathController controller;
-  final bool readOnly;
-
-  @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(24),
-    children: [
-      const SizedBox(height: 42),
-      Icon(Icons.stars, size: 74, color: context.ritualColors.gold),
-      const SizedBox(height: 22),
-      Text(
-        'Walk the Stars',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.displaySmall,
-      ),
-      const SizedBox(height: 14),
-      Text(
-        'Eight short lessons use tarot and horoscope imagery to help you remember factual investment definitions.',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodyLarge,
-      ),
-      const SizedBox(height: 12),
-      Text(
-        'The imagery never predicts markets or tells you what to invest in.',
-        textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.bodyMedium,
-      ),
-      const SizedBox(height: 28),
-      FilledButton(
-        onPressed: readOnly ? null : controller.start,
-        child: const Text('Begin Starpath'),
-      ),
-    ],
   );
 }
 
