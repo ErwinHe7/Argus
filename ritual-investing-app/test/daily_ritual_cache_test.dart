@@ -54,6 +54,69 @@ void main() {
     );
   });
 
+  test('response latency cannot extend the server validity window', () {
+    final ritual = _authority(
+      serverEvaluatedAt: DateTime.utc(2026, 8, 25, 12),
+      validUntil: DateTime.utc(2026, 8, 25, 12, 10),
+    );
+    final record = DailyRitualCacheRecord.fromAuthority(
+      scope: scope,
+      mode: DailyRitualMode.tarot,
+      ritual: ritual,
+      receivedAt: DateTime.utc(2026, 8, 25, 12, 9),
+      receivedAtElapsed: const Duration(minutes: 4),
+    );
+
+    expect(record.serverValidity, const Duration(minutes: 1));
+    expect(
+      record.isUsable(
+        expectedScope: scope,
+        expectedMode: DailyRitualMode.tarot,
+        now: DateTime.utc(2026, 8, 25, 12, 9, 59),
+        elapsed: const Duration(minutes: 4, seconds: 59),
+      ),
+      isTrue,
+    );
+    expect(
+      record.isUsable(
+        expectedScope: scope,
+        expectedMode: DailyRitualMode.tarot,
+        now: DateTime.utc(2026, 8, 25, 12, 10),
+        elapsed: const Duration(minutes: 5),
+      ),
+      isFalse,
+    );
+  });
+
+  test('authority received at or after valid-until is rejected', () {
+    final ritual = _authority(
+      serverEvaluatedAt: DateTime.utc(2026, 8, 25, 12),
+      validUntil: DateTime.utc(2026, 8, 25, 12, 10),
+    );
+
+    for (final receivedAt in <DateTime>[
+      DateTime.utc(2026, 8, 25, 12, 10),
+      DateTime.utc(2026, 8, 25, 12, 11),
+    ]) {
+      expect(
+        () => DailyRitualCacheRecord.fromAuthority(
+          scope: scope,
+          mode: DailyRitualMode.tarot,
+          ritual: ritual,
+          receivedAt: receivedAt,
+          receivedAtElapsed: Duration.zero,
+        ),
+        throwsA(
+          isA<RitualAuthorityInvalid>().having(
+            (failure) => failure.reason,
+            'reason',
+            RitualAuthorityInvalidReason.validity,
+          ),
+        ),
+      );
+    }
+  });
+
   test(
     'strict record validation rejects every authority identity mismatch',
     () {
@@ -435,6 +498,27 @@ void main() {
       expect(observedAssignments, isNot(contains('obsolete-assignment')));
     },
   );
+
+  test('queued obsolete generations skip redundant authority reads', () async {
+    final first = Completer<DailyRitual>();
+    final latest = Completer<DailyRitual>();
+    final service = _ScriptedService(daily: [first.future, latest.future]);
+    final controller = _controller(service: service, cache: MemoryReadCache());
+
+    final firstLoad = controller.load();
+    await _waitForReads(service, 1);
+    final obsoleteQueuedLoad = controller.load();
+    final latestLoad = controller.load();
+
+    first.complete(_authority(assignmentId: 'obsolete-assignment'));
+    await _waitForReads(service, 2);
+    latest.complete(_authority(assignmentId: 'current-assignment'));
+    await Future.wait([firstLoad, obsoleteQueuedLoad, latestLoad]);
+    await controller.authorityIdle;
+
+    expect(service.dailyReads, 2);
+    expect(controller.state.value?.assignmentId, 'current-assignment');
+  });
 
   test(
     'one latest authority read performs one validated lineage switch',

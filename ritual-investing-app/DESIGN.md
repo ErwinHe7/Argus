@@ -200,9 +200,13 @@ At 200 percent text or narrow widths, let headers and waypoint heights grow and 
 
 ### Daily Ritual Stage
 
-Leonidas and the assigned card form one mobile cinematic stage. The sequence is fixed: date and theme, ritual label, Leonidas standing, assigned card flip, revealed card, Leonidas close-up, reviewed interpretation, evidence invitation, tonight's practice, constellation, Founders’ Coven, optional bounded counsel, Demo limitation. The close-up begins only after a successful reveal; a failed reveal leaves the card concealed and actionable.
+Leonidas and the assigned card form one measured mobile stage. The member first sees a passive invitation inside the normal navigable shell. **Start your daily ritual** enters a chrome-free fullscreen ceremony: Ready → five-second continuous Hold → Reading revealed → explicit Finish → one short skippable Leonidas close → Completed onward. Completed onward presents **Review evidence** as the primary action and **Continue to Starpath** as the secondary action. It does not add practices, constellations, Coven promotion, a second counsel surface, or another ending.
 
-Native speech is optional presentation, never authority. Captions contain the complete reviewed script when speech is unavailable, interrupted, or disabled. Reduced Motion and accessible navigation make the transition immediate without changing order or meaning. Leonidas may speak only server-authorized ritual title, interpretation, counsel, and risk footer. Evidence remains one gesture from the interpretation, and no romance, character affinity, urgency, or animation may cross into a financial action.
+The upper portrait and at least the top half of Leonidas's face remain visible throughout. The seal, real assigned card, interpretation, captions, and actions never intersect the measured face-clear zone. The card is concealed before an authoritative reveal, remains the same uncropped art through C2 expansion and keepsake settlement, and is never replaced by an imitation or fallback. The UI contains no finger, sensor, biometric, or supernatural-reading claim.
+
+Ready through Completed has no global top utility row, bottom navigation, or ordinary-size scroll surface. System Back remains available. At accessibility text sizes, only the adaptive lower region may reflow or scroll to keep complete copy and controls reachable.
+
+Native speech is optional presentation, never authority. Captions contain the complete reviewed close when speech is unavailable, interrupted, disabled, or skipped. Reduced Motion removes nonessential travel without changing order or meaning. The canonical requirements and approved iPhone 17 frames are in [`docs/reviews/daily-ritual-rebuild.md`](docs/reviews/daily-ritual-rebuild.md).
 
 ## 6. Do's and Don'ts
 

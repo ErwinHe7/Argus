@@ -95,7 +95,7 @@ class DailyRitual {
     artKey: art.key,
   );
 
-  bool hasSameLineage(DailyRitual other) =>
+  bool hasSameAssignmentIdentity(DailyRitual other) =>
       assignmentId == other.assignmentId &&
       date == other.date &&
       mode == other.mode &&

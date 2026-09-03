@@ -12,6 +12,33 @@ import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_s
 
 void main() {
   group('DailyRitualStageController hold arbiter', () {
+    test('unavailable content cannot start or reveal', () async {
+      final harness = _StageHarness(
+        initial: _ritual(
+          contentAvailability: RitualContentAvailability.unavailable,
+        ),
+      );
+      addTearDown(harness.dispose);
+
+      expect(harness.stage.start(), isFalse);
+      expect(harness.stage.beginPointerHold(7), isFalse);
+      await _flush();
+
+      expect(harness.stage.phase, DailyRitualStagePhase.resting);
+      expect(harness.authority.revealCalls, 0);
+    });
+
+    test('disabled mutation authority cannot enter the ceremony', () {
+      final harness = _StageHarness();
+      addTearDown(harness.dispose);
+      harness.authority.canMutate = false;
+
+      expect(harness.stage.canStart, isFalse);
+      expect(harness.stage.start(), isFalse);
+      expect(harness.stage.beginPointerHold(7), isFalse);
+      expect(harness.authority.revealCalls, 0);
+    });
+
     for (final boundary in <Duration>[
       const Duration(milliseconds: 100),
       const Duration(milliseconds: 4900),
@@ -199,16 +226,40 @@ void main() {
     test('semantic activation is coalesced and progress is whole-second', () {
       final harness = _StageHarness();
       addTearDown(harness.dispose);
+      final secondsUpdates = <int>[];
+      harness.stage.holdProgressSecondsListenable.addListener(
+        () => secondsUpdates.add(
+          harness.stage.holdProgressSecondsListenable.value,
+        ),
+      );
 
       harness.stage.start();
       expect(harness.stage.beginSemanticHold(), isTrue);
       expect(harness.stage.beginSemanticHold(), isFalse);
       harness.clock.advance(const Duration(milliseconds: 1999));
       expect(harness.stage.semanticProgressSeconds, 1);
+      expect(secondsUpdates, [1]);
       harness.clock.advance(const Duration(milliseconds: 1));
       expect(harness.stage.semanticProgressSeconds, 2);
+      expect(secondsUpdates, [1, 2]);
       harness.stage.cancel(HoldCancellation.semanticCancel);
     });
+  });
+
+  test('unavailable revealed content cannot finish', () async {
+    final harness = _StageHarness(
+      initial: _ritual(
+        state: DailyRitualState.revealed,
+        contentAvailability: RitualContentAvailability.unavailable,
+      ),
+    );
+    addTearDown(harness.dispose);
+
+    expect(harness.stage.finish(), isFalse);
+    await _flush();
+
+    expect(harness.stage.phase, DailyRitualStagePhase.revealed);
+    expect(harness.authority.completeCalls, 0);
   });
 
   group('completion provenance and voice run', () {
@@ -741,6 +792,8 @@ DailyRitual _ritual({
   int version = 1,
   String assignmentId = 'assignment-a',
   DateTime? date,
+  RitualContentAvailability contentAvailability =
+      RitualContentAvailability.available,
 }) => DailyRitual(
   assignmentId: assignmentId,
   date: date ?? DateTime.utc(2026, 9, 2),
@@ -779,4 +832,5 @@ DailyRitual _ritual({
   serverEvaluatedAt: DateTime.utc(2026, 9, 2),
   validUntil: DateTime.utc(2026, 9, 3),
   contentIdentity: 'content-a',
+  contentAvailability: contentAvailability,
 );

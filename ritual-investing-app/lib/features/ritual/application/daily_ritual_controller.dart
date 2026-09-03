@@ -279,7 +279,8 @@ class DailyRitualController extends ChangeNotifier {
     notifyListeners();
     final result = await action(current);
     final authoritative = result.authoritative;
-    final stillVisibleLineage = _state.value?.hasSameLineage(current) == true;
+    final stillVisibleLineage =
+        _state.value?.hasSameAssignmentIdentity(current) == true;
     if (authoritative != null) {
       final merge = _mergeAuthority(
         authoritative,
@@ -336,6 +337,7 @@ class DailyRitualController extends ChangeNotifier {
     int generation, {
     required bool retainUsablePriorOnRetryableFailure,
   }) async {
+    if (generation != _readGeneration) return;
     final prior = _state.value;
     try {
       final result = await _repository.refreshAuthority();
@@ -385,13 +387,13 @@ class DailyRitualController extends ChangeNotifier {
     final current = _state.value;
     if (current == null) {
       if (!allowLineageSwitch &&
-          expectedLineage?.hasSameLineage(incoming) != true) {
+          expectedLineage?.hasSameAssignmentIdentity(incoming) != true) {
         return _AuthorityMerge.obsolete;
       }
       _state = ViewState(phase: _state.phase, value: incoming);
       return _AuthorityMerge.accepted;
     }
-    if (!current.hasSameLineage(incoming)) {
+    if (!current.hasSameAssignmentIdentity(incoming)) {
       if (!allowLineageSwitch) return _AuthorityMerge.obsolete;
       _lineageSwitches += 1;
       _evidenceRequestId += 1;

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../../core/cache/read_cache.dart';
 import '../application/daily_ritual_controller.dart';
 import '../application/leonidas_voice.dart';
+import '../data/daily_ritual_cache_record.dart';
 import '../data/daily_ritual_repository.dart';
 import '../data/leonidas_voice_preference_store.dart';
 import '../domain/daily_ritual.dart';
@@ -102,8 +103,6 @@ class PlatformDailyRitualStageHaptics implements DailyRitualStageHaptics {
   Future<void> accepted() => HapticFeedback.mediumImpact();
 }
 
-final Stopwatch _stageProcessClock = Stopwatch()..start();
-
 /// Owns transient Daily Ritual choreography without extending server state.
 ///
 /// Every delayed callback is fenced by [_runToken]. The authoritative
@@ -122,7 +121,7 @@ class DailyRitualStageController extends ChangeNotifier {
     this.holdDuration = const Duration(seconds: 5),
     this.captionsOnlyBeat = const Duration(milliseconds: 1200),
   }) : haptics = haptics ?? const PlatformDailyRitualStageHaptics(),
-       _monotonicNow = monotonicNow ?? (() => _stageProcessClock.elapsed),
+       _monotonicNow = monotonicNow ?? ritualMonotonicNow,
        _schedule = schedule ?? _scheduleTimer {
     _observedAuthority = authority.current;
     _phase = _phaseForAuthority(_observedAuthority);
@@ -164,16 +163,24 @@ class DailyRitualStageController extends ChangeNotifier {
   int _runToken = 0;
   int _preferenceRevision = 0;
   final ValueNotifier<double> _holdProgress = ValueNotifier(0);
+  final ValueNotifier<int> _holdProgressSeconds = ValueNotifier(0);
 
   DailyRitualStagePhase get phase => _phase;
   HoldCancellation? get cancellation => _cancellation;
   LeonidasVoicePreference get voicePreference => _voicePreference;
   bool get isVisible => _visible;
   bool get closingCaptionVisible => _closingCaptionVisible;
+  bool get canStart =>
+      !_disposed &&
+      _visible &&
+      _phase == DailyRitualStagePhase.resting &&
+      _isStartable(authority.current);
   bool get hasActiveHold => _attemptStartedAt != null && !_accepted;
   bool get hasSemanticHold => hasActiveHold && _semanticOwner;
   bool ownsPointer(int pointer) => _pointerOwner == pointer;
   ValueListenable<double> get holdProgressListenable => _holdProgress;
+  ValueListenable<int> get holdProgressSecondsListenable =>
+      _holdProgressSeconds;
 
   double get holdProgress {
     final startedAt = _attemptStartedAt;
@@ -252,11 +259,12 @@ class DailyRitualStageController extends ChangeNotifier {
     if (_disposed || visible == _visible) return;
     _visible = visible;
     if (!visible) {
+      final cancelledActiveHold = hasActiveHold;
       _runToken += 1;
       _scheduled?.cancel();
       _scheduled = null;
       _clearAttempt();
-      _cancellation = null;
+      _cancellation = cancelledActiveHold ? reason : null;
       _closingCaptionVisible = false;
       _stopSpeechOnce();
       authority.invalidateForResume();
@@ -266,7 +274,9 @@ class DailyRitualStageController extends ChangeNotifier {
       } else if (current?.state == DailyRitualState.revealed) {
         _phase = DailyRitualStagePhase.revealed;
       } else {
-        _phase = DailyRitualStagePhase.resting;
+        _phase = cancelledActiveHold
+            ? DailyRitualStagePhase.ready
+            : DailyRitualStagePhase.resting;
       }
       _emit();
       return;
@@ -330,6 +340,8 @@ class DailyRitualStageController extends ChangeNotifier {
         (_phase != DailyRitualStagePhase.revealed &&
             _phase != DailyRitualStagePhase.finishFailure) ||
         authority.current?.state != DailyRitualState.revealed ||
+        authority.current?.contentAvailability !=
+            RitualContentAvailability.available ||
         authority.current?.hasExactArtIdentity != true ||
         !authority.mutationAuthorityEnabled) {
       return false;
@@ -544,7 +556,7 @@ class DailyRitualStageController extends ChangeNotifier {
     final reached =
         _transitionReached(result, DailyRitualState.completed) &&
         current?.state == DailyRitualState.completed &&
-        baseline.hasSameLineage(current!);
+        baseline.hasSameAssignmentIdentity(current!);
     if (!reached) {
       _phase = DailyRitualStagePhase.finishFailure;
       _emit();
@@ -647,6 +659,7 @@ class DailyRitualStageController extends ChangeNotifier {
   bool _isStartable(DailyRitual? current) =>
       current != null &&
       current.state == DailyRitualState.assigned &&
+      current.contentAvailability == RitualContentAvailability.available &&
       current.hasExactArtIdentity &&
       authority.mutationAuthorityEnabled;
 
@@ -674,6 +687,10 @@ class DailyRitualStageController extends ChangeNotifier {
   void _setHoldProgress(double value) {
     if (!_disposed && _holdProgress.value != value) {
       _holdProgress.value = value;
+    }
+    final seconds = semanticProgressSeconds;
+    if (!_disposed && _holdProgressSeconds.value != seconds) {
+      _holdProgressSeconds.value = seconds;
     }
   }
 
@@ -717,6 +734,7 @@ class DailyRitualStageController extends ChangeNotifier {
     _disposed = true;
     _clearAttempt();
     _holdProgress.dispose();
+    _holdProgressSeconds.dispose();
     super.dispose();
   }
 

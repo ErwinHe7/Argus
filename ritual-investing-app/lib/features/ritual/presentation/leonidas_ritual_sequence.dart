@@ -18,6 +18,20 @@ import 'ritual_tarot_art.dart';
 export '../application/leonidas_voice.dart'
     show LeonidasVoice, PlatformLeonidasVoice;
 
+typedef _RitualMediaIdentity = ({
+  String assetPackage,
+  String userId,
+  String deletionEpoch,
+  DateTime date,
+  DailyRitualMode mode,
+  String assignmentId,
+  String revisionId,
+  int revisionNumber,
+  String contentIdentity,
+  String artworkKey,
+  String assetPath,
+});
+
 class LeonidasRitualSequence extends StatefulWidget {
   const LeonidasRitualSequence({
     super.key,
@@ -37,6 +51,7 @@ class LeonidasRitualSequence extends StatefulWidget {
     this.useBundledArtwork = true,
     this.assetPackage,
     this.startImmediately = false,
+    this.suspendVisibilityTracking = false,
   });
 
   final DailyRitual ritual;
@@ -55,6 +70,7 @@ class LeonidasRitualSequence extends StatefulWidget {
   final bool useBundledArtwork;
   final String? assetPackage;
   final bool startImmediately;
+  final bool suspendVisibilityTracking;
 
   @override
   State<LeonidasRitualSequence> createState() => _LeonidasRitualSequenceState();
@@ -71,7 +87,7 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
   _CallbackStageAuthority? _callbackAuthority;
   RitualTarotArtwork? _artwork;
   AssetImage? _imageProvider;
-  String? _mediaIdentity;
+  _RitualMediaIdentity? _mediaIdentity;
   _ExactMediaState _mediaState = _ExactMediaState.unavailable;
   int _mediaAttempt = 0;
   bool _appResumed = true;
@@ -82,6 +98,8 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
       MediaQuery.disableAnimationsOf(context) ||
       MediaQuery.accessibleNavigationOf(context);
   bool get _hasExactImage =>
+      widget.ritual.contentAvailability ==
+          RitualContentAvailability.available &&
       _artwork != null &&
       _imageProvider != null &&
       _mediaState == _ExactMediaState.ready;
@@ -144,7 +162,10 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
   }
 
   void _syncArtwork() {
-    final artwork = widget.useBundledArtwork
+    final artwork =
+        widget.useBundledArtwork &&
+            widget.ritual.contentAvailability ==
+                RitualContentAvailability.available
         ? resolveRitualTarotArtwork(
             art: widget.ritual.art,
             date: widget.ritual.date,
@@ -154,12 +175,19 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     final ritual = widget.ritual;
     final identity = artwork == null
         ? null
-        : '${widget.assetPackage ?? ''}:${ritual.userId ?? ''}:'
-              '${ritual.deletionEpoch ?? ''}:${ritual.date.toIso8601String()}:'
-              '${ritual.mode.name}:${ritual.assignmentId}:'
-              '${ritual.revision.id}:${ritual.revision.number}:'
-              '${ritual.contentIdentity}:${artwork.key}:'
-              '${artwork.assetPath}';
+        : (
+            assetPackage: widget.assetPackage ?? '',
+            userId: ritual.userId ?? '',
+            deletionEpoch: '${ritual.deletionEpoch ?? ''}',
+            date: ritual.date,
+            mode: ritual.mode,
+            assignmentId: ritual.assignmentId,
+            revisionId: ritual.revision.id,
+            revisionNumber: ritual.revision.number,
+            contentIdentity: ritual.contentIdentity,
+            artworkKey: artwork.key,
+            assetPath: artwork.assetPath,
+          );
     if (identity == _mediaIdentity) return;
     _artwork = artwork;
     _mediaIdentity = identity;
@@ -237,8 +265,24 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     });
   }
 
+  Future<void> _retryAuthority() async {
+    final retry = widget.onRevalidate;
+    final controller = widget.authorityController;
+    if (retry == null && controller == null) return;
+    try {
+      if (retry != null) {
+        await retry();
+      } else {
+        await controller!.revalidate();
+      }
+    } on Object {
+      // The authoritative controller owns the visible retry state.
+    }
+    if (mounted) _stage.synchronizeAuthority();
+  }
+
   void _applyVisibility({HoldCancellation? forcedReason}) {
-    if (!mounted) return;
+    if (!mounted || widget.suspendVisibilityTracking) return;
     final routeVisible = ModalRoute.of(context)?.isCurrent ?? true;
     final tabVisible = TickerMode.valuesOf(context).enabled;
     final visible = _appResumed && routeVisible && tabVisible;
@@ -521,6 +565,10 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
   };
 
   List<Widget> _buildResting(double dx, {required bool largeText}) {
+    if (widget.ritual.contentAvailability !=
+        RitualContentAvailability.available) {
+      return _buildContentUnavailable(dx);
+    }
     if (_imageProvider == null) return _buildMediaUnavailable(dx);
     final content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -556,7 +604,9 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
         _GoldAction(
           key: const Key('leonidas-sequence-start'),
           label: 'Start your daily ritual',
-          onPressed: widget.onStartRequested ?? _stage.start,
+          onPressed: _stage.canStart
+              ? widget.onStartRequested ?? () => _stage.start()
+              : null,
         ),
       ],
     );
@@ -619,9 +669,9 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
             ),
             const SizedBox(height: 5),
             if (_phase == DailyRitualStagePhase.holding)
-              ValueListenableBuilder<double>(
-                valueListenable: _stage.holdProgressListenable,
-                builder: (context, progress, child) => caption(),
+              ValueListenableBuilder<int>(
+                valueListenable: _stage.holdProgressSecondsListenable,
+                builder: (context, seconds, child) => caption(),
               )
             else
               caption(),
@@ -632,6 +682,10 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
   }
 
   List<Widget> _buildReading(double dx, {required bool largeText}) {
+    if (widget.ritual.contentAvailability !=
+        RitualContentAvailability.available) {
+      return _buildContentUnavailable(dx);
+    }
     if (!_hasExactImage) {
       return _buildMediaUnavailable(dx, completed: false);
     }
@@ -765,6 +819,10 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
   ];
 
   List<Widget> _buildCompleted(double dx, {required bool largeText}) {
+    if (widget.ritual.contentAvailability !=
+        RitualContentAvailability.available) {
+      return _buildContentUnavailable(dx, completed: true);
+    }
     if (!_hasExactImage) return _buildMediaUnavailable(dx, completed: true);
     final copy = Column(
       key: DailyRitualStageSpec.completedCopyKey,
@@ -880,6 +938,30 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
           _ExactMediaUnavailable(
             loading: _mediaState == _ExactMediaState.loading,
             onRetry: _retryExactMedia,
+          ),
+          if (completed) ...[const SizedBox(height: 18), ..._onwardActions()],
+        ],
+      ),
+    ),
+  ];
+
+  List<Widget> _buildContentUnavailable(
+    double dx, {
+    bool completed = false,
+  }) => [
+    Positioned(
+      left: 20 + dx,
+      right: math.max(20 - dx, 20),
+      top: completed ? 272 : 442,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _RitualContentUnavailable(
+            onRetry:
+                widget.onRevalidate != null ||
+                    widget.authorityController != null
+                ? () => unawaited(_retryAuthority())
+                : null,
           ),
           if (completed) ...[const SizedBox(height: 18), ..._onwardActions()],
         ],
@@ -1193,11 +1275,47 @@ class _ExactMediaUnavailable extends StatelessWidget {
   );
 }
 
+class _RitualContentUnavailable extends StatelessWidget {
+  const _RitualContentUnavailable({required this.onRetry});
+
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    liveRegion: true,
+    label: 'Today’s ritual content is unavailable',
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.error_outline_rounded, color: context.ritualColors.gold),
+        const SizedBox(height: 8),
+        const Text(
+          'Today’s ritual content is unavailable. Nothing unverified was shown.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.white, height: 1.3),
+        ),
+        if (onRetry != null) ...[
+          const SizedBox(height: 8),
+          OutlinedButton(
+            key: const Key('daily-ritual-content-retry'),
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size(44, 44),
+              foregroundColor: context.ritualColors.gold,
+            ),
+            onPressed: onRetry,
+            child: const Text('Try again'),
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
 class _GoldAction extends StatelessWidget {
   const _GoldAction({super.key, required this.label, required this.onPressed});
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) => SizedBox(

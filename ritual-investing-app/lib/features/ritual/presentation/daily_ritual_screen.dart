@@ -66,6 +66,13 @@ class DailyRitualScreen extends StatefulWidget {
 
 class _DailyRitualScreenState extends State<DailyRitualScreen> {
   bool _immersiveOpen = false;
+  final ValueNotifier<bool> _evidenceOpen = ValueNotifier(false);
+
+  @override
+  void dispose() {
+    _evidenceOpen.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -144,10 +151,12 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
       'leonidas-${ritual.assignmentId}-${immersive ? 'immersive' : 'entry'}',
     ),
     ritual: ritual,
-    authorityController: immersive ? null : widget.controller,
+    authorityController: widget.controller,
     cacheScope: widget.cacheScope,
     voicePreferenceStore: widget.voicePreferenceStore,
     startImmediately: immersive,
+    suspendVisibilityTracking:
+        (!immersive && _immersiveOpen) || (immersive && _evidenceOpen.value),
     onStartRequested: immersive ? null : () => _openImmersive(ritual),
     onRevalidate: immersive ? widget.controller.revalidate : null,
     onReveal: () async {
@@ -169,7 +178,7 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
     onShowEvidence: () {
       final snapshot = widget.controller.state.value;
       if (snapshot != null && snapshot.state == DailyRitualState.completed) {
-        unawaited(_showEvidence(sequenceContext, snapshot));
+        unawaited(_openEvidence(sequenceContext, snapshot));
       }
     },
     onOpenStarpath: widget.onOpenStarpath == null
@@ -185,20 +194,30 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
   );
 
   Future<void> _openImmersive(DailyRitual ritual) async {
-    if (_immersiveOpen || !mounted) return;
+    if (_immersiveOpen ||
+        !mounted ||
+        (ritual.state == DailyRitualState.assigned &&
+            !widget.controller.mutationAuthorityEnabled)) {
+      return;
+    }
     setState(() => _immersiveOpen = true);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
     await Navigator.of(context, rootNavigator: true).push<void>(
       MaterialPageRoute<void>(
         settings: const RouteSettings(name: 'daily-ritual-immersive'),
         builder: (routeContext) => ListenableBuilder(
-          listenable: widget.controller,
-          builder: (context, _) {
-            final current = widget.controller.state.value ?? ritual;
-            return _DailyRitualImmersivePage(
-              onDismiss: () => Navigator.of(routeContext).maybePop(),
-              child: _buildSequence(routeContext, current, immersive: true),
-            );
-          },
+          listenable: _evidenceOpen,
+          builder: (context, _) => ListenableBuilder(
+            listenable: widget.controller,
+            builder: (context, _) {
+              final current = widget.controller.state.value ?? ritual;
+              return _DailyRitualImmersivePage(
+                onDismiss: () => Navigator.of(routeContext).maybePop(),
+                child: _buildSequence(routeContext, current, immersive: true),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -214,6 +233,24 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) widget.onOpenStarpath?.call();
     });
+  }
+
+  Future<void> _openEvidence(
+    BuildContext context,
+    DailyRitual completedSnapshot,
+  ) async {
+    if (_evidenceOpen.value || !mounted) return;
+    _evidenceOpen.value = true;
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !context.mounted) {
+      if (mounted) _evidenceOpen.value = false;
+      return;
+    }
+    try {
+      await _showEvidence(context, completedSnapshot);
+    } finally {
+      if (mounted) _evidenceOpen.value = false;
+    }
   }
 
   Future<void> _showEvidence(

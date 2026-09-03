@@ -1,6 +1,6 @@
 # Daily Ritual Rebuild
 
-**Status:** G1 composition approved; immersive fullscreen refinement and implementation verification in progress  
+**Status:** Implemented, product-approved, and U6 verified on iPhone 17  
 **Owner decisions captured:** 2026-09-02  
 **Platform:** Flutter application validated on iOS  
 **Authoritative scope:** Daily Ritual entry, hold, reveal, Leonidas closing, completion, and onward handoff
@@ -37,7 +37,15 @@ The revealed state displays the real illustrated card, its title, a concise inte
 
 The probes are not pixel specifications and their generated wording is not authoritative. Production uses the real application fonts, theme tokens, card assets, and approved copy defined below.
 
-### G1 implementation evidence — composition approved with one refinement
+### Approved production direction
+
+On 2026-09-02 the product owner approved the final post-refinement iPhone 17 sequence below as the visual authority for the rebuild. The invitation remains in the normal app shell. Start enters a chrome-free fullscreen ceremony; Holding, Revealed, C2 closing, and Completed onward have no global top utilities or bottom navigation and no ordinary-size scroll surface.
+
+![Approved fullscreen iPhone 17 Daily Ritual sequence](../evidence/daily-ritual-rebuild/g1-fullscreen-approved-contact-sheet.jpg)
+
+The five individual logical-resolution frames are retained under [`../evidence/daily-ritual-rebuild/simulator/iphone-17/`](../evidence/daily-ritual-rebuild/simulator/iphone-17/). The deterministic widget suite replays the same real controller-driven lifecycle in light and dark atmospheres and freezes Resting, Holding at 60%, Revealed, C2 closing, and Completed onward under `test/goldens/`. The generated probes are not baselines.
+
+### Historical G1 evidence — composition approval before fullscreen refinement
 
 The following frames come from the real production widget and application shell running on the iPhone 17 simulator with deterministic test authority. On 2026-09-02 the product owner approved their stage composition, face clearance, card continuity, and action hierarchy, with one binding refinement: after Start, the ceremony must occupy a fullscreen route with the global top utility row and bottom navigation removed. These pre-refinement frames remain decision evidence, not permanent golden baselines.
 
@@ -47,7 +55,7 @@ The comparison below places each selected probe beside the simulator result, a 5
 
 ![Daily Ritual probe-to-simulator comparison](../evidence/daily-ritual-rebuild/g1-probe-comparison.jpg)
 
-Current G1 evidence status:
+Historical G1 evidence status:
 
 - The iPhone 17 capture flow passes for Resting, Holding at 60%, Revealed, C2 closing, and Completed onward.
 - Leonidas's face remains clear in every captured state.
@@ -55,7 +63,7 @@ Current G1 evidence status:
 - The completion heading remains in the top-left metadata area because the generated probe's centered heading conflicts with the approved face-clear rectangle.
 - The navigable pre-start invitation remains in the normal app shell. Ready, Holding, Revealed, C2, and Completed occupy a fullscreen route without global top icons or bottom navigation.
 - Standard text sizes do not scroll during the immersive ceremony. Accessibility text sizes may scroll only the adaptive lower content needed to keep every control and complete string reachable.
-- Permanent goldens remain gated on final post-refinement simulator approval in U6.
+- These frames do not replace the approved fullscreen sequence above.
 
 ## Authoritative flow
 
@@ -324,24 +332,21 @@ The implementation plan must name any additional focused test files before codin
 
 Add geometry assertions using stable widget keys: card, seal, labels, buttons, glows, and progress elements must not intersect the face-clear rectangle. These assertions must run at the reference viewport and 2× text.
 
-### 4. Golden-state matrix
+### 4. Durable visual-regression matrix
 
-Capture deterministic goldens after the simulator implementation has been visually approved.
+The approved implementation uses a deliberately compact pixel-golden set rather than duplicating the image-heavy stage for every behavioral permutation. `visual_reference_test.dart` runs the real controller, repository boundary, fullscreen route, card asset, portrait asset, and production widgets through one complete lifecycle in each atmosphere. It freezes these five visually distinct checkpoints:
 
-| State | Light | Dark | 2× text | Reduced Motion |
-|---|---:|---:|---:|---:|
-| Resting | Required | Required | Required | — |
-| Ready to hold | Required | Required | Required | — |
-| Holding at 60% | Required | Required | — | Required |
-| Early-release response | Required | Required | Required | Required |
-| Reading revealed | Required | Required | Required | — |
-| Finish pending | Required | Required | — | — |
-| C2 card expanded + closing | Required | Required | Required | Required |
-| Completed onward | Required | Required | Required | Required |
-| Reveal error | Required | Required | Required | — |
-| Finish error | Required | Required | Required | — |
+| Approved checkpoint | Light | Dark | Additional binding coverage |
+|---|---:|---:|---|
+| Resting invitation | Golden | Golden | 2× layout/accessibility tests; shell navigation tests |
+| Holding at 60% | Golden | Golden | Virtual-time 0/3/5-second controller tests; Reduced Motion tests |
+| Reading revealed | Golden | Golden | 2× layout/accessibility tests; exact-art and face-clear geometry tests |
+| C2 card expanded + closing | Golden | Golden | Reduced Motion, caption, Skip, and transformed-bounds tests |
+| Completed onward | Golden | Golden | 2× layout/accessibility tests; Evidence and Starpath routing tests |
 
-Golden tests must freeze clocks and animation controllers at named checkpoints. Updating a golden is never evidence that a change is acceptable; the update requires an accompanying simulator comparison and review of the changed pixels.
+Ready, early release, accepted waiting, Finish pending, reveal failure, Finish failure, restoration, missing media, and offline preparation remain binding. Their acceptance is deterministic state, widget, geometry, semantic, and integration coverage in `daily_ritual_stage_controller_test.dart`, `leonidas_ritual_sequence_test.dart`, `daily_ritual_stage_layout_test.dart`, `u4_presentation_test.dart`, `accessibility_test.dart`, and `daily_ritual_leonidas_integration_test.dart`. They do not receive redundant pixel baselines unless a future change gives one a materially new composition.
+
+Golden tests freeze clocks and asynchronous closing at named checkpoints. Updating a golden is never evidence that a change is acceptable; changed pixels require a fresh simulator comparison and explicit product-owner review.
 
 ### 5. Visual comparison protocol
 

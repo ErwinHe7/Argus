@@ -281,7 +281,7 @@ class DailyRitualRepository {
     DailyRitual authoritative,
   ) {
     _validateIfScoped(authoritative);
-    if (!current.hasSameLineage(authoritative)) {
+    if (!current.hasSameAssignmentIdentity(authoritative)) {
       throw const RitualAuthorityInvalid(RitualAuthorityInvalidReason.lineage);
     }
   }

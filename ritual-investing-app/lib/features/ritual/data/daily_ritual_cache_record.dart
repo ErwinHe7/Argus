@@ -59,15 +59,24 @@ class DailyRitualCacheRecord {
     required Duration receivedAtElapsed,
   }) {
     validateAuthority(scope: scope, mode: mode, ritual: ritual);
+    final receivedAtUtc = receivedAt.toUtc();
+    final validUntilUtc = ritual.validUntil!.toUtc();
+    final serverWindow = validUntilUtc.difference(
+      ritual.serverEvaluatedAt!.toUtc(),
+    );
+    final remainingAtReceipt = validUntilUtc.difference(receivedAtUtc);
+    if (remainingAtReceipt <= Duration.zero) {
+      throw const RitualAuthorityInvalid(RitualAuthorityInvalidReason.validity);
+    }
     return DailyRitualCacheRecord._(
       schemaVersion: currentSchemaVersion,
       scope: scope,
       mode: mode,
       ritual: ritual,
-      serverValidity: ritual.validUntil!.toUtc().difference(
-        ritual.serverEvaluatedAt!.toUtc(),
-      ),
-      receivedAt: receivedAt.toUtc(),
+      serverValidity: remainingAtReceipt < serverWindow
+          ? remainingAtReceipt
+          : serverWindow,
+      receivedAt: receivedAtUtc,
       receivedAtElapsed: receivedAtElapsed,
     );
   }
@@ -93,6 +102,7 @@ class DailyRitualCacheRecord {
     } on RitualAuthorityInvalid {
       return false;
     }
+    if (!now.toUtc().isBefore(ritual.validUntil!.toUtc())) return false;
     final monotonicAge = elapsed - receivedAtElapsed;
     if (monotonicAge.isNegative || monotonicAge >= serverValidity) return false;
     final wallAge = now.toUtc().difference(receivedAt);

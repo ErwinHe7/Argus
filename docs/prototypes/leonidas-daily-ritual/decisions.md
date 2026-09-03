@@ -1,4 +1,6 @@
-# Reveal choreography and voice
+# Reveal choreography and voice — historical prototype
+
+> **Superseded:** This browser prototype is no longer the canonical Daily Ritual. The production authority is the [Daily Ritual rebuild](../../../ritual-investing-app/docs/reviews/daily-ritual-rebuild.md), including its [approved fullscreen iPhone 17 sequence](../../../ritual-investing-app/docs/evidence/daily-ritual-rebuild/g1-fullscreen-approved-contact-sheet.jpg).
 
 ## Question
 
@@ -10,7 +12,7 @@ Where should Leonidas enter the Daily Ritual, and when should his spoken interpr
 - Tested in a portrait 390 × 844 mobile stage.
 - Used real CSS motion, a browser-synthesized placeholder voice, captions, and an evidence sheet.
 
-## Decision
+## Historical decision
 
 Use a hybrid of directions A and B:
 
@@ -36,9 +38,13 @@ Direction C's progressive disclosure may still inform the evidence treatment, bu
 - Keep captions complete when voice is unavailable or disabled.
 - Keep evidence, uncertainty, and the non-recommendation boundary explicit.
 
-## Production status
+## Superseding production decision
 
-- Implemented in Flutter with the selected standing → flip → close-up order.
-- Reviewed Daily Ritual output is mapped into native iOS/Android speech with complete captions as fallback.
-- Reduced Motion, VoiceOver/TalkBack semantics, interrupted audio, and fail-closed reveal behavior are implemented and covered by focused tests.
-- Final Leonidas voice casting remains a production content decision; the native system voice is the current delivery mechanism.
+- The invitation remains passive and navigable until **Start your daily ritual** is chosen.
+- Start opens a chrome-free fullscreen stage led by Leonidas. The member holds the seal for five continuous seconds; releasing early cancels without revealing.
+- The real assigned card and one interpretation appear after authoritative reveal. One explicit Finish precedes the short skippable Leonidas close and the Evidence → Starpath handoff.
+- Leonidas remains visibly present throughout; the seal, card, and copy preserve the face-clear zone. No finger, sensor, or biometric metaphor appears in the UI.
+- Ordinary-size ceremony states do not scroll. Accessibility scaling may adapt the lower content region so complete strings and controls remain reachable.
+- Native iOS/Android speech remains optional presentation with complete captions, Reduced Motion, assistive semantic activation, interruption handling, and fail-closed mutation behavior.
+
+The earlier standing → flip → close-up choreography and its post-reading content stack remain useful exploration history only. They must not be restored as product guidance or regression authority.

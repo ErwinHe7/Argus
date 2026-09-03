@@ -69,7 +69,7 @@ binds to that same staging project and public-beta API after the release guard
 verifies the exact project ref, origin, and publishable-key
 fingerprint.
 
-The visual baselines live under `test/goldens/`. Regenerate them only after comparing the result with the approved authority at `../docs/visual-references/standalone-ritual-investing/approved-light-dark-reference.html`.
+Visual authority is feature-owned. The current Daily Ritual direction, requirements, and approval record live in [`docs/reviews/daily-ritual-rebuild.md`](docs/reviews/daily-ritual-rebuild.md); its approved iPhone 17 sequence is [`docs/evidence/daily-ritual-rebuild/g1-fullscreen-approved-contact-sheet.jpg`](docs/evidence/daily-ritual-rebuild/g1-fullscreen-approved-contact-sheet.jpg). The corresponding light/dark widget baselines live under `test/goldens/daily_ritual_*` and are exercised by `test/visual_reference_test.dart`. Regenerate them only after a fresh simulator comparison and explicit product-owner approval. Other retained visual references continue to govern their own surfaces.
 
 ## Native prerequisites
 

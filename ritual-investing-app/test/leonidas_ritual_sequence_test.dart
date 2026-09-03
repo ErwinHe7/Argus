@@ -3,6 +3,7 @@ import 'dart:ui' show SemanticsAction;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/app/theme/app_theme.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
@@ -35,6 +36,65 @@ void main() {
     expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
     expect(revealCount, 0);
     expect(voice.lines, isEmpty);
+  });
+
+  testWidgets('unavailable content is fail-closed with authority retry', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    var retries = 0;
+
+    await tester.pumpWidget(
+      _testApp(
+        ritual: _ritual(
+          DailyRitualState.assigned,
+          contentAvailability: RitualContentAvailability.unavailable,
+        ),
+        voice: _UnavailableVoice(),
+        onReveal: () async => true,
+        onRevalidate: () async => retries += 1,
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('leonidas-sequence-start')), findsNothing);
+    expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
+    expect(
+      find.text(
+        'Today’s ritual content is unavailable. Nothing unverified was shown.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('daily-ritual-content-retry')));
+    await tester.pump();
+    expect(retries, 1);
+  });
+
+  testWidgets('completed unavailable content keeps only trusted onward exits', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+
+    await tester.pumpWidget(
+      _testApp(
+        ritual: _ritual(
+          DailyRitualState.completed,
+          contentAvailability: RitualContentAvailability.unavailable,
+        ),
+        voice: _UnavailableVoice(),
+        onReveal: () async => true,
+        onShowEvidence: () {},
+        onOpenStarpath: () {},
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
+    expect(find.text('Strength'), findsNothing);
+    expect(find.byKey(const Key('ritual-complete')), findsNothing);
+    expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
   });
 
   for (final releaseAfter in <Duration>[
@@ -203,47 +263,51 @@ void main() {
     await gesture.up();
   });
 
-  testWidgets('tab invisibility cancels the hold and return stays passive', (
-    tester,
-  ) async {
-    _setPhoneViewport(tester);
-    final tabVisible = ValueNotifier<bool>(true);
-    addTearDown(tabVisible.dispose);
-    var revealCount = 0;
+  testWidgets(
+    'tab invisibility cancels and restores Leonidas acknowledgement',
+    (tester) async {
+      _setPhoneViewport(tester);
+      final tabVisible = ValueNotifier<bool>(true);
+      addTearDown(tabVisible.dispose);
+      var revealCount = 0;
 
-    await tester.pumpWidget(
-      _testApp(
-        ritual: _ritual(DailyRitualState.assigned),
-        voice: _UnavailableVoice(),
-        onReveal: () async {
-          revealCount += 1;
-          return true;
-        },
-        tabVisibility: tabVisible,
-      ),
-    );
-    await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
-    await tester.pump();
-    final gesture = await tester.startGesture(
-      tester.getCenter(find.bySemanticsLabel('Hold to attune')),
-    );
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 4900));
+      await tester.pumpWidget(
+        _testApp(
+          ritual: _ritual(DailyRitualState.assigned),
+          voice: _UnavailableVoice(),
+          onReveal: () async {
+            revealCount += 1;
+            return true;
+          },
+          tabVisibility: tabVisible,
+        ),
+      );
+      await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+      await tester.pump();
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.bySemanticsLabel('Hold to attune')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 4900));
 
-    tabVisible.value = false;
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 1));
-    expect(revealCount, 0);
+      tabVisible.value = false;
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+      expect(revealCount, 0);
 
-    tabVisible.value = true;
-    await tester.pump();
-    await tester.pump();
-    await gesture.up();
-    expect(find.text('Start your daily ritual'), findsOneWidget);
-    expect(revealCount, 0);
-  });
+      tabVisible.value = true;
+      await tester.pump();
+      await tester.pump();
+      await gesture.up();
+      expect(
+        find.text('You let go. Was the moment not right?'),
+        findsOneWidget,
+      );
+      expect(revealCount, 0);
+    },
+  );
 
-  testWidgets('unavailable decoded art never paints a fallback card face', (
+  testWidgets('image load failure shows retry and never substitutes art', (
     tester,
   ) async {
     _setPhoneViewport(tester);
@@ -253,12 +317,20 @@ void main() {
         ritual: _ritual(DailyRitualState.completed),
         voice: _UnavailableVoice(),
         onReveal: () async => true,
-        artDecodeSucceeds: false,
+        assetBundle: _FailingTarotAssetBundle(rootBundle),
       ),
     );
+    await tester.pump();
+    await tester.pump();
 
     expect(find.byKey(const Key('leonidas-card-front')), findsNothing);
-    expect(find.byIcon(Icons.image_not_supported_outlined), findsNothing);
+    expect(
+      find.text(
+        'Today’s exact card is unavailable. Nothing else was substituted.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('daily-ritual-media-retry')), findsOneWidget);
   });
 
   testWidgets(
@@ -577,8 +649,11 @@ Widget _testApp({
   required DailyRitual ritual,
   required LeonidasVoice voice,
   required Future<bool> Function() onReveal,
+  Future<void> Function()? onRevalidate,
   VoidCallback? onShowEvidence,
+  VoidCallback? onOpenStarpath,
   bool artDecodeSucceeds = true,
+  AssetBundle? assetBundle,
   Future<bool> Function(DailyRitual)? prepareExactMedia,
   Future<bool> Function()? onComplete,
   ValueListenable<bool>? tabVisibility,
@@ -588,8 +663,10 @@ Widget _testApp({
       ritual: ritual,
       voice: voice,
       onReveal: onReveal,
+      onRevalidate: onRevalidate,
       onComplete: onComplete,
       onShowEvidence: onShowEvidence,
+      onOpenStarpath: onOpenStarpath,
       useBundledArtwork: artDecodeSucceeds,
       prepareExactMedia:
           prepareExactMedia ?? (artDecodeSucceeds ? (_) async => true : null),
@@ -600,7 +677,7 @@ Widget _testApp({
       ),
     ),
   );
-  return MaterialApp(
+  final app = MaterialApp(
     theme: AppTheme.dark,
     home: Scaffold(
       body: tabVisibility == null
@@ -613,6 +690,25 @@ Widget _testApp({
             ),
     ),
   );
+  return assetBundle == null
+      ? app
+      : DefaultAssetBundle(bundle: assetBundle, child: app);
+}
+
+class _FailingTarotAssetBundle extends CachingAssetBundle {
+  _FailingTarotAssetBundle(this.delegate);
+
+  final AssetBundle delegate;
+
+  @override
+  Future<ByteData> load(String key) {
+    if (key.contains('/tarot/')) {
+      return Future<ByteData>.error(
+        StateError('intentional tarot image failure'),
+      );
+    }
+    return delegate.load(key);
+  }
 }
 
 class _TrackingVoice implements LeonidasVoice {
@@ -660,6 +756,8 @@ DailyRitual _ritual(
   DailyRitualState state, {
   String interpretation = 'Patience is the stronger path.',
   String counsel = 'The choice remains yours.',
+  RitualContentAvailability contentAvailability =
+      RitualContentAvailability.available,
 }) => DailyRitual(
   assignmentId: '00000000-0000-4000-8000-000000000101',
   date: DateTime.utc(2026, 9, 2),
@@ -706,4 +804,5 @@ DailyRitual _ritual(
     sourceLabel: 'Deterministic fixture',
     limitations: const ['Fictional scenario; no live provider data.'],
   ),
+  contentAvailability: contentAvailability,
 );
