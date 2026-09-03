@@ -43,12 +43,14 @@ Deno.test("missing or malformed environment fails closed", () => {
 });
 
 Deno.test("public-beta consumer origins are an exact bounded set", () => {
+  const stagingPreviewOrigin =
+    "https://staging-ritual-investing-member.xiaolonggao521.workers.dev";
   assertEquals(
     requiredConsumerOrigins(reader({
       ARGUS_CONSUMER_ORIGINS:
-        "https://just-build-this.app,https://staging.just-build-this.app",
+        `https://just-build-this.app,${stagingPreviewOrigin}`,
     })),
-    ["https://just-build-this.app", "https://staging.just-build-this.app"],
+    ["https://just-build-this.app", stagingPreviewOrigin],
   );
 
   for (
@@ -58,7 +60,8 @@ Deno.test("public-beta consumer origins are an exact bounded set", () => {
       "null",
       "https://just-build-this.app",
       "https://just-build-this.app,https://branch.pages.dev",
-      "https://just-build-this.app,https://staging.just-build-this.app/route",
+      "https://just-build-this.app,https://staging.just-build-this.app",
+      `https://just-build-this.app,${stagingPreviewOrigin}/route`,
     ]
   ) {
     assertThrows(

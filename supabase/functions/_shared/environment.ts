@@ -1,9 +1,8 @@
 type EnvironmentReader = (name: string) => string | undefined;
 
-const publicBetaConsumerOrigins = Object.freeze([
-  "https://just-build-this.app",
-  "https://staging.just-build-this.app",
-]);
+const publicBetaOrigin = "https://just-build-this.app";
+const stagingMemberPreviewOrigin =
+  /^https:\/\/staging-ritual-investing-member\.[a-z0-9-]+\.workers\.dev$/;
 
 export function requiredEnvironment(
   name: string,
@@ -23,14 +22,18 @@ export function requiredConsumerOrigins(
   const values = configured.split(",").map((value) => value.trim()).filter(
     (value) => value.length > 0,
   );
+  const previewOrigin = values.find((origin) =>
+    stagingMemberPreviewOrigin.test(origin)
+  );
   if (
-    values.length !== publicBetaConsumerOrigins.length ||
+    values.length !== 2 ||
     new Set(values).size !== values.length ||
-    !publicBetaConsumerOrigins.every((origin) => values.includes(origin))
+    !values.includes(publicBetaOrigin) ||
+    previewOrigin === undefined
   ) {
     throw new Error("invalid_argus_consumer_origins");
   }
-  return publicBetaConsumerOrigins;
+  return Object.freeze([publicBetaOrigin, previewOrigin]);
 }
 
 export function requiredExactOrigin(
