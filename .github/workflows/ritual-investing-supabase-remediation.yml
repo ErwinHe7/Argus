@@ -297,7 +297,7 @@ jobs:
           test "$SUPABASE_PROJECT_ID" = "$RITUAL_EXPECTED_SUPABASE_PROJECT_ID"
           node -e 'const value=process.env.RITUAL_STAGING_PREVIEW_ORIGIN; const url=new URL(value); if (url.origin !== value || url.protocol !== "https:" || !/^staging-[a-z0-9-]+\.[a-z0-9-]+\.workers\.dev$/.test(url.hostname)) process.exit(1)'
           echo "RITUAL_STAGING_CONSUMER_ORIGINS=https://just-build-this.app,$RITUAL_STAGING_PREVIEW_ORIGIN" >>"$GITHUB_ENV"
-          test "$RITUAL_STAGING_WEB_ADMISSION" = "open" || test "$RITUAL_STAGING_WEB_ADMISSION" = "contained"
+          test "$RITUAL_STAGING_WEB_ADMISSION" = "open"
           node -e 'const value=process.env.RITUAL_STAGING_ADMIN_ORIGIN; const url=new URL(value); if (url.origin !== value || !["http:", "https:"].includes(url.protocol)) process.exit(1)'
           ./scripts/check-supabase-migration-inventory.sh --check-cli
           test "$(sha256sum docs/ritual-investing/supabase-migration-inventory-v1.txt | cut -d' ' -f1)" = "$RITUAL_MIGRATION_CHECKSUM"

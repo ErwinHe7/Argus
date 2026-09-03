@@ -25,19 +25,19 @@ The release manifest uses one central capability state:
 | State | Public-beta meaning |
 | --- | --- |
 | `beta-backed` | Supported public-beta behavior uses the exact staging API and private staging data boundary; privacy deletion may use an API-backed request/status path with a verified manual completion SLA. |
-| `unavailable` | The surface is visibly incomplete and issues no provider or financial request. |
+| `unavailable` | An independent feature or safety flag disables the surface; public-beta lifecycle status alone never selects this state. |
 | `standalone Demo handoff` | The member leaves through an explicit Demo-labeled link to the independent synthetic artifact. |
 
 For this beta, authorized privacy export is `beta-backed`. Deletion must be
 `beta-backed` through the idempotent automated path or an API-backed
 request/status path with a verified manual completion SLA. If neither deletion
 path passes acceptance, the member beta is NO-GO; privacy must not be relabeled
-`unavailable` to ship. Brokerage reads and mutations, provider connection, and
-funding remain `unavailable`. Demo fixtures are never a fallback, and failures
-never redirect automatically to Demo. Every authenticated surface identifies
-the experience as a public beta, discloses the unavailable financial authority,
-and keeps privacy, support, about, beta-feedback, and legal information
-reachable.
+`unavailable` to ship. Brokerage reads and reviewed manual mutations are
+available to admitted beta members unless their independent feature or safety
+flag is closed. Demo fixtures are never a fallback, and failures never redirect
+automatically to Demo. Every authenticated surface identifies the experience as
+a public beta without using that label as an availability gate, and keeps
+privacy, support, about, beta-feedback, and legal information reachable.
 
 Open signup is the standard entry path; invitation-only entry is not supported.
 Before public promotion, retain dated evidence for custom SMTP, hosted email
@@ -48,7 +48,7 @@ support path.
 
 Every unresolved hardening and product-definition concern is a P1 follow-up in
 [`public-beta-web-p1-follow-up-register.md`](public-beta-web-p1-follow-up-register.md).
-Those entries do not authorize enabling an unavailable capability.
+Those entries do not override an independent feature or safety flag.
 
 ## Required repository proof
 

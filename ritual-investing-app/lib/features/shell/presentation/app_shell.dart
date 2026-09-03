@@ -68,11 +68,11 @@ class _PublicBetaDisclosure extends StatelessWidget {
         child: Semantics(
           container: true,
           liveRegion: false,
-          label: 'Public beta. Supported data shows source and freshness in each view. Live brokerage connections, funding, and orders are unavailable.',
+          label: 'Public beta. Features may evolve as we learn from early access. Data shows source and freshness in each view.',
           excludeSemantics: true,
           child: Text(
-            'PUBLIC BETA · Supported data shows source and freshness. '
-            'Live brokerage, funding, and orders are unavailable.',
+            'PUBLIC BETA · Features may evolve as we learn from early access. '
+            'Data shows source and freshness.',
             style: Theme.of(context).textTheme.labelSmall,
             textAlign: TextAlign.center,
           ),

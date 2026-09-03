@@ -400,26 +400,31 @@ describe("Supabase Edge retained API adapter", () => {
     expect(test.bootstrap).toHaveBeenCalledOnce();
   });
 
-  it("keeps financial and provider capabilities unavailable to web origins", async () => {
-    const test = fixture();
+  it("allows admitted financial and provider capabilities from web origins", async () => {
+    const status = vi.fn(async () => ({ status: "connected", accounts: [] }));
+    const service = {
+      issueStepUp: vi.fn(),
+      start: vi.fn(),
+      reconnect: vi.fn(),
+      status,
+      selectAccount: vi.fn(),
+      redeemCompletion: vi.fn(),
+      disconnect: vi.fn(),
+    } as BrokerageConnectionRouteService;
+    const test = fixture({ brokerageConnectionService: service });
 
-    for (const path of ["/v1/brokerage/connection"]) {
-      const response = await test.app.request(
-        path,
-        {
-          headers: { authorization: "Bearer valid-token", origin: betaOrigin },
-        },
-        bindings,
-      );
-      expect(response.status).toBe(503);
-      expect(await response.json()).toMatchObject({
-        error: { code: "web_capability_unavailable", retryable: false },
-      });
-    }
-    expect(test.withRepositories).not.toHaveBeenCalled();
+    const response = await test.app.request(
+      "/v1/brokerage/connection",
+      {
+        headers: { authorization: "Bearer valid-token", origin: betaOrigin },
+      },
+      bindings,
+    );
+    expect(response.status).toBe(200);
+    expect(status).toHaveBeenCalledOnce();
   });
 
-  it("allows only deletion step-up for web origins, including containment", async () => {
+  it("uses admission state, not public-beta origin, to gate web step-up", async () => {
     const issueStepUp = vi.fn(async (action: "webull_disconnect" | "argus_delete") => ({
       action,
       receipt: "a".repeat(32),
@@ -469,11 +474,26 @@ describe("Supabase Edge retained API adapter", () => {
       },
       bindings,
     );
-    expect(brokerage.status).toBe(503);
-    expect(await brokerage.json()).toMatchObject({
-      error: { code: "web_capability_unavailable" },
+    expect(brokerage.status).toBe(200);
+
+    const containedBrokerage = await test.app.request(
+      "/v1/member/step-up",
+      {
+        method: "POST",
+        headers: {
+          authorization: "Bearer valid-token",
+          "content-type": "application/json",
+          origin: betaOrigin,
+        },
+        body: JSON.stringify({ action: "webull_disconnect" }),
+      },
+      { ...bindings, webAdmission: "contained" },
+    );
+    expect(containedBrokerage.status).toBe(503);
+    expect(await containedBrokerage.json()).toMatchObject({
+      error: { code: "web_admission_closed", retryable: true },
     });
-    expect(issueStepUp).toHaveBeenCalledTimes(2);
+    expect(issueStepUp).toHaveBeenCalledTimes(3);
   });
 
   it("denies invalid tokens and untrusted origins before repository access", async () => {

@@ -14,7 +14,7 @@ import 'package:ritual_investing_app/features/ritual/data/leonidas_voice_prefere
 import 'package:ritual_investing_app/features/public_beta/domain/member_capability_policy.dart';
 
 void main() {
-  test('public web beta policy keeps financial capabilities unavailable', () {
+  test('public beta lifecycle label does not gate product capabilities', () {
     const policy = MemberCapabilityPolicy.publicWebBeta;
 
     for (final capability in const [
@@ -25,17 +25,15 @@ void main() {
       MemberCapability.community,
       MemberCapability.identity,
       MemberCapability.privacy,
-    ]) {
-      expect(policy.stateOf(capability), MemberCapabilityState.betaBacked);
-    }
-    for (final capability in const [
+      MemberCapability.memberScenarios,
+      MemberCapability.notifications,
       MemberCapability.brokerageConnection,
       MemberCapability.brokeragePortfolio,
       MemberCapability.funding,
       MemberCapability.brokerageOrders,
     ]) {
-      expect(policy.stateOf(capability), MemberCapabilityState.unavailable);
-      expect(policy.permits(capability), isFalse);
+      expect(policy.stateOf(capability), MemberCapabilityState.betaBacked);
+      expect(policy.permits(capability), isTrue);
     }
     expect(
       policy.stateOf(MemberCapability.standaloneDemo),
@@ -61,9 +59,21 @@ void main() {
     ).readAsStringSync();
     expect(container, contains("config.environment == 'staging'"));
     expect(container, isNot(contains("config.environment == 'beta'")));
+
+    final workflow = File(
+      '../.github/workflows/ritual-investing-supabase-remediation.yml',
+    ).readAsStringSync();
+    expect(
+      workflow,
+      contains(r'test "$RITUAL_STAGING_WEB_ADMISSION" = "open"'),
+    );
+    expect(
+      workflow,
+      isNot(contains(r'|| test "$RITUAL_STAGING_WEB_ADMISSION" = "contained"')),
+    );
   });
 
-  test('public web beta scope constructs no brokerage controllers', () {
+  test('public web beta scope constructs brokerage controllers', () {
     final storage = _MemoryProtectedStorage();
     final repository = _SessionRepository();
     const cacheScope = CacheScope(accountId: 'member-a', resetGeneration: 0);
@@ -96,9 +106,9 @@ void main() {
         );
     addTearDown(scope.dispose);
 
-    expect(scope.brokerageConnectionController, isNull);
-    expect(scope.brokeragePortfolioController, isNull);
-    expect(scope.brokerageOrderController, isNull);
+    expect(scope.brokerageConnectionController, isNotNull);
+    expect(scope.brokeragePortfolioController, isNotNull);
+    expect(scope.brokerageOrderController, isNotNull);
   });
 
   test(

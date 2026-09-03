@@ -11,7 +11,7 @@ import 'support/fixture_services.dart';
 
 void main() {
   testWidgets(
-    'public web beta shell stays mobile-width and keeps its financial disclosure visible',
+    'public web beta shell stays mobile-width without capability restrictions',
     (tester) async {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
@@ -30,7 +30,7 @@ void main() {
       expect(find.byKey(const Key('public-beta-disclosure')), findsOneWidget);
       expect(
         find.textContaining(
-          'Live brokerage, funding, and orders are unavailable',
+          'Features may evolve as we learn from early access',
         ),
         findsOneWidget,
       );
@@ -40,7 +40,6 @@ void main() {
             .width,
         480,
       );
-      expect(find.byKey(const Key('you-brokerage')), findsNothing);
     },
   );
 

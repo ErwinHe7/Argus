@@ -1,6 +1,6 @@
 # Ritual Investing
 
-Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS, Android, and a self-service mobile-web beta and does not import from, run, or modify the AXIO7 research services. The web beta preserves supported member behavior, including the launch-required privacy lifecycle; it does not enable unfinished financial behavior.
+Flutter member application for the ritual-first Argus product. The app ships one shared Dart UI to iOS, Android, and a self-service mobile-web beta and does not import from, run, or modify the AXIO7 research services. Public-beta status labels the experience but does not restrict product capabilities; independently reviewed feature and safety flags own availability.
 
 ## Product authority
 
@@ -17,12 +17,12 @@ The clearly labeled apex member public beta uses regular email-and-password sign
 Capability labels have one meaning across the member app and release evidence:
 
 - `beta-backed` is a product-lifecycle capability label: supported public-beta behavior uses the staging Argus API and private staging data boundary. Privacy export is beta-backed; deletion is beta-backed through the idempotent deletion path or a request/status path with a verified manual completion SLA.
-- `unavailable` means the control is visibly incomplete and performs no provider or financial request. Brokerage connection and reads, funding, and order mutations remain in this state for the beta.
+- `unavailable` means an independent feature or safety flag has disabled the control. Public-beta lifecycle status never selects this state by itself.
 - `standalone Demo handoff` means an explicit, visibly labeled navigation to the independent synthetic Demo; Demo fixtures never fill gaps in the member app.
 
-Self-service signup is the beta entry path. Hosted signup enablement, custom SMTP, email confirmation, recovery, enumeration-safe errors, rate limits, CAPTCHA or equivalent abuse protection, deletion, and support proof must be recorded before public promotion. Invitation links are not part of the member journey. The unresolved hardening and product-definition work is tracked as P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](../docs/ritual-investing/public-beta-web-p1-follow-up-register.md); that register does not waive a launch gate or authorize an unavailable financial capability.
+Self-service signup is the beta entry path. Hosted signup enablement, custom SMTP, email confirmation, recovery, enumeration-safe errors, rate limits, CAPTCHA or equivalent abuse protection, deletion, and support proof must be recorded before public promotion. Invitation links are not part of the member journey. The unresolved hardening and product-definition work is tracked as P1 follow-up in [`public-beta-web-p1-follow-up-register.md`](../docs/ritual-investing/public-beta-web-p1-follow-up-register.md); that register does not waive a launch gate or override an independent feature or safety flag.
 
-Every authenticated route labels the experience as a public beta and states that live brokerage connections, funding, and orders are unavailable. Privacy, support, about, beta-feedback, and legal information remain reachable from the member experience.
+Every authenticated route labels the experience as a public beta without using that label as an availability gate. Privacy, support, about, beta-feedback, and legal information remain reachable from the member experience.
 
 ## Member surfaces
 
