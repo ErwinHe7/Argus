@@ -44,7 +44,7 @@ void main() {
   );
 
   testWidgets(
-    'restored ritual uses explicit accessible entry and 2x immersive reflow',
+    'restored ritual keeps shell chrome and provides 2x accessible reflow',
     (tester) async {
       final semantics = tester.ensureSemantics();
       tester.view.physicalSize = const Size(430, 932);
@@ -64,23 +64,19 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Review today’s ritual'), findsOneWidget);
       expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
       expect(find.byType(NavigationBar), findsOneWidget);
       await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
       await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
 
-      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-      await tester.pumpAndSettle();
-
-      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
       expect(
-        find.byKey(const Key('daily-ritual-immersive-accessibility-scroll')),
+        find.byKey(const Key('daily-ritual-accessibility-scroll')),
         findsOneWidget,
       );
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.byKey(const Key('ritual-search')), findsNothing);
-      expect(find.byKey(const Key('theme-toggle')), findsNothing);
+      expect(find.byKey(const Key('theme-toggle')), findsOneWidget);
       expect(find.text('Today’s ritual is complete.'), findsOneWidget);
       await tester.ensureVisible(find.byKey(const Key('leonidas-starpath')));
       await tester.pump();
@@ -127,7 +123,7 @@ void main() {
         expect(shell, findsOneWidget);
         final router = GoRouter.of(tester.element(shell));
         final routes = <(String, String)>[
-          (MemberRoutes.ritual.path, 'YOUR DAILY SIGNAL'),
+          (MemberRoutes.ritual.path, 'TODAY’S DAILY RITUAL'),
           (MemberRoutes.starpath.path, 'Walk the Stars'),
           (MemberRoutes.discover.path, 'Discover'),
           (MemberRoutes.coven.path, 'Founders’ Coven'),

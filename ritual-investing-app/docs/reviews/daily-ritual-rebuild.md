@@ -1,7 +1,7 @@
 # Daily Ritual Rebuild
 
-**Status:** Implemented, product-approved, and U6 verified on iPhone 17  
-**Owner decisions captured:** 2026-09-02  
+**Status:** Implemented; in-place shell refinement verified by widget, accessibility, and visual regression tests  
+**Owner decisions captured:** 2026-09-03  
 **Platform:** Flutter application validated on iOS  
 **Authoritative scope:** Daily Ritual entry, hold, reveal, Leonidas closing, completion, and onward handoff
 
@@ -23,7 +23,7 @@ The rebuild must feel ceremonial without becoming slow, coercive, deceptive, or 
 
 ### Entry and hold — The Leonidas Seal
 
-The member first taps **Start your daily ritual** from the navigable Ritual entry page. That action opens a fullscreen, app-chrome-free stage and asks for a five-second continuous hold on the Leonidas Seal. The seal responds with elapsed-time progress and restrained ritual animation while data is prepared behind the scene.
+The member first taps **Start your daily ritual** from the navigable Ritual entry page. The same stage then asks for a five-second continuous hold on the Leonidas Seal while the global top controls and bottom navigation remain fixed. No route or page slides over the shell. The seal is absent before Start and crossfades into the lower stage only after the member explicitly begins. It then responds with elapsed-time progress and restrained ritual animation while data is prepared behind the scene.
 
 ![Selected Leonidas Seal entry and hold direction](assets/daily-ritual-rebuild/06-selected-leonidas-seal-probe.png)
 
@@ -39,15 +39,17 @@ The probes are not pixel specifications and their generated wording is not autho
 
 ### Approved production direction
 
-On 2026-09-02 the product owner approved the final post-refinement iPhone 17 sequence below as the visual authority for the rebuild. The invitation remains in the normal app shell. Start enters a chrome-free fullscreen ceremony; Holding, Revealed, C2 closing, and Completed onward have no global top utilities or bottom navigation and no ordinary-size scroll surface.
+On 2026-09-03 the product owner replaced the separate fullscreen route with one in-place ritual stage. The stage runs edge-to-edge across the available app width between the persistent top utility row and bottom navigation; it is not an inset card. Start, Holding, Revealed, C2 closing, and Completed onward all happen inside that same stable rectangle with no route transition and no ordinary-size scroll surface. The pre-start frame intentionally contains no seal; Start crossfades the attunement layer in over 240 ms, reduced to 120 ms for Reduced Motion. The page-level **Your daily signal** label and instructional phase labels are omitted because the stage title and Leonidas's single current guidance line already communicate the same information.
 
-![Approved fullscreen iPhone 17 Daily Ritual sequence](../evidence/daily-ritual-rebuild/g1-fullscreen-approved-contact-sheet.jpg)
+| Resting: no attunement control | Holding: attunement active in place |
+|---|---|
+| ![Approved in-place Daily Ritual resting state](../../test/goldens/daily_ritual_light_resting.png) | ![Approved in-place Daily Ritual holding state](../../test/goldens/daily_ritual_light_holding_60.png) |
 
-The five individual logical-resolution frames are retained under [`../evidence/daily-ritual-rebuild/simulator/iphone-17/`](../evidence/daily-ritual-rebuild/simulator/iphone-17/). The deterministic widget suite replays the same real controller-driven lifecycle in light and dark atmospheres and freezes Resting, Holding at 60%, Revealed, C2 closing, and Completed onward under `test/goldens/`. The generated probes are not baselines.
+The deterministic widget suite replays the real controller-driven lifecycle in light and dark atmospheres and freezes Resting, Holding at 60%, Revealed, C2 closing, and Completed onward under `test/goldens/`. These current goldens supersede the prior fullscreen capture as the production layout authority. The generated probes remain composition references rather than pixel baselines.
 
-### Historical G1 evidence — composition approval before fullscreen refinement
+### Historical G1 evidence — superseded fullscreen refinement
 
-The following frames come from the real production widget and application shell running on the iPhone 17 simulator with deterministic test authority. On 2026-09-02 the product owner approved their stage composition, face clearance, card continuity, and action hierarchy, with one binding refinement: after Start, the ceremony must occupy a fullscreen route with the global top utility row and bottom navigation removed. These pre-refinement frames remain decision evidence, not permanent golden baselines.
+The following frames come from the real production widget and application shell running on the iPhone 17 simulator with deterministic test authority. On 2026-09-02 they established the stage composition, face clearance, card continuity, and action hierarchy. Their later fullscreen-route refinement was explicitly superseded on 2026-09-03 by the in-place direction above. These frames remain historical decision evidence, not current implementation instructions or permanent golden baselines.
 
 ![Five-state iPhone 17 Daily Ritual implementation](../evidence/daily-ritual-rebuild/g1-five-state-contact-sheet.jpg)
 
@@ -61,9 +63,10 @@ Historical G1 evidence status:
 - Leonidas's face remains clear in every captured state.
 - The bundled Emperor artwork remains the same assigned card through reveal, expansion, and keepsake settlement.
 - The completion heading remains in the top-left metadata area because the generated probe's centered heading conflicts with the approved face-clear rectangle.
-- The navigable pre-start invitation remains in the normal app shell. Ready, Holding, Revealed, C2, and Completed occupy a fullscreen route without global top icons or bottom navigation.
-- Standard text sizes do not scroll during the immersive ceremony. Accessibility text sizes may scroll only the adaptive lower content needed to keep every control and complete string reachable.
-- These frames do not replace the approved fullscreen sequence above.
+- The face clearance, card continuity, and action hierarchy remain useful evidence.
+- The fullscreen route and removal of global top/bottom navigation are superseded and must not be reintroduced.
+- Standard supported portrait sizes do not scroll. Accessibility text sizes, and compact unsupported-height fallbacks where content otherwise cannot fit, may scroll only as needed to keep every control and complete string reachable.
+- These frames do not replace the approved in-place goldens above.
 
 ## Authoritative flow
 
@@ -71,7 +74,7 @@ Historical G1 evidence status:
 Open Ritual tab
   → Resting daily page
   → Start your daily ritual
-  → Fullscreen ceremony (no global top icons or bottom navigation)
+  → Same stage crossfades to attunement (shell remains fixed)
   → Hold Leonidas Seal for 5 seconds
       ↳ release early: cancel and retry when ready
       ↳ failure: remain concealed and offer retry
@@ -89,23 +92,25 @@ Open Ritual tab
 
 - **DR-ENTRY-01 — No forced start.** Opening the app or Ritual tab must not begin the ritual, start speech, animate the seal, reveal content, change lifecycle state, or present a blocking modal.
 - **DR-ENTRY-02 — Explicit daily entry.** A fresh assigned ritual presents **Start your daily ritual** as the only ritual-specific primary action.
-- **DR-ENTRY-03 — Reversible entry and immersive boundary.** Global navigation remains available before the member starts. Start opens a fullscreen ceremony without the global top utility row or bottom navigation. System Back/edge dismissal and assistive semantic dismissal may leave safely; Completed provides Evidence and Starpath as the visible onward exits.
-- **DR-ENTRY-04 — Once per day.** The entry state represents the current member's current daily assignment. A restored revealed assignment shows a compact **Continue your daily ritual** invitation in the normal shell; a restored completed assignment shows **Review today’s ritual** and never offers Start. Neither state auto-presents fullscreen. The explicit invitation opens the immersive route directly in the authoritative Revealed or Completed onward state without replaying earlier ceremony steps.
+- **DR-ENTRY-03 — Stable in-place boundary.** Global navigation and the top utility row remain visible before, during, and after the ritual. Start must not push a route, slide a page, open a modal, or replace the app shell. Completed provides Evidence and Starpath as the visible onward exits inside the same stage.
+- **DR-ENTRY-04 — Once per day.** The entry state represents the current member's current daily assignment. A restored revealed assignment renders directly in the authoritative Revealed state; a restored completed assignment renders directly in Completed onward and never offers Start. Neither state replays earlier ceremony steps, starts speech, mutates authority, or requires a redundant Continue/Review gate.
 - **DR-ENTRY-05 — No outcome leak.** Before reveal, do not expose the assigned card face, title, interpretation, evidence summary, or another clue that reveals the outcome.
 - **DR-ENTRY-06 — Neutral time language.** Use **Today’s daily ritual** or equivalent time-neutral wording. Do not hard-code **Tonight**.
+- **DR-ENTRY-07 — Full-bleed ritual canvas.** The Leonidas stage spans the complete available app width and expands vertically to meet the persistent tab bar, with no page gutter, empty page-colored lower band, floating-card border, rounded outer shell, or duplicated page-level ritual label. Internal actions and copy retain safe horizontal insets.
 
 ### Leonidas composition and role
 
 - **DR-LEO-01 — Leonidas is the guide.** His portrait remains the primary human focal point from resting through the completed handoff.
 - **DR-LEO-02 — Face-clear zone.** Leonidas's eyes, forehead, nose, mouth, and at least the upper half of his face must remain fully visible and unobstructed at every supported viewport, text size, theme, and animation keyframe.
-- **DR-LEO-03 — Effects stay below the face.** Cards, seals, text, progress, glows, particles, and light paths must remain below his chin or around the outside of his lower shoulders. They may not cross the face-clear zone.
+- **DR-LEO-03 — Effects stay below the face.** The full 2:3 Leonidas artwork is laid out proportionally with contain-style scaling and a lower fade, rather than cropped at his shoulders or torso. Cards, seals, text, progress, glows, particles, and light paths remain below his chin or around the outside of his lower shoulders. They may overlap the portrait's lower fade but may not cross the face-clear zone.
 - **DR-LEO-04 — One closing message.** Leonidas contributes one concise motivational message after Finish succeeds. He does not repeat the card title or interpretation.
 - **DR-LEO-05 — No pressure.** Leonidas may invite, acknowledge, or encourage. He must not shame, threaten, predict, recommend a trade, imply certainty, or punish the member for stopping.
+- **DR-LEO-06 — One current message.** Each interactive phase presents one primary Leonidas guidance line. Do not stack a dynamic phase label, imperative heading, and caption that restate the same instruction. Lifecycle confirmations such as **Reading revealed** and **Today’s ritual is complete.** may remain as concise status metadata when they do not duplicate the reading or closing caption.
 
 ### Start and five-second hold
 
-- **DR-HOLD-01 — Two-step entry.** Tapping Start opens the same visual stage as a fullscreen route in the ready-to-hold state. It does not reveal content, mutate lifecycle state, or present a dialog/sheet.
-- **DR-HOLD-02 — Clear instruction.** Ready guidance is **Place your thumb on the seal and hold.** The control label is **Hold to attune** and the resting duration cue is **5 seconds**.
+- **DR-HOLD-01 — Two-step in-place entry.** Before Start, no seal, progress ring, hold hit region, or attunement semantics are visible. Tapping Start keeps the same stage and shell, removes the resting action, and crossfades the attunement layer into the ready-to-hold state. It does not reveal content, mutate lifecycle state, or present a route, dialog, or sheet.
+- **DR-HOLD-02 — Clear instruction.** Ready guidance is **Hold to attune for 5 seconds.** During contact, that same guidance position becomes **Stay with me · _n_ of 5 seconds**. The seal's accessible control label remains **Hold to attune**.
 - **DR-HOLD-03 — Continuous contact.** The normal gesture succeeds only after five uninterrupted seconds of contact within a forgiving hit region around the seal.
 - **DR-HOLD-04 — Honest progress.** The ring represents elapsed hold time only. Network progress must never cause it to jump, finish early, reverse, or imply data is ready.
 - **DR-HOLD-05 — Early release cancels.** Releasing or moving materially outside the hit region before five seconds resets the gesture and does not reveal or advance server lifecycle state.
@@ -113,6 +118,7 @@ Open Ritual tab
 - **DR-HOLD-07 — Accepted at five seconds.** At five seconds, the gesture is accepted with one restrained confirmation haptic. The member may lift their real finger while the app continues the bounded reveal choreography.
 - **DR-HOLD-08 — No simulated anatomy or sensor.** Do not render a finger, hand, cursor, fingerprint, scanner, waveform, energy meter, spiritual score, or biometric-looking UI.
 - **DR-HOLD-09 — Theatrical, not factual.** Copy and visuals may suggest attunement as ritual theater but must not claim the device is measuring energy, health, spirituality, emotion, or physiology.
+- **DR-HOLD-10 — Bottom-anchored control.** The attunement hit region is anchored 16 logical points above the ritual canvas bottom, placing the visible circle approximately 31 points above the persistent tab bar. Guidance sits above the circle. The circle never overlaps navigation or Leonidas's face-clear zone.
 
 ### Optimistic preparation and authoritative data
 
@@ -150,7 +156,7 @@ Strict replay-as-2xx idempotency and a two-phase prepare/commit reveal endpoint 
 - **DR-C2-08 — Automatic onward transition.** When the message ends or Skip is chosen, no additional confirmation tap is required. The card settles into a vertical keepsake rail and the onward actions appear.
 - **DR-C2-09 — Ordered handoff.** Show **Review evidence** as the primary action followed by **Continue to Starpath** as the secondary action.
 - **DR-C2-10 — No competing actions.** Do not show Replay, History, Coven promotion, practice, Ask Leonidas, or another ritual-specific destination in the completed handoff.
-- **DR-C2-11 — Restore completed state.** Returning later shows the compact **Review today’s ritual** shell invitation without auto-presenting fullscreen. Its explicit tap restores the immersive keepsake/onward state directly. Do not replay Start, hold, reveal, Finish, or Leonidas's closing message, and never render Completed ceremony content beneath app chrome.
+- **DR-C2-11 — Restore completed state.** Returning later renders the keepsake/onward state directly inside the same shell stage. Do not replay Start, hold, reveal, Finish, or Leonidas's closing message, and do not add a redundant Review gate before the Evidence and Starpath actions.
 - **DR-C2-12 — Evidence continuity.** Evidence opens in context with a visible Done/Close control. Dismissing it returns to the completed ritual rather than changing tabs unexpectedly.
 
 ### Voice, captions, haptics, and motion
@@ -164,6 +170,7 @@ Strict replay-as-2xx idempotency and a two-phase prepare/commit reveal endpoint 
 - **DR-MOTION-03 — Reveal motion.** Reveal uses a bounded concealed-to-card transition with no blank frame, sudden scroll, or layout collapse.
 - **DR-MOTION-04 — C2 motion.** Card expansion and keepsake settlement use restrained ease-out movement. The card path never intersects Leonidas's face.
 - **DR-MOTION-05 — Reduced Motion.** Replace particles, glow travel, and scale movement with static progress plus crossfades or immediate state changes. Preserve timing, meaning, and controls.
+- **DR-MOTION-06 — In-place Start transition.** Start uses opacity only: the resting content exits while the attunement layer crossfades in over approximately 240 ms with an ease-out curve. It must not translate, slide, resize the stage, or move the app shell. Reduced Motion uses a crossfade no longer than 120 ms or an immediate state change.
 
 ### Accessibility, layout, and content quality
 
@@ -173,7 +180,7 @@ Strict replay-as-2xx idempotency and a two-phase prepare/commit reveal endpoint 
 - **DR-A11Y-04 — Type floor.** Informative interface text remains at or above the iOS 11-point floor and does not depend on tiny tracked uppercase labels.
 - **DR-A11Y-05 — Dynamic Type.** At 2× text scaling, no title, interpretation, Leonidas caption, risk/evidence content, or control truncates, overlaps, clips, or covers the face-clear zone. Accessibility text sizes may scroll the adaptive lower content; ordinary text sizes must not expose a ceremony scroll surface.
 - **DR-A11Y-06 — Semantics.** VoiceOver exposes logical reading order, button roles, hold progress, cancellation, errors, Reading revealed, completion, and onward actions without announcing decorative effects.
-- **DR-A11Y-07 — Safe areas.** Content and controls remain clear of the Dynamic Island, home indicator, and system insets. The immersive ceremony has no tab bar.
+- **DR-A11Y-07 — Safe areas.** Content and controls remain clear of the Dynamic Island, home indicator, top utility row, and persistent tab bar.
 - **DR-A11Y-08 — Orientation and supported sizes.** The required portrait layout works on the smallest and largest supported iPhone viewports without horizontal scrolling or loss of primary controls.
 - **DR-CONTENT-01 — Evidence remains adjacent to trust.** Evidence, uncertainty, limitations, freshness, observation window, and risk remain inspectable and are not weakened by the ritual redesign.
 - **DR-CONTENT-02 — Financial boundary.** Leonidas does not present predictions, personalized recommendations, certainty, or risk-free language. Flutter renders validated data and does not calculate financial quantities.
@@ -185,16 +192,16 @@ The server domain remains `assigned → revealed → completed`. The UI may use 
 | UI state | Server requirement | Entry | Exit |
 |---|---|---|---|
 | Resting | Assigned | Open fresh daily Ritual | Tap Start or leave |
-| Ready to hold | Assigned | Tap Start and enter fullscreen ceremony | Touch down, dismiss, or lifecycle cancellation |
+| Ready to hold | Assigned | Tap Start; attunement crossfades into the same stage | Touch down, navigate away, or lifecycle cancellation |
 | Holding | Assigned | Continuous seal contact | Early release → Ready; five seconds → Reveal choreography |
 | Reveal choreography | Assigned or reveal request pending | Hold accepted | Valid reveal → Revealed; failure → Reveal unavailable |
 | Reveal unavailable | Assigned | Invalid/failed reveal | Retry or leave |
-| Revealed | Revealed | Valid reveal response, or explicit Continue from a restored shell invitation | Tap Finish |
+| Revealed | Revealed | Valid reveal response, or restored authoritative state | Tap Finish |
 | Finishing | Revealed with completion pending | Tap Finish | Confirmed completion → C2 closing; failure → Revealed with error |
 | C2 closing | Completed | Confirmed Finish | Message ends or Skip → Completed onward |
-| Completed onward | Completed | Closing exits, or explicit Review from a restored shell invitation | Evidence, Starpath, or safe fullscreen dismissal |
+| Completed onward | Completed | Closing exits, or restored authoritative state | Evidence, Starpath, or global navigation |
 
-Restored Revealed and Completed assignments remain non-forcing at app or tab entry: the normal shell contains only the corresponding compact Continue/Review invitation. Ceremony content appears only after that explicit action opens the fullscreen route. Dismissing fullscreen returns to the same compact invitation.
+Restored Revealed and Completed assignments remain non-forcing at app or tab entry: they render their authoritative state in the stable shell without replaying speech or prior ritual steps. They do not add a second Continue/Review gate or open a separate route.
 
 ## Required copy
 
@@ -202,11 +209,11 @@ Restored Revealed and Completed assignments remain non-forcing at app or tab ent
 |---|---|
 | Resting guidance | Your ritual is ready when you are. |
 | Resting action | Start your daily ritual |
-| Ready guidance | Place your thumb on the seal and hold. |
+| Ready guidance | Hold to attune for 5 seconds. |
 | Hold action | Hold to attune |
-| Duration cue | 5 seconds |
-| Holding guidance | Stay with me. |
+| Holding guidance | Stay with me · _n_ of 5 seconds |
 | Early release | You let go. Was the moment not right? |
+| Hold accepted | The seal is set. Confirming your card… |
 | Reveal failure | The ritual could not be opened. Try again when you're ready. |
 | Retry | Try again |
 | Revealed status | Reading revealed |
@@ -259,7 +266,12 @@ The selected images communicate hierarchy and composition, not generated pixels.
 - Action order and lifecycle copy match the authoritative flow.
 - No extra post-reading actions appear.
 - No pre-Finish state says complete.
-- Ready through Completed contains no global utility header or bottom navigation and no ordinary-size scroll surface.
+- The global utility header and bottom navigation remain fixed through every state; no ritual-owned route transition is introduced.
+- The Leonidas stage is edge-to-edge across the app width and reaches the tab-bar boundary rather than ending in an empty page-colored band or appearing as an inset rounded card.
+- The page does not repeat the stage title, and attunement never displays multiple visual instructions for the same action.
+- The attunement circle is absent before Start and enters only through the approved crossfade.
+- Once present, the attunement circle occupies the lower stage, the extended portrait remains visible behind its upper edge, and neither intersects the face-clear zone or tab bar.
+- Supported ordinary-size portrait layouts expose no ritual scroll surface.
 
 ### Measured layout requirements
 
@@ -308,10 +320,12 @@ The implementation plan must name any additional focused test files before codin
 ### 3. Required widget and interaction tests
 
 - Opening Ritual leaves the page in Resting with no speech and no automatic reveal.
-- Start enters the chrome-free fullscreen route and changes Resting to Ready without revealing or mutating the ritual.
-- Restored Revealed shows **Continue your daily ritual** and restored Completed shows **Review today’s ritual** in the shell; neither auto-opens fullscreen, speaks, mutates, or renders ceremony content under app chrome.
-- Continue/Review opens fullscreen directly at the authoritative Revealed/Completed onward state; Back returns to the matching compact shell invitation without replaying any prior step.
-- The pre-start invitation retains global navigation; the fullscreen ceremony contains neither global top utilities nor bottom navigation.
+- Before Start, the attunement seal, hit region, progress, and semantics are absent.
+- Start changes Resting to Ready inside the same stage without revealing or mutating the ritual; its attunement layer fades from 0 to 1 without translation.
+- The global top utilities and bottom navigation remain present and stationary through Resting, Ready, Holding, Revealed, C2, and Completed onward.
+- The ritual stage spans the reference viewport width, meets the top edge of the persistent navigation, and keeps its copy and actions within safe internal insets.
+- Resting contains one stage title, and Ready/Holding/early-release/accepted-waiting/reveal-failure each contain exactly one primary Leonidas guidance line with no redundant dynamic phase instruction.
+- Restored Revealed and Completed render their authoritative in-place state directly without speaking, mutating, or replaying prior steps.
 - Ready through Completed has no scroll surface at ordinary text sizes; accessibility scaling keeps complete content reachable through lower-region reflow/scroll only.
 - Holding for 4.9 seconds and releasing cancels.
 - Holding through five seconds accepts exactly once.
@@ -334,7 +348,7 @@ Add geometry assertions using stable widget keys: card, seal, labels, buttons, g
 
 ### 4. Durable visual-regression matrix
 
-The approved implementation uses a deliberately compact pixel-golden set rather than duplicating the image-heavy stage for every behavioral permutation. `visual_reference_test.dart` runs the real controller, repository boundary, fullscreen route, card asset, portrait asset, and production widgets through one complete lifecycle in each atmosphere. It freezes these five visually distinct checkpoints:
+The approved implementation uses a deliberately compact pixel-golden set rather than duplicating the image-heavy stage for every behavioral permutation. `visual_reference_test.dart` runs the real controller, repository boundary, persistent app shell, card asset, portrait asset, and production widgets through one complete lifecycle in each atmosphere. It freezes these five visually distinct checkpoints:
 
 | Approved checkpoint | Light | Dark | Additional binding coverage |
 |---|---:|---:|---|

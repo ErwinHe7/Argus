@@ -8,7 +8,7 @@ import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_s
 import 'package:ritual_investing_app/features/ritual/presentation/leonidas_ritual_sequence.dart';
 
 void main() {
-  testWidgets('resting stage matches the measured seal and Start geometry', (
+  testWidgets('resting stage defers attunement and matches Start geometry', (
     tester,
   ) async {
     _setReferenceViewport(tester);
@@ -20,6 +20,11 @@ void main() {
 
     final stage = tester.getRect(find.byKey(DailyRitualStageSpec.stageKey));
     _expectRect(stage, DailyRitualStageSpec.stageViewport);
+    expect(stage.left, 0);
+    expect(stage.width, DailyRitualStageSpec.referenceViewport.width);
+    expect(find.text('YOUR DAILY SIGNAL'), findsNothing);
+    expect(find.text('TODAY’S DAILY RITUAL'), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-phase-label')), findsNothing);
     _expectLocalRect(
       tester,
       DailyRitualStageSpec.portraitKey,
@@ -32,12 +37,15 @@ void main() {
       stage,
       DailyRitualStageSpec.faceClear,
     );
-    _expectLocalRect(
-      tester,
-      DailyRitualStageSpec.sealVisualKey,
-      stage,
-      DailyRitualStageSpec.restingSealVisual,
+    final portraitImage = tester.widget<Image>(
+      find.descendant(
+        of: find.byKey(DailyRitualStageSpec.portraitKey),
+        matching: find.byType(Image),
+      ),
     );
+    expect(portraitImage.fit, BoxFit.contain);
+    expect(find.byKey(DailyRitualStageSpec.sealVisualKey), findsNothing);
+    expect(find.byKey(DailyRitualStageSpec.attunementFadeKey), findsNothing);
     _expectLocalRect(
       tester,
       const Key('leonidas-sequence-start'),
@@ -143,6 +151,7 @@ void main() {
       await _decodeExactArt(tester);
 
       await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+      await tester.pump();
       await tester.pump(DailyRitualStageSpec.startTransition);
       final hold = await tester.startGesture(
         tester.getCenter(find.byKey(DailyRitualStageSpec.sealHitKey)),

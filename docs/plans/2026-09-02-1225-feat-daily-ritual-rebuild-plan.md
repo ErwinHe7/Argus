@@ -12,6 +12,20 @@ execution: code
 
 # Daily Ritual Rebuild - Implementation Plan
 
+## 2026-09-03 Product-Owner Amendment
+
+This amendment supersedes every older plan detail that calls for a separate fullscreen/immersive route, removal of the global utility row or bottom navigation, a compact Continue/Review restoration gate, or a visible resting seal.
+
+- The ritual remains inside one stable stage between the persistent top controls and bottom navigation. Start and every later phase update that stage in place; no route or page slides over the shell.
+- The Leonidas stage spans the full available app width and expands to the tab-bar boundary rather than leaving an empty page-colored lower band or appearing as an inset rounded card. It owns the single visible ritual title; the redundant page-level signal label is removed.
+- Interactive attunement states show one primary Leonidas guidance line. Dynamic phase text must not repeat the same instruction above the seal; lifecycle confirmations remain concise status metadata only where they add distinct information.
+- The full 2:3 portrait is shown proportionally with contain-style scaling and a lower fade. The attunement hit region is bottom-anchored 16 points above the canvas edge (placing the visible circle about 31 points above the tab bar), with guidance above it. Lower effects may overlap only the portrait fade and never Leonidas's face-clear zone or navigation.
+- Resting shows Leonidas, guidance, and **Start your daily ritual**, but no seal, hit region, progress ring, or attunement semantics.
+- Start crossfades the attunement layer in over 240 ms using opacity only. Reduced Motion uses a crossfade no longer than 120 ms. The stage and shell do not translate or resize.
+- Restored Revealed and Completed assignments render their authoritative in-place state directly without replaying speech or prior phases and without a redundant Continue/Review gate.
+- Ordinary supported portrait layouts do not scroll. The existing accessibility reflow remains available at 2× text, and a compact-height fallback may scroll only when the stage cannot otherwise fit.
+- The current light/dark `test/goldens/daily_ritual_*` images and the amended requirements document are the binding visual/test baseline. The earlier fullscreen captures are historical evidence only.
+
 ## Goal Capsule
 
 - **Objective:** Rebuild Daily Ritual as an optional, stable, Leonidas-guided daily experience: explicit Start, an honest five-second hold, authoritative reveal, one Finish, the selected C2 expanding-card close, and an Evidence-first onward handoff.
@@ -325,7 +339,7 @@ All coordinates below use the full **iPhone 17 portrait viewport, 402×874 logic
 | Portrait focus | `Rect(34, 168, 334, 330)` |
 | Face-clear zone | `Rect(132, 210, 138, 178)`, bottom 388; zero intersection with nondecorative paint/hit/semantic bounds |
 | Main content width | maximum 338 points, normally `x: 32–370`; reading copy maximum 318 |
-| Resting seal | visual `Rect(136, 444, 130, 130)`; hit `Rect(121, 429, 160, 160)` |
+| Resting seal | Absent from paint, hit testing, and semantics until Start |
 | Resting guidance | `x: 36`, `y: 627`, width 330 |
 | Resting Start | `Rect(32, 698, 338, 52)` |
 | Ready/Holding seal | visual `Rect(126, 430, 150, 150)`; effective hit `Rect(111, 415, 180, 180)` |
@@ -343,7 +357,7 @@ The 76×44 voice pill occupies the stage’s top-right metadata slot in every st
 
 | Motion | Numerical contract |
 |---|---|
-| Start transition | 180 ms same-stage crossfade |
+| Start transition | 240 ms same-stage opacity crossfade; 120 ms with Reduced Motion |
 | Touch-down | ring begins at `t=0`; seal compression approximately 120 ms; one soft haptic; revalidation/predecode begins |
 | Holding checkpoint | 60% at 3,000 ms; ring derives only from elapsed time |
 | Acceptance | elapsed `>= 5,000 ms`, once; one confirmation haptic |

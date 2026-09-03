@@ -65,7 +65,6 @@ class DailyRitualScreen extends StatefulWidget {
 }
 
 class _DailyRitualScreenState extends State<DailyRitualScreen> {
-  bool _immersiveOpen = false;
   final ValueNotifier<bool> _evidenceOpen = ValueNotifier(false);
 
   @override
@@ -76,164 +75,115 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) => _buildContent(context),
+    listenable: _evidenceOpen,
+    builder: (context, _) => ListenableBuilder(
+      listenable: widget.controller,
+      builder: (context, _) => _buildContent(context),
+    ),
   );
 
   Widget _buildContent(BuildContext context) {
     final colors = context.ritualColors;
     final ritual = widget.controller.state.value;
+    final largeText = MediaQuery.textScalerOf(context).scale(16) >= 24;
     return ColoredBox(
       color: colors.page,
-      child: CustomScrollView(
-        key: const PageStorageKey('daily-ritual-scroll'),
-        slivers: [
-          SliverToBoxAdapter(
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Column(
-                  children: [
-                    Padding(
-                      padding: DailyRitualStageSpec.pageInsets,
-                      child: SizedBox(
-                        height: 48,
-                        child: _RitualHeader(
-                          date: ritual?.date,
-                          colors: colors,
-                          onOpenSearch: widget.onOpenSearch,
-                          onOpenBriefings: widget.onOpenBriefings,
-                          onToggleTheme: widget.onToggleTheme,
-                        ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final stageHeight = ritual == null
+              ? DailyRitualStageSpec.baseStageSize.height
+              : DailyRitualStageSpec.stageHeight(
+                  MediaQuery.textScalerOf(context),
+                );
+          final requiredHeight =
+              MediaQuery.paddingOf(context).top +
+              DailyRitualStageSpec.pageChromeHeight +
+              stageHeight;
+          final needsCompactFallback = constraints.maxHeight < requiredHeight;
+          final content = SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: DailyRitualStageSpec.pageInsets,
+                    child: SizedBox(
+                      height: 48,
+                      child: _RitualHeader(
+                        date: ritual?.date,
+                        colors: colors,
+                        onOpenSearch: widget.onOpenSearch,
+                        onOpenBriefings: widget.onOpenBriefings,
+                        onToggleTheme: widget.onToggleTheme,
                       ),
                     ),
-                    if (ritual != null) ...[
-                      const SizedBox(height: 13),
-                      const SizedBox(
-                        height: 13,
-                        child: Center(child: _DailySignalLabel()),
-                      ),
-                      const SizedBox(height: 3),
-                    ] else
-                      const SizedBox(height: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  if (ritual == null)
                     Padding(
                       padding: DailyRitualStageSpec.pageInsets,
-                      child: ritual == null
-                          ? _RitualAuthorityStage(
-                              phase: widget.controller.state.phase,
-                              onRetry: widget.controller.load,
-                            )
-                          : ritual.state == DailyRitualState.assigned
-                          ? _buildSequence(context, ritual, immersive: false)
-                          : _RitualReturnInvitation(
-                              ritual: ritual,
-                              onPressed: () => _openImmersive(ritual),
-                            ),
-                    ),
-                    const SizedBox(height: 12),
-                  ],
-                ),
+                      child: _RitualAuthorityStage(
+                        phase: widget.controller.state.phase,
+                        onRetry: widget.controller.load,
+                      ),
+                    )
+                  else if (!largeText && !needsCompactFallback)
+                    Expanded(child: _buildSequence(context, ritual))
+                  else
+                    _buildSequence(context, ritual),
+                ],
               ),
             ),
-          ),
-        ],
+          );
+          if (!largeText && !needsCompactFallback) return content;
+          return SingleChildScrollView(
+            key: Key(
+              largeText
+                  ? 'daily-ritual-accessibility-scroll'
+                  : 'daily-ritual-compact-scroll',
+            ),
+            child: content,
+          );
+        },
       ),
     );
   }
 
   Widget _buildSequence(
     BuildContext sequenceContext,
-    DailyRitual ritual, {
-    required bool immersive,
-  }) => LeonidasRitualSequence(
-    key: ValueKey(
-      'leonidas-${ritual.assignmentId}-${immersive ? 'immersive' : 'entry'}',
-    ),
+    DailyRitual ritual,
+  ) => LeonidasRitualSequence(
+    key: ValueKey('leonidas-${ritual.assignmentId}'),
     ritual: ritual,
     authorityController: widget.controller,
     cacheScope: widget.cacheScope,
     voicePreferenceStore: widget.voicePreferenceStore,
-    startImmediately: immersive,
-    suspendVisibilityTracking:
-        (!immersive && _immersiveOpen) || (immersive && _evidenceOpen.value),
-    onStartRequested: immersive ? null : () => _openImmersive(ritual),
-    onRevalidate: immersive ? widget.controller.revalidate : null,
+    suspendVisibilityTracking: _evidenceOpen.value,
+    onRevalidate: widget.controller.revalidate,
     onReveal: () async {
       final result = await widget.controller.reveal(refreshHistory: false);
       return result?.disposition == RitualOperationDisposition.committed ||
           result?.disposition == RitualOperationDisposition.reconciledToTarget;
     },
-    onComplete: immersive
-        ? () async {
-            final result = await widget.controller.complete(
-              refreshHistory: false,
-            );
-            return result?.disposition ==
-                    RitualOperationDisposition.committed ||
-                result?.disposition ==
-                    RitualOperationDisposition.reconciledToTarget;
-          }
-        : null,
+    onComplete: () async {
+      final result = await widget.controller.complete(refreshHistory: false);
+      return result?.disposition == RitualOperationDisposition.committed ||
+          result?.disposition == RitualOperationDisposition.reconciledToTarget;
+    },
     onShowEvidence: () {
       final snapshot = widget.controller.state.value;
       if (snapshot != null && snapshot.state == DailyRitualState.completed) {
         unawaited(_openEvidence(sequenceContext, snapshot));
       }
     },
-    onOpenStarpath: widget.onOpenStarpath == null
-        ? null
-        : immersive
-        ? _leaveForStarpath
-        : widget.onOpenStarpath,
+    onOpenStarpath: widget.onOpenStarpath,
     voice: widget.leonidasVoice,
     monotonicNow: widget.monotonicNow,
     prepareExactMedia: widget.prepareExactMedia,
     useBundledArtwork: widget.useBundledArtwork,
     assetPackage: widget.assetPackage,
   );
-
-  Future<void> _openImmersive(DailyRitual ritual) async {
-    if (_immersiveOpen ||
-        !mounted ||
-        (ritual.state == DailyRitualState.assigned &&
-            !widget.controller.mutationAuthorityEnabled)) {
-      return;
-    }
-    setState(() => _immersiveOpen = true);
-    await WidgetsBinding.instance.endOfFrame;
-    if (!mounted) return;
-    await Navigator.of(context, rootNavigator: true).push<void>(
-      MaterialPageRoute<void>(
-        settings: const RouteSettings(name: 'daily-ritual-immersive'),
-        builder: (routeContext) => ListenableBuilder(
-          listenable: _evidenceOpen,
-          builder: (context, _) => ListenableBuilder(
-            listenable: widget.controller,
-            builder: (context, _) {
-              final current = widget.controller.state.value ?? ritual;
-              return _DailyRitualImmersivePage(
-                onDismiss: () => Navigator.of(routeContext).maybePop(),
-                child: _buildSequence(routeContext, current, immersive: true),
-              );
-            },
-          ),
-        ),
-      ),
-    );
-    if (mounted) setState(() => _immersiveOpen = false);
-  }
-
-  void _leaveForStarpath() {
-    if (!_immersiveOpen || !mounted) {
-      widget.onOpenStarpath?.call();
-      return;
-    }
-    Navigator.of(context, rootNavigator: true).pop();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onOpenStarpath?.call();
-    });
-  }
 
   Future<void> _openEvidence(
     BuildContext context,
@@ -265,123 +215,6 @@ class _DailyRitualScreenState extends State<DailyRitualScreen> {
       snapshot: completedSnapshot,
     ),
   );
-}
-
-class _DailyRitualImmersivePage extends StatelessWidget {
-  const _DailyRitualImmersivePage({
-    required this.child,
-    required this.onDismiss,
-  });
-
-  final Widget child;
-  final VoidCallback onDismiss;
-
-  @override
-  Widget build(BuildContext context) {
-    final largeText = MediaQuery.textScalerOf(context).scale(16) >= 24;
-    final stage = Center(
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: DailyRitualStageSpec.baseStageSize.width,
-        ),
-        child: child,
-      ),
-    );
-    return Material(
-      key: const Key('daily-ritual-immersive'),
-      color: context.ritualColors.page,
-      child: Semantics(
-        scopesRoute: true,
-        namesRoute: true,
-        explicitChildNodes: true,
-        label: 'Daily Ritual',
-        onDismiss: onDismiss,
-        child: SafeArea(
-          child: largeText
-              ? SingleChildScrollView(
-                  key: const Key('daily-ritual-immersive-accessibility-scroll'),
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: stage,
-                )
-              : Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: stage,
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RitualReturnInvitation extends StatelessWidget {
-  const _RitualReturnInvitation({
-    required this.ritual,
-    required this.onPressed,
-  });
-
-  final DailyRitual ritual;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final completed = ritual.state == DailyRitualState.completed;
-    final colors = context.ritualColors;
-    return Semantics(
-      container: true,
-      explicitChildNodes: true,
-      label: completed ? 'Today’s completed ritual' : 'Today’s revealed ritual',
-      child: Container(
-        key: const Key('daily-ritual-return-invitation'),
-        width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
-        decoration: BoxDecoration(
-          color: colors.screen,
-          border: Border.all(color: colors.gold.withValues(alpha: 0.42)),
-          borderRadius: BorderRadius.circular(24),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              completed ? Icons.auto_awesome : Icons.brightness_5_outlined,
-              color: colors.gold,
-              size: 32,
-            ),
-            const SizedBox(height: 14),
-            Text(
-              completed
-                  ? 'Today’s ritual is complete.'
-                  : 'Your reading is ready.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              completed
-                  ? 'Return to Leonidas to review your card and evidence.'
-                  : 'Return to Leonidas when you are ready to finish.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 22),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: FilledButton(
-                key: const Key('daily-ritual-return-action'),
-                onPressed: onPressed,
-                child: Text(
-                  completed
-                      ? 'Review today’s ritual'
-                      : 'Continue your daily ritual',
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 class _RitualHeader extends StatelessWidget {
@@ -474,23 +307,6 @@ class _HeaderAction extends StatelessWidget {
     constraints: const BoxConstraints.tightFor(width: 44, height: 44),
     padding: EdgeInsets.zero,
     icon: Icon(icon),
-  );
-}
-
-class _DailySignalLabel extends StatelessWidget {
-  const _DailySignalLabel();
-
-  @override
-  Widget build(BuildContext context) => Text(
-    'YOUR DAILY SIGNAL',
-    textAlign: TextAlign.center,
-    style: TextStyle(
-      color: context.ritualColors.gold,
-      fontSize: 11,
-      height: 1,
-      fontWeight: FontWeight.w800,
-      letterSpacing: 2,
-    ),
   );
 }
 

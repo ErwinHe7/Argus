@@ -6,19 +6,14 @@ import 'package:ritual_investing_app/app/ritual_investing_app.dart';
 import 'support/fixture_services.dart';
 
 void main() {
-  testWidgets('restores the approved daily ritual through explicit Review', (
-    tester,
-  ) async {
+  testWidgets('restores the approved daily ritual in place', (tester) async {
     await tester.pumpWidget(RitualInvestingApp(container: fixtureContainer()));
     await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
-    expect(find.text('Review today’s ritual'), findsOneWidget);
-    expect(find.text('Direction, not urgency.'), findsNothing);
+    expect(find.byKey(const Key('leonidas-ritual-sequence')), findsOneWidget);
     expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
 
-    await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-    await tester.pumpAndSettle();
     final context = tester.element(
       find.byKey(const Key('leonidas-ritual-sequence')),
     );
@@ -32,9 +27,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
+    expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+    expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.text('Direction, not urgency.'), findsOneWidget);
     expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('leonidas-evidence')));
+    await tester.pump();
     await tester.tap(find.byKey(const Key('leonidas-evidence')));
     await tester.pumpAndSettle();
     expect(find.text('Durable dividend momentum'), findsOneWidget);

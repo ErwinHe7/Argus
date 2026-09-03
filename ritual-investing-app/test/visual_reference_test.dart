@@ -100,8 +100,8 @@ void main() {
 
         await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
         await tester.pumpAndSettle();
-        expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
-        expect(find.byType(NavigationBar), findsNothing);
+        expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+        expect(find.byType(NavigationBar), findsOneWidget);
 
         final hold = await tester.startGesture(
           tester.getCenter(
@@ -112,8 +112,8 @@ void main() {
         await controller.authorityIdle;
         elapsed = const Duration(seconds: 3);
         await tester.pump(const Duration(milliseconds: 50));
-        expect(find.text('Stay with me. 3 of 5 seconds.'), findsOneWidget);
-        _expectImmersiveInvariants(tester);
+        expect(find.text('Stay with me · 3 of 5 seconds'), findsOneWidget);
+        _expectInPlaceInvariants(tester);
         await _matchCheckpoint(tester, atmosphere, 'holding_60');
 
         elapsed = const Duration(seconds: 5, milliseconds: 1);
@@ -123,7 +123,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Reading revealed'), findsOneWidget);
         expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
-        _expectImmersiveInvariants(tester);
+        _expectInPlaceInvariants(tester);
         await _matchCheckpoint(tester, atmosphere, 'revealed');
 
         await tester.tap(find.byKey(const Key('ritual-complete')));
@@ -132,14 +132,14 @@ void main() {
         await tester.pump(const Duration(milliseconds: 500));
         expect(find.byKey(const Key('leonidas-closing-skip')), findsOneWidget);
         expect(find.text(dailyRitualClosingCaption), findsOneWidget);
-        _expectImmersiveInvariants(tester);
+        _expectInPlaceInvariants(tester);
         await _matchCheckpoint(tester, atmosphere, 'c2_closing');
 
         await tester.tap(find.byKey(const Key('leonidas-closing-skip')));
         await tester.pumpAndSettle();
         expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
         expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
-        _expectImmersiveInvariants(tester);
+        _expectInPlaceInvariants(tester);
         await _matchCheckpoint(tester, atmosphere, 'completed_onward');
       },
     );
@@ -166,11 +166,9 @@ Future<void> _matchCheckpoint(
   matchesGoldenFile('goldens/daily_ritual_${atmosphere.name}_$checkpoint.png'),
 );
 
-void _expectImmersiveInvariants(WidgetTester tester) {
-  expect(find.byType(NavigationBar), findsNothing);
-  expect(find.byKey(const Key('ritual-search')), findsNothing);
-  expect(find.byKey(const Key('ritual-briefings')), findsNothing);
-  expect(find.byKey(const Key('theme-toggle')), findsNothing);
+void _expectInPlaceInvariants(WidgetTester tester) {
+  expect(find.byType(NavigationBar), findsOneWidget);
+  expect(find.byKey(const Key('theme-toggle')), findsOneWidget);
   expect(
     find.descendant(
       of: find.byKey(const Key('leonidas-ritual-sequence')),
