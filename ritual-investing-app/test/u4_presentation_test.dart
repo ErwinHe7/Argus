@@ -9,6 +9,7 @@ import 'package:ritual_investing_app/features/ritual/application/leonidas_voice.
 import 'package:ritual_investing_app/features/ritual/data/daily_ritual_repository.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
 import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_screen.dart';
+import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_stage_spec.dart';
 import 'package:ritual_investing_app/features/search/application/controller.dart'
     as member_search;
 import 'package:ritual_investing_app/features/search/data/repository.dart';
@@ -64,10 +65,8 @@ void main() {
       tester.getCenter(find.byKey(const Key('daily-ritual-seal-hit-region'))),
     );
     await tester.pump();
-    expect(
-      tester.widget<Text>(find.byKey(const Key('leonidas-phase-label'))).data,
-      'Hold the seal',
-    );
+    expect(find.byKey(const Key('leonidas-phase-label')), findsNothing);
+    expect(find.text('Stay with me · 0 of 5 seconds'), findsOneWidget);
     elapsed = const Duration(seconds: 5, milliseconds: 1);
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump();
@@ -99,9 +98,9 @@ void main() {
   });
 
   testWidgets(
-    'Start opens a chrome-free non-scrolling immersive ritual route',
+    'Start crossfades attunement in place while shell chrome stays visible',
     (tester) async {
-      _setReducedMotionPhoneViewport(tester);
+      _setPhoneViewport(tester);
       final controller = DailyRitualController(
         repository: DailyRitualRepository(
           service: _RitualService(state: DailyRitualState.assigned),
@@ -146,16 +145,46 @@ void main() {
       expect(find.byKey(const Key('ritual-search')), findsOneWidget);
       expect(find.byKey(const Key('ritual-briefings')), findsOneWidget);
       expect(find.byKey(const Key('theme-toggle')), findsOneWidget);
+      expect(find.text('YOUR DAILY SIGNAL'), findsNothing);
+      expect(find.text('TODAY’S DAILY RITUAL'), findsOneWidget);
+      expect(find.byKey(DailyRitualStageSpec.sealVisualKey), findsNothing);
+      expect(
+        tester.getSize(find.byKey(DailyRitualStageSpec.stageKey)).width,
+        390,
+      );
+      expect(
+        tester.getRect(find.byKey(DailyRitualStageSpec.stageKey)).bottom,
+        closeTo(tester.getRect(find.byType(NavigationBar)).top, 0.1),
+      );
 
       await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
-      await tester.pumpAndSettle();
+      await tester.pump();
 
-      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
-      expect(find.byKey(const Key('ritual-search')), findsNothing);
-      expect(find.byKey(const Key('ritual-briefings')), findsNothing);
-      expect(find.byKey(const Key('theme-toggle')), findsNothing);
+      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('ritual-search')), findsOneWidget);
+      expect(find.byKey(const Key('ritual-briefings')), findsOneWidget);
+      expect(find.byKey(const Key('theme-toggle')), findsOneWidget);
       expect(find.byType(CustomScrollView), findsNothing);
+      final fade = find.byKey(DailyRitualStageSpec.attunementFadeKey);
+      expect(fade, findsOneWidget);
+      expect(tester.widget<FadeTransition>(fade).opacity.value, 0);
+
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(
+        tester.widget<FadeTransition>(fade).opacity.value,
+        allOf(greaterThan(0), lessThan(1)),
+      );
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(tester.widget<FadeTransition>(fade).opacity.value, 1);
+      final seal = tester.getRect(
+        find.byKey(DailyRitualStageSpec.sealHitKey),
+      );
+      final navigation = tester.getRect(find.byType(NavigationBar));
+      expect(
+        navigation.top - seal.bottom,
+        closeTo(DailyRitualStageSpec.sealBottomInset, 0.1),
+      );
       expect(
         find.descendant(
           of: find.byKey(const Key('leonidas-ritual-sequence')),
@@ -167,7 +196,7 @@ void main() {
   );
 
   testWidgets(
-    'restored revealed waits in shell until Continue opens immersive reading',
+    'restored revealed ritual remains in place with its shell controls',
     (tester) async {
       _setReducedMotionPhoneViewport(tester);
       final service = _RitualService(
@@ -187,26 +216,15 @@ void main() {
 
       expect(find.byType(NavigationBar), findsOneWidget);
       expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
-      expect(
-        find.byKey(const Key('daily-ritual-return-invitation')),
-        findsOneWidget,
-      );
-      expect(find.text('Continue your daily ritual'), findsOneWidget);
-      expect(find.text('Direction, not urgency.'), findsNothing);
-      expect(find.byKey(const Key('ritual-complete')), findsNothing);
-      expect(voice.lines, isEmpty);
-      expect(service.revealCalls, 0);
-      expect(service.completeCalls, 0);
-
-      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-      await tester.pumpAndSettle();
       await _decodeExactArt(
         tester,
         'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
       );
 
-      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byType(NavigationBar), findsOneWidget);
+      expect(find.byKey(const Key('ritual-search')), findsOneWidget);
+      expect(find.byKey(const Key('ritual-briefings')), findsOneWidget);
+      expect(find.byKey(const Key('theme-toggle')), findsOneWidget);
       expect(find.text('Reading revealed'), findsOneWidget);
       expect(find.text('Direction, not urgency.'), findsOneWidget);
       expect(find.byKey(const Key('ritual-complete')), findsOneWidget);
@@ -220,72 +238,50 @@ void main() {
       expect(voice.lines, isEmpty);
       expect(service.revealCalls, 0);
       expect(service.completeCalls, 0);
-
-      Navigator.of(
-        tester.element(find.byKey(const Key('daily-ritual-immersive'))),
-      ).pop();
-      await tester.pumpAndSettle();
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.text('Continue your daily ritual'), findsOneWidget);
-      expect(find.text('Direction, not urgency.'), findsNothing);
     },
   );
 
-  testWidgets(
-    'restored completed waits in shell until Review opens immersive onward',
-    (tester) async {
-      _setReducedMotionPhoneViewport(tester);
-      final service = _RitualService();
-      final voice = _RecordingLeonidasVoice();
-      final controller = DailyRitualController(
-        repository: DailyRitualRepository(
-          service: service,
-          cache: MemoryReadCache(),
-        ),
-      );
-      await controller.load();
-      await tester.pumpWidget(_screenApp(controller: controller, voice: voice));
-      await tester.pumpAndSettle();
+  testWidgets('restored completed ritual keeps onward actions in place', (
+    tester,
+  ) async {
+    _setReducedMotionPhoneViewport(tester);
+    final service = _RitualService();
+    final voice = _RecordingLeonidasVoice();
+    final controller = DailyRitualController(
+      repository: DailyRitualRepository(
+        service: service,
+        cache: MemoryReadCache(),
+      ),
+    );
+    await controller.load();
+    await tester.pumpWidget(_screenApp(controller: controller, voice: voice));
+    await tester.pumpAndSettle();
 
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
-      expect(find.text('Review today’s ritual'), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
-      expect(voice.lines, isEmpty);
-      expect(service.completeCalls, 0);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byKey(const Key('daily-ritual-immersive')), findsNothing);
+    await _decodeExactArt(
+      tester,
+      'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
+    );
 
-      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-      await tester.pumpAndSettle();
-      await _decodeExactArt(
-        tester,
-        'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
-      );
-
-      expect(find.byKey(const Key('daily-ritual-immersive')), findsOneWidget);
-      expect(find.byType(NavigationBar), findsNothing);
-      expect(find.text('Today’s ritual is complete.'), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-closing-skip')), findsNothing);
-      expect(
-        find.descendant(
-          of: find.byKey(const Key('leonidas-ritual-sequence')),
-          matching: find.byType(Scrollable),
-        ),
-        findsNothing,
-      );
-      expect(voice.lines, isEmpty);
-      expect(service.completeCalls, 0);
-
-      Navigator.of(
-        tester.element(find.byKey(const Key('daily-ritual-immersive'))),
-      ).pop();
-      await tester.pumpAndSettle();
-      expect(find.byType(NavigationBar), findsOneWidget);
-      expect(find.text('Review today’s ritual'), findsOneWidget);
-      expect(find.byKey(const Key('leonidas-evidence')), findsNothing);
-    },
-  );
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byKey(const Key('ritual-search')), findsOneWidget);
+    expect(find.byKey(const Key('ritual-briefings')), findsOneWidget);
+    expect(find.byKey(const Key('theme-toggle')), findsOneWidget);
+    expect(find.text('Today’s ritual is complete.'), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-evidence')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-starpath')), findsOneWidget);
+    expect(find.byKey(const Key('leonidas-closing-skip')), findsNothing);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('leonidas-ritual-sequence')),
+        matching: find.byType(Scrollable),
+      ),
+      findsNothing,
+    );
+    expect(voice.lines, isEmpty);
+    expect(service.completeCalls, 0);
+  });
 
   testWidgets('failed reveal remains actionable and announces the failure', (
     tester,
@@ -328,10 +324,8 @@ void main() {
       tester.getCenter(find.byKey(const Key('daily-ritual-seal-hit-region'))),
     );
     await tester.pump();
-    expect(
-      tester.widget<Text>(find.byKey(const Key('leonidas-phase-label'))).data,
-      'Hold the seal',
-    );
+    expect(find.byKey(const Key('leonidas-phase-label')), findsNothing);
+    expect(find.text('Stay with me · 0 of 5 seconds'), findsOneWidget);
     elapsed = const Duration(seconds: 5, milliseconds: 1);
     await tester.pump(const Duration(milliseconds: 50));
     await tester.pump();
@@ -341,10 +335,7 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    expect(
-      tester.widget<Text>(find.byKey(const Key('leonidas-phase-label'))).data,
-      'Reveal paused safely',
-    );
+    expect(find.byKey(const Key('leonidas-phase-label')), findsNothing);
     expect(
       find.textContaining('The ritual could not be opened'),
       findsOneWidget,
@@ -382,8 +373,6 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-    await tester.pumpAndSettle();
     await _decodeExactArt(
       tester,
       'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
@@ -392,7 +381,7 @@ void main() {
     await tester.tap(find.byKey(const Key('ritual-complete')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Finish paused safely'), findsOneWidget);
+    expect(find.text('Finish paused safely'), findsNothing);
     expect(find.text('Direction, not urgency.'), findsOneWidget);
     expect(find.byKey(const Key('leonidas-card-front')), findsOneWidget);
     expect(find.byKey(const Key('daily-ritual-finish-error')), findsOneWidget);
@@ -429,8 +418,6 @@ void main() {
       ),
     );
     await tester.pump();
-    await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-    await tester.pumpAndSettle();
     await _decodeExactArt(
       tester,
       'assets/images/tarot/modern-rider-waite/major/13-death.webp',
@@ -483,8 +470,6 @@ void main() {
         ),
       );
       await tester.pump();
-      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-      await tester.pumpAndSettle();
       await _decodeExactArt(
         tester,
         'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
@@ -551,8 +536,6 @@ void main() {
 
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-    await tester.pumpAndSettle();
     await _decodeExactArt(
       tester,
       'assets/images/tarot/modern-rider-waite/major/09-the-hermit.webp',
@@ -622,9 +605,6 @@ void main() {
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-      await tester.tap(find.byKey(const Key('daily-ritual-return-action')));
-      await tester.pumpAndSettle();
-
       expect(find.byKey(const Key('ritual-history')), findsNothing);
       expect(find.textContaining('Coven'), findsNothing);
       expect(find.textContaining('practice'), findsNothing);
@@ -685,6 +665,13 @@ void _setReducedMotionPhoneViewport(WidgetTester tester) {
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   addTearDown(tester.platformDispatcher.clearAllTestValues);
+}
+
+void _setPhoneViewport(WidgetTester tester) {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
 }
 
 Future<void> _decodeExactArt(WidgetTester tester, String assetPath) async {

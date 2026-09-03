@@ -308,7 +308,6 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
   }
 
   Widget _buildStage(BuildContext context) {
-    final colors = context.ritualColors;
     final stageHeight = DailyRitualStageSpec.stageHeight(
       MediaQuery.textScalerOf(context),
     );
@@ -321,14 +320,9 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
         key: DailyRitualStageSpec.stageKey,
         width: double.infinity,
         height: stageHeight,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(DailyRitualStageSpec.radius),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: const Color(0xFF0C0810),
-              border: Border.all(color: colors.gold.withValues(alpha: 0.48)),
-              borderRadius: BorderRadius.circular(DailyRitualStageSpec.radius),
-            ),
+        child: ClipRect(
+          child: ColoredBox(
+            color: const Color(0xFF0C0810),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final dx =
@@ -360,7 +354,33 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
                     ),
                     _buildCardSurface(dx),
                     _buildMetadata(dx),
-                    ..._buildPhaseContent(dx, largeText: largeText),
+                    Positioned.fill(
+                      child: AnimatedSwitcher(
+                        duration: DailyRitualStageSpec.motion(
+                          DailyRitualStageSpec.startTransition,
+                          reducedMotion: _reducedMotion,
+                        ),
+                        switchInCurve: DailyRitualStageSpec.enterCurve,
+                        switchOutCurve: DailyRitualStageSpec.exitCurve,
+                        transitionBuilder: (child, animation) => FadeTransition(
+                          key:
+                              child.key ==
+                                  DailyRitualStageSpec.attunementLayerKey
+                              ? DailyRitualStageSpec.attunementFadeKey
+                              : null,
+                          opacity: animation,
+                          child: child,
+                        ),
+                        child: Stack(
+                          key: _phaseLayerKey,
+                          fit: StackFit.expand,
+                          children: _buildPhaseContent(
+                            dx,
+                            largeText: largeText,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 );
               },
@@ -400,18 +420,19 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
-                    _phaseLabel,
-                    key: const Key('leonidas-phase-label'),
-                    maxLines: 2,
-                    overflow: TextOverflow.fade,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      height: 1.15,
-                      fontWeight: FontWeight.w700,
+                  if (_phaseStatusLabel case final status?)
+                    Text(
+                      status,
+                      key: const Key('leonidas-phase-label'),
+                      maxLines: 2,
+                      overflow: TextOverflow.fade,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        height: 1.15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -546,7 +567,7 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     DailyRitualStagePhase.ready ||
     DailyRitualStagePhase.holding ||
     DailyRitualStagePhase.acceptedWaiting ||
-    DailyRitualStagePhase.revealFailure => _buildSeal(dx, largeText: largeText),
+    DailyRitualStagePhase.revealFailure => _buildSeal(dx),
     DailyRitualStagePhase.revealed ||
     DailyRitualStagePhase.finishPending ||
     DailyRitualStagePhase.finishFailure => _buildReading(
@@ -561,6 +582,27 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     DailyRitualStagePhase.mediaUnavailable => _buildMediaUnavailable(
       dx,
       completed: widget.ritual.state == DailyRitualState.completed,
+    ),
+  };
+
+  Key get _phaseLayerKey => switch (_phase) {
+    DailyRitualStagePhase.resting => const Key('daily-ritual-resting-layer'),
+    DailyRitualStagePhase.ready ||
+    DailyRitualStagePhase.holding ||
+    DailyRitualStagePhase.acceptedWaiting ||
+    DailyRitualStagePhase.revealFailure =>
+      DailyRitualStageSpec.attunementLayerKey,
+    DailyRitualStagePhase.revealed ||
+    DailyRitualStagePhase.finishPending ||
+    DailyRitualStagePhase.finishFailure => const Key(
+      'daily-ritual-reading-layer',
+    ),
+    DailyRitualStagePhase.closing => const Key('daily-ritual-closing-layer'),
+    DailyRitualStagePhase.completed => const Key(
+      'daily-ritual-completed-layer',
+    ),
+    DailyRitualStagePhase.mediaUnavailable => const Key(
+      'daily-ritual-media-unavailable-layer',
     ),
   };
 
@@ -611,10 +653,6 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
       ],
     );
     return [
-      _positionedRect(
-        DailyRitualStageSpec.restingSealVisual.shift(Offset(dx, 0)),
-        child: const _RestingSeal(),
-      ),
       Positioned(
         left: 16 + dx,
         right: math.max(16 - dx, 16),
@@ -630,51 +668,47 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     ];
   }
 
-  List<Widget> _buildSeal(double dx, {required bool largeText}) {
+  List<Widget> _buildSeal(double dx) {
     final holding =
         _phase == DailyRitualStagePhase.holding ||
         _phase == DailyRitualStagePhase.acceptedWaiting;
     final sealRect = holding
         ? DailyRitualStageSpec.holdingSealHit
         : DailyRitualStageSpec.restingSealHit;
-    Widget caption() => Text(
-      _sealCaption,
+    Widget guidance() => Text(
+      _sealGuidance,
       key: const Key('leonidas-caption'),
       textAlign: TextAlign.center,
-      style: const TextStyle(color: Colors.white, fontSize: 14, height: 1.35),
+      style: const TextStyle(
+        color: Colors.white,
+        fontFamily: 'LibreBaskerville',
+        fontSize: 18,
+        height: 1.35,
+        fontWeight: FontWeight.w700,
+      ),
     );
     return [
-      _positionedRect(
-        sealRect.shift(Offset(dx, 0)),
+      Positioned(
+        left: sealRect.left + dx,
+        width: sealRect.width,
+        height: sealRect.height,
+        bottom: DailyRitualStageSpec.sealBottomInset,
         child: _SealHold(stage: _stage, expanded: holding),
       ),
       Positioned(
         left: 20 + dx,
         right: math.max(20 - dx, 20),
-        top: largeText ? 470 : 468,
+        bottom: DailyRitualStageSpec.attunementGuidanceBottom,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ExcludeSemantics(
-              child: Text(
-                _sealHeading,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.ritualColors.gold,
-                  fontFamily: 'LibreBaskerville',
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 5),
             if (_phase == DailyRitualStagePhase.holding)
               ValueListenableBuilder<int>(
                 valueListenable: _stage.holdProgressSecondsListenable,
-                builder: (context, seconds, child) => caption(),
+                builder: (context, seconds, child) => guidance(),
               )
             else
-              caption(),
+              guidance(),
           ],
         ),
       ),
@@ -969,35 +1003,29 @@ class _LeonidasRitualSequenceState extends State<LeonidasRitualSequence>
     ),
   ];
 
-  String get _phaseLabel => switch (_phase) {
-    DailyRitualStagePhase.resting => 'Awaiting your choice',
-    DailyRitualStagePhase.ready => 'Ready to hold',
-    DailyRitualStagePhase.holding => 'Hold the seal',
-    DailyRitualStagePhase.acceptedWaiting => 'Confirming today’s card',
+  String? get _phaseStatusLabel => switch (_phase) {
+    DailyRitualStagePhase.resting ||
+    DailyRitualStagePhase.ready ||
+    DailyRitualStagePhase.holding ||
+    DailyRitualStagePhase.acceptedWaiting => null,
     DailyRitualStagePhase.revealed => 'Reading revealed',
     DailyRitualStagePhase.finishPending => 'Finishing safely',
     DailyRitualStagePhase.closing ||
     DailyRitualStagePhase.completed => 'Today’s ritual is complete.',
-    DailyRitualStagePhase.revealFailure => 'Reveal paused safely',
-    DailyRitualStagePhase.finishFailure => 'Finish paused safely',
-    DailyRitualStagePhase.mediaUnavailable => 'Exact card unavailable',
+    DailyRitualStagePhase.revealFailure ||
+    DailyRitualStagePhase.finishFailure ||
+    DailyRitualStagePhase.mediaUnavailable => null,
   };
 
-  String get _sealHeading => switch (_phase) {
-    DailyRitualStagePhase.acceptedWaiting => 'The seal is set',
-    DailyRitualStagePhase.revealFailure => 'Try again',
-    _ => 'Hold to attune',
-  };
-
-  String get _sealCaption => switch (_phase) {
+  String get _sealGuidance => switch (_phase) {
     DailyRitualStagePhase.ready when _stage.cancellation != null =>
       'You let go. Was the moment not right?',
     DailyRitualStagePhase.holding =>
-      'Stay with me. ${_stage.semanticProgressSeconds} of 5 seconds.',
+      'Stay with me · ${_stage.semanticProgressSeconds} of 5 seconds',
     DailyRitualStagePhase.acceptedWaiting =>
-      'Today’s exact card is being confirmed.',
+      'The seal is set. Confirming your card…',
     DailyRitualStagePhase.revealFailure => _revealFailureLine,
-    _ => 'Place your thumb on the seal and hold.',
+    _ => 'Hold to attune for 5 seconds.',
   };
 }
 
@@ -1026,48 +1054,18 @@ class _LeonidasPortrait extends StatelessWidget {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [Colors.white, Colors.white, Colors.transparent],
-            stops: [0, 0.78, 1],
+            stops: [0, 0.85, 1],
           ).createShader(bounds),
           child: Image.asset(
             'assets/images/leonidas/leonidas-canonical-scholar-portrait-v1.png',
             package: package,
-            fit: BoxFit.cover,
+            fit: BoxFit.contain,
             alignment: Alignment.topCenter,
           ),
         ),
       ),
     );
   }
-}
-
-class _RestingSeal extends StatelessWidget {
-  const _RestingSeal();
-
-  @override
-  Widget build(BuildContext context) => IgnorePointer(
-    child: ExcludeSemantics(
-      child: DecoratedBox(
-        key: DailyRitualStageSpec.sealVisualKey,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: const RadialGradient(
-            colors: [Color(0xFF5A3812), Color(0xFF211221)],
-          ),
-          border: Border.all(
-            color: context.ritualColors.gold.withValues(alpha: 0.72),
-            width: 2,
-          ),
-        ),
-        child: Center(
-          child: Icon(
-            Icons.auto_awesome,
-            color: context.ritualColors.gold,
-            size: 42,
-          ),
-        ),
-      ),
-    ),
-  );
 }
 
 class _SealHold extends StatelessWidget {

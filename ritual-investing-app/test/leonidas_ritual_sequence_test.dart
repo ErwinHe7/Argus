@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ritual_investing_app/app/theme/app_theme.dart';
 import 'package:ritual_investing_app/features/ritual/domain/daily_ritual.dart';
+import 'package:ritual_investing_app/features/ritual/presentation/daily_ritual_stage_spec.dart';
 import 'package:ritual_investing_app/features/ritual/presentation/leonidas_ritual_sequence.dart';
 
 void main() {
@@ -118,11 +119,9 @@ void main() {
         );
 
         await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+        await tester.pump();
         await tester.pump(const Duration(milliseconds: 200));
-        expect(
-          find.text('Place your thumb on the seal and hold.'),
-          findsOneWidget,
-        );
+        expect(find.text('Hold to attune for 5 seconds.'), findsOneWidget);
         final seal = find.bySemanticsLabel('Hold to attune');
         final gesture = await tester.startGesture(tester.getCenter(seal));
         await tester.pump();
@@ -157,6 +156,7 @@ void main() {
     );
 
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
     final seal = find.bySemanticsLabel('Hold to attune');
     final gesture = await tester.startGesture(tester.getCenter(seal));
@@ -195,6 +195,7 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
       await tester.pump();
+      await tester.pump(DailyRitualStageSpec.startTransition);
 
       var seal = tester.getSemantics(find.bySemanticsLabel('Begin ritual'));
       expect(seal.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
@@ -245,6 +246,7 @@ void main() {
     );
 
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
     final seal = find.bySemanticsLabel('Hold to attune');
     final gesture = await tester.startGesture(tester.getCenter(seal));
@@ -284,6 +286,7 @@ void main() {
       );
       await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
       await tester.pump();
+      await tester.pump(DailyRitualStageSpec.startTransition);
       final gesture = await tester.startGesture(
         tester.getCenter(find.bySemanticsLabel('Hold to attune')),
       );
@@ -368,12 +371,10 @@ void main() {
 
       await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
       await tester.pump();
+      await tester.pump(DailyRitualStageSpec.startTransition);
 
       expect(find.byKey(const Key('leonidas-portrait-focus')), findsOneWidget);
-      expect(
-        find.text('Place your thumb on the seal and hold.'),
-        findsOneWidget,
-      );
+      expect(find.text('Hold to attune for 5 seconds.'), findsOneWidget);
       expect(revealCount, 0);
       expect(voice.lines, isEmpty);
 
@@ -434,6 +435,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
     await tester.pump();
+    await tester.pump(DailyRitualStageSpec.startTransition);
     final seal = find.bySemanticsLabel('Begin ritual');
     final gesture = await tester.startGesture(tester.getCenter(seal));
     await tester.pump();
@@ -471,6 +473,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
     await tester.pump();
+    await tester.pump(DailyRitualStageSpec.startTransition);
     final seal = find.bySemanticsLabel('Begin ritual');
     final gesture = await tester.startGesture(tester.getCenter(seal));
     await tester.pump();
@@ -537,6 +540,7 @@ void main() {
     await tester.pump();
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
     await tester.pump();
+    await tester.pump(DailyRitualStageSpec.startTransition);
     final seal = find.bySemanticsLabel('Begin ritual');
     final gesture = await tester.startGesture(tester.getCenter(seal));
     await tester.pump();
@@ -545,7 +549,7 @@ void main() {
     await gesture.up();
     await tester.tap(find.byKey(const Key('ritual-complete')));
     await tester.pump(const Duration(milliseconds: 1200));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(revealCount, 1);
     expect(voice.lines, isEmpty);
@@ -582,6 +586,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('leonidas-sequence-start')));
     await tester.pump();
+    await tester.pump(DailyRitualStageSpec.startTransition);
     final seal = find.bySemanticsLabel('Begin ritual');
     final gesture = await tester.startGesture(tester.getCenter(seal));
     await tester.pump();

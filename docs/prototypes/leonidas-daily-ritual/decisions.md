@@ -1,6 +1,6 @@
 # Reveal choreography and voice — historical prototype
 
-> **Superseded:** This browser prototype is no longer the canonical Daily Ritual. The production authority is the [Daily Ritual rebuild](../../../ritual-investing-app/docs/reviews/daily-ritual-rebuild.md), including its [approved fullscreen iPhone 17 sequence](../../../ritual-investing-app/docs/evidence/daily-ritual-rebuild/g1-fullscreen-approved-contact-sheet.jpg).
+> **Superseded:** This browser prototype is no longer the canonical Daily Ritual. The production authority is the [Daily Ritual rebuild](../../../ritual-investing-app/docs/reviews/daily-ritual-rebuild.md) and its current in-place light/dark visual goldens.
 
 ## Question
 
@@ -41,7 +41,7 @@ Direction C's progressive disclosure may still inform the evidence treatment, bu
 ## Superseding production decision
 
 - The invitation remains passive and navigable until **Start your daily ritual** is chosen.
-- Start opens a chrome-free fullscreen stage led by Leonidas. The member holds the seal for five continuous seconds; releasing early cancels without revealing.
+- Start crossfades the seal into the existing Leonidas stage while the top controls and bottom navigation remain fixed. The member holds for five continuous seconds; releasing early cancels without revealing.
 - The real assigned card and one interpretation appear after authoritative reveal. One explicit Finish precedes the short skippable Leonidas close and the Evidence → Starpath handoff.
 - Leonidas remains visibly present throughout; the seal, card, and copy preserve the face-clear zone. No finger, sensor, or biometric metaphor appears in the UI.
 - Ordinary-size ceremony states do not scroll. Accessibility scaling may adapt the lower content region so complete strings and controls remain reachable.
