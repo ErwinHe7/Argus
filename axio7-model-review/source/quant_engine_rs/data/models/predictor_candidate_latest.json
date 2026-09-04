@@ -1,0 +1,15 @@
+{
+  "artifact_kind": "candidate_forecast_model",
+  "evidence_grade": "CONTAMINATED_EXPLORATORY",
+  "feature_version": "point-in-time-v3",
+  "model_hashes": [
+    "445bef855b292ce9c2c5ff115bc3b346aa96691da56d5272e359e416a5762537"
+  ],
+  "model_ids": [
+    "analog+hmm-regime-candidate-v2"
+  ],
+  "promotion": "REJECTED_NO_INDEPENDENT_OOS_EVIDENCE",
+  "source_commit": "WORKTREE_UNCOMMITTED",
+  "status": "RESEARCH_ONLY",
+  "trained_through": "2026-07-17T19:01:00Z"
+}

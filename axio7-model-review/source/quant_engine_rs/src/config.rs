@@ -329,7 +329,18 @@ pub struct RegimeResearchConfig {
 impl Default for RegimeResearchConfig {
     fn default() -> Self {
         Self {
-            state_candidates: (2..=10).collect(),
+            // Widened from 2..=10 to 2..=12 -- the full range `GaussianHmm::fit`
+            // already permits and config validation already requires staying
+            // within. Every shipped candidate previously saturated at the top
+            // of whatever grid it was given
+            // (BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K); stopping two
+            // states short of the model's own hard cap made that impossible to
+            // tell apart from "the grid just wasn't wide enough yet". Selection
+            // now also requires MINIMUM_STATE_OCCUPANCY per state
+            // (engine::model_selection), which is what actually creates an
+            // interior optimum -- widening the grid alone would just move the
+            // saturation point.
+            state_candidates: (2..=12).collect(),
             validation_fraction: 0.20,
             minimum_validation_sessions: 5,
             max_iterations: 40,
@@ -697,46 +708,93 @@ impl AppConfig {
             bail!("context feed configuration is invalid");
         }
         if self.live.enabled {
-            if !matches!(self.live.provider.as_str(), "massive" | "moomoo") {
-                bail!("live.provider must be massive or moomoo");
+            if !matches!(
+                self.live.provider.as_str(),
+                "massive" | "moomoo" | "databento"
+            ) {
+                bail!("live.provider must be massive, moomoo, or databento");
             }
             if !self.live.quote_only || self.live.allow_trade_api {
                 bail!("live market-data adapter must remain quote-only with trade API disabled");
             }
-            if self.live.provider == "moomoo" {
-                let ip = IpAddr::from_str(&self.live.host)
-                    .with_context(|| "live.host must be a numeric loopback address")?;
-                if !ip.is_loopback() {
-                    bail!("Moomoo live adapter must be loopback-only");
-                }
-                if self.live.symbols.iter().any(|symbol| symbol == "US..SPX") {
-                    bail!("Moomoo does not support US index quote symbol US..SPX");
-                }
-            } else {
-                if !self.data.massive.enabled {
-                    bail!("live.provider=massive requires data.massive.enabled=true");
-                }
-                for (name, raw) in [
-                    (
-                        "data.massive.stock_websocket_url",
-                        self.data.massive.stock_websocket_url.as_str(),
-                    ),
-                    (
-                        "data.massive.options_websocket_url",
-                        self.data.massive.options_websocket_url.as_str(),
-                    ),
-                ] {
-                    let url = reqwest::Url::parse(raw)
-                        .with_context(|| format!("{name} must be an absolute WSS URL"))?;
-                    if url.scheme() != "wss" {
-                        bail!("{name} must use wss");
+            match self.live.provider.as_str() {
+                "moomoo" => {
+                    let ip = IpAddr::from_str(&self.live.host)
+                        .with_context(|| "live.host must be a numeric loopback address")?;
+                    if !ip.is_loopback() {
+                        bail!("Moomoo live adapter must be loopback-only");
                     }
-                    if self.live.require_realtime
-                        && url.host_str().is_some_and(|host| host.contains("delayed"))
-                    {
-                        bail!("{name} points at a delayed endpoint while realtime is required");
+                    if self.live.symbols.iter().any(|symbol| symbol == "US..SPX") {
+                        bail!("Moomoo does not support US index quote symbol US..SPX");
                     }
                 }
+                "massive" => {
+                    if !self.data.massive.enabled {
+                        bail!("live.provider=massive requires data.massive.enabled=true");
+                    }
+                    for (name, raw) in [
+                        (
+                            "data.massive.stock_websocket_url",
+                            self.data.massive.stock_websocket_url.as_str(),
+                        ),
+                        (
+                            "data.massive.options_websocket_url",
+                            self.data.massive.options_websocket_url.as_str(),
+                        ),
+                    ] {
+                        let url = reqwest::Url::parse(raw)
+                            .with_context(|| format!("{name} must be an absolute WSS URL"))?;
+                        if url.scheme() != "wss" {
+                            bail!("{name} must use wss");
+                        }
+                        if self.live.require_realtime
+                            && url.host_str().is_some_and(|host| host.contains("delayed"))
+                        {
+                            bail!("{name} points at a delayed endpoint while realtime is required");
+                        }
+                    }
+                }
+                "databento" => {
+                    if !self.data.databento.enabled {
+                        bail!("live.provider=databento requires data.databento.enabled=true");
+                    }
+                    let request = self
+                        .data
+                        .databento
+                        .requests
+                        .iter()
+                        .find(|request| {
+                            request.dataset.eq_ignore_ascii_case("EQUS.MINI")
+                                && request.schema.eq_ignore_ascii_case("ohlcv-1m")
+                                && request.stype_in.eq_ignore_ascii_case("raw_symbol")
+                        })
+                        .context(
+                            "live.provider=databento requires an EQUS.MINI/ohlcv-1m/raw_symbol request",
+                        )?;
+                    if self.live.symbols.is_empty() {
+                        bail!("Databento live adapter requires at least one symbol");
+                    }
+                    let missing_symbols = self
+                        .live
+                        .symbols
+                        .iter()
+                        .filter_map(|symbol| {
+                            let normalized = symbol.strip_prefix("US.").unwrap_or(symbol);
+                            (!request
+                                .symbols
+                                .iter()
+                                .any(|configured| configured.eq_ignore_ascii_case(normalized)))
+                            .then_some(normalized)
+                        })
+                        .collect::<Vec<_>>();
+                    if !missing_symbols.is_empty() {
+                        bail!(
+                            "Databento live symbols are absent from the configured EQUS.MINI request: {}",
+                            missing_symbols.join(", ")
+                        );
+                    }
+                }
+                _ => unreachable!("live provider was validated above"),
             }
             if self.live.finalize_grace_ms < 0
                 || self.live.stale_after_ms <= 0

@@ -7,6 +7,8 @@
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 
+use crate::engine::model_selection;
+
 const VARIANCE_FLOOR: f64 = 1.0e-4;
 const WEIGHT_FLOOR: f64 = 1.0e-12;
 
@@ -324,7 +326,7 @@ pub fn select_and_refit(
         bail!("GMM selection requires component candidates");
     }
     let use_validation = !validation_observations.is_empty();
-    let mut selected: Option<(usize, f64)> = None;
+    let mut selection_candidates = Vec::new();
     let mut scores = Vec::new();
     for components in candidate_components {
         match GaussianMixture::fit(fit_observations, *components, max_iterations, restarts) {
@@ -333,16 +335,21 @@ pub fn select_and_refit(
                     .then(|| model.average_log_likelihood(validation_observations).ok())
                     .flatten();
                 let criterion = validation_score.unwrap_or(-model.bic);
-                if selected
-                    .as_ref()
-                    .is_none_or(|(current_components, current_score)| {
-                        criterion > *current_score + 1.0e-12
-                            || ((criterion - *current_score).abs() <= 1.0e-12
-                                && *components < *current_components)
-                    })
-                {
-                    selected = Some((*components, criterion));
-                }
+                // `weights[k]` is defined by the M-step as
+                // `mean_i(responsibility[i][k])`, so `weights[k] * N` is
+                // exactly `sum_i(responsibility[i][k])` -- the same
+                // expected-occupancy quantity `GaussianHmm::state_occupancy`
+                // computes for the HMM, no separate aggregation needed here.
+                let minimum_occupancy = model
+                    .weights
+                    .iter()
+                    .map(|weight| weight * fit_observations.len() as f64)
+                    .fold(f64::INFINITY, f64::min);
+                selection_candidates.push(model_selection::SelectionCandidate {
+                    id: *components,
+                    criterion: Some(criterion),
+                    minimum_occupancy: Some(minimum_occupancy),
+                });
                 scores.push(GmmCandidateScore {
                     components: *components,
                     training_bic: model.bic.is_finite().then_some(model.bic),
@@ -363,9 +370,13 @@ pub fn select_and_refit(
             }),
         }
     }
-    let selected_components = selected
-        .map(|(components, _)| components)
-        .context("no GMM candidate produced a finite score")?;
+    let selected_components = model_selection::select_best(
+        &selection_candidates,
+        model_selection::MINIMUM_STATE_OCCUPANCY,
+    )
+    .context(
+        "no GMM candidate produced a finite score and cleared the per-component occupancy floor",
+    )?;
     let mut all = fit_observations.to_vec();
     all.extend_from_slice(validation_observations);
     let model = GaussianMixture::fit(&all, selected_components, max_iterations, restarts)?;

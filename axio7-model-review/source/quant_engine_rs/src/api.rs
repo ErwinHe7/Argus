@@ -1,4 +1,9 @@
-use std::{collections::BTreeMap, fs, net::SocketAddr, sync::Arc};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    net::SocketAddr,
+    sync::Arc,
+};
 
 use anyhow::Result;
 use axum::{
@@ -24,6 +29,7 @@ use crate::{
         gamma_convexity::{GammaConvexityRequest, gamma_convexity_feedback_risk},
         run_csv_research,
     },
+    frozen_universe::load_frozen_universe,
     market_query::{
         EVIDENCE_ENVELOPE_SCHEMA_VERSION, EvidenceEnvelope, EvidenceItem, MarketQuery,
         MarketQueryIntent, MarketSetupType, ResearchCandidate, gamma_structure_candidate,
@@ -162,6 +168,10 @@ pub fn router(state: AppState) -> Router {
         .route("/api/v1/live/status", get(live_status))
         .route("/api/v1/live/events", get(live_events))
         .route("/api/v1/live/bars", get(live_bars))
+        .route(
+            "/api/v1/live/ibkr/quotes",
+            get(ibkr_relay_quotes).post(ibkr_relay_ingest),
+        )
         .route("/api/v1/live/gaps", get(live_gaps))
         .route("/api/v1/live/capabilities", get(live_capabilities))
         .route("/api/v1/options/intel/{underlying}", get(options_intel))
@@ -371,6 +381,7 @@ async fn data_plan(State(state): State<AppState>) -> Json<Value> {
 }
 
 async fn research_universe(State(state): State<AppState>) -> Json<Value> {
+    let model_runtime = frozen_model_runtime_projection(&state);
     let targets = state
         .config
         .research
@@ -392,6 +403,7 @@ async fn research_universe(State(state): State<AppState>) -> Json<Value> {
         "targets": targets,
         "forecast_horizons_minutes": state.config.research.horizons,
         "production_inference_owner": "quant_engine_rs",
+        "model_runtime": model_runtime,
         "model_layers": {
             "regime": "chronologically selected frozen Gaussian HMM",
             "analog": "same-regime horizon-matched causal kernel",
@@ -416,6 +428,140 @@ async fn research_universe(State(state): State<AppState>) -> Json<Value> {
         "execution": "DISABLED",
         "product_boundary": "impersonal reproducible market research; no order placement or risk-free-arbitrage claims"
     }))
+}
+
+fn model_runtime_status(
+    requested_artifact_count: usize,
+    loaded_artifact_count: usize,
+    failed_artifact_count: usize,
+) -> &'static str {
+    if requested_artifact_count > 0
+        && loaded_artifact_count == requested_artifact_count
+        && failed_artifact_count == 0
+    {
+        "LOADED"
+    } else if loaded_artifact_count > 0 {
+        "PARTIAL"
+    } else {
+        "UNAVAILABLE"
+    }
+}
+
+fn sanitized_model_runtime_failure(reason: &str) -> &'static str {
+    if reason.contains("REGISTRY_ARTIFACT_TARGET_MISMATCH") {
+        "ARTIFACT_TARGET_MISMATCH"
+    } else if reason.contains("REGISTRY_ARTIFACT_VERSION_MISMATCH") {
+        "ARTIFACT_VERSION_MISMATCH"
+    } else if reason.contains("REGISTRY_MODEL_HASH_MISMATCH") {
+        "MODEL_HASH_MISMATCH"
+    } else if reason.contains("unsupported frozen predictor artifact version") {
+        "UNSUPPORTED_ARTIFACT_VERSION"
+    } else if reason.contains("identity or lineage is incomplete") {
+        "ARTIFACT_LINEAGE_INCOMPLETE"
+    } else if reason.contains("feature schema mismatch") {
+        "FEATURE_SCHEMA_MISMATCH"
+    } else if reason.contains("persisted regime selection") {
+        "REGIME_SELECTION_MISMATCH"
+    } else if reason.contains("analog index count") {
+        "ANALOG_INDEX_COUNT_MISMATCH"
+    } else if reason.contains("stochastic distribution head") {
+        "STOCHASTIC_HEAD_INVALID"
+    } else if reason.contains("artifact hash mismatch") {
+        "ARTIFACT_CONTENT_HASH_MISMATCH"
+    } else if reason.contains("deserialize") {
+        "ARTIFACT_DESERIALIZATION_FAILED"
+    } else if reason.contains("validate") {
+        "ARTIFACT_STATIC_VALIDATION_FAILED"
+    } else if reason.contains("read") {
+        "ARTIFACT_NOT_READABLE"
+    } else {
+        "ARTIFACT_REJECTED"
+    }
+}
+
+fn frozen_model_runtime_projection(state: &AppState) -> Value {
+    let root = state
+        .config
+        .data
+        .raw_root
+        .parent()
+        .unwrap_or(std::path::Path::new("data"));
+    let registry_path = root.join("models/universe/registry.json");
+    let requested_symbols = state
+        .config
+        .research
+        .targets
+        .iter()
+        .filter_map(|target| {
+            let symbol = target.model_symbol.trim().trim_start_matches("US.");
+            (!symbol.is_empty()).then(|| symbol.to_ascii_uppercase())
+        })
+        .collect::<BTreeSet<_>>();
+    let requested_artifact_count = requested_symbols.len();
+
+    match load_frozen_universe(&registry_path, requested_symbols.iter()) {
+        Ok(universe) => {
+            let loaded_symbols = universe
+                .artifacts()
+                .keys()
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            let failed_symbols = universe.failures().keys().cloned().collect::<BTreeSet<_>>();
+            let loaded_artifact_count = loaded_symbols.len();
+            let failed_artifact_count = failed_symbols.len();
+            let symbols = requested_symbols
+                .iter()
+                .map(|symbol| {
+                    let failure_code = universe
+                        .failures()
+                        .get(symbol)
+                        .map(|reason| sanitized_model_runtime_failure(reason));
+                    json!({
+                        "model_symbol": symbol,
+                        "status": if loaded_symbols.contains(symbol) {
+                            "LOADED"
+                        } else if failed_symbols.contains(symbol) {
+                            "REJECTED"
+                        } else {
+                            "UNAVAILABLE"
+                        },
+                        "reason_code": failure_code
+                    })
+                })
+                .collect::<Vec<_>>();
+            json!({
+                "schema_version": "axio.model-runtime-receipt.v1",
+                "status": model_runtime_status(
+                    requested_artifact_count,
+                    loaded_artifact_count,
+                    failed_artifact_count,
+                ),
+                "requested_artifact_count": requested_artifact_count,
+                "loaded_artifact_count": loaded_artifact_count,
+                "failed_artifact_count": failed_artifact_count,
+                "symbols": symbols,
+                "quality_and_promotion_checked_separately": true,
+                "automatic_execution_enabled": false
+            })
+        }
+        Err(_) => json!({
+            "schema_version": "axio.model-runtime-receipt.v1",
+            "status": "UNAVAILABLE",
+            "requested_artifact_count": requested_artifact_count,
+            "loaded_artifact_count": 0,
+            "failed_artifact_count": requested_artifact_count,
+            "symbols": requested_symbols
+                .iter()
+                .map(|symbol| json!({
+                    "model_symbol":symbol,
+                    "status":"UNAVAILABLE",
+                    "reason_code":"REGISTRY_UNAVAILABLE"
+                }))
+                .collect::<Vec<_>>(),
+            "quality_and_promotion_checked_separately": true,
+            "automatic_execution_enabled": false
+        }),
+    }
 }
 
 async fn data_sources(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
@@ -1336,6 +1482,15 @@ async fn live_status(State(state): State<AppState>) -> Result<Json<Value>, ApiEr
             "inference":read_json_if_present(&root.join("massive_inference_status.json"))?
         })));
     }
+    if state.config.live.provider == "databento" {
+        let root = live_root(&state);
+        return Ok(Json(json!({
+            "provider":"databento",
+            "stream":read_json_if_present(&root.join("databento_stream_status.json"))?,
+            "bar_artifact":"databento_stock_bars.jsonl",
+            "execution_enabled":false
+        })));
+    }
     let path = live_root(&state).join("status.json");
     if path.exists() {
         return Ok(Json(read_json_if_present(&path)?));
@@ -1353,6 +1508,24 @@ async fn live_capabilities(State(state): State<AppState>) -> Result<Json<Value>,
             serde_json::to_value(crate::data::massive::status(&state.config.data.massive))
                 .map_err(ApiError::internal)?,
         ));
+    }
+    if state.config.live.provider == "databento" {
+        let request = state.config.data.databento.requests.iter().find(|request| {
+            request.dataset.eq_ignore_ascii_case("EQUS.MINI")
+                && request.schema.eq_ignore_ascii_case("ohlcv-1m")
+                && request.stype_in.eq_ignore_ascii_case("raw_symbol")
+        });
+        return Ok(Json(json!({
+            "provider":"databento",
+            "dataset":request.map(|row| row.dataset.as_str()),
+            "schema":request.map(|row| row.schema.as_str()),
+            "credential_configured":credential_configured("DATABENTO_API_KEY"),
+            "realtime_required":state.config.live.require_realtime,
+            "quote_only":state.config.live.quote_only,
+            "subscribed_symbols":state.config.live.symbols,
+            "public_redistribution_authorized":false,
+            "execution_enabled":false
+        })));
     }
     Ok(Json(crate::live::capability(&state.config.live)))
 }
@@ -1657,6 +1830,8 @@ fn read_jsonl_tail(path: &std::path::Path, limit: usize) -> Result<Vec<Value>, A
 async fn live_bars(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
     let file = if state.config.live.provider == "massive" {
         "massive_stock_bars.jsonl"
+    } else if state.config.live.provider == "databento" {
+        "databento_stock_bars.jsonl"
     } else {
         "finalized_bars.jsonl"
     };
@@ -1667,11 +1842,60 @@ async fn live_bars(State(state): State<AppState>) -> Result<Json<Value>, ApiErro
 async fn live_events(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
     let file = if state.config.live.provider == "massive" {
         "massive_stock_bars.jsonl"
+    } else if state.config.live.provider == "databento" {
+        "databento_stock_bars.jsonl"
     } else {
         "raw_sdk_events.jsonl"
     };
     let rows = read_jsonl_tail(&live_root(&state).join(file), 200)?;
     Ok(Json(json!({"events": rows})))
+}
+
+fn ibkr_relay_enabled() -> bool {
+    std::env::var("IBKR_QUOTE_RELAY_ENABLED").is_ok_and(|value| value == "true")
+}
+
+async fn ibkr_relay_ingest(
+    State(state): State<AppState>,
+    Json(batch): Json<crate::data::ibkr_relay::IbkrQuoteBatch>,
+) -> Result<Json<crate::data::ibkr_relay::IbkrRelayStatus>, ApiError> {
+    if !ibkr_relay_enabled() {
+        return Err(ApiError::service_unavailable(
+            "IBKR quote relay is disabled",
+        ));
+    }
+    let received_at = Utc::now();
+    let policy = crate::data::ibkr_relay::policy_from_symbols(
+        &state.config.live.symbols,
+        state.config.live.stale_after_ms,
+        state.config.live.max_context_skew_ms,
+    );
+    let receipt = crate::data::ibkr_relay::validate_quote_batch(&batch, received_at, &policy)
+        .map_err(|error| ApiError::unprocessable(error.to_string()))?;
+    let status = crate::data::ibkr_relay::persist_quote_batch(&live_root(&state), batch, receipt)
+        .map_err(ApiError::internal)?;
+    Ok(Json(status))
+}
+
+async fn ibkr_relay_quotes(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
+    if !ibkr_relay_enabled() {
+        return Ok(Json(json!({
+            "status":"DISABLED",
+            "provider":"IBKR_CLIENT_PORTAL",
+            "quote_only":true,
+            "execution_enabled":false
+        })));
+    }
+    let root = live_root(&state);
+    let status = crate::data::ibkr_relay::read_status(&root.join("ibkr_relay_status.json"))
+        .map_err(ApiError::internal)?;
+    let batches = read_jsonl_tail(&root.join("ibkr_quote_batches.jsonl"), 10)?;
+    Ok(Json(json!({
+        "status":status,
+        "batches":batches,
+        "quote_only":true,
+        "execution_enabled":false
+    })))
 }
 
 async fn live_gaps(State(state): State<AppState>) -> Result<Json<Value>, ApiError> {
@@ -1681,6 +1905,14 @@ async fn live_gaps(State(state): State<AppState>) -> Result<Json<Value>, ApiErro
             "count":0,
             "status":"PROVIDER_STREAM_FAILS_CLOSED_ON_STALE_OR_DISCONNECTED_INPUT",
             "stream":read_json_if_present(&live_root(&state).join("massive_stream_status.json"))?
+        })));
+    }
+    if state.config.live.provider == "databento" {
+        return Ok(Json(json!({
+            "gaps":[],
+            "count":0,
+            "status":"PROVIDER_STREAM_FAILS_CLOSED_ON_STALE_DISCONNECTED_OR_UNMAPPED_INPUT",
+            "stream":read_json_if_present(&live_root(&state).join("databento_stream_status.json"))?
         })));
     }
     let rows = read_jsonl_tail(&live_root(&state).join("gaps.jsonl"), 500)?;
@@ -3266,6 +3498,51 @@ fn build_research_opportunity_scan(
             }),
             verified,
         )
+    } else if state.config.live.provider == "databento" {
+        let stream = fs::read(root.join("live/databento_stream_status.json"))
+            .ok()
+            .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+            .unwrap_or_else(|| {
+                json!({
+                    "state":"UNAVAILABLE",
+                    "blocker":"DATABENTO_STREAM_STATUS_ABSENT"
+                })
+            });
+        let stream_updated_at = stream
+            .get("updated_at")
+            .and_then(Value::as_str)
+            .and_then(|raw| chrono::DateTime::parse_from_rfc3339(raw).ok())
+            .map(|value| value.with_timezone(&chrono::Utc));
+        let stream_age_ms =
+            stream_updated_at.map(|updated| now.signed_duration_since(updated).num_milliseconds());
+        let stream_fresh = stream_age_ms.is_some_and(|age| {
+            age >= 0 && age <= state.config.live.stale_after_ms.saturating_mul(2)
+        });
+        let verified = stream.get("state").and_then(Value::as_str) == Some("STREAMING_REALTIME")
+            && stream.get("authenticated").and_then(Value::as_bool) == Some(true)
+            && stream.get("entitlement_verified").and_then(Value::as_bool) == Some(true)
+            && stream.get("replay_requested").and_then(Value::as_bool) == Some(false)
+            && stream.get("execution_enabled").and_then(Value::as_bool) == Some(false)
+            && stream.get("blocker").is_none_or(Value::is_null)
+            && stream_fresh;
+        (
+            json!({
+                "provider":"databento",
+                "status":stream.get("state").cloned().unwrap_or(json!("UNAVAILABLE")),
+                "dataset":stream.get("dataset").cloned().unwrap_or(Value::Null),
+                "schema":stream.get("schema").cloned().unwrap_or(Value::Null),
+                "updated_at":stream.get("updated_at").cloned().unwrap_or(Value::Null),
+                "stream_age_ms":stream_age_ms,
+                "login_status":if verified {
+                    "REALTIME_SUBSCRIPTION_ACKNOWLEDGED"
+                } else {
+                    "UNVERIFIED"
+                },
+                "blocker":stream.get("blocker").cloned().unwrap_or(Value::Null),
+                "execution_enabled":false
+            }),
+            verified,
+        )
     } else {
         let live_status_path = root.join("live/status.json");
         let feed = fs::read(&live_status_path)
@@ -3657,6 +3934,8 @@ async fn execute_research_query(
             | MarketSetupType::VwapReversal => {
                 let bars_path = if state.config.live.provider == "massive" {
                     root.join("live/massive_stock_bars.jsonl")
+                } else if state.config.live.provider == "databento" {
+                    root.join("live/databento_stock_bars.jsonl")
                 } else {
                     root.join("live/finalized_bars.jsonl")
                 };
@@ -5639,6 +5918,14 @@ mod tests {
         assert!(!is_public_health_request(&Method::GET, "/api/v1/system"));
         assert!(!is_public_health_request(&Method::POST, "/health"));
         assert!(!is_public_health_request(&Method::OPTIONS, "/health"));
+    }
+
+    #[test]
+    fn model_runtime_connection_is_separate_from_quality_and_publication() {
+        assert_eq!(model_runtime_status(9, 9, 0), "LOADED");
+        assert_eq!(model_runtime_status(9, 8, 1), "PARTIAL");
+        assert_eq!(model_runtime_status(9, 0, 9), "UNAVAILABLE");
+        assert_eq!(model_runtime_status(0, 0, 0), "UNAVAILABLE");
     }
 
     #[test]

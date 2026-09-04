@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import json
+import subprocess
+import tempfile
 from dataclasses import dataclass
+from pathlib import Path
 
 import joblib
 import numpy as np
@@ -14,7 +18,6 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from intraday_quant.config import AppConfig
-from intraday_quant.models.analog_kernel import AnalogKernelModel
 from intraday_quant.models.calibration import ProbabilityCalibrator
 
 
@@ -55,6 +58,122 @@ def make_folds(dates: list[object], config: AppConfig) -> list[Fold]:
         fold_id += 1
         start += wf.step_sessions
     return folds
+
+
+class AnalogBacktestUnavailable(RuntimeError):
+    """The quantctl analog-backtest bridge could not run.
+
+    M3 intentionally does NOT fall back to the retired in-Python
+    approximation (models/analog_kernel.py) when this happens -- silently
+    substituting a different estimator on failure would recreate exactly the
+    train-serve skew M3 exists to remove. A backtest number for
+    analog_kernel must come from the real production kernel or be visibly
+    absent, never a quiet stand-in.
+    """
+
+
+def _run_analog_backtest(
+    test_dates: list[object],
+    horizon: int,
+    target: str,
+    config: AppConfig,
+) -> pd.DataFrame:
+    """Query the real production HMM + AnalogEngine kernel via `quantctl`.
+
+    Returns one row per state `quantctl` queried, keyed by `timestamp`
+    (`decision_as_of`) -- NOT guaranteed to align 1:1 with any particular
+    `test` DataFrame's rows or row count (quantctl queries every state in the
+    test session-date range; the caller's purge/embargo trimming is a
+    row-level subset of that). Callers must join on `timestamp`, not assume
+    positional alignment.
+    """
+    bars_path = Path(
+        config.model.analog_backtest_bars_path
+        or (config.output_dir / "normalized" / "market_bars.csv")
+    )
+    if not bars_path.exists():
+        raise AnalogBacktestUnavailable(
+            f"analog_kernel backtest bridge requires normalized bars at {bars_path}; "
+            "set model.analog_backtest_bars_path to the file quantctl should import, "
+            "or run ingestion first."
+        )
+    # Rust's own train/query separation is by session date -- every session
+    # strictly before the query's own session is eligible train data (see
+    # predictor::hmm_context / fit_analog_engine). Passing the first test
+    # date as the train cutoff reproduces that exactly, including causally
+    # excluding this fold's validation sessions, which already happens in
+    # production.
+    train_before = pd.Timestamp(min(test_dates))
+    query_start = pd.Timestamp(min(test_dates))
+    query_end = pd.Timestamp(max(test_dates))
+    with tempfile.TemporaryDirectory() as tmp:
+        output_path = Path(tmp) / "analog_backtest.json"
+        command = [config.model.analog_backtest_quantctl_binary]
+        if config.model.analog_backtest_config_path:
+            command += ["--config", config.model.analog_backtest_config_path]
+        command += [
+            "research",
+            "analog-backtest",
+            "--bars", str(bars_path),
+            "--target", target,
+            "--horizon", str(horizon),
+            "--train-before", train_before.strftime("%Y-%m-%d"),
+            "--query-start", query_start.strftime("%Y-%m-%d"),
+            "--query-end", query_end.strftime("%Y-%m-%d"),
+            "--output", str(output_path),
+        ]
+        try:
+            # Force UTF-8 regardless of the host's default locale codepage
+            # (e.g. GBK on zh-CN Windows) -- quantctl's output is UTF-8 and a
+            # codepage mismatch here throws inside subprocess's own reader
+            # thread, which masks whatever quantctl actually said on stderr.
+            subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=1800,
+            )
+        except FileNotFoundError as error:
+            raise AnalogBacktestUnavailable(
+                f"quantctl binary not found ({config.model.analog_backtest_quantctl_binary!r}); "
+                "set model.analog_backtest_quantctl_binary to its full path."
+            ) from error
+        except subprocess.CalledProcessError as error:
+            raise AnalogBacktestUnavailable(
+                f"quantctl research analog-backtest failed (exit {error.returncode}): "
+                f"{error.stderr}"
+            ) from error
+        except subprocess.TimeoutExpired as error:
+            raise AnalogBacktestUnavailable(
+                "quantctl research analog-backtest exceeded its 1800s budget"
+            ) from error
+        forecasts = json.loads(output_path.read_text(encoding="utf-8"))
+    rows = []
+    for forecast in forecasts:
+        distribution = forecast.get("distribution") or {}
+        diagnostics = forecast.get("diagnostics") or {}
+        analogs = forecast.get("top_analogs") or []
+        nearest_neighbor_distance = diagnostics.get("nearest_neighbor_distance")
+        rows.append({
+            "timestamp": forecast["decision_as_of"],
+            "expected_return": distribution.get("kernel_weighted_mean", 0.0),
+            "median_return": distribution.get("kernel_weighted_mean", 0.0),
+            "win_probability": distribution.get("probability_up", 0.5),
+            "predicted_mfe": distribution.get("average_mfe", 0.0),
+            "predicted_mae": distribution.get("average_mae", 0.0),
+            "neighbor_count": len(analogs),
+            "similarity_score": (
+                1.0 / (1.0 + nearest_neighbor_distance)
+                if nearest_neighbor_distance is not None
+                else 0.0
+            ),
+            "uncertainty": distribution.get("dispersion", 1.0),
+            "neighbor_dates": "|".join(str(analog["session_date"]) for analog in analogs),
+            "analog_backtest_status": forecast["status"],
+        })
+    return pd.DataFrame(rows)
 
 
 def _dataset(labels: pd.DataFrame, features: pd.DataFrame, horizon: int, round_trip_cost: float) -> pd.DataFrame:
@@ -173,18 +292,35 @@ def train_walk_forward(labels: pd.DataFrame, features: pd.DataFrame, config: App
                 diagnostics.append({"fold": fold.fold, "horizon_minutes": horizon, "train_rows": len(train), "validation_rows": len(validation), "test_rows": len(test), **diag})
                 joblib.dump(artifact, models_dir / f"horizon_{horizon}m_fold_{fold.fold}_{name}.joblib")
             if "analog_kernel" in config.models:
-                analog = AnalogKernelModel(config.model.analog_neighbors, config.model.analog_bandwidth)
-                y_train = pd.DataFrame({"return": train["target_return"], "mfe": train["target_mfe"], "mae": train["target_mae"]})
-                analog.fit(train[columns], y_train, train["timestamp"])
-                analog_output = analog.predict(test[columns], test["timestamp"])
-                analog_output.insert(0, "timestamp", test["timestamp"].to_numpy())
-                analog_output.insert(0, "candidate_id", test["candidate_id"].to_numpy())
+                # M3: query the real production kernel via quantctl instead of
+                # models/analog_kernel.py's separate approximation. Row count
+                # from quantctl need not match `test` (it queries the whole
+                # test session-date range; purge/embargo trimming above is a
+                # row-level subset of that), so join on timestamp rather than
+                # assuming positional alignment the way the old in-process
+                # call could.
+                kernel_predictions = _run_analog_backtest(
+                    test_dates=sorted(test["session_date"].unique()),
+                    horizon=horizon,
+                    target=config.target,
+                    config=config,
+                )
+                analog_output = test[["candidate_id", "timestamp"]].merge(
+                    kernel_predictions, on="timestamp", how="inner"
+                )
                 analog_output["model"] = "analog_kernel"
                 analog_output["fold"] = fold.fold
                 analog_output["horizon_minutes"] = horizon
                 family_outputs.append(analog_output)
-                diagnostics.append({"fold": fold.fold, "horizon_minutes": horizon, "model": "analog_kernel", "train_rows": len(train), "validation_rows": len(validation), "test_rows": len(test), "validation_brier": np.nan})
-                joblib.dump(analog, models_dir / f"horizon_{horizon}m_fold_{fold.fold}_analog_kernel.joblib")
+                ok_rate = float((kernel_predictions["analog_backtest_status"] == "OK").mean()) if not kernel_predictions.empty else 0.0
+                diagnostics.append({
+                    "fold": fold.fold, "horizon_minutes": horizon, "model": "analog_kernel",
+                    "train_rows": len(train), "validation_rows": len(validation), "test_rows": len(test),
+                    "validation_brier": np.nan,
+                    "quantctl_query_states": len(kernel_predictions),
+                    "quantctl_matched_test_rows": len(analog_output),
+                    "quantctl_ok_rate": ok_rate,
+                })
             if family_outputs:
                 fold_predictions = pd.concat(family_outputs, ignore_index=True)
                 # Validation-derived threshold only; test outcomes remain untouched.

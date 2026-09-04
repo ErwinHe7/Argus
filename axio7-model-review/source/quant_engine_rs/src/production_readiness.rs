@@ -365,6 +365,20 @@ fn provider_entitlement(root: &Path, provider: &str, enabled: bool) -> EvidenceS
             None => EvidenceStatus::Unavailable,
         };
     }
+    if provider.eq_ignore_ascii_case("databento") {
+        return match read_json(&root.join("live/databento_stream_status.json")) {
+            Some(value)
+                if value.get("authenticated").and_then(Value::as_bool) == Some(true)
+                    && value.get("entitlement_verified").and_then(Value::as_bool) == Some(true)
+                    && value.get("replay_requested").and_then(Value::as_bool) == Some(false)
+                    && value.get("execution_enabled").and_then(Value::as_bool) == Some(false) =>
+            {
+                EvidenceStatus::Ready
+            }
+            Some(_) => EvidenceStatus::Blocked,
+            None => EvidenceStatus::Unavailable,
+        };
+    }
     match read_json(&root.join("live/status.json")) {
         Some(value)
             if value.get("tcp_connected").and_then(Value::as_bool) == Some(true)
@@ -411,6 +425,23 @@ fn stream_freshness(
             maximum_age_seconds,
         );
     }
+    if provider.eq_ignore_ascii_case("databento") {
+        let Some(value) = read_json(&root.join("live/databento_stream_status.json")) else {
+            return FreshnessStatus::Unavailable;
+        };
+        let streaming = value.get("authenticated").and_then(Value::as_bool) == Some(true)
+            && value.get("entitlement_verified").and_then(Value::as_bool) == Some(true)
+            && value.get("state").and_then(Value::as_str) == Some("STREAMING_REALTIME")
+            && value.get("blocker").is_none_or(Value::is_null);
+        if !streaming {
+            return FreshnessStatus::Blocked;
+        }
+        return freshness_at(
+            parse_timestamp(value.get("updated_at")),
+            now,
+            maximum_age_seconds,
+        );
+    }
     let Some(value) = read_json(&root.join("live/status.json")) else {
         return FreshnessStatus::Unavailable;
     };
@@ -439,6 +470,8 @@ fn feed_freshness(
     }
     let filename = if provider.eq_ignore_ascii_case("massive") {
         "massive_stock_bars.jsonl"
+    } else if provider.eq_ignore_ascii_case("databento") {
+        "databento_stock_bars.jsonl"
     } else {
         "finalized_bars.jsonl"
     };
@@ -449,6 +482,19 @@ fn feed_freshness(
         if value.get("delayed").and_then(Value::as_bool) == Some(true)
             || value.get("stale").and_then(Value::as_bool) == Some(true)
             || value.get("entitlement").and_then(Value::as_str) != Some("REALTIME_AUTHENTICATED")
+        {
+            return FreshnessStatus::Blocked;
+        }
+    } else if provider.eq_ignore_ascii_case("databento") {
+        if value.get("replay").and_then(Value::as_bool) != Some(false)
+            || value.get("delayed").and_then(Value::as_bool) != Some(false)
+            || value.get("stale").and_then(Value::as_bool) != Some(false)
+            || value
+                .get("symbol_mapping_verified")
+                .and_then(Value::as_bool)
+                != Some(true)
+            || value.get("entitlement").and_then(Value::as_str)
+                != Some("REALTIME_SUBSCRIPTION_ACKNOWLEDGED")
         {
             return FreshnessStatus::Blocked;
         }

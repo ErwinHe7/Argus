@@ -19,7 +19,7 @@ use axio_quant_engine::{
     },
     domain::MarketState,
     engine::{
-        features,
+        features, model_selection,
         regime::GaussianHmm,
         run_csv_research,
         tvtp_regime::{NonHomogeneousGaussianHmm, TvtpFitConfig},
@@ -796,7 +796,8 @@ fn select_hmm_within_forward_fold(
         "MIN_FOLD_TRAIN_BIC_FALLBACK_INSUFFICIENT_VALIDATION_SESSIONS"
     };
     let mut candidate_scores = Vec::with_capacity(candidates.len());
-    let mut selected = None::<(usize, f64, GaussianHmm)>;
+    let mut fitted = BTreeMap::new();
+    let mut selection_candidates = Vec::with_capacity(candidates.len());
 
     for candidate in candidates {
         match GaussianHmm::fit(train, *candidate, iterations, restarts) {
@@ -814,17 +815,15 @@ fn select_hmm_within_forward_fold(
                         .is_finite()
                         .then_some(-candidate_model.bic)
                 };
-                if let Some(score) = selection_score.filter(|score| score.is_finite())
-                    && selected
-                        .as_ref()
-                        .is_none_or(|(selected_states, selected_score, _)| {
-                            score > *selected_score + 1.0e-12
-                                || ((score - *selected_score).abs() <= 1.0e-12
-                                    && *candidate < *selected_states)
-                        })
-                {
-                    selected = Some((*candidate, score, candidate_model.clone()));
-                }
+                let minimum_occupancy = candidate_model
+                    .state_occupancy(train)
+                    .ok()
+                    .and_then(|occupancy| occupancy.into_iter().reduce(f64::min));
+                selection_candidates.push(model_selection::SelectionCandidate {
+                    id: *candidate,
+                    criterion: selection_score,
+                    minimum_occupancy,
+                });
                 candidate_scores.push(FoldHmmCandidateScore {
                     states: *candidate,
                     training_bic: candidate_model
@@ -840,6 +839,7 @@ fn select_hmm_within_forward_fold(
                         "FOLD_TRAIN_BIC_FALLBACK"
                     },
                 });
+                fitted.insert(*candidate, candidate_model);
             }
             Err(_) => candidate_scores.push(FoldHmmCandidateScore {
                 states: *candidate,
@@ -850,12 +850,20 @@ fn select_hmm_within_forward_fold(
         }
     }
 
-    let (selected_states, _, selected_model) =
-        selected.context(if validation_used_for_selection {
-            "no train-fitted HMM candidate produced a finite fold-validation score"
-        } else {
-            "no train-fitted HMM candidate produced a finite train BIC"
-        })?;
+    let selected_states = model_selection::select_best(
+        &selection_candidates,
+        model_selection::MINIMUM_STATE_OCCUPANCY,
+    )
+    .context(if validation_used_for_selection {
+        "no train-fitted HMM candidate produced a finite fold-validation score and cleared \
+         the per-state occupancy floor"
+    } else {
+        "no train-fitted HMM candidate produced a finite train BIC and cleared the per-state \
+         occupancy floor"
+    })?;
+    let selected_model = fitted
+        .remove(&selected_states)
+        .context("selected fold HMM candidate was not fitted")?;
     let (model, _) = selected_model.canonicalized();
     Ok(FoldHmmSelection {
         model,
@@ -1256,6 +1264,31 @@ enum ResearchCommand {
         #[arg(long, default_value_t = 3)]
         maximum_candidates_per_window: usize,
         #[arg(long, default_value = "data/reports/pattern_factory_latest.json")]
+        output: PathBuf,
+    },
+    /// Fold-level analog-kernel backtest bridge: fits the production HMM and
+    /// AnalogEngine once on every session strictly before `--train-before`,
+    /// then queries every state in `[--query-start, --query-end]` against
+    /// that single fit -- the exact production kernel
+    /// (`predictor::backtest_analog_predictions`), not a separately
+    /// maintained approximation. Exists so `intraday_quant`'s Python
+    /// backtest can shell out here instead of drifting from what
+    /// `quantd` actually serves. See review-package/REMEDIATION-PLAN.zh-CN.md M3.
+    AnalogBacktest {
+        #[arg(long, default_value = "data/normalized/market_bars.csv")]
+        bars: PathBuf,
+        #[arg(long)]
+        target: Option<String>,
+        #[arg(long)]
+        horizon: usize,
+        /// Train on every session strictly before this date.
+        #[arg(long)]
+        train_before: NaiveDate,
+        #[arg(long)]
+        query_start: NaiveDate,
+        #[arg(long)]
+        query_end: NaiveDate,
+        #[arg(long, default_value = "data/reports/analog_backtest_latest.json")]
         output: PathBuf,
     },
 }
@@ -3035,6 +3068,68 @@ async fn main() -> Result<()> {
                     report.promotion_ceiling
                 );
             }
+            ResearchCommand::AnalogBacktest {
+                bars,
+                target,
+                horizon,
+                train_before,
+                query_start,
+                query_end,
+                output,
+            } => {
+                let started = Instant::now();
+                let target = target.unwrap_or_else(|| config.research.target.clone());
+                let imported = MarketBarCsvImporter.import(&bars)?;
+                let states = features::build_states(&imported.records, &target, &config.research)?;
+                drop(imported);
+                let train_indices = states
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, state)| {
+                        state.symbol.eq_ignore_ascii_case(&target)
+                            && state.session_date < train_before
+                    })
+                    .map(|(index, _)| index)
+                    .collect::<Vec<_>>();
+                let query_indices = states
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, state)| {
+                        state.symbol.eq_ignore_ascii_case(&target)
+                            && state.session_date >= query_start
+                            && state.session_date <= query_end
+                    })
+                    .map(|(index, _)| index)
+                    .collect::<Vec<_>>();
+                if train_indices.is_empty() {
+                    anyhow::bail!(
+                        "no training states strictly before --train-before {train_before}"
+                    );
+                }
+                if query_indices.is_empty() {
+                    anyhow::bail!(
+                        "no query states in [--query-start {query_start}, --query-end {query_end}]"
+                    );
+                }
+                let forecasts = predictor::backtest_analog_predictions(
+                    &states,
+                    horizon,
+                    &train_indices,
+                    &query_indices,
+                    &config.research,
+                )?;
+                let ok_count = forecasts.iter().filter(|f| f.status == "OK").count();
+                write_json(&output, &forecasts)?;
+                println!(
+                    "analog_backtest_report={} elapsed_ms={} train_states={} query_states={} ok={} not_ok={}",
+                    output.display(),
+                    started.elapsed().as_millis(),
+                    train_indices.len(),
+                    query_indices.len(),
+                    ok_count,
+                    forecasts.len() - ok_count
+                );
+            }
             ResearchCommand::Ablation {
                 bars,
                 horizon,
@@ -3119,7 +3214,7 @@ async fn main() -> Result<()> {
                 } else {
                     &[][..]
                 };
-                let mut selected: Option<(usize, f64)> = None;
+                let mut selection_candidates = Vec::new();
                 let mut candidate_scores = Vec::new();
                 for candidate in &candidates {
                     match GaussianHmm::fit(fit_sequences, *candidate, iterations, restarts) {
@@ -3132,20 +3227,20 @@ async fn main() -> Result<()> {
                                 None
                             };
                             let criterion = validation_score.unwrap_or(-candidate_model.bic);
-                            if selected
-                                .as_ref()
-                                .is_none_or(|(current_states, current_score)| {
-                                    criterion > *current_score + 1.0e-12
-                                        || ((criterion - *current_score).abs() <= 1.0e-12
-                                            && *candidate < *current_states)
-                                })
-                            {
-                                selected = Some((*candidate, criterion));
-                            }
+                            let minimum_occupancy = candidate_model
+                                .state_occupancy(fit_sequences)
+                                .ok()
+                                .and_then(|occupancy| occupancy.into_iter().reduce(f64::min));
+                            selection_candidates.push(model_selection::SelectionCandidate {
+                                id: *candidate,
+                                criterion: Some(criterion),
+                                minimum_occupancy,
+                            });
                             candidate_scores.push(serde_json::json!({
                                 "states": candidate,
                                 "training_bic": candidate_model.bic,
                                 "validation_average_log_likelihood": validation_score,
+                                "minimum_state_occupancy": minimum_occupancy,
                                 "status": if use_validation { "CHRONOLOGICAL_VALIDATION_SCORED" } else { "BIC_FALLBACK" }
                             }));
                         }
@@ -3153,14 +3248,20 @@ async fn main() -> Result<()> {
                             "states": candidate,
                             "training_bic": serde_json::Value::Null,
                             "validation_average_log_likelihood": serde_json::Value::Null,
+                            "minimum_state_occupancy": serde_json::Value::Null,
                             "status": "FIT_FAILED_OR_INSUFFICIENT_OBSERVATIONS",
                             "error": error.to_string()
                         })),
                     }
                 }
-                let selected_states = selected
-                    .map(|(states, _)| states)
-                    .context("no regime state candidate produced a finite model")?;
+                let selected_states = model_selection::select_best(
+                    &selection_candidates,
+                    model_selection::MINIMUM_STATE_OCCUPANCY,
+                )
+                .context(
+                    "no regime state candidate produced a finite model and cleared the \
+                     per-state occupancy floor",
+                )?;
                 let eight_state_fitted = candidate_scores.iter().any(|score| {
                     score.get("states").and_then(serde_json::Value::as_u64) == Some(8)
                         && score

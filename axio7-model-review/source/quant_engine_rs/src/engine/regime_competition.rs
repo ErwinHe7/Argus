@@ -15,6 +15,7 @@ use crate::{
     config::RegimeResearchConfig,
     domain::MarketState,
     engine::{
+        model_selection::{self, SelectionCandidate},
         regime::GaussianHmm,
         tvtp_regime::{NonHomogeneousGaussianHmm, TvtpFitConfig},
         walk_forward,
@@ -397,31 +398,38 @@ fn best_hmm(
     config: &RegimeResearchConfig,
 ) -> Result<(GaussianHmm, usize, BTreeMap<usize, Option<f64>>)> {
     let mut scores = BTreeMap::new();
-    let mut selected = None::<(usize, f64, GaussianHmm)>;
+    let mut fitted = BTreeMap::new();
+    let mut candidates = Vec::new();
     for states in &config.state_candidates {
         match GaussianHmm::fit(train, *states, config.max_iterations, config.restarts) {
             Ok(model) => {
                 let score = model.average_log_likelihood(validation).ok();
                 scores.insert(*states, score);
-                if let Some(score) = score
-                    && selected
-                        .as_ref()
-                        .is_none_or(|(best_states, best_score, _)| {
-                            score > *best_score + 1.0e-12
-                                || ((score - *best_score).abs() <= 1.0e-12
-                                    && *states < *best_states)
-                        })
-                {
-                    selected = Some((*states, score, model));
-                }
+                let minimum_occupancy = model
+                    .state_occupancy(train)
+                    .ok()
+                    .and_then(|occupancy| occupancy.into_iter().reduce(f64::min));
+                candidates.push(SelectionCandidate {
+                    id: *states,
+                    criterion: score,
+                    minimum_occupancy,
+                });
+                fitted.insert(*states, model);
             }
             Err(_) => {
                 scores.insert(*states, None);
             }
         }
     }
-    let (states, _, model) = selected.context("no HMM candidate scored validation")?;
-    Ok((model, states, scores))
+    let selected_states =
+        model_selection::select_best(&candidates, model_selection::MINIMUM_STATE_OCCUPANCY)
+            .context(
+                "no HMM candidate scored validation and cleared the per-state occupancy floor",
+            )?;
+    let model = fitted
+        .remove(&selected_states)
+        .context("selected HMM candidate was not fitted")?;
+    Ok((model, selected_states, scores))
 }
 
 fn mean(values: &[f64]) -> Option<f64> {

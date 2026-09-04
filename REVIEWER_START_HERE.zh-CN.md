@@ -2,6 +2,12 @@
 
 This is not a documentation-only Markdown package. The model implementations, tests, and current unpromoted frozen artifacts are all available on this repository's default `main` branch. Create your own working branch from `main`, then submit a PR when finished or push the mutually agreed changes directly.
 
+The full stack includes HMM, 12-dimensional same-regime kernel regression,
+Markov-switching SDE, VWAP residual Ornstein–Uhlenbeck, and research challengers.
+Start with `00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md` and
+`MODEL_COMPONENTS/`. `axio7-model-review/CURRENT_SOURCE_SYNC.md` records the
+historical source-sync inventory and exclusions.
+
 ## Shortest Reading Path
 
 1. `MODEL_SOURCE_MAP.zh-CN.md`: exact source file, purpose, and status for every model.

@@ -1,5 +1,9 @@
 # AXIO7 Model, Algorithm, and Source Map
 
+The full model-stack entry point is
+[`00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md`](00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md),
+with seven named components in [`MODEL_COMPONENTS/`](MODEL_COMPONENTS/).
+
 All paths below are relative to the Argus repository root. “Implemented” means that reviewable source code exists; it does not mean the implementation has passed production promotion, calibration, or live-data readiness.
 
 | Model/Algorithm | Actual Use | Current Status | Directly Editable Implementation |
@@ -56,6 +60,6 @@ The artifacts exist to reproduce the current candidate inference; they are not e
 | Native research | C++20, CMake, SQLite, OpenSSL |
 | Web/orchestration | Next.js 14, React 18, TypeScript, Zod, Supabase, Redis |
 | Historical-data interface | SQLite, PostgreSQL, Parquet; this repository contains no historical observations |
-| Realtime-data interface | Massive, Moomoo; the Databento live adapter is not yet fully connected |
+| Realtime-data interface | Massive/Moomoo; the Databento Rust live adapter is implemented but requires a live license; the IBKR relay is quote-only |
 
 Historical replay and realtime streams are both intended to feed the same normalized point-in-time record, Rust causal feature engine, and frozen inference path. Do not hard-code or paste hundreds of lines of historical data into model source code.

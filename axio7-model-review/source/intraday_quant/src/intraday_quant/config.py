@@ -30,6 +30,23 @@ class ModelConfig(StrictModel):
     analog_bandwidth: float = 1.0
     calibration: str = "isotonic"
     score_threshold_quantile: float = 0.60
+    # M3 fix: the analog_kernel candidate in walk_forward.py no longer runs
+    # its own estimator (analog_kernel.py) -- it shells out to quant_engine_rs's
+    # `quantctl research analog-backtest`, which is the exact production HMM
+    # + AnalogEngine kernel, so the backtest measures what actually ships
+    # instead of a separately drifting approximation of it. Both must point
+    # at the same normalized bars file `quantctl` itself reads by default
+    # (`data/normalized/market_bars.csv`); override if your ingest pipeline
+    # writes cleaned bars somewhere else.
+    analog_backtest_bars_path: str | None = None
+    analog_backtest_quantctl_binary: str = "quantctl"
+    # quantctl's own --config default ("configs/production.yaml") is relative
+    # to quant_engine_rs/, not to wherever this Python process's cwd happens
+    # to be. Leave unset to let quantctl fail loudly if it can't resolve its
+    # own default from Python's cwd, rather than silently picking the wrong
+    # config; set explicitly for any deployment where the two aren't run from
+    # the same working directory.
+    analog_backtest_config_path: str | None = None
 
 
 class ScoringConfig(StrictModel):
