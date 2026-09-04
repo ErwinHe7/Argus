@@ -2562,6 +2562,114 @@ traffic, or broker execution state was changed. The real server must still
 pass the documented exact-nine readiness and release-acceptance gates before
 cutover; automatic execution remains disabled.
 
+## 2026-07-29Z isolated Databento-shaped pipeline replay
+
+- Added an explicit `deterministic_historical_replay` evidence mode for local
+  off-hours validation. The replay consumes previously captured, structurally
+  verified Databento one-minute envelopes, preserves their original event and
+  receipt ordering, initializes features from the licensed historical CSV, and
+  trains an isolated, unpromoted replay-local Rust artifact for SPX (model proxy
+  SPY) from a bounded sixty-session historical window under the current feature
+  code, and runs the configured 5/15/30/60-minute horizons.
+- The replay-local model retains its exact v1 historical prefix. The recorded
+  replay session uses the repository's existing unpromoted cross-asset v2
+  candidate that excludes UUP because the captured and normalized datasets
+  lack the six contiguous UUP trade minutes required by v1. The receipt exposes
+  that feature-identity mismatch; it is pipeline-integration evidence only and
+  never changes production configuration or promotion status.
+- The installed captured session starts too late to satisfy both complete UUP
+  context and a session-safe, in-distribution four-horizon analog batch. The
+  off-hours integration path therefore uses a complete licensed historical
+  session, shifts its exchange clock into the replay date, and wraps it in an internal
+  Databento-shaped transport contract. The receipt marks
+  `DATABENTO_SHAPED_HISTORICAL_TRANSPORT_MOCK`; these rows are not represented
+  as Databento records and provide no live-connectivity or latency evidence.
+  Missing cross-asset minutes are forward-filled only inside this mock with
+  synthetic one-unit-volume bars, and the exact synthetic interval count is
+  exposed in the receipt and UI.
+- Replay is not a live-data substitute. Its evidence is marked
+  `DATABENTO_REPLAY`, `realtime=false`, and
+  `DETERMINISTIC_REPLAY_NOT_CURRENT_MARKET_DATA`. The customer live-publication
+  path continues to reject replay evidence.
+- Replay artifacts, receipts, and the prediction ledger are isolated under
+  `data/replay/databento`. The path neither opens a provider socket nor writes
+  the live prediction ledger, live observation ledger, or live publication
+  state. Automatic execution remains disabled.
+- The replay HTTP route is available only in debug builds and refuses unsupported
+  queries or execution-enabled configuration. The Next.js development switch
+  calls that Rust route and has no TypeScript forecast fixture fallback.
+- The local UI distinguishes a recorded Databento replay from a
+  Databento-shaped historical transport mock, exposes its observation cutoff
+  and input-envelope count, and does not call either mode live.
+  Genuine provider connectivity, current-clock freshness, and customer
+  live-publication behavior still require a separate market-hours test.
+
+## 2026-07-30Z strict historical report and loopback live-research path
+
+- The installed `market_bars.csv` now supports a strict held-out SPX replay
+  using observed SPY, QQQ, and IWM bars only. The selected session is evaluated
+  by four horizons against its subsequently realized path. The sealed cached
+  report contains zero synthetic rows, exposes raw conditional means,
+  empirical quantiles, regime/analog diagnostics, and clearly remains
+  uncalibrated historical research rather than current market data.
+- The local UI renders that evidence as a quant-readable report rather than a
+  transport receipt. The current held-out example produced 5/15/30/60-minute
+  downward means and all four directions matched the subsequently realized
+  path. This is one diagnostic session, not model-promotion evidence.
+- A separate, explicit
+  `AXIO_ENABLE_LOCAL_UNCALIBRATED_LIVE_RESEARCH=1` mode is restricted to a
+  loopback, Databento, quote-only, shadow-only, execution-disabled runtime. It
+  bypasses the public-redistribution receipt and the redundant aggregate
+  all-subscribed-symbol feed-freshness preflight for the signed-in local
+  display. The requested immutable forecast still validates its own maximum
+  age, completed-bar availability, common-cutoff context, exact frozen
+  artifacts, causal source lineage, and atomic prediction ledger. Provider
+  authentication/entitlement, stream liveness, and the inference SLA also
+  remain mandatory.
+- The current release binary's existing `/api/v1/predictor/forecast` projection
+  provides the immediate compatibility path for that local display. Rust
+  validates the exact atomic Databento batch before Next renders raw expected
+  returns, empirical ranges, regime state, and analog frequencies. Calibrated
+  probabilities, public redistribution, ranking, advice, and execution remain
+  disabled.
+- The Rust live worker source now warms historical/model state before the first
+  provider envelope so restart latency cannot consume the first forecast SLA.
+  The durable warm-up change is included in the local release rebuilt later
+  that day.
+
+## 2026-07-30Z local liquid-context live candidate
+
+- The v1 seven-member context could not become reliably ready from Databento
+  `ohlcv-1m`: sparse UUP, VXX, and at times HYG legitimately omit minutes with
+  no trade. Neither the six-observation contract nor vendor timestamps were
+  relaxed.
+- Added the immutable observed-trade-only
+  `cross_asset_breadth.v3-liquid-equity-candidate` contract using QQQ, IWM, and
+  SOXX. These members have complete installed historical coverage and
+  continuous live one-minute trade bars. The sealed feature identity is
+  `point-in-time-v7-strict-observed-context+liquid-equity-candidate` with
+  SHA-256
+  `77e06e9916d1e0d45e6cec8d99897dae05dbc43e470b7641d3f6afea74be32d3`.
+- Trained exact SPX/QQQ/NVDA/AAPL/MU/SOXX/NBIS/BE/IGV candidates from the
+  installed normalized CSV and deployed their exact-symbol registry locally.
+  The prior universe remains recoverable under a timestamped sibling backup.
+  The installed CSV is explicitly `CONTAMINATED_EXPLORATORY` because its raw
+  delivery manifests are absent, so every artifact remains unpromoted,
+  uncalibrated, loopback-only research and is not model-validation evidence.
+- Startup restore now ignores append-only causal-context rows outside the
+  current versioned feature contract, preventing a prior contract's diagnostic
+  ledger from mislabeling all current artifacts as incompatible.
+- The incremental engine keys feature states and source evidence by bar start,
+  while forecast observation cutoffs, atomic ledger batches, and publication
+  receipts use the finalized bar end. The live batch now explicitly carries
+  that bar-end publication cutoff; a regression assertion binds the two clocks
+  exactly one minute apart.
+- The nine-model Windows batch takes approximately 15-20 seconds after the
+  finalized inputs arrive. The local research inference SLA is therefore an
+  explicit 30 seconds while the independent provider-bar freshness gate
+  remains ten seconds. Execution, calibrated probability, public
+  redistribution, ranking, and advice remain disabled.
+
 ## 2026-07-30Z transparent SPX raw-likelihood result contract
 
 - Bare SPX/SPY trend, direction, outlook, forecast, and prediction questions
@@ -2901,3 +3009,30 @@ The interface is not production-promoted until TypeScript, Rust, PostgreSQL
 migration, UI cardinality, exact-symbol mismatch, partial-failure, and live-data
 readiness checks pass. Calibrated forecast gates are unchanged and automatic
 execution remains disabled.
+
+
+## 2026-09-04 -- Historical forecast source integration
+
+- Integrated `allan/website-integration` at `a62299c` with the current Leo
+  source. The production homepage, active nine-model registry, five-second
+  prediction budget, and current live feature contract remain in place.
+  Liquid-equity candidates remain in their named research artifact directories.
+- Both immutable sparse-context training candidates are supported without
+  replacing either identity. The existing lazy live initialization and bounded
+  causal finalization remain authoritative.
+- Development replay is available through the existing acceptance harness at
+  `/acceptance/research?mock=1`, with `AXIO7_UI_TEST_HARNESS=true` and a
+  non-production Node environment. The API independently retains authentication,
+  research-access checks, and the Rust replay enablement gate.
+- Completed the incoming replay module's missing QQQ/IWM context constant and
+  offline receipt fields; provider-session facts are absent/zero for offline
+  replay. Removed unused imports for an unimplemented provider connection.
+- The UI renders each runtime horizon separately. Removed frontend averaging
+  of expected returns, aggregate directional calls, and derived invalidation
+  boundaries. Missing training-session metadata displays as unavailable.
+- Validation: platform `cargo fmt --check`; 503 Rust library tests with
+  `TMPDIR=/private/tmp` (avoiding macOS's symlinked default temporary path);
+  `cargo check --locked --offline -j 1 --bins`; `npm run typecheck`; and
+  `npm run test:quant-conversation` (25 passed).
+- This is source integration only. No model or runtime was promoted, and no
+  live-data readiness or deployment receipt was generated by this merge.

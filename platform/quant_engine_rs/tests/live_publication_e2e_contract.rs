@@ -481,6 +481,7 @@ fn evidence_envelope(
 ) -> EvidenceEnvelope {
     EvidenceEnvelope {
         schema_version: EVIDENCE_ENVELOPE_SCHEMA_VERSION.into(),
+        evidence_mode: Default::default(),
         request_id: fixture.request_id.clone(),
         query_sha256: fixture.query_sha256.clone(),
         response_sha256: None,

@@ -16,8 +16,9 @@ use crate::{
     config::{
         CONTEXT_OBSERVATION_POLICY_SCHEMA_VERSION, CONTEXT_OBSERVATION_POLICY_V2_SCHEMA_VERSION,
         CROSS_ASSET_FEATURE_SCHEMA_V1, CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE,
-        CROSS_ASSET_FEATURE_SCHEMA_V3_CANDIDATE, ContextObservationPolicyConfig,
-        CrossAssetFeatureSchemaConfig, QuantOsConfig, RegimeResearchConfig, ResearchConfig,
+        CROSS_ASSET_FEATURE_SCHEMA_V3_CANDIDATE, CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE,
+        ContextObservationPolicyConfig, CrossAssetFeatureSchemaConfig, QuantOsConfig,
+        RegimeResearchConfig, ResearchConfig,
     },
     data::capability::DataCapabilityReport,
     domain::{MarketState, OptionQuote, Outcome},
@@ -57,7 +58,10 @@ pub const MOOMOO_LIVE_AVAILABILITY_SEMANTICS: &str =
     "MOOMOO_EVENT_RECEIVE_AVAILABLE_FINALIZED_TIMESTAMPS";
 pub const MOOMOO_REPLAY_AVAILABILITY_SEMANTICS: &str =
     "DETERMINISTIC_REPLAY_PROVIDER_BUCKET_END_SYNTHETIC_AVAILABILITY_NO_RECEIPT_CLOCK";
-pub const MOOMOO_REPLAY_DATA_CAPABILITY: &str = "HISTORICAL_REPLAY_NO_ORIGINAL_RECEIPT_CLOCK";
+pub const DATABENTO_REPLAY_AVAILABILITY_SEMANTICS: &str =
+    "DATABENTO_RECORDED_ENVELOPE_REPLAY_WITH_VIRTUAL_PROVIDER_CLOCK_NOT_CURRENT_MARKET_DATA";
+pub const HISTORICAL_REPLAY_DATA_CAPABILITY: &str = "HISTORICAL_REPLAY_NO_ORIGINAL_RECEIPT_CLOCK";
+pub const MOOMOO_REPLAY_DATA_CAPABILITY: &str = HISTORICAL_REPLAY_DATA_CAPABILITY;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct QuantilePoint {
@@ -653,6 +657,8 @@ pub const FROZEN_FEATURE_SCHEMA_VERSION: &str =
     "point-in-time-v4-strict-context+frozen-hmm+analog12";
 pub const FROZEN_FEATURE_SCHEMA_V2_NO_UUP_CANDIDATE: &str =
     "point-in-time-v5-strict-observed-context+cross-asset-no-uup-candidate";
+pub const FROZEN_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE: &str =
+    "point-in-time-v7-strict-observed-context+liquid-equity-candidate";
 pub const FROZEN_FEATURE_SCHEMA_V3_NO_UUP_NO_TLT_CANDIDATE: &str =
     "point-in-time-v5-strict-observed-context+cross-asset-no-uup-no-tlt-candidate";
 pub const FROZEN_FEATURE_SCHEMA_CAUSAL_NO_TRADE_SHADOW: &str =
@@ -770,6 +776,19 @@ pub fn live_feature_contract_identity(
                 }))?,
             ))
         }
+        (
+            CONTEXT_OBSERVATION_POLICY_SCHEMA_VERSION,
+            CROSS_ASSET_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE,
+        ) => Ok((
+            FROZEN_FEATURE_SCHEMA_V3_LIQUID_CANDIDATE.to_string(),
+            sha256_serialized(&serde_json::json!({
+                "features": FROZEN_FEATURE_SCHEMA,
+                "context_observation_policy_schema_version": policy.schema_version,
+                "eligible_states": policy.eligible_states,
+                "cross_asset_feature_schema_version": cross_asset_schema.schema_version,
+                "cross_asset_feature_schema_sha256": cross_asset_schema.schema_sha256,
+            }))?,
+        )),
         (
             CONTEXT_OBSERVATION_POLICY_V2_SCHEMA_VERSION,
             CROSS_ASSET_FEATURE_SCHEMA_V1 | CROSS_ASSET_FEATURE_SCHEMA_V2_CANDIDATE,
@@ -931,6 +950,10 @@ impl FrozenPredictorArtifact {
             &ContextObservationPolicyConfig::default(),
             &CrossAssetFeatureSchemaConfig::v3_candidate_without_uup_or_tlt(),
         )?;
+        let liquid_candidate_identity = live_feature_contract_identity(
+            &ContextObservationPolicyConfig::default(),
+            &CrossAssetFeatureSchemaConfig::v3_liquid_equity_candidate(),
+        )?;
         let causal_shadow_identity = live_feature_contract_identity(
             &ContextObservationPolicyConfig::v2_candidate(),
             &CrossAssetFeatureSchemaConfig::default(),
@@ -943,6 +966,7 @@ impl FrozenPredictorArtifact {
             current_identity,
             no_uup_candidate_identity,
             no_uup_no_tlt_candidate_identity,
+            liquid_candidate_identity,
             causal_shadow_identity,
             causal_no_uup_shadow_identity,
         ]
@@ -3114,7 +3138,7 @@ pub fn enforce_realtime_forward_shadow(
                 source.source_version
             );
             contract.data_capability_level = if is_replay {
-                MOOMOO_REPLAY_DATA_CAPABILITY
+                HISTORICAL_REPLAY_DATA_CAPABILITY
             } else {
                 "D1_REALTIME_UNDERLYING"
             }

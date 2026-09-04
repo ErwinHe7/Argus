@@ -462,9 +462,30 @@ pub struct PipelineReadiness {
     pub publication: PipelineReadinessStage,
 }
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum EvidenceMode {
+    #[default]
+    Live,
+    /// Licensed realtime evidence rendered only by an explicitly enabled
+    /// loopback research runtime. This mode may expose uncalibrated descriptive
+    /// model moments, but it never claims public redistribution authorization,
+    /// OOS calibration, promotion, ranking, or execution eligibility.
+    LocalUncalibratedLiveResearch,
+    DeterministicHistoricalReplay,
+}
+
+impl EvidenceMode {
+    fn is_live(mode: &Self) -> bool {
+        *mode == Self::Live
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct EvidenceEnvelope {
     pub schema_version: String,
+    #[serde(default, skip_serializing_if = "EvidenceMode::is_live")]
+    pub evidence_mode: EvidenceMode,
     pub request_id: String,
     pub query_sha256: String,
     pub response_sha256: Option<String>,
@@ -484,6 +505,10 @@ pub struct EvidenceEnvelope {
 
 impl EvidenceEnvelope {
     fn validate_publication_contract(&self) -> Result<()> {
+        let deterministic_replay =
+            self.evidence_mode == EvidenceMode::DeterministicHistoricalReplay;
+        let local_uncalibrated_live =
+            self.evidence_mode == EvidenceMode::LocalUncalibratedLiveResearch;
         if self.schema_version != EVIDENCE_ENVELOPE_SCHEMA_VERSION
             || self.request_id.trim().is_empty()
             || self.query_sha256 != self.query.canonical_sha256()?
@@ -555,7 +580,7 @@ impl EvidenceEnvelope {
                     .num_seconds();
                 if freshness.source.trim().is_empty()
                     || freshness.entitlement.trim().is_empty()
-                    || !freshness.realtime
+                    || freshness.realtime == deterministic_replay
                     || available_at < observed_at
                     || computed_age < 0
                     || (computed_age - age_seconds).abs() > 1
@@ -564,6 +589,13 @@ impl EvidenceEnvelope {
                     })
                 {
                     bail!("PUBLIC_CANDIDATE_FRESHNESS_INVALID");
+                }
+                if deterministic_replay
+                    && (!(freshness.source.starts_with("DATABENTO_REPLAY:")
+                        || freshness.source.starts_with("HISTORICAL_REPLAY:"))
+                        || freshness.entitlement != "DETERMINISTIC_REPLAY_NOT_CURRENT_MARKET_DATA")
+                {
+                    bail!("PUBLIC_REPLAY_CANDIDATE_IDENTITY_INVALID");
                 }
             }
 
@@ -576,7 +608,12 @@ impl EvidenceEnvelope {
             let Some(metrics) = candidate.metrics.as_object() else {
                 bail!("UNCALIBRATED_CANDIDATE_METRICS_INVALID");
             };
-            let allowed = BTreeSet::from([
+            let strict_historical_replay = deterministic_replay
+                && candidate
+                    .freshness
+                    .iter()
+                    .all(|freshness| freshness.source.starts_with("HISTORICAL_REPLAY:"));
+            let mut allowed = BTreeSet::from([
                 "horizon_minutes",
                 "statistical_orientation",
                 "observation_cutoff",
@@ -590,12 +627,36 @@ impl EvidenceEnvelope {
                 "validation",
                 "interpretation",
             ]);
+            if strict_historical_replay || local_uncalibrated_live {
+                allowed.extend([
+                    "expected_return",
+                    "median_return",
+                    "return_quantiles",
+                    "raw_analog_up_frequency",
+                    "raw_analog_down_frequency",
+                    "raw_analog_flat_frequency",
+                    "analog_effective_sample_size",
+                    "analog_similarity_score",
+                    "dominant_regime_state",
+                    "dominant_regime_probability",
+                    "top_analogs",
+                ]);
+            }
+            if strict_historical_replay {
+                allowed.insert("realized_outcome");
+            }
+            let coverage = metrics.get("coverage").and_then(Value::as_f64);
+            let coverage_valid = if strict_historical_replay {
+                coverage.is_some_and(|value| value.is_finite() && (value - 1.0).abs() <= 1.0e-12)
+            } else {
+                coverage == Some(1.0)
+            };
             if metrics.keys().any(|key| !allowed.contains(key.as_str()))
                 || metrics
                     .get("published_probability_status")
                     .and_then(Value::as_str)
                     != Some("WITHHELD_NO_MATCHING_PROMOTED_OOS_CALIBRATION")
-                || metrics.get("coverage").and_then(Value::as_f64) != Some(1.0)
+                || !coverage_valid
                 || metrics
                     .get("coverage_semantics")
                     .and_then(Value::as_str)
@@ -3799,6 +3860,7 @@ mod tests {
         };
         let mut partial = EvidenceEnvelope {
             schema_version: EVIDENCE_ENVELOPE_SCHEMA_VERSION.to_string(),
+            evidence_mode: Default::default(),
             request_id: "historical-while-live-stale".to_string(),
             query_sha256: query.canonical_sha256().unwrap(),
             response_sha256: None,
@@ -3843,6 +3905,7 @@ mod tests {
         };
         let mut envelope = EvidenceEnvelope {
             schema_version: EVIDENCE_ENVELOPE_SCHEMA_VERSION.to_string(),
+            evidence_mode: Default::default(),
             request_id: "request".to_string(),
             query_sha256: query.canonical_sha256().unwrap(),
             response_sha256: None,
@@ -3929,6 +3992,7 @@ mod tests {
         };
         let base = EvidenceEnvelope {
             schema_version: EVIDENCE_ENVELOPE_SCHEMA_VERSION.to_string(),
+            evidence_mode: Default::default(),
             request_id: "request".to_string(),
             query_sha256: query.canonical_sha256().unwrap(),
             response_sha256: None,

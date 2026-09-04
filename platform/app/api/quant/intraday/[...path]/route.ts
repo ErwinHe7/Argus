@@ -108,10 +108,17 @@ async function proxy(
   const headers: Record<string, string> = { Accept: 'application/json' };
   const researchToken = process.env.INTRADAY_QUANT_TOKEN;
   const user = await getCurrentUser().catch(() => null);
+  const localLicensedForecastRead =
+    process.env.NODE_ENV !== 'production' &&
+    process.env.AXIO_ENABLE_LOCAL_UNCALIBRATED_LIVE_RESEARCH === '1' &&
+    method === 'GET' &&
+    rawSuffix === 'predictor/forecast' &&
+    user?.authenticated === true;
+  const administratorAccess =
+    user !== null && isAdmin(user) && isExplicitQuantAdmin(user.email);
   if (
     !user
-    || !isAdmin(user)
-    || !isExplicitQuantAdmin(user.email)
+    || (!administratorAccess && !localLicensedForecastRead)
     || (method === 'POST' && !isSameOrigin(request))
   ) {
     return NextResponse.json(

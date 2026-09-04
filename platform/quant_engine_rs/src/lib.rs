@@ -1,3 +1,5 @@
+#![recursion_limit = "256"]
+
 pub mod allocation;
 pub mod analog_engine;
 pub mod anomaly_research;

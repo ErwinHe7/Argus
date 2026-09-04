@@ -388,6 +388,16 @@ data:
         symbols: [MAGS, SKYY, IGV, XLK, XLC, XLY, XLF, XLE, XLI, XLV, XLP, XLU, XLRE, XLB, SOXX]
         start: "2026-07-01T00:00:00Z"
         end: "2026-07-30T20:00:00Z"
+      # Bounded, immutable source for the local research-grade historical
+      # replay. 2026-07-28 is held out; every earlier session is eligible only
+      # for causal replay-local training. No synthetic context is permitted.
+      - name: strict_replay_eq_us_ohlcv_1m
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY, QQQ, IWM, HYG, TLT, VXX]
+        start: "2026-04-01T00:00:00Z"
+        end: "2026-07-29T00:00:00Z"
   cboe:
     licensed_csv_root: data/import/cboe
     spx_index_history_from: "2004-01-01"

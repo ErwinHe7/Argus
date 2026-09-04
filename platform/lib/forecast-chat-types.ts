@@ -2,6 +2,26 @@ import type { WebForecastDistribution } from '@/lib/quant/web-forecast';
 import type { MacroReport } from '@/lib/market-intelligence/macro';
 import type { NewsPulseReport } from '@/lib/market-intelligence/news-pulse';
 
+export type DevelopmentReplayReceipt = {
+  mode: 'DATABENTO_PIPELINE_REPLAY';
+  replayId: string;
+  sourceContract: 'quant_engine_rs::data::databento_replay';
+  observationCutoff: string;
+  inputEnvelopeCount: number;
+  contextObservationCount: number;
+  sourceMode:
+    | 'RECORDED_DATABENTO_ENVELOPES'
+    | 'DATABENTO_SHAPED_HISTORICAL_TRANSPORT_MOCK'
+    | 'STRICT_INSTALLED_HISTORICAL_REPLAY';
+  syntheticContextIntervals: number;
+  artifactFeatureIdentityMatchesReplay: boolean;
+  replayLocalModelTrained: true;
+  productionArtifactUsed: false;
+  rustInference: true;
+  currentMarketData: false;
+  liveStateWritten: false;
+};
+
 export type ForecastSourceState =
   | 'real_time'
   | 'delayed'
@@ -242,6 +262,9 @@ export type QuantPipelineReadiness = Partial<
 
 export type QuantEvidenceEnvelope = {
   schema_version: 'axio.evidence-envelope.v1';
+  evidence_mode?:
+    | 'deterministic_historical_replay'
+    | 'local_uncalibrated_live_research';
   request_id: string;
   query_sha256: string;
   response_sha256?: string | null;
@@ -556,4 +579,5 @@ export type ForecastChatResult = {
   newsContext?: NewsPulseReport | null;
   modelCodeInventory?: ModelCodeInventoryItem[];
   compilerNotes?: string[];
+  developmentReplay?: DevelopmentReplayReceipt;
 };

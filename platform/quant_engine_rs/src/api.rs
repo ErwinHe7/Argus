@@ -27,6 +27,7 @@ use crate::{
     broker::BrokerMonitor,
     data::{
         databento_inference::{TargetInferenceStage, TargetInferenceState},
+        databento_replay,
         massive_live::readiness_scopes_from_receipt,
     },
     domain::CallPut,
@@ -36,8 +37,8 @@ use crate::{
     },
     frozen_universe::{FrozenUniverseRegistry, load_frozen_universe},
     market_query::{
-        EVIDENCE_ENVELOPE_SCHEMA_VERSION, EvidenceEnvelope, EvidenceItem, MarketQuery,
-        MarketQueryIntent, MarketSetupType, PipelineReadiness, PipelineReadinessStage,
+        EVIDENCE_ENVELOPE_SCHEMA_VERSION, EvidenceEnvelope, EvidenceItem, EvidenceMode,
+        MarketQuery, MarketQueryIntent, MarketSetupType, PipelineReadiness, PipelineReadinessStage,
         PipelineReadinessState, ResearchCandidate, gamma_structure_candidate,
         historical_setup_stats, live_vwap_candidate,
     },
@@ -223,6 +224,10 @@ pub fn router(state: AppState) -> Router {
             get(research_opportunities),
         )
         .route("/api/v1/research/query", post(research_query))
+        .route(
+            "/api/v1/research/databento-replay",
+            post(databento_replay_query),
+        )
         .route("/v1/scan", post(research_scan))
         .route("/v1/backtest/query", post(research_backtest_query))
         .route(
@@ -411,6 +416,7 @@ fn research_pipeline_readiness(
     query: &MarketQuery,
     receipt: &ProductionReadinessReceipt,
     candidates: &[ResearchCandidate],
+    local_uncalibrated_live: bool,
 ) -> PipelineReadiness {
     if query.intent == MarketQueryIntent::Backtest {
         return PipelineReadiness::default();
@@ -457,15 +463,24 @@ fn research_pipeline_readiness(
         )
     };
 
-    let feed_ready = receipt.market_data.public_use_rights.status == MarketDataRightsStatus::Ready
+    let feed_ready = (local_uncalibrated_live
+        || receipt.market_data.public_use_rights.status == MarketDataRightsStatus::Ready)
         && receipt.market_data.provider_entitlement == EvidenceStatus::Ready
         && receipt.market_data.stream_freshness == FreshnessStatus::Fresh
         && receipt.market_data.feed_freshness == FreshnessStatus::Fresh;
     let feed = if feed_ready {
         pipeline_stage(
             PipelineReadinessState::Ready,
-            "LICENSED_REALTIME_FEED_FRESH",
-            "The selected licensed realtime feed and completed-bar archive passed freshness checks.",
+            if local_uncalibrated_live {
+                "LICENSED_LOOPBACK_REALTIME_FEED_FRESH"
+            } else {
+                "LICENSED_REALTIME_FEED_FRESH"
+            },
+            if local_uncalibrated_live {
+                "The licensed realtime feed and completed-bar archive passed local loopback research freshness checks; public redistribution authorization was not asserted."
+            } else {
+                "The selected licensed realtime feed and completed-bar archive passed freshness checks."
+            },
             None,
         )
     } else {
@@ -1160,6 +1175,51 @@ fn public_observation_readiness_blockers(
     blockers.sort();
     blockers.dedup();
     blockers
+}
+
+fn local_uncalibrated_live_research_enabled(state: &AppState) -> bool {
+    let explicitly_enabled = std::env::var("AXIO_ENABLE_LOCAL_UNCALIBRATED_LIVE_RESEARCH")
+        .ok()
+        .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"));
+    let loopback_only = matches!(
+        state
+            .config
+            .server
+            .host
+            .trim()
+            .to_ascii_lowercase()
+            .as_str(),
+        "127.0.0.1" | "::1" | "localhost"
+    );
+    explicitly_enabled
+        && loopback_only
+        && state.config.live.enabled
+        && state.config.live.provider.eq_ignore_ascii_case("databento")
+        && state.config.live.quote_only
+        && state.config.live.shadow_only
+        && !state.config.live.allow_trade_api
+        && !state.config.execution.enabled
+        && !state.config.execution.allow_real_orders
+}
+
+fn local_observation_readiness_blockers(
+    selected_provider: &str,
+    receipt: &ProductionReadinessReceipt,
+) -> Vec<String> {
+    public_observation_readiness_blockers(selected_provider, receipt)
+        .into_iter()
+        // A loopback research display consumes the user's licensed local feed,
+        // so neither public redistribution rights nor the aggregate
+        // all-subscribed-symbol feed preflight determines whether a requested
+        // forecast can be shown. The opportunity scan still validates the
+        // requested immutable forecast, its exact source manifest, cutoff,
+        // maximum age, context completeness, and ledger receipt. Provider
+        // entitlement and stream liveness remain mandatory here.
+        .filter(|blocker| {
+            !blocker.starts_with("PUBLIC_MARKET_DATA_RIGHTS_")
+                && blocker != "PUBLIC_MARKET_DATA_FINALIZED_FEED_NOT_FRESH"
+        })
+        .collect()
 }
 
 fn probability_publication_readiness_blockers(receipt: &ProductionReadinessReceipt) -> Vec<String> {
@@ -3080,12 +3140,28 @@ fn public_realtime_caveats(provider: &str) -> Vec<&'static str> {
     caveats
 }
 
+fn local_uncalibrated_realtime_caveats(provider: &str) -> Vec<&'static str> {
+    let mut caveats = vec![
+        "Direction, expected return, empirical quantiles, analog frequencies, and regime values are uncalibrated descriptive model diagnostics; no rank or trade instruction is published.",
+        "Fresh licensed market data, a complete common-cutoff context set, immutable model lineage, and the local publication receipt were verified for this observation.",
+        "The result is enabled only for the loopback research runtime and does not assert public redistribution authorization.",
+    ];
+    if provider.eq_ignore_ascii_case("databento") {
+        caveats.extend([
+            "Provider send time is unavailable; the availability timestamp is the causal AXIO7 server receipt clock.",
+            "Databento EQUS.MINI OHLCV-1m contains completed bars and does not expose order-book depth.",
+        ]);
+    }
+    caveats
+}
+
 fn uncalibrated_scan_candidate_projection(
     candidate: &RankedResearchCandidate,
     provider: &str,
+    local_uncalibrated_live: bool,
 ) -> Value {
     let row = &candidate.value;
-    json!({
+    let mut projection = json!({
         "symbol":row.get("symbol").cloned().unwrap_or_else(|| json!(candidate.symbol)),
         "horizon_minutes":row.get("horizon_minutes").cloned().unwrap_or(Value::Null),
         "candidate_status":"UNCALIBRATED_RESEARCH_OUTPUT",
@@ -3100,8 +3176,83 @@ fn uncalibrated_scan_candidate_projection(
         "entitlement":"LICENSED_REALTIME_SHADOW_EVIDENCE_VERIFIED",
         "published_probability_status":row.get("published_probability_status").cloned().unwrap_or_else(|| json!("WITHHELD_NO_MATCHING_PROMOTED_OOS_CALIBRATION")),
         "validation":row.get("validation").cloned().unwrap_or_else(|| json!({})),
-        "caveats":public_realtime_caveats(provider)
-    })
+        "caveats":if local_uncalibrated_live {
+            local_uncalibrated_realtime_caveats(provider)
+        } else {
+            public_realtime_caveats(provider)
+        }
+    });
+    if local_uncalibrated_live && let Some(object) = projection.as_object_mut() {
+        object.insert(
+            "expected_return".into(),
+            row.get("raw_expected_return")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        object.insert(
+            "median_return".into(),
+            row.get("raw_median_return").cloned().unwrap_or(Value::Null),
+        );
+        object.insert(
+            "return_quantiles".into(),
+            row.get("raw_return_quantiles")
+                .cloned()
+                .unwrap_or_else(|| json!([])),
+        );
+        object.insert(
+            "raw_analog_up_frequency".into(),
+            row.get("raw_analog_up_frequency")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        object.insert(
+            "raw_analog_down_frequency".into(),
+            row.get("raw_analog_down_frequency")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        object.insert(
+            "raw_analog_flat_frequency".into(),
+            row.get("raw_analog_flat_frequency")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        object.insert(
+            "analog_effective_sample_size".into(),
+            row.get("raw_analog_effective_sample_size")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        object.insert(
+            "analog_similarity_score".into(),
+            row.get("raw_analog_similarity_score")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        object.insert(
+            "dominant_regime_state".into(),
+            row.get("raw_dominant_regime_state")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        object.insert(
+            "dominant_regime_probability".into(),
+            row.get("raw_dominant_regime_probability")
+                .cloned()
+                .unwrap_or(Value::Null),
+        );
+        object.insert(
+            "top_analogs".into(),
+            row.get("raw_top_analogs")
+                .cloned()
+                .unwrap_or_else(|| json!([])),
+        );
+        object.insert(
+            "local_research_scope".into(),
+            json!("LOOPBACK_LICENSED_UNCALIBRATED_RESEARCH"),
+        );
+    }
+    projection
 }
 
 fn project_public_scan_candidates(
@@ -3109,6 +3260,7 @@ fn project_public_scan_candidates(
     limit: usize,
     provider: &str,
     live_feed_verified: bool,
+    local_uncalibrated_live: bool,
 ) -> Vec<Value> {
     if !live_feed_verified {
         return Vec::new();
@@ -3128,10 +3280,15 @@ fn project_public_scan_candidates(
         .take(limit)
         .map(|mut candidate| {
             if !candidate.validated {
-                return uncalibrated_scan_candidate_projection(&candidate, provider);
+                return uncalibrated_scan_candidate_projection(
+                    &candidate,
+                    provider,
+                    local_uncalibrated_live,
+                );
             }
             validated_rank += 1;
             if let Some(object) = candidate.value.as_object_mut() {
+                object.retain(|key, _| !key.starts_with("raw_"));
                 object.insert("research_rank".into(), json!(validated_rank));
             }
             candidate.value
@@ -4476,6 +4633,20 @@ fn evaluate_research_candidate(
             } else {
                 "WITHHELD_NO_MATCHING_PROMOTED_OOS_CALIBRATION"
             },
+            // Retained inside the Rust-only scan row so an explicitly enabled
+            // loopback research projection can expose descriptive,
+            // uncalibrated moments without changing the public projection.
+            "raw_expected_return": expected_return,
+            "raw_median_return":row.get("median_return").cloned().unwrap_or(Value::Null),
+            "raw_return_quantiles":row.get("return_quantiles").cloned().unwrap_or_else(|| json!([])),
+            "raw_analog_up_frequency":raw_up,
+            "raw_analog_down_frequency":raw_down,
+            "raw_analog_flat_frequency":raw_flat,
+            "raw_analog_effective_sample_size":row.get("analog_effective_sample_size").cloned().unwrap_or(Value::Null),
+            "raw_analog_similarity_score":row.get("analog_similarity_score").cloned().unwrap_or(Value::Null),
+            "raw_dominant_regime_state":row.get("dominant_regime_state").cloned().unwrap_or(Value::Null),
+            "raw_dominant_regime_probability":row.get("dominant_regime_probability").cloned().unwrap_or(Value::Null),
+            "raw_top_analogs":row.get("top_analogs").cloned().unwrap_or_else(|| json!([])),
             "raw_analog_up_frequency_percent": percent(raw_up),
             "raw_analog_down_frequency_percent": percent(raw_down),
             "raw_analog_flat_frequency_percent": percent(raw_flat),
@@ -4589,6 +4760,7 @@ fn build_research_opportunity_scan(
     state: &AppState,
     query: OpportunityQuery,
     now: chrono::DateTime<chrono::Utc>,
+    local_uncalibrated_live: bool,
 ) -> Result<Value, ApiError> {
     let horizon_minutes = query.horizon_minutes.unwrap_or(15);
     if !state.config.research.horizons.contains(&horizon_minutes) {
@@ -4891,6 +5063,7 @@ fn build_research_opportunity_scan(
         limit,
         &state.config.live.provider,
         live_feed_verified,
+        local_uncalibrated_live,
     );
 
     Ok(json!({
@@ -4961,6 +5134,7 @@ async fn research_opportunities(
         &state,
         query,
         chrono::Utc::now(),
+        false,
     )?))
 }
 
@@ -4993,6 +5167,58 @@ async fn research_query(
     Json(query): Json<MarketQuery>,
 ) -> Result<Json<EvidenceEnvelope>, ApiError> {
     execute_research_query(state, query).await
+}
+
+async fn databento_replay_query(
+    State(state): State<AppState>,
+    Json(query): Json<MarketQuery>,
+) -> Result<Json<EvidenceEnvelope>, ApiError> {
+    let explicitly_enabled = std::env::var("AXIO_ENABLE_HISTORICAL_REPLAY")
+        .ok()
+        .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "true"));
+    if !cfg!(debug_assertions) && !explicitly_enabled {
+        return Err(ApiError::service_unavailable(
+            "historical replay is disabled; set AXIO_ENABLE_HISTORICAL_REPLAY=1 only for an isolated local research runtime",
+        ));
+    }
+    let query = query
+        .normalize_and_validate()
+        .map_err(ApiError::unprocessable)?;
+    if !databento_replay::supports_query(&query) {
+        return Err(ApiError::unprocessable(
+            "Databento replay currently accepts only the neutral SPX core-model forecast",
+        ));
+    }
+    if state.config.execution.enabled
+        || state.config.execution.allow_real_orders
+        || state.config.live.allow_trade_api
+    {
+        return Err(ApiError::conflict(
+            "Databento replay refuses to run while any execution path is enabled",
+        ));
+    }
+    let root = data_root(&state);
+    if let Some(evidence) =
+        databento_replay::load_cached_evidence(&root, &query).map_err(ApiError::internal)?
+    {
+        return Ok(Json(evidence));
+    }
+    let config = (*state.config).clone();
+    let run_root = root.clone();
+    let input = root.join("live/databento_stock_bars.jsonl");
+    let output_root = root.join("replay/databento");
+    tokio::task::spawn_blocking(move || {
+        databento_replay::run(&config, &run_root, &input, &output_root, "SPX")
+    })
+    .await
+    .map_err(ApiError::internal)?
+    .map_err(ApiError::internal)?;
+    let evidence = databento_replay::load_cached_evidence(&root, &query)
+        .map_err(ApiError::internal)?
+        .ok_or_else(|| {
+            ApiError::internal("Databento replay completed without a cached evidence artifact")
+        })?;
+    Ok(Json(evidence))
 }
 
 fn model_contract_projection(root: &std::path::Path) -> Value {
@@ -5036,6 +5262,7 @@ fn generic_statistical_candidates(
     setup_type: MarketSetupType,
     scan: &Value,
     requested_symbols: &[String],
+    local_uncalibrated_live: bool,
 ) -> Vec<ResearchCandidate> {
     scan.get("ranked_statistical_candidates")
         .and_then(Value::as_array)
@@ -5117,6 +5344,54 @@ fn generic_statistical_candidates(
                     }
                 }));
             }
+            let mut metrics = json!({
+                "horizon_minutes":row.get("horizon_minutes").cloned().unwrap_or(Value::Null),
+                "statistical_orientation":orientation,
+                "observation_cutoff":row.get("observation_cutoff").cloned().unwrap_or(Value::Null),
+                "latest_input_available_at":row.get("latest_input_available_at").cloned().unwrap_or(Value::Null),
+                "data_age_seconds":age_seconds,
+                "data_source":source,
+                "coverage":coverage,
+                "coverage_semantics":row.get("coverage_semantics").cloned().unwrap_or(Value::Null),
+                "caveats":row.get("caveats").cloned().unwrap_or_else(|| json!([])),
+                "published_probability_status":publication_status,
+                "probability_up_percent":if validated {
+                    row.get("probability_up_percent").cloned().unwrap_or(Value::Null)
+                } else {
+                    Value::Null
+                },
+                "validation":row.get("validation").cloned().unwrap_or_else(|| json!({})),
+                "interpretation":"Model-derived directional research condition only; not a calibrated probability, expected return, personalized recommendation, order, or guaranteed outcome."
+            });
+            if local_uncalibrated_live
+                && !validated
+                && let Some(metrics) = metrics.as_object_mut()
+            {
+                for key in [
+                    "expected_return",
+                    "median_return",
+                    "return_quantiles",
+                    "raw_analog_up_frequency",
+                    "raw_analog_down_frequency",
+                    "raw_analog_flat_frequency",
+                    "analog_effective_sample_size",
+                    "analog_similarity_score",
+                    "dominant_regime_state",
+                    "dominant_regime_probability",
+                    "top_analogs",
+                ] {
+                    metrics.insert(
+                        key.to_string(),
+                        row.get(key).cloned().unwrap_or(Value::Null),
+                    );
+                }
+                metrics.insert(
+                    "interpretation".into(),
+                    json!(
+                        "Loopback-only licensed live research: raw expected return, empirical quantiles, analog frequencies, and regime diagnostics are uncalibrated and are not a public publication, personalized recommendation, order, or guaranteed outcome."
+                    ),
+                );
+            }
             let mut candidate = ResearchCandidate {
                 symbol,
                 setup_type,
@@ -5141,25 +5416,7 @@ fn generic_statistical_candidates(
                     observed_value: Some(orientation.clone()),
                 }],
                 contrary_evidence,
-                metrics: json!({
-                    "horizon_minutes":row.get("horizon_minutes").cloned().unwrap_or(Value::Null),
-                    "statistical_orientation":orientation,
-                    "observation_cutoff":row.get("observation_cutoff").cloned().unwrap_or(Value::Null),
-                    "latest_input_available_at":row.get("latest_input_available_at").cloned().unwrap_or(Value::Null),
-                    "data_age_seconds":age_seconds,
-                    "data_source":source,
-                    "coverage":coverage,
-                    "coverage_semantics":row.get("coverage_semantics").cloned().unwrap_or(Value::Null),
-                    "caveats":row.get("caveats").cloned().unwrap_or_else(|| json!([])),
-                    "published_probability_status":publication_status,
-                    "probability_up_percent":if validated {
-                        row.get("probability_up_percent").cloned().unwrap_or(Value::Null)
-                    } else {
-                        Value::Null
-                    },
-                    "validation":row.get("validation").cloned().unwrap_or_else(|| json!({})),
-                    "interpretation":"Model-derived directional research condition only; not a calibrated probability, expected return, personalized recommendation, order, or guaranteed outcome."
-                }),
+                metrics,
                 freshness: vec![crate::market_query::DataFreshness {
                     source,
                     observed_at,
@@ -5372,8 +5629,18 @@ async fn execute_research_query(
     let mut historical = Vec::new();
     let readiness = production_readiness_receipt(&state);
     let live_result_requested = query.intent != MarketQueryIntent::Backtest;
+    let local_uncalibrated_live = live_result_requested
+        && matches!(
+            query.setup_type,
+            MarketSetupType::ModelForecast | MarketSetupType::StatisticalDislocation
+        )
+        && local_uncalibrated_live_research_enabled(&state);
     let mut data_blockers = if live_result_requested {
-        public_observation_readiness_blockers(&state.config.live.provider, &readiness)
+        if local_uncalibrated_live {
+            local_observation_readiness_blockers(&state.config.live.provider, &readiness)
+        } else {
+            public_observation_readiness_blockers(&state.config.live.provider, &readiness)
+        }
     } else {
         Vec::new()
     };
@@ -5565,11 +5832,13 @@ async fn execute_research_query(
                             maximum_age_seconds: Some(query.filters.max_data_age_seconds),
                         },
                         observation_cutoff,
+                        local_uncalibrated_live,
                     )?;
                     let mut horizon_candidates = generic_statistical_candidates(
                         query.setup_type,
                         &scan,
                         &requested_model_symbols,
+                        local_uncalibrated_live,
                     );
                     for candidate in &mut horizon_candidates {
                         if let Some(target) = state.config.research.targets.iter().find(|target| {
@@ -5764,6 +6033,13 @@ async fn execute_research_query(
                 "UNCALIBRATED_RESEARCH_OUTPUT exposes only a fresh model-derived condition; probability, expected move, ranking score, and execution fields remain withheld."
                     .to_string(),
             );
+            if local_uncalibrated_live {
+                caveats.pop();
+                caveats.push(
+                    "Loopback-only licensed research mode exposes raw expected returns, empirical quantiles, analog frequencies, and regime diagnostics. They are uncalibrated, are not authorized for public redistribution, and do not enable ranking or execution."
+                        .to_string(),
+                );
+            }
             if query.setup_type == MarketSetupType::ModelForecast && query.horizon_minutes.is_none()
             {
                 caveats.push(
@@ -5782,9 +6058,20 @@ async fn execute_research_query(
             );
         }
     }
-    let pipeline_readiness = research_pipeline_readiness(&state, &query, &readiness, &candidates);
+    let pipeline_readiness = research_pipeline_readiness(
+        &state,
+        &query,
+        &readiness,
+        &candidates,
+        local_uncalibrated_live,
+    );
     let mut envelope = EvidenceEnvelope {
         schema_version: EVIDENCE_ENVELOPE_SCHEMA_VERSION.to_string(),
+        evidence_mode: if local_uncalibrated_live {
+            EvidenceMode::LocalUncalibratedLiveResearch
+        } else {
+            EvidenceMode::Live
+        },
         request_id: Uuid::new_v4().to_string(),
         query_sha256,
         response_sha256: None,
@@ -5809,7 +6096,14 @@ async fn execute_research_query(
             "public_market_data_rights":{
                 "status":readiness.market_data.public_use_rights.status,
                 "reason":readiness.market_data.public_use_rights.reason
-            }
+            },
+            "local_research_scope":if local_uncalibrated_live {
+                "LOOPBACK_LICENSED_UNCALIBRATED_RESEARCH"
+            } else {
+                "DISABLED"
+            },
+            "customer_publication_authorized":!local_uncalibrated_live
+                && readiness.market_data.public_use_rights.status == MarketDataRightsStatus::Ready
         }),
         caveats,
     };
@@ -8125,7 +8419,7 @@ mod tests {
                 "NO_GAMMA_SQUEEZE_CLAIM_WITHOUT_FRESH_POINT_IN_TIME_OPTION_CHAIN_OI_AND_GREEKS"
             ))
         );
-        let public_row = uncalibrated_scan_candidate_projection(&candidate, "moomoo");
+        let public_row = uncalibrated_scan_candidate_projection(&candidate, "moomoo", false);
         let scan = json!({
             "live_feed":{"provider":"moomoo"},
             "ranked_statistical_candidates":[public_row]
@@ -8134,6 +8428,7 @@ mod tests {
             MarketSetupType::StatisticalDislocation,
             &scan,
             &["SPY".to_string()],
+            false,
         );
         assert_eq!(projected.len(), 1);
         assert_eq!(projected[0].status, "UNCALIBRATED_RESEARCH_OUTPUT");
@@ -8250,13 +8545,13 @@ mod tests {
             },
         ];
 
-        let projected = project_public_scan_candidates(candidates, 1, "moomoo", true);
+        let projected = project_public_scan_candidates(candidates, 1, "moomoo", true, false);
         assert_eq!(projected.len(), 1);
         assert_eq!(projected[0].get("symbol"), Some(&json!("AAA")));
         assert!(projected[0].get("research_rank").is_none());
         assert!(projected[0].get("research_rank_score").is_none());
         assert!(projected[0].get("expected_move_percent").is_none());
-        assert!(project_public_scan_candidates(Vec::new(), 1, "moomoo", false).is_empty());
+        assert!(project_public_scan_candidates(Vec::new(), 1, "moomoo", false, false).is_empty());
         assert_eq!(effective_maximum_age_seconds(Some(1), 120), 1);
         assert_eq!(effective_maximum_age_seconds(Some(3_600), 120), 120);
     }
@@ -8769,6 +9064,30 @@ mod tests {
         assert!(blockers.contains(&"PUBLIC_MARKET_DATA_STREAM_NOT_FRESH".to_string()));
         assert!(blockers.contains(&"PUBLIC_MARKET_DATA_FINALIZED_FEED_NOT_FRESH".to_string()));
         assert!(!blockers.contains(&"PUBLIC_REALTIME_RESEARCH_READINESS_BLOCKED".to_string()));
+    }
+
+    #[test]
+    fn local_observation_gate_defers_aggregate_feed_freshness_to_requested_forecast_validation() {
+        let mut receipt = ready_public_research_receipt();
+        receipt.market_data.public_use_rights.status = MarketDataRightsStatus::Unavailable;
+        receipt.market_data.public_use_rights.reason = MarketDataRightsReason::ReceiptMissing;
+        receipt.market_data.feed_freshness = FreshnessStatus::Blocked;
+
+        assert!(local_observation_readiness_blockers("databento", &receipt).is_empty());
+
+        receipt.market_data.provider_entitlement = EvidenceStatus::Blocked;
+        receipt.market_data.stream_freshness = FreshnessStatus::Stale;
+        let blockers = local_observation_readiness_blockers("databento", &receipt);
+        assert!(
+            blockers.contains(&"PUBLIC_MARKET_DATA_PROVIDER_ENTITLEMENT_NOT_READY".to_string())
+        );
+        assert!(blockers.contains(&"PUBLIC_MARKET_DATA_STREAM_NOT_FRESH".to_string()));
+        assert!(!blockers.contains(&"PUBLIC_MARKET_DATA_FINALIZED_FEED_NOT_FRESH".to_string()));
+        assert!(
+            blockers
+                .iter()
+                .all(|blocker| !blocker.starts_with("PUBLIC_MARKET_DATA_RIGHTS_"))
+        );
     }
 
     #[test]

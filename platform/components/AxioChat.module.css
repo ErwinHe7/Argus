@@ -352,6 +352,28 @@ a.monitorEmpty:hover {
   justify-content: space-between;
 }
 
+.developmentReplayBanner {
+  display: flex;
+  min-height: 42px;
+  padding: 9px 22px;
+  border-bottom: 1px solid #dfc892;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #664b20;
+  background: #fff7df;
+  font-size: 11px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.developmentReplayBanner strong {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .menuButton {
   display: none;
 }
@@ -860,9 +882,111 @@ a.monitorEmpty:hover {
   word-break: break-word;
 }
 
+.developmentReplayNotice {
+  display: flex;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid #dfc892;
+  border-radius: 9px;
+  flex-direction: column;
+  gap: 3px;
+  color: #664b20;
+  background: #fff8e7;
+}
+
+.developmentReplayNotice strong {
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.developmentReplayNotice span {
+  font-size: 11px;
+  line-height: 1.5;
+}
+
 .failedAnswer {
   color: #8e4d44;
   font-size: 12px;
+}
+
+.clarificationChooser {
+  display: grid;
+  max-width: 670px;
+  margin-top: 14px;
+  padding: 15px;
+  border: 1px solid #ded8cf;
+  border-radius: 12px;
+  gap: 12px;
+  background: #faf8f4;
+}
+
+.clarificationChooser > p {
+  margin: 0;
+  color: #3f3a34;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+.clarificationChooser fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.clarificationChooser legend {
+  margin-bottom: 6px;
+  color: #817b72;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.clarificationChooser fieldset > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.clarificationChooser fieldset button,
+.clarificationSubmit {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d6d0c7;
+  border-radius: 8px;
+  color: #5f5a53;
+  background: #fff;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.clarificationChooser fieldset button[aria-pressed='true'] {
+  border-color: #a46d58;
+  color: #643e31;
+  background: #f4e8e1;
+}
+
+.clarificationSubmit {
+  width: fit-content;
+  min-height: 38px;
+  padding: 0 13px;
+  border-color: #4b4741;
+  color: #fff;
+  background: #4b4741;
+}
+
+.clarificationChooser button:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.clarificationChooser button:focus-visible {
+  outline: 2px solid rgba(164, 109, 88, 0.42);
+  outline-offset: 2px;
 }
 
 .gatedNotice {
@@ -1545,6 +1669,116 @@ a.monitorEmpty:hover {
   border-top: 1px solid var(--line-soft);
 }
 
+.strictReplayReport {
+  margin: 0 0 22px;
+  color: #3f3b35;
+}
+
+.strictReplayEyebrow {
+  margin: 0 0 5px;
+  color: #9a604b;
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.strictReplayReport h2 {
+  margin: 0;
+  color: #292621;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(20px, 3vw, 27px);
+  font-weight: 620;
+  letter-spacing: -0.025em;
+  line-height: 1.18;
+}
+
+.strictReplayLead {
+  max-width: 700px;
+  margin: 8px 0 0;
+  color: #6e685f;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.strictReplayFacts {
+  display: grid;
+  margin: 14px 0 18px;
+  padding-left: 18px;
+  gap: 5px;
+  color: #57524b;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.strictReplayTable {
+  margin-top: 18px;
+  overflow-x: auto;
+}
+
+.strictReplayTable h3,
+.strictReplayConclusion h3 {
+  margin: 0 0 8px;
+  color: #38342f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.strictReplayTable table {
+  width: 100%;
+  min-width: 540px;
+  border-collapse: collapse;
+  color: #504b44;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.strictReplayTable th,
+.strictReplayTable td {
+  padding: 9px 8px;
+  border-bottom: 1px solid var(--line-soft);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.strictReplayTable th {
+  border-top: 1px solid var(--line);
+  color: #827b72;
+  font-size: 10px;
+  font-weight: 690;
+}
+
+.strictReplayTable td:first-child {
+  color: #37332e;
+  font-weight: 650;
+}
+
+.strictReplayTable > p {
+  margin: 8px 0 0;
+  color: #888178;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.strictReplayConclusion {
+  margin-top: 20px;
+  padding: 13px 14px;
+  border: 1px solid #d8d2c9;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.strictReplayConclusion p {
+  margin: 5px 0 0;
+  color: #5c574f;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.strictReplayConclusion strong {
+  color: #37332e;
+}
+
 .interpretedQuery {
   margin-bottom: 14px;
   overflow: hidden;
@@ -2143,6 +2377,14 @@ a.monitorEmpty:hover {
 }
 
 @media (max-width: 640px) {
+  .developmentReplayBanner {
+    padding: 9px 14px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+  }
+
   .welcome {
     padding: 14px 16px 65px;
     align-items: flex-start;
