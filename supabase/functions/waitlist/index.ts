@@ -11,6 +11,10 @@ const TURNSTILE_VERIFY_URL =
 const ACTIVE_ORIGINS = new Set([
   "https://just-build-this.app",
   "https://staging.just-build-this.app",
+  "https://beta.just-build-this.app",
+  "https://leoinvesting.com",
+  "https://staging.leoinvesting.com",
+  "https://beta.leoinvesting.com",
 ]);
 
 type RatePolicy = Readonly<{ limit: number; windowSeconds: number }>;

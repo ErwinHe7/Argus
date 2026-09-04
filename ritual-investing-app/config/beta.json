@@ -1,9 +1,10 @@
 {
   "RITUAL_ENVIRONMENT": "staging",
-  "RITUAL_API_BASE_URL": "https://rbqkuyjknoaqwnetbcst.supabase.co/functions/v1/api",
-  "SUPABASE_URL": "https://rbqkuyjknoaqwnetbcst.supabase.co",
-  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_a1CYogdPesbRqND5GRKa8A_F9zHQ-KI",
-  "STAGING_SUPABASE_PROJECT_REF": "rbqkuyjknoaqwnetbcst",
-  "STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256": "f8b3fc78ee94cb553c4c90bcd72374d0e0d982f48ce46cee17c6729f3dcc1aea",
-  "ARGUS_AUTH_REDIRECT_ALLOWLIST": "https://leo.axio7.workers.dev/app/,https://just-build-this.app/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback"
+  "RITUAL_API_BASE_URL": "https://zbgjjufjkhfhirbuuolv.supabase.co/functions/v1/api",
+  "SUPABASE_URL": "https://zbgjjufjkhfhirbuuolv.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_A4POPCI9WnO-VnSb1IQXFg_4GM58St0",
+  "STAGING_SUPABASE_PROJECT_REF": "zbgjjufjkhfhirbuuolv",
+  "STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256": "52f52ef0f29b5bf24697e7d1f2c595f80234195f41860cd930d1944fb3b74cf7",
+  "ARGUS_AUTH_REDIRECT_ALLOWLIST": "https://leoinvesting.com/mobile/argus-auth/callback,https://just-build-this.app/mobile/argus-auth/callback,https://staging-ritual-investing-member.xiaolonggao521.workers.dev/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback",
+  "WEBULL_COMPLETION_ALLOWLIST": "https://leoinvesting.com/mobile/webull/complete,https://just-build-this.app/mobile/webull/complete,com.ritualinvesting.ritual-investing-app.webull://webull/complete"
 }

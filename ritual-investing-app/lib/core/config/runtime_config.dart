@@ -22,9 +22,11 @@ class RuntimeConfig {
     String stagingSupabasePublishableKeySha256 = '',
     this.allowSelfServiceSignup = false,
     String argusAuthRedirectAllowlist =
+        'https://leoinvesting.com/mobile/argus-auth/callback,'
         'https://just-build-this.app/mobile/argus-auth/callback,'
         'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
     String webullCompletionAllowlist =
+        'https://leoinvesting.com/mobile/webull/complete,'
         'https://just-build-this.app/mobile/webull/complete,'
         'com.ritualinvesting.ritual-investing-app.webull://webull/complete',
   }) : apiBaseUrl = _serviceUrl(apiBaseUrl, 'RITUAL_API_BASE_URL', environment),
@@ -80,12 +82,14 @@ class RuntimeConfig {
     argusAuthRedirectAllowlist: const String.fromEnvironment(
       'ARGUS_AUTH_REDIRECT_ALLOWLIST',
       defaultValue:
+          'https://leoinvesting.com/mobile/argus-auth/callback,'
           'https://just-build-this.app/mobile/argus-auth/callback,'
           'com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback',
     ),
     webullCompletionAllowlist: const String.fromEnvironment(
       'WEBULL_COMPLETION_ALLOWLIST',
       defaultValue:
+          'https://leoinvesting.com/mobile/webull/complete,'
           'https://just-build-this.app/mobile/webull/complete,'
           'com.ritualinvesting.ritual-investing-app.webull://webull/complete',
     ),

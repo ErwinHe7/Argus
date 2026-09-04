@@ -200,6 +200,47 @@ Deno.test("CORS accepts only the configured exact landing origin", async () => {
   assertEquals(fixture.submissions, []);
 });
 
+Deno.test("migrated landing origins retain exact CORS and Turnstile hostname checks", async () => {
+  for (
+    const hostname of [
+      "leoinvesting.com",
+      "staging.leoinvesting.com",
+      "beta.leoinvesting.com",
+    ]
+  ) {
+    const origin = `https://${hostname}`;
+    const fixture = harness();
+    const configuration = environment({
+      WAITLIST_ALLOWED_ORIGIN: origin,
+      TURNSTILE_EXPECTED_HOSTNAME: hostname,
+    });
+    let verifiedHostname: string | undefined;
+    const handler = createWaitlistHandler(configuration, {
+      ...fixture.dependencies,
+      verifyTurnstile(input) {
+        verifiedHostname = input.expectedHostname;
+        return Promise.resolve({ ok: true });
+      },
+    });
+    const accepted = await handler(request({ origin }));
+    assertEquals(accepted.status, 202);
+    assertEquals(accepted.headers.get("access-control-allow-origin"), origin);
+    assertEquals(verifiedHostname, hostname);
+
+    const foreign = await handler(
+      request({ origin: `${origin}.evil.example` }),
+    );
+    assertEquals(foreign.status, 403);
+    assertEquals(foreign.headers.get("access-control-allow-origin"), null);
+
+    const mismatched = createWaitlistHandler({
+      ...configuration,
+      TURNSTILE_EXPECTED_HOSTNAME: "just-build-this.app",
+    }, fixture.dependencies);
+    assertEquals((await mismatched(request({ origin }))).status, 503);
+  }
+});
+
 Deno.test("disabled previews fail before constructing database or Turnstile dependencies", async () => {
   let constructed = false;
   const handler = createWaitlistHandler(

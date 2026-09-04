@@ -172,7 +172,7 @@ jobs:
             --arg key "$MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY" \
             --arg project_ref "$MEMBER_STAGING_SUPABASE_PROJECT_REF" \
             --arg key_sha256 "$MEMBER_STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256" \
-            --arg auth_redirects "https://just-build-this.app/mobile/argus-auth/callback,$RITUAL_STAGING_PREVIEW_ORIGIN/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback" \
+            --arg auth_redirects "https://leoinvesting.com/mobile/argus-auth/callback,https://just-build-this.app/mobile/argus-auth/callback,$RITUAL_STAGING_PREVIEW_ORIGIN/mobile/argus-auth/callback,com.ritualinvesting.ritual-investing-app.auth://argus-auth/callback" \
             '{RITUAL_ENVIRONMENT:$environment,RITUAL_API_BASE_URL:$api,SUPABASE_URL:$url,SUPABASE_PUBLISHABLE_KEY:$key,STAGING_SUPABASE_PROJECT_REF:$project_ref,STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256:$key_sha256,ARGUS_AUTH_REDIRECT_ALLOWLIST:$auth_redirects}' \
             >"$RUNNER_TEMP/member-staging-defines.json"
           cd ritual-investing-app

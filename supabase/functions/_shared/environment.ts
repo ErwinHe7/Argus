@@ -4,6 +4,7 @@ const leoPublicBetaConsumerOrigins = Object.freeze([
   "https://leo.axio7.workers.dev",
 ]);
 const ritualPublicBetaOrigin = "https://just-build-this.app";
+const leoInvestingOrigin = "https://leoinvesting.com";
 const stagingMemberPreviewOrigin =
   /^https:\/\/staging-ritual-investing-member\.[a-z0-9-]+\.workers\.dev$/;
 
@@ -36,15 +37,20 @@ export function requiredConsumerOrigins(
   const previewOrigin = values.find((origin) =>
     stagingMemberPreviewOrigin.test(origin)
   );
+  const migratingDomain = values.includes(leoInvestingOrigin);
   if (
-    values.length !== 2 ||
+    values.length !== (migratingDomain ? 3 : 2) ||
     uniqueValues.size !== values.length ||
     !values.includes(ritualPublicBetaOrigin) ||
     previewOrigin === undefined
   ) {
     throw new Error("invalid_argus_consumer_origins");
   }
-  return Object.freeze([ritualPublicBetaOrigin, previewOrigin]);
+  return Object.freeze(
+    migratingDomain
+      ? [ritualPublicBetaOrigin, leoInvestingOrigin, previewOrigin]
+      : [ritualPublicBetaOrigin, previewOrigin],
+  );
 }
 
 export function requiredExactOrigin(

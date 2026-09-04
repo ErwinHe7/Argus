@@ -39,6 +39,51 @@ void main() {
     expect(config.supabaseUrl, Uri.parse('http://127.0.0.1:54321'));
   });
 
+  test('default callbacks prefer the new domain and retain exact old links', () {
+    final config = RuntimeConfig(
+      environment: 'prod',
+      apiBaseUrl: 'https://project.supabase.co/functions/v1/api',
+      supabaseUrl: 'https://project.supabase.co',
+      supabasePublishableKey: 'sb_publishable_abcdefghijklmnop',
+    );
+    expect(
+      config.googleAuthRedirect,
+      Uri.parse('https://leoinvesting.com/mobile/argus-auth/callback'),
+    );
+    for (final host in ['leoinvesting.com', 'just-build-this.app']) {
+      expect(
+        config.nativeLinks.acceptsArgusAuthCallback(
+          Uri.parse('https://$host/mobile/argus-auth/callback?code=abcdefgh'),
+        ),
+        isTrue,
+      );
+      expect(
+        config.nativeLinks.acceptsWebullCompletion(
+          Uri.parse(
+            'https://$host/mobile/webull/complete?completion=abcdefghijklmnop',
+          ),
+        ),
+        isTrue,
+      );
+    }
+    expect(
+      config.nativeLinks.acceptsArgusAuthCallback(
+        Uri.parse(
+          'https://leoinvesting.com.evil.example/mobile/argus-auth/callback?code=abcdefgh',
+        ),
+      ),
+      isFalse,
+    );
+    expect(
+      config.nativeLinks.acceptsArgusAuthCallback(
+        Uri.parse(
+          'https://leoinvesting.com/mobile/webull/complete?completion=abcdefghijklmnop',
+        ),
+      ),
+      isFalse,
+    );
+  });
+
   test('committed dev profile is loopback-only', () {
     final values = jsonDecode(
       File('config/dev.json').readAsStringSync(),
