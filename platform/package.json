@@ -22,6 +22,7 @@
     "test:quant-conversation": "node --test scripts/quant-conversation-contract.test.mjs",
     "test:production-readiness": "tsx --test scripts/production-readiness-status.test.ts",
     "test:public-context": "tsx --test scripts/public-context-contract.test.ts",
+    "test:setup-card": "tsx --test scripts/setup-card-contract.test.ts",
     "test:ui-navigation": "node --test scripts/ui-navigation-contract.test.mjs",
     "test:paddle-catalog": "node --test scripts/paddle-catalog-contract.test.mjs",
     "test:whop-checkout": "node --test scripts/whop-checkout-contract.test.mjs",
