@@ -10,12 +10,12 @@
   "prefer_related_applications": false,
   "icons": [
     {
-      "src": "icons/leo-192.png",
+      "src": "icons/leo-lion-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icons/leo-512.png",
+      "src": "icons/leo-lion-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

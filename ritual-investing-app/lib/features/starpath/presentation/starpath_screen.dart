@@ -6,6 +6,7 @@ import '../application/starpath_narration_controller.dart';
 import '../domain/investment_constellation.dart';
 import '../domain/starpath.dart';
 import '../domain/starpath_universe.dart';
+import 'leonidas_story_library.dart';
 import 'starpath_lesson_screen.dart';
 import 'starpath_path.dart';
 import 'starpath_recall.dart';
@@ -176,6 +177,35 @@ class _ContentState extends State<_Content> {
                             ),
                             const SizedBox(height: 8),
                             if (widget.preview) const _DraftPreviewBanner(),
+                            if (widget.controller.state.phase ==
+                                StarpathViewPhase.ready)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                child: ListTile(
+                                  key: const Key('starpath-leonidas-stories'),
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: Icon(
+                                    Icons.auto_stories_outlined,
+                                    color: Theme.of(context).colorScheme.primary,
+                                  ),
+                                  title: const Text('Stories with Leonidas'),
+                                  subtitle: const Text(
+                                    'Four short adventures · supplementary practice',
+                                  ),
+                                  trailing: const Icon(Icons.chevron_right),
+                                  onTap: () => Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) => LeonidasStoryLibrary(
+                                        controller: widget.controller,
+                                        narrationPreference:
+                                            widget.narrationPreference,
+                                        narrationEngineFactory:
+                                            widget.narrationEngineFactory,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
                             if (widget.snapshot.recall case final recall?)
                               Padding(
                                 padding: const EdgeInsets.only(top: 12),

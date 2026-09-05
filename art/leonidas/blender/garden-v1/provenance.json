@@ -1,0 +1,14 @@
+{
+  "asset": "leonidas-garden-blender-v1.png",
+  "source": "leonidas-garden-v1.blend",
+  "generator": "build_garden.py",
+  "renderer": "4.5.9 LTS",
+  "render_engine": "Cycles",
+  "samples": 512,
+  "dimensions": [
+    1536,
+    1152
+  ],
+  "third_party_assets": [],
+  "description": "Moonlight, candlelight, aubergine stone, brass, walnut, unfinished garden study; existing Leonidas portraits remain separate."
+}
