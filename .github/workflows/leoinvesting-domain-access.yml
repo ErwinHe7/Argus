@@ -1,0 +1,67 @@
+name: Inspect leoinvesting domain access
+
+on:
+  push:
+    branches: [codex/leoinvesting-domain-access]
+    paths: [.github/workflows/leoinvesting-domain-access.yml]
+
+permissions: {}
+
+jobs:
+  inspect:
+    if: github.repository == 'ErwinHe7/Argus' && github.ref == 'refs/heads/codex/leoinvesting-domain-access'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Read only the existing domain and Worker mapping
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTENT_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, urllib.error, urllib.request
+
+          token = os.environ.get('CLOUDFLARE_API_TOKEN', '')
+          account = os.environ.get('CLOUDFLARE_ACCOUNT_ID', '')
+          expected_account = '5cc3bc33ca089258d20b6e80e67e5333'
+          if not token or account != expected_account:
+              print('LEO_DOMAIN_ACCESS ' + json.dumps({'configuration': 'missing-or-unexpected'}))
+              raise SystemExit(1)
+
+          def read(path):
+              request = urllib.request.Request(
+                  'https://api.cloudflare.com/client/v4' + path,
+                  headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/json'},
+                  method='GET')
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      return response.status, json.load(response)
+              except urllib.error.HTTPError as error:
+                  return error.code, {}
+              except Exception:
+                  return 0, {}
+
+          def emit(kind, status, result):
+              print('LEO_DOMAIN_ACCESS ' + json.dumps({'kind': kind, 'http_status': status, 'result': result}, sort_keys=True))
+
+          status, body = read('/user/tokens/verify')
+          result = body.get('result') or {}
+          emit('token', status, {'status': result.get('status'), 'success': body.get('success', False)})
+
+          status, body = read('/accounts/' + account + '/workers/domains')
+          results = body.get('result') or []
+          emit('domains', status, [{key: entry.get(key) for key in ('id', 'hostname', 'service', 'environment', 'zone_id', 'zone_name')}
+              for entry in results if entry.get('hostname') in ('leoinvesting.com', 'just-build-this.app')])
+
+          status, body = read('/accounts/' + account + '/workers/scripts')
+          results = body.get('result') or []
+          emit('worker', status, [{key: entry.get(key) for key in ('id', 'created_on', 'modified_on', 'etag')}
+              for entry in results if entry.get('id') == 'ritual-investing-member'])
+
+          status, body = read('/zones?name=leoinvesting.com')
+          results = body.get('result') or []
+          emit('zone', status, [{'id': entry.get('id'), 'name': entry.get('name'),
+              'account_id': (entry.get('account') or {}).get('id')}
+              for entry in results if entry.get('name') == 'leoinvesting.com'])
+          PY
