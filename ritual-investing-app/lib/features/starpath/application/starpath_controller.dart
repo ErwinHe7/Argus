@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/starpath_repository.dart';
 import '../domain/starpath.dart';
+import 'leonidas_story_playback.dart';
 
 enum StarpathViewPhase {
   idle,
@@ -47,6 +48,7 @@ class StarpathController extends ChangeNotifier {
        _createKey = createKey;
 
   final StarpathRepository _repository;
+  final storyVisit = LeonidasStoryVisit();
   final String Function() _createKey;
   StarpathViewState _state = const StarpathViewState(
     phase: StarpathViewPhase.idle,

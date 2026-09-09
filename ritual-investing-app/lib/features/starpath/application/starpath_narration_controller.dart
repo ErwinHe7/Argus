@@ -140,7 +140,7 @@ class StarpathNarrationController extends ChangeNotifier {
     _preparation ??= _configure();
   }
 
-  Future<void> play() async {
+  Future<void> play({String? text}) async {
     if (_disposed || _busy || isSpeaking) return;
     final shouldRetryPreparation =
         _phase == StarpathNarrationPhase.unavailable ||
@@ -163,7 +163,7 @@ class StarpathNarrationController extends ChangeNotifier {
         return;
       }
 
-      final accepted = await _engine.speak(script);
+      final accepted = await _engine.speak(text ?? script);
       if (!_isCurrent(operation)) return;
       if (!accepted) {
         _active = false;

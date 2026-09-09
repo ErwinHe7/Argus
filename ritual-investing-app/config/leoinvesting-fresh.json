@@ -1,0 +1,9 @@
+{
+  "RITUAL_ENVIRONMENT": "staging",
+  "RITUAL_API_BASE_URL": "https://katwbobjiyzipqlzarus.supabase.co/functions/v1/api",
+  "SUPABASE_URL": "https://katwbobjiyzipqlzarus.supabase.co",
+  "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_qI60w1RCca34rCxapEXQBQ_XWxs8Arc",
+  "STAGING_SUPABASE_PROJECT_REF": "katwbobjiyzipqlzarus",
+  "STAGING_SUPABASE_PUBLISHABLE_KEY_SHA256": "a49ca33d5d726c61237f80c1d6849381cde11db90722e409fb7cc9ad5fb251a5",
+  "ARGUS_AUTH_REDIRECT_ALLOWLIST": "https://leoinvesting.com/mobile/argus-auth/callback"
+}

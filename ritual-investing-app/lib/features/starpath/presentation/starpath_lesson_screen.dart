@@ -7,6 +7,8 @@ import '../application/starpath_controller.dart';
 import '../application/starpath_narration_controller.dart';
 import '../domain/investment_constellation.dart';
 import '../domain/starpath.dart';
+import '../domain/leonidas_story.dart';
+import 'leonidas_story_screen.dart';
 
 const _night = Color(0xFF0B0310);
 const _aubergine = Color(0xFF15061A);
@@ -279,6 +281,7 @@ class _StarpathMicroLessonScreen extends StatefulWidget {
     required this.preview,
     required this.narrationPreference,
     required this.narrationEngineFactory,
+    this.notesOnly = false,
   });
 
   final StarpathController controller;
@@ -288,6 +291,7 @@ class _StarpathMicroLessonScreen extends StatefulWidget {
   final bool preview;
   final StarpathNarrationPreference narrationPreference;
   final StarpathNarrationEngineFactory narrationEngineFactory;
+  final bool notesOnly;
 
   @override
   State<_StarpathMicroLessonScreen> createState() =>
@@ -303,10 +307,28 @@ class _StarpathMicroLessonScreenState extends State<_StarpathMicroLessonScreen>
 
   StarpathFactualSection get section => entry.section;
 
+  LeonidasStory? get _story {
+    if (widget.notesOnly) return null;
+    final snapshot = widget.controller.state.snapshot;
+    if (snapshot == null) return null;
+    final current = snapshot.nodes.where(
+      (node) =>
+          node.lessonId == entry.node.lessonId &&
+          node.revisionId == entry.node.revisionId,
+    );
+    if (current.isEmpty) return null;
+    return resolveLeonidasStory(snapshot, entry);
+  }
+
+  void _curriculumChanged() {
+    if (mounted) setState(() {});
+  }
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    widget.controller.addListener(_curriculumChanged);
     _narration = StarpathNarrationController(
       widget.narrationEngineFactory(),
       script: buildStarpathNarrationScript(
@@ -320,7 +342,10 @@ class _StarpathMicroLessonScreenState extends State<_StarpathMicroLessonScreen>
     );
     widget.narrationPreference.addListener(_syncNarrationPreference);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !widget.narrationPreference.muted) {
+      if (mounted &&
+          _story == null &&
+          !widget.notesOnly &&
+          !widget.narrationPreference.muted) {
         unawaited(_narration.play());
       }
     });
@@ -336,98 +361,176 @@ class _StarpathMicroLessonScreenState extends State<_StarpathMicroLessonScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    widget.controller.removeListener(_curriculumChanged);
     widget.narrationPreference.removeListener(_syncNarrationPreference);
     _narration.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => Theme(
-    data: AppTheme.dark,
-    child: Scaffold(
-      backgroundColor: _night,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF100414),
-        surfaceTintColor: Colors.transparent,
-        title: Text(
-          'Lesson ${widget.lessonIndex + 1} of ${widget.constellation.lessons.length}',
+  Widget build(BuildContext context) {
+    final story = _story;
+    if (story != null) {
+      final isNodeEnd =
+          entry.sectionIndex == entry.node.factualSections.length - 1;
+      return LeonidasStoryScreen(
+        key: ValueKey('${entry.node.revisionId}/${story.id}'),
+        playback: widget.controller.storyVisit.open(
+          entry.node.revisionId,
+          story,
         ),
-        actions: [
-          _NarrationPreferenceButton(preference: widget.narrationPreference),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: ListView(
-              key: Key(
-                'starpath-micro-lesson-${widget.constellation.displayIndex}-${widget.lessonIndex + 1}',
+        narrationPreference: widget.narrationPreference,
+        narrationEngineFactory: widget.narrationEngineFactory,
+        onNotes: () async {
+          await Navigator.of(context).push<void>(
+            MaterialPageRoute(
+              builder: (_) => _StarpathMicroLessonScreen(
+                controller: widget.controller,
+                constellation: widget.constellation,
+                lessonIndex: widget.lessonIndex,
+                readOnly: widget.readOnly,
+                preview: widget.preview,
+                narrationPreference: widget.narrationPreference,
+                narrationEngineFactory: widget.narrationEngineFactory,
+                notesOnly: true,
               ),
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-              children: [
-                Text(
-                  'Constellation ${widget.constellation.displayIndex} · ${widget.constellation.title}',
-                  style: const TextStyle(
-                    color: _candleGold,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+            ),
+          );
+        },
+        onContinue: _advance,
+        continueLabel:
+            widget.lessonIndex < widget.constellation.lessons.length - 1
+            ? 'Next chapter'
+            : 'Back to Market Basics',
+        onCheck: isNodeEnd
+            ? () async {
+                await Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => _StarpathCheckScreen(
+                      controller: widget.controller,
+                      node: entry.node,
+                      displayConstellationOrdinal:
+                          widget.constellation.displayIndex,
+                      readOnly:
+                          widget.readOnly || widget.controller.state.isReadOnly,
+                      preview: widget.preview,
+                    ),
                   ),
+                );
+              }
+            : null,
+      );
+    }
+    return Theme(
+      data: AppTheme.dark,
+      child: Scaffold(
+        backgroundColor: _night,
+        appBar: AppBar(
+          backgroundColor: const Color(0xFF100414),
+          surfaceTintColor: Colors.transparent,
+          title: Text(
+            'Lesson ${widget.lessonIndex + 1} of ${widget.constellation.lessons.length}',
+          ),
+          actions: [
+            _NarrationPreferenceButton(preference: widget.narrationPreference),
+            const SizedBox(width: 4),
+          ],
+        ),
+        body: SafeArea(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: ListView(
+                key: Key(
+                  'starpath-micro-lesson-${widget.constellation.displayIndex}-${widget.lessonIndex + 1}',
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  section.heading,
-                  style: Theme.of(context).textTheme.headlineMedium
-                      ?.copyWith(color: _moonInk),
-                ),
-                const SizedBox(height: 16),
-                _StarpathNarrationControl(
-                  key: Key(
-                    'starpath-read-aloud-${widget.constellation.displayIndex}-${widget.lessonIndex + 1}',
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+                children: [
+                  Text(
+                    'Constellation ${widget.constellation.displayIndex} · ${widget.constellation.title}',
+                    style: const TextStyle(
+                      color: _candleGold,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                  controller: _narration,
-                  preference: widget.narrationPreference,
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  section.body,
-                  style: const TextStyle(
-                    color: _moonInk,
-                    fontSize: 18,
-                    height: 1.68,
+                  const SizedBox(height: 8),
+                  Text(
+                    section.heading,
+                    style: Theme.of(context).textTheme.headlineMedium
+                        ?.copyWith(color: _moonInk),
                   ),
-                ),
-                const SizedBox(height: 24),
-                _KeepInMind(text: section.uncertainty),
-                const SizedBox(height: 22),
-                _Sources(section: section),
-                const SizedBox(height: 24),
-                TextButton.icon(
-                  onPressed: _showRowan,
-                  icon: const Icon(Icons.chat_bubble_outline_rounded),
-                  label: const Text('Explain it another way'),
-                ),
-                const SizedBox(height: 8),
-                FilledButton(
-                  onPressed: _advance,
-                  child: Text(
-                    widget.lessonIndex < widget.constellation.lessons.length - 1
-                        ? 'Next lesson'
-                        : 'Back to constellation ${widget.constellation.displayIndex}',
+                  const SizedBox(height: 16),
+                  _StarpathNarrationControl(
+                    key: Key(
+                      'starpath-read-aloud-${widget.constellation.displayIndex}-${widget.lessonIndex + 1}',
+                    ),
+                    controller: _narration,
+                    preference: widget.narrationPreference,
                   ),
-                ),
-              ],
+                  const SizedBox(height: 28),
+                  Text(
+                    section.body,
+                    style: const TextStyle(
+                      color: _moonInk,
+                      fontSize: 18,
+                      height: 1.68,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  _KeepInMind(text: section.uncertainty),
+                  const SizedBox(height: 22),
+                  _Sources(section: section),
+                  if (widget.notesOnly) ...[
+                    const SizedBox(height: 24),
+                    Text(
+                      'Limits',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(entry.node.materialLimitations),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Risk context',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(entry.node.riskContext),
+                  ],
+                  const SizedBox(height: 24),
+                  TextButton.icon(
+                    onPressed: _showRowan,
+                    icon: const Icon(Icons.chat_bubble_outline_rounded),
+                    label: const Text('Explain it another way'),
+                  ),
+                  const SizedBox(height: 8),
+                  FilledButton(
+                    onPressed: _advance,
+                    child: Text(
+                      widget.notesOnly
+                          ? 'Return to story'
+                          : widget.lessonIndex <
+                                widget.constellation.lessons.length - 1
+                          ? 'Next lesson'
+                          : 'Back to constellation ${widget.constellation.displayIndex}',
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
   Future<void> _advance() async {
     await _narration.stop();
     if (!mounted) return;
+    if (widget.notesOnly) {
+      Navigator.of(context).pop();
+      return;
+    }
     if (widget.lessonIndex < widget.constellation.lessons.length - 1) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
@@ -490,6 +593,7 @@ class _StarpathMicroLessonScreenState extends State<_StarpathMicroLessonScreen>
   }
 
   void _syncNarrationPreference() {
+    if (_story != null || widget.notesOnly) return;
     if (widget.narrationPreference.muted) {
       unawaited(_narration.stop());
     } else {
