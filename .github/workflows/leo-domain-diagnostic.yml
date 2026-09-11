@@ -20,6 +20,8 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
+          sparse-checkout: /platform/workers/domain-proxy/
+          sparse-checkout-cone-mode: false
       - name: Verify the GET-only diagnostic and redaction tests
         run: python3 -m unittest discover -s platform/workers/domain-proxy -p 'test_diagnose.py'
       - name: Read only the known account, zone and custom-domain metadata

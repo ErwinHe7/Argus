@@ -57,6 +57,30 @@ manual diagnostic on an exact reviewed main revision. It uses only GET requests
 and emits sanitized zone/account identifiers, status, domain mappings and error
 codes. It cannot deploy, attach a domain, change DNS or expose the credential.
 
+Diagnostic run `34559821880` at `c83e5dc` resolved the access ambiguity:
+
+| Read-only probe | Result |
+| --- | --- |
+| Account token verification | HTTP 200, active |
+| Exact account identity | HTTP 403, code 9109 |
+| Zone list by name, with and without account filter | HTTP 200, zero zones |
+| Exact known zone | HTTP 403, code 9109 |
+| Account Workers custom-domain inventory | HTTP 403, code 10000 |
+
+There is no permitted alternative attachment metadata available through this
+credential. No deployment retry should run until the domain account's access is
+resolved. The apex continues serving the retained Ritual member app; the updated
+Leo app remains available at `https://leo.axio7.workers.dev`. The diagnostic made
+no Cloudflare writes. Its sanitized evidence is private Actions artifact
+`10183928447`. Future runs check out only the gateway directory, avoiding an
+unnecessary download of the repository's model artifacts.
+
+All temporary runners and their dedicated local users/private runtimes have
+been removed. To retry, configure the repository secret with a credential for
+the existing domain account that grants Workers Scripts Edit and Zone Read for
+`leoinvesting.com`. Do not post the credential in chat or commit it. The deployed
+website and isolated Supabase API need no rollback; the domain was never switched.
+
 The source branch has been merged and pushed directly to `origin/main`; the draft
 PR was closed at the owner's request. The reviewed `leo` website and isolated
 Supabase strategy API are deployed. The custom domain remains a separate cutover
