@@ -48,6 +48,7 @@ toolchain, and add the `wasm32-unknown-unknown` target. Then run:
 
 ```sh
 npm ci
+npm --prefix ../ritual-investing-api ci
 rustup target add wasm32-unknown-unknown
 node scripts/grid-research-build.mjs
 node --import tsx scripts/research-desk-build.mjs
@@ -58,6 +59,14 @@ The Grid build creates a local source-hash receipt and WASM binary. Private
 `.quant-runtime/` files are not uploaded. The approved dated display artifacts
 are included because the static build validates their contracts and provenance;
 they are not a replacement for a live market-data feed.
+
+`features/strategy-lab/strategy-config.example.json` keeps connections disabled
+for an unconfigured checkout. The reviewed production configuration is
+`features/strategy-lab/strategy-config.production.json`; it contains only the
+public Supabase publishable key. To reproduce the connected web release, set
+`LEO_STRATEGY_PUBLIC_CONFIG` to that file's absolute path for the static build.
+This enables sign-in, not a trading mandate. Backend membership and device checks
+still apply. Never substitute a service-role key.
 
 Production uses the verified static-overlay process described in
 `event-radar-delivery.md` and `domain-publication.md`. The frozen backend release

@@ -1,5 +1,11 @@
 # Strategy Lab implementation and release evidence
 
+Hosted deployment update (2026-09-10 ET): the isolated strategy migration/API
+and exact custom-domain/Worker callback configuration are now applied. See
+[the hosted deployment receipt](SUPABASE-DEPLOYMENT-20260910.md) for verification
+and remaining actual-user and broker acceptance. Historical release-preparation
+notes below describe the earlier undeployed state.
+
 Owner-approved scope: Astra's Pick strategy workspace, deterministic MR-v1 and
 MOM-v1 research, local moomoo paper execution, owner-scoped controls, and monitoring.
 Real-money and options execution are disabled. No profitability result is claimed.

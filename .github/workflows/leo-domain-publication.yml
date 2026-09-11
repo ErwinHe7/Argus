@@ -1,0 +1,46 @@
+name: Publish reviewed Leo domain gateway
+
+on:
+  push:
+    branches: [codex/leo-models-publication-20260910]
+    paths:
+      - platform/workers/domain-proxy/**
+      - .github/workflows/leo-domain-publication.yml
+      - docs/domain-publication.md
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ritual-investing-release-supabase-remediation
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'ErwinHe7/Argus' && github.ref == 'refs/heads/codex/leo-models-publication-20260910'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Test the exact proxy and bounded publication controller
+        run: |
+          node --test platform/workers/domain-proxy/proxy.test.mjs
+          python3 -m unittest discover -s platform/workers/domain-proxy -p 'test_*.py'
+      - name: Verify ownership and exact artifact, then attach only the apex
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTENT_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: python3 platform/workers/domain-proxy/deploy.py
+      - name: Retain redacted mapping and rollback evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: leo-domain-publication-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/leo-domain-receipt.json
+          if-no-files-found: warn
+          retention-days: 30

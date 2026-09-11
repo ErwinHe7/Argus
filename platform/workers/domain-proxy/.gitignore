@@ -1,0 +1,4 @@
+__pycache__/
+.wrangler/
+node_modules/
+.native-runtime/

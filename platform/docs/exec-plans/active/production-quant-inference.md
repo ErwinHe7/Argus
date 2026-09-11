@@ -3232,4 +3232,3 @@ Software, browser, source retrieval, production routes, deployment hashes and
 actual scheduled-run evidence are tracked separately in
 `docs/event-radar-delivery.md`, `workers/event-radar/README.md`, and the release
 receipts. No profitability or broker-backed trading outcome is claimed.
-)
