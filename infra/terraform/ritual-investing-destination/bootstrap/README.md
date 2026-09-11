@@ -1,66 +1,66 @@
-# Destination state bootstrap
+# Destination bootstrap state recovery
 
-This root creates the two destination state buckets with `prevent_destroy`.
-It begins with the local backend. The repository CLI stages the checked-in
-`backend.remote.tf.template` in its private working directory when migrating
-bootstrap state to the prod bucket at `bootstrap/terraform.tfstate`.
+Use the [shared operator CLI](../README.md) for bootstrap. This root creates the
+private prod and staging state buckets with `prevent_destroy`. It begins with
+durable local state in the designated host's canonical private account directory:
 
-Before initial bootstrap, the administrator must set `bootstrap_host` in the
-destination profile to the designated operator host's exact `socket.gethostname()`
-value. The default `null` refuses bootstrap. Its canonical recovery directory is
-`~/.local/state/ritual-investing-destination/accounts/<verified-account-id>/` on
-that host. Do not copy this directory to start another bootstrap or change the
-host during an incomplete migration. The host designation supplies the boundary
-that a same-host filesystem lock cannot enforce across machines.
+```text
+~/.local/state/ritual-investing-destination/accounts/<verified-account-id>/
+```
 
-The CLI holds `account_lock(directory)` before every bootstrap operation and
-uses `BootstrapManager` in `../state_backend.py` as follows:
+The profile must record that host's exact `socket.gethostname()`. An account-scoped
+filesystem lock serializes local callers; it cannot coordinate another host. Keep
+the original host and recovery directory throughout incomplete bootstrap. Do not
+copy the directory to start a second bootstrap or change the host designation to
+bypass recovery.
 
-1. `prepare(bootstrap_root, revision)` preserves that root's configuration and
-   provider lock, then `initialize_local()` initializes the durable working root.
-2. The CLI plans and validates its saved plan against the preserved working root.
-   It passes the verified account as a controlled `TF_VAR_cloudflare_account_id`
-   environment value, rejecting caller-supplied `TF_VAR_*` values. It must not
-   add an untracked generated `.auto.tfvars.json` to the preserved root.
-3. `consume_plan(plan_sha256)` is persisted **before** the CLI invokes apply.
-   `record_apply_result(returncode)` preserves normal state after that attempt.
-4. `resume()` uses only the original snapshot and state. It never invokes apply.
-   Missing object credentials persist `AwaitingBackendCredentials`. Matching
-   remote state reconnects without copying. Divergent state and emergency
-   `errored.tfstate` stop recovery. The bootstrap snapshot's revision remains the
-   reported revision throughout this process.
+The CLI preserves the checked-in configuration, provider lock, and revision before
+planning. Apply consumes the saved plan before Terraform starts. Its working
+state, backups, emergency state, and private logs survive failure. Successful
+bucket creation is followed by ownership/privacy checks and a no-change plan.
 
-The manager's injected `verify_buckets(spec)` callback must establish exact
-destination ownership and privacy through authenticated read-only account APIs.
-Its `verify_locking(spec, directory)` callback must call the real
-`verify_remote_locking(spec, directory, terraform, reader)` helper for the
-required state buckets. Callbacks return literal `True` only after verification.
-`S3StateReader` signs read-only object GET requests using runtime
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, and optional `AWS_SESSION_TOKEN`.
-Only explicit `NoSuchKey` is absence; access failures are never absence.
+Migration stages `backend.remote.tf.template` in the private working directory,
+leaving the checkout unchanged. Terraform copies bootstrap state into
+`ritual-investing-terraform-state-prod` at `bootstrap/terraform.tfstate` using
+`init -migrate-state`. The CLI permits noninteractive copying only after verifying
+the destination and proving the remote key absent. `-reconfigure` reconnects to an
+established authority; it does not copy state. Workload state uses
+`workloads/terraform.tfstate` in each environment's separate bucket.
 
-The real locking probe uses a private, resource-free Terraform root and a unique
-`locking-check/<random-id>/terraform.tfstate` backend key. A Terraform plan waits
-at a controlled required-variable prompt after acquiring its backend lock. A
-signed GET observes `.tflock`; another plan must fail and identify that same lock.
-Supplying the fixed probe input releases the first plan normally, after which a
-new plan must acquire and release the lock successfully. Terraform alone writes
-state and lock objects. No direct object writes or force-unlock are used. The
-probe is backed by an actual Terraform 1.15 local contention/release test;
-[Terraform's local operation code](https://github.com/hashicorp/terraform/blob/v1.15.0/internal/backend/local/backend_local.go)
-places variable input after lock acquisition. The console command does not
-acquire this lock in Terraform 1.15 and is not used.
+| Preserved evidence | Recovery |
+| --- | --- |
+| No consumed plan or state, buckets proven absent | A fresh plan may archive an unused snapshot and select a new checked-in revision. |
+| Partial local bucket creation | Obtain a fresh plan at the original revision from valid preserved state. If prod exists, R2 credentials must prove the remote bootstrap key absent. |
+| Both buckets created, missing R2 object credentials | Retain `AwaitingBackendCredentials`; supply environment credentials and run bootstrap `resume`. |
+| Remote key absent, valid local state | Local state remains authoritative; resume may migrate it. |
+| Remote state matches preserved local state | Compare lineage, serial, resource addresses/IDs, and complete contents; reconnect without copying and verify read-back. |
+| Divergent local/remote state or any `errored.tfstate` | Stop for explicit recovery. Do not overwrite remote state or substitute an older normal state file. |
 
-`RemoteReady` records successful migration and the injected locking check.
-The CLI must additionally require a remote no-change plan and current
-postcondition checks before provisioning workloads. A partial bucket create
-retains its state and consumed plan; a fresh plan recovery lifecycle belongs to
-the CLI's apply policy. Incomplete inventory cannot migrate automatically.
+Resume never replays apply. It validates the original snapshot and Terraform
+executable identity and reports the original revision, even after checkout code
+changes. The current profile must remain committed and match the account and
+host. Incomplete bucket inventory cannot migrate. Phase metadata records progress;
+it does not establish state authority.
 
-Keep `work/`, `snapshot/`, normal state, backups, emergency state, phase metadata,
-and probe evidence until recovery or verification is complete. There is no exit
-cleanup that deletes recoverable state. Directory permissions are `0700`; raw
-state, backend metadata and Terraform/S3 responses remain in `0600` files.
+After matching read-back, the CLI runs **two real Terraform locking probes**, one
+per state bucket. Each uses a private resource-free root and disposable
+`locking-check/<random-id>/terraform.tfstate` key. A Terraform plan holds the lock
+at a controlled input prompt while a second contender must fail with the same
+lock identity. The first plan exits normally; a later plan must then acquire and
+release the lock. Read-only signed S3 GETs observe `.tflock`; Terraform alone
+creates/removes locks. Failed contention, release, or reacquisition stops bootstrap
+without force-unlock.
 
-Offline tests do not establish destination ownership, R2 compatibility, or hosted
-locking success. Those require the plan's U6 execution with verified credentials.
+`RemoteReady` records migration and both proofs. Apply/resume must still pass
+current resource checks and a refreshed remote no-change plan. Every workload
+operation checks bootstrap readiness again against its selected checkout.
+
+Keep `snapshot/`, `work/`, `authoritative-local.tfstate`, normal/backup/emergency
+state, phase metadata, referenced plans, and locking evidence until recovery no
+longer depends on them. Directories use `0700`; files use `0600`. Inspect sensitive
+diagnostics only in protected local storage. Do not delete recovery files to
+restart or publish their contents.
+
+Offline tests verify recovery logic, not destination ownership, R2 compatibility,
+or hosted locking. Live bootstrap remains pending until those checks run with
+administrator-verified destination credentials.
