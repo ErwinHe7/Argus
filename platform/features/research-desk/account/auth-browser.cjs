@@ -187,8 +187,9 @@ async function check(name, action) {
       assert(h.state.statusRequests.every(id => id === h.state.session.user.id));
     }));
     await check('Membership callback returns only after the PKCE exchange completes', () => callbackResult(browser, '/#/membership', '/#/membership'));
-    await check('Untrusted callback returns and membership queries fall back to home', async () => {
-      for (const returnTo of ['https://outside.example.invalid/#/membership', '/#/membership?redirect=https://outside.example.invalid']) {
+    await check('Broker callback returns only after the PKCE exchange completes', () => callbackResult(browser, '/#/brokers', '/#/brokers'));
+    await check('Untrusted callback returns and membership or broker queries fall back to home', async () => {
+      for (const returnTo of ['https://outside.example.invalid/#/membership', '/#/membership?redirect=https://outside.example.invalid', 'https://outside.example.invalid/#/brokers', '/#/brokers?redirect=https://outside.example.invalid']) {
         await callbackResult(browser, returnTo, '/#/home');
       }
     });

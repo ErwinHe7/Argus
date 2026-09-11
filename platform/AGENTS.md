@@ -25,6 +25,13 @@ opt-in, exact account binding, and the actual execution session's `isPaper: true
 proof. TWS inspection stays read-only. This development path does not establish
 IBKR approval for a public commercial integration or live-money authorization.
 
+The same broker-connection request permits an isolated read-only moomoo REST
+OAuth account link in `workers/broker-link` and `features/strategy-lab/brokers`.
+Broker-hosted consent supplies account-scoped tokens; encrypted server storage
+never grants execution authority. Do not accept write scopes or wildcard account
+grants. Linking an account does not authorize the local runner or a live order.
+The existing paper mandate, local credentials and execution boundary remain.
+
 - `quant_engine_rs/` is the canonical production inference and market-data
   validation service.
 - `intraday_quant/` is offline research, training, validation, and artifact

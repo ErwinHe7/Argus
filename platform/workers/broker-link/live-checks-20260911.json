@@ -1,0 +1,75 @@
+{
+  "checkedAt": "2026-09-11T06:14:26.978018+00:00",
+  "api": "https://leo-broker-link.axio7.workers.dev",
+  "workerVersion": "3be42427-3b2d-43fc-a762-99d51b4383d0",
+  "checks": [
+    {
+      "path": "/health",
+      "method": "GET",
+      "status": 200,
+      "noStore": true
+    },
+    {
+      "path": "/status",
+      "method": "GET",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "path": "/status",
+      "method": "GET",
+      "status": 403,
+      "noStore": true
+    },
+    {
+      "path": "/status",
+      "method": "GET",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "path": "/status",
+      "method": "GET",
+      "status": 400,
+      "noStore": true
+    },
+    {
+      "path": "/status",
+      "method": "OPTIONS",
+      "status": 204,
+      "noStore": true
+    },
+    {
+      "path": "/oauth/moomoo/start",
+      "method": "POST",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "path": "/oauth/moomoo/start",
+      "method": "POST",
+      "status": 403,
+      "noStore": true
+    },
+    {
+      "path": "/oauth/moomoo/callback",
+      "method": "GET",
+      "status": 303,
+      "noStore": true
+    },
+    {
+      "path": "/disconnect",
+      "method": "POST",
+      "status": 401,
+      "noStore": true
+    },
+    {
+      "path": "/orders",
+      "method": "POST",
+      "status": 404,
+      "noStore": true
+    }
+  ],
+  "brokerConsentCompleted": false,
+  "ordersSubmitted": false
+}

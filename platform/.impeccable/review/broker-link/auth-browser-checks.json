@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "leo-account-browser-fixtures.v1",
+  "checkedAt": "2026-09-11T06:11:43.443Z",
+  "base": "http://127.0.0.1:3231",
+  "evidence": "Injected authentication and owner-scoped API responses only; no real Google login, broker or trading evidence.",
+  "checks": [
+    {
+      "name": "Welcome survives archive outage; keyboard Google action uses exact PKCE callback and home return",
+      "result": "pass"
+    },
+    {
+      "name": "Successful home callback strips code before exchange, restores identity across reload, and logout persists",
+      "result": "pass"
+    },
+    {
+      "name": "Strategy callback returns only after exchange and loads matched owner evidence",
+      "result": "pass"
+    },
+    {
+      "name": "Membership callback returns only after the PKCE exchange completes",
+      "result": "pass"
+    },
+    {
+      "name": "Broker callback returns only after the PKCE exchange completes",
+      "result": "pass"
+    },
+    {
+      "name": "Untrusted callback returns and membership or broker queries fall back to home",
+      "result": "pass"
+    },
+    {
+      "name": "Provider denial, hash denial and missing code remain recoverable without code exchange",
+      "result": "pass"
+    },
+    {
+      "name": "Rejected code exchange reports expiry and offers a fresh Google PKCE attempt",
+      "result": "pass"
+    },
+    {
+      "name": "Configuration outage retries independently of archive failure",
+      "result": "pass"
+    },
+    {
+      "name": "Cross-tab identity change hides old evidence and ignores an older in-flight response",
+      "result": "pass"
+    },
+    {
+      "name": "Anonymous cached session remains a guest and never requests private strategy evidence",
+      "result": "pass"
+    }
+  ],
+  "errors": []
+}

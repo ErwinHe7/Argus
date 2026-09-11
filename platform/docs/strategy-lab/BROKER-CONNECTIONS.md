@@ -10,6 +10,7 @@ into localhost, or exposes an arbitrary order API.
 
 | Broker | Local implementation | Release boundary |
 | --- | --- | --- |
+| moomoo REST OAuth | Separate read-only website account link with broker-hosted consent, PKCE and encrypted server tokens | Account visibility only; write/wildcard grants are rejected. This does not authorize the local paper runner. |
 | moomoo / Futu | OpenD + existing paper SDK, Rust strategy/reconciliation/store, software stops | U.S. stocks/ETFs, USD, whole shares, SIMULATE mandates only. |
 | IBKR Client Portal | New loopback HTTPS adapter, exact selected account, same-session boolean `isPaper` attestation, durable dispatch journal, quote/cash/order reconciliation | Experimental local paper opt-in; public commercial integration approval and broker acceptance are outstanding. |
 | IBKR TWS | Optional SDK-based read-only inspector | No executable accounts. A port or DU prefix never establishes paper authority. Vendor SDK is not redistributed. |
@@ -17,7 +18,9 @@ into localhost, or exposes an arbitrary order API.
 The unified native sidecar preserves moomoo as its default. IBKR account IDs are
 namespaced `IBKR:DU...`; existing moomoo numeric IDs retain their meaning. The
 namespace prevents identity collisions and is not paper-environment proof.
-No cloud database migration or changes to existing research APIs are required.
+The local execution paths require no additional cloud database migration or
+changes to existing research APIs. The independent REST account-link feature uses
+its own private D1 database and Worker; it does not modify the strategy database.
 Owner-scoped pairing, mandates, leases, evidence and pause controls reuse the
 isolated Strategy API and its verified identity/device bindings.
 
@@ -92,7 +95,7 @@ custom-domain access problem does not authorize replacing its owner account or
 DNS configuration. No VPS is needed to install locally; continuous operation
 requires an awake computer or a separately configured always-on host.
 
-## Published receipt
+## First broker-preview receipt
 
 The reviewed preview is live at `https://leo.axio7.workers.dev/#/brokers`, Worker
 version `964f8a15-7f90-492d-b26e-9bb6158e8885`. Fifteen production checks passed,
@@ -112,3 +115,43 @@ also installed on the owner's Windows computer; no account was paired or mandate
 started. A local moomoo account-discovery probe timed out, so broker readiness
 remains unverified. The broker and control service were not treated as connected
 merely because their processes or ports were present.
+
+## Direct account-link update — 2026-09-11
+
+The updated Brokers page is published at the same Leo origin, Worker version
+`4dcc330c-c533-4346-b5bc-413f956c8e2a`. Only its JavaScript/CSS changed; all 263
+assets, 2,583 frozen backend files, five broker downloads, Google configuration,
+Whop membership and three service bindings are retained. All 18 web production
+checks passed, along with seven proxy runtime and 22 proxy tooling tests.
+
+moomoo now also has a direct, read-only OAuth account link. Leo's public OAuth
+client is registered, the isolated Worker and encrypted D1 store are deployed,
+and the live browser reached moomoo's broker login page from a verified Google
+session. This reads only masked account metadata after broker consent. It does
+not attach the REST token to the local runner, enable trades or replace paper
+mandates. Disconnect removes Leo's stored link, while broker-side permission
+removal remains in moomoo. The [API contract](../../workers/broker-link/README.md)
+records the exact endpoints, scope restrictions and acceptance evidence.
+
+The new Worker passes 18 software tests and 11 production HTTP checks. Frontend
+checks pass four account-link tests, eight auth/strategy contract tests, eleven
+broker browser groups, eleven auth groups, scoped TypeScript and the static build.
+Independent review found and verified fixes for a disconnect/focus race. Neither
+these fixtures nor the real login-page handoff establish a completed account link.
+
+Local preflight still could not verify broker login: OpenD's read-only status
+request timed out, and the pinned-certificate IBKR gateway returned HTTP 403 for
+its authentication status. The browser's local certificate interstitial was not
+bypassed. No connector was paired or started and no order was submitted. The
+[IBKR onboarding brief](IBKR-ONBOARDING.md) explains the separate public integration
+review and owner information still required. No VPS or model tokens are needed
+for the direct account-link service; local execution still requires a running host.
+
+The production browser check also exposed an existing strategy-session bug:
+extra JWT verification timestamps reached a strict database-claim schema and
+caused authenticated requests to fail. The repository now projects the three
+verified identity/session fields explicitly. Isolated `strategy-api` v2 is
+deployed, and the actual Google session now displays verified Leo account
+records with no local computer paired. Permissions, membership checks and RLS
+are unchanged. The [fix receipt](SESSION-PROJECTION-FIX-20260911.md) records 49
+passing tests, two pre-existing hosted-database test skips, and live verification.

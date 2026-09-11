@@ -1,0 +1,4 @@
+{
+  "compilerOptions": {"target":"ES2022","module":"ESNext","moduleResolution":"Bundler","strict":true,"skipLibCheck":true,"noEmit":true,"types":[],"lib":["ES2022"]},
+  "include":["index.ts","entry.ts","worker-configuration.d.ts"]
+}

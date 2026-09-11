@@ -6,11 +6,14 @@ const { chromium } = require(process.env.LEO_PLAYWRIGHT_MODULE || 'playwright');
 const { fixtureStatus } = require('../tests/fixtures.ts');
 const base = (process.env.LEO_BROKER_TEST_BASE || 'http://127.0.0.1:3221').replace(/\/$/, '');
 const project = 'https://katwbobjiyzipqlzarus.supabase.co';
+const brokerLink = 'https://leo-broker-link.axio7.workers.dev';
 const key = 'leo.strategy-lab.auth.v1';
-const output = path.resolve(__dirname, '../../../.impeccable/review/brokers');
+const output = process.env.LEO_BROKER_TEST_OUTPUT || path.resolve(__dirname, '../../../.impeccable/review/broker-link');
 const config = { schemaVersion: 'strategy-public-config/v1', enabled: true, supabaseUrl: project,
   publishableKey: 'sb_publishable_fixture_only', apiUrl: project + '/functions/v1/strategy-api' };
 const result = { evidence: 'Injected UI fixtures; no broker-backed account, fill, or profitability evidence.', checks: [], errors: [] };
+function linkStatus(overrides = {}) { return { schemaVersion: 'broker-link/v1', provider: 'moomoo', configured: true, state: 'disconnected', checkedAt: null, accounts: [], readonly: true, executionEnabled: false, message: 'Injected status only', ...overrides }; }
+function connectedLink(overrides = {}) { return linkStatus({ state: 'connected', checkedAt: new Date().toISOString(), accounts: [{ label: '••••1234', accountType: 'cash', securityFirm: 'moomoo', markets: [1, 2] }], ...overrides }); }
 function sessionFor(id = '10000000-0000-4000-8000-000000000001', anonymous = false) {
   const now = Math.floor(Date.now() / 1000);
   const user = { id, aud: 'authenticated', role: 'authenticated', email: 'fixture-user@example.invalid',
@@ -21,7 +24,7 @@ function sessionFor(id = '10000000-0000-4000-8000-000000000001', anonymous = fal
 async function harness(browser, settings = {}) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
   const page = await context.newPage(); page.setDefaultTimeout(15000);
-  const state = { session: settings.session, status: fixtureStatus(), statusCode: 200, calls: [], archiveRequests: 0, ...settings };
+  const state = { session: settings.session, status: fixtureStatus(), statusCode: 200, link: linkStatus(), linkCode: 200, calls: [], archiveRequests: 0, ...settings };
   page.on('pageerror', error => result.errors.push(error.message));
   if (state.session) await context.addInitScript(({ key, session }) => {
     if (!sessionStorage.getItem('broker-fixture-seeded')) { localStorage.setItem(key, JSON.stringify(session)); sessionStorage.setItem('broker-fixture-seeded', 'true'); }
@@ -36,6 +39,21 @@ async function harness(browser, settings = {}) {
     state.calls.push({ method: request.method(), origin: url.origin, path: url.pathname, url: url.toString() });
     const headers = { 'Access-Control-Allow-Origin': base, 'Access-Control-Allow-Headers': 'authorization,apikey,content-type,idempotency-key,x-client-info,x-supabase-api-version', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' };
     if (request.method() === 'OPTIONS') return route.fulfill({ status: 204, headers });
+    if (url.origin === brokerLink && url.pathname === '/status') return route.fulfill({ headers, status: state.linkCode, json: state.link });
+    if (url.origin === brokerLink && url.pathname === '/disconnect') {
+      assert.equal(request.headers().authorization, `Bearer ${state.session.access_token}`);
+      assert.equal(request.postData(), '{}');
+      if (state.delayDisconnect) await new Promise(resolve => { state.finishDisconnect = resolve; });
+      state.link = linkStatus();
+      return route.fulfill({ headers, json: state.link });
+    }
+    if (url.origin === brokerLink && url.pathname === '/oauth/moomoo/start') {
+      assert.equal(request.method(), 'POST');
+      assert.equal(request.headers()['content-type'], 'application/x-www-form-urlencoded');
+      assert.equal(new URLSearchParams(request.postData()).get('access_token'), state.session.access_token);
+      assert.equal(url.search, ''); state.oauthForm = true;
+      return route.fulfill({ contentType: 'text/html', body: '<title>Injected moomoo consent boundary</title>' });
+    }
     if (url.origin === project && url.pathname === '/auth/v1/authorize') return route.fulfill({ headers, contentType: 'text/html', body: '<title>Injected Google boundary</title>' });
     if (url.origin === project && url.pathname === '/auth/v1/user') return route.fulfill({ headers, json: state.session.user });
     if (url.origin === project && url.pathname === '/functions/v1/strategy-api/v1/status') return route.fulfill({ headers, status: state.statusCode, json: state.statusCode === 200 ? { data: state.status, meta: { requestId: 'fixture' } } : { error: { message: 'Injected status unavailable' } } });
@@ -58,10 +76,10 @@ async function noOrders(page) { assert.equal(await page.getByRole('button', { na
       const h = await harness(browser);
       try {
         await h.page.goto(base + '/#/brokers');
-        await h.page.getByText('No broker connected', { exact: true }).waitFor();
+        await h.page.getByText('Sign in to view your computers', { exact: true }).waitFor();
         assert(h.state.archiveRequests > 0);
         assert.equal(await h.page.locator('iframe').count(), 0);
-        const downloads = h.page.getByRole('link', { name: 'Windows tools · unsigned preview', exact: true });
+        const downloads = h.page.getByRole('link', { name: 'Windows tools · unsigned preview', exact: true, includeHidden: true });
         assert.equal(await downloads.count(), 2);
         for (const link of await downloads.all()) {
           assert.equal(await link.getAttribute('href'), '/app/research-desk/downloads/leo-broker-tools-windows-x64.zip');
@@ -71,6 +89,14 @@ async function noOrders(page) { assert.equal(await page.getByRole('button', { na
         await h.page.evaluate(() => document.fonts.ready);
         await h.page.screenshot({ path: path.join(output, 'desktop.png'), fullPage: true, animations: 'disabled' });
         await h.page.setViewportSize({ width: 390, height: 844 });
+        await h.page.getByText('Set up automatic paper trading with OpenD', { exact: true }).click();
+        await h.page.getByText('IBKR local paper setup', { exact: true }).click();
+        await h.page.getByText('Pair the IBKR profile', { exact: true }).waitFor();
+        const command = await h.page.locator('.broker-command').first().textContent();
+        assert(command.includes('-Broker ibkr-gateway -EnableIbkrPaper'));
+        assert(command.includes('-GatewayCaFile'));
+        assert(command.includes('-HistoryDirectory'));
+        assert.equal(await h.page.getByRole('link', { name: 'Open IBKR pairing workspace', exact: true }).getAttribute('href'), '#/strategies?step=connect');
         assert(await h.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
         await h.page.screenshot({ path: path.join(output, 'mobile.png'), fullPage: true, animations: 'disabled' });
         await h.page.getByRole('link', { name: 'Set up moomoo', exact: true }).focus(); await h.page.keyboard.press('Enter');
@@ -121,7 +147,7 @@ async function noOrders(page) { assert.equal(await page.getByRole('button', { na
           await h.page.goto(base + '/#/brokers'); await h.page.getByText('Computer offline or status expired', { exact: true }).waitFor();
           assert.equal(await h.page.getByText('Computer reporting', { exact: true }).count(), 0);
           h.state.status.devices[0].revokedAt = new Date().toISOString(); await h.page.getByRole('button', { name: 'Refresh status', exact: true }).click();
-          await h.page.getByText('No computer paired', { exact: true }).waitFor();
+          await h.page.getByText('No local computer paired', { exact: true }).waitFor();
           assert.equal(await h.page.locator('.broker-account').filter({ hasText: 'TEST-PAPER-001' }).count(), 0); noMutations(h.state);
         } finally { await h.context.close(); }
       }
@@ -129,7 +155,7 @@ async function noOrders(page) { assert.equal(await page.getByRole('button', { na
     await check('Anonymous or mismatched owners cannot view account evidence or authorize a trade', async () => {
       const anonymous = await harness(browser, { session: sessionFor(undefined, true) });
       try {
-        await anonymous.page.goto(base + '/#/brokers'); await anonymous.page.getByText('No broker connected', { exact: true }).waitFor();
+        await anonymous.page.goto(base + '/#/brokers'); await anonymous.page.getByText('Sign in to view your computers', { exact: true }).waitFor();
         assert.equal(anonymous.state.calls.length, 0); await noOrders(anonymous.page);
       } finally { await anonymous.context.close(); }
       const h = await harness(browser, { session: sessionFor('10000000-0000-4000-8000-000000000002') });
@@ -138,6 +164,92 @@ async function noOrders(page) { assert.equal(await page.getByRole('button', { na
         assert.equal(await h.page.locator('.broker-account').filter({ hasText: 'TEST-PAPER-001' }).count(), 0);
         assert.equal(await h.page.getByText('Computer reporting', { exact: true }).count(), 0); await noOrders(h.page); noMutations(h.state);
       } finally { await h.context.close(); }
+    });
+    await check('Direct link is unavailable until configured; callback text never grants account access', async () => {
+      const h = await harness(browser, { session: sessionFor(), link: linkStatus({ configured: false }) });
+      try {
+        await h.page.goto(base + '/#/brokers?moomoo=linked');
+        await h.page.getByText('Direct account linking is not available yet', { exact: true }).waitFor();
+        assert.equal(await h.page.getByRole('button', { name: 'Link moomoo account', exact: true }).count(), 0);
+        assert.equal(await h.page.getByText('Connected · read-only', { exact: true }).count(), 0);
+        assert.equal(await h.page.getByRole('link', { name: 'Set up moomoo', exact: true, includeHidden: true }).count(), 1);
+        noMutations(h.state);
+      } finally { await h.context.close(); }
+    });
+    await check('Verified account access is masked, independent from the computer, and withdrawn on refresh failure', async () => {
+      const h = await harness(browser, { session: sessionFor(), link: connectedLink() });
+      try {
+        await h.page.goto(base + '/#/brokers');
+        await h.page.getByText('Connected · read-only', { exact: true }).waitFor();
+        assert.equal(await h.page.getByRole('list', { name: 'Verified moomoo accounts' }).textContent(), 'Cash account ••••1234');
+        assert.equal(await h.page.getByText('Computer reporting', { exact: true }).count(), 1);
+        await noOrders(h.page); noMutations(h.state);
+        await h.page.screenshot({ path: path.join(output, 'linked-desktop.png'), fullPage: true, animations: 'disabled' });
+        h.state.linkCode = 503; await h.page.getByRole('button', { name: 'Refresh account link', exact: true }).click();
+        await h.page.getByText('Moomoo connection not verified', { exact: true }).waitFor();
+        assert.equal(await h.page.getByText('Connected · read-only', { exact: true }).count(), 0);
+        assert.equal(await h.page.getByRole('list', { name: 'Previously reported moomoo accounts' }).count(), 1);
+        assert.equal(await h.page.getByText('Current access not verified', { exact: true }).count(), 1);
+        await h.page.setViewportSize({ width: 390, height: 844 });
+        assert(await h.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+        await h.page.screenshot({ path: path.join(output, 'link-unavailable-mobile.png'), fullPage: true, animations: 'disabled' });
+      } finally { await h.context.close(); }
+    });
+    await check('Expired verification and reauthorization requirements cannot appear connected', async () => {
+      for (const link of [connectedLink({ checkedAt: new Date(Date.now() - 300_001).toISOString() }), connectedLink({ state: 'reauthorization_required' })]) {
+        const h = await harness(browser, { session: sessionFor(), link });
+        try {
+          await h.page.goto(base + '/#/brokers');
+          await h.page.getByRole('button', { name: 'Link moomoo account', exact: true }).waitFor();
+          assert.equal(await h.page.getByText('Connected · read-only', { exact: true }).count(), 0);
+          await noOrders(h.page); noMutations(h.state);
+        } finally { await h.context.close(); }
+      }
+    });
+    await check('Moomoo consent begins only on an explicit click with a top-level POST and no token URL', async () => {
+      const h = await harness(browser, { session: sessionFor() });
+      try {
+        await h.page.goto(base + '/#/brokers');
+        await h.page.getByText('No moomoo account linked', { exact: true }).waitFor();
+        noMutations(h.state);
+        await h.page.getByRole('button', { name: 'Link moomoo account', exact: true }).click();
+        await h.page.waitForURL(brokerLink + '/oauth/moomoo/start');
+        assert.equal(h.state.oauthForm, true);
+        assert.equal(h.state.calls.filter(call => call.method === 'POST').length, 1);
+      } finally { await h.context.close(); }
+    });
+    await check('Disconnect removes the direct link without changing the paired computer or starting a runner', async () => {
+      const h = await harness(browser, { session: sessionFor(), link: connectedLink() });
+      try {
+        await h.page.goto(base + '/#/brokers');
+        await h.page.getByText('Connected · read-only', { exact: true }).waitFor();
+        await h.page.getByRole('button', { name: 'Disconnect from Leo', exact: true }).click();
+        await h.page.getByText('No moomoo account linked', { exact: true }).waitFor();
+        assert.equal(await h.page.getByRole('list', { name: /moomoo accounts/ }).count(), 0);
+        assert.equal(await h.page.getByRole('heading', { name: 'Test computer', exact: true }).count(), 1);
+        assert.equal(h.state.calls.filter(call => call.method === 'POST').length, 1);
+        assert.equal(h.state.calls.find(call => call.method === 'POST').path, '/disconnect');
+        await noOrders(h.page);
+      } finally { await h.context.close(); }
+    });
+    await check('Focus cannot cancel an in-flight disconnect or restore its older connected state', async () => {
+      const h = await harness(browser, { session: sessionFor(), link: connectedLink(), delayDisconnect: true });
+      try {
+        await h.page.goto(base + '/#/brokers');
+        await h.page.getByText('Connected · read-only', { exact: true }).waitFor();
+        await h.page.getByRole('button', { name: 'Disconnect from Leo', exact: true }).click();
+        await h.page.waitForFunction(() => document.querySelector('.broker-direct-link .border-button')?.disabled === true);
+        for (let tries = 0; !h.state.finishDisconnect && tries < 30; tries++) await new Promise(resolve => setTimeout(resolve, 20));
+        assert.equal(typeof h.state.finishDisconnect, 'function');
+        const readsBeforeFocus = h.state.calls.filter(call => call.origin === brokerLink && call.path === '/status' && call.method === 'GET').length;
+        await h.page.evaluate(() => { window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('focus')); });
+        await h.page.waitForTimeout(80);
+        assert.equal(h.state.calls.filter(call => call.origin === brokerLink && call.path === '/status' && call.method === 'GET').length, readsBeforeFocus);
+        h.state.finishDisconnect();
+        await h.page.getByText('No moomoo account linked', { exact: true }).waitFor();
+        assert.equal(await h.page.getByText('Connected · read-only', { exact: true }).count(), 0);
+        assert.equal(h.state.calls.filter(call => call.origin === brokerLink && call.path === '/status' && call.method === 'GET').length, readsBeforeFocus + 1);
+      } finally { h.state.finishDisconnect?.(); await h.context.close(); }
     });
   } finally {
     await browser.close();

@@ -30,7 +30,7 @@ export function completeSignIn(auth: SupabaseClient): Promise<void> {
   return callbackExchange;
 }
 
-export async function signIn(auth: SupabaseClient, returnTo: '/#/home' | '/#/strategies' | '/#/membership' = '/#/strategies'): Promise<void> {
+export async function signIn(auth: SupabaseClient, returnTo: '/#/home' | '/#/strategies' | '/#/membership' | '/#/brokers' = '/#/strategies'): Promise<void> {
   try { sessionStorage.setItem(AUTH_RETURN_KEY, authReturnPath(returnTo)); } catch { /* OAuth still works; return to public Picks. */ }
   const { error } = await auth.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${location.origin}${AUTH_CALLBACK_PATH}` } });
   if (error) throw new Error('Google sign-in could not start. Try again.');

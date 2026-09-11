@@ -1,0 +1,19 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "leo-broker-link",
+  "account_id": "b1c5a45c69c6c16796c586a23d685a8a",
+  "main": "entry.ts",
+  "workers_dev": true,
+  "preview_urls": false,
+  "compatibility_date": "2026-09-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [{"binding":"BROKER_LINKS","database_name":"leo-broker-link","database_id":"dfef07b5-0eea-4b01-a25c-fe2bd9fc0862","migrations_dir":"migrations"}],
+  "vars": {
+    "LEO_ORIGIN": "https://leo.axio7.workers.dev",
+    "SUPABASE_URL": "https://katwbobjiyzipqlzarus.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_qI60w1RCca34rCxapEXQBQ_XWxs8Arc",
+    "MOOMOO_CLIENT_ID": "75ef6a1b-b618-410d-bcd4-6eba0ea9a15f"
+  },
+  "secrets": {"required":["BROKER_TOKEN_ENCRYPTION_KEY"]},
+  "observability": {"enabled":false}
+}

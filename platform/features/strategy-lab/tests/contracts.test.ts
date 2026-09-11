@@ -21,18 +21,21 @@ test('callback consumes codes only on the exact callback route', () => {
   assert.deepEqual(callbackLocation('https://leo.axio7.workers.dev/strategy-auth/callback?error=access_denied'),{code:null,failed:true});
   assert.deepEqual(callbackLocation('https://leoinvesting.com/strategy-auth/callback#error=access_denied'),{code:null,failed:true});
 });
-test('OAuth returns preserve only the exact home, strategy and membership destinations', () => {
-  for (const destination of ['/#/home', '/#/strategies', '/#/membership']) {
+test('OAuth returns preserve only the exact home, strategy, membership and broker destinations', () => {
+  for (const destination of ['/#/home', '/#/strategies', '/#/membership', '/#/brokers']) {
     assert.equal(authReturnPath(destination), destination);
   }
 });
-test('OAuth return URLs, queries and altered membership paths fail closed to home', () => {
+test('OAuth return URLs, queries and altered destination paths fail closed to home', () => {
   for (const input of [
     null, '', 'https://evil.example', 'https://leoinvesting.com/#/membership', '//evil.example/#/membership',
     '/#/strategies?redirect=https://evil.example', '/#/membership?redirect=https://evil.example',
     '/?redirect=https://evil.example#/membership', '/#/membership#https://evil.example',
     '/#/membership/', '/#/membership/../strategies', '/#/%6dembership', '/#/Membership', ' /#/membership',
-    '/#/membership\n', '/app/', 'javascript:alert(1)',
+    '/#/membership\n', 'https://leoinvesting.com/#/brokers', '//evil.example/#/brokers',
+    '/#/brokers?redirect=https://evil.example', '/?redirect=https://evil.example#/brokers',
+    '/#/brokers#https://evil.example', '/#/brokers/', '/#/brokers/../strategies', '/#/%62rokers',
+    '/#/Brokers', ' /#/brokers', '/#/brokers\n', '/app/', 'javascript:alert(1)',
   ]) {
     assert.equal(authReturnPath(input), '/#/home', `Unsafe return: ${JSON.stringify(input)}`);
   }

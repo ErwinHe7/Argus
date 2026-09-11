@@ -1,0 +1,50 @@
+{
+  "evidence": "Injected UI fixtures; no broker-backed account, fill, or profitability evidence.",
+  "checks": [
+    {
+      "name": "Guest broker setup survives archive outage, supports keyboard and mobile, and cannot submit trades",
+      "result": "pass"
+    },
+    {
+      "name": "Google sign-in reaches only the existing scoped OAuth boundary",
+      "result": "pass"
+    },
+    {
+      "name": "Verified identity displays reported paper accounts without broker-ready or trading claims",
+      "result": "pass"
+    },
+    {
+      "name": "Expired and future-dated reports do not show reporting state; revoked devices remain hidden",
+      "result": "pass"
+    },
+    {
+      "name": "Anonymous or mismatched owners cannot view account evidence or authorize a trade",
+      "result": "pass"
+    },
+    {
+      "name": "Direct link is unavailable until configured; callback text never grants account access",
+      "result": "pass"
+    },
+    {
+      "name": "Verified account access is masked, independent from the computer, and withdrawn on refresh failure",
+      "result": "pass"
+    },
+    {
+      "name": "Expired verification and reauthorization requirements cannot appear connected",
+      "result": "pass"
+    },
+    {
+      "name": "Moomoo consent begins only on an explicit click with a top-level POST and no token URL",
+      "result": "pass"
+    },
+    {
+      "name": "Disconnect removes the direct link without changing the paired computer or starting a runner",
+      "result": "pass"
+    },
+    {
+      "name": "Focus cannot cancel an in-flight disconnect or restore its older connected state",
+      "result": "pass"
+    }
+  ],
+  "errors": []
+}

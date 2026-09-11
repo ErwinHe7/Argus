@@ -3289,3 +3289,23 @@ The Google-session-to-hosted-checkout flow and Whop-generated signed test delive
 passed. No purchase, refund or trade was performed. Backend tests fail closed on
 incomplete payment recovery, unknown memberships, forged identities and replay.
 See the [billing contract and release evidence](../../../workers/whop-billing/README.md).
+
+## 2026-09-11 — Direct moomoo account linking
+
+Published read-only broker-hosted OAuth linking through an isolated Cloudflare
+Worker and private encrypted D1 store. The registered PKCE client accepts only
+read scopes with individual account grants. Owner verification, browser-bound
+single-use state, masked account status and generation-protected disconnect
+remain independent of local paper execution authority. Actual Leo sign-in reaches
+moomoo's login page; broker consent and paper lifecycle acceptance remain pending.
+IBKR public onboarding and local authentication are separate prerequisites.
+See [broker delivery and checks](../../strategy-lab/BROKER-CONNECTIONS.md) and the
+[read-only API contract](../../../workers/broker-link/README.md). The static overlay
+preserves the frozen backend, existing routes and billing services.
+
+The live check uncovered and fixed an authenticated strategy repository failure:
+the verified JWT principal included timing fields that the stricter database
+claims contract rejected. Explicit projection preserves the three verified
+identity/session claims. Isolated `strategy-api` v2 now serves the real Google
+owner correctly, with RLS, origins and all retained services unchanged. See the
+[session projection receipt](../../strategy-lab/SESSION-PROJECTION-FIX-20260911.md).

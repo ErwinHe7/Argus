@@ -1,9 +1,9 @@
 {
   "upstream_origin": "https://leo.axio7.workers.dev",
-  "verified_upstream_version": "5cba2277-a96f-4bd6-b5d5-4fc94b3d6fce",
+  "verified_upstream_version": "4dcc330c-c533-4346-b5bc-413f956c8e2a",
   "assets": {
     "/app/research-desk/desk.js": {
-      "sha256": "de25e2efd25308ecddf31279772962c1f813a619b43c54ea1a3700a29ba74ebf",
+      "sha256": "b909609b85b5d98805cc396a369d4808d06327893dac8f74105ddb574ecd0fa6",
       "content_type": "javascript"
     },
     "/app/research-desk/strategy-config.json": {
@@ -11,7 +11,7 @@
       "content_type": "application/json"
     },
     "/app/research-desk/desk.css": {
-      "sha256": "c955112d8cff3b0ab3a253629b818cff229a229da70aac576d1d658c74906bfa",
+      "sha256": "b2a9d64c5a62284277695494d27c112d2c14e0504e2a3df0eab950f6489cacc3",
       "content_type": "text/css"
     },
     "/app/research-desk/google-signin.png": {

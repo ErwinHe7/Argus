@@ -5,7 +5,11 @@ import type { ConnectorDevice } from "./contracts.ts";
 const collectionKinds={configurations:"configuration",deployments:"deployment",devices:"device",researchRuns:"research_run",evidence:"evidence",controls:"control",pairings:"pairing",idempotency:"idempotency",explanations:"explanation"} as const;
 export function createStrategyRepository(pool:DatabasePool):StrategyRepository {
  return {
-  async transact(principal,fn){return withMemberRequestTransaction({pool,verifiedClaims:principal},async db=>{
+  async transact(principal,fn){
+   // The shared JWT verifier also returns timing evidence. The strict database
+   // boundary accepts only the already-verified identity/session claims.
+   const verifiedClaims={userId:principal.userId,sessionId:principal.sessionId,aal:principal.aal};
+   return withMemberRequestTransaction({pool,verifiedClaims},async db=>{
    const live=await db.query<{live:boolean}>("select argus_private.strategy_has_live_session() as live");
    if(live.rows[0]?.live!==true)throw new StrategyError(401,"session_inactive","Sign in again to access strategies.");
    await db.query("select pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended('strategy:' || argus_private.trusted_request_user_id()::text,0))");
