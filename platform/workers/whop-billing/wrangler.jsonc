@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "leo-whop-billing",
+  "account_id": "b1c5a45c69c6c16796c586a23d685a8a",
+  "main": "entry.ts",
+  "workers_dev": true,
+  "preview_urls": false,
+  "compatibility_date": "2026-09-11",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [{"binding":"BILLING","database_name":"leo-whop-billing","database_id":"3f88425a-7568-4fe3-8c4f-fbf5c6aea21c","migrations_dir":"migrations"}],
+  "vars": {
+    "LEO_ORIGIN":"https://leo.axio7.workers.dev",
+    "SUPABASE_URL":"https://katwbobjiyzipqlzarus.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY":"sb_publishable_qI60w1RCca34rCxapEXQBQ_XWxs8Arc"
+  },
+  "secrets": {"required":["WHOP_API_KEY","WHOP_WEBHOOK_SECRET"]},
+  "observability": {"enabled":true,"head_sampling_rate":0.1}
+}

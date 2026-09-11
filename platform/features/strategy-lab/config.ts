@@ -3,8 +3,8 @@ import { z } from 'zod';
 export const SESSION_STORAGE_KEY = 'leo.strategy-lab.auth.v1';
 export const AUTH_CALLBACK_PATH = '/strategy-auth/callback';
 export const AUTH_RETURN_KEY = `${SESSION_STORAGE_KEY}.return`;
-export function authReturnPath(value: string | null): '/#/home' | '/#/strategies' {
-  return value === '/#/strategies' ? '/#/strategies' : '/#/home';
+export function authReturnPath(value: string | null): '/#/home' | '/#/strategies' | '/#/membership' {
+  return value === '/#/strategies' || value === '/#/membership' ? value : '/#/home';
 }
 const PROJECT_ORIGIN = 'https://katwbobjiyzipqlzarus.supabase.co';
 

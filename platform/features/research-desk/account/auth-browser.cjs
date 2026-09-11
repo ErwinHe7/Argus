@@ -12,7 +12,7 @@ const key = 'leo.strategy-lab.auth.v1';
 const returnKey = key + '.return';
 const config = { schemaVersion: 'strategy-public-config/v1', enabled: true, supabaseUrl: project,
   publishableKey: 'sb_publishable_fixture_only', apiUrl: project + '/functions/v1/strategy-api' };
-const output = path.resolve(__dirname, '../../../.impeccable/review/account-auth');
+const output = process.env.LEO_AUTH_TEST_OUTPUT ? path.resolve(process.env.LEO_AUTH_TEST_OUTPUT) : path.resolve(__dirname, '../../../.impeccable/review/account-auth');
 const receipt = { schemaVersion: 'leo-account-browser-fixtures.v1', checkedAt: new Date().toISOString(), base,
   evidence: 'Injected authentication and owner-scoped API responses only; no real Google login, broker or trading evidence.', checks: [], errors: [] };
 async function within(promise, label) {
@@ -139,7 +139,7 @@ async function callbackResult(browser, returnTo, destination, after) {
     assert.equal(await h.page.evaluate(returnKey => sessionStorage.getItem(returnKey), returnKey), null);
     h.state.exchangeRelease.resolve();
     await h.page.waitForURL(base + destination);
-    await h.page.getByRole('link', { name: 'Your account', exact: true }).waitFor();
+    await h.page.getByLabel('Your account', { exact: true }).waitFor();
     assert.equal(h.state.authRequests.filter(r => r.path === '/auth/v1/token').length, 1);
     assert.equal(await h.page.evaluate(key => localStorage.getItem(key + '-code-verifier'), key), null);
     if (after) await after(h);
@@ -186,7 +186,12 @@ async function check(name, action) {
       await h.page.getByText('First fixture computer', { exact: true }).waitFor();
       assert(h.state.statusRequests.every(id => id === h.state.session.user.id));
     }));
-    await check('Untrusted callback return cannot leave the bounded home/strategies allowlist', () => callbackResult(browser, 'https://outside.example.invalid/#/strategies', '/#/home'));
+    await check('Membership callback returns only after the PKCE exchange completes', () => callbackResult(browser, '/#/membership', '/#/membership'));
+    await check('Untrusted callback returns and membership queries fall back to home', async () => {
+      for (const returnTo of ['https://outside.example.invalid/#/membership', '/#/membership?redirect=https://outside.example.invalid']) {
+        await callbackResult(browser, returnTo, '/#/home');
+      }
+    });
     await check('Provider denial, hash denial and missing code remain recoverable without code exchange', async () => {
       for (const suffix of ['?error=access_denied&error_description=fixture-only', '#error=access_denied', '']) {
         const h = await harness(browser);

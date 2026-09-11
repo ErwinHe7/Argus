@@ -1,0 +1,30 @@
+{
+  "evidence": "Injected browser fixtures only; no live sign-in, Whop purchase, membership grant, or broker operation.",
+  "checks": [
+    {
+      "name": "Signed-out membership is readable despite archive failure, with Google and management links and no billing calls",
+      "result": "pass"
+    },
+    {
+      "name": "No membership requests a server-created checkout only after the explicit click, with the current bearer token",
+      "result": "pass"
+    },
+    {
+      "name": "Untrusted checkout URL is rejected and cannot turn the membership active",
+      "result": "pass"
+    },
+    {
+      "name": "Active cancellation date is server-confirmed; outage removes active claim, retains dated context and offers retry on mobile",
+      "result": "pass"
+    },
+    {
+      "name": "Stale active response and client checkout return flags do not confirm active access",
+      "result": "pass"
+    },
+    {
+      "name": "Changing Google accounts discards the old membership and cannot apply an in-flight owner response",
+      "result": "pass"
+    }
+  ],
+  "errors": []
+}

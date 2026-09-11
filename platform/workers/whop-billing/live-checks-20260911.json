@@ -1,0 +1,82 @@
+{
+  "version": "d31da722-52b3-49c4-979d-5a1287412f59",
+  "checks": [
+    {
+      "name": "configured production health",
+      "status": 200,
+      "passed": true,
+      "body": {
+        "service": "leo-whop-billing",
+        "schemaVersion": "whop-billing/v1",
+        "configured": true,
+        "liveTradingEnabled": false
+      }
+    },
+    {
+      "name": "anonymous status rejected",
+      "status": 401,
+      "passed": true,
+      "body": {
+        "error": "sign_in_required"
+      }
+    },
+    {
+      "name": "forged Google token rejected",
+      "status": 401,
+      "passed": true,
+      "body": {
+        "error": "sign_in_required"
+      }
+    },
+    {
+      "name": "cross origin rejected",
+      "status": 403,
+      "passed": true,
+      "body": {
+        "error": "origin_not_allowed"
+      }
+    },
+    {
+      "name": "unsigned webhook rejected",
+      "status": 401,
+      "passed": true,
+      "body": {
+        "error": "invalid_signature"
+      }
+    },
+    {
+      "name": "preflight exact origin",
+      "status": 204,
+      "passed": true,
+      "body": null
+    },
+    {
+      "name": "arbitrary charge endpoint absent",
+      "status": 404,
+      "passed": true,
+      "body": {
+        "error": "not_found"
+      }
+    }
+  ],
+  "whopDashboardTest": {
+    "event": "membership.activated",
+    "httpStatus": 200,
+    "success": true,
+    "body": {
+      "accepted": true,
+      "ignored": true
+    },
+    "evidenceKind": "vendor-generated synthetic test, signature verified; no paid membership granted"
+  },
+  "actualPurchasePerformed": false,
+  "uiFlow": {
+    "websiteVersion": "5cba2277-a96f-4bd6-b5d5-4fc94b3d6fce",
+    "hostedCheckoutPlan": "AXIO7 Live Trading",
+    "googleSessionServerVerified": true,
+    "displayedTotalDue": "99.99 USD",
+    "displayedRecurringPrice": "99.99 USD/month",
+    "returnedWithoutPaidAccess": true,
+    "subscribeClicked": false
+  }
+}

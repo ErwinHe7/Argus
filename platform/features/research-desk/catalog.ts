@@ -28,6 +28,6 @@ export const HANDBOOK = [
   ['How does history replay work?', 'Open Recorded analysis & history replay below the TradingView chart. Use the date slider or arrow keys to reveal one recorded session at a time. Replay shows retained daily bars; it does not generate future prices.'],
   ['What does Options lab calculate?', 'It shows precomputed European option values under your price, IV, and time assumptions. Spreads, fees, slippage, American early exercise, and actual dividends are excluded.'],
   ['Where are my notes stored?', 'Notes, trade plans, and calendar entries stay in this browser on this website. Export JSON to keep a copy. They are your records, not synchronized brokerage positions, orders, or verified trading results.'],
-  ['Where can I manage my subscription?', 'Open Plans & payment in the Leo app. Astra\'s Pick does not change your existing membership.'],
+  ['Where can I manage my subscription?', 'Open Membership from your account or the footer for AXIO7 payments through Whop. Refresh membership after checkout; manage renewal, payment methods, and receipts on Whop. Paddle plans and payment remain available at /pricing. Paying does not connect a broker or enable real-money trading.'],
   ['Why is there no forecast win rate?', 'Publishing probabilities or performance requires a validated model and an immutable, dated forecast record. That evidence is not available here. Model status lists the remaining requirements.'],
 ];

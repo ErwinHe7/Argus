@@ -31,6 +31,7 @@ export function Welcome() {
         <p className="welcome-email">{identity.user.email ?? 'Google account'}</p>
         <a className="gold-button welcome-primary" href="#/home">Go to Picks<ArrowRight size={17}/></a>
         <a className="welcome-strategies" href="#/strategies">Open strategy workspace<ArrowRight size={15}/></a>
+        <a className="welcome-strategies" href="#/membership">Membership &amp; payment<ArrowRight size={15}/></a>
         <button className="text-button welcome-signout" disabled={busy} onClick={() => { void act(async () => { const result = await identity.auth!.auth.signOut(); if (result.error) throw new Error('Sign-out could not finish. Try again.'); }); }}><LogOut size={15}/>{busy ? 'Signing out…' : 'Sign out'}</button>
       </> : identity.auth ? <><button className="welcome-google" aria-label={busy ? 'Opening Google…' : 'Sign in with Google'} disabled={busy} onClick={() => { void act(() => signIn(identity.auth!, '/#/home')); }}><img src="/app/research-desk/google-signin.png" width="216" height="48" alt=""/></button>{busy && <p className="welcome-status" role="status">Opening Google…</p>}</> : <p className="welcome-status">Google sign-in is temporarily unavailable. You can still explore Picks.</p>}
       <p className="welcome-privacy">Signing in does not connect a brokerage or start trading. <a href="/privacy">Privacy policy</a></p>

@@ -3278,3 +3278,14 @@ Windows preview and small verified download kit remain unsigned; actual paper
 lifecycle, entitled history, public IBKR approval and other native platforms are
 explicit prerequisites. Tests and deployment receipts are distinguished from
 broker-backed evidence in [Broker connections](../../strategy-lab/BROKER-CONNECTIONS.md).
+
+## 2026-09-11 — Whop membership connection
+
+Published `#/membership` with Google identity, the existing Whop recurring plan,
+server-created checkout and server-verified owner-scoped Whop membership status.
+The isolated Cloudflare Worker/D1 store preserves Paddle, existing membership
+authorization and all trading boundaries. No VPS or LLM runs in this billing path.
+The Google-session-to-hosted-checkout flow and Whop-generated signed test delivery
+passed. No purchase, refund or trade was performed. Backend tests fail closed on
+incomplete payment recovery, unknown memberships, forged identities and replay.
+See the [billing contract and release evidence](../../../workers/whop-billing/README.md).
