@@ -19,6 +19,12 @@ Real-money execution and options execution remain disabled. Never route this
 feature through the synthetic TypeScript execution service. The implementation
 and release evidence live in `docs/strategy-lab/DELIVERY.md`.
 
+The owner's 2026-09-11 broker request also permits an experimental per-user IBKR
+Client Portal paper adapter in this same boundary. It requires explicit local
+opt-in, exact account binding, and the actual execution session's `isPaper: true`
+proof. TWS inspection stays read-only. This development path does not establish
+IBKR approval for a public commercial integration or live-money authorization.
+
 - `quant_engine_rs/` is the canonical production inference and market-data
   validation service.
 - `intraday_quant/` is offline research, training, validation, and artifact

@@ -3262,3 +3262,19 @@ backend, retained routes and disabled real-money boundary. Current domain access
 release and recovery state belongs to the canonical
 [domain publication runbook](../../../../docs/domain-publication.md); this
 checkpoint does not mark that deployment complete.
+
+## 2026-09-11 — Per-user broker connection preview
+
+Added a broker setup/status surface and a unified local sidecar while retaining
+the Picks-first homepage. moomoo paper execution reuses the existing Rust path.
+The experimental IBKR Client Portal path verifies the execution session's paper
+identity, exact selected account and local certificate, persists submissions,
+and serializes preflight through observation. TWS remains read-only. Namespaced
+account IDs avoid provider collisions without granting authority.
+
+Broker software is installed separately from the website. Google membership and
+device pairing never imply broker login or an execution mandate. The native
+Windows preview and small verified download kit remain unsigned; actual paper
+lifecycle, entitled history, public IBKR approval and other native platforms are
+explicit prerequisites. Tests and deployment receipts are distinguished from
+broker-backed evidence in [Broker connections](../../strategy-lab/BROKER-CONNECTIONS.md).

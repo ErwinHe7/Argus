@@ -18,11 +18,22 @@ impl Account {
             "paper_us_account_required"
         );
         ensure!(
-            !self.account_id.is_empty() && self.account_id.bytes().all(|c| c.is_ascii_digit()),
+            valid_account_identity(&self.account_id),
             "invalid_account_identity"
         );
         Ok(())
     }
+}
+
+// Namespaces prevent a broker's account from aliasing another broker's ledger.
+// An identity format is not paper-session attestation: the selected adapter must
+// verify the actual authenticated execution session before advertising accounts.
+fn valid_account_identity(value: &str) -> bool {
+    let digits = value.strip_prefix("IBKR:DU").unwrap_or(value);
+    !digits.is_empty()
+        && digits.len() <= 20
+        && digits.bytes().all(|c| c.is_ascii_digit())
+        && digits.parse::<u64>().is_ok_and(|number| number > 0)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -217,4 +228,54 @@ pub struct OrderIntent {
     pub mandate_version: u64,
     pub reason: String,
     pub created_at: DateTime<Utc>,
+}
+
+#[cfg(test)]
+mod account_tests {
+    use super::*;
+
+    fn account(id: &str, environment: &str) -> Account {
+        Account {
+            account_id: id.into(),
+            environment: environment.into(),
+            currency: "USD".into(),
+        }
+    }
+
+    #[test]
+    fn namespaced_paper_accounts_do_not_alias_legacy_accounts() {
+        let moomoo = account("12345", "SIMULATE");
+        let ibkr = account("IBKR:DU12345", "SIMULATE");
+        assert!(moomoo.validate().is_ok());
+        assert!(ibkr.validate().is_ok());
+        assert_ne!(moomoo.account_id, ibkr.account_id);
+        let restored: Account =
+            serde_json::from_str(&serde_json::to_string(&ibkr).unwrap()).unwrap();
+        assert_eq!(restored.account_id, "IBKR:DU12345");
+    }
+
+    #[test]
+    fn live_unknown_or_ambiguous_account_identity_is_rejected() {
+        for id in [
+            "",
+            "0",
+            "IBKR:DU",
+            "IBKR:DU0",
+            "DU123",
+            "IBKR:U123",
+            "ibkr:DU123",
+            "IBKR:DU123/x",
+            "IBKR:DU１２３",
+            " 123",
+            "18446744073709551616",
+        ] {
+            assert!(account(id, "SIMULATE").validate().is_err(), "{id}");
+        }
+        for environment in ["LIVE", "REAL", "UNVERIFIED", "PAPER"] {
+            assert!(account("IBKR:DU123", environment).validate().is_err());
+        }
+        let mut foreign = account("IBKR:DU123", "SIMULATE");
+        foreign.currency = "HKD".into();
+        assert!(foreign.validate().is_err());
+    }
 }

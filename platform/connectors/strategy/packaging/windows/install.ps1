@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 $source = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $destination = [IO.Path]::GetFullPath($InstallDir)
-if (-not [IO.Path]::IsPathRooted($InstallDir) -or $destination -eq [IO.Path]::GetPathRoot($destination)) { throw 'InstallDir must be an absolute application directory.' }
+if (-not [IO.Path]::IsPathFullyQualified($InstallDir) -or $destination -eq [IO.Path]::GetPathRoot($destination)) { throw 'InstallDir must be an absolute application directory.' }
 if (Test-Path -LiteralPath $destination) { throw 'Destination exists. Preserve the old installation and choose an empty application directory.' }
 $parent = [IO.DirectoryInfo]::new([IO.Path]::GetDirectoryName($destination))
 while ($null -ne $parent) {

@@ -6,6 +6,13 @@ Python SDK sidecar. OpenD and broker authentication stay on your computer.
 Real-money and options execution are unavailable. This package is unsigned
 development software. Offline checks are not broker lifecycle validation.
 
+The native sidecar also includes an experimental IBKR Client Portal paper
+adapter, disabled unless explicitly selected and enabled locally. It verifies
+`isPaper` on the same authenticated session used for every order and binds one
+exact account. See the included `IBKR.md`. TWS inspection is a separate read-only
+source tool; it cannot authorize execution. Required approval for a public IBKR
+integration and actual paper lifecycle acceptance remain external prerequisites.
+
 ## Platform and prerequisite status
 
 | Target | Package/check status |
@@ -41,7 +48,7 @@ trusted publisher. Use one of these installation paths:
   `msiexec.exe /i "C:\absolute\path\leo-strategy-connector-0.1.0-dev-windows-x64.msi"`.
   It installs per user under `%LOCALAPPDATA%\Programs\LeoStrategyConnectorMsiDev`.
   Remove it through Windows Installed apps or `msiexec.exe /x "C:\absolute\path\package.msi"`.
-* ZIP: extract to an ordinary folder, open PowerShell there, and run
+* ZIP: extract to an ordinary folder, open PowerShell 7 there, and run
   `& .\scripts\install.ps1`. It verifies files and installs to
   `%LOCALAPPDATA%\Programs\LeoStrategyConnectorDev`. `-InstallDir` accepts a new
   absolute application directory. Existing directories are never overwritten.
@@ -69,17 +76,17 @@ receipt unless explicitly recorded there.
 ## Pair, start and inspect
 
 Create a one-use pairing token in Strategies → Connect computer on the configured
-website. Use the deployment's actual HTTPS Strategy API base URL in this command:
+website. The Windows helper defaults to Leo's configured HTTPS Strategy API:
 
 ```powershell
-& "$app\scripts\pair.ps1" -ApiBase 'https://YOUR_STRATEGY_API_BASE' -Name 'My Windows computer'
+& "$app\scripts\pair.ps1" -Name 'My Windows computer'
 & "$app\scripts\start.ps1"
 ```
 
 The prompt hides the token, sends it to stdin and closes the stream. It never
 puts the token in process arguments, a file or command history. Pairing does not
-start trading. The API URL is deployment-specific; this package does not ship a
-working hosted endpoint. The CLI rejects an existing paired profile. Start with
+start trading. `-ApiBase` supports an explicitly configured alternative HTTPS
+deployment; it never changes the broker destination. The CLI rejects an existing paired profile. Start with
 a paused dry-run mandate, confirm account identity and reconciliation, and resume
 from the website. Paper mandates require separate explicit user authorization.
 

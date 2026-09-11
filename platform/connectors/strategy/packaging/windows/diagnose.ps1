@@ -12,4 +12,6 @@ if ($LASTEXITCODE -ne 0 -or ($engineOutput | ConvertFrom-Json).initial_stop -ne 
 Write-Host 'Separate quantitative engine synthetic offline fixture passed.'
 & (Join-Path $application 'adapter\leo-paper-sdk\leo-paper-sdk.exe') --self-check
 if ($LASTEXITCODE -ne 0) { throw 'Bundled Python SDK self-check failed.' }
+& (Join-Path $application 'adapter\leo-paper-sdk\leo-paper-sdk.exe') --broker ibkr-gateway --self-check
+if ($LASTEXITCODE -ne 0) { throw 'Bundled IBKR adapter offline self-check failed.' }
 Write-Host 'Offline checks passed. Broker connection, OS credential writes, market entitlement, paper orders, and control connectivity were not checked.'

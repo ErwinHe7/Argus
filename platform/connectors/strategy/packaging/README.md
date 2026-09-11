@@ -7,6 +7,20 @@ collects notices, runs offline smoke checks, and writes an unsigned development
 archive with file checksums and a command receipt. It never pairs, opens OpenD,
 submits broker orders, publishes, or installs automatic startup services.
 
+The sidecar entry point is `adapter/broker_sdk.py`: moomoo remains the default,
+while `--broker ibkr-gateway` selects the separate experimental Client Portal
+paper adapter. Both are checked offline in each native build. The IBKR vendor
+SDK is not bundled. `CARGO_TARGET_DIR`, when set, selects the exact binary output
+directory used by the native build and packaging steps.
+
+For the website development download, `broker-tools/build_broker_tools.py`
+accepts the verified native ZIP and its successful build receipt. It produces
+20 MiB static parts and a small Windows installer kit with per-part and complete
+archive SHA-256 validation. The installer uses only Leo's HTTPS origin, refuses
+redirects, checks extraction paths, and never changes execution policy or starts
+trading. `test_broker_tools.py` uses synthetic archives to verify corruption,
+receipt mismatch, path traversal and case-insensitive duplicate rejection.
+
 From the repository root, use a dedicated Python 3.12 environment and Rust 1.94:
 
 ```powershell

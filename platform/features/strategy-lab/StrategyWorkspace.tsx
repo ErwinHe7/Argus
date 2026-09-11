@@ -20,7 +20,7 @@ import { GridResearch } from './grid/GridResearch';
 
 export function StrategyWorkspace() {
   const state = useWorkspace();
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(() => new URLSearchParams(location.hash.split('?')[1]).get('step') === 'connect' ? 3 : 0);
   const [gridResearch, setGridResearch] = useState(false);
   const [strategyId, setStrategyId] = useState<StrategyId>('MR-v1');
   const [symbol, setSymbol] = useState('');

@@ -222,16 +222,18 @@ def main():
         if sidecar is None:
             run([sys.executable, '-m', 'pip', 'install', '-r', CONNECTOR / 'adapter/requirements.txt', 'pyinstaller==6.16.0'], receipt)
             sidecar_dist = output / 'sidecar-build'
-            run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--noupx', '--onedir', '--name', 'leo-paper-sdk', '--collect-all', 'moomoo', '--collect-all', 'exchange_calendars', '--collect-all', 'tzdata', '--copy-metadata', 'moomoo-api', '--copy-metadata', 'exchange-calendars', '--distpath', sidecar_dist, '--workpath', output / 'pyinstaller-work', '--specpath', output, CONNECTOR / 'adapter/paper_sdk.py'], receipt)
+            run([sys.executable, '-m', 'PyInstaller', '--noconfirm', '--clean', '--noupx', '--onedir', '--name', 'leo-paper-sdk', '--collect-all', 'moomoo', '--collect-all', 'exchange_calendars', '--collect-all', 'tzdata', '--copy-metadata', 'moomoo-api', '--copy-metadata', 'exchange-calendars', '--distpath', sidecar_dist, '--workpath', output / 'pyinstaller-work', '--specpath', output, CONNECTOR / 'adapter/broker_sdk.py'], receipt)
             sidecar = sidecar_dist / 'leo-paper-sdk'
         extension = '.exe' if os_name == 'windows' else ''
         (bundle / 'bin').mkdir(parents=True)
         for crate, binary in [(CONNECTOR, 'leo-strategy-connector'), (ENGINE, 'strategy-lab')]:
-            shutil.copy2(crate / 'target' / args.profile / (binary + extension), bundle / 'bin' / (binary + extension))
+            target = Path(os.environ['CARGO_TARGET_DIR']).resolve() if os.environ.get('CARGO_TARGET_DIR') else crate / 'target'
+            shutil.copy2(target / args.profile / (binary + extension), bundle / 'bin' / (binary + extension))
         shutil.copytree(sidecar.resolve(), bundle / 'adapter/leo-paper-sdk')
         shutil.copytree(HERE / ('windows' if os_name == 'windows' else 'unix'), bundle / 'scripts')
         shutil.copy2(CONNECTOR / 'adapter/requirements.txt', bundle / 'adapter-requirements.txt')
         shutil.copy2(CONNECTOR / 'README.md', bundle / 'README.md')
+        shutil.copy2(CONNECTOR / 'adapter/IBKR.md', bundle / 'IBKR.md')
         shutil.copy2(HERE / 'THIRD-PARTY-NOTICES.md', bundle / 'THIRD-PARTY-NOTICES.md')
         if os_name != 'windows':
             for script in (bundle / 'scripts').glob('*.sh'):
@@ -243,6 +245,7 @@ def main():
         if json.loads(engine_result).get('initial_stop') != '96.000000':
             raise RuntimeError('Separate engine synthetic arithmetic smoke failed')
         run([bundle / 'adapter/leo-paper-sdk' / ('leo-paper-sdk' + extension), '--self-check'], receipt)
+        run([bundle / 'adapter/leo-paper-sdk' / ('leo-paper-sdk' + extension), '--broker', 'ibkr-gateway', '--self-check'], receipt)
         checksum_lines = [f'{digest(p)}  {p.relative_to(bundle).as_posix()}\n' for p in sorted(bundle.rglob('*')) if p.is_file()]
         (bundle / 'SHA256SUMS').write_text(''.join(checksum_lines), encoding='utf-8')
         receipt['bundle'] = {'path': str(bundle), 'fileCount': len(checksum_lines) + 1, 'bytes': sum(p.stat().st_size for p in bundle.rglob('*') if p.is_file()), 'checksumManifestSha256': digest(bundle / 'SHA256SUMS')}

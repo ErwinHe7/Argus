@@ -1,15 +1,22 @@
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory = $true)][string]$ApiBase,
+    [string]$ApiBase = 'https://katwbobjiyzipqlzarus.supabase.co/functions/v1/strategy-api',
     [string]$Name = $env:COMPUTERNAME,
     [string]$StateDir,
-    [ValidateSet('FUTUSECURITIES','FUTUINC','FUTUSG','FUTUAU','FUTUCA','FUTUMY','FUTUJP')][string]$SecurityFirm = 'FUTUINC'
+    [ValidateSet('FUTUSECURITIES','FUTUINC','FUTUSG','FUTUAU','FUTUCA','FUTUMY','FUTUJP')][string]$SecurityFirm = 'FUTUINC',
+    [ValidateSet('moomoo','ibkr-gateway')][string]$Broker = 'moomoo',
+    [string]$Account,
+    [string]$GatewayCaFile,
+    [string]$GatewayCertificateSha256,
+    [string]$HistoryDirectory,
+    [switch]$EnableIbkrPaper
 )
 $ErrorActionPreference = 'Stop'
 $application = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$arguments = @()
-if ($StateDir) { $arguments += @('--state-dir', [IO.Path]::GetFullPath($StateDir)) }
-$arguments += @('pair', '--api-base', $ApiBase, '--name', $Name, '--engine', (Join-Path $application 'bin\strategy-lab.exe'), '--adapter', (Join-Path $application 'adapter\leo-paper-sdk\leo-paper-sdk.exe'), '--adapter-argument=--security-firm', "--adapter-argument=$SecurityFirm")
+. (Join-Path $PSScriptRoot 'profile.ps1')
+$brokerProfile = Get-LeoBrokerProfile -Broker $Broker -StateDir $StateDir -SecurityFirm $SecurityFirm -Account $Account -GatewayCaFile $GatewayCaFile -GatewayCertificateSha256 $GatewayCertificateSha256 -HistoryDirectory $HistoryDirectory -EnableIbkrPaper:$EnableIbkrPaper
+$arguments = @('--state-dir', $brokerProfile.StateDir, 'pair', '--api-base', $ApiBase, '--name', $Name, '--engine', (Join-Path $application 'bin\strategy-lab.exe'), '--adapter', (Join-Path $application 'adapter\leo-paper-sdk\leo-paper-sdk.exe'))
+foreach ($argument in $brokerProfile.AdapterArguments) { $arguments += "--adapter-argument=$argument" }
 $secret = Read-Host 'Paste the one-use device pairing token (hidden)' -AsSecureString
 $pointer = [IntPtr]::Zero
 try {

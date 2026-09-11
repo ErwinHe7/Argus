@@ -1,9 +1,9 @@
 {
   "upstream_origin": "https://leo.axio7.workers.dev",
-  "verified_upstream_version": "f0bcd54a-b873-4524-94ed-4d13a6d1c5ca",
+  "verified_upstream_version": "964f8a15-7f90-492d-b26e-9bb6158e8885",
   "assets": {
     "/app/research-desk/desk.js": {
-      "sha256": "1b073a73bcad5665a5beebac743b8fddedb64bf6e37db1222dedaae18a7792c5",
+      "sha256": "6896e1f435f55b0efcdec7402d80c25801501cf31587c08744f0254a1387d0a8",
       "content_type": "javascript"
     },
     "/app/research-desk/strategy-config.json": {
@@ -11,7 +11,7 @@
       "content_type": "application/json"
     },
     "/app/research-desk/desk.css": {
-      "sha256": "68a14e736cdcac6ef6f80bf571a3bec1f349c200efec359f0162ee4e37e71a62",
+      "sha256": "fc1a1aeb20d9bd814a50cc334b0ab189a1d094fbee0dfb7c61fbfbb81c64cebb",
       "content_type": "text/css"
     },
     "/app/research-desk/google-signin.png": {
@@ -21,6 +21,26 @@
     "/app/research-desk/google-signin.png.json": {
       "sha256": "aa9a7a7e06a5b0060281d23cf2c1a71aa93f3aced3c67459d03d52ef48f96332",
       "content_type": "application/json"
+    },
+    "/app/research-desk/downloads/leo-broker-tools-windows-x64.json": {
+      "sha256": "af575adb9aadd8f7d0383c2e69ceb0b3fb352363624ae840c28edf37740810f7",
+      "content_type": "application/json"
+    },
+    "/app/research-desk/downloads/leo-broker-tools-windows-x64.zip": {
+      "sha256": "f9d59fa7f22819a60cdaa154bfb98ec11fb781590351c6d403dd98d1b8132746",
+      "content_type": "application/zip"
+    },
+    "/app/research-desk/downloads/leo-native-f619b8b816c3ce84.part000.bin": {
+      "sha256": "63d3c1b27cf1cfa7fa048a2fa00a6bd92a907e0947dc67d34493faf0d565a744",
+      "content_type": "application/octet-stream"
+    },
+    "/app/research-desk/downloads/leo-native-f619b8b816c3ce84.part001.bin": {
+      "sha256": "9754fcf59b8c0164487ab2f5fc7c57c478e9fd05db613052932ac21532bcee5e",
+      "content_type": "application/octet-stream"
+    },
+    "/app/research-desk/downloads/leo-native-f619b8b816c3ce84.part002.bin": {
+      "sha256": "5c320fbdcd8de9a3ddeaa50d6fbfe557810233ea1b16411a7f8b01d04f3e05e9",
+      "content_type": "application/octet-stream"
     }
   }
 }
