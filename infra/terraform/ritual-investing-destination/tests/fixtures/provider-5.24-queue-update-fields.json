@@ -1,0 +1,91 @@
+{
+  "provenance": "Selected queue change fields from synthetic local state, Terraform 1.15.0 / Cloudflare 5.24.0, refresh=false; no apply or hosted reads.",
+  "state_schema_version": 500,
+  "cases": {
+    "explicit_retention": {
+      "actions": [
+        "update"
+      ],
+      "before": {
+        "account_id": "11111111111111111111111111111111",
+        "consumers": [],
+        "consumers_total_count": 0,
+        "created_on": "2026-09-11T00:00:00Z",
+        "id": "22222222222222222222222222222222",
+        "modified_on": "2026-09-11T00:00:00Z",
+        "producers": [],
+        "producers_total_count": 0,
+        "queue_id": "22222222222222222222222222222222",
+        "queue_name": "ritual-investing-staging-jobs",
+        "settings": {
+          "delivery_delay": 0,
+          "delivery_paused": true,
+          "message_retention_period": 345600
+        }
+      },
+      "after": {
+        "account_id": "11111111111111111111111111111111",
+        "id": "22222222222222222222222222222222",
+        "queue_id": "22222222222222222222222222222222",
+        "queue_name": "ritual-investing-staging-jobs",
+        "settings": {
+          "delivery_delay": 42,
+          "delivery_paused": true,
+          "message_retention_period": 345600
+        }
+      },
+      "after_unknown": {
+        "consumers": true,
+        "consumers_total_count": true,
+        "created_on": true,
+        "modified_on": true,
+        "producers": true,
+        "producers_total_count": true,
+        "settings": {}
+      }
+    },
+    "omitted_retention": {
+      "actions": [
+        "update"
+      ],
+      "before": {
+        "account_id": "11111111111111111111111111111111",
+        "consumers": [],
+        "consumers_total_count": 0,
+        "created_on": "2026-09-11T00:00:00Z",
+        "id": "22222222222222222222222222222222",
+        "modified_on": "2026-09-11T00:00:00Z",
+        "producers": [],
+        "producers_total_count": 0,
+        "queue_id": "22222222222222222222222222222222",
+        "queue_name": "ritual-investing-staging-jobs",
+        "settings": {
+          "delivery_delay": 0,
+          "delivery_paused": true,
+          "message_retention_period": 345600
+        }
+      },
+      "after": {
+        "account_id": "11111111111111111111111111111111",
+        "id": "22222222222222222222222222222222",
+        "queue_id": "22222222222222222222222222222222",
+        "queue_name": "ritual-investing-staging-jobs",
+        "settings": {
+          "delivery_delay": 42,
+          "delivery_paused": true
+        }
+      },
+      "after_unknown": {
+        "consumers": true,
+        "consumers_total_count": true,
+        "created_on": true,
+        "modified_on": true,
+        "producers": true,
+        "producers_total_count": true,
+        "settings": {
+          "message_retention_period": true
+        }
+      }
+    }
+  }
+}

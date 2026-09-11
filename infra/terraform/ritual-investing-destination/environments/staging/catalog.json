@@ -1,0 +1,85 @@
+{
+  "schema_version": 1,
+  "environment": "staging",
+  "workers": {
+    "api": {
+      "name": "ritual-investing-api-beta"
+    },
+    "demo": {
+      "name": "ritual-investing-demo-beta"
+    },
+    "member": {
+      "name": "ritual-investing-member-preview"
+    },
+    "site": {
+      "name": "ritual-investing-site-beta"
+    }
+  },
+  "pages": {
+    "site": {
+      "name": "ritual-investing-site-staging",
+      "production_branch": "main"
+    },
+    "demo": {
+      "name": "ritual-investing-demo-staging",
+      "production_branch": "main"
+    }
+  },
+  "kv_namespaces": {
+    "denial_journal": {
+      "title": "ritual-waitlist-beta-denial-journal-v1"
+    },
+    "retention_checkpoint": {
+      "title": "ritual-waitlist-beta-retention-checkpoint-v1"
+    }
+  },
+  "r2_buckets": {
+    "deletion_deny": {
+      "name": "ritual-beta-deletion-deny",
+      "jurisdiction": "default",
+      "location": null,
+      "storage_class": "Standard"
+    },
+    "media_public": {
+      "name": "ritual-beta-media-public",
+      "jurisdiction": "default",
+      "location": null,
+      "storage_class": "Standard"
+    },
+    "media_quarantine": {
+      "name": "ritual-beta-media-quarantine",
+      "jurisdiction": "default",
+      "location": null,
+      "storage_class": "Standard"
+    },
+    "privacy_exports": {
+      "name": "ritual-beta-privacy-exports",
+      "jurisdiction": "default",
+      "location": null,
+      "storage_class": "Standard"
+    }
+  },
+  "queues": {
+    "jobs": {
+      "queue_name": "ritual-beta-jobs",
+      "delivery_delay": null,
+      "message_retention_period": null
+    },
+    "jobs_dlq": {
+      "queue_name": "ritual-beta-jobs-dlq",
+      "delivery_delay": null,
+      "message_retention_period": null
+    }
+  },
+  "turnstile": {
+    "waitlist": {
+      "name": "ritual-waitlist-beta-widget-v1",
+      "domains": [
+        "beta.just-build-this.app",
+        "beta.leoinvesting.com"
+      ],
+      "mode": "managed",
+      "region": "world"
+    }
+  }
+}

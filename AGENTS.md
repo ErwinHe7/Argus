@@ -7,6 +7,7 @@ Read `axio7-model-review/PROJECT_CONTRACT.md` before changing code in this repos
 - Organize new work in feature-owned folders rather than shared catch-all modules.
 - Run the narrowest relevant checks for every change and report the commands and outcomes.
 - Keep secrets out of client bundles, logs, fixtures, and commits. Missing, stale, incomplete, or non-causal data must fail closed.
+- For LeoInvestment destination infrastructure, use the shared Terraform CLI and operator guide in [infra/terraform/ritual-investing-destination/README.md](infra/terraform/ritual-investing-destination/README.md).
 
 ## Plan small and avoid over-engineering
 
