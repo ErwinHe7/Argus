@@ -46,6 +46,17 @@ verification endpoint only after a 401/403 from user verification; all ownership
 active-token and write restrictions remain mandatory. The temporary runner was
 removed after the attempt. A retry requires a fresh runner and the exact new SHA.
 
+Run `34559484288` on `main` revision `b04b691` passed all 23 tests and verified
+the existing credential as an active account-owned token. It then stopped at
+`owning_zone_not_accessible_or_active`, before any Worker or domain write. The
+runner, private runtime and dedicated local user were removed. The token is
+active; the exact zone's visibility or ownership still needs resolution.
+
+The separate `leo-domain-diagnostic.yml` workflow performs a bounded,
+manual diagnostic on an exact reviewed main revision. It uses only GET requests
+and emits sanitized zone/account identifiers, status, domain mappings and error
+codes. It cannot deploy, attach a domain, change DNS or expose the credential.
+
 The source branch has been merged and pushed directly to `origin/main`; the draft
 PR was closed at the owner's request. The reviewed `leo` website and isolated
 Supabase strategy API are deployed. The custom domain remains a separate cutover

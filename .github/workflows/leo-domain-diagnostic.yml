@@ -1,0 +1,38 @@
+name: Inspect reviewed Leo domain ownership
+
+on:
+  workflow_dispatch:
+    inputs:
+      reviewed_sha:
+        description: Exact reviewed main commit for the read-only diagnostic
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    if: github.repository == 'ErwinHe7/Argus' && github.ref == 'refs/heads/main' && github.sha == inputs.reviewed_sha
+    runs-on: [leo-domain-b74391b508e4]
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Verify the GET-only diagnostic and redaction tests
+        run: python3 -m unittest discover -s platform/workers/domain-proxy -p 'test_diagnose.py'
+      - name: Read only the known account, zone and custom-domain metadata
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_CONTENT_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          REVIEWED_SHA: ${{ inputs.reviewed_sha }}
+        run: python3 platform/workers/domain-proxy/diagnose.py
+      - name: Retain sanitized read-only evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: leo-domain-diagnostic-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/leo-domain-diagnostic.json
+          if-no-files-found: warn
+          retention-days: 30
