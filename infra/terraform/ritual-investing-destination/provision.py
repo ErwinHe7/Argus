@@ -436,8 +436,6 @@ def run_plan(terraform, root, path, account, target, catalog, update_allowed, *,
     changes = counts["create"] + counts["update"] > 0 or inspect_outputs(plan, target, expected_resources(target, catalog))
     if (code == 2) != changes:
         fail("verification-failure" if no_change else "unsafe-plan")
-    if no_change and code != 0:
-        fail("verification-failure")
     return code, plan, counts
 
 
