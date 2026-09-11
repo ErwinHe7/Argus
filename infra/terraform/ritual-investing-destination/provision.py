@@ -7,7 +7,6 @@ from pathlib import Path
 import re
 import shutil
 import socket
-import stat
 import subprocess
 import sys
 import uuid
@@ -19,6 +18,7 @@ from state_backend import (BackendError, BackendSpec, BootstrapManager, S3StateR
                            private_account_directory, private_write, verify_remote_locking)
 
 CLI_VERSION = "1"
+TERRAFORM_CONFIG = b"disable_checkpoint = true\n"
 FEATURE = Path(__file__).resolve().parent
 ACTIONS = {"plan", "apply", "verify", "resume"}
 TARGETS = {"bootstrap", "staging", "prod"}
@@ -218,7 +218,7 @@ def terraform_command(account, artifact, environment):
     env = dict(environment)
     # Explicit empty CLI config prevents a user's ~/.terraformrc from redirecting
     # provider installation or supplying dev overrides. Caller TF_* stays forbidden.
-    private_write(Path(artifact) / "terraform.rc", b"disable_checkpoint = true\n")
+    private_write(Path(artifact) / "terraform.rc", TERRAFORM_CONFIG)
     env.update(TF_CLI_CONFIG_FILE=str(Path(artifact) / "terraform.rc"),
                TF_VAR_cloudflare_account_id=account, AWS_REGION="auto")
     command = TerraformCommand(binary, env)
@@ -263,7 +263,7 @@ def validate_artifact(artifact, repository, feature, profile, target, terraform_
         fail("stale-inputs")
     if (digest_file(Path(terraform_identity["path"])) != terraform_identity["sha256"] or
             (artifact / "terraform.rc").is_symlink() or
-            (artifact / "terraform.rc").read_bytes() != b"disable_checkpoint = true\n"):
+            (artifact / "terraform.rc").read_bytes() != TERRAFORM_CONFIG):
         fail("stale-inputs")
     snapshot = artifact / "snapshot"
     files = set()
@@ -302,7 +302,7 @@ def prepare_plan(options, receipt, feature=FEATURE):
         fail("prerequisite-failure")
     artifact = directory / "plans" / uuid.uuid4().hex
     # Creation through private_write sets every ancestor and file private.
-    private_write(artifact / "terraform.rc", b"disable_checkpoint = true\n")
+    private_write(artifact / "terraform.rc", TERRAFORM_CONFIG)
     receipt["artifact"] = str(artifact)
     with account_lock(directory):
         cloud = CloudRead(profile["account_id"], artifact)
