@@ -1,0 +1,13 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "leo-shortlist-feed",
+  "main": "index.ts",
+  "compatibility_date": "2026-09-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": {
+    "bindings": [{ "name": "SHORTLIST_FEED", "class_name": "ShortlistFeed" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ShortlistFeed"] }],
+  "secrets": { "required": ["LEO_SHORTLIST_PUBLISH_TOKEN"] },
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}

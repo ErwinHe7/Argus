@@ -1,0 +1,11 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "leo-event-radar",
+  "main": "index.ts",
+  "compatibility_date": "2026-09-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "durable_objects": { "bindings": [{ "name": "EVENT_RADAR", "class_name": "EventRadarFeed" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EventRadarFeed"] }],
+  "triggers": { "crons": ["*/20 * * * *"] },
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}

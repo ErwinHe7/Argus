@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "leo-event-radar-software-verification.v1",
+  "verifiedDate": "2026-09-10",
+  "module": "intraday_quant/src/intraday_quant/radar.py",
+  "moduleSha256": "b7a09fae54326574dc7f65048684d1dceb989004dd2200b0f312355624f7885f",
+  "checks": [
+    { "environment": "Windows x64, Python 3.14.0", "suite": "test_radar.py", "passed": 16, "failed": 0, "resourceWarningsAsErrors": true },
+    { "environment": "Ubuntu 24.04 under WSL, Python 3.12.3", "suite": "test_radar.py", "passed": 16, "failed": 0, "resourceWarningsAsErrors": true }
+  ],
+  "scope": "Strict artifact validation, freshness and causality, Eastern-time event boundaries, append-only local journal, concurrent transactions, outcome links, immutable event revisions and last-good output retention.",
+  "evidence": "Injected software tests only; initial calendar facts separately verified against linked official pages.",
+  "firstRunFinding": "The initial Windows run caught unclosed SQLite connection handles during temporary-file cleanup. Explicit connection.close() fixed the resource leak; both final suites passed.",
+  "productionForecastRecords": 0,
+  "productionOutcomeRecords": 0,
+  "llmCalls": 0,
+  "predictionEnabled": false,
+  "executionEnabled": false,
+  "limitations": [
+    "No profitability, broker execution, predictive calibration, or live quote behavior was tested.",
+    "The local journal is not a trusted public timestamp and is not automatically uploaded.",
+    "No native macOS execution was available; WSL is not evidence of a separate VPS deployment."
+  ]
+}

@@ -1,0 +1,118 @@
+name: Strategy connector native development packages
+
+# Preparation only: run explicitly against a reviewed revision. This workflow
+# has no deploy, publication, broker credential, pairing or paper-order step.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            label: windows-x64
+            python-arch: x64
+          - runner: macos-14-large
+            label: macos-14-x64
+            python-arch: x64
+          - runner: macos-14
+            label: macos-14-arm64
+            python-arch: arm64
+          - runner: ubuntu-22.04
+            label: ubuntu-22.04-x64
+            python-arch: x64
+          - runner: ubuntu-24.04
+            label: ubuntu-24.04-x64
+            python-arch: x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      CARGO_TERM_COLOR: never
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: ${{ matrix.python-arch }}
+      - uses: dtolnay/rust-toolchain@1.94.0
+      - name: Linux build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential pkg-config libdbus-1-dev libssl-dev
+      - name: Python SDK dependencies
+        run: python -m pip install -r platform/connectors/strategy/adapter/requirements.txt pyinstaller==6.16.0
+      - name: Rust connector checks
+        run: cargo test --locked --manifest-path platform/connectors/strategy/Cargo.toml
+      - name: Python SDK contract tests
+        run: python -m unittest discover -s platform/connectors/strategy/adapter -p "test_*.py"
+      - name: Rust strategy checks
+        run: cargo test --locked --manifest-path platform/quant_engine_rs/Cargo.toml strategy_lab
+      - name: Prepare WiX development tool on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $wixArchive = Join-Path $env:RUNNER_TEMP 'wix314-binaries.zip'
+          Invoke-WebRequest -Uri 'https://github.com/wixtoolset/wix3/releases/download/wix3141rtm/wix314-binaries.zip' -OutFile $wixArchive
+          if ((Get-FileHash -LiteralPath $wixArchive -Algorithm SHA256).Hash -ne '6AC824E1642D6F7277D0ED7EA09411A508F6116BA6FAE0AA5F2C7DAA2FF43D31') { throw 'WiX 3.14.1 archive does not match the reviewed development tool.' }
+          Expand-Archive -LiteralPath $wixArchive -DestinationPath (Join-Path $env:RUNNER_TEMP 'leo-wix3')
+          Get-FileHash -LiteralPath $wixArchive -Algorithm SHA256
+      - name: Build Windows MSI and ZIP
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: python platform/connectors/strategy/packaging/build_native.py --output native-output --wix-dir "$env:RUNNER_TEMP/leo-wix3"
+      - name: Build native macOS or Linux tar
+        if: runner.os != 'Windows'
+        run: python platform/connectors/strategy/packaging/build_native.py --output native-output
+      - name: Validate isolated Windows MSI and ZIP installation and removal
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $package = Get-ChildItem -LiteralPath native-output -Directory -Filter 'leo-strategy-connector-*-windows-x64' | Select-Object -First 1
+          $msi = Get-ChildItem -LiteralPath native-output -File -Filter '*.msi' | Select-Object -First 1
+          & platform/connectors/strategy/packaging/verify_windows.ps1 -Bundle $package.FullName -Msi $msi.FullName -Output (Join-Path (Get-Location) 'native-output/verification')
+      - name: Validate isolated Unix tar install and removal
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          package=$(find native-output -maxdepth 1 -type d -name 'leo-strategy-connector-*' -print -quit)
+          bash "$package/scripts/install.sh" "$RUNNER_TEMP/leo-connector-install-verification"
+          bash "$RUNNER_TEMP/leo-connector-install-verification/scripts/uninstall.sh"
+          test ! -e "$RUNNER_TEMP/leo-connector-install-verification"
+      - name: Record native scope
+        if: always()
+        shell: python
+        run: |
+          import json, os, pathlib, platform
+          target = pathlib.Path('native-output')
+          target.mkdir(exist_ok=True)
+          (target / 'ci-scope.json').write_text(json.dumps({
+            'host': platform.platform(), 'machine': platform.machine(),
+            'revision': os.environ['GITHUB_SHA'], 'runner': '${{ matrix.runner }}',
+            'target': '${{ matrix.label }}',
+            'windows11ClientValidation': 'not_run_server_runner' if platform.system() == 'Windows' else 'not_applicable',
+            'credentialStoreIntegration': 'not_run', 'OpenDBrokerLifecycle': 'not_run',
+            'AppleSiliconOpenDRosetta': 'not_run', 'signingNotarization': 'not_run'
+          }, indent=2))
+      - name: Retain development packages and receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: leo-strategy-native-${{ matrix.label }}-${{ github.sha }}
+          path: |
+            native-output/*.zip
+            native-output/*.tar.gz
+            native-output/*.msi
+            native-output/*receipt.json
+            native-output/verification/windows-install-receipt.json
+            native-output/verification/*.log
+            native-output/ci-scope.json
+            native-output/ARTIFACT-SHA256SUMS
+          if-no-files-found: warn
+          retention-days: 14

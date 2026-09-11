@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "leo.connector-validation.v1",
+  "recordedAt": "2026-09-08T01:30:05.808568+00:00",
+  "host": "Windows-11-10.0.26200-SP0",
+  "rustToolchain": "1.94.0-x86_64-pc-windows-msvc",
+  "pythonRuntime": "3.12.14",
+  "scope": "offline engineering verification only; no OpenD context or broker account accessed",
+  "tests": {
+    "rustPassed": 19,
+    "pythonFakeSdkPassed": 13,
+    "clippyAllTargetsWarningsDenied": "passed",
+    "actualReleaseEngineIntegration": "passed",
+    "prewindowToEntryRegression": "passed",
+    "dryRunNoBrokerMutation": "passed",
+    "byteBoundedOutbox": "passed",
+    "perPayloadTransportBound": "passed: new payload <=16000 UTF-8 bytes; prior retries preserve API-compatible UTF-16 payloads",
+    "twentyKilobyteSavedBatchRecovery": "passed"
+  },
+  "commands": [
+    "cargo +1.94.0 test --locked --manifest-path platform/connectors/strategy/Cargo.toml (LEO_TEST_ENGINE points to RELEASE engine)",
+    "cargo +1.94.0 clippy --locked --manifest-path platform/connectors/strategy/Cargo.toml --all-targets -- -D warnings",
+    "python -m unittest -v test_paper_sdk (adapter directory)",
+    "cargo +1.94.0 build --locked --release --manifest-path platform/connectors/strategy/Cargo.toml",
+    "cargo +1.94.0 build --locked --release --manifest-path platform/quant_engine_rs/Cargo.toml --bin strategy-lab"
+  ],
+  "artifacts": [
+    {
+      "path": "platform/connectors/strategy/target/release/leo-strategy-connector.exe",
+      "sha256": "ee11bef1ec07fcaada807fa63ad037140d1805cde1f27ea32fdca6c62a6376d3",
+      "bytes": 8182272,
+      "signed": false
+    },
+    {
+      "path": "platform/quant_engine_rs/target/release/strategy-lab.exe",
+      "sha256": "65de293297ded5457c0c9ae7890cb92eeedbc45de7d45da07ecf2782fc637973",
+      "bytes": 1724928,
+      "signed": false
+    },
+    {
+      "path": "platform/connectors/strategy/dist/sidecar/leo-paper-sdk/leo-paper-sdk.exe",
+      "sha256": "63c86d4a5978a509b05eb74322d8f8e8a6663f3f8f5d2a7a52f85f657a501ba9",
+      "bytes": 12569576,
+      "signed": false
+    }
+  ],
+  "sourceHashes": {
+    "adapter/paper_sdk.py": "33763ece036503e9827e7d2c0293cc180c471f27bed8ea4366317c7b12c2d56d",
+    "adapter/requirements.txt": "da2e2bd5db1bc8097bb3ff2c8eed1e024210e66a3f6c76323e1799d7ee28439d",
+    "Cargo.lock": "50a784bb04f1cf9089529a1c0f13fb28daac9b41fa2a3b0012148515a58bd145",
+    "Cargo.toml": "606b40a60eb0841696c6809d8ffe6660ba0bf1da6684ffbeb17a61ea8277b17d",
+    "src/core.rs": "3ebc45aa1ced3f9bf0f6e27d4d14a5ed1d010b6def878838424b33acfc24ce00",
+    "src/lib.rs": "401c26fe224a4a7c26a4fda4a6e64a0a17265f9894ef648a88862167fa8c9e79",
+    "src/main.rs": "cfd762a2c911ba2917763ee04ee0279029ff94a1e7c57caed86a9100078be343",
+    "src/protocol.rs": "e4e9c947a9c9b1d232cec8fc3365aacccb3eace79f5735acb366de4a5dd2ace0",
+    "src/runtime.rs": "0669b607b86edc74154d58c1203698b39a6f3117ddb17c6a054d47f2566d515f",
+    "src/store.rs": "587a82d31ec972d24de4f104ee4985c9bc1fa8befa13faa3659a124a331a1779"
+  },
+  "smoke": {
+    "connector": {
+      "brokerChecked": false,
+      "controlPollSeconds": 5,
+      "entryLeaseSeconds": 15,
+      "paired": false,
+      "paperOnly": true,
+      "protection": "local_software_stop_requires_running_computer",
+      "stateDirectory": "C:\\Users\\Hj\\AppData\\Local\\Leo/StrategyConnector",
+      "version": "0.1.0"
+    },
+    "frozenSdk": {
+      "paperOnly": true,
+      "brokerConnected": false,
+      "sdkVersion": "10.10.7008",
+      "calendarVersion": "4.11.2",
+      "calendarSmokePassed": true
+    },
+    "realEnvironmentRejection": {
+      "error": "paper_sdk_operation_unavailable",
+      "execution_authorized": false,
+      "submission_attempted": false
+    }
+  },
+  "externalEvidencePending": [
+    "Authenticated control-plane pairing and 5-second polls against deployed API",
+    "User OpenD login, account-specific security firm and data subscriptions",
+    "Actual broker paper entry/partial/cancel/exit and restart reconciliation",
+    "OS credential-store round trip on each supported native target",
+    "macOS and Linux native package execution",
+    "Code signing, notarization, installer clean-machine smoke and distribution approval",
+    "Strategy profitability or promoted out-of-sample edge"
+  ]
+}

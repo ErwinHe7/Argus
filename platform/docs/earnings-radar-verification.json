@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "leo-earnings-verification.v1",
+  "verifiedAt": "2026-09-10T19:28:46.7723066Z",
+  "rustToolchain": "1.97.1-x86_64-pc-windows-msvc",
+  "platform": "Windows x64",
+  "checks": [
+    {
+      "name": "Rust earnings module",
+      "passed": 12,
+      "failed": 0,
+      "command": "cargo test --lib earnings_radar -- --nocapture"
+    },
+    {
+      "name": "Browser report contract",
+      "passed": 3,
+      "failed": 0,
+      "command": "node --import tsx --test features/research-desk/radar/earnings-contract.test.ts"
+    },
+    {
+      "name": "Native CLI to browser contract",
+      "passed": 3,
+      "failed": 0,
+      "command": "node --import tsx features/research-desk/tests/earnings-native-contract.ts quant_engine_rs/target/debug/earnings-radar.exe"
+    }
+  ],
+  "nativeBuild": "development_unsigned",
+  "rustfmt": "passed_scoped_files",
+  "brokerEvidence": false,
+  "marketObservations": "fictional_test_inputs_only",
+  "publicMarketComparisonPublished": false,
+  "otherNativePlatformsVerified": false,
+  "hashes": [
+    {
+      "path": "C:\\Users\\Hj\\Desktop\\Leo Roar\\Argus\\platform\\quant_engine_rs\\target\\debug\\earnings-radar.exe",
+      "sha256": "c2af7d59605acfc681572c82db2c68adeaa7f410292bbdb784cf9573028bfdfb"
+    },
+    {
+      "path": "C:\\Users\\Hj\\Desktop\\Leo Roar\\Argus\\platform\\quant_engine_rs\\src\\earnings_radar.rs",
+      "sha256": "33da3c42c829f61c4984c156eebf502c6810c4bcfbbfff79c5cdc6dba1f9b385"
+    },
+    {
+      "path": "C:\\Users\\Hj\\Desktop\\Leo Roar\\Argus\\platform\\quant_engine_rs\\src\\bin\\earnings-radar.rs",
+      "sha256": "f449164cfff442d2cc59cc985e51d8b581b2d79ff417065b5f3460d47cb862eb"
+    },
+    {
+      "path": "C:\\Users\\Hj\\Desktop\\Leo Roar\\Argus\\platform\\features\\research-desk\\radar\\earnings-contract.ts",
+      "sha256": "5dc98607c28a1d2942f58da6e97718a7ea0c8abf888ef8ffa0ee70251ae3a745"
+    }
+  ]
+}

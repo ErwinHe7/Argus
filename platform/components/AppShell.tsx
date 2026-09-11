@@ -16,7 +16,7 @@ export function AppShell({
 }) {
   const pathname = usePathname();
   const isResearchHome =
-    pathname === '/' || pathname === '/research' || pathname === '/acceptance/research';
+    pathname === '/' || pathname === '/original' || pathname === '/original/' || pathname === '/research' || pathname === '/research/iv' || pathname === '/acceptance/research' || pathname.startsWith('/discover/market-map') || pathname === '/discover/stocks' || pathname === '/brokers';
   const isIntradayQuant = pathname === '/quant/intraday';
 
   if (isResearchHome) {

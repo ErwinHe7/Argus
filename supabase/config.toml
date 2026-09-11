@@ -4,6 +4,11 @@
 # working directory name when running `supabase init`.
 project_id = "argus"
 
+[functions.strategy-api]
+# Member JWTs are independently verified with the existing issuer/JWKS boundary.
+# Device routes require a hashed, paired, scoped connector credential instead.
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

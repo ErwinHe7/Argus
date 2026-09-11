@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "leo-vps-final-package-verification.v1",
+  "archive": "leo-vps-source-20260908-v3.zip",
+  "archiveSha256": "5814a95ffa8a4ac6c9575c776f6e5ebcb4f27d20f788762558ed03ab8d393abd",
+  "sourceFiles": 122,
+  "sourceSha256": "5dce37775fab8240e5e2c29ae93a1f25406d1bc88eb18d7652a714859abb75e5",
+  "extractedSourceVerified": true,
+  "ubuntu24StdlibRuntimePrepared": true,
+  "servicesStarted": 0,
+  "actualVps": false,
+  "notes": "Header-only publisher fix; targeted delivery tests and actual hosted publication separately verified. Prior Linux test suite receipt is retained for its earlier source."
+}

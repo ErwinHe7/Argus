@@ -1,0 +1,24 @@
+# Render with install-shortlist-service.sh; never install placeholders.
+[Unit]
+Description=Leo deterministic stock shortlist publisher
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+WorkingDirectory=@PLATFORM@
+Environment=@PYTHONPATH@
+Environment=PYTHONUNBUFFERED=1
+@ENVIRONMENT_FILE@
+ExecStart=:@PYTHON@ -m intraday_quant.shortlist_service run --config @CONFIG@
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=45
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

@@ -1551,6 +1551,139 @@ components:
         - data
         - meta
       type: object
+    BrokerageProviderCatalog:
+      additionalProperties: false
+      properties:
+        automatic_execution:
+          enum:
+            - false
+          type: boolean
+        execution_mode:
+          enum:
+            - user_confirmed
+          type: string
+        launch_region:
+          enum:
+            - US
+          type: string
+        providers:
+          items:
+            $ref: "#/components/schemas/BrokerageProviderReadiness"
+          type: array
+      required:
+        - launch_region
+        - execution_mode
+        - automatic_execution
+        - providers
+      type: object
+    BrokerageProviderCatalogResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/BrokerageProviderCatalog"
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
+      type: object
+    BrokerageProviderReadiness:
+      additionalProperties: false
+      properties:
+        connection_available:
+          enum:
+            - false
+          type: boolean
+        documentation_url:
+          format: uri
+          type: string
+        id:
+          enum:
+            - ibkr
+            - moomoo
+            - webull
+          type: string
+        implementation:
+          enum:
+            - adapter_pending
+            - fixture_validated_connection_and_manual_orders
+          type: string
+        integration_mode:
+          enum:
+            - third_party_oauth
+            - oauth_2_1_pkce
+            - webull_connect
+          type: string
+        manual_orders_available:
+          enum:
+            - false
+          type: boolean
+        name:
+          maxLength: 64
+          minLength: 1
+          type: string
+        next_step:
+          maxLength: 600
+          minLength: 1
+          type: string
+        reason_codes:
+          items:
+            maxLength: 80
+            minLength: 1
+            type: string
+          maxItems: 10
+          minItems: 1
+          type: array
+        requirements:
+          items:
+            $ref: "#/components/schemas/BrokerageProviderRequirement"
+          maxItems: 10
+          minItems: 1
+          type: array
+        status:
+          enum:
+            - setup_required
+          type: string
+      required:
+        - id
+        - name
+        - status
+        - connection_available
+        - manual_orders_available
+        - integration_mode
+        - implementation
+        - reason_codes
+        - requirements
+        - documentation_url
+        - next_step
+      type: object
+    BrokerageProviderRequirement:
+      additionalProperties: false
+      properties:
+        id:
+          maxLength: 64
+          minLength: 1
+          type: string
+        label:
+          maxLength: 400
+          minLength: 1
+          type: string
+        status:
+          enum:
+            - required
+          type: string
+      required:
+        - id
+        - label
+        - status
+      type: object
     BrokerageRestriction:
       additionalProperties: false
       properties:
@@ -3262,6 +3395,1414 @@ components:
       required:
         - data
         - meta
+      type: object
+    MarketMapBar:
+      additionalProperties: false
+      properties:
+        close:
+          exclusiveMinimum: true
+          maximum: 1000000000
+          minimum: 0
+          type: number
+        high:
+          exclusiveMinimum: true
+          maximum: 1000000000
+          minimum: 0
+          type: number
+        low:
+          exclusiveMinimum: true
+          maximum: 1000000000
+          minimum: 0
+          type: number
+        observed_at:
+          format: date-time
+          type: string
+        open:
+          exclusiveMinimum: true
+          maximum: 1000000000
+          minimum: 0
+          type: number
+        session:
+          enum:
+            - regular
+          type: string
+        volume:
+          maximum: 1000000000000000000
+          minimum: 0
+          type: number
+      required:
+        - observed_at
+        - open
+        - high
+        - low
+        - close
+        - volume
+        - session
+      type: object
+    MarketMapImpliedVolatilityPanel:
+      additionalProperties: false
+      properties:
+        change_5d_percentage_points:
+          maximum: 100000
+          minimum: -10000
+          type: number
+        current_percent:
+          maximum: 1000
+          minimum: 0
+          type: number
+        evidence_refs:
+          items:
+            maxLength: 64
+            minLength: 1
+            pattern: ^[a-z0-9][a-z0-9._:-]*$
+            type: string
+          maxItems: 12
+          minItems: 1
+          type: array
+        moneyness:
+          enum:
+            - atm
+          type: string
+        series:
+          items:
+            additionalProperties: false
+            properties:
+              observed_at:
+                format: date-time
+                type: string
+              percent:
+                maximum: 1000
+                minimum: 0
+                type: number
+            required:
+              - observed_at
+              - percent
+            type: object
+          maxItems: 252
+          minItems: 6
+          type: array
+        source_observed_at:
+          format: date-time
+          type: string
+        tenor_days:
+          maximum: 730
+          minimum: 1
+          type: integer
+      required:
+        - source_observed_at
+        - tenor_days
+        - moneyness
+        - current_percent
+        - change_5d_percentage_points
+        - series
+        - evidence_refs
+      type: object
+    MarketMapMonteCarlo:
+      additionalProperties: false
+      properties:
+        as_of:
+          format: date-time
+          type: string
+        assumptions:
+          items:
+            maxLength: 500
+            minLength: 1
+            type: string
+          maxItems: 20
+          minItems: 1
+          type: array
+        block_length_sessions:
+          maximum: 60
+          minimum: 1
+          type: integer
+        calibration_status:
+          enum:
+            - uncalibrated
+          type: string
+        evidence_refs:
+          items:
+            maxLength: 64
+            minLength: 1
+            pattern: ^[a-z0-9][a-z0-9._:-]*$
+            type: string
+          maxItems: 20
+          minItems: 1
+          type: array
+        horizon_sessions:
+          maximum: 252
+          minimum: 1
+          type: integer
+        input_sha256:
+          pattern: ^[a-f0-9]{64}$
+          type: string
+        interpretation:
+          enum:
+            - uncalibrated_simulation_not_forecast
+          type: string
+        model:
+          enum:
+            - historical_block_bootstrap
+          type: string
+        path_sampling_method:
+          enum:
+            - deterministic_stratified
+          type: string
+        return_basis:
+          enum:
+            - log_close_to_close
+          type: string
+        sample_window_sessions:
+          maximum: 756
+          minimum: 60
+          type: integer
+        sampled_paths:
+          items:
+            additionalProperties: false
+            properties:
+              points:
+                items:
+                  additionalProperties: false
+                  properties:
+                    price:
+                      exclusiveMinimum: true
+                      maximum: 1000000000
+                      minimum: 0
+                      type: number
+                    projected_at:
+                      format: date-time
+                      type: string
+                    session_offset:
+                      maximum: 252
+                      minimum: 0
+                      type: integer
+                  required:
+                    - session_offset
+                    - projected_at
+                    - price
+                  type: object
+                maxItems: 253
+                minItems: 2
+                type: array
+              sample_id:
+                maximum: 1000000
+                minimum: 0
+                type: integer
+            required:
+              - sample_id
+              - points
+            type: object
+          maxItems: 64
+          minItems: 8
+          type: array
+        seed_sha256:
+          pattern: ^[a-f0-9]{64}$
+          type: string
+        terminal_density:
+          items:
+            additionalProperties: false
+            properties:
+              density:
+                maximum: 1000000000
+                minimum: 0
+                type: number
+              lower_price:
+                exclusiveMinimum: true
+                maximum: 1000000000
+                minimum: 0
+                type: number
+              probability_mass:
+                maximum: 1
+                minimum: 0
+                type: number
+              sample_count:
+                maximum: 1000000
+                minimum: 0
+                type: integer
+              upper_price:
+                exclusiveMinimum: true
+                maximum: 1000000000
+                minimum: 0
+                type: number
+            required:
+              - lower_price
+              - upper_price
+              - sample_count
+              - probability_mass
+              - density
+            type: object
+          maxItems: 128
+          minItems: 8
+          type: array
+        terminal_particles:
+          items:
+            additionalProperties: false
+            properties:
+              sample_id:
+                maximum: 1000000
+                minimum: 0
+                type: integer
+              terminal_price:
+                exclusiveMinimum: true
+                maximum: 1000000000
+                minimum: 0
+                type: number
+              terminal_return_percent:
+                maximum: 100000
+                minimum: -10000
+                type: number
+            required:
+              - sample_id
+              - terminal_price
+              - terminal_return_percent
+            type: object
+          maxItems: 2048
+          minItems: 128
+          type: array
+        terminal_quantiles:
+          additionalProperties: false
+          properties:
+            p01:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+            p05:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+            p25:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+            p50:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+            p75:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+            p95:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+            p99:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+          required:
+            - p01
+            - p05
+            - p25
+            - p50
+            - p75
+            - p95
+            - p99
+          type: object
+        trial_count:
+          maximum: 1000000
+          minimum: 5000
+          type: integer
+      required:
+        - as_of
+        - horizon_sessions
+        - trial_count
+        - input_sha256
+        - seed_sha256
+        - model
+        - calibration_status
+        - sample_window_sessions
+        - block_length_sessions
+        - return_basis
+        - path_sampling_method
+        - sampled_paths
+        - terminal_particles
+        - terminal_density
+        - terminal_quantiles
+        - assumptions
+        - evidence_refs
+        - interpretation
+      type: object
+    MarketMapProvenance:
+      additionalProperties: false
+      properties:
+        available_at:
+          format: date-time
+          type: string
+        caveats:
+          items:
+            maxLength: 500
+            minLength: 1
+            type: string
+          maxItems: 20
+          minItems: 2
+          type: array
+        coverage:
+          additionalProperties: false
+          properties:
+            completeness_ratio:
+              maximum: 1
+              minimum: 0
+              type: number
+            corporate_actions_adjusted:
+              type: boolean
+            end_at:
+              format: date-time
+              type: string
+            expected_sessions:
+              maximum: 756
+              minimum: 60
+              type: integer
+            observed_sessions:
+              maximum: 756
+              minimum: 0
+              type: integer
+            regular_session_only:
+              enum:
+                - true
+              type: boolean
+            required_inputs:
+              items:
+                additionalProperties: false
+                properties:
+                  name:
+                    enum:
+                      - ohlcv
+                      - corporate_actions
+                      - options_iv
+                      - sector_benchmark
+                      - simulation_artifact
+                    type: string
+                  observed_at:
+                    format: date-time
+                    type: string
+                  state:
+                    enum:
+                      - available
+                      - missing
+                      - stale
+                      - partial
+                      - unentitled
+                    type: string
+                required:
+                  - name
+                  - state
+                  - observed_at
+                type: object
+              type: array
+            start_at:
+              format: date-time
+              type: string
+            state:
+              enum:
+                - complete
+                - partial
+                - insufficient
+              type: string
+          required:
+            - state
+            - completeness_ratio
+            - start_at
+            - end_at
+            - expected_sessions
+            - observed_sessions
+            - required_inputs
+            - regular_session_only
+            - corporate_actions_adjusted
+          type: object
+        freshness:
+          additionalProperties: false
+          properties:
+            expires_at:
+              format: date-time
+              type: string
+            max_age_seconds:
+              exclusiveMinimum: true
+              maximum: 604800
+              minimum: 0
+              type: integer
+            state:
+              enum:
+                - fresh
+                - stale
+                - expired
+              type: string
+          required:
+            - state
+            - max_age_seconds
+            - expires_at
+          type: object
+        generated_at:
+          format: date-time
+          type: string
+        observation_cutoff:
+          format: date-time
+          type: string
+        rights:
+          additionalProperties: false
+          properties:
+            display_authorized:
+              type: boolean
+            entitlement:
+              enum:
+                - member_research
+                - none
+              type: string
+            redistribution_authorized:
+              enum:
+                - false
+              type: boolean
+          required:
+            - entitlement
+            - display_authorized
+            - redistribution_authorized
+          type: object
+        sources:
+          items:
+            additionalProperties: false
+            properties:
+              available_at:
+                format: date-time
+                type: string
+              dataset:
+                maxLength: 160
+                minLength: 1
+                type: string
+              delay_minutes:
+                maximum: 10080
+                minimum: 0
+                type: integer
+              id:
+                maxLength: 64
+                minLength: 1
+                pattern: ^[a-z0-9][a-z0-9._:-]*$
+                type: string
+              observed_at:
+                format: date-time
+                type: string
+              provider:
+                maxLength: 120
+                minLength: 1
+                type: string
+              retrieved_at:
+                format: date-time
+                type: string
+            required:
+              - id
+              - provider
+              - dataset
+              - observed_at
+              - available_at
+              - retrieved_at
+              - delay_minutes
+            type: object
+          maxItems: 20
+          minItems: 3
+          type: array
+        versions:
+          additionalProperties: false
+          properties:
+            features:
+              maxLength: 128
+              minLength: 1
+              pattern: ^[A-Za-z0-9._:+/-]+$
+              type: string
+            market_data:
+              maxLength: 128
+              minLength: 1
+              pattern: ^[A-Za-z0-9._:+/-]+$
+              type: string
+            methodology:
+              maxLength: 128
+              minLength: 1
+              pattern: ^[A-Za-z0-9._:+/-]+$
+              type: string
+            monte_carlo_model:
+              maxLength: 128
+              minLength: 1
+              pattern: ^[A-Za-z0-9._:+/-]+$
+              type: string
+            schema:
+              enum:
+                - market-map-snapshot-v1
+              type: string
+          required:
+            - schema
+            - market_data
+            - features
+            - monte_carlo_model
+            - methodology
+          type: object
+      required:
+        - sources
+        - observation_cutoff
+        - available_at
+        - generated_at
+        - freshness
+        - coverage
+        - rights
+        - versions
+        - caveats
+      type: object
+    MarketMapRead:
+      additionalProperties: false
+      properties:
+        as_of:
+          format: date-time
+          type: string
+        disclosure:
+          maxLength: 1000
+          minLength: 40
+          type: string
+        items:
+          items:
+            additionalProperties: false
+            properties:
+              evidence_refs:
+                items:
+                  maxLength: 64
+                  minLength: 1
+                  pattern: ^[a-z0-9][a-z0-9._:-]*$
+                  type: string
+                maxItems: 20
+                minItems: 1
+                type: array
+              id:
+                maxLength: 64
+                minLength: 1
+                pattern: ^[a-z0-9][a-z0-9._:-]*$
+                type: string
+              kind:
+                enum:
+                  - range
+                  - trend
+                  - momentum
+                  - volatility
+                  - volume
+                  - sector
+                  - simulation
+                  - limitation
+                type: string
+              text:
+                maxLength: 1000
+                minLength: 1
+                type: string
+            required:
+              - id
+              - kind
+              - text
+              - evidence_refs
+            type: object
+          maxItems: 12
+          minItems: 3
+          type: array
+        language:
+          maxLength: 35
+          minLength: 2
+          pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
+          type: string
+        summary:
+          maxLength: 1000
+          minLength: 1
+          type: string
+        title:
+          maxLength: 120
+          minLength: 1
+          type: string
+      required:
+        - as_of
+        - language
+        - title
+        - summary
+        - items
+        - disclosure
+      type: object
+    MarketMapSectorPanel:
+      additionalProperties: false
+      properties:
+        asset_relative_5d_percent:
+          maximum: 100000
+          minimum: -10000
+          type: number
+        benchmark_symbol:
+          maxLength: 32
+          minLength: 1
+          pattern: ^[A-Z0-9.^/-]+$
+          type: string
+        evidence_refs:
+          items:
+            maxLength: 64
+            minLength: 1
+            pattern: ^[a-z0-9][a-z0-9._:-]*$
+            type: string
+          maxItems: 12
+          minItems: 1
+          type: array
+        return_5d_percent:
+          maximum: 100000
+          minimum: -10000
+          type: number
+        sector_id:
+          maxLength: 64
+          minLength: 1
+          pattern: ^[a-z0-9][a-z0-9._-]*$
+          type: string
+        sector_name:
+          maxLength: 120
+          minLength: 1
+          type: string
+        series:
+          items:
+            additionalProperties: false
+            properties:
+              observed_at:
+                format: date-time
+                type: string
+              value:
+                type: number
+            required:
+              - observed_at
+              - value
+            type: object
+          maxItems: 252
+          minItems: 6
+          type: array
+        state:
+          enum:
+            - defensive
+            - neutral
+            - offensive
+          type: string
+      required:
+        - sector_id
+        - sector_name
+        - benchmark_symbol
+        - return_5d_percent
+        - asset_relative_5d_percent
+        - state
+        - series
+        - evidence_refs
+      type: object
+    MarketMapSnapshot:
+      additionalProperties: false
+      properties:
+        asset:
+          additionalProperties: false
+          properties:
+            asset_id:
+              format: uuid
+              type: string
+            asset_type:
+              enum:
+                - equity
+                - etf
+                - market_index
+              type: string
+            currency:
+              pattern: ^[A-Z]{3}$
+              type: string
+            exchange:
+              maxLength: 64
+              minLength: 1
+              type: string
+            market_timezone:
+              maxLength: 64
+              minLength: 1
+              type: string
+            name:
+              maxLength: 160
+              minLength: 1
+              type: string
+            symbol:
+              maxLength: 32
+              minLength: 1
+              pattern: ^[A-Z0-9.^/-]+$
+              type: string
+          required:
+            - asset_id
+            - symbol
+            - name
+            - asset_type
+            - exchange
+            - currency
+            - market_timezone
+          type: object
+        bars:
+          items:
+            $ref: "#/components/schemas/MarketMapBar"
+          maxItems: 756
+          minItems: 60
+          type: array
+        evidence:
+          items:
+            additionalProperties: false
+            properties:
+              field_path:
+                maxLength: 240
+                minLength: 1
+                pattern: ^[a-z0-9_.:[\]-]+$
+                type: string
+              id:
+                maxLength: 64
+                minLength: 1
+                pattern: ^[a-z0-9][a-z0-9._:-]*$
+                type: string
+              kind:
+                enum:
+                  - bar
+                  - indicator
+                  - pivot
+                  - level
+                  - simulation
+                  - volume
+                  - options
+                  - sector
+                type: string
+              label:
+                maxLength: 160
+                minLength: 1
+                type: string
+              observed_at:
+                format: date-time
+                type: string
+              source_id:
+                maxLength: 64
+                minLength: 1
+                pattern: ^[a-z0-9][a-z0-9._:-]*$
+                type: string
+            required:
+              - id
+              - kind
+              - label
+              - source_id
+              - observed_at
+              - field_path
+            type: object
+          maxItems: 256
+          minItems: 8
+          type: array
+        horizon:
+          enum:
+            - 5d
+            - 10d
+            - 20d
+            - 60d
+          type: string
+        last_price:
+          exclusiveMinimum: true
+          maximum: 1000000000
+          minimum: 0
+          type: number
+        levels:
+          items:
+            additionalProperties: false
+            properties:
+              distance_from_last_percent:
+                maximum: 100000
+                minimum: -10000
+                type: number
+              evidence_refs:
+                items:
+                  maxLength: 64
+                  minLength: 1
+                  pattern: ^[a-z0-9][a-z0-9._:-]*$
+                  type: string
+                maxItems: 12
+                minItems: 1
+                type: array
+              id:
+                maxLength: 64
+                minLength: 1
+                pattern: ^[a-z0-9][a-z0-9._:-]*$
+                type: string
+              label:
+                maxLength: 80
+                minLength: 1
+                type: string
+              method:
+                maxLength: 160
+                minLength: 1
+                type: string
+              price:
+                exclusiveMinimum: true
+                maximum: 1000000000
+                minimum: 0
+                type: number
+              role:
+                enum:
+                  - stretch
+                  - resistance
+                  - last
+                  - sma20
+                  - support
+                  - down
+                type: string
+            required:
+              - id
+              - role
+              - label
+              - price
+              - distance_from_last_percent
+              - method
+              - evidence_refs
+            type: object
+          type: array
+        monte_carlo:
+          $ref: "#/components/schemas/MarketMapMonteCarlo"
+        panels:
+          additionalProperties: false
+          properties:
+            implied_volatility:
+              $ref: "#/components/schemas/MarketMapImpliedVolatilityPanel"
+            sector:
+              $ref: "#/components/schemas/MarketMapSectorPanel"
+            volume:
+              $ref: "#/components/schemas/MarketMapVolumePanel"
+          required:
+            - volume
+            - implied_volatility
+            - sector
+          type: object
+        provenance:
+          $ref: "#/components/schemas/MarketMapProvenance"
+        read:
+          $ref: "#/components/schemas/MarketMapRead"
+        scenarios:
+          items:
+            additionalProperties: false
+            properties:
+              evidence_refs:
+                items:
+                  maxLength: 64
+                  minLength: 1
+                  pattern: ^[a-z0-9][a-z0-9._:-]*$
+                  type: string
+                maxItems: 12
+                minItems: 1
+                type: array
+              id:
+                maxLength: 64
+                minLength: 1
+                pattern: ^[a-z0-9][a-z0-9._:-]*$
+                type: string
+              interpretation:
+                maxLength: 500
+                minLength: 1
+                type: string
+              is_forecast:
+                enum:
+                  - false
+                type: boolean
+              kind:
+                enum:
+                  - bull
+                  - base
+                  - bear
+                type: string
+              label:
+                maxLength: 80
+                minLength: 1
+                type: string
+              points:
+                items:
+                  additionalProperties: false
+                  properties:
+                    price:
+                      exclusiveMinimum: true
+                      maximum: 1000000000
+                      minimum: 0
+                      type: number
+                    projected_at:
+                      format: date-time
+                      type: string
+                    session_offset:
+                      maximum: 252
+                      minimum: 0
+                      type: integer
+                  required:
+                    - session_offset
+                    - projected_at
+                    - price
+                  type: object
+                maxItems: 253
+                minItems: 2
+                type: array
+            required:
+              - id
+              - kind
+              - label
+              - interpretation
+              - is_forecast
+              - points
+              - evidence_refs
+            type: object
+          type: array
+        snapshot_id:
+          format: uuid
+          type: string
+        state:
+          enum:
+            - bull
+            - neutral
+            - bear
+          type: string
+        technical_indicators:
+          $ref: "#/components/schemas/MarketMapTechnicalIndicators"
+        timeframe:
+          enum:
+            - 1d
+          type: string
+        zigzag:
+          $ref: "#/components/schemas/MarketMapZigZag"
+      required:
+        - snapshot_id
+        - asset
+        - horizon
+        - timeframe
+        - state
+        - last_price
+        - bars
+        - technical_indicators
+        - zigzag
+        - levels
+        - scenarios
+        - monte_carlo
+        - panels
+        - evidence
+        - read
+        - provenance
+      type: object
+    MarketMapSnapshotResponse:
+      additionalProperties: false
+      properties:
+        data:
+          $ref: "#/components/schemas/MarketMapSnapshot"
+        meta:
+          additionalProperties: false
+          properties:
+            request_id:
+              format: uuid
+              type: string
+          required:
+            - request_id
+          type: object
+      required:
+        - data
+        - meta
+      type: object
+    MarketMapTechnicalIndicators:
+      additionalProperties: false
+      properties:
+        atr14:
+          additionalProperties: false
+          properties:
+            latest:
+              minimum: 0
+              type: number
+            period_sessions:
+              enum:
+                - 14
+              type: number
+            points:
+              items:
+                additionalProperties: false
+                properties:
+                  observed_at:
+                    format: date-time
+                    type: string
+                  value:
+                    type: number
+                required:
+                  - observed_at
+                  - value
+                type: object
+              maxItems: 756
+              minItems: 20
+              type: array
+          required:
+            - period_sessions
+            - points
+            - latest
+          type: object
+        bollinger20:
+          additionalProperties: false
+          properties:
+            period_sessions:
+              enum:
+                - 20
+              type: number
+            points:
+              items:
+                additionalProperties: false
+                properties:
+                  lower:
+                    exclusiveMinimum: true
+                    maximum: 1000000000
+                    minimum: 0
+                    type: number
+                  middle:
+                    exclusiveMinimum: true
+                    maximum: 1000000000
+                    minimum: 0
+                    type: number
+                  observed_at:
+                    format: date-time
+                    type: string
+                  upper:
+                    exclusiveMinimum: true
+                    maximum: 1000000000
+                    minimum: 0
+                    type: number
+                required:
+                  - observed_at
+                  - lower
+                  - middle
+                  - upper
+                type: object
+              maxItems: 756
+              minItems: 20
+              type: array
+            standard_deviations:
+              maximum: 5
+              minimum: 0.5
+              type: number
+          required:
+            - period_sessions
+            - standard_deviations
+            - points
+          type: object
+        momentum:
+          additionalProperties: false
+          properties:
+            lookback_sessions:
+              maximum: 126
+              minimum: 2
+              type: integer
+            points:
+              items:
+                additionalProperties: false
+                properties:
+                  acceleration_percent_per_session_squared:
+                    maximum: 100000
+                    minimum: -10000
+                    type: number
+                  observed_at:
+                    format: date-time
+                    type: string
+                  signal:
+                    type: number
+                  value:
+                    type: number
+                  velocity_percent_per_session:
+                    maximum: 100000
+                    minimum: -10000
+                    type: number
+                required:
+                  - observed_at
+                  - value
+                  - signal
+                  - velocity_percent_per_session
+                  - acceleration_percent_per_session_squared
+                type: object
+              maxItems: 756
+              minItems: 20
+              type: array
+            signal_sessions:
+              maximum: 126
+              minimum: 2
+              type: integer
+            state:
+              enum:
+                - knife
+                - falling
+                - flat
+                - rising
+                - spike
+              type: string
+          required:
+            - lookback_sessions
+            - signal_sessions
+            - state
+            - points
+          type: object
+        rsi14:
+          additionalProperties: false
+          properties:
+            latest:
+              maximum: 100
+              minimum: 0
+              type: number
+            period_sessions:
+              enum:
+                - 14
+              type: number
+            points:
+              items:
+                additionalProperties: false
+                properties:
+                  observed_at:
+                    format: date-time
+                    type: string
+                  value:
+                    type: number
+                required:
+                  - observed_at
+                  - value
+                type: object
+              maxItems: 756
+              minItems: 20
+              type: array
+          required:
+            - period_sessions
+            - points
+            - latest
+          type: object
+        sma20:
+          additionalProperties: false
+          properties:
+            period_sessions:
+              enum:
+                - 20
+              type: number
+            points:
+              items:
+                additionalProperties: false
+                properties:
+                  observed_at:
+                    format: date-time
+                    type: string
+                  price:
+                    exclusiveMinimum: true
+                    maximum: 1000000000
+                    minimum: 0
+                    type: number
+                required:
+                  - observed_at
+                  - price
+                type: object
+              maxItems: 756
+              minItems: 20
+              type: array
+          required:
+            - period_sessions
+            - points
+          type: object
+      required:
+        - sma20
+        - bollinger20
+        - rsi14
+        - atr14
+        - momentum
+      type: object
+    MarketMapVolumePanel:
+      additionalProperties: false
+      properties:
+        average_volume:
+          maximum: 1000000000000000000
+          minimum: 0
+          type: number
+        average_window_sessions:
+          maximum: 252
+          minimum: 2
+          type: integer
+        evidence_refs:
+          items:
+            maxLength: 64
+            minLength: 1
+            pattern: ^[a-z0-9][a-z0-9._:-]*$
+            type: string
+          maxItems: 12
+          minItems: 1
+          type: array
+        latest_volume:
+          maximum: 1000000000000000000
+          minimum: 0
+          type: number
+        relative_volume:
+          maximum: 1000
+          minimum: 0
+          type: number
+        series:
+          items:
+            additionalProperties: false
+            properties:
+              observed_at:
+                format: date-time
+                type: string
+              volume:
+                maximum: 1000000000000000000
+                minimum: 0
+                type: number
+            required:
+              - observed_at
+              - volume
+            type: object
+          maxItems: 252
+          minItems: 10
+          type: array
+        volume_at_price:
+          additionalProperties: false
+          properties:
+            bins:
+              items:
+                additionalProperties: false
+                properties:
+                  lower_price:
+                    exclusiveMinimum: true
+                    maximum: 1000000000
+                    minimum: 0
+                    type: number
+                  recent_volume:
+                    maximum: 1000000000000000000
+                    minimum: 0
+                    type: number
+                  side:
+                    enum:
+                      - supply
+                      - demand
+                      - at_last
+                    type: string
+                  upper_price:
+                    exclusiveMinimum: true
+                    maximum: 1000000000
+                    minimum: 0
+                    type: number
+                  volume:
+                    maximum: 1000000000000000000
+                    minimum: 0
+                    type: number
+                required:
+                  - lower_price
+                  - upper_price
+                  - volume
+                  - recent_volume
+                  - side
+                type: object
+              maxItems: 128
+              minItems: 8
+              type: array
+            method:
+              enum:
+                - observed_trade_volume
+              type: string
+            point_of_control_price:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+            source_id:
+              maxLength: 64
+              minLength: 1
+              pattern: ^[a-z0-9][a-z0-9._:-]*$
+              type: string
+          required:
+            - method
+            - source_id
+            - bins
+            - point_of_control_price
+          type: object
+      required:
+        - latest_volume
+        - average_volume
+        - average_window_sessions
+        - relative_volume
+        - series
+        - evidence_refs
+      type: object
+    MarketMapZigZag:
+      additionalProperties: false
+      properties:
+        confirmed_pivots:
+          items:
+            additionalProperties: false
+            properties:
+              confirmed:
+                enum:
+                  - true
+                type: boolean
+              confirmed_at:
+                format: date-time
+                type: string
+              id:
+                maxLength: 64
+                minLength: 1
+                pattern: ^[a-z0-9][a-z0-9._:-]*$
+                type: string
+              kind:
+                enum:
+                  - high
+                  - low
+                type: string
+              observed_at:
+                format: date-time
+                type: string
+              price:
+                exclusiveMinimum: true
+                maximum: 1000000000
+                minimum: 0
+                type: number
+            required:
+              - id
+              - observed_at
+              - confirmed_at
+              - price
+              - kind
+              - confirmed
+            type: object
+          maxItems: 100
+          type: array
+        provisional_leg:
+          additionalProperties: false
+          nullable: true
+          properties:
+            confirmed:
+              enum:
+                - false
+              type: boolean
+            direction:
+              enum:
+                - up
+                - down
+              type: string
+            from_observed_at:
+              format: date-time
+              type: string
+            from_price:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+            to_observed_at:
+              format: date-time
+              type: string
+            to_price:
+              exclusiveMinimum: true
+              maximum: 1000000000
+              minimum: 0
+              type: number
+          required:
+            - from_observed_at
+            - from_price
+            - to_observed_at
+            - to_price
+            - direction
+            - confirmed
+          type: object
+        reversal_threshold_percent:
+          exclusiveMinimum: true
+          maximum: 50
+          minimum: 0
+          type: number
+      required:
+        - reversal_threshold_percent
+        - confirmed_pivots
+        - provisional_leg
       type: object
     MemberAccount:
       additionalProperties: false
@@ -17116,6 +18657,218 @@ paths:
         - SupabaseBearer: []
       tags:
         - Brokerage Orders
+  /v1/brokerage/providers:
+    get:
+      operationId: getBrokerageProviderCatalog
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerageProviderCatalogResponse"
+          description: US broker integration readiness and required setup. This is not an account connection, live capability grant, or order authorization.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Brokerage Providers
   /v1/circle-templates/{template_id}/copy:
     post:
       operationId: copyCircleTemplate
@@ -21725,6 +23478,460 @@ paths:
               schema:
                 $ref: "#/components/schemas/GrimoireDetailResponse"
           description: Argus response.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Discover
+  /v1/discover/market-map:
+    get:
+      operationId: getFeaturedDiscoverMarketMap
+      parameters:
+        - in: query
+          name: horizon
+          required: false
+          schema:
+            default: 20d
+            enum:
+              - 5d
+              - 10d
+              - 20d
+              - 60d
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketMapSnapshotResponse"
+          description: Read the complete fresh Market Map selected by the server manifest. No client-selected default asset or fallback data.
+        "401":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Invalid Supabase access token.
+        "403":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Owner or current staff authorization denied.
+        "409":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Revision or idempotency conflict.
+        "422":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Strict request validation failed.
+        "429":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: Rate limited.
+        "503":
+          content:
+            application/json:
+              schema:
+                additionalProperties: false
+                properties:
+                  error:
+                    additionalProperties: false
+                    properties:
+                      code:
+                        type: string
+                      field_errors:
+                        items:
+                          nullable: true
+                        type: array
+                      message:
+                        type: string
+                      request_id:
+                        format: uuid
+                        type: string
+                      retryable:
+                        type: boolean
+                    required:
+                      - code
+                      - message
+                      - request_id
+                      - field_errors
+                      - retryable
+                    type: object
+                required:
+                  - error
+                type: object
+          description: A required private dependency is unavailable.
+      security:
+        - SupabaseBearer: []
+      tags:
+        - Discover
+  /v1/discover/market-map/{asset_id}:
+    get:
+      operationId: getDiscoverMarketMap
+      parameters:
+        - in: path
+          name: asset_id
+          required: true
+          schema:
+            format: uuid
+            type: string
+        - in: query
+          name: horizon
+          required: false
+          schema:
+            default: 20d
+            enum:
+              - 5d
+              - 10d
+              - 20d
+              - 60d
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketMapSnapshotResponse"
+          description: Read one complete, server-computed market research snapshot. Incomplete, stale, unentitled, or non-causal artifacts fail closed.
         "401":
           content:
             application/json:

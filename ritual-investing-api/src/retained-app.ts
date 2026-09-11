@@ -38,6 +38,7 @@ import { BrokerageProjectionError } from "./domains/brokerage-projections/types.
 import type { BrokerageProjectionService } from "./domains/brokerage-projections/service.ts";
 import { BrokerageOrderError } from "./domains/brokerage-orders/types.ts";
 import type { BrokerageOrderService } from "./domains/brokerage-orders/service.ts";
+import { registerBrokerageProviderRoutes } from "./domains/brokerage-providers/routes.ts";
 import {
   type CircleRouteRepository,
   registerCircleRoutes,
@@ -50,6 +51,9 @@ import {
   type DiscoverRouteRepository,
   registerDiscoverRoutes,
 } from "./domains/discover/routes.ts";
+import { registerMarketMapRoutes } from "./domains/market-map/routes.ts";
+import type { MarketMapService } from "./domains/market-map/ports.ts";
+import { createBlockedMarketMapProvider, createMarketMapService } from "./domains/market-map/service.ts";
 import {
   type EditorialRouteRepository,
   registerEditorialRoutes,
@@ -176,6 +180,7 @@ export type CreateRetainedAppOptions = Readonly<{
   ): Promise<T>;
   createPrivacyService: (claims: VerifiedRequestClaims) => PrivacyRouteService;
   rateLimit: RateLimitPort;
+  marketMapService?: MarketMapService;
   createBrokerageConnections?: (
     claims: VerifiedRequestClaims,
   ) => BrokerageConnectionRouteService;
@@ -673,6 +678,8 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
       ),
   });
 
+  registerBrokerageProviderRoutes({ register });
+
   registerBrokerageRoutes({
     register,
     ...(options.createBrokerageConnections === undefined
@@ -726,6 +733,13 @@ export function createRetainedApp(options: CreateRetainedAppOptions) {
     repository: (context) => repositories(context).coven,
     evidence: (context, claimIds) =>
       repositories(context).assets.listEvidence(claimIds),
+  });
+
+  registerMarketMapRoutes({
+    register,
+    service: options.marketMapService ?? createMarketMapService({
+      provider: createBlockedMarketMapProvider(),
+    }),
   });
 
   registerDiscoverRoutes({

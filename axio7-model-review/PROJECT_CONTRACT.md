@@ -9,6 +9,12 @@ arbitrage.
 
 ## Runtime ownership
 
+The owner approved a separate paper-strategy extension on 2026-09-07 in the newer
+`platform/` sources. Its local connectors may execute on moomoo SIMULATE accounts
+under explicit user mandates; live-money and options execution remain disabled.
+This does not change the archived research services' boundary. See
+`platform/docs/strategy-lab/DELIVERY.md` for the scoped implementation and evidence.
+
 - `axio7-model-review/source/quant_engine_rs` is the canonical production
   inference and market-data validation service.
 - `axio7-model-review/source/intraday_quant` is offline research, training,

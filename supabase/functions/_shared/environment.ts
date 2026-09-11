@@ -3,6 +3,9 @@ type EnvironmentReader = (name: string) => string | undefined;
 const leoPublicBetaConsumerOrigins = Object.freeze([
   "https://leo.axio7.workers.dev",
 ]);
+const leoInvestingConsumerOrigins = Object.freeze([
+  "https://leoinvesting.com",
+]);
 const ritualPublicBetaOrigin = "https://just-build-this.app";
 const leoInvestingOrigin = "https://leoinvesting.com";
 const stagingMemberPreviewOrigin =
@@ -27,6 +30,12 @@ export function requiredConsumerOrigins(
     (value) => value.length > 0,
   );
   const uniqueValues = new Set(values);
+  if (
+    values.length === 1 &&
+    values[0] === leoInvestingConsumerOrigins[0]
+  ) {
+    return leoInvestingConsumerOrigins;
+  }
   if (
     values.length === leoPublicBetaConsumerOrigins.length &&
     uniqueValues.size === values.length &&

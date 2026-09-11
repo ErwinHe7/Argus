@@ -1,0 +1,33 @@
+export const TOOLS = [
+  { id: 'radar', title: 'Event radar', group: 'Events', description: 'Upcoming catalysts, source evidence, and an assistant that explains the record.', detail: 'Official calendars · earnings · evidence assistant' },
+  { id: 'strategies', title: 'Strategies', group: 'Strategies', description: 'Choose rules, replay a grid, and monitor your local paper connector.', detail: 'Mean reversion · momentum · grid research' },
+  { id: 'crypto', title: 'Crypto', group: 'Markets', description: 'Analyze Bitcoin and Ethereum spot charts, then create a trade plan.', detail: 'TradingView charts · BTC and ETH' },
+  { id: 'playbook', title: 'Market overview', group: 'Markets', description: 'Follow SPY on TradingView and review the dated market research.', detail: 'SPY ETF proxy · TradingView chart' },
+  { id: 'tech-playbook', title: 'Technology', group: 'Markets', description: 'Follow QQQ on TradingView and explore the technology market.', detail: 'QQQ ETF proxy · TradingView chart' },
+  { id: 'earnings', title: 'Earnings radar', group: 'Options', description: 'Follow verified issuer dates and inspect the evidence behind an earnings comparison.', detail: 'Issuer sources · research comparisons · saved calendar' },
+  { id: 'structure', title: 'Charts', group: 'Markets', description: 'Explore TradingView candlesticks, volume, and technical tools.', detail: 'Stocks · ETFs · crypto · recorded research' },
+  { id: 'forecast', title: 'Forecast record', group: 'Markets', description: 'Inspect registered hypotheses, sourced outcomes, and model readiness.', detail: 'Research ledger · validation status' },
+  { id: 'board', title: 'Markets', group: 'Markets', description: 'Search and compare a wider market with TradingView’s screeners.', detail: 'Provider screeners · searchable listings' },
+  { id: 'algo', title: 'Trade journal', group: 'Strategies', description: 'Record a strategy, track your reasoning, and review it.', detail: 'Your notes · open and closed entries' },
+  { id: 'positions', title: 'Trade plans', group: 'Strategies', description: 'Save your thesis, reference price, and review notes.', detail: 'Stored in this browser · JSON export' },
+  { id: 'events', title: 'Catalysts', group: 'Events', description: 'Check the evidence behind a company catalyst.', detail: 'Primary sources · confirmed and unknown dates' },
+  { id: 'research', title: 'Methods', group: 'About', description: 'Inspect the data, calculations, and assumptions.', detail: 'Source coverage · downloadable data' },
+  { id: 'iv', title: 'Options lab', group: 'Options', description: 'Test an option against changes in price, IV, and time.', detail: 'Call and Put · 12,960 conditional valuations' },
+  { id: 'handbook', title: 'Guide', group: 'About', description: "Learn the Astra's Pick workflow and key terms.", detail: 'Charts · Options lab · Trade plans' },
+] as const;
+
+export type ToolId = 'home' | typeof TOOLS[number]['id'];
+export const HANDBOOK = [
+  ['How do I test a grid strategy?', 'Open Strategies, then Grid research. Import a complete historical request or choose a clearly labeled fictional DEMO. Set a fixed range, costs, and loss threshold, then run the local replay. Compare total account P&L with closed-cycle profit: unsold shares can lose more than completed trades earn. This daily approximation cannot place grid orders or establish profitability.'],
+  ['Where should I start?', 'Start with Picks. Read the dated shortlist, why each stock ranks there, and what needs checking before a purchase. Markets lets you explore more listings. My plans keeps your reasoning; advanced analysis remains under Tools.'],
+  ['Are these live prices?', 'TradingView supplies the charts, ticker tape, and market board. Availability depends on the exchange: U.S. stock and ETF widgets may be delayed; the crypto charts use Coinbase spot markets. Check the provider’s displayed market status. Recorded research, IV assumptions, and option contracts remain dated IBKR snapshots.'],
+  ['Does TradingView update the strategy or options model?', 'The hosted widgets display market data. They do not supply a raw data feed to Leo’s research, option calculations, or paper connector. The connector continues to use entitled OpenD data; the option model retains its dated inputs.'],
+  ['Are SPY and QQQ the indices?', 'SPY and QQQ are ETF proxies for broad US equities and the Nasdaq-100. Their prices and distributions differ from SPX and NDX index levels.'],
+  ['What does IV +10 pp mean?', 'Ten percentage points: 35% becomes 45%, not 38.5%. IV percentile compares IV with its own history; it is not the probability of a price rise.'],
+  ['What do the chart levels mean?', 'TradingView provides its own drawing and indicator tools. Recorded analysis & history replay retains the earlier 20-session ranges, moving averages, RSI, and temporary reference levels. Drawn levels are annotations, not validated price targets.'],
+  ['How does history replay work?', 'Open Recorded analysis & history replay below the TradingView chart. Use the date slider or arrow keys to reveal one recorded session at a time. Replay shows retained daily bars; it does not generate future prices.'],
+  ['What does Options lab calculate?', 'It shows precomputed European option values under your price, IV, and time assumptions. Spreads, fees, slippage, American early exercise, and actual dividends are excluded.'],
+  ['Where are my notes stored?', 'Notes, trade plans, and calendar entries stay in this browser on this website. Export JSON to keep a copy. They are your records, not synchronized brokerage positions, orders, or verified trading results.'],
+  ['Where can I manage my subscription?', 'Open Plans & payment in the Leo app. Astra\'s Pick does not change your existing membership.'],
+  ['Why is there no forecast win rate?', 'Publishing probabilities or performance requires a validated model and an immutable, dated forecast record. That evidence is not available here. Model status lists the remaining requirements.'],
+];

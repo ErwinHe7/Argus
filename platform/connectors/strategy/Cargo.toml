@@ -1,0 +1,28 @@
+[package]
+name = "leo-strategy-connector"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[dependencies]
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+clap = { version = "4.5", features = ["derive"] }
+fs2 = "0.4"
+keyring = { version = "=3.6.3", features = ["apple-native", "windows-native", "sync-secret-service", "crypto-rust", "vendored"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+rusqlite = { version = "0.38", features = ["bundled"] }
+rust_decimal = "1.40"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+uuid = { version = "1.20", features = ["v4"] }
+
+[dev-dependencies]
+tempfile = "3.24"
+
+[profile.release]
+lto = "thin"
+strip = true

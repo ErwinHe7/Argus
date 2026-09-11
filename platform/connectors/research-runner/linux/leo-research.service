@@ -1,0 +1,23 @@
+# Template rendered by install-user-service.sh; do not install placeholders.
+[Unit]
+Description=Leo continuous offline research
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+WorkingDirectory=@PLATFORM@
+Environment=@PYTHONPATH@
+Environment=PYTHONUNBUFFERED=1
+ExecStart=:@PYTHON@ -m intraday_quant.strategy_lab.continuous run --config @CONFIG@
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=45
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

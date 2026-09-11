@@ -1,0 +1,11 @@
+{
+  "status": "BLOCKED",
+  "checked_at": "2026-09-04T09:26:06.489Z",
+  "credential_configured": false,
+  "gaps": [
+    "MASSIVE_API_KEY_missing",
+    "private_refresh_configuration_required",
+    "same_tenor_atm_iv_history_required",
+    "display_rights_receipts_required"
+  ]
+}

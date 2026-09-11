@@ -1,0 +1,7 @@
+/target/
+/.build-venv/
+/build/
+/dist/
+__pycache__/
+*.pyc
+*.sqlite3*

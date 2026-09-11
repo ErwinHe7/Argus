@@ -1,0 +1,154 @@
+{
+  "schemaVersion": "astra-market-analysis.v1",
+  "generatedAt": "2026-09-07 10:01:18 UTC",
+  "dataMode": "historical_snapshot_not_live",
+  "methodology": {
+    "featureVersion": "astra-daily-market-read.v1",
+    "generatedAtMeaning": "Latest retained source retrieval, fixed for reproducibility; not a refresh timestamp.",
+    "asOfMeaning": "Completed source daily-session date. Independent close observation times remain unavailable.",
+    "trend": "Uptrend: daily close strictly above SMA20 and SMA50. Downtrend: strictly below both. Equality or disagreement is Mixed; missing averages are Unavailable. No slope or predictive strength is inferred.",
+    "momentum": "RSI14 >=70 is Overbought; <=30 is Oversold; between is Neutral. These describe observations and do not predict reversals.",
+    "watch": "Conditional comparisons with frozen snapshot reference levels; not monitored alerts, validated trading rules or price targets. Refresh all indicators before a later assessment.",
+    "sourceCoverage": "Inherits the Desk artifact's observed-session, excluded-prefix and adjustment limitations.",
+    "predictionEnabled": false,
+    "executionEnabled": false
+  },
+  "symbols": [
+    {
+      "symbol": "DXYZ",
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06 09:50:06 UTC",
+      "trend": "Uptrend",
+      "momentum": "Neutral",
+      "summary": "Price closed above the 20- and 50-session averages. RSI14: 55.2 (neutral).",
+      "watch": "Watch $32.68, the snapshot's 20-session average. A daily close at or below it would change this trend reading. The observed 20-session low is $26.00.",
+      "basis": [
+        "Completed daily close: $32.70 on 2026-09-04.",
+        "20-session simple moving average: $32.68.",
+        "50-session simple moving average: $28.04.",
+        "RSI14: 55.2; oversold at or below 30, overbought at or above 70.",
+        "Observed 20-session low/high: $26.00 / $36.08; historical reference levels, not targets."
+      ]
+    },
+    {
+      "symbol": "ZM",
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06 09:50:06 UTC",
+      "trend": "Mixed",
+      "momentum": "Neutral",
+      "summary": "Price closed between or at the two moving averages. RSI14: 52.9 (neutral).",
+      "watch": "Watch the snapshot averages at $102.54 (20 sessions) and $95.87 (50 sessions).",
+      "basis": [
+        "Completed daily close: $101.33 on 2026-09-04.",
+        "20-session simple moving average: $102.54.",
+        "50-session simple moving average: $95.87.",
+        "RSI14: 52.9; oversold at or below 30, overbought at or above 70.",
+        "Observed 20-session low/high: $92.72 / $110.89; historical reference levels, not targets."
+      ]
+    },
+    {
+      "symbol": "AVGO",
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06 09:50:06 UTC",
+      "trend": "Downtrend",
+      "momentum": "Neutral",
+      "summary": "Price closed below the 20- and 50-session averages. RSI14: 38.0 (neutral).",
+      "watch": "Watch $378.32, the snapshot's 20-session average. A daily close at or above it would change this trend reading. The observed 20-session high is $432.73.",
+      "basis": [
+        "Completed daily close: $357.89 on 2026-09-04.",
+        "20-session simple moving average: $378.32.",
+        "50-session simple moving average: $383.66.",
+        "RSI14: 38.0; oversold at or below 30, overbought at or above 70.",
+        "Observed 20-session low/high: $342.33 / $432.73; historical reference levels, not targets."
+      ]
+    },
+    {
+      "symbol": "AMZN",
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06 09:50:06 UTC",
+      "trend": "Mixed",
+      "momentum": "Neutral",
+      "summary": "Price closed between or at the two moving averages. RSI14: 49.5 (neutral).",
+      "watch": "Watch the snapshot averages at $262.20 (20 sessions) and $253.95 (50 sessions).",
+      "basis": [
+        "Completed daily close: $258.51 on 2026-09-04.",
+        "20-session simple moving average: $262.20.",
+        "50-session simple moving average: $253.95.",
+        "RSI14: 49.5; oversold at or below 30, overbought at or above 70.",
+        "Observed 20-session low/high: $251.93 / $280.14; historical reference levels, not targets."
+      ]
+    },
+    {
+      "symbol": "GOOGL",
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06 09:50:06 UTC",
+      "trend": "Downtrend",
+      "momentum": "Neutral",
+      "summary": "Price closed below the 20- and 50-session averages. RSI14: 44.8 (neutral).",
+      "watch": "Watch $343.61, the snapshot's 20-session average. A daily close at or above it would change this trend reading. The observed 20-session high is $357.61.",
+      "basis": [
+        "Completed daily close: $338.46 on 2026-09-04.",
+        "20-session simple moving average: $343.61.",
+        "50-session simple moving average: $348.57.",
+        "RSI14: 44.8; oversold at or below 30, overbought at or above 70.",
+        "Observed 20-session low/high: $332.92 / $357.61; historical reference levels, not targets."
+      ]
+    },
+    {
+      "symbol": "NVDA",
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06 09:50:06 UTC",
+      "trend": "Uptrend",
+      "momentum": "Neutral",
+      "summary": "Price closed above the 20- and 50-session averages. RSI14: 60.2 (neutral).",
+      "watch": "Watch $220.08, the snapshot's 20-session average. A daily close at or below it would change this trend reading. The observed 20-session low is $207.47.",
+      "basis": [
+        "Completed daily close: $230.36 on 2026-09-04.",
+        "20-session simple moving average: $220.08.",
+        "50-session simple moving average: $210.57.",
+        "RSI14: 60.2; oversold at or below 30, overbought at or above 70.",
+        "Observed 20-session low/high: $207.47 / $234.76; historical reference levels, not targets."
+      ]
+    },
+    {
+      "symbol": "SPY",
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-07 10:01:18 UTC",
+      "trend": "Uptrend",
+      "momentum": "Neutral",
+      "summary": "Price closed above the 20- and 50-session averages. RSI14: 55.6 (neutral).",
+      "watch": "Watch $769.05, the snapshot's 20-session average. A daily close at or below it would change this trend reading. The observed 20-session low is $759.48.",
+      "basis": [
+        "Completed daily close: $770.19 on 2026-09-04.",
+        "20-session simple moving average: $769.05.",
+        "50-session simple moving average: $756.86.",
+        "RSI14: 55.6; oversold at or below 30, overbought at or above 70.",
+        "Observed 20-session low/high: $759.48 / $779.37; historical reference levels, not targets."
+      ]
+    },
+    {
+      "symbol": "QQQ",
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-07 10:01:18 UTC",
+      "trend": "Uptrend",
+      "momentum": "Neutral",
+      "summary": "Price closed above the 20- and 50-session averages. RSI14: 53.6 (neutral).",
+      "watch": "Watch $717.51, the snapshot's 20-session average. A daily close at or below it would change this trend reading. The observed 20-session low is $702.70.",
+      "basis": [
+        "Completed daily close: $718.96 on 2026-09-04.",
+        "20-session simple moving average: $717.51.",
+        "50-session simple moving average: $711.09.",
+        "RSI14: 53.6; oversold at or below 30, overbought at or above 70.",
+        "Observed 20-session low/high: $702.70 / $734.58; historical reference levels, not targets."
+      ]
+    }
+  ]
+}

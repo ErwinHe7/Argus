@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "strategy-public-config/v1",
+  "enabled": false,
+  "supabaseUrl": "https://katwbobjiyzipqlzarus.supabase.co",
+  "publishableKey": "",
+  "apiUrl": "https://katwbobjiyzipqlzarus.supabase.co/functions/v1/strategy-api"
+}

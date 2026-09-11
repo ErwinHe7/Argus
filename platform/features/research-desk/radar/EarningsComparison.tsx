@@ -1,0 +1,21 @@
+import React, { useState } from 'react';
+import { ChevronDown, Download, X } from 'lucide-react';
+import { earningsReportSchema, earningsRequestTemplate, type EarningsReport } from './earnings-contract';
+import { download } from '../storage';
+import { timeLabel } from './useRadar';
+
+const percent = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}%`;
+
+export function EarningsComparison() {
+  const [report, setReport] = useState<EarningsReport | null>(null), [error, setError] = useState('');
+  return <details className="radar-sources earnings-comparison"><summary>Compare the option premium with past earnings moves<ChevronDown size={16}/></summary><p className="radar-comparison-copy">The research engine compares a synchronized, pre-event ATM straddle with the stock’s observed reaction after up to nine prior earnings reports. Import its output to inspect the comparison here.</p><p className="radar-caption">No entitled option snapshot or aligned reaction history is connected to the public calendar yet. Imported reports stay in this tab and are not broker-verified.</p><div className="radar-actions"><label className="radar-import">Import research report<input type="file" accept=".json,application/json" aria-label="Import earnings research report" onChange={async e => {
+    const file = e.target.files?.[0]; if (!file) return;
+    try {
+      if (file.size > 524288) throw new Error('The file is larger than 512 KiB.');
+      const value = earningsReportSchema.parse(JSON.parse(await file.text()));
+      if (Date.parse(value.as_of) > Date.now() + 5000) throw new Error('The report has a future observation cutoff.');
+      setReport(value); setError('');
+    } catch { setError('This file is not a valid earnings research report. Check the format and timestamps. The previous report is retained.'); }
+    e.target.value = '';
+  }}/></label><button className="text-button" onClick={() => download('earnings-research-input-template.json', earningsRequestTemplate)}><Download size={14}/>Get input template</button><a className="text-button" href="/app/research-desk/earnings-research-guide.md" target="_blank" rel="noreferrer">Preparation guide</a></div>{error && <p className="radar-alert" role="alert">{error}</p>}{report && <section className="radar-imported-report" aria-label="Imported earnings report"><div className="radar-detail-title"><h3>{report.symbol} · imported research</h3><button className="text-button" onClick={() => setReport(null)}><X size={14}/>Clear report</button></div><p className="radar-caption">Observation cutoff {timeLabel(report.as_of)} · event {timeLabel(report.event_at)}. File contents are user supplied; format validation does not verify their origin.</p>{report.comparison ? <><dl className="radar-comparison-values"><div><dt>Past median absolute move</dt><dd>{percent(report.comparison.median_absolute_move_percent)}</dd></div><div><dt>ATM straddle midpoint / spot</dt><dd>{percent(report.comparison.straddle_mid_cost_percent)}</dd></div><div><dt>ATM straddle ask cost / spot</dt><dd>{percent(report.comparison.straddle_ask_cost_percent)}</dd></div><div><dt>Historical observations</dt><dd>{report.comparison.historical_count} reports</dd></div></dl><p className="radar-comparison-copy">Past directions: {report.comparison.raw_up_count} up, {report.comparison.raw_down_count} down, {report.comparison.raw_flat_count} flat. These are historical counts, not the probability of the next move.</p><p className="radar-caption">The premium covers the option’s remaining life. Comparing it with a one-session earnings reaction does not establish fair value or profitable execution.</p></> : <div className="radar-empty"><h3>Comparison unavailable</h3><p>{report.reason_codes.map(code => code.replaceAll('_', ' ')).join('; ')}.</p></div>}<ul>{report.limitations.map(item => <li key={item}>{item}</li>)}</ul><div className="radar-actions">{report.sources.map((source, index) => <a className="text-button" key={`${source.url}:${index}`} href={source.url} target="_blank" rel="noreferrer">{source.title}</a>)}<button className="text-button" onClick={() => download('earnings-research-report.json', report)}><Download size={14}/>Export this report</button></div></section>}</details>;
+}

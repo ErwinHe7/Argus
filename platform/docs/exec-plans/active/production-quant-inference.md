@@ -1,5 +1,72 @@
 # Production quant inference and market-query integration
 
+## U.S. Market Map correction — 2026-09-04 (code deployed; source key pending)
+
+The owner clarified that the requested observations are U.S. stocks. The prior
+Taiwan selection is being replaced by an AAPL/SPY public universe. HF Data
+Library clean daily Parquet exports provide a free, attributable source of
+IEX-venue observations, with U.S. sessions and an explicit
+`source_adjusted_unverified` adjustment basis. The actual pipeline does not
+establish complete dividend/corporate-action adjustment despite the public
+site's broader description; the contract does not assert verified adjustment.
+Production activation currently requires its free verified-account API key;
+the owner has been asked while the code is prepared. No registration, purchase,
+or use of a personal data license for public redisplay has been performed.
+
+The website defaults and API allow-list are U.S. only. Missing U.S. core data
+removes the entry and routes to 404. The Worker uses a separate U.S. KV key, so
+the previous Taiwan bundle cannot be served by this feature. Local real-data
+review uses EODHD demo only on loopback, never as a production fallback. Final
+verification and actual activation status belong in `docs/market-map-delivery.md`.
+The U.S. website code and data Worker are deployed; real local AAPL rendering,
+schema/engine gates, production 404/503 behavior, and hidden navigation have
+been verified. An actual authenticated HF download and scheduled refresh remain
+unverified until the owner supplies the free account credential. Published
+website version: `928e86d6-d58d-4e54-9acd-ee4d8956ccd5`; data Worker version:
+`2f4ff515-22a7-4170-a08e-8f7091cb4c0b`.
+
+## Previous real public Market Map — 2026-09-04 (Taiwan; superseded)
+
+The owner explicitly requested that we select and connect an available real
+market-data source ourselves. `/discover/market-map` now uses Taiwan Stock
+Exchange observations for 2330 and 0050; `/preview` redirects to that real-data
+entry. This is a separate public-data contract, not a relaxation of the existing
+member-vendor access or model-promotion checks.
+
+- Each asset has 126 official daily records and four Rust-computed horizons.
+  Prices are unadjusted TWD. TWSE volume includes regular, odd-lot, after-hours
+  fixed-price and block transactions, so the session is `exchange_daily`, never
+  mislabeled `regular`. Official all-market records establish actual historical
+  sessions, including emergency closures; official holiday schedules supply
+  future reference sessions.
+- Missing option IV and trade-level volume profiles remain missing. The UI
+  displays the separately labeled, observed-price ATR14 and names the actual
+  comparison asset. Chart, simulation and explanation share one validated input.
+- `leo-market-map` fetches official sources and runs the same Rust computation
+  through WebAssembly every day at 10:00 UTC (18:00 Taipei), then atomically
+  replaces the validated KV bundle. The website reads it through the
+  `PUBLIC_MARKET_MAP` service binding. Expired bundles are rejected.
+- Remote scheduled execution was exercised successfully: eight snapshots were
+  regenerated at `2026-09-04T12:20:44.633Z`, with new provider retrieval times,
+  and written to KV. This independently verifies refresh beyond the initial
+  local artifact seed. Data Worker version:
+  `25676800-4bbc-4ba3-9c84-733b54bcebee`.
+- The source and usage basis, raw-response receipts, missing inputs, focused
+  validation and final website release are recorded in
+  `docs/market-map-delivery.md` and `workers/public-market-map/README.md`.
+
+## Initial illustrative checkpoint — 2026-09-04 (superseded)
+
+The owner requested a daily research surface for investigating pricing discrepancies, rather than second-level streaming. The website implementation lives at `/discover/market-map/preview`, with separately gated member snapshots at `/discover/market-map/[symbol]` and `/api/market-map`.
+
+- Rust now exports completed-session OHLCV features, confirmed/provisional pivots, six reference levels, seeded historical block-bootstrap paths and terminal particles, IV/sector/volume panels, and evidence-linked explanations. Numerical calculation stays outside TypeScript.
+- The complete interactive preview uses prominently disclosed synthetic inputs and a `DEMO` identity. Synthetic artifacts cannot pass the production validator. This release does not promote a live prediction or fair-value model.
+- Production refresh fetches configured vendor data, aggregates regular sessions in the research layer, checks the same-tenor IV archive and canonical display-rights receipts, then publishes validated artifacts. Cadence follows the next completed exchange session, including holidays; client expiry also removes previously opened stale maps.
+- Verified: six focused Rust tests, strict feature formatting and isolated Clippy; twelve data/contract/normalization tests; nine existing navigation checks; TypeScript check; desktop/mobile browser interactions and a finish review with disposition **ship** for the illustrative preview. Production build and deployment succeeded; the published URL, Worker version and bounded online checks are recorded in `docs/market-map-delivery.md`.
+- Activation remains blocked by absent market-data credentials, historical ATM IV, actual display-rights evidence, private instrument/calendar configuration, and unconfigured membership authentication. Empty production artifacts remain hidden. No vendor data was substituted or invented.
+
+See `lib/market-map/README.md`, `quant_engine_rs/docs/market-map.md`, and `components/market-map/DESIGN.md` for the implemented input and display contracts. Publishing this fail-closed preview is separate from promoting the pre-existing production inference models below.
+
 Status: active
 Started: 2026-07-24
 Owner: AXIO7
@@ -3036,3 +3103,133 @@ execution remains disabled.
   `npm run test:quant-conversation` (25 passed).
 - This is source integration only. No model or runtime was promoted, and no
   live-data readiness or deployment receipt was generated by this merge.
+## 2026-09-07 — Authorized Strategy Lab paper extension
+
+The owner approved a separate Astra's Pick strategy workspace and per-user local
+moomoo SIMULATE connector. Its scoped contract and implementation receipts are
+in `platform/docs/strategy-lab/DELIVERY.md`. Rust owns deterministic strategy and
+accounting; the separate `strategy-api` owns verified member/device controls.
+Existing research endpoints, the archived model-review application, and real-money
+execution retain their prior boundaries. The new static overlay is prepared
+without rebuilding the frozen backend. Hosted deployment, signed distribution,
+native OpenD integration, and broker lifecycle evidence remain explicit gates.
+
+## 2026-09-07 — TradingView display and GRID-R1 local research
+
+Official hosted TradingView widgets now provide the desk's primary charts and
+market display, with provider delay/availability labels retained. Widget prices
+do not enter the strategy runtime. GRID-R1 adds a separate fixed-range,
+cash-start research replay with canonical Rust decimal accounting, a local
+WebAssembly worker, declared dataset provenance, and explicitly synthetic
+teaching fixtures. Its execution and promotion flags remain false; the existing
+MR/MOM paper mandate allowlist is unchanged.
+
+The source research, precise interfaces, verification results, and limitations
+are in `docs/strategy-lab/GRID-R1.md`, `docs/strategy-lab/GRID-DELIVERY.md`, and
+`docs/tradingview-delivery.md`. The combined static overlay is prepared at
+`release-work/leo-grid-tradingview-20260907` outside the platform directory.
+It preserves the frozen backend, unrelated asset hashes, and Worker hostname.
+No hosted deployment or broker operation is established by this work.
+
+## 2026-09-07 — Picks first and broad provider screeners
+
+The owner's latest product direction makes a concise ranked shortlist the first
+page. Python now generates a source-bound technical-screen artifact from five
+recorded company stocks and three funds, separately ranked and explicitly dated
+through September 4. Three fixed criteria describe trend, RSI, and distance from
+SMA20; they make no calibrated performance or valuation claim. TypeScript only
+validates and presents the exported evidence and its stale/unavailable states.
+
+Picks, Markets, and My plans are the main paths; fourteen supporting routes and
+browser-local records remain available. Markets adds TradingView's hosted stock,
+crypto, and forex screeners. Widget data are presentation-only and do not enter
+Astra's own ranking or broker execution. Broader locally ranked coverage still
+requires an entitled data source. Current and archived-data failures are isolated
+so they cannot prevent Picks, Markets, or local plans from rendering.
+
+Verification and release boundaries are recorded in `docs/picks-delivery.md`.
+The separate `release-work/leo-picks-20260907` static overlay preserves the frozen
+backend, unrelated assets, and Worker configuration. It is prepared, not
+published. Prediction and real-money execution remain disabled; earlier paper
+deployment, native integration, and broker-evidence gates are unchanged.
+
+## 2026-09-08 — Continuous local research and VPS preparation
+
+The owner requested a background program comparable to the VPS research loop in
+the supplied examples. A durable local Python queue now watches configured files,
+uses the canonical Rust engine for eligible research, retains immutable experiment
+receipts, and reuses unchanged inputs across restarts without LLM calls. A private
+loopback monitor provides heartbeat, actual source status, and acknowledged
+research pause/resume. Windows lifecycle scripts are running it locally; Ubuntu
+user-service files are prepared, with no VPS purchase or deployment. The static
+website overlay adds a local-monitor link while preserving frozen backend bytes,
+unrelated assets, and Worker configuration.
+
+The observed job evaluated the retained six-symbol IBKR source. It reported
+insufficient adjustment, calendar, and historical-availability evidence; its two
+content-addressed source-capability batches represent zero Rust backtest replays
+and zero broker trades. Real data, injected browser/process conditions, and
+software tests are documented separately in `docs/strategy-lab/CONTINUOUS-RESEARCH.md`.
+Actual graceful restart reused the final result without another batch. Source
+validation, automatic promotion, real-money execution, and prior paper connector
+activation gates remain intact. Native VPS operation and reboot recovery are not
+established by local tests or systemd unit validation.
+
+## 2026-09-08 — Automatic Picks publication deployed
+
+The deterministic shortlist publisher now runs on the current Windows computer
+and sends authenticated bounded result envelopes to the separate
+`leo-shortlist-feed` SQLite Durable Object service. The existing `leo` homepage
+reads the service through an exact read-only proxy and refreshes without an LLM.
+The first viewport names the leading research candidate and preserves the source
+cutoff. Missing/regressed inputs and interrupted publisher heartbeats retain
+dated results. Credentials, raw histories, execution, and promotion stay outside
+this public result feed.
+
+The main overlay is deployed at version `b65031ab-8539-44bc-b05a-f13098de4503`;
+feed version is `5ac5c1bd-3072-4f28-9a6f-c88196326511`. Frozen backend hashes and
+unrelated assets were preserved. Live verification observed two advancing
+heartbeats with unchanged revision, publication time, and September 4 source
+cutoff, plus NVDA/ZM/AMZN on the live first page. Source tests, injected failure
+tests, actual cloud delivery, and profitability limitations remain distinct in
+`docs/automated-picks-delivery.md`. The final v3 VPS source package passes extracted
+hash/runtime checks on Ubuntu 24.04, but no VPS target exists yet; buying a server,
+SSH migration, remote reboot recovery, and authorized ongoing market inputs remain
+external steps. Current updates require the Windows publisher to stay running.
+
+## 2026-09-10 — Hosted event radar and earnings evidence
+
+The requested public-radar extension is implemented and deployed as main Worker
+version `b057b8d6-3e95-4c2a-847c-4d8040a951f6`. It adds source-backed catalyst
+filtering, event-to-chart/plan links, deterministic evidence explanations, a
+research-record view and a local earnings-report viewer. The original Picks-first
+flow, membership, billing, journal records and 2,583 frozen backend files remain
+preserved through `release-work/leo-event-radar-20260910`.
+
+A separate `leo-event-radar` scheduled Worker maintains the official calendar
+artifact through fixed Fed/BLS sources and a SQLite Durable Object. Calendar
+metadata normalization is not financial inference. Manual issuer source updates
+remain explicit operator verifications, merged only when newer after an operator
+deployment. Public reads cannot trigger collection or write research records.
+The evidence assistant uses no LLM, account state or trading permission.
+
+Rust is the canonical earnings-comparison engine: synchronized entitled ATM
+straddle inputs and event-aligned historical regular-session closes produce
+research statistics or explicit unavailability. The public feed contains no
+fabricated numerical comparisons, direction calls or performance record.
+The Python hypothesis/outcome journal is local and tamper-evident; it cannot
+establish a trusted public timestamp or predictive accuracy. Existing broker,
+options-execution and real-money gates remain intact.
+
+The current-source audit found the Windows shortlist publisher stopped September
+8, the research runner had a MemoryError, and market history still ended September
+4. The homepage labels that ranking stale. Cloud-hosted calendar polling does
+not refresh these market inputs. A VPS/always-on machine remains useful for
+native research/OpenD; entitled current market data and promoted evaluation
+artifacts remain prerequisites for populated predictive outputs.
+
+Software, browser, source retrieval, production routes, deployment hashes and
+actual scheduled-run evidence are tracked separately in
+`docs/event-radar-delivery.md`, `workers/event-radar/README.md`, and the release
+receipts. No profitability or broker-backed trading outcome is claimed.
+)

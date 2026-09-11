@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "1.0",
+  "verifiedAt": "2026-09-06 09:50:06 UTC",
+  "coverage": "Official evidence supporting the Anthropic watchlist. Relationship facts are not predictions of return or IV changes.",
+  "relationships": [
+    {
+      "symbol": "DXYZ",
+      "kind": "indirect-equity-exposure",
+      "asOf": "2026-06-30",
+      "publicationDate": null,
+      "factZh": "The fund’s economic exposure to Anthropic through an SPV represented 14.4% of its unaudited investment portfolio.",
+      "fact": "Anthropic economic exposure represented 14.4% of the fund's unaudited investment portfolio as of June 30, 2026, held through an SPV structure.",
+      "sourceTitle": "Destiny Tech100 — Current Portfolio",
+      "sourceUrl": "https://destiny.xyz/tech100",
+      "locators": [
+        "Current Portfolio",
+        "Full Investment Portfolio"
+      ],
+      "qualification": "Not a 14.4% ownership stake in Anthropic. Fund market price and NAV can differ; latest investments after June 30 are separately disclosed."
+    },
+    {
+      "symbol": "ZM",
+      "kind": "equity-investment",
+      "asOf": "2026-07-31",
+      "publicationDate": "2026-08-26",
+      "factZh": "Zoom reported a carrying value of $3,134.5 million for its Anthropic preferred-stock investment.",
+      "fact": "Zoom reported $3,134.5 million related to Anthropic preferred stock at July 31, 2026.",
+      "sourceTitle": "Zoom Form 10-Q filed August 26, 2026",
+      "sourceUrl": "https://investors.zoom.us/static-files/9d9a1071-5cfd-4371-bf6f-506eed0f5cea",
+      "locators": [
+        "PDF zero-based page 37 / printed page 38: Equity Investment Risk"
+      ],
+      "qualification": "Carrying value already incorporates observable valuation changes; it is not incremental future IPO profit."
+    },
+    {
+      "symbol": "AVGO",
+      "kind": "compute-partner",
+      "asOf": "2026-04-06",
+      "publicationDate": "2026-04-06",
+      "factZh": "Anthropic signed a new agreement with Google and Broadcom for multiple gigawatts of next-generation TPU capacity, expected to begin coming online in 2027.",
+      "fact": "Anthropic announced a Google/Broadcom agreement for multiple gigawatts of next-generation TPU capacity expected to begin coming online in 2027.",
+      "sourceTitle": "Anthropic expands partnership with Google and Broadcom",
+      "sourceUrl": "https://www.anthropic.com/news/google-broadcom-partnership-compute",
+      "qualification": "A supplier relationship, not evidence that Broadcom owns Anthropic or that a near-term stock rally is scheduled."
+    },
+    {
+      "symbol": "AMZN",
+      "kind": "investor-and-compute-partner",
+      "asOf": "2026-04-20",
+      "publicationDate": "2026-04-20",
+      "factZh": "Anthropic announced expanded compute cooperation with Amazon for up to 5 GW of capacity. Amazon invested $5 billion in this round, with up to $20 billion in potential additional investment.",
+      "fact": "Anthropic announced up to 5 GW of new capacity, over $100 billion of AWS commitments over ten years, and an Amazon investment of $5 billion with up to $20 billion additional investment in the future.",
+      "sourceTitle": "Anthropic and Amazon expand collaboration",
+      "sourceUrl": "https://www.anthropic.com/news/anthropic-amazon-compute",
+      "qualification": "Commitments have different timing and conditions. They are not current-period realized earnings or guaranteed incremental stock returns."
+    },
+    {
+      "symbol": "GOOGL",
+      "kind": "investor-compute-partner-and-competitor",
+      "asOf": "2026-04-06",
+      "publicationDate": "2026-04-06",
+      "factZh": "Google supplies Anthropic with TPU and cloud services. The CMA decision also confirms non-voting shares, convertible-note arrangements and competition between Gemini and Claude.",
+      "fact": "The CMA's 2024 decision describes Google's non-voting shares, convertible notes, compute supply and distribution relationship, and horizontal competition through Gemini and Claude. The April 2026 TPU announcement verifies continued compute cooperation.",
+      "sourceTitle": "CMA Alphabet/Anthropic decision and Anthropic TPU partnership",
+      "sourceUrl": "https://assets.publishing.service.gov.uk/media/676959bae6ff7c8a1fde9d33/Full_text_decision__.pdf",
+      "additionalSourceUrls": [
+        "https://www.anthropic.com/news/google-broadcom-partnership-compute"
+      ],
+      "locators": [
+        "CMA decision paragraphs 2–5"
+      ],
+      "qualification": "The CMA document was published December 24, 2024; it does not establish current equity ownership percentage. Market snapshot is GOOGL Class A, not GOOG Class C."
+    },
+    {
+      "symbol": "NVDA",
+      "kind": "compute-partner-and-investment-commitment",
+      "asOf": "2025-11-18",
+      "publicationDate": "2025-11-18",
+      "factZh": "NVIDIA and Anthropic announced a technology partnership, with NVIDIA committing to invest up to $10 billion.",
+      "fact": "NVIDIA and Anthropic announced a technology partnership; NVIDIA committed to invest up to $10 billion.",
+      "sourceTitle": "Microsoft, NVIDIA and Anthropic announce strategic partnerships",
+      "sourceUrl": "https://www.anthropic.com/news/microsoft-nvidia-anthropic-announce-strategic-partnerships",
+      "qualification": "An announced maximum commitment is not proof that the full amount has been funded, nor a direct prediction of NVDA price."
+    }
+  ],
+  "events": [
+    {
+      "id": "anthropic-model-release-2026-09-01",
+      "titleZh": "Fable 5.1 / Mythos 5.1 released",
+      "type": "model-release",
+      "status": "confirmed-past",
+      "eventDate": "2026-09-01",
+      "eventTimestamp": null,
+      "publicationDate": "2026-09-01",
+      "factsZh": "Anthropic’s newsroom dates the release to September 1. Fable 5.1 is generally available; Mythos 5.1 is offered through a restricted access program.",
+      "sourceTitle": "Introducing Claude Fable 5.1 and Claude Mythos 5.1",
+      "sourceUrl": "https://www.anthropic.com/claude-fable-and-mythos-5-1",
+      "additionalSourceUrls": [
+        "https://www.anthropic.com/news"
+      ],
+      "implication": "The verified model launch has already occurred; it must not be presented as an upcoming September catalyst."
+    },
+    {
+      "id": "anthropic-draft-s1-2026-06-01",
+      "titleZh": "Draft S-1 submitted confidentially",
+      "type": "ipo-process",
+      "status": "confirmed-past",
+      "eventDate": "2026-06-01",
+      "eventTimestamp": null,
+      "publicationDate": "2026-06-01",
+      "factsZh": "Anthropic confirmed that it confidentially submitted a draft S-1 on June 1. The offering is subject to market conditions and other factors; the share count and offer price have not been determined.",
+      "sourceTitle": "Anthropic confidentially submits draft S-1 to the SEC",
+      "sourceUrl": "https://www.anthropic.com/news/confidential-draft-s1-sec",
+      "implication": "This is a confirmed IPO process milestone, not a confirmed listing date."
+    },
+    {
+      "id": "anthropic-future-ipo-date",
+      "titleZh": "IPO listing date unconfirmed",
+      "type": "ipo-listing",
+      "status": "unconfirmed-date",
+      "eventDate": null,
+      "eventTimestamp": null,
+      "publicationDate": null,
+      "factsZh": "This evidence review did not find an officially confirmed date for shares to begin trading.",
+      "sourceTitle": "Anthropic S-1 announcement and official newsroom",
+      "sourceUrl": "https://www.anthropic.com/news/confidential-draft-s1-sec",
+      "additionalSourceUrls": [
+        "https://www.anthropic.com/news"
+      ],
+      "implication": "Do not assign a calendar countdown, claim expiry coverage, or count this as a dated catalyst."
+    },
+    {
+      "id": "anthropic-next-model-before-ipo",
+      "titleZh": "Stronger pre-IPO model: unverified",
+      "type": "user-thesis",
+      "status": "hypothesis",
+      "eventDate": null,
+      "eventTimestamp": null,
+      "publicationDate": null,
+      "factsZh": "A stronger model release before the IPO remains a trading hypothesis. The official sources reviewed provide neither a commitment nor a date.",
+      "sourceTitle": "Official model announcement/newsroom reviewed",
+      "sourceUrl": "https://www.anthropic.com/news",
+      "implication": "A scenario input, not a verified fact or forecast."
+    },
+    {
+      "id": "glasswing-2026-04-07",
+      "titleZh": "Glasswing cybersecurity partnership",
+      "type": "partnership",
+      "status": "confirmed-past",
+      "eventDate": "2026-04-07",
+      "eventTimestamp": null,
+      "publicationDate": "2026-04-07",
+      "factsZh": "The project lists CrowdStrike, Palo Alto Networks, Broadcom, Google, AWS and NVIDIA among its partners.",
+      "sourceTitle": "Project Glasswing",
+      "sourceUrl": "https://www.anthropic.com/project/glasswing",
+      "implication": "A new model does not mechanically imply all cybersecurity stocks will fall; cooperation and substitution are separate hypotheses."
+    }
+  ],
+  "methodologySources": [
+    {
+      "topic": "iv-crush-and-percentile",
+      "sourceTitle": "OIC — The Crush Is Real",
+      "sourceUrl": "https://www.optionseducation.org/news/the-crush-is-real",
+      "publicationDate": "2026-07",
+      "summaryZh": "Option value depends on price, IV and time together. Historical IV percentile does not predict direction, and a post-event IV decline can offset a favorable stock-price move."
+    },
+    {
+      "topic": "price-and-iv-up",
+      "status": "conditional-mechanics",
+      "summaryZh": "Stock price and IV can rise together. For the same long call, both generally increase model value, all else equal. This review did not obtain historical IV data or validate the probability of these moves occurring together."
+    }
+  ],
+  "unknowns": [
+    "Future confirmed IPO listing date, share count and offer price.",
+    "Date and existence of another pre-IPO model release.",
+    "Future direction and magnitude of each stock or contract's IV.",
+    "Historical underlying/contract IV sequence (not obtained).",
+    "Exact quote times for option bid/ask and IV (not supplied).",
+    "Option expiry clock times and multipliers are absent from IBKR responses."
+  ]
+}

@@ -1,5 +1,6 @@
 node_modules
 .next
+.next-personal-broker/
 out
 build
 dist
@@ -46,6 +47,7 @@ infra/single-vm/.env.server
 infra/single-vm/.env.server.*.backup
 infra/single-vm/runtime/
 quant_engine_rs/target/
+quant_engine_rs/grid_wasm/target/
 quant_engine_rs/data/raw/
 quant_engine_rs/data/normalized/
 quant_engine_rs/data/manifests/
@@ -67,3 +69,12 @@ axio7_design/
 tmp_restore/
 
 .vercel
+
+# Leo IV local development and build output
+.next-iv-lab/
+.next-iv-build/
+!features/research-desk/data/
+!features/research-desk/data/desk-data.json
+!features/research-desk/data/schema.ts
+!features/research-desk/data/test_desk_export.py
+!features/research-desk/data/README.md

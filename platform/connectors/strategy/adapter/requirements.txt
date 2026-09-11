@@ -1,0 +1,6 @@
+moomoo-api==10.10.7008
+exchange-calendars==4.11.2
+tzdata==2025.2
+pandas==2.3.3
+numpy==2.2.6
+protobuf==4.25.8

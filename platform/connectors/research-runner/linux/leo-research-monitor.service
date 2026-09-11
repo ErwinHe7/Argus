@@ -1,0 +1,23 @@
+# Optional loopback dashboard. Reach a VPS copy through SSH local forwarding.
+[Unit]
+Description=Leo local research monitor
+StartLimitIntervalSec=300
+StartLimitBurst=5
+
+[Service]
+Type=exec
+WorkingDirectory=@PLATFORM@
+Environment=@PYTHONPATH@
+Environment=PYTHONUNBUFFERED=1
+ExecStart=:@PYTHON@ -m intraday_quant.strategy_lab.monitor --config @CONFIG@ --port 3119
+Restart=on-failure
+RestartSec=15
+TimeoutStopSec=10
+KillMode=control-group
+UMask=0077
+NoNewPrivileges=true
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

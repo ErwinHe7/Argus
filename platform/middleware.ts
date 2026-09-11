@@ -27,6 +27,8 @@ const ACTIVE_IMPERSONAL_RESEARCH_PAGE_PREFIXES = [
 ];
 
 const ACTIVE_API_PREFIXES = [
+  '/api/market-universe',
+  '/api/market-map',
   '/api/health',
   '/api/ask',
   '/api/context/v1',
@@ -66,6 +68,24 @@ function matchesPrefix(pathname: string, prefix: string): boolean {
  */
 export async function middleware(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
+  const personalMode = process.env.NODE_ENV === 'development' && process.env.LEO_PERSONAL_TRADING_ENABLED === 'true';
+
+  if (personalMode && matchesPrefix(pathname, '/brokers')) {
+    const response = NextResponse.next();
+    response.headers.set('Content-Security-Policy', "frame-ancestors 'none'");
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('Cache-Control', 'no-store');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    return response;
+  }
+
+  // Dedicated local feature owns its signed session and exact-origin checks.
+  // Do not send personal brokerage requests through unrelated member services.
+  if (matchesPrefix(pathname, '/api/personal-broker')) {
+    return personalMode
+      ? NextResponse.next()
+      : NextResponse.json({ error: 'personal_mode_disabled' }, { status: 404 });
+  }
 
   if (
     ['GET', 'HEAD'].includes(req.method) &&

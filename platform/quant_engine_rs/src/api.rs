@@ -184,6 +184,8 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/api/v1/research/ticker-rag", get(research_ticker_rag))
         .route("/api/v1/research/daily-regime", get(research_daily_regime))
+        .route("/api/v1/research/market-map", get(research_market_map_featured))
+        .route("/api/v1/research/market-map/{asset_id}", get(research_market_map_asset))
         .route("/api/v1/research/factor-shadow", get(factor_shadow_status))
         .route("/api/v1/live/status", get(live_status))
         .route("/api/v1/live/events", get(live_events))
@@ -2932,6 +2934,122 @@ fn data_root(state: &AppState) -> std::path::PathBuf {
         .parent()
         .unwrap_or(std::path::Path::new("data"))
         .to_path_buf()
+}
+
+// Market Map has no network/data fallback. Only a rights-cleared, hash-pinned
+// input artifact may cross this boundary; the engine revalidates its contents.
+static MARKET_MAP_WORKERS: tokio::sync::Semaphore = tokio::sync::Semaphore::const_new(2);
+const MARKET_MAP_MAX_BYTES: u64 = 4 * 1024 * 1024;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MarketMapQuery {
+    #[serde(default)]
+    horizon: crate::market_map::MarketMapHorizon,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MarketMapManifest {
+    schema_version: String,
+    featured_asset_id: Uuid,
+    expires_at: DateTime<Utc>,
+    display_authorized: bool,
+    artifacts: Vec<MarketMapManifestArtifact>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MarketMapManifestArtifact {
+    asset_id: Uuid,
+    sha256: String,
+}
+
+fn market_map_offline() -> ApiError {
+    ApiError::service_unavailable("market_map_offline")
+}
+
+fn read_market_map_file(root: &std::path::Path, name: &str) -> Result<Vec<u8>, ApiError> {
+    use std::io::Read;
+    let path = root.join(name).canonicalize().map_err(|_| market_map_offline())?;
+    if !path.starts_with(root) { return Err(market_map_offline()); }
+    let file = fs::File::open(path).map_err(|_| market_map_offline())?;
+    let metadata = file.metadata().map_err(|_| market_map_offline())?;
+    if !metadata.is_file() || metadata.len() > MARKET_MAP_MAX_BYTES {
+        return Err(market_map_offline());
+    }
+    let mut bytes = Vec::new();
+    file.take(MARKET_MAP_MAX_BYTES + 1).read_to_end(&mut bytes)
+        .map_err(|_| market_map_offline())?;
+    if bytes.len() as u64 > MARKET_MAP_MAX_BYTES { return Err(market_map_offline()); }
+    Ok(bytes)
+}
+
+fn load_market_map(
+    root: &std::path::Path,
+    asset_id: Option<Uuid>,
+    horizon: crate::market_map::MarketMapHorizon,
+    now: DateTime<Utc>,
+) -> Result<Value, ApiError> {
+    let root = root.canonicalize().map_err(|_| market_map_offline())?;
+    let manifest: MarketMapManifest = serde_json::from_slice(&read_market_map_file(&root, "manifest.json")?)
+        .map_err(|_| market_map_offline())?;
+    if manifest.schema_version != "market-map-manifest.v1" || !manifest.display_authorized
+        || manifest.expires_at <= now || manifest.artifacts.is_empty() || manifest.artifacts.len() > 500 {
+        return Err(market_map_offline());
+    }
+    let mut ids = BTreeSet::new();
+    if manifest.artifacts.iter().any(|artifact| !ids.insert(artifact.asset_id)
+        || artifact.sha256.len() != 64
+        || !artifact.sha256.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
+        || !ids.contains(&manifest.featured_asset_id) {
+        return Err(market_map_offline());
+    }
+    let selected = asset_id.unwrap_or(manifest.featured_asset_id);
+    let artifact = manifest.artifacts.iter().find(|artifact| artifact.asset_id == selected)
+        .ok_or(ApiError { status: StatusCode::NOT_FOUND, message: "market_map_asset_not_found".into() })?;
+    let bytes = read_market_map_file(&root, &format!("{selected}.json"))?;
+    if sha256_hex(&bytes) != artifact.sha256 { return Err(market_map_offline()); }
+    let input: crate::market_map::MarketMapInput = serde_json::from_slice(&bytes)
+        .map_err(|_| market_map_offline())?;
+    let snapshot = crate::market_map::build_market_map(&input, horizon, now)
+        .map_err(|_| market_map_offline())?;
+    if snapshot.pointer("/asset/asset_id").and_then(Value::as_str) != Some(selected.to_string().as_str()) {
+        return Err(market_map_offline());
+    }
+    Ok(snapshot)
+}
+
+async fn research_market_map_response(
+    state: AppState,
+    asset_id: Option<Uuid>,
+    query: MarketMapQuery,
+) -> Result<Response, ApiError> {
+    if std::env::var("MARKET_MAP_ENABLED").as_deref() != Ok("true") {
+        return Err(market_map_offline());
+    }
+    let permit = MARKET_MAP_WORKERS.try_acquire().map_err(|_| market_map_offline())?;
+    let root = data_root(&state).join("market/market-map");
+    let snapshot = tokio::task::spawn_blocking(move || {
+        let _permit = permit;
+        load_market_map(&root, asset_id, query.horizon, Utc::now())
+    }).await.map_err(|_| market_map_offline())??;
+    Ok(([("cache-control", "private, no-store")], Json(snapshot)).into_response())
+}
+
+async fn research_market_map_featured(
+    State(state): State<AppState>,
+    Query(query): Query<MarketMapQuery>,
+) -> Result<Response, ApiError> {
+    research_market_map_response(state, None, query).await
+}
+
+async fn research_market_map_asset(
+    State(state): State<AppState>,
+    Path(asset_id): Path<Uuid>,
+    Query(query): Query<MarketMapQuery>,
+) -> Result<Response, ApiError> {
+    research_market_map_response(state, Some(asset_id), query).await
 }
 
 fn moomoo_owner_forecast_policy(

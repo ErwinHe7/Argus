@@ -1,5 +1,18 @@
 # Production quant inference and market-query integration
 
+## Website Market Map checkpoint — 2026-09-04
+
+Latest owner correction: Market Map must use U.S. stocks. The prior Taiwan
+release is superseded by an AAPL/SPY implementation using HF Data Library's
+IEX-derived daily observations. Its free verified-account API key is still
+required for public activation. The U.S. code is deployed and local real-data
+AAPL review has passed. U.S. missing-data behavior hides the entry and returns 404, with a
+separate U.S. cache preventing old Taiwan observations from appearing. See the
+current status in `platform/docs/market-map-delivery.md`; the older deployment
+paragraph below documents the prior release, not current U.S. readiness.
+
+The owner selected completed-session research snapshots and then explicitly requested that an available real source be connected without waiting for private provider credentials. The implementation and evidence log are at `platform/docs/exec-plans/active/production-quant-inference.md`. The public website now serves official TWSE 2330/0050 daily observations at `/discover/market-map`; the former synthetic preview redirects there. A Cloudflare scheduled Worker fetches sources, computes the same Rust engine through WASM, and publishes validated KV snapshots daily at 18:00 Taipei. A real remote refresh and the public website were verified. IV and trade-level volume profiles remain explicitly missing, and existing member-vendor gates are unchanged. This public research release does not promote the canonical predictive inference models or alter their release gates. Published versions and checks are recorded in `platform/docs/market-map-delivery.md`.
+
 Status: active  
 Started: 2026-07-24  
 Owner: AXIO7  

@@ -1,0 +1,519 @@
+{
+  "schemaVersion": "astra-shortlist.v1",
+  "featureVersion": "astra-technical-shortlist.v1",
+  "dataMode": "historical_snapshot_not_live",
+  "asOf": "2026-09-04",
+  "sourceRetrievedAt": "2026-09-07T10:01:18Z",
+  "inputSha256": "8a3363ee602755971bee3adf991951b4ca0750b6d4f736c4c91cf06c159ac040",
+  "reviewAfter": "2026-09-08T20:00:00Z",
+  "universe": {
+    "observedAssets": 8,
+    "companyStocks": 5,
+    "funds": 3,
+    "eligibleCompanyStocks": 5,
+    "eligibleFunds": 3
+  },
+  "methodology": {
+    "criteria": [
+      {
+        "id": "trend",
+        "label": "Above 50-session average",
+        "definition": "Completed daily close strictly exceeds SMA50."
+      },
+      {
+        "id": "momentum",
+        "label": "RSI in the selected band",
+        "definition": "RSI14 is between 50 and 65, including both endpoints."
+      },
+      {
+        "id": "price_discipline",
+        "label": "Within 5% above 20-session average",
+        "definition": "Completed daily close is at least SMA20 and at most 1.05 times SMA20, including both endpoints."
+      }
+    ],
+    "ranking": "Within company stocks and funds separately: more conditions met first; ties use lower ATR14 / completed close, then symbol alphabetically.",
+    "scoreMeaning": "A count of three chosen descriptive conditions, not a probability, investment grade, expected return, or validated edge. Thresholds are fixed research choices, not fitted performance claims.",
+    "sourceCutoffMeaning": "Completed source daily-session date. Spot may be after hours; independent daily-close availability, full calendar coverage, and corporate-action adjustments are unverified.",
+    "reviewAfterMeaning": "Next scheduled U.S. core-session close after this snapshot, from the retained bounded NYSE calendar. A review deadline only; it does not certify new data availability or full historical coverage. Null means no verified deadline was available.",
+    "calendarSource": "https://www.nyse.com/trade/hours-calendars",
+    "calendarVerifiedAt": "2026-09-04T12:53:28Z"
+  },
+  "stocks": [
+    {
+      "rank": 1,
+      "symbol": "NVDA",
+      "name": "NVIDIA",
+      "assetType": "stock",
+      "criteriaMet": 3,
+      "criteriaTotal": 3,
+      "summary": "The trend and momentum conditions line up, and price is still inside the selected band.",
+      "counterpoint": "Price is near the upper edge of the band; a small rise could change the result. The observed daily range measure, ATR14, is 3.20% of the close. Only 68 valid observations remain after inconsistent earlier bars were excluded.",
+      "watch": "Recheck the next completed daily close against an updated short-term average. This snapshot’s 20-session reference is $220.08.",
+      "close": 230.36,
+      "changePercent": 0.836069,
+      "rsi14": 60.16895,
+      "sma20": 220.082,
+      "sma50": 210.5664,
+      "atr14": 7.379632,
+      "atrPercent": 3.203521,
+      "priceVsSma20Percent": 4.670078,
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06T09:50:06Z",
+      "priceObservedAt": "2026-09-04T23:59:57Z",
+      "dailyCloseObservedAt": null,
+      "coverage": {
+        "state": "observed_sessions_only_calendar_unverified",
+        "observedSessions": 68,
+        "sourceSessions": 260,
+        "validationExcludedPrefixSessions": 192,
+        "startDate": "2026-06-01",
+        "endDate": "2026-09-04",
+        "expectedSessions": null,
+        "invalidDates": [
+          "2026-04-14",
+          "2026-05-29"
+        ],
+        "validationNote": "Only the contiguous valid suffix after the last inconsistent OHLC bar is used. No prices are repaired, filled or bridged.",
+        "adjustmentPolicy": "not specified by provider"
+      },
+      "criteria": [
+        {
+          "id": "trend",
+          "label": "Above 50-session average",
+          "passed": true,
+          "detail": "Close $230.36; SMA50 $210.57."
+        },
+        {
+          "id": "momentum",
+          "label": "RSI in the selected band",
+          "passed": true,
+          "detail": "RSI14 60.2; selected band 50–65."
+        },
+        {
+          "id": "price_discipline",
+          "label": "Within 5% above 20-session average",
+          "passed": true,
+          "detail": "Close +4.67% versus SMA20 $220.08; selected band 0% to +5%."
+        }
+      ]
+    },
+    {
+      "rank": 2,
+      "symbol": "ZM",
+      "name": "Zoom Communications",
+      "assetType": "stock",
+      "criteriaMet": 2,
+      "criteriaTotal": 3,
+      "summary": "Price is above its longer-term average, but it has yet to regain its short-term average.",
+      "counterpoint": "Price remains below its short-term average. The observed daily range measure, ATR14, is 3.87% of the close.",
+      "watch": "Recheck the next completed daily close against an updated short-term average. This snapshot’s 20-session reference is $102.54.",
+      "close": 101.33,
+      "changePercent": 3.250459,
+      "rsi14": 52.91376,
+      "sma20": 102.5425,
+      "sma50": 95.8662,
+      "atr14": 3.922666,
+      "atrPercent": 3.871179,
+      "priceVsSma20Percent": -1.182437,
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06T09:50:06Z",
+      "priceObservedAt": "2026-09-04T21:55:10Z",
+      "dailyCloseObservedAt": null,
+      "coverage": {
+        "state": "observed_sessions_only_calendar_unverified",
+        "observedSessions": 260,
+        "sourceSessions": 260,
+        "validationExcludedPrefixSessions": 0,
+        "startDate": "2025-08-25",
+        "endDate": "2026-09-04",
+        "expectedSessions": null,
+        "invalidDates": [],
+        "validationNote": "Only the contiguous valid suffix after the last inconsistent OHLC bar is used. No prices are repaired, filled or bridged.",
+        "adjustmentPolicy": "not specified by provider"
+      },
+      "criteria": [
+        {
+          "id": "trend",
+          "label": "Above 50-session average",
+          "passed": true,
+          "detail": "Close $101.33; SMA50 $95.87."
+        },
+        {
+          "id": "momentum",
+          "label": "RSI in the selected band",
+          "passed": true,
+          "detail": "RSI14 52.9; selected band 50–65."
+        },
+        {
+          "id": "price_discipline",
+          "label": "Within 5% above 20-session average",
+          "passed": false,
+          "detail": "Close -1.18% versus SMA20 $102.54; selected band 0% to +5%."
+        }
+      ]
+    },
+    {
+      "rank": 3,
+      "symbol": "AMZN",
+      "name": "Amazon",
+      "assetType": "stock",
+      "criteriaMet": 1,
+      "criteriaTotal": 3,
+      "summary": "Price is above its longer-term average; short-term momentum is still soft.",
+      "counterpoint": "Price remains below its short-term average. Momentum has not reached the selected band. The observed daily range measure, ATR14, is 2.59% of the close.",
+      "watch": "Recheck the next completed daily close against an updated short-term average. This snapshot’s 20-session reference is $262.20.",
+      "close": 258.51,
+      "changePercent": -0.150637,
+      "rsi14": 49.549075,
+      "sma20": 262.197,
+      "sma50": 253.9494,
+      "atr14": 6.692998,
+      "atrPercent": 2.589067,
+      "priceVsSma20Percent": -1.406195,
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06T09:50:06Z",
+      "priceObservedAt": "2026-09-04T23:59:24Z",
+      "dailyCloseObservedAt": null,
+      "coverage": {
+        "state": "observed_sessions_only_calendar_unverified",
+        "observedSessions": 260,
+        "sourceSessions": 260,
+        "validationExcludedPrefixSessions": 0,
+        "startDate": "2025-08-25",
+        "endDate": "2026-09-04",
+        "expectedSessions": null,
+        "invalidDates": [],
+        "validationNote": "Only the contiguous valid suffix after the last inconsistent OHLC bar is used. No prices are repaired, filled or bridged.",
+        "adjustmentPolicy": "not specified by provider"
+      },
+      "criteria": [
+        {
+          "id": "trend",
+          "label": "Above 50-session average",
+          "passed": true,
+          "detail": "Close $258.51; SMA50 $253.95."
+        },
+        {
+          "id": "momentum",
+          "label": "RSI in the selected band",
+          "passed": false,
+          "detail": "RSI14 49.5; selected band 50–65."
+        },
+        {
+          "id": "price_discipline",
+          "label": "Within 5% above 20-session average",
+          "passed": false,
+          "detail": "Close -1.41% versus SMA20 $262.20; selected band 0% to +5%."
+        }
+      ]
+    },
+    {
+      "rank": 4,
+      "symbol": "GOOGL",
+      "name": "Alphabet",
+      "assetType": "stock",
+      "criteriaMet": 0,
+      "criteriaTotal": 3,
+      "summary": "Price has not cleared its longer-term average, and momentum is outside the selected band.",
+      "counterpoint": "The longer-term trend condition is still missing. Price remains below its short-term average. Momentum has not reached the selected band. The observed daily range measure, ATR14, is 2.40% of the close.",
+      "watch": "Recheck the next completed daily close against an updated short-term average. This snapshot’s 20-session reference is $343.61.",
+      "close": 338.46,
+      "changePercent": -1.173791,
+      "rsi14": 44.820981,
+      "sma20": 343.611,
+      "sma50": 348.5694,
+      "atr14": 8.111477,
+      "atrPercent": 2.396584,
+      "priceVsSma20Percent": -1.499079,
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06T09:50:06Z",
+      "priceObservedAt": "2026-09-04T23:59:54Z",
+      "dailyCloseObservedAt": null,
+      "coverage": {
+        "state": "observed_sessions_only_calendar_unverified",
+        "observedSessions": 260,
+        "sourceSessions": 260,
+        "validationExcludedPrefixSessions": 0,
+        "startDate": "2025-08-25",
+        "endDate": "2026-09-04",
+        "expectedSessions": null,
+        "invalidDates": [],
+        "validationNote": "Only the contiguous valid suffix after the last inconsistent OHLC bar is used. No prices are repaired, filled or bridged.",
+        "adjustmentPolicy": "not specified by provider"
+      },
+      "criteria": [
+        {
+          "id": "trend",
+          "label": "Above 50-session average",
+          "passed": false,
+          "detail": "Close $338.46; SMA50 $348.57."
+        },
+        {
+          "id": "momentum",
+          "label": "RSI in the selected band",
+          "passed": false,
+          "detail": "RSI14 44.8; selected band 50–65."
+        },
+        {
+          "id": "price_discipline",
+          "label": "Within 5% above 20-session average",
+          "passed": false,
+          "detail": "Close -1.50% versus SMA20 $343.61; selected band 0% to +5%."
+        }
+      ]
+    },
+    {
+      "rank": 5,
+      "symbol": "AVGO",
+      "name": "Broadcom",
+      "assetType": "stock",
+      "criteriaMet": 0,
+      "criteriaTotal": 3,
+      "summary": "Price has not cleared its longer-term average, and momentum is outside the selected band.",
+      "counterpoint": "The longer-term trend condition is still missing. Price remains below its short-term average. Momentum has not reached the selected band. The observed daily range measure, ATR14, is 3.64% of the close.",
+      "watch": "Recheck the next completed daily close against an updated short-term average. This snapshot’s 20-session reference is $378.32.",
+      "close": 357.89,
+      "changePercent": 0.20439,
+      "rsi14": 38.040235,
+      "sma20": 378.323,
+      "sma50": 383.661,
+      "atr14": 13.039266,
+      "atrPercent": 3.643373,
+      "priceVsSma20Percent": -5.40094,
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06T09:50:06Z",
+      "priceObservedAt": "2026-09-04T23:59:58Z",
+      "dailyCloseObservedAt": null,
+      "coverage": {
+        "state": "observed_sessions_only_calendar_unverified",
+        "observedSessions": 260,
+        "sourceSessions": 260,
+        "validationExcludedPrefixSessions": 0,
+        "startDate": "2025-08-25",
+        "endDate": "2026-09-04",
+        "expectedSessions": null,
+        "invalidDates": [],
+        "validationNote": "Only the contiguous valid suffix after the last inconsistent OHLC bar is used. No prices are repaired, filled or bridged.",
+        "adjustmentPolicy": "not specified by provider"
+      },
+      "criteria": [
+        {
+          "id": "trend",
+          "label": "Above 50-session average",
+          "passed": false,
+          "detail": "Close $357.89; SMA50 $383.66."
+        },
+        {
+          "id": "momentum",
+          "label": "RSI in the selected band",
+          "passed": false,
+          "detail": "RSI14 38.0; selected band 50–65."
+        },
+        {
+          "id": "price_discipline",
+          "label": "Within 5% above 20-session average",
+          "passed": false,
+          "detail": "Close -5.40% versus SMA20 $378.32; selected band 0% to +5%."
+        }
+      ]
+    }
+  ],
+  "funds": [
+    {
+      "rank": 1,
+      "symbol": "SPY",
+      "name": "SPDR S&P 500 ETF Trust",
+      "assetType": "etf",
+      "criteriaMet": 3,
+      "criteriaTotal": 3,
+      "summary": "The trend and momentum conditions line up, and price is still inside the selected band.",
+      "counterpoint": "The observed daily range measure, ATR14, is 0.81% of the close. Only 212 valid observations remain after inconsistent earlier bars were excluded.",
+      "watch": "Recheck the next completed daily close against an updated short-term average. This snapshot’s 20-session reference is $769.05.",
+      "close": 770.19,
+      "changePercent": -0.385426,
+      "rsi14": 55.611363,
+      "sma20": 769.053,
+      "sma50": 756.8572,
+      "atr14": 6.210638,
+      "atrPercent": 0.806377,
+      "priceVsSma20Percent": 0.147844,
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-07T10:01:18Z",
+      "priceObservedAt": "2026-09-04T23:59:56Z",
+      "dailyCloseObservedAt": null,
+      "coverage": {
+        "state": "observed_sessions_only_calendar_unverified",
+        "observedSessions": 212,
+        "sourceSessions": 260,
+        "validationExcludedPrefixSessions": 48,
+        "startDate": "2025-10-31",
+        "endDate": "2026-09-04",
+        "expectedSessions": null,
+        "invalidDates": [
+          "2025-10-30"
+        ],
+        "validationNote": "Only the contiguous valid suffix after the last inconsistent OHLC bar is used. No prices are repaired, filled or bridged.",
+        "adjustmentPolicy": "not specified by provider"
+      },
+      "criteria": [
+        {
+          "id": "trend",
+          "label": "Above 50-session average",
+          "passed": true,
+          "detail": "Close $770.19; SMA50 $756.86."
+        },
+        {
+          "id": "momentum",
+          "label": "RSI in the selected band",
+          "passed": true,
+          "detail": "RSI14 55.6; selected band 50–65."
+        },
+        {
+          "id": "price_discipline",
+          "label": "Within 5% above 20-session average",
+          "passed": true,
+          "detail": "Close +0.15% versus SMA20 $769.05; selected band 0% to +5%."
+        }
+      ]
+    },
+    {
+      "rank": 2,
+      "symbol": "QQQ",
+      "name": "Invesco QQQ Trust",
+      "assetType": "etf",
+      "criteriaMet": 3,
+      "criteriaTotal": 3,
+      "summary": "The trend and momentum conditions line up, and price is still inside the selected band.",
+      "counterpoint": "The observed daily range measure, ATR14, is 1.32% of the close. Only 74 valid observations remain after inconsistent earlier bars were excluded.",
+      "watch": "Recheck the next completed daily close against an updated short-term average. This snapshot’s 20-session reference is $717.51.",
+      "close": 718.96,
+      "changePercent": 0.179748,
+      "rsi14": 53.56432,
+      "sma20": 717.5105,
+      "sma50": 711.085,
+      "atr14": 9.455699,
+      "atrPercent": 1.315191,
+      "priceVsSma20Percent": 0.202018,
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-07T10:01:18Z",
+      "priceObservedAt": "2026-09-04T23:59:54Z",
+      "dailyCloseObservedAt": null,
+      "coverage": {
+        "state": "observed_sessions_only_calendar_unverified",
+        "observedSessions": 74,
+        "sourceSessions": 260,
+        "validationExcludedPrefixSessions": 186,
+        "startDate": "2026-05-21",
+        "endDate": "2026-09-04",
+        "expectedSessions": null,
+        "invalidDates": [
+          "2025-11-28",
+          "2026-05-08",
+          "2026-05-20"
+        ],
+        "validationNote": "Only the contiguous valid suffix after the last inconsistent OHLC bar is used. No prices are repaired, filled or bridged.",
+        "adjustmentPolicy": "not specified by provider"
+      },
+      "criteria": [
+        {
+          "id": "trend",
+          "label": "Above 50-session average",
+          "passed": true,
+          "detail": "Close $718.96; SMA50 $711.09."
+        },
+        {
+          "id": "momentum",
+          "label": "RSI in the selected band",
+          "passed": true,
+          "detail": "RSI14 53.6; selected band 50–65."
+        },
+        {
+          "id": "price_discipline",
+          "label": "Within 5% above 20-session average",
+          "passed": true,
+          "detail": "Close +0.20% versus SMA20 $717.51; selected band 0% to +5%."
+        }
+      ]
+    },
+    {
+      "rank": 3,
+      "symbol": "DXYZ",
+      "name": "Destiny Tech100",
+      "assetType": "closed_end_fund",
+      "criteriaMet": 3,
+      "criteriaTotal": 3,
+      "summary": "The trend and momentum conditions line up, and price is still inside the selected band.",
+      "counterpoint": "The observed daily range measure, ATR14, is 6.50% of the close. Only 101 valid observations remain after inconsistent earlier bars were excluded.",
+      "watch": "Recheck the next completed daily close against an updated short-term average. This snapshot’s 20-session reference is $32.68.",
+      "close": 32.7,
+      "changePercent": 1.395349,
+      "rsi14": 55.203042,
+      "sma20": 32.6755,
+      "sma50": 28.0408,
+      "atr14": 2.126318,
+      "atrPercent": 6.502502,
+      "priceVsSma20Percent": 0.07498,
+      "asOf": "2026-09-04",
+      "source": "Interactive Brokers connector",
+      "sourceRetrievedAt": "2026-09-06T09:50:06Z",
+      "priceObservedAt": "2026-09-04T23:41:26Z",
+      "dailyCloseObservedAt": null,
+      "coverage": {
+        "state": "observed_sessions_only_calendar_unverified",
+        "observedSessions": 101,
+        "sourceSessions": 260,
+        "validationExcludedPrefixSessions": 159,
+        "startDate": "2026-04-14",
+        "endDate": "2026-09-04",
+        "expectedSessions": null,
+        "invalidDates": [
+          "2025-10-31",
+          "2025-11-05",
+          "2025-11-07",
+          "2025-12-03",
+          "2026-03-04",
+          "2026-04-13"
+        ],
+        "validationNote": "Only the contiguous valid suffix after the last inconsistent OHLC bar is used. No prices are repaired, filled or bridged.",
+        "adjustmentPolicy": "not specified by provider"
+      },
+      "criteria": [
+        {
+          "id": "trend",
+          "label": "Above 50-session average",
+          "passed": true,
+          "detail": "Close $32.70; SMA50 $28.04."
+        },
+        {
+          "id": "momentum",
+          "label": "RSI in the selected band",
+          "passed": true,
+          "detail": "RSI14 55.2; selected band 50–65."
+        },
+        {
+          "id": "price_discipline",
+          "label": "Within 5% above 20-session average",
+          "passed": true,
+          "detail": "Close +0.07% versus SMA20 $32.68; selected band 0% to +5%."
+        }
+      ]
+    }
+  ],
+  "exclusions": [],
+  "limitations": [
+    "Ranks cover this small retained universe, not all U.S. stocks. Company stocks and funds are ranked separately.",
+    "Recorded daily observations only. Retrieval time does not make a historical price live.",
+    "Exchange-calendar completeness, corporate-action adjustment, and independent daily-close availability are unverified. Invalid source prefixes remain excluded and disclosed.",
+    "The screen uses price, moving averages, RSI, and ATR only. It does not establish fundamental value, earnings quality, probabilities, future returns, or a buy recommendation.",
+    "Undated IV fields, live chart widgets, synthetic grid demonstrations, and brokerage account data are not ranking inputs."
+  ],
+  "predictionEnabled": false,
+  "executionEnabled": false
+}

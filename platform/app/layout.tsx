@@ -57,16 +57,17 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const personalLocal = process.env.NODE_ENV === 'development' && process.env.LEO_PERSONAL_TRADING_ENABLED === 'true';
   return (
     <html lang="en" className={`${fraunces.variable} ${inter.variable} ${instrumentSerif.variable}`}>
       <body className="min-h-screen">
-        <PostHogProvider>
+        {personalLocal ? <AppShell bg={null} nav={null} footer={null}>{children}</AppShell> : <PostHogProvider>
           <PostHogSession />
           <GoogleAnalytics />
           <AppShell bg={<BgMesh />} nav={<Nav />} footer={<Footer />}>
             {children}
           </AppShell>
-        </PostHogProvider>
+        </PostHogProvider>}
       </body>
     </html>
   );

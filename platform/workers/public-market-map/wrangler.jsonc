@@ -1,0 +1,12 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "leo-market-map",
+  "main": "index.ts",
+  "compatibility_date": "2026-09-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "kv_namespaces": [
+    { "binding": "PUBLIC_MAP_STORE", "id": "f22aa7a956324ba48febed6541f71c07" }
+  ],
+  "triggers": { "crons": ["0 13,14 * * *"] },
+  "observability": { "enabled": true, "head_sampling_rate": 1 }
+}

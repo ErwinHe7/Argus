@@ -1,0 +1,8 @@
+{
+  "schemaVersion": "astra-shortlist-service-config.v1",
+  "input": "/opt/leo-inputs/desk-data.json",
+  "calendar": "/opt/leo/platform/workers/public-market-map/us-calendar.ts",
+  "state_dir": "/var/lib/leo-shortlist/private",
+  "public_dir": "/var/lib/leo-shortlist/public",
+  "interval_seconds": 30
+}

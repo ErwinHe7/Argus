@@ -1,0 +1,32 @@
+{
+  "schemaVersion": "leo-vps-preparation-validation.v1",
+  "checkedDate": "2026-09-08",
+  "archive": "dist/leo-vps-source-20260908-v2.zip",
+  "archiveSha256": "9fc479feeae08a1c8734e0dbe917c7d16c51f14d5cefcb2b6cc172daf6d3a658",
+  "sourceFiles": 122,
+  "shortlistServiceSha256": "cc2a56994755439f33717ff882923e2e936521d56bc2ec2f960dd70f38bd20cb",
+  "checks": {
+    "sourceBundleSecurityTests": {"passed": 3, "failed": 0},
+    "bashSyntax": {"passed": 2, "failed": 0},
+    "ubuntu24_04Systemd255": {
+      "actualConfigValidator": "pass",
+      "pathsWithSpaces": "pass",
+      "dryRunNoMutation": "pass",
+      "renderedUnitVerify": "pass",
+      "privateEnvironmentFileNoContentExposure": "pass",
+      "worldReadableEnvironmentFileRejected": "pass"
+    },
+    "ubuntu24_04Python3_12ShortlistService": {"passed": 15, "failed": 0, "skipped": 0, "includesFifoRejection": true, "httpsUploadMocked": true},
+    "extractedV2BundleSourceHashVerification": "pass",
+    "extractedV2ShortlistRuntimePreparation": "pass"
+  },
+  "priorFailure": "The first bundle's standard venv creation required unavailable ensurepip in WSL. V2 prepares the stdlib-only shortlist venv with --without-pip and passed actual extracted runtime preparation. Optional research setup still explicitly needs ensurepip/Pydantic and Rust.",
+  "nativeRustBuildVerified": false,
+  "actualVpsVerified": false,
+  "vpsPurchased": false,
+  "servicesInstalled": 0,
+  "servicesStarted": 0,
+  "brokerActions": 0,
+  "defaultRuntimePreparationNetworkCalls": 0,
+  "limitations": ["No actual remote host or reboot validation", "No Ubuntu 22.04 runtime validation", "No native Rust build in this packaging check", "Data acquisition and entitlements remain external prerequisites"]
+}

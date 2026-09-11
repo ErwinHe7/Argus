@@ -21,6 +21,8 @@ import { createSupabaseBriefingRepository } from "../../../ritual-investing-api/
 import { createSupabaseCircleRepository } from "../../../ritual-investing-api/src/domains/circles/repository.ts";
 import { createSupabaseCovenRepository } from "../../../ritual-investing-api/src/domains/coven/repository.ts";
 import { createSupabaseDiscoverRepository } from "../../../ritual-investing-api/src/domains/discover/repository.ts";
+import { createQuantMarketMapHttpAdapter } from "../../../ritual-investing-api/src/domains/market-map/adapter.ts";
+import { createBlockedMarketMapProvider, createMarketMapService } from "../../../ritual-investing-api/src/domains/market-map/service.ts";
 import { createSupabaseEditorialRepository } from "../../../ritual-investing-api/src/domains/editorial/repository.ts";
 import { createSupabaseMediaRepository } from "../../../ritual-investing-api/src/domains/media/repository.ts";
 import { createSupabaseModerationRepository } from "../../../ritual-investing-api/src/domains/moderation/repository.ts";
@@ -113,6 +115,19 @@ const memberBranchCapabilities = createMemberBranchCapabilityEvaluator({
   starpath: starpathCapability,
 });
 
+// A research credential is server-only. Partial or invalid configuration takes
+// this surface offline without affecting unrelated member routes.
+const marketMapProvider = (() => {
+  const baseUrl = Deno.env.get("QUANT_RESEARCH_API_URL");
+  const serviceToken = Deno.env.get("QUANT_RESEARCH_TOKEN");
+  if (!baseUrl || !serviceToken) return createBlockedMarketMapProvider();
+  try {
+    return createQuantMarketMapHttpAdapter({ baseUrl, serviceToken });
+  } catch {
+    return createBlockedMarketMapProvider();
+  }
+})();
+
 function createRepositories(
   database: DatabaseTransaction,
   claims: Parameters<typeof withMemberRequestTransaction>[0]["verifiedClaims"],
@@ -175,6 +190,7 @@ function withRepositories<T>(
 }
 
 const app = createRetainedApp({
+  marketMapService: createMarketMapService({ provider: marketMapProvider }),
   verifyAccessToken: createSupabaseAccessTokenVerifier({ supabaseUrl }),
   withRepositories,
   withPublicPreview: (callback) =>

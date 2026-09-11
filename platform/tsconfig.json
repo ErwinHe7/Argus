@@ -39,6 +39,11 @@
   ],
   "exclude": [
     "node_modules",
+    "features/research-desk/worker-routing.ts",
+    ".open-next",
+    "workers/public-market-map",
+    "workers/shortlist-feed",
+    "workers/event-radar",
     "mobile/ios-shell",
     "scripts/mcp",
     "argus-access"

@@ -1,15 +1,21 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "leo",
-  "main": ".open-next/worker.js",
+  "main": "features/research-desk/worker-entry.mjs",
   "compatibility_date": "2026-08-31",
   "compatibility_flags": ["nodejs_compat"],
   "vars": {
     "RITUAL_FREE_PREVIEW": "true"
   },
+  "services": [
+    { "binding": "PUBLIC_MARKET_MAP", "service": "leo-market-map" },
+    { "binding": "SHORTLIST_FEED", "service": "leo-shortlist-feed" },
+    { "binding": "EVENT_RADAR", "service": "leo-event-radar" }
+  ],
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    "run_worker_first": ["/app/research-desk/data/shortlist-feed/current.json", "/app/research-desk/data/event-radar.json"]
   },
   "observability": {
     "enabled": true

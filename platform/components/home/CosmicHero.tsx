@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowRight, MoonStar } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import styles from './CosmicHero.module.css';
+import { PublicMarketMapLink } from '@/components/market-map/PublicMarketMapLink';
 
 type Star = {
   x: number;
@@ -215,6 +216,7 @@ export function CosmicHero() {
           <span className={styles.brandName}>Leo</span>
         </a>
         <nav className={styles.navLinks} aria-label="Homepage navigation">
+          <PublicMarketMapLink />
           <Link href="/pricing">Plans</Link>
           <Link href="/app/">App</Link>
         </nav>

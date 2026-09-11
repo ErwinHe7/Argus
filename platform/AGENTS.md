@@ -9,6 +9,16 @@ arbitrage.
 
 ## Runtime ownership
 
+### Authorized paper-strategy extension (2026-09-07)
+
+The owner-approved Strategy Lab plan permits deterministic dry runs and moomoo
+SIMULATE-account execution through per-user local connectors. This exception is
+limited to `features/strategy-lab`, `connectors/strategy`, the Rust strategy module,
+and the isolated `strategy-api`; existing research services retain their boundary.
+Real-money execution and options execution remain disabled. Never route this
+feature through the synthetic TypeScript execution service. The implementation
+and release evidence live in `docs/strategy-lab/DELIVERY.md`.
+
 - `quant_engine_rs/` is the canonical production inference and market-data
   validation service.
 - `intraday_quant/` is offline research, training, validation, and artifact

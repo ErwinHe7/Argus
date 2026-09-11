@@ -1,0 +1,12 @@
+{
+  "imports": {
+    "@hono/zod-openapi": "npm:@hono/zod-openapi@1.6.1",
+    "hono": "npm:hono@4.13.3",
+    "hono/": "npm:hono@4.13.3/",
+    "jose": "npm:jose@6.2.10",
+    "postgres": "npm:postgres@3.4.7",
+    "zod": "npm:zod@4.4.3"
+  },
+  "lock": "./deno.lock",
+  "tasks": {"check": "deno check index.ts"}
+}

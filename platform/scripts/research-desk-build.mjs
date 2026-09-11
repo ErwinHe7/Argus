@@ -1,0 +1,48 @@
+import { build } from 'esbuild';
+import { readFile, writeFile, mkdir, copyFile } from 'node:fs/promises';
+import { resolve, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
+import { prepareGridAssets } from './grid-research-assets.mjs';
+const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const require=createRequire(import.meta.url);
+const {validateIvLabBundle,ivLabEventsSchema}=require('../lib/iv-lab/types.ts');
+const {publicConfigSchema}=require('../features/strategy-lab/config.ts');
+const {shortlistSchema}=require('../features/research-desk/shortlist/contract.ts');
+const {eventRadarSchema}=require('../features/research-desk/radar/contract.ts');
+const output=resolve(root,'public/app/research-desk');
+await mkdir(resolve(output,'data/iv'),{recursive:true});
+await prepareGridAssets(root,output);
+// A release may intentionally keep account connections unavailable. Never infer
+// readiness from a preview flag or bundle server credentials.
+const strategyConfig=publicConfigSchema.parse(JSON.parse(await readFile(
+  process.env.LEO_STRATEGY_PUBLIC_CONFIG || resolve(root,'features/strategy-lab/strategy-config.example.json'),'utf8')));
+await writeFile(resolve(output,'strategy-config.json'),JSON.stringify(strategyConfig));
+await copyFile(resolve(root,'docs/strategy-lab/CONNECTOR-GUIDE.md'),resolve(output,'strategy-connector-guide.md'));
+const bundle=validateIvLabBundle(JSON.parse(await readFile(resolve(root,'lib/iv-lab/artifacts/iv-lab.json'),'utf8')));
+const events=ivLabEventsSchema.parse(JSON.parse(await readFile(resolve(root,'lib/iv-lab/artifacts/events.json'),'utf8')));
+if(!bundle)throw new Error('Invalid IV research artifact');
+const desk=JSON.parse(await readFile(resolve(root,'features/research-desk/data/desk-data.json'),'utf8'));
+const shortlist=shortlistSchema.parse(JSON.parse(await readFile(resolve(root,'features/research-desk/data/shortlist.json'),'utf8')));
+if(shortlist.inputSha256!==createHash('sha256').update(await readFile(resolve(root,'features/research-desk/data/desk-data.json'))).digest('hex'))throw new Error('Shortlist source changed; regenerate the offline screen before building');
+if(desk.dataMode!=='historical_snapshot_not_live'||!Array.isArray(desk.symbols)||!desk.symbols.length||desk.symbols.some(s=>s.executionEnabled!==false||!s.observedAt||!s.series.length))throw new Error('Invalid desk evidence');
+const {symbols,...metadata}=bundle;
+await writeFile(resolve(output,'data/iv-overview.json'),JSON.stringify({...metadata,symbols:symbols.map(({configurations,...s})=>s),events}));
+for(const symbol of symbols)await writeFile(resolve(output,`data/iv/${symbol.symbol}.json`),JSON.stringify({symbol}));
+await copyFile(resolve(root,'features/research-desk/data/desk-data.json'),resolve(output,'data/desk-data.json'));
+await copyFile(resolve(root,'features/research-desk/data/market-analysis.json'),resolve(output,'data/market-analysis.json'));
+await writeFile(resolve(output,'data/shortlist.json'),JSON.stringify(shortlist));
+await writeFile(resolve(output,'data/events.json'),JSON.stringify(events));
+const eventRadar=eventRadarSchema.parse(JSON.parse(await readFile(resolve(root,'features/research-desk/data/event-radar.json'),'utf8')));
+await writeFile(resolve(output,'data/event-radar.json'),JSON.stringify(eventRadar));
+await copyFile(resolve(root,'docs/earnings-radar-comparison.md'),resolve(output,'earnings-research-guide.md'));
+await copyFile(resolve(root,'public/brand/leo-lion.png'),resolve(output,'lion.png'));
+await writeFile(resolve(output,'lion.png.json'),JSON.stringify({prompt:'Pre-existing Leo Lion brand raster, copied without visual changes from platform/public/brand/leo-lion.png. Selected for the user-requested Lion profile and Astra’s Pick brand. Original generation prompt unavailable; this records the verified source.'},null,2));
+await copyFile(resolve(root,'../ritual-investing-app/assets/fonts/Inter-Variable.ttf'),resolve(output,'inter.ttf'));
+await writeFile(resolve(output,'asset-provenance.json'),JSON.stringify({lion:{source:'Existing Leo brand asset: platform/public/brand/leo-lion.png',usage:'User-requested Lion identity'},inter:{source:'Existing licensed app font: ritual-investing-app/assets/fonts/Inter-Variable.ttf'}},null,2));
+await build({entryPoints:[resolve(root,'features/research-desk/Desk.tsx')],bundle:true,outfile:resolve(output,'desk.js'),format:'esm',platform:'browser',target:['es2022'],minify:true,sourcemap:false,jsx:'automatic',external:['/app/research-desk/inter.ttf'],define:{'process.env.NODE_ENV':'"production"'},plugins:[{name:'next-static-adapters',setup(b){b.onResolve({filter:/^next\/(link|image)$/},args=>({path:args.path,namespace:'next-static'}));b.onLoad({filter:/.*/,namespace:'next-static'},args=>({contents:`export { ${args.path.endsWith('link')?'Link':'Image'} as default } from ${JSON.stringify(resolve(root,'features/research-desk/next-shims.tsx'))};`,resolveDir:root,loader:'tsx'}));b.onResolve({filter:/^\.\/inter\.ttf$/},()=>({path:'./inter.ttf',external:true}));}}]});
+const directionContract=(await readFile(resolve(root,'features/research-desk/Desk.tsx'),'utf8')).split(/\r?\n/).filter(line=>/^\/\/ (THESIS|OWN-WORLD|STORY|FIRST VIEWPORT|FORM|FINISH):/.test(line)).map(line=>line.slice(3)).join('\n');
+if(directionContract.split('\n').length!==6)throw new Error('Incomplete design direction contract');
+await writeFile(resolve(output,'index.html'),`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0d0912"><meta name="description" content="Astra's Pick: an explained stock shortlist, broader market screening, and plans you can review."><title>Astra's Pick · Stock shortlist</title><link rel="icon" href="/app/research-desk/lion.png"><link rel="preload" href="/app/research-desk/inter.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="/app/research-desk/desk.css"></head><body><!-- ${directionContract} --><div id="leo-desk-root"></div><noscript>Astra's Pick requires JavaScript for interactive charts and options analysis. <a href="/app/">Return to Leo</a>.</noscript><script type="module" src="/app/research-desk/desk.js"></script></body></html>`);
+console.log(`Built Leo Research Desk: ${desk.symbols.length} research symbols, ${symbols.length} IV datasets, output ${output}`);
