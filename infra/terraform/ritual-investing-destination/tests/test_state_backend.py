@@ -4,17 +4,19 @@ import json
 import os
 from pathlib import Path
 import socket
+import signal
+import subprocess
 import sys
 import tempfile
 import time
 import urllib.error
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, call, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from state_backend import (BackendError, BackendSpec, BootstrapManager,
                            S3StateReader, account_lock, private_account_directory,
-                           TerraformCommand, private_write, read_state, states_match)
+                           TerraformCommand, private_write, read_state, states_match, verify_remote_locking)
 
 ACCOUNT = "1" * 32
 REVISION = "a" * 40
@@ -330,6 +332,203 @@ class ValidationTests(unittest.TestCase):
             self.assertFalse(lock.exists())
             self.assertEqual(terraform.run(["plan", "-input=false", "-no-color", "-lock-timeout=0s", "-var=lock_probe=check"],
                                            root, "local-lock-after-release"), 0)
+
+
+class RemoteLockFailureTests(unittest.TestCase):
+    def probe(self, root, failure):
+        class Holder:
+            def __init__(self):
+                self.stdin = io.BytesIO()
+                self.returncode = 1 if failure == "early_exit" else None
+                self.waits, self.terminated, self.killed = 0, False, False
+
+            def poll(self):
+                return self.returncode
+
+            def wait(self, timeout=None):
+                self.waits += 1
+                if failure == "interrupt_cleanup":
+                    signal.raise_signal(signal.SIGINT)
+                if ("timeout" in failure or "kill" in failure) and self.waits == 1:
+                    raise subprocess.TimeoutExpired("synthetic-holder", timeout)
+                if "kill" in failure and self.waits == 2:
+                    raise subprocess.TimeoutExpired("synthetic-holder", timeout)
+                if self.returncode is None:
+                    self.returncode = 0
+                return self.returncode
+
+            def terminate(self):
+                self.terminated = True
+                if "kill" not in failure:
+                    self.returncode = -15
+
+            def kill(self):
+                self.killed, self.returncode = True, -9
+
+        holder = Holder()
+
+        class Adapter:
+            last_output = None
+            reacquired = False
+            calls = []
+
+            def run(self, args, cwd, label):
+                self.calls.append(args)
+                self.last_output = cwd / (label + ".log")
+                private_write(self.last_output, b"Error acquiring the state lock fixture-lock")
+                if label == "lock-contender":
+                    return 0 if failure == "contender" else 1
+                if label == "lock-after-release":
+                    self.reacquired = True
+                    return 1 if failure == "reacquire" else 0
+                return 0
+
+            def start(self, *args, **kwargs):
+                return holder
+
+        adapter = Adapter()
+
+        class LockReader:
+            reads = 0
+
+            def get(self, spec, destination, key):
+                self.reads += 1
+                if holder.returncode is not None and failure != "retained" and not (failure == "final_retained" and adapter.reacquired):
+                    return False
+                identifier = None if "malformed" in failure else "changed" if failure == "changed" and self.reads > 1 else "fixture-lock"
+                private_write(destination, json.dumps({"ID": identifier, "Path": spec.bucket + "/" + key.removesuffix(".tflock")}).encode())
+                return True
+
+        return holder, adapter, LockReader()
+
+    def test_failed_lock_proofs_reap_holders_and_never_record_success(self):
+        cases = {"early_exit": "holder failed before lock observation",
+                 "malformed": "unexpected lock identity", "changed": "holder changed",
+                 "contender": "did not reject", "timeout": "did not release cleanly",
+                 "kill": "did not release cleanly", "malformed_kill": "unexpected lock identity",
+                 "retained": "release was not verified", "reacquire": "could not be reacquired",
+                 "final_retained": "left a lock", "not_observed": "not observed before timeout"}
+        for failure, message in cases.items():
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder).resolve()
+                holder, adapter, reader = self.probe(root, failure)
+                with self.assertRaisesRegex(BackendError, message):
+                    verify_remote_locking(BackendSpec(ACCOUNT, "bootstrap"), root, adapter, reader,
+                                          timeout=0 if failure == "not_observed" else 1)
+                self.assertIsNotNone(holder.returncode)
+                self.assertTrue(holder.stdin.closed)
+                self.assertGreater(holder.waits, 0)
+                self.assertEqual(holder.terminated, "timeout" in failure or "kill" in failure)
+                self.assertEqual(holder.killed, "kill" in failure)
+                self.assertEqual(list(root.rglob("verified.json")), [])
+                self.assertFalse(any("force-unlock" in call for call in adapter.calls))
+
+    def test_complete_lock_proof_records_success_after_reacquisition(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            holder, adapter, reader = self.probe(root, "")
+            self.assertTrue(verify_remote_locking(BackendSpec(ACCOUNT, "bootstrap"), root, adapter, reader))
+            self.assertTrue(adapter.reacquired)
+            self.assertEqual(holder.returncode, 0)
+            self.assertEqual(len(list(root.rglob("verified.json"))), 1)
+
+    def test_interrupt_during_lock_cleanup_is_delivered_after_reaping(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            holder, adapter, reader = self.probe(root, "interrupt_cleanup")
+            with self.assertRaises(KeyboardInterrupt):
+                verify_remote_locking(BackendSpec(ACCOUNT, "bootstrap"), root, adapter, reader)
+            self.assertEqual(holder.returncode, 0)
+            self.assertTrue(holder.stdin.closed)
+            self.assertEqual(list(root.rglob("verified.json")), [])
+
+
+class ProcessOwnershipTests(unittest.TestCase):
+    def test_stubborn_cancelled_process_group_is_stopped_and_reaped(self):
+        process = Mock(pid=12345, stdin=io.BytesIO())
+        process.communicate.side_effect = KeyboardInterrupt
+        process.poll.return_value = None
+        process.wait.side_effect = [subprocess.TimeoutExpired("synthetic", 30),
+                                    subprocess.TimeoutExpired("synthetic", 5), -9]
+        previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+        command = TerraformCommand()
+        with patch.object(command, "start", return_value=process), patch("state_backend.os.killpg") as kill_group:
+            with self.assertRaises(KeyboardInterrupt):
+                command.run(["apply"], Path("unused"), "cancel-check")
+        process.send_signal.assert_called_once_with(signal.SIGINT)
+        self.assertEqual(kill_group.call_args_list, [call(12345, signal.SIGTERM), call(12345, signal.SIGKILL)])
+        self.assertEqual(process.wait.call_count, 3)
+        self.assertTrue(process.stdin.closed)
+        self.assertEqual({sig: signal.getsignal(sig) for sig in previous}, previous)
+
+    def test_interrupt_reaps_child_before_account_lock_is_released(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder).resolve()
+            directory = private_account_directory(ACCOUNT, root / "accounts")
+            child_code = f'''
+import os, signal, sys, time
+from pathlib import Path
+root = Path({str(root)!r})
+def stop(*args):
+    (root / "stopping").touch()
+    while not (root / "release").exists():
+        time.sleep(0.01)
+    (root / "saved-state").write_text("preserved")
+    sys.exit(130)
+signal.signal(signal.SIGINT, stop)
+(root / "child-pid").write_text(str(os.getpid()))
+while True:
+    time.sleep(0.01)
+'''
+            driver_code = f'''
+import sys
+from pathlib import Path
+sys.path.insert(0, {str(Path(__file__).resolve().parents[1])!r})
+from state_backend import account_lock, TerraformCommand
+try:
+    with account_lock(Path({str(directory)!r})):
+        TerraformCommand(sys.executable).run(["-c", {child_code!r}], Path({str(directory)!r}), "cancel-check")
+except KeyboardInterrupt:
+    sys.exit(1)
+'''
+            driver = subprocess.Popen([sys.executable, "-c", driver_code], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            child_pid = None
+
+            def wait_for(path):
+                deadline = time.monotonic() + 5
+                while not path.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                self.assertTrue(path.exists(), path.name)
+
+            try:
+                wait_for(root / "child-pid")
+                child_pid = int((root / "child-pid").read_text())
+                driver.send_signal(signal.SIGINT)
+                wait_for(root / "stopping")
+                driver.send_signal(signal.SIGINT)  # Cleanup must retain ownership on another interrupt.
+                time.sleep(0.05)
+                self.assertIsNone(driver.poll())
+                with self.assertRaises(BackendError):
+                    with account_lock(directory):
+                        pass
+                (root / "release").touch()
+                driver.communicate(timeout=5)
+                self.assertEqual(driver.returncode, 1)
+                with self.assertRaises(ProcessLookupError):
+                    os.kill(child_pid, 0)
+                with account_lock(directory):
+                    self.assertEqual((root / "saved-state").read_text(), "preserved")
+                self.assertTrue(list((directory / "logs").glob("*.log")))
+            finally:
+                (root / "release").touch()
+                if child_pid:
+                    try:
+                        os.kill(child_pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                if driver.poll() is None:
+                    driver.kill()
+                driver.communicate(timeout=5)
 
 
 if __name__ == "__main__":

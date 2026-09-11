@@ -258,6 +258,32 @@ def inspect_outputs(plan, target, expected):
     return any(output["actions"] != ["no-op"] for output in outputs.values())
 
 
+def safe_queue_update(before, after, uncertain, values):
+    """Allow provider-computed update metadata; configured activation stays known."""
+    inactive_values("cloudflare_queue", before, {})
+    known(before["settings"], {}, "delivery_paused", True)
+    require(set(before) == set(after) | set(uncertain))
+    for field in ("account_id", "queue_name", "id", "queue_id"):
+        require(isinstance(before.get(field), str) and bool(before[field]))
+        known(after, uncertain, field, before[field])
+    for field, empty in (("consumers", []), ("producers", []),
+                         ("consumers_total_count", 0), ("producers_total_count", 0)):
+        if uncertain.get(field) is True:
+            require(field not in after)
+        else:
+            known(after, uncertain, field, empty)
+            if empty == 0:
+                require(type(after[field]) is int)
+    settings, settings_unknown = after["settings"], uncertain.get("settings", {})
+    fields = {"delivery_delay", "delivery_paused", "message_retention_period"}
+    require(set(before["settings"]) == fields and set(settings) | set(settings_unknown) == fields)
+    for field in ("delivery_delay", "message_retention_period"):
+        if unknown(settings_unknown.get(field)):
+            require(values[field] is None and settings_unknown[field] is True and field not in settings)
+        else:
+            queue_value(field, settings.get(field))
+
+
 def inspect_plan(plan, account, target, catalog=None, *, initialized=False):
     """Return only allowlisted action counts; never serialize plan values."""
     try:
@@ -287,20 +313,12 @@ def inspect_plan(plan, account, target, catalog=None, *, initialized=False):
             require(change.get("before") is None if actions == ["create"] else isinstance(change.get("before"), dict))
             safe_values(kind, change.get("after"), change.get("after_unknown", {}), values, account)
             if actions != ["create"]:
-                inactive_values(kind, change["after"], change.get("after_unknown", {}))
                 before, after = change["before"], change["after"]
                 if actions == ["no-op"]:
+                    inactive_values(kind, after, change.get("after_unknown", {}))
                     require(before == after)
                 else:
-                    require(set(before) == set(after))
-                    require(before.get("id") == after.get("id") and before.get("queue_id") == after.get("queue_id"))
-                    require(all(before[key] == after[key] for key in before if key not in ("settings", *FIELDS[kind][1])))
-                    old_settings, settings = before.get("settings"), after["settings"]
-                    require(isinstance(old_settings, dict) and old_settings.get("delivery_paused") is True)
-                    require(set(old_settings) == set(settings) and set(settings) == {"delivery_delay", "delivery_paused", "message_retention_period"})
-                    for field in ("delivery_delay", "message_retention_period"):
-                        queue_value(field, old_settings[field])
-                        queue_value(field, settings[field])
+                    safe_queue_update(before, after, change.get("after_unknown", {}), values)
             counts[actions[0]] += 1
         require(seen == set(expected))
         planned = resource_values(plan.get("planned_values", {}).get("root_module"))

@@ -215,8 +215,10 @@ resource secrets, and credentials are excluded.
 | `terraform-failure`, `internal-failure` | Inspect protected diagnostics and follow the receipt's recovery instruction. |
 
 An apply artifact is consumed before Terraform starts, including failed or
-interrupted attempts. For a partial workload apply, obtain a fresh plan from
-retained state. For partial **local bootstrap**, a fresh plan must use the original
+interrupted attempts. Cancellation waits for Terraform to exit before releasing
+the account lock; private state and logs remain available. For a partial workload
+apply, obtain a fresh plan from retained state. For partial **local bootstrap**,
+a fresh plan must use the original
 revision, snapshot, and valid local state. If prod exists, R2 credentials must
 prove the remote bootstrap key absent. Restore the original checkout without
 discarding unrelated work when necessary. A changed checkout cannot replace a
@@ -284,7 +286,7 @@ TEST_TERRAFORM_BIN="${RITUAL_TERRAFORM_BIN:-terraform}" \
 ```
 
 These tests make no Cloudflare mutations. On 2026-09-11 the complete CLI suite
-passed 52 tests with no skips, including those local-backend checks. This is
+passed 59 tests with no skips, including those local-backend checks. This is
 offline evidence; hosted migration, R2 locking, and provisioning remain pending.
 
 To see a sanitized prerequisite receipt without a remote request, run in an

@@ -538,6 +538,7 @@ def execute(options, receipt, feature=FEATURE):
             for path, digest in manifest["inputs"].items():
                 if digest_file(original / "snapshot" / path) != digest:
                     fail("stale-inputs")
+            receipt["plan_identity"] = manifest["plan_identity"]
             state = state_value(spec, bootstrap.workdir, reader, artifact, "local")
             if state is None:
                 state = read_state(directory / "authoritative-local.tfstate")

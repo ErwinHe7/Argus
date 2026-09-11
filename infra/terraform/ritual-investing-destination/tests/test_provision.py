@@ -386,6 +386,11 @@ class ExecutionTests(CliTests):
         code, resumed = self.action("resume")
         self.assertEqual((code, resumed["outcome"]), (0, "resumed"), resumed)
         self.assertEqual(resumed["revision"], plan["revision"])
+        self.assertEqual(resumed["plan_identity"], plan["plan_identity"])
+        human = self.invoke("resume", "--profile", "leoinvestment", "--target", "bootstrap", human=True)
+        self.assertEqual(human.returncode, 0, human.stdout)
+        self.assertIn(plan["plan_identity"], human.stdout)
+        self.assertIn(plan["revision"], human.stdout)
         self.assertEqual(sum(c.get("terraform", [None])[0] == "apply" for c in self.recorded_calls()), 1)
 
     def test_partial_initial_apply_replan_and_consumed_artifact(self):
@@ -539,6 +544,55 @@ class PolicyTests(unittest.TestCase):
         self.error = PolicyError
         self.plan = json.loads((FEATURE / "tests/fixtures/provider-5.24-staging-create.json").read_text())
         self.catalog = json.loads((FEATURE / "environments/staging/catalog.json").read_text())
+
+    def queue_update(self, case):
+        fields = json.loads((FEATURE / "tests/fixtures/provider-5.24-queue-update-fields.json").read_text())
+        plan, catalog = copy.deepcopy(self.plan), copy.deepcopy(self.catalog)
+        queue = next(r for r in plan["resource_changes"] if r["type"] == "cloudflare_queue" and r["index"] == "jobs")
+        queue["change"] = fields["cases"][case]
+        for side in ("before", "after"):
+            queue["change"][side]["queue_name"] = catalog["queues"]["jobs"]["queue_name"]
+        catalog["queues"]["jobs"].update(delivery_delay=42,
+            message_retention_period=345600 if case == "explicit_retention" else None)
+        for resource in plan["planned_values"]["root_module"]["child_modules"][0]["resources"]:
+            if resource["address"] == queue["address"]:
+                resource["values"] = queue["change"]["after"]
+        # Isolate the observed resource contract from independently tested outputs.
+        plan["output_changes"] = {}
+        plan["planned_values"]["outputs"] = {}
+        return plan, catalog, queue["change"]
+
+    def test_real_provider_queue_update_fields_are_accepted_only_after_initialization(self):
+        for case in ("explicit_retention", "omitted_retention"):
+            with self.subTest(case=case):
+                plan, catalog, _ = self.queue_update(case)
+                self.assertEqual(self.inspect(plan, ACCOUNT, "staging", catalog, initialized=True)["update"], 1)
+                with self.assertRaises(self.error):
+                    self.inspect(plan, ACCOUNT, "staging", catalog)
+
+    def test_queue_update_unknown_metadata_does_not_hide_unsafe_values(self):
+        mutators = [lambda c: c["after_unknown"]["settings"].update(delivery_paused=True),
+                    lambda c: c["after"]["settings"].update(delivery_paused=False),
+                    lambda c: c["after_unknown"].update(id=True),
+                    lambda c: c["after"].update(queue_id="changed"),
+                    lambda c: c["before"].update(consumers=[{"id": "active"}]),
+                    lambda c: c["after"].update(consumers=[{"id": "active"}]),
+                    lambda c: c["before"]["settings"].update(delivery_paused=False),
+                    lambda c: c["after"]["settings"].update(delivery_delay=True)]
+        for mutate in mutators:
+            plan, catalog, change = self.queue_update("omitted_retention")
+            mutate(change)
+            with self.assertRaises(self.error):
+                self.inspect(plan, ACCOUNT, "staging", catalog, initialized=True)
+        plan, catalog, change = self.queue_update("omitted_retention")
+        catalog["queues"]["jobs"]["message_retention_period"] = 120
+        with self.assertRaises(self.error):
+            self.inspect(plan, ACCOUNT, "staging", catalog, initialized=True)
+        plan, catalog, change = self.queue_update("explicit_retention")
+        catalog["queues"]["jobs"]["message_retention_period"] = 59
+        change["after"]["settings"]["message_retention_period"] = 59
+        with self.assertRaises(self.error):
+            self.inspect(plan, ACCOUNT, "staging", catalog, initialized=True)
 
     def test_actual_provider_create_unknown_defaults_are_accepted(self):
         self.assertEqual(self.inspect(self.plan, ACCOUNT, "staging", self.catalog),

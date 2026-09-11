@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import re
+import signal
 import socket
 import stat
 import subprocess
@@ -319,14 +320,57 @@ class TerraformCommand:
             with os.fdopen(fd, "wb") as output:
                 return subprocess.Popen([self.binary, *args], cwd=cwd, env=environment,
                                         stdin=subprocess.PIPE, stdout=output, stderr=subprocess.STDOUT,
-                                        umask=0o077)
+                                        umask=0o077, start_new_session=True)
         except OSError:
             raise BackendError("Terraform could not start; private recovery artifacts are preserved.") from None
 
     def run(self, args, cwd, label):
-        process = self.start(args, cwd, label)
-        process.communicate()
-        return process.returncode
+        process, interrupted = None, False
+
+        def cancel(signum, frame):
+            nonlocal interrupted
+            interrupted = True
+            # Finish Popen construction so cancellation cannot lose its PID.
+            if process is not None:
+                raise KeyboardInterrupt
+
+        previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+        try:
+            for sig in previous:
+                signal.signal(sig, cancel)
+            try:
+                process = self.start(args, cwd, label)
+                if interrupted:
+                    raise KeyboardInterrupt
+                process.communicate()
+                return process.returncode
+            except BaseException:
+                # Keep the caller's account lock through shutdown, including a
+                # second interrupt. Terraform gets its first signal only once.
+                for sig in previous:
+                    signal.signal(sig, signal.SIG_IGN)
+                if process is not None:
+                    try:
+                        if process.poll() is None:
+                            process.send_signal(signal.SIGINT)
+                            try:
+                                process.wait(timeout=30)
+                            except subprocess.TimeoutExpired:
+                                os.killpg(process.pid, signal.SIGTERM)
+                                try:
+                                    process.wait(timeout=5)
+                                except subprocess.TimeoutExpired:
+                                    os.killpg(process.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        pass
+                    finally:
+                        process.wait()
+                        if process.stdin and not process.stdin.closed:
+                            process.stdin.close()
+                raise
+        finally:
+            for sig, handler in previous.items():
+                signal.signal(sig, handler)
 
 
 def _write_backend(path, spec, key=None):
@@ -380,23 +424,29 @@ def verify_remote_locking(spec, directory, terraform, reader, timeout=25):
     finally:
         # Satisfy the held plan's input, allowing normal completion and unlock.
         # This is a fixed, nonsecret probe value, not a user prompt.
-        if holder.stdin and not holder.stdin.closed:
-            try:
-                holder.stdin.write(b"complete\n")
-                holder.stdin.close()
-            except BrokenPipeError:
-                pass
+        # Defer further shutdown signals until this independently started holder
+        # is reaped; a pending interrupt is delivered when the mask is restored.
+        previous_mask = signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT, signal.SIGTERM})
         try:
-            holder.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            holder.terminate()
+            if holder.stdin and not holder.stdin.closed:
+                try:
+                    holder.stdin.write(b"complete\n")
+                    holder.stdin.close()
+                except BrokenPipeError:
+                    pass
             try:
-                holder.wait(timeout=5)
+                holder.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
-                holder.kill()
-                holder.wait()
-            if not failed:
-                raise BackendError("Remote locking holder did not release cleanly; manual recovery is required.") from None
+                holder.terminate()
+                try:
+                    holder.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    holder.kill()
+                    holder.wait()
+                if not failed:
+                    raise BackendError("Remote locking holder did not release cleanly; manual recovery is required.") from None
+        finally:
+            signal.pthread_sigmask(signal.SIG_SETMASK, previous_mask)
     if holder.returncode != 0 or reader.get(spec, observed, key + ".tflock"):
         raise BackendError("Remote locking release was not verified; do not force-unlock.")
     if terraform.run(["plan", "-input=false", "-no-color", "-lock-timeout=0s", "-detailed-exitcode", "-var=lock_probe=check"], probe, "lock-after-release") != 0:

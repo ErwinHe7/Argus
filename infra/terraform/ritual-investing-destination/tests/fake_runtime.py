@@ -67,8 +67,10 @@ def materialize(resource):
         attrs.update(subdomain=attrs["name"] + "-fixture.pages.dev", domains=[attrs["name"] + "-fixture.pages.dev"], canonical_deployment=None, latest_deployment=None)
     elif kind == "cloudflare_queue":
         attrs.update(queue_id=identifier, producers=[], consumers=[], producers_total_count=0, consumers_total_count=0)
-        attrs["settings"]["delivery_delay"] = attrs["settings"].get("delivery_delay") or 0
-        attrs["settings"]["message_retention_period"] = attrs["settings"].get("message_retention_period") or 345600
+        previous = (resource["change"].get("before") or {}).get("settings", {})
+        for field, default in (("delivery_delay", 0), ("message_retention_period", 345600)):
+            if attrs["settings"].get(field) is None:
+                attrs["settings"][field] = previous.get(field, default)
     elif kind == "cloudflare_turnstile_widget":
         attrs.update(sitekey=identifier, secret=SECRET)
     return attrs
@@ -93,6 +95,18 @@ def plan_for(root):
                     if selected is not None:
                         after["settings"][key] = selected
             resource["change"].update(actions=["no-op" if before == after else "update"], before=before, after=after, after_unknown={})
+            if resource["change"]["actions"] == ["update"]:
+                uncertain = resource["change"]["after_unknown"]
+                # Observed Cloudflare 5.24 update shape: computed metadata and
+                # omitted optional settings are unknown until the update returns.
+                for field in ("consumers", "producers", "consumers_total_count", "producers_total_count", "created_on", "modified_on"):
+                    after.pop(field, None)
+                    uncertain[field] = True
+                uncertain["settings"] = {}
+                for field in ("delivery_delay", "message_retention_period"):
+                    if catalog["queues"][resource["index"]][field] is None:
+                        after["settings"].pop(field, None)
+                        uncertain["settings"][field] = True
         elif catalog and resource["type"] == "cloudflare_queue":
             for key in ("delivery_delay", "message_retention_period"):
                 selected = catalog["queues"][resource["index"]][key]
