@@ -27,6 +27,15 @@ payments or an insufficient spending limit. Consequently that run proves nothing
 about the stored Cloudflare token's permissions. Publication is complete only
 after a new successful workflow receipt and independent HTTPS checks.
 
+The current hosted-runner attempt, run `34558356755` at source `072ee1f`, was
+also rejected before any job step for the same billing reason. GitHub's supported
+self-hosted runner path is being used for the reviewed deployment without changing
+account billing. The workflow selects one unique runner label, with no default
+labels or installed background service. A local start hook restricts execution to
+the exact reviewed repository, workflow, branch and commit; the runner unregisters
+after one job. Future retries need a newly provisioned, explicitly scoped runner.
+Documentation changes alone do not trigger another domain deployment.
+
 The source `release.json` pins the reviewed upstream JavaScript, CSS and public
 strategy configuration hashes at Worker version
 `d208eb32-c625-495e-a314-7c4ccb8c0db6`. A later upstream build requires an explicit

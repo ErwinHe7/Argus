@@ -6,7 +6,6 @@ on:
     paths:
       - platform/workers/domain-proxy/**
       - .github/workflows/leo-domain-publication.yml
-      - docs/domain-publication.md
 
 permissions:
   contents: read
@@ -18,7 +17,8 @@ concurrency:
 jobs:
   publish:
     if: github.repository == 'ErwinHe7/Argus' && github.ref == 'refs/heads/codex/leo-models-publication-20260910'
-    runs-on: ubuntu-24.04
+    # One-job runner on the owner's computer; no default/shared runner labels.
+    runs-on: [leo-domain-b74391b508e4]
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
