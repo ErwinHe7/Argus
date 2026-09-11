@@ -11,11 +11,11 @@ import subprocess
 import sys
 import uuid
 
-from cloud_read import CloudError, CloudRead
-from plan_policy import PolicyError, inspect_plan
+from cloud_read import CloudError, CloudRead, OutsideScope
+from plan_policy import (PolicyError, inspect_plan, inspect_outputs, expected_resources, owned_resources)
 from state_backend import (BackendError, BackendSpec, BootstrapManager, S3StateReader,
                            TerraformCommand, _json_bytes, _read_json, account_lock,
-                           private_account_directory, private_write, verify_remote_locking)
+                           private_account_directory, private_write, verify_remote_locking, read_state, _write_backend)
 
 CLI_VERSION = "1"
 TERRAFORM_CONFIG = b"disable_checkpoint = true\n"
@@ -24,7 +24,6 @@ ACTIONS = {"plan", "apply", "verify", "resume"}
 TARGETS = {"bootstrap", "staging", "prod"}
 RECOVERY = {
     "invalid-arguments": "Use an explicit action, --profile leoinvestment, and one --target; apply requires --artifact.",
-    "action-unavailable": "Apply, verify, and resume require the safe execution unit; this CLI currently supports planning only.",
     "prerequisite-failure": "Provide the committed administrator-verified destination profile, designated host, destination credentials, and Terraform 1.15.x.",
     "unsafe-environment": "Remove inherited Terraform, backend, API, or Git overrides and retry.",
     "stale-inputs": "Commit the intended destination inputs and obtain a fresh plan; preserve unrelated work.",
@@ -34,7 +33,13 @@ RECOVERY = {
     "lock-contention": "Retry after the existing account operator releases the lock.",
     "terraform-failure": "Inspect protected local diagnostics, correct the prerequisite, and obtain a fresh plan.",
     "verification-failure": "Verify account permissions and destination inventory before retrying; no automatic adoption is permitted.",
-    "planned-changes": "Retain the private artifact directory for explicit apply once safe execution is available.",
+    "planned-changes": "Apply this exact private artifact explicitly while its checked-in inputs and state remain current.",
+    "applied": "Provisioning and refreshed no-change verification succeeded; retain private recovery evidence.",
+    "verified": "Owned destination resources and refreshed no-change state are verified.",
+    "resumed": "Original bootstrap snapshot migrated and verified; fresh current-checkout reconciliation is required before workloads.",
+    "consumed-plan": "This saved plan was already consumed; resume bootstrap recovery or obtain a fresh plan from retained state.",
+    "partial-apply": "Terraform apply failed; retain normal, backup, emergency state and private logs before recovery or a fresh plan.",
+    "outside-provisioning-scope": "Destination activation is outside provisioning scope; no automatic cleanup is authorized.",
     "planned-no-change": "Retain the private artifact; this plan does not establish independent hosted postconditions.",
     "internal-failure": "Preserve private recovery artifacts and inspect the local installation before retrying.",
 }
@@ -89,7 +94,7 @@ def parse_arguments(arguments):
 def check_environment(environment):
     aws_credentials = {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"}
     for name in environment:
-        if (name.startswith(("TF_", "GIT_")) or
+        if (name.startswith("TF_") or name.startswith("GIT_") and name != "GIT_PAGER" or
                 name.startswith("AWS_") and name not in aws_credentials or
                 name.startswith("CLOUDFLARE_") and name != "CLOUDFLARE_API_TOKEN" or
                 name == "RITUAL_CLOUDFLARE_API_BASE_URL"):
@@ -113,7 +118,7 @@ def read_profile(feature=FEATURE):
 
 
 def _git(repository, *arguments):
-    process = subprocess.run(["git", "-c", "core.fsmonitor=false", *arguments], cwd=repository,
+    process = subprocess.run(["git", "--no-pager", "-c", "core.fsmonitor=false", *arguments], cwd=repository,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL)
     if process.returncode != 0:
         fail("stale-inputs")
@@ -135,7 +140,7 @@ def _relevant(path, feature_relative, target):
     if relative == Path("profiles/leoinvestment.json"):
         return True
     selected = Path("bootstrap" if target == "bootstrap" else "environments/" + target)
-    in_root = relative.parent == selected
+    in_root = relative.parent == selected or target != "bootstrap" and relative.parent == Path("bootstrap")
     in_module = relative.parent == Path("modules/account-resources")
     return (in_root or in_module) and (path.name.endswith((".tf", ".tf.json", ".tfvars", ".tfvars.json")) or
                                        path.name in ("catalog.json", "backend.hcl", ".terraform.lock.hcl", "backend.remote.tf.template"))
@@ -149,6 +154,29 @@ def digest_file(path):
         for data in iter(lambda: source.read(1024 * 1024), b""):
             digest.update(data)
     return digest.hexdigest()
+
+
+def validate_backend_sources(root, target):
+    """The selected roots have a fixed backend contract, not an extensible backend DSL."""
+    def normalized(path):
+        if path.is_symlink() or not path.is_file():
+            fail("stale-inputs")
+        return re.sub(r"\s+", "", re.sub(r"#[^\n]*", "", path.read_text()))
+    bucket = "ritual-investing-terraform-state-" + ("prod" if target == "bootstrap" else target)
+    key = "bootstrap/terraform.tfstate" if target == "bootstrap" else "workloads/terraform.tfstate"
+    if target == "bootstrap":
+        expected = 'terraform{backend"local"{}}'
+        if normalized(root / "backend.remote.tf.template") != 'terraform{backend"s3"{}}':
+            fail("stale-inputs")
+    else:
+        expected = 'terraform{backend"s3"{bucket="' + bucket + '"key="' + key + '"region="auto"skip_region_validation=true}}'
+    if normalized(root / "backend.tf") != expected:
+        fail("stale-inputs")
+    fields = {"bucket": bucket, "key": key, "region": "auto", "encrypt": True, "use_lockfile": True,
+              "use_path_style": True, "skip_credentials_validation": True, "skip_region_validation": True,
+              "skip_requesting_account_id": True, "skip_metadata_api_check": True, "skip_s3_checksum": True}
+    if normalized(root / "backend.hcl") != "".join(name + "=" + json.dumps(value) for name, value in fields.items()):
+        fail("stale-inputs")
 
 
 def inspect_inputs(repository, feature, target):
@@ -190,11 +218,13 @@ def inspect_inputs(repository, feature, target):
         if path.read_bytes() != expected or _git(repository, "show", ":" + str(relative)) != expected:
             fail("stale-inputs")
         inputs[str(relative)] = hashlib.sha256(expected).hexdigest()
-    if target == "bootstrap" and any(Path(p).parent == root_for(feature_relative, target) and
+    if any(Path(p).parent == root_for(feature_relative, "bootstrap") and
                                       p.endswith((".tf.json", ".tfvars", ".tfvars.json")) for p in inputs):
         # U2 retains only *.tf inputs. Fail rather than hash a file that its workdir
         # would omit. Bootstrap account selection comes through a controlled env var.
         fail("stale-inputs")
+    for selected_target in (("bootstrap",) if target == "bootstrap" else ("bootstrap", target)):
+        validate_backend_sources(root_for(feature, selected_target), selected_target)
     return {"revision": revision, "inputs": inputs}
 
 
@@ -218,7 +248,12 @@ def terraform_command(account, artifact, environment):
     env = dict(environment)
     # Explicit empty CLI config prevents a user's ~/.terraformrc from redirecting
     # provider installation or supplying dev overrides. Caller TF_* stays forbidden.
-    private_write(Path(artifact) / "terraform.rc", TERRAFORM_CONFIG)
+    config_path = Path(artifact) / "terraform.rc"
+    if config_path.exists():
+        if config_path.is_symlink() or config_path.read_bytes() != TERRAFORM_CONFIG:
+            fail("stale-inputs")
+    else:
+        private_write(config_path, TERRAFORM_CONFIG)
     env.update(TF_CLI_CONFIG_FILE=str(Path(artifact) / "terraform.rc"),
                TF_VAR_cloudflare_account_id=account, AWS_REGION="auto")
     command = TerraformCommand(binary, env)
@@ -237,11 +272,11 @@ def terraform_command(account, artifact, environment):
 def plan_identity(manifest):
     return hashlib.sha256(_json_bytes({key: manifest[key] for key in (
         "schema_version", "cli_version", "revision", "inputs", "profile", "target", "account", "backend",
-        "terraform", "plan_sha256")})).hexdigest()
+        "terraform", "plan_sha256", "state_sha256", "execution_mode")})).hexdigest()
 
 
 def validate_artifact(artifact, repository, feature, profile, target, terraform_identity):
-    """U4 entry point: recompute current inputs, snapshot, plan, and tool identity.
+    """Recompute current inputs, snapshot, plan, and tool identity.
 
     This validates integrity, not permission to apply or state authority. Call it
     under the canonical account lock after environment/account checks, then run
@@ -283,73 +318,357 @@ def validate_artifact(artifact, repository, feature, profile, target, terraform_
     return manifest
 
 
-def require_bootstrap_gate(manager):
-    # A phase marker is not fresh hosted evidence. U4 will implement a refreshed
-    # remote no-change gate here before staging workload backend configuration.
-    fail("bootstrap-incomplete")
+def artifact_path(value, directory, repository):
+    artifact = Path(value)
+    if (not artifact.is_absolute() or artifact.is_symlink() or any(parent.is_symlink() for parent in artifact.parents) or
+            artifact.resolve().parent != directory / "plans" or not re.fullmatch(r"[0-9a-f]{32}", artifact.name) or
+            directory.is_relative_to(repository.resolve())):
+        fail("stale-inputs")
+    return artifact
+
+
+def work_snapshot(artifact, inventory):
+    """Keep the verified input snapshot immutable; Terraform works on a private copy."""
+    work = artifact / "work"
+    for relative, digest in inventory["inputs"].items():
+        data = (artifact / "snapshot" / relative).read_bytes()
+        if hashlib.sha256(data).hexdigest() != digest:
+            fail("stale-inputs")
+        private_write(work / relative, data)
+    return work
+
+
+def check_work(work, snapshot, inventory, *, remote_bootstrap=False):
+    expected = set(inventory["inputs"])
+    for relative in expected:
+        path = work / relative
+        if remote_bootstrap and relative.endswith("/bootstrap/backend.tf"):
+            data = (snapshot / Path(relative).parent / "backend.remote.tf.template").read_bytes()
+        else:
+            data = (snapshot / relative).read_bytes()
+        if path.is_symlink() or not path.is_file() or path.read_bytes() != data:
+            fail("stale-inputs")
+    for path in work.rglob("*"):
+        if path.is_symlink():
+            # Terraform's provider installation may contain symlinks, but no input
+            # path or parent outside its cache may use one.
+            if ".terraform" not in path.parts:
+                fail("stale-inputs")
+        if path.name == "backend.tfbackend.json" and ".terraform" not in path.parts:
+            target = path.parent.name
+            if target not in TARGETS:
+                fail("stale-inputs")
+            account = _read_json(snapshot / next(relative for relative in inventory["inputs"] if relative.endswith("/profiles/leoinvestment.json")))["account_id"]
+            if _read_json(path) != BackendSpec(account, target).configuration():
+                fail("stale-inputs")
+        if ".terraform" not in path.parts and path.is_file() and path.name.endswith((".tf", ".tf.json", ".tfvars", ".tfvars.json")):
+            if str(path.relative_to(work)) not in expected:
+                fail("stale-inputs")
+
+
+def remote_init(terraform, root, spec, *, bootstrap=False):
+    if bootstrap:
+        private_write(root / "backend.tf", (root / "backend.remote.tf.template").read_bytes())
+    _write_backend(root / "backend.tfbackend.json", spec)
+    code = terraform.run(["init", "-input=false", "-no-color", "-lockfile=readonly", "-reconfigure",
+                          "-backend-config=backend.tfbackend.json"], root, "remote-init")
+    terraform_ok(terraform, code)
+
+
+def terraform_ok(terraform, code, outcome="terraform-failure"):
+    if code != 0:
+        if terraform.last_output and b"Error acquiring the state lock" in terraform.last_output.read_bytes():
+            fail("lock-contention")
+        fail(outcome)
+
+
+def state_value(spec, root, reader, artifact, mode):
+    if any(artifact.parent.parent.rglob("errored.tfstate")):
+        fail("recovery-required")
+    if mode == "local":
+        return read_state(root / "terraform.tfstate") if (root / "terraform.tfstate").exists() else None
+    if not reader.available:
+        fail("prerequisite-failure")
+    path = artifact / ("state-" + spec.target + "-" + uuid.uuid4().hex + ".private.json")
+    return read_state(path) if reader.get(spec, path) else None
+
+
+def state_digest(state):
+    return hashlib.sha256(_json_bytes(state)).hexdigest()
+
+
+def initialized(directory, spec, state):
+    path = directory / ("initialized-" + spec.target + ".json")
+    if not path.exists():
+        return False
+    record = _read_json(path)
+    if (not isinstance(record, dict) or record.get("backend") != spec.identity() or state is None or
+            record.get("lineage") != state["lineage"] or record.get("verified") is not True):
+        fail("recovery-required")
+    return True
+
+
+def record_initialized(directory, spec, state, revision):
+    private_write(directory / ("initialized-" + spec.target + ".json"), _json_bytes({
+        "backend": spec.identity(), "lineage": state["lineage"], "verified": True, "revision": revision}))
+
+
+def show_plan(terraform, root, path, account, target, catalog, update_allowed):
+    terraform_ok(terraform, terraform.run(["show", "-json", str(path)], root, "show"))
+    plan = _read_json(terraform.last_output)
+    counts = inspect_plan(plan, account, target, catalog, initialized=update_allowed)
+    return plan, counts
+
+
+def run_plan(terraform, root, path, account, target, catalog, update_allowed, *, no_change=False):
+    code = terraform.run(["plan", "-input=false", "-no-color", "-lock-timeout=0s", "-detailed-exitcode",
+                          "-out=" + str(path)], root, "verify-plan" if no_change else "plan")
+    if code not in (0, 2):
+        terraform_ok(terraform, code, "verification-failure" if no_change else "terraform-failure")
+    if no_change and code != 0:
+        fail("verification-failure")
+    try:
+        plan, counts = show_plan(terraform, root, path, account, target, catalog, update_allowed)
+    except PolicyError:
+        if no_change:
+            fail("verification-failure")
+        raise
+    changes = counts["create"] + counts["update"] > 0 or inspect_outputs(plan, target, expected_resources(target, catalog))
+    if (code == 2) != changes:
+        fail("verification-failure" if no_change else "unsafe-plan")
+    if no_change and code != 0:
+        fail("verification-failure")
+    return code, plan, counts
+
+
+def check_plan_ownership(plan, owned):
+    for resource in plan["resource_changes"]:
+        before = resource["change"].get("before")
+        if before is not None:
+            if resource["address"] not in owned or before.get("id") != owned[resource["address"]].get("id"):
+                fail("unsafe-plan")
+
+
+def require_bootstrap_gate(manager, cloud, terraform, reader, artifact, work_feature):
+    if not manager.phase_path.exists():
+        fail("bootstrap-incomplete")
+    manager._guard()
+    phase = manager.status()
+    evidence = [manager.spec.identity(), BackendSpec(manager.spec.account, "staging").identity()]
+    if phase.get("stage") != "RemoteReady" or phase.get("locking_verified") != evidence:
+        fail("bootstrap-incomplete")
+    cloud.verify_buckets(manager.spec)
+    root = work_feature / "bootstrap"
+    state = state_value(manager.spec, root, reader, artifact, "remote")
+    owned = owned_resources(state, expected_resources("bootstrap", None), manager.spec.account)
+    if set(owned) != set(expected_resources("bootstrap", None)) or not initialized(manager.directory, manager.spec, state):
+        fail("bootstrap-incomplete")
+    remote_init(terraform, root, manager.spec, bootstrap=True)
+    run_plan(terraform, root, artifact / "bootstrap-gate.tfplan", manager.spec.account, "bootstrap", None, False, no_change=True)
+    return True
+
+
+def verify_target(terraform, cloud, reader, artifact, root, spec, catalog, directory, mode, revision):
+    state = state_value(spec, root, reader, artifact, mode)
+    expected = expected_resources(spec.target, catalog)
+    owned = owned_resources(state, expected, spec.account)
+    if set(owned) != set(expected):
+        fail("verification-failure")
+    cloud.verify_account()
+    cloud.verify_resources(expected, owned, require_all=True)
+    _, plan, counts = run_plan(terraform, root, artifact / ("verified-" + uuid.uuid4().hex + ".tfplan"),
+                               spec.account, spec.target, catalog, initialized(directory, spec, state), no_change=True)
+    check_plan_ownership(plan, owned)
+    # Re-read the backend after refresh to detect concurrent replacement/deletion.
+    if state_digest(state_value(spec, root, reader, artifact, mode)) != state_digest(state):
+        fail("verification-failure")
+    record_initialized(directory, spec, state, revision)
+    return counts
 
 
 def prepare_plan(options, receipt, feature=FEATURE):
-    repository = feature.parents[2]
+    return execute(options, receipt, feature)
+
+
+def execute(options, receipt, feature=FEATURE):
+    repository, relative = feature.parents[2], feature.relative_to(feature.parents[2])
     check_environment(os.environ)
     profile = read_profile(feature)
-    inventory = inspect_inputs(repository, feature, options.target)
-    receipt.update(account=profile["account_id"], revision=inventory["revision"])
+    # Resume intentionally retains its original Terraform snapshot/revision. Only
+    # its current account/profile must still be committed and match the host.
+    if options.action == "resume":
+        profile_path = relative / "profiles/leoinvestment.json"
+        if _git(repository, "show", "HEAD:" + str(profile_path)) != (repository / profile_path).read_bytes():
+            fail("stale-inputs")
+        inventory = None
+    else:
+        inventory = inspect_inputs(repository, feature, options.target)
+        receipt["revision"] = inventory["revision"]
+    receipt["account"] = profile["account_id"]
     if not os.environ.get("CLOUDFLARE_API_TOKEN"):
         fail("prerequisite-failure")
     directory = private_account_directory(profile["account_id"])
     if directory.is_relative_to(repository.resolve()):
         fail("prerequisite-failure")
-    artifact = directory / "plans" / uuid.uuid4().hex
-    # Creation through private_write sets every ancestor and file private.
-    private_write(artifact / "terraform.rc", TERRAFORM_CONFIG)
+    if options.action == "apply":
+        artifact = artifact_path(options.artifact, directory, repository)
+        if not (artifact / "manifest.json").is_file():
+            fail("stale-inputs")
+    else:
+        artifact = directory / "plans" / uuid.uuid4().hex
+        private_write(artifact / "terraform.rc", TERRAFORM_CONFIG)
     receipt["artifact"] = str(artifact)
     with account_lock(directory):
         cloud = CloudRead(profile["account_id"], artifact)
         cloud.verify_account()
         terraform, identity = terraform_command(profile["account_id"], artifact, os.environ)
-        spec = BackendSpec(profile["account_id"], options.target)
-        bootstrap = BootstrapManager(BackendSpec(profile["account_id"], "bootstrap"), directory, terraform,
-                                     S3StateReader(), cloud.verify_buckets,
-                                     lambda backend, storage: verify_remote_locking(backend, storage, terraform, S3StateReader()),
+        spec, reader = BackendSpec(profile["account_id"], options.target), S3StateReader()
+        bootstrap = BootstrapManager(BackendSpec(spec.account, "bootstrap"), directory, terraform, reader, cloud.verify_buckets,
+                                     lambda backend, storage: verify_remote_locking(backend, storage, terraform, reader),
                                      designated_host=profile["bootstrap_host"])
-        if options.target != "bootstrap":
-            require_bootstrap_gate(bootstrap)
-        cloud.require_bootstrap_absent()
-        snapshot = stage_inputs(repository, artifact, inventory)
-        selected_root = snapshot / root_for(feature.relative_to(repository), options.target)
-        phase = bootstrap.prepare(selected_root, inventory["revision"])
-        if phase.get("revision") != inventory["revision"] or phase.get("stage") != "LocalPrepared" or phase.get("plan_consumed"):
-            fail("recovery-required")
-        # Existing unconsumed recovery snapshots must equal this exact revision.
-        for source in bootstrap.snapshot.iterdir():
-            if source.read_bytes() != (selected_root / source.name).read_bytes():
+        if options.action == "resume":
+            phase = bootstrap._preserved()
+            receipt["revision"] = phase.get("revision")
+            execution = phase.get("execution")
+            if not isinstance(execution, dict) or execution.get("terraform") != identity:
+                fail("recovery-required")
+            # Preserve the original checked-in snapshot; resume never plans an apply.
+            original = artifact_path(execution.get("artifact", ""), directory, repository)
+            manifest = _read_json(original / "manifest.json")
+            if manifest.get("plan_identity") != plan_identity(manifest) or manifest.get("revision") != phase["revision"]:
                 fail("stale-inputs")
-        bootstrap.initialize_local()
-        saved_plan = artifact / "plan.tfplan"
-        code = terraform.run(["plan", "-input=false", "-no-color", "-lock-timeout=0s", "-detailed-exitcode",
-                              "-out=" + str(saved_plan)], bootstrap.workdir, "plan")
-        if code not in (0, 2):
-            fail("terraform-failure")
-        if terraform.run(["show", "-json", str(saved_plan)], bootstrap.workdir, "show") != 0:
-            fail("terraform-failure")
-        plan = _read_json(terraform.last_output)
-        private_write(artifact / "plan.private.json", _json_bytes(plan))
-        catalog = None if options.target == "bootstrap" else _read_json(selected_root / "catalog.json")
-        counts = inspect_plan(plan, profile["account_id"], options.target, catalog)
-        if (code == 2) != (counts["create"] + counts["update"] + counts["delete"] > 0):
-            fail("unsafe-plan")
-        # Refuse input/binary races before returning a useful saved-plan receipt.
-        if inspect_inputs(repository, feature, options.target) != inventory or digest_file(Path(identity["path"])) != identity["sha256"]:
+            for path, digest in manifest["inputs"].items():
+                if digest_file(original / "snapshot" / path) != digest:
+                    fail("stale-inputs")
+            state = state_value(spec, bootstrap.workdir, reader, artifact, "local")
+            if state is None:
+                state = read_state(directory / "authoritative-local.tfstate")
+            cloud.verify_resources(expected_resources("bootstrap", None), owned_resources(state, expected_resources("bootstrap", None), spec.account), require_all=True)
+            phase = bootstrap.resume()
+            if phase["stage"] != "RemoteReady":
+                fail("bootstrap-incomplete")
+            receipt["counts"] = verify_target(terraform, cloud, reader, artifact, bootstrap.workdir, spec, None, directory, "remote", phase["revision"])
+            return "resumed"
+
+        if options.action == "apply":
+            manifest = validate_artifact(artifact, repository, feature, profile, options.target, identity)
+            receipt["plan_identity"] = manifest["plan_identity"]
+            if (artifact / "consumed.json").exists():
+                fail("consumed-plan")
+            snapshot = artifact / "snapshot"
+            work = artifact / "work"
+            check_work(work, snapshot, inventory, remote_bootstrap=manifest["execution_mode"] == "remote")
+        else:
+            snapshot = stage_inputs(repository, artifact, inventory)
+            work = work_snapshot(artifact, inventory)
+        work_feature = work / relative
+        root, mode = root_for(work_feature, options.target), "remote"
+        catalog = None if options.target == "bootstrap" else _read_json(root / "catalog.json")
+        expected = expected_resources(options.target, catalog)
+        if options.target != "bootstrap":
+            require_bootstrap_gate(bootstrap, cloud, terraform, reader, artifact, work_feature)
+        elif not bootstrap.phase_path.exists() or bootstrap.status().get("stage") != "RemoteReady":
+            mode, root = "local", bootstrap.workdir
+            if options.action == "verify":
+                fail("bootstrap-incomplete")
+            if options.action == "plan":
+                if not bootstrap.phase_path.exists():
+                    cloud.require_bootstrap_absent()
+                phase = bootstrap.prepare(snapshot / root_for(relative, options.target), inventory["revision"])
+                if phase.get("revision") != inventory["revision"]:
+                    if phase.get("plan_consumed") or phase.get("consumed_plans"):
+                        fail("recovery-required")
+                    cloud.require_bootstrap_absent()
+                    phase = bootstrap.replace_unstarted(snapshot / root_for(relative, options.target), inventory["revision"])
+                if phase.get("plan_consumed"):
+                    phase = bootstrap.prepare_replan(inventory["revision"])
+                for source in bootstrap.snapshot.iterdir():
+                    if source.read_bytes() != (snapshot / root_for(relative, options.target) / source.name).read_bytes():
+                        fail("stale-inputs")
+                bootstrap.initialize_local()
+            else:
+                phase = bootstrap._preserved()
+                if phase.get("revision") != inventory["revision"] or phase.get("plan_consumed"):
+                    fail("recovery-required")
+        if mode == "remote":
+            if options.target == "bootstrap":
+                phase = bootstrap.status()
+                if phase.get("locking_verified") != [spec.identity(), BackendSpec(spec.account, "staging").identity()]:
+                    fail("bootstrap-incomplete")
+            remote_init(terraform, root, spec, bootstrap=options.target == "bootstrap")
+        if mode == "local" and (root / "backend.tf").read_bytes() != (bootstrap.snapshot / "backend.tf").read_bytes():
+            fail("recovery-required")
+        state = state_value(spec, root, reader, artifact, mode)
+        owned = owned_resources(state, expected, spec.account)
+        update_allowed = initialized(directory, spec, state)
+        if mode == "local" and (directory / "authoritative-local.tfstate").exists():
+            if state_digest(state) != state_digest(read_state(directory / "authoritative-local.tfstate")):
+                fail("recovery-required")
+        if options.action == "verify":
+            if options.target == "bootstrap":
+                phase = bootstrap.status()
+                if phase.get("locking_verified") != [spec.identity(), BackendSpec(spec.account, "staging").identity()]:
+                    fail("bootstrap-incomplete")
+                cloud.verify_buckets(spec)
+            receipt["counts"] = verify_target(terraform, cloud, reader, artifact, root, spec, catalog, directory, mode, inventory["revision"])
+            return "verified"
+        if options.action == "plan":
+            # Complete inventories catch unmanaged name collisions before Terraform planning.
+            cloud.verify_resources(expected, owned, creating=set(expected))
+            code, plan, counts = run_plan(terraform, root, artifact / "plan.tfplan", spec.account, spec.target, catalog, update_allowed)
+            check_plan_ownership(plan, owned)
+            creates = {resource["address"] for resource in plan["resource_changes"] if resource["change"]["actions"] == ["create"]}
+            cloud.verify_resources(expected, owned, creating=creates)
+            private_write(artifact / "plan.private.json", _json_bytes(plan))
+            if inspect_inputs(repository, feature, options.target) != inventory or digest_file(Path(identity["path"])) != identity["sha256"]:
+                fail("stale-inputs")
+            manifest = {"schema_version": 1, "cli_version": CLI_VERSION, **inventory,
+                        "profile": options.profile, "target": options.target, "account": spec.account,
+                        "backend": spec.identity(), "terraform": identity, "plan_sha256": digest_file(artifact / "plan.tfplan"),
+                        "state_sha256": state_digest(state), "execution_mode": mode}
+            manifest["plan_identity"] = plan_identity(manifest)
+            private_write(artifact / "manifest.json", _json_bytes(manifest))
+            validate_artifact(artifact, repository, feature, profile, options.target, identity)
+            receipt.update(plan_identity=manifest["plan_identity"], counts=counts)
+            return "planned-changes" if code == 2 else "planned-no-change"
+
+        if manifest["execution_mode"] != mode or manifest["state_sha256"] != state_digest(state):
             fail("stale-inputs")
-        manifest = {"schema_version": 1, "cli_version": CLI_VERSION, **inventory,
-                    "profile": options.profile, "target": options.target, "account": profile["account_id"],
-                    "backend": spec.identity(), "terraform": identity, "plan_sha256": digest_file(saved_plan)}
-        manifest["plan_identity"] = plan_identity(manifest)
-        private_write(artifact / "manifest.json", _json_bytes(manifest))
+        check_work(work, snapshot, inventory, remote_bootstrap=mode == "remote")
+        plan, counts = show_plan(terraform, root, artifact / "plan.tfplan", spec.account, spec.target, catalog, update_allowed)
+        check_plan_ownership(plan, owned)
+        creates = {resource["address"] for resource in plan["resource_changes"] if resource["change"]["actions"] == ["create"]}
+        cloud.verify_account()
+        cloud.verify_resources(expected, owned, creating=creates)
         validate_artifact(artifact, repository, feature, profile, options.target, identity)
-        receipt.update(plan_identity=manifest["plan_identity"], counts=counts)
-        return "planned-changes" if code == 2 else "planned-no-change"
+        if state_digest(state_value(spec, root, reader, artifact, mode)) != manifest["state_sha256"]:
+            fail("stale-inputs")
+        # No code path below may replay this binary, even after interruption.
+        private_write(artifact / "consumed.json", _json_bytes({"plan_identity": manifest["plan_identity"], "plan_sha256": manifest["plan_sha256"]}))
+        if mode == "local":
+            bootstrap.consume_plan(manifest["plan_sha256"])
+            phase = bootstrap.status()
+            phase["execution"] = {"terraform": identity, "artifact": str(artifact)}
+            bootstrap._save(phase)
+        receipt["counts"] = counts
+        code = terraform.run(["apply", "-input=false", "-no-color", "-lock-timeout=0s", str(artifact / "plan.tfplan")], root, "apply")
+        if mode == "local":
+            try:
+                bootstrap.record_apply_result(code)
+            except BackendError:
+                if code != 0 and not any(directory.rglob("errored.tfstate")):
+                    terraform_ok(terraform, code, "partial-apply")
+                raise
+        terraform_ok(terraform, code, "partial-apply")
+        if mode == "local":
+            # Verify every initial resource before allowing state migration.
+            verify_target(terraform, cloud, reader, artifact, root, spec, catalog, directory, mode, inventory["revision"])
+            phase = bootstrap.resume()
+            if phase["stage"] != "RemoteReady":
+                fail("bootstrap-incomplete")
+            mode = "remote"
+        verify_target(terraform, cloud, reader, artifact, root, spec, catalog, directory, mode, inventory["revision"])
+        return "applied"
 
 
 def main(arguments=None):
@@ -362,13 +681,13 @@ def main(arguments=None):
     try:
         options = parse_arguments(arguments)
         receipt.update(action=options.action, profile=options.profile, target=options.target)
-        if options.action != "plan":
-            fail("action-unavailable")
-        outcome = prepare_plan(options, receipt)
+        outcome = execute(options, receipt)
     except ProvisionError as error:
         outcome = error.outcome
     except PolicyError:
         outcome = "unsafe-plan"
+    except OutsideScope:
+        outcome = "outside-provisioning-scope"
     except CloudError:
         outcome = "verification-failure"
     except BackendError as error:
@@ -391,7 +710,7 @@ def main(arguments=None):
             if receipt[key] is not None:
                 print(f"{key}: {json.dumps(receipt[key], sort_keys=True)}")
         print(receipt["recovery"])
-    return 0 if receipt["outcome"] in ("planned-changes", "planned-no-change") else 1
+    return 0 if receipt["outcome"] in ("planned-changes", "planned-no-change", "applied", "verified", "resumed") else 1
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
-"""Initial create/no-op policy for the reviewed Cloudflare 5.24.0 schema.
+"""Saved-plan provisioning policy for the reviewed Cloudflare 5.24.0 schema.
 
 Computed-only fields are never required known on create. Excluded hosted surfaces
-still need independent API verification before any future apply.
+still need independent API verification before apply.
 """
+import json
 import re
 
 PROVIDER = "registry.terraform.io/cloudflare/cloudflare"
@@ -79,6 +80,8 @@ def configuration_resources(plan, expected):
         require(isinstance(module, dict))
         for resource in module.get("resources", []):
             require(isinstance(resource, dict) and resource.get("mode") == "managed")
+            require(not resource.get("provisioners") and not resource.get("connection"))
+            require(resource.get("provider_config_key") == "cloudflare")
             kind = resource.get("type")
             require(kind in FIELDS)
             address = prefix + resource.get("address", "")
@@ -139,6 +142,7 @@ def safe_values(kind, after, uncertain, values, account):
         require(set(settings) | set(settings_unknown) <= {"delivery_paused", "delivery_delay", "message_retention_period"})
         for field in ("delivery_delay", "message_retention_period"):
             if values[field] is not None:
+                queue_value(field, values[field])
                 known(settings, settings_unknown, field, values[field])
     elif kind == "cloudflare_turnstile_widget":
         for field in ("domains", "mode", "region"):
@@ -148,7 +152,113 @@ def safe_values(kind, after, uncertain, values, account):
             known(after, uncertain, field, False)
 
 
-def inspect_plan(plan, account, target, catalog=None):
+def queue_value(field, value):
+    lower, upper = (0, 86400) if field == "delivery_delay" else (60, 1209600)
+    require(type(value) in (int, float) and lower <= value <= upper and value == int(value))
+
+
+def resource_values(module):
+    """Flatten Terraform's JSON values representation without hiding child modules."""
+    require(isinstance(module, dict))
+    result = {}
+    for resource in module.get("resources", []):
+        require(isinstance(resource, dict) and isinstance(resource.get("address"), str))
+        require(resource["address"] not in result)
+        result[resource["address"]] = resource
+    for child in module.get("child_modules", []):
+        nested = resource_values(child)
+        require(not set(result) & set(nested))
+        result.update(nested)
+    return result
+
+
+def owned_resources(state, expected, account):
+    """Validate raw state ownership, returning address -> provider attributes."""
+    if state is None:
+        return {}
+    from state_backend import _validate_state
+    _validate_state(state)
+    result = {}
+    for resource in state["resources"]:
+        require(resource.get("mode") == "managed" and resource.get("provider") == 'provider["' + PROVIDER + '"]')
+        for instance in resource["instances"]:
+            prefix = resource.get("module", "")
+            address = (prefix + "." if prefix else "") + resource["type"] + "." + resource["name"]
+            if "index_key" in instance:
+                address += "[" + json.dumps(instance["index_key"], separators=(",", ":")) + "]"
+            require(address in expected and address not in result)
+            kind, catalog = expected[address]
+            attrs = instance["attributes"]
+            name = "title" if kind == "cloudflare_workers_kv_namespace" else "queue_name" if kind == "cloudflare_queue" else "name"
+            require(attrs.get("account_id") == account and attrs.get(name) == catalog[name])
+            require(isinstance(attrs.get("id"), str) and bool(attrs["id"]))
+            result[address] = attrs
+    return result
+
+
+def inactive_values(kind, after, uncertain):
+    """Critical computed fields must be known on existing resources."""
+    if kind == "cloudflare_worker":
+        known(after, uncertain, "deployed_on", None)
+        references = after.get("references")
+        require(isinstance(references, dict) and not unknown(uncertain.get("references")))
+        require(set(references) == {"workers", "domains", "dispatch_namespace_outbounds", "durable_objects", "queues"})
+        require(all(value == [] for value in references.values()))
+    elif kind == "cloudflare_pages_project":
+        for field in ("canonical_deployment", "latest_deployment"):
+            known(after, uncertain, field, None)
+    elif kind == "cloudflare_queue":
+        for field in ("consumers", "producers"):
+            known(after, uncertain, field, [])
+            known(after, uncertain, field + "_total_count", 0)
+            require(type(after[field + "_total_count"]) is int)
+        for field in ("delivery_delay", "message_retention_period"):
+            settings = after["settings"]
+            require(not unknown(uncertain.get("settings", {}).get(field)))
+            queue_value(field, settings.get(field))
+
+
+def inspect_outputs(plan, target, expected):
+    """Only derived nonsecret identifiers may reconcile without resource changes."""
+    name = "state_buckets" if target == "bootstrap" else "resource_identifiers"
+    planned_outputs = plan.get("planned_values", {}).get("outputs", {})
+    require(isinstance(planned_outputs, dict) and set(planned_outputs) <= {name})
+    require(all(output.get("sensitive") is False for output in planned_outputs.values()))
+    outputs = plan.get("output_changes", {})
+    require(isinstance(outputs, dict) and set(outputs) <= {name})
+    for output in outputs.values():
+        require(output.get("actions") in (["create"], ["update"], ["no-op"]))
+        require(output.get("after_sensitive") is False)
+        after, uncertain = output.get("after"), output.get("after_unknown", {})
+        # Output type/unknown details differ across TF phases. Validate every
+        # known leaf against the corresponding resource, never against free text.
+        shape = {}
+        resources = {resource["address"]: resource["change"]["after"] for resource in plan["resource_changes"]}
+        for address, (kind, values) in expected.items():
+            key = address.split('["')[1][:-2]
+            if target == "bootstrap":
+                shape[key] = {"id": resources[address].get("id"), "account_id": resources[address]["account_id"], "name": values["name"]}
+            else:
+                group = next(group for group, pair in GROUPS.items() if pair[0] == kind)
+                field = "sitekey" if kind == "cloudflare_turnstile_widget" else "id"
+                label = "title" if kind == "cloudflare_workers_kv_namespace" else "name"
+                shape.setdefault(group, {})[key] = {field: resources[address].get("queue_id" if kind == "cloudflare_queue" else field), label: values.get(label, values.get("queue_name"))}
+        def inspect(value, template, unknowns):
+            require(isinstance(value, dict) and isinstance(unknowns, dict))
+            require(set(value) | set(unknowns) <= set(template))
+            require(set(value) | {key for key, item in unknowns.items() if unknown(item)} == set(template))
+            for key, expected_value in template.items():
+                if isinstance(expected_value, dict):
+                    inspect(value.get(key, {}), expected_value, unknowns.get(key, {}))
+                elif expected_value is None:
+                    require(key not in value and unknowns.get(key) is True)
+                else:
+                    require(value.get(key) == expected_value and not unknown(unknowns.get(key)))
+        inspect(after, shape, uncertain)
+    return any(output["actions"] != ["no-op"] for output in outputs.values())
+
+
+def inspect_plan(plan, account, target, catalog=None, *, initialized=False):
     """Return only allowlisted action counts; never serialize plan values."""
     try:
         require(isinstance(plan, dict) and plan.get("format_version") == "1.2")
@@ -171,12 +281,39 @@ def inspect_plan(plan, account, target, catalog=None):
             change = resource.get("change")
             require(isinstance(change, dict) and not change.get("importing"))
             actions = change.get("actions")
-            require(actions in (["create"], ["no-op"]))
+            require(actions in (["create"], ["no-op"], ["update"]))
+            require(actions != ["update"] or initialized and kind == "cloudflare_queue" and target != "bootstrap")
             require(not change.get("replace_paths"))
             require(change.get("before") is None if actions == ["create"] else isinstance(change.get("before"), dict))
             safe_values(kind, change.get("after"), change.get("after_unknown", {}), values, account)
+            if actions != ["create"]:
+                inactive_values(kind, change["after"], change.get("after_unknown", {}))
+                before, after = change["before"], change["after"]
+                if actions == ["no-op"]:
+                    require(before == after)
+                else:
+                    require(set(before) == set(after))
+                    require(before.get("id") == after.get("id") and before.get("queue_id") == after.get("queue_id"))
+                    require(all(before[key] == after[key] for key in before if key not in ("settings", *FIELDS[kind][1])))
+                    old_settings, settings = before.get("settings"), after["settings"]
+                    require(isinstance(old_settings, dict) and old_settings.get("delivery_paused") is True)
+                    require(set(old_settings) == set(settings) and set(settings) == {"delivery_delay", "delivery_paused", "message_retention_period"})
+                    for field in ("delivery_delay", "message_retention_period"):
+                        queue_value(field, old_settings[field])
+                        queue_value(field, settings[field])
             counts[actions[0]] += 1
         require(seen == set(expected))
+        planned = resource_values(plan.get("planned_values", {}).get("root_module"))
+        require(set(planned) == set(expected))
+        for resource in changes:
+            item = planned[resource["address"]]
+            require(item.get("type") == resource["type"] and item.get("mode") == "managed" and item.get("provider_name") == PROVIDER)
+            require(item.get("values") == resource["change"]["after"])
+        for drift in plan.get("resource_drift", []):
+            require(drift.get("address") in expected and drift.get("change", {}).get("actions") == ["no-op"])
+            require(drift.get("mode") == "managed" and drift.get("provider_name") == PROVIDER and drift.get("type") == expected[drift["address"]][0])
+            require(drift["change"].get("before") == drift["change"].get("after"))
+        inspect_outputs(plan, target, expected)
         require(not plan.get("deferred_changes"))
         require(all(check.get("status") == "pass" for check in plan.get("checks", [])))
         return counts

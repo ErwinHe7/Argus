@@ -204,7 +204,7 @@ def states_match(left, right):
     return _json_bytes(_validate_state(left)) == _json_bytes(_validate_state(right))
 
 
-def _bootstrap_inventory(value, spec):
+def _bootstrap_inventory(value, spec, *, complete=True):
     _validate_state(value)
     actual = {}
     for resource in value["resources"]:
@@ -218,8 +218,11 @@ def _bootstrap_inventory(value, spec):
                 raise BackendError("Bootstrap state inventory or account is invalid.")
             actual[key] = attrs.get("name")
     expected = {target: f"ritual-investing-terraform-state-{target}" for target in ("prod", "staging")}
-    if actual != expected:
+    if any(key not in expected or expected[key] != name for key, name in actual.items()):
+        raise BackendError("Bootstrap state inventory is outside the destination contract.")
+    if complete and actual != expected:
         raise BackendError("Bootstrap state inventory is incomplete; recover the partial apply before migration.")
+    return actual
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -263,7 +266,7 @@ class S3StateReader:
                                     f"SignedHeaders={signed}, Signature={signature}")
         request = urllib.request.Request(spec.endpoint + path, headers=headers, method="GET")
         try:
-            response = urllib.request.build_opener(_NoRedirect()).open(request, timeout=30)
+            response = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect()).open(request, timeout=30)
             with response:
                 data = response.read(64 * 1024 * 1024 + 1)
                 if response.status != 200 or len(data) > 64 * 1024 * 1024:
@@ -499,22 +502,62 @@ class BootstrapManager:
         self._save(phase)
         return phase
 
+    def replace_unstarted(self, source_root, revision):
+        """Archive only an unused snapshot after the caller proves bucket absence."""
+        self._guard()
+        phase = self._preserved()
+        if phase.get("stage") != "LocalPrepared" or phase.get("plan_consumed") or phase.get("consumed_plans"):
+            raise BackendError("Consumed bootstrap configuration cannot be replaced.")
+        if any(self.directory.glob("*.tfstate*")) or any(self.workdir.glob("*.tfstate*")):
+            raise BackendError("Existing state prevents replacement of an unused snapshot.")
+        archive = _private_directory(self.directory / "unused-snapshots" / uuid.uuid4().hex)
+        for path in (self.snapshot, self.workdir, self.phase_path):
+            path.rename(archive / path.name)
+        return self.prepare(source_root, revision)
+
+    def prepare_replan(self, revision):
+        """A fresh plan may finish a partial initial apply from the same state."""
+        self._guard()
+        phase = self._preserved()
+        if phase.get("revision") != revision or phase.get("stage") not in ("Applying", "RecoveryRequired", "BucketsCreated"):
+            raise BackendError("Partial bootstrap replanning requires its original snapshot and local authority.")
+        local = read_state(self.workdir / "terraform.tfstate")
+        inventory = _bootstrap_inventory(local, self.spec, complete=False)
+        authority = self.directory / "authoritative-local.tfstate"
+        if authority.exists() and not states_match(local, read_state(authority)):
+            raise BackendError("Local state is divergent; explicit recovery is required.")
+        if "prod" in inventory:
+            if not self.reader.available or self.reader.get(self.spec, self.directory / "replan-remote-check.tfstate"):
+                raise BackendError("Remote absence must be proven before a partial local replan.")
+        private_write(authority, _json_bytes(local))
+        if (self.workdir / "backend.tf").read_bytes() != (self.snapshot / "backend.tf").read_bytes():
+            raise BackendError("Partial replanning requires the preserved local backend.")
+        consumed = list(phase.get("consumed_plans", []))
+        if phase.get("plan_sha256") and phase["plan_sha256"] not in consumed:
+            consumed.append(phase["plan_sha256"])
+        phase.update(stage="LocalPrepared", plan_consumed=False, consumed_plans=consumed)
+        self._save(phase)
+        return phase
+
     def initialize_local(self):
         self._guard()
         phase = self._preserved()
         if phase["stage"] != "LocalPrepared" or phase["plan_consumed"]:
             raise BackendError("Local initialization cannot replay a consumed bootstrap plan.")
+        if (self.workdir / "backend.tf").read_bytes() != (self.snapshot / "backend.tf").read_bytes():
+            raise BackendError("Local bootstrap backend differs from its preserved template.")
         if self.terraform.run(["init", "-input=false", "-no-color", "-lockfile=readonly"], self.workdir, "bootstrap-local-init") != 0:
             raise BackendError("Local bootstrap initialization failed; recovery artifacts are preserved.")
 
     def consume_plan(self, plan_sha256):
         self._guard()
         phase = self._preserved()
-        if phase["plan_consumed"]:
+        if phase["plan_consumed"] or plan_sha256 in phase.get("consumed_plans", []):
             raise BackendError("The bootstrap plan is consumed; resume preserved state without replaying apply.")
         if not re.fullmatch(r"[0-9a-f]{64}", plan_sha256):
             raise BackendError("A validated saved-plan digest is required.")
-        phase.update(stage="Applying", plan_consumed=True, plan_sha256=plan_sha256)
+        phase.update(stage="Applying", plan_consumed=True, plan_sha256=plan_sha256,
+                     consumed_plans=[*phase.get("consumed_plans", []), plan_sha256])
         self._save(phase)
 
     def record_apply_result(self, returncode):
@@ -585,8 +628,12 @@ class BootstrapManager:
             raise BackendError("Remote state read-back failed or is divergent; preserve all recovery artifacts.")
         phase["stage"] = "MigrationVerified"
         self._save(phase)
-        if self.verify_locking(self.spec, self.directory) is not True:
-            raise BackendError("Remote locking verification failed; bootstrap remains incomplete.")
+        locking = []
+        for backend in (self.spec, BackendSpec(self.spec.account, "staging")):
+            if self.verify_locking(backend, self.directory) is not True:
+                raise BackendError("Remote locking verification failed; bootstrap remains incomplete.")
+            locking.append(backend.identity())
+        phase["locking_verified"] = locking
         phase["stage"] = "RemoteReady"
         self._save(phase)
         return phase

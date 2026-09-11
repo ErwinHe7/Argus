@@ -161,6 +161,20 @@ class BootstrapTests(unittest.TestCase):
         with self.assertRaisesRegex(BackendError, "inventory"):
             self.manager.resume()
 
+    def test_partial_apply_can_replan_same_snapshot_without_replaying_old_plan(self):
+        self.manager.consume_plan("b" * 64)
+        partial = state()
+        partial["resources"][0]["instances"].pop()
+        private_write(self.manager.workdir / "terraform.tfstate", json.dumps(partial).encode())
+        self.manager.record_apply_result(1)
+        self.manager.prepare_replan(REVISION)
+        self.manager.initialize_local()
+        with self.assertRaises(BackendError):
+            self.manager.consume_plan("b" * 64)
+        self.manager.consume_plan("c" * 64)
+        self.assertEqual(self.manager.status()["stage"], "Applying")
+        self.assertTrue(states_match(partial, read_state(self.manager.workdir / "terraform.tfstate")))
+
     def test_missing_authority_does_not_start_fresh(self):
         self.created()
         (self.directory / "authoritative-local.tfstate").unlink()

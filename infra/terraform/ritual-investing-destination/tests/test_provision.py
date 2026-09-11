@@ -57,6 +57,9 @@ from pathlib import Path
 class Response(io.BytesIO):
     status = 200
 def request(opener, req, *args, **kwargs):
+    if os.environ.get("FAKE_RUNTIME"):
+        import fake_runtime
+        return fake_runtime.request(opener, req, *args, **kwargs)
     data = json.loads(Path(os.environ["FAKE_HTTP"]).read_text())
     with open(os.environ["FAKE_CALLS"], "a") as log:
         log.write(json.dumps({"http": req.full_url, "method": req.method}) + "\\n")
@@ -69,6 +72,7 @@ def request(opener, req, *args, **kwargs):
     return Response(json.dumps(payload).encode())
 sys.argv = sys.argv[1:]
 sys.path.insert(0, str(Path(sys.argv[0]).parent))
+sys.path.insert(0, str(Path(sys.argv[0]).parent / "tests"))
 with patch.object(urllib.request.OpenerDirector, "open", request), patch.object(Path, "home", return_value=Path(os.environ["FAKE_PRIVATE_HOME"])):
     runpy.run_path(sys.argv[0], run_name="__main__")
 ''')
@@ -78,6 +82,10 @@ with patch.object(urllib.request.OpenerDirector, "open", request), patch.object(
         self.terraform.write_text(f'''#!{sys.executable}
 import json, os, sys
 from pathlib import Path
+if os.environ.get("FAKE_RUNTIME"):
+    sys.path.insert(0, str(Path(os.environ["FAKE_FEATURE"]) / "tests"))
+    import fake_runtime
+    raise SystemExit(fake_runtime.terraform())
 args = sys.argv[1:]
 with open(os.environ["FAKE_CALLS"], "a") as log:
     log.write(json.dumps({{"terraform": args, "cwd": str(Path.cwd())}}) + "\\n")
@@ -154,15 +162,31 @@ else:
         self.assertTrue(any(c[0] == "init" and "-lockfile=readonly" in c for c in commands))
         self.assertFalse(any(c[0] in ("apply", "import", "destroy") or "-lock=false" in c for c in commands))
 
-    def test_zero_and_two_success_one_failure_and_human_equivalence(self):
-        self.env["FAKE_PLAN_EXIT"] = "0"
+    def test_apply_rechecks_binary_policy_and_never_applies_unsafe_change(self):
+        code, planned = self.run_plan()
+        self.assertEqual(code, 0)
         plan = json.loads(self.plan.read_text())
-        for r in plan["resource_changes"]:
-            r["change"]["actions"] = ["no-op"]
-            r["change"]["before"] = copy.deepcopy(r["change"]["after"])
+        plan["resource_changes"][0]["change"]["actions"] = ["delete"]
         self.plan.write_text(json.dumps(plan))
+        code, receipt = self.invoke("apply", "--profile", "leoinvestment", "--target", "bootstrap", "--artifact", planned["artifact"])
+        self.assertEqual((code, receipt["outcome"]), (1, "unsafe-plan"))
+        self.assertFalse(any(c.get("terraform", [None])[0] == "apply" for c in self.recorded_calls()))
+
+    def test_apply_consumes_artifact_even_when_terraform_fails(self):
+        code, planned = self.run_plan()
+        self.assertEqual(code, 0)
+        arguments = ("apply", "--profile", "leoinvestment", "--target", "bootstrap", "--artifact", planned["artifact"])
+        code, receipt = self.invoke(*arguments)
+        self.assertNotEqual(code, 0)
+        self.assertTrue((Path(planned["artifact"]) / "consumed.json").is_file())
+        self.assertEqual(self.invoke(*arguments)[1]["outcome"], "consumed-plan")
+        calls = [c["terraform"] for c in self.recorded_calls() if c.get("terraform", [None])[0] == "apply"]
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0][-1], str(Path(planned["artifact"]) / "plan.tfplan"))
+
+    def test_zero_and_two_success_one_failure_and_human_equivalence(self):
         code, receipt = self.run_plan()
-        self.assertEqual((code, receipt["outcome"]), (0, "planned-no-change"))
+        self.assertEqual((code, receipt["outcome"]), (0, "planned-changes"))
         human = self.run_plan(human=True)
         self.assertEqual(human.returncode, 0)
         self.assertIn(receipt["plan_identity"], human.stdout)
@@ -181,12 +205,6 @@ else:
             with self.subTest(args=args):
                 code, receipt = self.invoke(*args)
                 self.assertEqual((code, receipt["outcome"]), (1, "invalid-arguments"))
-        for action in ("apply", "verify", "resume"):
-            args = [action, "--profile", "leoinvestment", "--target", "bootstrap"]
-            if action == "apply":
-                args += ["--artifact", "untrusted-path"]
-            code, receipt = self.invoke(*args)
-            self.assertEqual((code, receipt["outcome"]), (1, "action-unavailable"))
         self.assertEqual(self.recorded_calls(), [])
 
     def test_unverified_wrong_host_personal_account_or_wrong_name_stops_before_io(self):
@@ -198,6 +216,14 @@ else:
             code, receipt = self.run_plan()
             self.assertEqual((code, receipt["outcome"]), (1, "prerequisite-failure"))
         self.assertEqual(self.recorded_calls(), [])
+
+    def test_inherited_git_pager_is_harmless_but_selectors_fail(self):
+        self.env["GIT_PAGER"] = "cat"
+        self.assertEqual(self.run_plan()[0], 0)
+        for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_CONFIG_COUNT"):
+            self.env[name] = "unsafe"
+            self.assertEqual(self.run_plan()[1]["outcome"], "unsafe-environment")
+            del self.env[name]
 
     def test_unsafe_environment_variables_cannot_redirect_or_override(self):
         for name in ("TF_VAR_cloudflare_account_id", "TF_CLI_ARGS_plan", "TF_CLI_CONFIG_FILE", "TF_LOG",
@@ -296,6 +322,165 @@ else:
         self.assertEqual(self.run_plan()[1]["outcome"], "prerequisite-failure")
 
 
+class ExecutionTests(CliTests):
+    # Only the explicit end-to-end tests below are run for this fixture mode.
+    def setUp(self):
+        super().setUp()
+        self.env.update(FAKE_RUNTIME="1", FAKE_FEATURE=str(self.feature), FAKE_REMOTE=str(self.base / "remote"),
+                        AWS_ACCESS_KEY_ID="synthetic-access", AWS_SECRET_ACCESS_KEY=SENTINEL)
+
+    def action(self, action, target="bootstrap", artifact=None):
+        args = [action, "--profile", "leoinvestment", "--target", target]
+        if artifact:
+            args += ["--artifact", artifact]
+        return self.invoke(*args)
+
+    def provision(self, target="bootstrap"):
+        code, plan = self.run_plan(target)
+        self.assertEqual((code, plan["outcome"]), (0, "planned-changes"), plan)
+        code, applied = self.action("apply", target, plan["artifact"])
+        self.assertEqual((code, applied["outcome"]), (0, "applied"), applied)
+        return plan, applied
+
+    def test_full_bootstrap_workload_update_verify_chain(self):
+        initial, _ = self.provision()
+        directory = Path(initial["artifact"]).parent.parent
+        phase = json.loads((directory / "phase.json").read_text())
+        self.assertEqual(phase["stage"], "RemoteReady")
+        self.assertEqual(len(phase["locking_verified"]), 2)
+        self.assertEqual(self.run_plan()[1]["outcome"], "planned-no-change")
+        workload, applied = self.provision("staging")
+        self.assertEqual(applied["counts"]["create"], 15)
+        manifest = json.loads((Path(workload["artifact"]) / "manifest.json").read_text())
+        self.assertIn(str(RELATIVE / "bootstrap/backend.remote.tf.template"), manifest["inputs"])
+        self.assertEqual(manifest["backend"]["key"], "workloads/terraform.tfstate")
+        catalog = self.feature / "environments/staging/catalog.json"
+        data = json.loads(catalog.read_text())
+        data["queues"]["jobs"]["delivery_delay"] = 42
+        catalog.write_text(json.dumps(data))
+        self.commit()
+        code, update = self.run_plan("staging")
+        self.assertEqual(code, 0, update)
+        self.assertEqual(update["counts"]["update"], 1)
+        code, applied = self.action("apply", "staging", update["artifact"])
+        self.assertEqual((code, applied["outcome"]), (0, "applied"), applied)
+        self.assertEqual(applied["counts"]["update"], 1)
+        self.assertEqual(self.action("verify", "staging")[1]["outcome"], "verified")
+        self.assertEqual(self.run_plan("staging")[1]["outcome"], "planned-no-change")
+        for call in self.recorded_calls():
+            if "http" in call:
+                self.assertEqual(call["method"], "GET")
+            else:
+                args = call["terraform"]
+                self.assertFalse(any(arg in args for arg in ("import", "destroy", "-lock=false", "force-unlock")))
+
+    def test_post_create_missing_credentials_resume_original_revision(self):
+        del self.env["AWS_ACCESS_KEY_ID"]
+        del self.env["AWS_SECRET_ACCESS_KEY"]
+        code, plan = self.run_plan()
+        self.assertEqual(code, 0, plan)
+        code, applied = self.action("apply", artifact=plan["artifact"])
+        self.assertEqual((code, applied["outcome"]), (1, "bootstrap-incomplete"), applied)
+        self.git("commit", "--allow-empty", "-qm", "checkout advanced")
+        self.env.update(AWS_ACCESS_KEY_ID="synthetic-access", AWS_SECRET_ACCESS_KEY=SENTINEL)
+        code, resumed = self.action("resume")
+        self.assertEqual((code, resumed["outcome"]), (0, "resumed"), resumed)
+        self.assertEqual(resumed["revision"], plan["revision"])
+        self.assertEqual(sum(c.get("terraform", [None])[0] == "apply" for c in self.recorded_calls()), 1)
+
+    def test_partial_initial_apply_replan_and_consumed_artifact(self):
+        self.env["FAKE_PARTIAL"] = "1"
+        code, plan = self.run_plan()
+        self.assertEqual(code, 0, plan)
+        code, applied = self.action("apply", artifact=plan["artifact"])
+        self.assertEqual((code, applied["outcome"]), (1, "partial-apply"), applied)
+        directory = Path(plan["artifact"]).parent.parent
+        self.assertFalse((directory / "initialized-bootstrap.json").exists())
+        self.assertEqual(self.action("apply", artifact=plan["artifact"])[1]["outcome"], "consumed-plan")
+        del self.env["FAKE_PARTIAL"]
+        code, replan = self.run_plan()
+        self.assertEqual(code, 0, replan)
+        self.assertEqual(replan["counts"]["create"], 1)
+        self.assertEqual(self.action("apply", artifact=replan["artifact"])[1]["outcome"], "applied")
+
+    def test_unused_bootstrap_snapshot_replans_latest_revision(self):
+        code, old = self.run_plan()
+        self.assertEqual(code, 0, old)
+        self.git("commit", "--allow-empty", "-qm", "new selected revision")
+        code, new = self.run_plan()
+        self.assertEqual(code, 0, new)
+        self.assertNotEqual(old["revision"], new["revision"])
+        self.assertEqual(self.action("apply", artifact=old["artifact"])[1]["outcome"], "stale-inputs")
+        self.assertEqual(self.action("apply", artifact=new["artifact"])[1]["outcome"], "applied")
+
+    def test_postapply_drift_and_emergency_state_never_succeed(self):
+        self.env["FAKE_POST_DRIFT"] = "1"
+        code, plan = self.run_plan()
+        self.assertEqual(code, 0, plan)
+        code, receipt = self.action("apply", artifact=plan["artifact"])
+        self.assertEqual((code, receipt["outcome"]), (1, "verification-failure"), receipt)
+        directory = Path(plan["artifact"]).parent.parent
+        self.assertFalse((directory / "initialized-bootstrap.json").exists())
+        self.assertTrue((directory / "authoritative-local.tfstate").is_file())
+        self.assertTrue((Path(plan["artifact"]) / "consumed.json").is_file())
+        del self.env["FAKE_POST_DRIFT"]
+        self.env["FAKE_EMERGENCY"] = "1"
+        code, plan = self.run_plan()
+        self.assertEqual(code, 0, plan)
+        code, receipt = self.action("apply", artifact=plan["artifact"])
+        self.assertEqual((code, receipt["outcome"]), (1, "recovery-required"), receipt)
+        self.assertTrue((directory / "work/errored.tfstate").is_file())
+        self.assertEqual(self.run_plan()[1]["outcome"], "recovery-required")
+
+    def test_remote_runtime_backend_and_state_tamper_require_new_plan(self):
+        self.provision()
+        code, plan = self.run_plan("staging")
+        self.assertEqual(code, 0, plan)
+        config = Path(plan["artifact"]) / "work" / RELATIVE / "environments/staging/backend.tfbackend.json"
+        original = config.read_bytes()
+        config.write_text('{}')
+        self.assertEqual(self.action("apply", "staging", plan["artifact"])[1]["outcome"], "stale-inputs")
+        config.write_bytes(original)
+        self.provision("staging")
+        self.assertEqual(self.action("apply", "staging", plan["artifact"])[1]["outcome"], "stale-inputs")
+
+    def test_output_only_bootstrap_reconciliation_uses_saved_plan(self):
+        self.provision()
+        state = Path(self.env["FAKE_REMOTE"]) / "ritual-investing-terraform-state-prod/bootstrap/terraform.tfstate"
+        data = json.loads(state.read_text())
+        data["outputs"] = {}
+        state.write_text(json.dumps(data))
+        code, plan = self.run_plan()
+        self.assertEqual((code, plan["outcome"]), (0, "planned-changes"), plan)
+        self.assertEqual(plan["counts"], {"create": 0, "update": 0, "delete": 0, "no-op": 2})
+        self.assertEqual(self.action("apply", artifact=plan["artifact"])[1]["outcome"], "applied")
+
+    def test_activation_before_apply_stops_without_apply_or_cleanup(self):
+        self.provision()
+        self.provision("staging")
+        code, plan = self.run_plan("staging")
+        self.assertEqual(code, 0, plan)
+        before = sum(c.get("terraform", [None])[0] == "apply" for c in self.recorded_calls())
+        self.env["FAKE_ACTIVATED"] = "1"
+        code, receipt = self.action("apply", "staging", plan["artifact"])
+        self.assertEqual((code, receipt["outcome"]), (1, "outside-provisioning-scope"), receipt)
+        self.assertEqual(sum(c.get("terraform", [None])[0] == "apply" for c in self.recorded_calls()), before)
+
+    def test_unchanged_phase_does_not_mask_public_bucket_or_state_permission(self):
+        self.provision()
+        self.env["FAKE_PUBLIC"] = "1"
+        self.assertEqual(self.run_plan("staging")[1]["outcome"], "outside-provisioning-scope")
+        del self.env["FAKE_PUBLIC"]
+        self.env["FAKE_S3_DENIED"] = "1"
+        self.assertNotEqual(self.run_plan("staging")[0], 0)
+
+
+# Avoid inheriting the original fake-I/O test cases into the richer fixture.
+for _name in dir(CliTests):
+    if _name.startswith("test_"):
+        setattr(ExecutionTests, _name, None)
+
+
 class CloudReadTests(unittest.TestCase):
     def setUp(self):
         sys.path.insert(0, str(FEATURE))
@@ -358,6 +543,28 @@ class PolicyTests(unittest.TestCase):
     def test_actual_provider_create_unknown_defaults_are_accepted(self):
         self.assertEqual(self.inspect(self.plan, ACCOUNT, "staging", self.catalog),
                          {"create": 15, "no-op": 0, "update": 0, "delete": 0})
+
+    def test_hidden_drift_and_planned_value_resources_fail(self):
+        for field in ("resource_drift", "planned_values"):
+            plan = copy.deepcopy(self.plan)
+            if field == "resource_drift":
+                plan[field] = [copy.deepcopy(plan["resource_changes"][0])]
+                plan[field][0]["change"]["actions"] = ["delete"]
+            else:
+                plan[field]["root_module"]["resources"] = [{"address": "hidden.resource"}]
+            with self.assertRaises(self.error):
+                self.inspect(plan, ACCOUNT, "staging", self.catalog)
+
+    def test_explicit_queue_values_reject_bool_fraction_and_bounds(self):
+        for value in (True, -1, 86401, 1.5):
+            plan, catalog = copy.deepcopy(self.plan), copy.deepcopy(self.catalog)
+            queue = next(r for r in plan["resource_changes"] if r["type"] == "cloudflare_queue")
+            key = queue["index"]
+            catalog["queues"][key]["delivery_delay"] = value
+            queue["change"]["after"]["settings"]["delivery_delay"] = value
+            queue["change"]["after_unknown"]["settings"].pop("delivery_delay", None)
+            with self.assertRaises(self.error):
+                self.inspect(plan, ACCOUNT, "staging", catalog)
 
     def test_policy_rejects_scope_actions_wrong_account_unknown_activation_and_integration(self):
         mutators = [lambda p: p["resource_changes"][0]["change"].update(actions=["delete", "create"]),
