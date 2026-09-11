@@ -15,8 +15,9 @@ is altered by this gateway.
 ## Scope and current state
 
 Source and tests are in `platform/workers/domain-proxy`. The controller is
-`.github/workflows/leo-domain-publication.yml`, restricted to the reviewed
-`codex/leo-models-publication-20260910` branch and those publication paths. It uses
+`.github/workflows/leo-domain-publication.yml`, invoked manually on `main` with
+the required `reviewed_sha` input. The job runs only when that input matches the
+exact commit selected by GitHub. Normal pushes do not deploy the domain. It uses
 the existing repository `CLOUDFLARE_CONTENT_API_TOKEN` secret and
 `CLOUDFLARE_ACCOUNT_ID` variable. Credentials never appear in source or receipts.
 
@@ -35,6 +36,20 @@ labels or installed background service. A local start hook restricts execution t
 the exact reviewed repository, workflow, branch and commit; the runner unregisters
 after one job. Future retries need a newly provisioned, explicitly scoped runner.
 Documentation changes alone do not trigger another domain deployment.
+
+The self-hosted retry of run `34558596593` checked out the exact reviewed source
+and passed all 17 gateway/controller tests. Its generic user-token verification
+returned HTTP 401 before any Cloudflare write or domain attachment. Account-owned
+tokens use a separate verification endpoint, so that response alone does not prove
+the stored credential has expired. The controller now tries the official account
+verification endpoint only after a 401/403 from user verification; all ownership,
+active-token and write restrictions remain mandatory. The temporary runner was
+removed after the attempt. A retry requires a fresh runner and the exact new SHA.
+
+The source branch has been merged and pushed directly to `origin/main`; the draft
+PR was closed at the owner's request. The reviewed `leo` website and isolated
+Supabase strategy API are deployed. The custom domain remains a separate cutover
+until a successful receipt confirms it.
 
 The source `release.json` pins the reviewed upstream JavaScript, CSS and public
 strategy configuration hashes at Worker version

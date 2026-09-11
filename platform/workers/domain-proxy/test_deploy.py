@@ -2,7 +2,7 @@ import copy
 import importlib.util
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 spec = importlib.util.spec_from_file_location("domain_deploy", Path(__file__).with_name("deploy.py"))
 d = importlib.util.module_from_spec(spec)
@@ -54,6 +54,65 @@ class FakeCloud:
 
 
 class DeploymentTests(unittest.TestCase):
+    def test_active_user_token_does_not_use_account_endpoint(self):
+        cloud = Mock()
+        cloud.call.return_value = {"result": {"status": "active"}}
+        self.assertEqual(d.verify_token(cloud), "user")
+        cloud.call.assert_called_once_with("GET", "/user/tokens/verify")
+
+    def test_account_token_fallback_only_on_auth_rejection(self):
+        for status in (401, 403):
+            with self.subTest(status=status):
+                cloud = Mock()
+                cloud.call.side_effect = [d.CloudflareFailure(status, "user_endpoint_rejected"),
+                                          {"result": {"status": "active"}}]
+                self.assertEqual(d.verify_token(cloud), "account")
+                self.assertEqual(cloud.call.call_count, 2)
+                cloud.call.assert_called_with("GET", f"/accounts/{d.ACCOUNT}/tokens/verify")
+
+    def test_token_fallback_cannot_override_inactive_or_missing_status(self):
+        for body in ({"result": {"status": "disabled"}}, {"result": {}}):
+            cloud = Mock()
+            cloud.call.return_value = body
+            with self.assertRaisesRegex(d.Failure, "cloudflare_token_not_active"):
+                d.verify_token(cloud)
+            self.assertEqual(cloud.call.call_count, 1)
+
+    def test_network_service_and_rate_limit_failures_do_not_try_other_endpoint(self):
+        for error in (d.Failure("network_request_failed"), d.CloudflareFailure(429, "rate_limit"),
+                      d.CloudflareFailure(500, "service_unavailable")):
+            cloud = Mock()
+            cloud.call.side_effect = error
+            with self.assertRaises(d.Failure):
+                d.verify_token(cloud)
+            self.assertEqual(cloud.call.call_count, 1)
+
+    def test_account_token_rejection_stops_before_ownership_or_writes(self):
+        for response in (d.CloudflareFailure(401, "account_endpoint_rejected"),
+                         {"result": {"status": "expired"}}):
+            cloud = Mock()
+            cloud.call.side_effect = [d.CloudflareFailure(401, "user_endpoint_rejected"), response]
+            _, _, error = self.execute(cloud)
+            self.assertIn(error, {"account_endpoint_rejected", "cloudflare_token_not_active"})
+            self.assertEqual(cloud.call.call_count, 2)
+            self.assertTrue(all(args.args[0] == "GET" for args in cloud.call.call_args_list))
+
+    def test_verified_account_token_still_requires_exact_owned_zone(self):
+        cloud = FakeCloud()
+        original_call = cloud.call
+        def account_token(method, path, *args, **kwargs):
+            if path == "/user/tokens/verify":
+                raise d.CloudflareFailure(401, "user_endpoint_rejected")
+            if path == f"/accounts/{d.ACCOUNT}/tokens/verify":
+                return {"result": {"status": "active"}}
+            return original_call(method, path, *args, **kwargs)
+        cloud.call = account_token
+        cloud.zone = "another-zone"
+        receipt, _, error = self.execute(cloud)
+        self.assertEqual(receipt["tokenVerificationScope"], "account")
+        self.assertEqual(error, "owning_zone_not_accessible_or_active")
+        self.assertEqual(cloud.writes, [])
+
     def execute(self, cloud, site_error=False):
         receipt = {"sourceSha": "a" * 40, "attachmentAttempted": False}
         saved = []

@@ -18,7 +18,7 @@ HOST = "leoinvesting.com"
 PREVIOUS_WORKER = "ritual-investing-member"
 WORKER = "leo-domain-proxy"
 UPSTREAM = "https://leo.axio7.workers.dev"
-EXPECTED_REF = "refs/heads/codex/leo-models-publication-20260910"
+EXPECTED_REF = "refs/heads/main"
 API = "https://api.cloudflare.com/client/v4"
 MAX_RESPONSE = 4 * 1024 * 1024
 HERE = Path(__file__).resolve().parent
@@ -26,6 +26,12 @@ HERE = Path(__file__).resolve().parent
 
 class Failure(Exception):
     """Stable operator-facing error; never include remote bodies or credentials."""
+
+
+class CloudflareFailure(Failure):
+    def __init__(self, status, reason):
+        super().__init__(reason)
+        self.status = status
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -89,13 +95,28 @@ class Cloudflare:
         try:
             body = json.loads(raw)
         except (ValueError, UnicodeError):
-            raise Failure(f"cloudflare_http_{status}_invalid_json") from None
+            raise CloudflareFailure(status, f"cloudflare_http_{status}_invalid_json") from None
         codes = [str(entry.get("code")) for entry in body.get("errors", []) or []
                  if isinstance(entry, dict) and isinstance(entry.get("code"), int)]
         if status not in range(200, 300) or body.get("success") is not True:
             suffix = "_permission_or_token_access" if status in (401, 403) else ""
-            raise Failure(f"cloudflare_http_{status}{suffix}_codes_{'-'.join(codes) or 'none'}")
+            raise CloudflareFailure(status, f"cloudflare_http_{status}{suffix}_codes_{'-'.join(codes) or 'none'}")
         return body
+
+
+def verify_token(cloud):
+    # Account-owned CI tokens have a separate official verification endpoint.
+    # Only an authentication rejection selects it; network and service failures stop.
+    scope = "user"
+    try:
+        body = cloud.call("GET", "/user/tokens/verify")
+    except CloudflareFailure as error:
+        if error.status not in (401, 403):
+            raise
+        body = cloud.call("GET", f"/accounts/{ACCOUNT}/tokens/verify")
+        scope = "account"
+    require((body.get("result") or {}).get("status") == "active", "cloudflare_token_not_active")
+    return scope
 
 
 def domain_inventory(cloud):
@@ -206,8 +227,8 @@ def run(cloud, receipt, save, sleep=time.sleep):
             and config["routes"] == [{"pattern": HOST, "custom_domain": True}], "unexpected_release_configuration")
     receipt["phase"] = "verify_token_and_ownership"
     save()
-    token_result = cloud.call("GET", "/user/tokens/verify").get("result") or {}
-    require(token_result.get("status") == "active", "cloudflare_token_not_active")
+    receipt["tokenVerificationScope"] = verify_token(cloud)
+    save()
     zones = cloud.call("GET", "/zones?name=" + HOST).get("result")
     require(isinstance(zones, list) and len(zones) == 1 and zones[0].get("id") == ZONE
             and (zones[0].get("account") or {}).get("id") == ACCOUNT and zones[0].get("status") == "active",

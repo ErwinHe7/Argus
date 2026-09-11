@@ -1,11 +1,12 @@
 name: Publish reviewed Leo domain gateway
 
 on:
-  push:
-    branches: [codex/leo-models-publication-20260910]
-    paths:
-      - platform/workers/domain-proxy/**
-      - .github/workflows/leo-domain-publication.yml
+  workflow_dispatch:
+    inputs:
+      reviewed_sha:
+        description: Exact reviewed main commit to publish
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -16,7 +17,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.repository == 'ErwinHe7/Argus' && github.ref == 'refs/heads/codex/leo-models-publication-20260910'
+    if: github.repository == 'ErwinHe7/Argus' && github.ref == 'refs/heads/main' && github.sha == inputs.reviewed_sha
     # One-job runner on the owner's computer; no default/shared runner labels.
     runs-on: [leo-domain-b74391b508e4]
     timeout-minutes: 12
