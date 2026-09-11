@@ -86,10 +86,14 @@ PR was closed at the owner's request. The reviewed `leo` website and isolated
 Supabase strategy API are deployed. The custom domain remains a separate cutover
 until a successful receipt confirms it.
 
-The source `release.json` pins the reviewed upstream JavaScript, CSS and public
-strategy configuration hashes at Worker version
-`d208eb32-c625-495e-a314-7c4ccb8c0db6`. A later upstream build requires an explicit
-reviewed manifest update.
+The source `release.json` pins the reviewed upstream JavaScript, CSS, Google
+button/provenance and public strategy configuration hashes at Worker version
+`f0bcd54a-b873-4524-94ed-4d13a6d1c5ca`. The September 11 Google welcome update
+passed 12 production checks and reached Google's account chooser through the
+live button; complete provider sign-in was not performed. See
+[Google sign-in](google-sign-in.md) for the separate fixture and live evidence.
+The domain-owning account's access remains unresolved; the apex was not changed.
+A later upstream build requires an explicit reviewed manifest update.
 Uploading source code does not activate native models, refresh stale market
 history, validate profitability or enable real-money trading.
 

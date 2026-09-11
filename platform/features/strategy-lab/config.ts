@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 export const SESSION_STORAGE_KEY = 'leo.strategy-lab.auth.v1';
 export const AUTH_CALLBACK_PATH = '/strategy-auth/callback';
+export const AUTH_RETURN_KEY = `${SESSION_STORAGE_KEY}.return`;
+export function authReturnPath(value: string | null): '/#/home' | '/#/strategies' {
+  return value === '/#/strategies' ? '/#/strategies' : '/#/home';
+}
 const PROJECT_ORIGIN = 'https://katwbobjiyzipqlzarus.supabase.co';
 
 export const publicConfigSchema = z.object({
@@ -25,7 +29,7 @@ export type PublicConfig = z.infer<typeof publicConfigSchema>;
 export function callbackLocation(current: string): { code: string | null; failed: boolean } {
   const url = new URL(current);
   if (url.pathname !== AUTH_CALLBACK_PATH) return { code: null, failed: false };
-  return { code: url.searchParams.get('code'), failed: url.searchParams.has('error') };
+  return { code: url.searchParams.get('code'), failed: url.searchParams.has('error') || new URLSearchParams(url.hash.slice(1)).has('error') };
 }
 
 export async function loadPublicConfig(): Promise<PublicConfig> {

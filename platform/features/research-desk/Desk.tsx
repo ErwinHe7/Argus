@@ -13,6 +13,8 @@ import { CryptoMarkets } from './CryptoMarkets';
 import { StrategyWorkspace } from '../strategy-lab/StrategyWorkspace';
 import { TradingViewChart, TradingViewTape, TRADINGVIEW_MARKETS, resolveTradingViewSymbol } from './tradingview';
 import { Radar, ForecastRecord } from './radar/Radar';
+import { IdentityProvider } from '../strategy-lab/Identity';
+import { AccountControl, Welcome } from './account/Welcome';
 
 // THESIS: Astra's Pick answers what deserves a closer look with a short, explained stock screen before supporting analysis.
 // OWN-WORLD: The existing model interface supplies aubergine surfaces, candle gold, lilac evidence and Lion identity.
@@ -24,7 +26,8 @@ import { Radar, ForecastRecord } from './radar/Radar';
 const fmt = (n: number | null | undefined, digits = 2) => n == null ? '—' : n.toLocaleString('en-US',{maximumFractionDigits:digits,minimumFractionDigits:digits});
 const money = (n: number | null | undefined) => n == null ? '—' : `$${fmt(n)}`;
 const pct = (n: number | null | undefined) => n == null ? '—' : `${n > 0 ? '+' : ''}${fmt(n)}%`;
-const route = (): ToolId => { if (location.pathname === '/strategy-auth/callback') return 'strategies'; const id = location.hash.slice(2).split('?')[0]; return TOOLS.some(t => t.id === id) ? id as ToolId : 'home'; };
+type DeskRoute = ToolId | 'welcome';
+const route = (): DeskRoute => { if (location.pathname === '/strategy-auth/callback') return 'welcome'; const id = location.hash.slice(2).split('?')[0]; return id === 'welcome' ? 'welcome' : TOOLS.some(t => t.id === id) ? id as ToolId : 'home'; };
 const localDate = () => new Date().toLocaleDateString('en-CA');
 const readJson = async <T,>(url: string): Promise<T> => { const response = await fetch(url); if (!response.ok) throw new Error('Market data could not be loaded. Reload to try again.'); return response.json(); };
 const titleFor = (id: ToolId) => TOOLS.find(t => t.id === id)?.title ?? "Astra's Pick";
@@ -33,21 +36,21 @@ function External({href, children}: {href: string; children: React.ReactNode}) {
 
 function Desk() {
   const [data,setData] = useState<DeskData|null>(null), [events,setEvents] = useState<IvLabEvents|null>(null), [iv,setIv] = useState<IvLabOverview|null>(null);
-  const [error,setError] = useState(''), [active,setActive] = useState<ToolId>(route), [menu,setMenu] = useState(false);
+  const [error,setError] = useState(''), [active,setActive] = useState<DeskRoute>(route), [menu,setMenu] = useState(false);
   const [readings,setReadings] = useState<MarketRead[]>([]);
   const returnUrl = useMemo(()=>safeReturn(new URLSearchParams(location.search).get('return'),location.origin),[]);
   useEffect(()=>{ const change=()=>{setActive(route());setMenu(false);window.scrollTo({top:0,behavior:'instant'});}; window.addEventListener('hashchange',change); return()=>window.removeEventListener('hashchange',change);},[]);
   useEffect(()=>{ Promise.all([readJson<DeskData>('/app/research-desk/data/desk-data.json'),readJson<IvLabEvents>('/app/research-desk/data/events.json'),readJson<IvLabOverview>('/app/research-desk/data/iv-overview.json')]).then(([d,e,i])=>{if(!Array.isArray(d.symbols)||!d.symbols.length)throw new Error('Market data is unavailable.');setData(d);setEvents(e);setIv(i);}).catch(e=>setError(e.message));},[]);
   useEffect(()=>{readJson<{symbols:MarketRead[]}>('/app/research-desk/data/market-analysis.json').then(result=>setReadings(result.symbols)).catch(()=>setReadings([]));},[]);
-  useEffect(()=>{document.title=active==='home'?"Astra's Pick · Stock shortlist":`${titleFor(active)} · Astra's Pick`;},[active]);
+  useEffect(()=>{document.title=active==='welcome'?'Welcome · Leo Investing':active==='home'?"Astra's Pick · Stock shortlist":`${titleFor(active)} · Astra's Pick`;},[active]);
   const asset = data?.symbols.find(a=>a.symbol==='AVGO') ?? data?.symbols[0];
   return <div id="desk">
     <a className="skip-link" href="#desk-content">Skip to analysis</a>
     <header className="desk-header"><a className="desk-brand" href="#/home"><img src="/app/research-desk/lion.png" width="44" height="44" alt="Leo Lion"/><span><b>Astra's Pick</b><small>by Leo Investing</small></span></a><button className="mobile-menu icon-button" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button>
-      <nav className={menu?'desk-nav open':'desk-nav'} aria-label="Main navigation"><a href="#/home" aria-current={active==='home'?'page':undefined}>Picks</a><a href="#/radar" aria-current={['radar','events','earnings'].includes(active)?'page':undefined}>Radar</a><a href="#/board" aria-current={active==='board'?'page':undefined}>Markets</a><a href="#/positions" aria-current={active==='positions'?'page':undefined}>My plans</a><details className="nav-more"><summary>Tools<ChevronDown size={13}/></summary><div>{TOOLS.filter(t=>!['board','positions','radar'].includes(t.id)).map(t=><a key={t.id} href={`#/${t.id}`} aria-current={active===t.id?'page':undefined} onClick={e=>e.currentTarget.closest('details')?.removeAttribute('open')}>{t.title}</a>)}</div></details></nav></header>
+      <nav className={menu?'desk-nav open':'desk-nav'} aria-label="Main navigation"><a href="#/home" aria-current={active==='home'?'page':undefined}>Picks</a><a href="#/radar" aria-current={['radar','events','earnings'].includes(active)?'page':undefined}>Radar</a><a href="#/board" aria-current={active==='board'?'page':undefined}>Markets</a><a href="#/positions" aria-current={active==='positions'?'page':undefined}>My plans</a><details className="nav-more"><summary>Tools<ChevronDown size={13}/></summary><div>{TOOLS.filter(t=>!['board','positions','radar'].includes(t.id)).map(t=><a key={t.id} href={`#/${t.id}`} aria-current={active===t.id?'page':undefined} onClick={e=>e.currentTarget.closest('details')?.removeAttribute('open')}>{t.title}</a>)}</div></details></nav><AccountControl/></header>
     {['structure','playbook','tech-playbook','crypto','iv'].includes(active) && <TradingViewTape/>}
     <main id="desk-content">
-      {active==='home'?<AstraHome/>:active==='strategies'?<StrategyWorkspace/>:active==='radar'||active==='events'?<Radar key={active}/>:active==='forecast'?<ForecastRecord/>:active==='earnings'?<><Radar initialFilter="Earnings"/><section className="tool-body"><details className="study-list"><summary>Your saved earnings calendar</summary><Journal kind="earnings"/></details></section></>:['positions','algo'].includes(active)?<><ToolHeading active={active}/><Journal key={`${active}:${location.hash}`} kind={active as 'positions'|'algo'}/><ToolPagination active={active}/></>:['structure','playbook','tech-playbook','board','crypto'].includes(active)?<>
+      {active==='welcome'?<Welcome/>:active==='home'?<AstraHome/>:active==='strategies'?<StrategyWorkspace/>:active==='radar'||active==='events'?<Radar key={active}/>:active==='forecast'?<ForecastRecord/>:active==='earnings'?<><Radar initialFilter="Earnings"/><section className="tool-body"><details className="study-list"><summary>Your saved earnings calendar</summary><Journal kind="earnings"/></details></section></>:['positions','algo'].includes(active)?<><ToolHeading active={active}/><Journal key={`${active}:${location.hash}`} kind={active as 'positions'|'algo'}/><ToolPagination active={active}/></>:['structure','playbook','tech-playbook','board','crypto'].includes(active)?<>
         <ToolHeading active={active}/>
         {active==='structure'&&<Structure data={data} readings={readings}/>}
         {(active==='playbook'||active==='tech-playbook')&&<Playbook asset={data?.symbols.find(a=>a.symbol===(active==='playbook'?'SPY':'QQQ'))} tech={active==='tech-playbook'}/>}
@@ -160,4 +163,4 @@ function Research({data}:{data:DeskData}) {return <section className="tool-body"
 
 function Handbook({returnUrl}:{returnUrl:string}) {const [query,setQuery]=useState('');return <section className="tool-body handbook"><label className="search-field"><Search size={16}/><input aria-label="Search guide" placeholder="Search the guide" value={query} onChange={e=>setQuery(e.target.value)}/></label><div className="study-list">{HANDBOOK.filter(([q,a])=>`${q} ${a}`.toLowerCase().includes(query.toLowerCase())).map(([q,a])=><details key={q}><summary>{q}<ChevronDown size={16}/></summary><p>{a}</p></details>)}</div><a className="text-button" href={returnUrl.replace(/#.*$/,'#/you')}>Open your Leo profile<ArrowUpRight size={15}/></a></section>;}
 
-createRoot(document.getElementById('leo-desk-root')!).render(<Desk/>);
+createRoot(document.getElementById('leo-desk-root')!).render(<IdentityProvider><Desk/></IdentityProvider>);

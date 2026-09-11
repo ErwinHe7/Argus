@@ -1,0 +1,19 @@
+.desk-account{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 14px;border:1px solid var(--desk-line);color:var(--desk-ink);font-size:12px;white-space:nowrap;margin-left:12px;flex-shrink:0}
+.desk-account:hover{border-color:var(--desk-gold);color:var(--desk-gold)}
+.leo-welcome{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,440px);align-items:center;gap:9%;max-width:1160px;min-height:calc(100svh - 230px);margin:auto;padding:72px 32px 88px}
+.welcome-intro h1{font-size:clamp(36px,4.3vw,58px);line-height:1.1;letter-spacing:-.035em;font-weight:750;text-wrap:balance;margin:0 0 25px}
+.welcome-intro>p{max-width:43ch;color:var(--desk-muted);font-size:16px;line-height:1.8;margin-bottom:20px}
+.welcome-intro .text-button{font-size:14px;min-height:44px}
+.welcome-intro .welcome-public-note{font-size:12px;margin:12px 0 0}
+.welcome-account{padding:34px;background:var(--desk-panel);border:1px solid var(--desk-line);min-width:0}
+.welcome-lion{display:block;margin-bottom:23px;object-fit:contain}
+.welcome-account h2{font-size:28px;line-height:1.2;letter-spacing:-.025em;margin:0 0 14px;font-weight:700}
+.welcome-account>p{font-size:14px;line-height:1.75;color:var(--desk-muted);margin:0 0 25px}
+.welcome-google{display:block;width:216px;max-width:100%;min-height:48px;margin:0 auto;padding:0;border:0;border-radius:4px;background:transparent;cursor:pointer}
+.welcome-google img{display:block;width:100%;height:auto}.welcome-google:hover{opacity:.9}.welcome-google:disabled{opacity:.65;cursor:wait}
+.welcome-primary{width:100%;min-height:48px;justify-content:center}.welcome-strategies{display:flex;gap:9px;align-items:center;justify-content:center;min-height:44px;color:var(--desk-gold);font-size:13px;margin-top:10px}
+.welcome-account .welcome-email{color:var(--desk-ink);overflow-wrap:anywhere;margin-bottom:20px;font-size:13px}.welcome-signout{font-size:12px;margin-top:6px;min-height:44px}
+.welcome-account .welcome-privacy{font-size:11px;line-height:1.8;margin:25px 0 0;padding-top:20px;border-top:1px solid var(--desk-line)}.welcome-privacy a{text-decoration:underline;text-underline-offset:3px;color:var(--desk-ink)}
+.welcome-account .welcome-status{font-size:13px;padding-block:12px;margin:0;min-height:48px}.welcome-error{margin-bottom:18px;color:var(--desk-red,#f0a8a1);font-size:13px;line-height:1.7}.welcome-error p{margin:0}.welcome-error .text-button{min-height:44px}
+@media(max-width:1000px){.leo-welcome{gap:5%;padding-inline:24px}.desk-account{margin-left:0;padding-inline:10px}.desk-account span{display:none}.desk-account svg{width:18px;height:18px}}
+@media(max-width:700px){.leo-welcome{grid-template-columns:1fr;gap:32px;padding:32px 18px 40px;min-height:0}.welcome-intro h1{font-size:36px;margin-bottom:17px}.welcome-intro>p{font-size:14px;max-width:46ch;margin-bottom:10px}.welcome-intro .welcome-public-note{margin-top:7px}.welcome-account{padding:25px}.welcome-account h2{font-size:26px}.welcome-account>p{font-size:13px}.welcome-lion{width:54px;height:54px;margin-bottom:20px}.desk-account{order:0;margin-left:auto}.desk-header .mobile-menu{margin-left:0;order:1}.welcome-privacy{max-width:48ch}}

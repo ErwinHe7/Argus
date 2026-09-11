@@ -1,9 +1,9 @@
 {
   "upstream_origin": "https://leo.axio7.workers.dev",
-  "verified_upstream_version": "d208eb32-c625-495e-a314-7c4ccb8c0db6",
+  "verified_upstream_version": "f0bcd54a-b873-4524-94ed-4d13a6d1c5ca",
   "assets": {
     "/app/research-desk/desk.js": {
-      "sha256": "b4945d4ba62f1deb98bc8f5230b3b692017090964d21c00f36744bd7b980a3b2",
+      "sha256": "1b073a73bcad5665a5beebac743b8fddedb64bf6e37db1222dedaae18a7792c5",
       "content_type": "javascript"
     },
     "/app/research-desk/strategy-config.json": {
@@ -11,8 +11,16 @@
       "content_type": "application/json"
     },
     "/app/research-desk/desk.css": {
-      "sha256": "02fbf3890525f33488dee4a2e22dba374febbe69abaad46878b35002044521fb",
+      "sha256": "68a14e736cdcac6ef6f80bf571a3bec1f349c200efec359f0162ee4e37e71a62",
       "content_type": "text/css"
+    },
+    "/app/research-desk/google-signin.png": {
+      "sha256": "fdd355abc194d6acc0837c9b5e8a3170d6ae07dfeb85a63d3eb4b7fbfc2bb63f",
+      "content_type": "image/png"
+    },
+    "/app/research-desk/google-signin.png.json": {
+      "sha256": "aa9a7a7e06a5b0060281d23cf2c1a71aa93f3aced3c67459d03d52ef48f96332",
+      "content_type": "application/json"
     }
   }
 }

@@ -1,58 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { SupabaseClient, User } from '@supabase/supabase-js';
 import type { StrategyStatus } from '../../../ritual-investing-api/src/domains/strategy-lab/contracts';
-import { completeSignIn, strategyAuth } from './auth';
-import { loadPublicConfig, type PublicConfig } from './config';
+import { useIdentity } from './Identity';
 import { StrategyApiError, StrategyClient } from './client';
 
 export function useWorkspace() {
-  const [config, setConfig] = useState<PublicConfig | null>(null);
-  const [auth, setAuth] = useState<SupabaseClient | null>(null);
-  const [user, setUser] = useState<User | null>(null);
+  const identity = useIdentity();
+  const { config, auth, user, loading } = identity;
   const [snapshot, setSnapshot] = useState<StrategyStatus | null>(null);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const generation = useRef(0);
   const statusRequest = useRef(0);
-  const activeUser = useRef<string | null>(null);
   const api = useMemo(() => config?.enabled && auth ? new StrategyClient(config, auth) : null, [config, auth]);
 
   useEffect(() => {
-    let disposed = false;
-    let subscription: {unsubscribe: () => void} | undefined;
-    const identity = (next: User | null) => {
-      if (disposed) return;
-      const real = next?.is_anonymous ? null : next;
-      if (activeUser.current !== (real?.id ?? null)) {
-        generation.current += 1;
-        activeUser.current = real?.id ?? null;
-        setSnapshot(null); setLastUpdated(null); setStale(false);
-      }
-      setUser(real);
-    };
-    void (async () => {
-      try {
-        const settings = await loadPublicConfig();
-        if (disposed) return;
-        setConfig(settings);
-        if (!settings.enabled) {
-          if (location.pathname === '/strategy-auth/callback') history.replaceState(null, '', '/#/strategies');
-          return;
-        }
-        const instance = strategyAuth(settings);
-        setAuth(instance);
-        subscription = instance.auth.onAuthStateChange((_event, session) => identity(session?.user ?? null)).data.subscription;
-        await completeSignIn(instance);
-        const {data, error: sessionError} = await instance.auth.getSession();
-        if (sessionError) throw new Error('Your sign-in could not be restored. Sign in again.');
-        identity(data.session?.user ?? null);
-      } catch (reason) { if (!disposed) setError(reason instanceof Error ? reason.message : 'Strategy settings could not be loaded.'); }
-      finally { if (!disposed) setLoading(false); }
-    })();
-    return () => { disposed = true; generation.current += 1; subscription?.unsubscribe(); };
-  }, []);
+    generation.current += 1;
+    setSnapshot(null); setLastUpdated(null); setStale(false); setError('');
+    return () => { generation.current += 1; };
+  }, [user?.id]);
 
   const refresh = useCallback(async () => {
     if (!api || !user) return;
@@ -80,5 +46,7 @@ export function useWorkspace() {
     return () => { clearInterval(timer); };
   }, [api, user, refresh]);
 
-  return {config, auth, user, api, snapshot, error, setError, loading, lastUpdated, stale, refresh};
+  // Hide a previous user's evidence during the render before effect cleanup.
+  const currentSnapshot = user && snapshot?.membership.userId === user.id ? snapshot : null;
+  return {config, auth, user, api, snapshot: currentSnapshot, error: identity.error || error, setError, loading, lastUpdated: currentSnapshot ? lastUpdated : null, stale, refresh};
 }

@@ -3232,3 +3232,33 @@ Software, browser, source retrieval, production routes, deployment hashes and
 actual scheduled-run evidence are tracked separately in
 `docs/event-radar-delivery.md`, `workers/event-radar/README.md`, and the release
 receipts. No profitability or broker-backed trading outcome is claimed.
+
+## 2026-09-11 — Google welcome and shared account state
+
+The published welcome page adds `/#/welcome` and a header account entry while
+preserving public Picks. Welcome and Strategies share one feature-specific
+Supabase session. Google PKCE uses the exact `/strategy-auth/callback`, removes
+codes before exchange, and permits only home/strategies returns. Anonymous
+identities and old-owner responses cannot populate private strategy evidence;
+server-verified membership remains mandatory. Account controls render during
+archive failures and the callback mounts no chart frames.
+
+Local verification passed 7 contract tests, 9 auth browser groups, 5 strategy
+browser groups, 17 routing tests, scoped TypeScript and the static build. Auth/API
+responses in browser tests are fixtures; no actual Google login or trade is
+established. Google configuration was verified read-only in the intended Supabase
+project; this welcome-page change made no backend mutation. Official PNG
+provenance and reproducible checks are in
+[`docs/google-sign-in.md`](../../../../docs/google-sign-in.md).
+
+The reviewed static overlay is deployed to `leo.axio7.workers.dev` at version
+`f0bcd54a-b873-4524-94ed-4d13a6d1c5ca`. All 12 production checks passed, with four
+changed/new assets and 2,583 unchanged backend files. The actual Google button
+reached the account chooser with the expected callback and email/profile scopes;
+no account selection, consent or completed user login was performed. The separate
+`leoinvesting.com` cutover remains blocked because the current credential cannot
+read the domain-owning account's zone or Workers attachments. Preserve the frozen
+backend, retained routes and disabled real-money boundary. Current domain access,
+release and recovery state belongs to the canonical
+[domain publication runbook](../../../../docs/domain-publication.md); this
+checkpoint does not mark that deployment complete.

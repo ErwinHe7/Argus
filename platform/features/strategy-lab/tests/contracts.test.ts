@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { publicConfigSchema, callbackLocation } from '../config';
+import { publicConfigSchema, callbackLocation, authReturnPath } from '../config';
 import config from '../strategy-config.example.json';
 import { accountEvidence, controlLabel, latestEvidence, safeValue } from '../state';
 import { parseStatus, StrategyClient, StrategyApiError } from '../client';
@@ -19,6 +19,13 @@ test('callback consumes codes only on the exact callback route', () => {
   assert.deepEqual(callbackLocation('https://leo.axio7.workers.dev/strategy-auth/callback?code=once'),{code:'once',failed:false});
   assert.deepEqual(callbackLocation('https://leo.axio7.workers.dev/strategy-auth/callback/nested?code=once'),{code:null,failed:false});
   assert.deepEqual(callbackLocation('https://leo.axio7.workers.dev/strategy-auth/callback?error=access_denied'),{code:null,failed:true});
+  assert.deepEqual(callbackLocation('https://leoinvesting.com/strategy-auth/callback#error=access_denied'),{code:null,failed:true});
+});
+test('OAuth return paths cannot leave the public homepage or strategy workspace', () => {
+  assert.equal(authReturnPath('/#/strategies'), '/#/strategies');
+  for (const input of [null, '/#/home', 'https://evil.example', '//evil.example', '/#/strategies?redirect=https://evil.example', '/app/', 'javascript:alert(1)']) {
+    assert.equal(authReturnPath(input), '/#/home');
+  }
 });
 test('pause remains requested until acknowledgement and an expired lease cannot show Running', () => {
   const s=fixtureStatus('2026-09-07T14:00:00Z'); const d=s.deployments[0]!;

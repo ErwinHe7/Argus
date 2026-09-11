@@ -1,0 +1,11 @@
+{
+  "evidence": "injected browser API fixtures only; no broker calls",
+  "checks": [
+    "Keyboard step transitions focus and reveal the new heading; all five mobile steps fit; CTA navigation reaches steps four and five",
+    "Signed-out rule exploration, disabled authenticated writes, desktop/mobile without horizontal overflow, chart outage independence",
+    "Authenticated revision, research request and validated summary import, single-use pairing display, explicit dry-run mandate authorization",
+    "Verified mocked session, one idempotent pause request, pending acknowledgement, stale-value preservation, stale protection warning, resume blocked",
+    "Acknowledged pause and sign-out clears owner data"
+  ],
+  "errors": []
+}

@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "leo-google-welcome-release/v1",
+  "mainVersion": "f0bcd54a-b873-4524-94ed-4d13a6d1c5ca",
+  "previousMainVersion": "d208eb32-c625-495e-a314-7c4ccb8c0db6",
+  "deployedOrigin": "https://leo.axio7.workers.dev",
+  "deploymentId": "629e8910-7319-4edc-9830-a6cb1fdf21a9",
+  "runtimeVersions": [
+    {
+      "version_id": "f0bcd54a-b873-4524-94ed-4d13a6d1c5ca",
+      "percentage": 100
+    }
+  ],
+  "productionVerifiedAt": "2026-09-11T00:12:09.491837-04:00",
+  "backendFileCount": 2583,
+  "backendUnchanged": true,
+  "unrelatedAssetsUnchanged": true,
+  "workerRoutingUnchanged": true,
+  "bindingsUnchanged": true,
+  "candidateAssetHashes": {
+    "app/research-desk/desk.js": "1b073a73bcad5665a5beebac743b8fddedb64bf6e37db1222dedaae18a7792c5",
+    "app/research-desk/desk.css": "68a14e736cdcac6ef6f80bf571a3bec1f349c200efec359f0162ee4e37e71a62",
+    "app/research-desk/google-signin.png": "fdd355abc194d6acc0837c9b5e8a3170d6ae07dfeb85a63d3eb4b7fbfc2bb63f",
+    "app/research-desk/google-signin.png.json": "aa9a7a7e06a5b0060281d23cf2c1a71aa93f3aced3c67459d03d52ef48f96332"
+  },
+  "productionChecks": [
+    {
+      "path": "/app/research-desk/desk.js",
+      "status": 200,
+      "sha256": "1b073a73bcad5665a5beebac743b8fddedb64bf6e37db1222dedaae18a7792c5"
+    },
+    {
+      "path": "/app/research-desk/desk.css",
+      "status": 200,
+      "sha256": "68a14e736cdcac6ef6f80bf571a3bec1f349c200efec359f0162ee4e37e71a62"
+    },
+    {
+      "path": "/app/research-desk/google-signin.png",
+      "status": 200,
+      "sha256": "fdd355abc194d6acc0837c9b5e8a3170d6ae07dfeb85a63d3eb4b7fbfc2bb63f"
+    },
+    {
+      "path": "/app/research-desk/google-signin.png.json",
+      "status": 200,
+      "sha256": "aa9a7a7e06a5b0060281d23cf2c1a71aa93f3aced3c67459d03d52ef48f96332"
+    },
+    {
+      "path": "/app/research-desk/strategy-config.json",
+      "status": 200,
+      "sha256": "f083978ee487c0496db54dadd86d0ef5fb4fe91c2364a2bb0338db39fe6fcb23"
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "contentType": "text/html"
+    },
+    {
+      "path": "/original/",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/app/",
+      "status": 200,
+      "contentType": "text/html"
+    },
+    {
+      "path": "/pricing",
+      "status": 200,
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/strategy-auth/callback",
+      "status": 200,
+      "contentType": "text/html",
+      "securityHeaders": {
+        "cache-control": "no-store",
+        "referrer-policy": "no-referrer",
+        "content-security-policy": null,
+        "x-content-type-options": null,
+        "permissions-policy": null,
+        "cross-origin-opener-policy": null,
+        "content-type": "text/html"
+      }
+    },
+    {
+      "path": "/app/research-desk/data/event-radar.json",
+      "status": 200,
+      "schemaVersion": "astra-event-radar.v1"
+    },
+    {
+      "path": "/app/research-desk/data/shortlist-feed/current.json",
+      "status": 200,
+      "schemaVersion": "astra-shortlist-publication.v1"
+    }
+  ],
+  "customDomainChanged": false,
+  "databaseChanged": false,
+  "browserOAuth": {
+    "checkedDate": "2026-09-11",
+    "entry": "https://leo.axio7.workers.dev/#/welcome",
+    "providerOrigin": "https://accounts.google.com",
+    "result": "Google account chooser displayed after live Sign in with Google action",
+    "scopes": [
+      "email",
+      "profile"
+    ],
+    "providerCallback": "https://katwbobjiyzipqlzarus.supabase.co/auth/v1/callback",
+    "applicationCallback": "https://leo.axio7.workers.dev/strategy-auth/callback",
+    "accountSelected": false,
+    "consentCompleted": false,
+    "fullLoginVerified": false
+  },
+  "remainingExternalPrerequisites": [
+    "Cloudflare authorization for leoinvesting.com domain-owning account",
+    "User-completed Google OAuth and membership verification"
+  ]
+}

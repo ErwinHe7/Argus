@@ -4,7 +4,8 @@ const path=require('node:path');
 const {chromium}=require(process.env.LEO_PLAYWRIGHT_MODULE || 'playwright');
 const {fixtureStatus,fixtureReport}=require('./fixtures.ts');
 const output=path.resolve(__dirname,'../../../.impeccable/review/strategy-lab');
-const root='http://127.0.0.1:3117/';
+const root=(process.env.LEO_AUTH_TEST_BASE || 'http://127.0.0.1:3117').replace(/\/$/,'')+'/';
+const origin=new URL(root).origin;
 const project='https://katwbobjiyzipqlzarus.supabase.co';
 const fixtureConfig={schemaVersion:'strategy-public-config/v1',enabled:true,supabaseUrl:project,publishableKey:'sb_publishable_test',apiUrl:project+'/functions/v1/strategy-api'};
 
@@ -17,6 +18,7 @@ const fixtureConfig={schemaVersion:'strategy-public-config/v1',enabled:true,supa
     context.setDefaultTimeout(15000);
     const page=await context.newPage();
     page.on('pageerror',error=>results.errors.push(error.message));
+    await page.route('**/app/research-desk/strategy-config.json',route=>route.fulfill({json:{...fixtureConfig,enabled:false,publishableKey:''}}));
     // Deliberately fail the archived charts; controls must remain accessible.
     await page.route('**/app/research-desk/data/**',route=>route.fulfill({status:503,body:'injected chart outage'}));
     await page.goto(root+'#/strategies');
@@ -59,7 +61,7 @@ const fixtureConfig={schemaVersion:'strategy-public-config/v1',enabled:true,supa
     await monitor.route('**/app/research-desk/strategy-config.json',route=>route.fulfill({json:fixtureConfig}));
     await monitor.route('**/app/research-desk/data/**',route=>route.fulfill({status:503,body:'injected chart outage'}));
     await monitor.route(project+'/**',async route=>{
-      const respond=options=>route.fulfill({...options,headers:{'Access-Control-Allow-Origin':'http://127.0.0.1:3117','Access-Control-Allow-Headers':'authorization,apikey,content-type,idempotency-key,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS'}});
+      const respond=options=>route.fulfill({...options,headers:{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,apikey,content-type,idempotency-key,x-client-info','Access-Control-Allow-Methods':'GET,POST,OPTIONS'}});
       const request=route.request();
       if(request.method()==='OPTIONS'){await respond({status:204});return;} const url=new URL(request.url());
       if(url.pathname.endsWith('/auth/v1/logout')){await respond({status:204});return;}

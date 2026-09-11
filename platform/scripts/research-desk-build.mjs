@@ -38,6 +38,7 @@ const eventRadar=eventRadarSchema.parse(JSON.parse(await readFile(resolve(root,'
 await writeFile(resolve(output,'data/event-radar.json'),JSON.stringify(eventRadar));
 await copyFile(resolve(root,'docs/earnings-radar-comparison.md'),resolve(output,'earnings-research-guide.md'));
 await copyFile(resolve(root,'public/brand/leo-lion.png'),resolve(output,'lion.png'));
+for(const name of ['google-signin.png','google-signin.png.json'])await copyFile(resolve(root,'features/research-desk/account',name),resolve(output,name));
 await writeFile(resolve(output,'lion.png.json'),JSON.stringify({prompt:'Pre-existing Leo Lion brand raster, copied without visual changes from platform/public/brand/leo-lion.png. Selected for the user-requested Lion profile and Astra’s Pick brand. Original generation prompt unavailable; this records the verified source.'},null,2));
 await copyFile(resolve(root,'../ritual-investing-app/assets/fonts/Inter-Variable.ttf'),resolve(output,'inter.ttf'));
 await writeFile(resolve(output,'asset-provenance.json'),JSON.stringify({lion:{source:'Existing Leo brand asset: platform/public/brand/leo-lion.png',usage:'User-requested Lion identity'},inter:{source:'Existing licensed app font: ritual-investing-app/assets/fonts/Inter-Variable.ttf'}},null,2));

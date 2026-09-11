@@ -207,3 +207,26 @@ research record. Sources and dates carry the evidence hierarchy; no confidence
 meter or invented win rate is used. The homepage remains shortlist-first and
 adds one compact Next catalyst link below the research list. Existing rasters
 and TradingView attribution are unchanged; no new bitmap asset was generated.
+
+## Google welcome and account · September 11, 2026
+
+`/#/welcome` is a supporting account page within the existing Leo visual system;
+Picks remains the public opening route. The header adds a 44px account control,
+with an accessible icon label when its text hides on smaller screens. The welcome
+layout pairs a concise research introduction with one account panel, bounded to
+1160px. At 700px it becomes one column with 18px gutters. Signed-in, restoring,
+unavailable and recoverable-error states use the same space without adding another
+navigation hierarchy. Private strategy evidence clears when identity changes.
+
+Leo-owned text retains Inter, aubergine surfaces, fine plum rules and candle-gold
+research links. The Google action is the unmodified official light square PNG,
+displayed at 216×48 with preserved aspect ratio; its G colors and Google Sans are
+provider branding rather than new Leo tokens. [Provenance](account/google-signin.png.json)
+records the original asset. Sign-in and its callback mount no TradingView frames,
+and archive loading cannot block the account interface.
+
+The [auth runbook](../../../docs/google-sign-in.md) records the PKCE boundary,
+membership requirements and publication evidence. Nine fixture browser groups and
+five existing strategy groups passed; desktop 1536×960, mobile 390×844 and
+signed-in/error captures are in `../../.impeccable/review/account-auth/`. These
+captures show layout and injected states, not a completed hosted Google login.
