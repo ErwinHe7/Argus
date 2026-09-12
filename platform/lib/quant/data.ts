@@ -11,6 +11,9 @@ const YAHOO_HEADERS: HeadersInit = {
 
 export type QuantSeries = {
   symbol: string;
+  /** 开盘价，与 closes 对齐。Yahoo 缺这根的 open 时回落到该根的 close，
+   *  这样保留哪些 bar 的判定不变 —— 既有的因子/回测口径不受影响。 */
+  opens: number[];
   highs: number[];
   lows: number[];
   closes: number[];
@@ -41,12 +44,14 @@ export async function fetchQuantSeries(
     );
   }
   const q = root.indicators?.quote?.[0];
+  const opensRaw = q?.open || [];
   const highsRaw = q?.high || [];
   const lowsRaw = q?.low || [];
   const closesRaw = q?.close || [];
   const volumesRaw = q?.volume || [];
   const timestamps = root.timestamp || [];
 
+  const opens: number[] = [];
   const highs: number[] = [];
   const lows: number[] = [];
   const closes: number[] = [];
@@ -66,6 +71,8 @@ export async function fetchQuantSeries(
       Number.isFinite(c) &&
       t
     ) {
+      const o = opensRaw[i];
+      opens.push(typeof o === 'number' && Number.isFinite(o) ? o : c);
       highs.push(h);
       lows.push(l);
       closes.push(c);
@@ -76,6 +83,7 @@ export async function fetchQuantSeries(
 
   return {
     symbol,
+    opens,
     highs,
     lows,
     closes,
@@ -151,6 +159,7 @@ type YahooChartResponse = {
       timestamp?: number[];
       indicators?: {
         quote?: Array<{
+          open?: Array<number | null>;
           close?: Array<number | null>;
           high?: Array<number | null>;
           low?: Array<number | null>;
