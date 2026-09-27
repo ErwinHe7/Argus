@@ -189,9 +189,11 @@ class JsonHttpClient:
         timeout_seconds: float,
         loopback_gateway: bool,
         allow_insecure_loopback: bool = False,
+        max_response_bytes: int = MAX_RESPONSE_BYTES,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout_seconds = timeout_seconds
+        self.max_response_bytes = max_response_bytes
         self.loopback_gateway = loopback_gateway
         handlers: list[Any] = [urllib.request.ProxyHandler({})]
         if loopback_gateway:
@@ -236,9 +238,11 @@ class JsonHttpClient:
         )
         try:
             with self.opener.open(request, timeout=self.timeout_seconds) as response:
-                raw = response.read(MAX_RESPONSE_BYTES + 1)
-                if len(raw) > MAX_RESPONSE_BYTES:
-                    raise RelayError("HTTP response exceeds 1 MiB")
+                raw = response.read(self.max_response_bytes + 1)
+                if len(raw) > self.max_response_bytes:
+                    raise RelayError(
+                        f"HTTP response exceeds {self.max_response_bytes} bytes"
+                    )
         except urllib.error.HTTPError as error:
             detail = error.read(512).decode("utf-8", errors="replace")
             raise RelayError(f"HTTP {error.code}: {detail}") from error
