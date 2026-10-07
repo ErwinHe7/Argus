@@ -32,6 +32,7 @@ class ModelConfig(StrictModel):
     analog_bandwidth: float = 1.0
     calibration: str = "isotonic"
     score_threshold_quantile: float = 0.60
+    return_interval_coverage: float = Field(default=0.90, gt=0, lt=1)
 
 
 class ScoringConfig(StrictModel):
@@ -44,13 +45,19 @@ class ScoringConfig(StrictModel):
 
 
 class WalkForwardConfig(StrictModel):
-    train_sessions: int = 30
-    validation_sessions: int = 10
-    test_sessions: int = 10
-    step_sessions: int = 10
+    train_sessions: int = Field(default=30, ge=1)
+    validation_sessions: int = Field(default=10, ge=2)
+    test_sessions: int = Field(default=10, ge=1)
+    step_sessions: int = Field(default=10, ge=1)
     expanding: bool = True
-    purge_minutes: int = 60
-    embargo_minutes: int = 15
+    purge_minutes: int = Field(default=60, ge=0)
+    embargo_minutes: int = Field(default=15, ge=0)
+
+    @model_validator(mode="after")
+    def validate_test_windows(self) -> "WalkForwardConfig":
+        if self.step_sessions < self.test_sessions:
+            raise ValueError("step_sessions must prevent overlapping test windows")
+        return self
 
 
 class PortfolioConfig(StrictModel):

@@ -2118,7 +2118,7 @@ def build_validation_metrics(
     if {"gross_return", "net_return"}.issubset(trades):
         paired = trades[["gross_return", "net_return"]].apply(
             pd.to_numeric, errors="coerce"
-        )
+        ).astype(float)
         paired_mask = np.isfinite(paired).all(axis=1)
         paired_trades = trades.loc[paired_mask].copy()
         paired_trades[["gross_return", "net_return"]] = paired.loc[paired_mask]
