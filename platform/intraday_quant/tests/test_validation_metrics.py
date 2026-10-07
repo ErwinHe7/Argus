@@ -221,8 +221,9 @@ def test_label_accounting_keeps_late_and_missing_events_in_denominator() -> None
     )
 
 
-def test_empty_validation_is_explicitly_unavailable() -> None:
-    result = build_validation_metrics(pd.DataFrame(), forecast_horizons=[5])
+@pytest.mark.parametrize("columns", [[], ["gross_return", "net_return", "date"]])
+def test_empty_validation_is_explicitly_unavailable(columns) -> None:
+    result = build_validation_metrics(pd.DataFrame(columns=columns), forecast_horizons=[5])
 
     assert result["return_metrics"]["paired_finite_trade_count"] == 0
     assert result["confidence_intervals"]["status"] == "insufficient_data"
@@ -231,7 +232,7 @@ def test_empty_validation_is_explicitly_unavailable() -> None:
     assert result["label_exclusion_accounting"]["horizons"][0][
         "finite_label_coverage_rate"
     ] is None
-    assert result["stability"]["monthly"]["status"].startswith("unavailable")
+    assert result["stability"]["monthly"]["status"].startswith(("unavailable", "insufficient_data"))
     assert result["stability"]["regime"]["status"] == "unavailable_no_trades"
     assert result["untouched_holdout"]["status"] == "not_supplied"
     assert result["baselines"]["point_in_time_market"]["status"].startswith(

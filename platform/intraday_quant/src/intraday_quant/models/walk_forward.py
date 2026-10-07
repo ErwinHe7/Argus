@@ -9,14 +9,15 @@ from sklearn.compose import TransformedTargetRegressor
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import brier_score_loss
+from sklearn.metrics import brier_score_loss, log_loss
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from intraday_quant.config import AppConfig
+from intraday_quant.config import AppConfig, WalkForwardConfig
 from intraday_quant.data.integrity import DataIntegrityError
 from intraday_quant.models.analog_kernel import LegacyExploratoryEuclideanAnalogModel
 from intraday_quant.models.calibration import ProbabilityCalibrator
+from intraday_quant.models.return_interval import SplitConformalReturnInterval
 from intraday_quant.models.constants import (
     LEGACY_EXPLORATORY_ANALOG_EVIDENCE_KIND,
     LEGACY_EXPLORATORY_ANALOG_MODEL_NAME,
@@ -49,7 +50,9 @@ FEATURE_COLUMNS = [
 
 
 def make_folds(dates: list[object], config: AppConfig) -> list[Fold]:
-    wf = config.walk_forward
+    wf = WalkForwardConfig.model_validate(config.walk_forward.model_dump())
+    if any(pd.isna(date) for date in dates) or any(left >= right for left, right in zip(dates, dates[1:])):
+        raise DataIntegrityError("fold dates must be strictly increasing and unique")
     folds: list[Fold] = []
     start = wf.train_sessions
     fold_id = 0
@@ -120,8 +123,94 @@ def _tree_regressor() -> Pipeline:
     return Pipeline([("imputer", SimpleImputer(strategy="median")), ("model", HistGradientBoostingRegressor(max_iter=100, max_depth=5, learning_rate=0.06, random_state=7))])
 
 
-def _fit_family(name: str, train: pd.DataFrame, validation: pd.DataFrame, test: pd.DataFrame, columns: list[str], calibration: str) -> tuple[pd.DataFrame, dict[str, object]]:
-    x_train, x_val, x_test = train[columns], validation[columns], test[columns]
+def _observation_times(frame: pd.DataFrame) -> pd.Series:
+    times = frame["timestamp"]
+    if times.empty or not isinstance(times.dtype, pd.DatetimeTZDtype) or times.isna().any():
+        raise DataIntegrityError("forecast partitions require nonempty timezone-aware timestamps")
+    return times
+
+
+def _calibration_partitions(
+    validation: pd.DataFrame, *, horizon_minutes: int, purge_minutes: int, embargo_minutes: int,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Reserve early sessions for fitting and later sessions for assessment."""
+    if horizon_minutes <= 0 or purge_minutes < 0 or embargo_minutes < 0:
+        raise DataIntegrityError("invalid forecast horizon, purge, or embargo")
+    times = _observation_times(validation)
+    if not validation["session_date"].eq(times.dt.date).all():
+        raise DataIntegrityError("session dates must match observation timestamps")
+    dates = sorted(validation["session_date"].unique())
+    if len(dates) < 2:
+        raise DataIntegrityError("calibration and assessment require at least two observed sessions")
+    split = len(dates) // 2
+    calibration = validation[validation["session_date"].isin(dates[:split])].copy()
+    assessment = validation[validation["session_date"].isin(dates[split:])].copy()
+    boundary = assessment["timestamp"].min()
+    # Start-stamped minute bars: the forward label's last close arrives at t+h+1.
+    gap = pd.Timedelta(minutes=max(purge_minutes, horizon_minutes + 1))
+    calibration = calibration[calibration["timestamp"] < boundary - gap]
+    assessment = assessment[assessment["timestamp"] >= boundary + pd.Timedelta(minutes=embargo_minutes)]
+    if calibration.empty or assessment.empty:
+        raise DataIntegrityError("insufficient rows after calibration purge/embargo")
+    return calibration, assessment
+
+
+def predict_from_artifact(artifact: dict[str, object], observations: pd.DataFrame) -> pd.DataFrame:
+    """Predict later candidate observations without requiring any future labels.
+
+    The caller remains responsible for causal feature construction and source
+    integrity. This research artifact does not authorize production publication.
+    """
+    times = _observation_times(observations)
+    available_after = pd.Timestamp(artifact["forecast_available_after"])
+    if times.min() <= available_after:
+        raise DataIntegrityError("observations must follow the artifact's matured evidence cutoff")
+    columns = artifact["feature_columns"]
+    x = observations[columns]
+    if np.isinf(x.to_numpy(dtype=float)).any():
+        raise DataIntegrityError("forecast features must not contain infinity")
+    point = artifact["regressor"].predict(x)
+    interval = artifact["return_interval"]
+    lower, upper = interval.predict(point)
+    return pd.DataFrame({
+        "candidate_id": observations["candidate_id"].to_numpy(), "timestamp": times.to_numpy(),
+        "model": artifact["model"], "expected_return": point, "median_return": point,
+        "win_probability": artifact["calibrator"].predict(artifact["classifier"].predict_proba(x)[:, 1]),
+        "predicted_mfe": np.maximum(0, artifact["mfe"].predict(x)),
+        "predicted_mae": np.maximum(0, artifact["mae"].predict(x)),
+        "return_lower": lower, "return_upper": upper,
+        "return_interval_nominal_coverage": interval.coverage, "return_interval_method": interval.method,
+        "horizon_minutes": artifact["horizon_minutes"],
+        "neighbor_count": 0, "similarity_score": 0.0,
+        "uncertainty": artifact["calibration_return_rmse"], "neighbor_dates": "",
+        "forecast_available_after": available_after.isoformat(),
+        "forecast_status": "CANDIDATE_NOT_PROMOTED", "promotion_eligible": False,
+    })
+
+
+def _fit_family(
+    name: str, train: pd.DataFrame, validation: pd.DataFrame, test: pd.DataFrame,
+    columns: list[str], calibration: str, *, horizon_minutes: int = 60,
+    purge_minutes: int = 60, embargo_minutes: int = 15, return_interval_coverage: float = 0.90,
+) -> tuple[pd.DataFrame, dict[str, object]]:
+    if name not in {"logistic", "gradient_boosting"}:
+        raise ValueError("unknown forecast model family")
+    if not columns or len(set(columns)) != len(columns) or not set(columns).issubset(FEATURE_COLUMNS):
+        raise DataIntegrityError("forecast inputs must use the allowed causal feature columns")
+    calibration_frame, assessment = _calibration_partitions(
+        validation, horizon_minutes=horizon_minutes, purge_minutes=purge_minutes,
+        embargo_minutes=embargo_minutes,
+    )
+    gap = pd.Timedelta(minutes=max(purge_minutes, horizon_minutes + 1))
+    for earlier, later in ((train, validation), (validation, test)):
+        if _observation_times(earlier).max() + gap >= _observation_times(later).min():
+            raise DataIntegrityError("model partitions must be chronological with matured labels")
+    for frame in (train, validation):
+        if not np.isfinite(frame[["target_return", "target_mfe", "target_mae"]].to_numpy(dtype=float)).all():
+            raise DataIntegrityError("training and calibration return labels must be finite")
+        if not frame["target_win"].isin([0, 1]).all():
+            raise DataIntegrityError("training and calibration win labels must be binary")
+    x_train, x_cal, x_val = train[columns], calibration_frame[columns], assessment[columns]
     classifier = _linear_classifier() if name == "logistic" else _tree_classifier()
     regressor = _linear_regressor() if name == "logistic" else _tree_regressor()
     mfe_model = _linear_regressor() if name == "logistic" else _tree_regressor()
@@ -130,31 +219,50 @@ def _fit_family(name: str, train: pd.DataFrame, validation: pd.DataFrame, test: 
     regressor.fit(x_train, train["target_return"])
     mfe_model.fit(x_train, train["target_mfe"])
     mae_model.fit(x_train, train["target_mae"])
-    raw_val = classifier.predict_proba(x_val)[:, 1]
-    calibrator = ProbabilityCalibrator(calibration).fit(raw_val, validation["target_win"].to_numpy())
-    raw_test = classifier.predict_proba(x_test)[:, 1]
-    validation_return_prediction = regressor.predict(x_val)
-    validation_residual_scale = float(
-        np.sqrt(np.mean(np.square(validation["target_return"].to_numpy() - validation_return_prediction)))
+    raw_cal = classifier.predict_proba(x_cal)[:, 1]
+    calibrator = ProbabilityCalibrator(calibration).fit(raw_cal, calibration_frame["target_win"].to_numpy())
+    calibrated_val = calibrator.predict(classifier.predict_proba(x_val)[:, 1])
+    calibration_return_prediction = regressor.predict(x_cal)
+    calibration_residual_scale = float(
+        np.sqrt(np.mean(np.square(calibration_frame["target_return"].to_numpy() - calibration_return_prediction)))
     )
-    test_return_prediction = regressor.predict(x_test)
-    output = pd.DataFrame({
-        "candidate_id": test["candidate_id"].to_numpy(), "timestamp": test["timestamp"].to_numpy(),
-        "model": name, "expected_return": test_return_prediction,
-        "median_return": test_return_prediction, "win_probability": calibrator.predict(raw_test),
-        "predicted_mfe": np.maximum(0, mfe_model.predict(x_test)),
-        "predicted_mae": np.maximum(0, mae_model.predict(x_test)),
-        "neighbor_count": 0, "similarity_score": 0.0,
-        # Frozen validation residual scale; test outcomes are never referenced
-        # while constructing a prediction.
-        "uncertainty": validation_residual_scale, "neighbor_dates": "",
-    })
+    interval = SplitConformalReturnInterval(return_interval_coverage).fit(
+        calibration_return_prediction, calibration_frame["target_return"].to_numpy(),
+    )
+    validation_return_prediction = regressor.predict(x_val)
+    lower, upper = interval.predict(validation_return_prediction)
+    outcomes = assessment["target_return"].to_numpy()
+    baseline_probability = float(calibration_frame["target_win"].mean())
+    baseline_brier = float(brier_score_loss(assessment["target_win"], np.full(len(assessment), baseline_probability)))
+    validation_brier = float(brier_score_loss(assessment["target_win"], calibrated_val))
     diagnostics = {
         "model": name,
-        "validation_brier": float(brier_score_loss(validation["target_win"], calibrator.predict(raw_val))),
-        "validation_return_rmse": validation_residual_scale,
+        "validation_brier": validation_brier,
+        "validation_baseline_brier": baseline_brier,
+        "validation_brier_skill": 1 - validation_brier / baseline_brier if baseline_brier > 0 else None,
+        "validation_log_loss": float(log_loss(assessment["target_win"], calibrated_val, labels=[0, 1])),
+        "validation_return_rmse": float(np.sqrt(np.mean(np.square(outcomes - validation_return_prediction)))),
+        "validation_zero_return_rmse": float(np.sqrt(np.mean(np.square(outcomes)))),
+        "calibration_return_rmse": calibration_residual_scale,
+        "return_interval_nominal_coverage": interval.coverage,
+        "return_interval_radius": interval.radius,
+        "validation_interval_coverage": float(np.mean((outcomes >= lower) & (outcomes <= upper))),
+        "validation_interval_mean_width": float(np.mean(upper - lower)),
+        "calibration_rows": len(calibration_frame), "assessment_rows": len(assessment),
+        "calibration_end": calibration_frame["timestamp"].max().isoformat(),
+        "assessment_start": assessment["timestamp"].min().isoformat(),
+        "validation_score_scope": "chronological_post_calibration_assessment",
+        "evidence_kind": "OFFLINE_CHALLENGER_DIAGNOSTIC_NOT_PROMOTION_EVIDENCE",
     }
-    return output, {"classifier": classifier, "regressor": regressor, "mfe": mfe_model, "mae": mae_model, "calibrator": calibrator, "diagnostics": diagnostics}
+    artifact = {
+        "classifier": classifier, "regressor": regressor, "mfe": mfe_model, "mae": mae_model,
+        "calibrator": calibrator, "return_interval": interval, "feature_columns": list(columns),
+        "model": name, "horizon_minutes": horizon_minutes,
+        "calibration_return_rmse": calibration_residual_scale,
+        "forecast_available_after": (validation["timestamp"].max() + gap).isoformat(),
+        "validation_contract": dict(diagnostics), "diagnostics": diagnostics,
+    }
+    return predict_from_artifact(artifact, test), artifact
 
 
 def train_walk_forward(labels: pd.DataFrame, features: pd.DataFrame, config: AppConfig) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -178,14 +286,20 @@ def train_walk_forward(labels: pd.DataFrame, features: pd.DataFrame, config: App
                 continue
             validation_start = validation["timestamp"].min()
             test_start = test["timestamp"].min()
-            train = train[train["timestamp"] < validation_start - pd.Timedelta(minutes=config.walk_forward.purge_minutes)]
-            validation = validation[(validation["timestamp"] >= validation_start + pd.Timedelta(minutes=config.walk_forward.embargo_minutes)) & (validation["timestamp"] < test_start - pd.Timedelta(minutes=config.walk_forward.purge_minutes))]
+            purge = pd.Timedelta(minutes=max(config.walk_forward.purge_minutes, horizon + 1))
+            train = train[train["timestamp"] < validation_start - purge]
+            validation = validation[(validation["timestamp"] >= validation_start + pd.Timedelta(minutes=config.walk_forward.embargo_minutes)) & (validation["timestamp"] < test_start - purge)]
             test = test[test["timestamp"] >= test_start + pd.Timedelta(minutes=config.walk_forward.embargo_minutes)]
             if train.empty or validation.empty or test.empty or train["target_win"].nunique() < 2:
                 continue
             family_outputs: list[pd.DataFrame] = []
             for name in [model for model in config.models if model in {"logistic", "gradient_boosting"}]:
-                output, artifact = _fit_family(name, train, validation, test, columns, config.model.calibration)
+                output, artifact = _fit_family(
+                    name, train, validation, test, columns, config.model.calibration,
+                    horizon_minutes=horizon, purge_minutes=config.walk_forward.purge_minutes,
+                    embargo_minutes=config.walk_forward.embargo_minutes,
+                    return_interval_coverage=config.model.return_interval_coverage,
+                )
                 output["fold"] = fold.fold
                 output["horizon_minutes"] = horizon
                 family_outputs.append(output)

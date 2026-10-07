@@ -23,6 +23,7 @@ models: [logistic, gradient_boosting]
 model:
   calibration: isotonic
   score_threshold_quantile: 0.60
+  return_interval_coverage: 0.90
 scoring:
   return_weight: 1.0
   probability_base: 0.5

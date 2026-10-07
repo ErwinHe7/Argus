@@ -3309,3 +3309,19 @@ claims contract rejected. Explicit projection preserves the three verified
 identity/session claims. Isolated `strategy-api` v2 now serves the real Google
 owner correctly, with RLS, origins and all retained services unchanged. See the
 [session projection receipt](../../strategy-lab/SESSION-PROJECTION-FIX-20260911.md).
+
+## 2026-10-07 — Offline return-forecast interface
+
+The Python challengers now separate early-validation calibration from
+later-session assessment and export frozen absolute-residual return intervals.
+`predict_from_artifact` accepts later causal candidate observations without
+future labels, rejects observations at or before the matured evidence cutoff,
+and emits `CANDIDATE_NOT_PROMOTED` forecasts. The artifact retains the feature
+columns, horizon, probability calibration, interval and validation receipt.
+Zero-trade report handling accepts schema-preserving empty trade tables.
+
+The interval level is nominal; dependent market observations have no established
+coverage guarantee. Tests use synthetic fixtures and do not establish market
+alpha, model promotion, or live-data readiness. Interface, methodology and
+verification commands are in
+[return forecasts](../../../intraday_quant/docs/return-forecasts.md).
