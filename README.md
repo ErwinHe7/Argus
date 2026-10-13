@@ -22,9 +22,10 @@ their contents are now fully English.
 
 **Before anything else, read `HANDOFF.zh-CN.md`.** The previously excluded Rust
 market-data sources, Python reports, and M1–M3 numerics fixes are now integrated
-into `main`. The Python ingestion/cleaning stubs remain unresolved. The handoff
-retains the historical review findings; integration does not establish model
-promotion or live-data readiness.
+into `main`. This research revision also restores the original Python data
+adapters, cleaning, ingestion, and session-integrity implementation. The handoff
+retains the historical review findings; source restoration does not establish
+model promotion or live-data readiness.
 
 Start with `REVIEWER_START_HERE.zh-CN.md`, then use
 `MODEL_SOURCE_MAP.zh-CN.md` to jump from every listed algorithm to its
@@ -42,6 +43,11 @@ components are visibly indexed as:
 
 Neural challengers, calibration, classical challengers, and research models are
 also included.
+
+For the cost-aware research update, start with
+[`cost-aware-research.md`](axio7-model-review/review-package/cost-aware-research.md).
+It explains execution costs, causal fills, liquidity limits, and the validation
+needed before interpreting candidate forecasts as tradable returns.
 
 Start with
 [`00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md`](00_START_HERE_MODEL_STACK__HMM_KERNEL_SDE_OU.md)

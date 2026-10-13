@@ -604,6 +604,43 @@ pub struct CalibrationObservation {
     pub feature_version: String,
 }
 
+// This input contract does not record vendor label availability. A horizon
+// establishes only the earliest possible maturity, not proof of point-in-time
+// availability. Never let even that theoretical label window cross a partition.
+fn estimated_label_maturity(row: &CalibrationObservation) -> Result<DateTime<Utc>> {
+    if !matches!(row.horizon_minutes, 5 | 15 | 30 | 60) {
+        bail!("calibration observation horizon must be one of 5/15/30/60");
+    }
+    row.observation_cutoff
+        .checked_add_signed(chrono::Duration::minutes(row.horizon_minutes as i64))
+        .context("calibration label maturity exceeds the timestamp range")
+}
+
+fn calibration_method_partitions<'a, 'b>(
+    fit: &'b [&'a CalibrationObservation],
+) -> Result<(
+    Vec<&'a CalibrationObservation>,
+    &'b [&'a CalibrationObservation],
+)> {
+    if fit.len() < 100 {
+        bail!("calibration method selection needs at least 100 mature fit observations");
+    }
+    let selection_size = (fit.len() / 5).max(25).min(fit.len() - 50);
+    let split = fit.len() - selection_size;
+    let selection = &fit[split..];
+    let selection_start = selection[0].observation_cutoff;
+    let mut method_fit = Vec::new();
+    for row in &fit[..split] {
+        if estimated_label_maturity(row)? <= selection_start {
+            method_fit.push(*row);
+        }
+    }
+    if method_fit.len() < 50 {
+        bail!("calibration method selection needs at least 50 fit labels mature before selection");
+    }
+    Ok((method_fit, selection))
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CalibrationHorizonBuild {
     pub horizon_minutes: usize,
@@ -863,26 +900,31 @@ pub fn materialize_oos_calibration_registry(
         let mut rows = observations
             .iter()
             .filter(|row| row.horizon_minutes == horizon)
-            .collect::<Vec<_>>();
-        rows.sort_by_key(|row| row.observation_cutoff);
+            .map(|row| estimated_label_maturity(row).map(|maturity| (row, maturity)))
+            .collect::<Result<Vec<_>>>()?;
+        rows.sort_by_key(|(row, _)| row.observation_cutoff);
         let fit = rows
             .iter()
-            .copied()
-            .filter(|row| {
+            .filter(|(row, maturity)| {
                 row.observation_cutoff >= fit_window.start
                     && row.observation_cutoff < fit_window.end_exclusive
+                    && *maturity <= fit_window.end_exclusive
             })
+            .map(|(row, _)| *row)
             .collect::<Vec<_>>();
         let oos = rows
             .iter()
-            .copied()
-            .filter(|row| {
+            .filter(|(row, maturity)| {
                 row.observation_cutoff >= untouched_oos_window.start
                     && row.observation_cutoff < untouched_oos_window.end_exclusive
+                    && *maturity <= untouched_oos_window.end_exclusive
             })
+            .map(|(row, _)| *row)
             .collect::<Vec<_>>();
         if fit.len() < 100 || oos.len() < 50 {
-            bail!("horizon {horizon} needs at least 100 fit and 50 untouched OOS observations");
+            bail!(
+                "horizon {horizon} needs at least 100 fit and 50 untouched OOS observations with labels mature within their partition"
+            );
         }
         if fit.iter().chain(&oos).any(|row| {
             !row.raw_probability_up.is_finite()
@@ -901,12 +943,9 @@ pub fn materialize_oos_calibration_registry(
         if identities.len() != 1 {
             bail!("horizon {horizon} mixes model/feature identities");
         }
-        let selection_size = (fit.len() / 5).max(25).min(fit.len() - 50);
-        let split = fit.len() - selection_size;
-        let method_fit = &fit[..split];
-        let selection = &fit[split..];
-        let platt_candidate = fit_platt(method_fit);
-        let isotonic_candidate = fit_isotonic(method_fit);
+        let (method_fit, selection) = calibration_method_partitions(&fit)?;
+        let platt_candidate = fit_platt(&method_fit);
+        let isotonic_candidate = fit_isotonic(&method_fit);
         let platt_loss = binary_log_loss(&platt_candidate, selection);
         let isotonic_loss = binary_log_loss(&isotonic_candidate, selection);
         let selected_name = if isotonic_loss + 1.0e-12 < platt_loss {
@@ -1007,7 +1046,7 @@ pub fn materialize_oos_calibration_registry(
         generated_at: created_at,
         registry,
         horizons: horizon_reports,
-        promotion_policy: "Materialization may reach oos_validated only. promoted_oos requires a separate locked forward-shadow governance action; serving rejects candidate/oos_validated artifacts.".to_string(),
+        promotion_policy: "Materialization may reach oos_validated only. promoted_oos requires a separate locked forward-shadow governance action; serving rejects candidate/oos_validated artifacts. Partition and method-selection boundaries purge labels using observation_cutoff + horizon as estimated earliest maturity; actual vendor label availability is not supplied and full point-in-time lineage is not established.".to_string(),
     })
 }
 
@@ -1285,6 +1324,180 @@ mod tests {
         assert!(runtime.calibrated_probability_up.is_none());
         assert!(runtime.calibrated_probability_up_interval.is_none());
         assert_eq!(runtime.raw_analog_up_frequency, 0.8);
+    }
+
+    fn minute_observations(origin: DateTime<Utc>, minutes: i64) -> Vec<CalibrationObservation> {
+        [5, 15, 30, 60]
+            .into_iter()
+            .flat_map(|horizon| {
+                (0..minutes).map(move |index| CalibrationObservation {
+                    observation_cutoff: origin + Duration::minutes(index),
+                    horizon_minutes: horizon,
+                    raw_probability_up: if index % 2 == 0 { 0.8 } else { 0.2 },
+                    outcome_up: index % 2 == 0,
+                    model_id: "analog-v4".to_string(),
+                    model_hash: "abc123".to_string(),
+                    feature_version: "point-in-time-v4-strict-context".to_string(),
+                })
+            })
+            .collect()
+    }
+
+    #[test]
+    fn label_maturity_uses_checked_timestamp_arithmetic() {
+        let origin = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
+        let mut row = minute_observations(origin, 1).remove(0);
+        assert_eq!(
+            estimated_label_maturity(&row).unwrap(),
+            origin + Duration::minutes(5)
+        );
+        row.observation_cutoff = DateTime::<Utc>::MAX_UTC;
+        assert!(estimated_label_maturity(&row).is_err());
+        row.horizon_minutes = 0;
+        assert!(estimated_label_maturity(&row).is_err());
+    }
+
+    #[test]
+    fn method_selection_purges_unmatured_fit_labels() {
+        let origin = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
+        let observations = minute_observations(origin, 200);
+        let fit = observations
+            .iter()
+            .filter(|row| row.horizon_minutes == 60)
+            .collect::<Vec<_>>();
+        let (method_fit, selection) = calibration_method_partitions(&fit).unwrap();
+        assert_eq!(method_fit.len(), 101);
+        assert_eq!(selection.len(), 40);
+        assert_eq!(
+            selection[0].observation_cutoff,
+            origin + Duration::minutes(160)
+        );
+        assert!(method_fit.iter().all(|row| {
+            estimated_label_maturity(row).unwrap() <= selection[0].observation_cutoff
+        }));
+        assert_eq!(
+            estimated_label_maturity(method_fit.last().unwrap()).unwrap(),
+            selection[0].observation_cutoff
+        );
+        // Changing labels that cross into selection cannot change either
+        // candidate calibrator. These rows were eligible before this purge.
+        let mut changed = observations.clone();
+        for row in &mut changed {
+            if row.horizon_minutes == 60
+                && row.observation_cutoff > origin + Duration::minutes(100)
+                && row.observation_cutoff < selection[0].observation_cutoff
+            {
+                row.outcome_up = !row.outcome_up;
+            }
+        }
+        let changed_fit = changed
+            .iter()
+            .filter(|row| row.horizon_minutes == 60)
+            .collect::<Vec<_>>();
+        let (changed_method_fit, _) = calibration_method_partitions(&changed_fit).unwrap();
+        assert_eq!(fit_platt(&method_fit), fit_platt(&changed_method_fit));
+        assert_eq!(fit_isotonic(&method_fit), fit_isotonic(&changed_method_fit));
+    }
+
+    #[test]
+    fn materializer_purges_labels_crossing_adjacent_fit_and_oos_boundaries() {
+        let origin = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
+        let mut observations = minute_observations(origin, 480);
+        let fit = TimePartition {
+            start: origin,
+            end_exclusive: origin + Duration::minutes(300),
+        };
+        let oos = TimePartition {
+            start: fit.end_exclusive,
+            end_exclusive: origin + Duration::minutes(480),
+        };
+        let build = |rows: &[CalibrationObservation]| {
+            materialize_oos_calibration_registry(
+                rows,
+                fit.clone(),
+                oos.clone(),
+                Utc::now() + Duration::minutes(1),
+                100,
+                0.25,
+            )
+            .unwrap()
+        };
+        let baseline = build(&observations);
+        let sixty = baseline
+            .horizons
+            .iter()
+            .find(|row| row.horizon_minutes == 60)
+            .unwrap();
+        assert_eq!(sixty.fit_samples, 134);
+        assert_eq!(sixty.selection_samples, 48);
+        assert_eq!(sixty.untouched_oos_samples, 121);
+        for row in &mut observations {
+            let boundary = if row.observation_cutoff < fit.end_exclusive {
+                fit.end_exclusive
+            } else {
+                oos.end_exclusive
+            };
+            if estimated_label_maturity(row).unwrap() > boundary {
+                row.outcome_up = !row.outcome_up;
+            }
+        }
+        let changed = build(&observations);
+        for (before, after) in baseline
+            .registry
+            .artifacts
+            .iter()
+            .zip(&changed.registry.artifacts)
+        {
+            assert_eq!(before.method, after.method);
+            assert_eq!(before.oos_metrics, after.oos_metrics);
+            assert_ne!(after.lifecycle, CalibrationLifecycle::PromotedOos);
+        }
+        assert!(changed.horizons.iter().all(|row| !row.promotion_eligible));
+        assert!(
+            changed
+                .promotion_policy
+                .contains("actual vendor label availability is not supplied")
+        );
+    }
+
+    #[test]
+    fn mature_label_purges_do_not_relax_minimum_sample_requirements() {
+        let origin = Utc.with_ymd_and_hms(2025, 1, 1, 0, 0, 0).unwrap();
+        let observations = minute_observations(origin, 480);
+        for (fit_end, oos_end) in [(140, 480), (300, 380)] {
+            let error = materialize_oos_calibration_registry(
+                &observations,
+                TimePartition {
+                    start: origin,
+                    end_exclusive: origin + Duration::minutes(fit_end),
+                },
+                TimePartition {
+                    start: origin + Duration::minutes(fit_end),
+                    end_exclusive: origin + Duration::minutes(oos_end),
+                },
+                Utc::now() + Duration::minutes(1),
+                100,
+                0.25,
+            )
+            .unwrap_err();
+            assert!(
+                error.to_string().contains(
+                    "horizon 60 needs at least 100 fit and 50 untouched OOS observations"
+                )
+            );
+        }
+        let compressed = minute_observations(origin, 120);
+        let fit = compressed
+            .iter()
+            .filter(|row| row.horizon_minutes == 60)
+            .collect::<Vec<_>>();
+        assert!(
+            calibration_method_partitions(&fit)
+                .unwrap_err()
+                .to_string()
+                .contains("at least 50 fit labels mature before selection")
+        );
+        assert!(calibration_method_partitions(&[]).is_err());
     }
 
     #[test]

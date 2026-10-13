@@ -1,5 +1,14 @@
 # Handoff Document
 
+> **Current research revision — 2026-10-12:** the placeholder findings below
+> are historical. Rust market-data sources and Python reports were previously
+> restored; this revision restores the original Python data adapters, cleaning,
+> ingestion, and session-integrity implementation from the existing platform
+> source. See [the cost-aware revision report](axio7-model-review/review-package/cost-aware-research.md)
+> for the current code and verification. Synthetic pipeline checks establish
+> software behavior; licensed market-data readiness, actual label availability,
+> empirical retraining, and model promotion need separate evidence.
+
 Read this document in full before taking over this repository.
 
 **Last updated**: 2026-07-26

@@ -1,5 +1,28 @@
 # Production quant inference and market-query integration
 
+## Cost-aware research source checkpoint — 2026-10-12
+
+The public review package adds explicit execution-cost assumptions, decomposed
+gross/cost/net accounting, chronological candidate selection, and label-maturity
+purging at calibration boundaries. It also restores the existing Python data
+adapter/cleaning/ingestion/session-integrity sources so an explicitly synthetic
+offline pipeline can exercise the software. The four statistical runtime model
+families and frozen artifacts are not empirically retrained or promoted.
+
+Research interface changes are additive: `execution_costs` configuration,
+trade cost breakdowns, fixed-sample cost sensitivity, and separate option entry,
+exit, and unliquidated quantities. Unliquidated options have no completed net
+P&L. Rust report producers use `backtest::try_run`; retrospective data defects
+or missing exits invalidate the evaluation instead of dropping entered trades.
+Raw analog up-frequencies do not enter a cost-aware calibrated-probability
+ensemble. Full vendor label availability and aligned model-comparison fit
+windows remain unresolved evidence requirements.
+
+Scope, usage, and checks are recorded in
+[the revision report](../review-package/cost-aware-research.md). This checkpoint
+does not deploy a service, establish live-data readiness, change broker
+permissions, or bypass the existing production-promotion gates below.
+
 ## Website Market Map checkpoint — 2026-09-04
 
 Latest owner correction: Market Map must use U.S. stocks. The prior Taiwan

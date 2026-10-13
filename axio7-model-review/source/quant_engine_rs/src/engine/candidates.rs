@@ -194,8 +194,12 @@ pub fn generate_candidates(states: &[MarketState]) -> Vec<Candidate> {
             );
         }
     }
-    // Rule layer produces possible events; only the strongest, temporally distinct
-    // ten per session reach expensive models. This cap is independent of outcomes.
+    online_session_cap(raw)
+}
+
+fn online_session_cap(raw: Vec<(Candidate, f64)>) -> Vec<Candidate> {
+    // Consume the ten research slots when events occur. A later stronger event
+    // cannot replace an earlier one; strength only resolves simultaneous events.
     let mut by_day = BTreeMap::new();
     for row in raw {
         by_day
@@ -205,7 +209,12 @@ pub fn generate_candidates(states: &[MarketState]) -> Vec<Candidate> {
     }
     let mut output = Vec::new();
     for (_, mut rows) in by_day {
-        rows.sort_by(|a, b| b.1.total_cmp(&a.1));
+        rows.sort_by(|a, b| {
+            a.0.timestamp
+                .cmp(&b.0.timestamp)
+                .then_with(|| b.1.total_cmp(&a.1))
+                .then_with(|| a.0.state_index.cmp(&b.0.state_index))
+        });
         let mut kept = Vec::<Candidate>::new();
         for (candidate, _) in rows {
             if kept.len() >= 10 {
@@ -223,4 +232,82 @@ pub fn generate_candidates(states: &[MarketState]) -> Vec<Candidate> {
     }
     output.sort_by_key(|candidate| candidate.timestamp);
     output
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, TimeZone, Utc};
+
+    use super::*;
+
+    fn event(minute: i64, direction: i8, strength: f64) -> (Candidate, f64) {
+        let timestamp =
+            Utc.with_ymd_and_hms(2026, 10, 12, 14, 0, 0).unwrap() + Duration::minutes(minute);
+        (
+            Candidate {
+                candidate_id: format!("event-{minute}-{direction}-{strength}"),
+                timestamp,
+                session_date: timestamp.date_naive(),
+                state_index: minute as usize,
+                setup_type: SetupType::OpeningRangeBreakout,
+                direction,
+                entry_reference: 100.0,
+                reason_codes: vec!["test".to_string()],
+            },
+            strength,
+        )
+    }
+
+    #[test]
+    fn stronger_future_events_cannot_replace_a_full_past_prefix() {
+        let mut past = (0..10)
+            .map(|index| event(index * 5, 1, 1.0))
+            .collect::<Vec<_>>();
+        // The order in which an offline caller supplies rows cannot grant
+        // future events precedence over their actual decision timestamps.
+        past.reverse();
+        let baseline = online_session_cap(past.clone());
+        let mut extended = past;
+        extended.extend([event(60, 1, 1_000.0), event(120, -1, 10_000.0)]);
+        let after = online_session_cap(extended);
+        assert_eq!(baseline.len(), 10);
+        assert_eq!(after, baseline);
+    }
+
+    #[test]
+    fn future_same_direction_duplicates_do_not_displace_earlier_events() {
+        let early = event(0, 1, 1.0);
+        let after = online_session_cap(vec![event(1, 1, 1_000.0), event(5, 1, 2.0), early.clone()]);
+        assert_eq!(after.len(), 2);
+        assert_eq!(after[0], early.0);
+        assert_eq!(after[1].timestamp, early.0.timestamp + Duration::minutes(5));
+    }
+
+    #[test]
+    fn only_simultaneous_events_use_strength_as_a_tiebreaker() {
+        let weak = event(0, 1, 1.0);
+        let strong = event(0, 1, 10.0);
+        let opposite = event(0, -1, 2.0);
+        let after = online_session_cap(vec![weak, opposite.clone(), strong.clone()]);
+        assert_eq!(after, vec![strong.0, opposite.0]);
+    }
+
+    #[test]
+    fn duplicate_events_do_not_consume_quota_and_each_session_resets_it() {
+        let mut rows = (0..10)
+            .flat_map(|index| [event(index * 5, 1, 1.0), event(index * 5 + 1, 1, 100.0)])
+            .collect::<Vec<_>>();
+        let next_day = event(24 * 60, 1, 1.0);
+        rows.push(next_day.clone());
+        let after = online_session_cap(rows);
+        assert_eq!(after.len(), 11);
+        assert_eq!(
+            after[..10]
+                .iter()
+                .map(|row| row.state_index)
+                .collect::<Vec<_>>(),
+            (0..10).map(|index| index * 5).collect::<Vec<_>>()
+        );
+        assert_eq!(after[10], next_day.0);
+    }
 }

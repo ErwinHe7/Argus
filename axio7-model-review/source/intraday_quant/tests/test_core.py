@@ -20,11 +20,16 @@ def _bar(timestamp, close=100.0, volume=10):
 
 
 def test_timezone_dedup_and_invalid_volume():
-    raw = pd.DataFrame([_bar("2026-03-09 09:30"), _bar("2026-03-09 09:30", 101)])
+    raw = pd.DataFrame([_bar("2026-03-09 09:30"), _bar("2026-03-09 09:30")])
     clean, stats = clean_bars(raw, "America/New_York")
-    assert len(clean) == 1 and clean.iloc[0].close == 101
+    assert len(clean) == 1 and clean.iloc[0].close == 100
     assert str(clean.timestamp.dt.tz) == "America/New_York"
     assert stats["duplicates_removed"] == 1
+    conflicting = pd.DataFrame([_bar("2026-03-09 09:30"), _bar("2026-03-09 09:30", 101)])
+    rejected, conflict_stats = clean_bars(conflicting, "America/New_York")
+    assert rejected.empty
+    assert conflict_stats["ambiguous_duplicate_keys"] == 1
+    assert conflict_stats["ambiguous_duplicate_rows_removed"] == 2
     bad, stats = clean_bars(pd.DataFrame([_bar("2026-03-09 09:30", volume=-1)]), "America/New_York")
     assert bad.empty and stats["invalid_rows_removed"] == 1
 

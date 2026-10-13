@@ -28,7 +28,7 @@ from intraday_quant.demo.contracts import (
 
 def bundle_bytes(root: Path) -> dict[str, bytes]:
     return {
-        str(path.relative_to(root)): path.read_bytes()
+        path.relative_to(root).as_posix(): path.read_bytes()
         for path in sorted(root.rglob("*.json"))
     }
 

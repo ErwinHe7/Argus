@@ -22,6 +22,13 @@
 Open [`MODEL_COMPONENTS/`](MODEL_COMPONENTS/) to see one plainly named directory
 per component, with direct links to the real source and review targets.
 
+## Evaluate the models after execution costs
+
+The four statistical components remain research candidates. Forecast quality
+and simulated trading profitability are different measurements. Read the
+[cost-aware research update](axio7-model-review/review-package/cost-aware-research.md)
+for the explicit cost assumptions, causal execution rules, and limitations.
+
 ## Frozen artifacts contain the combined stack
 
 The candidate JSON files under

@@ -285,11 +285,74 @@ pub struct ResearchConfig {
     pub option_slippage: f64,
     pub option_max_spread_pct: f64,
     pub option_max_staleness_seconds: i64,
+    /// Explicit research assumptions, never an exchange or broker fee schedule.
+    #[serde(default)]
+    pub execution_costs: ResearchExecutionCosts,
     /// Hidden-state selection and same-regime retrieval policy. This is
     /// defaulted so older research profiles remain readable, while the live
     /// predictor no longer has a hidden hard-coded state count.
     #[serde(default)]
     pub regime: RegimeResearchConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct ResearchExecutionCosts {
+    /// Full underlying bid-ask spread in basis points; each side pays half.
+    pub full_spread_bps: f64,
+    /// Minimum elapsed time from signal/planned exit to the eligible quote/bar.
+    pub latency_ms: i64,
+    /// Dollars per option contract on each side of the round trip.
+    pub option_commission_per_contract_per_side: f64,
+    /// Fraction of visible ask/bid size usable on each side, in (0, 1].
+    pub option_max_participation_rate: f64,
+    /// Premium dollars per share at 100% displayed-size participation.
+    /// Linear sensitivity assumption, not an empirically calibrated impact law.
+    pub option_impact_at_full_participation: f64,
+}
+
+impl Default for ResearchExecutionCosts {
+    fn default() -> Self {
+        Self {
+            full_spread_bps: 0.0,
+            latency_ms: 0,
+            option_commission_per_contract_per_side: 0.0,
+            option_max_participation_rate: 1.0,
+            option_impact_at_full_participation: 0.0,
+        }
+    }
+}
+
+impl ResearchConfig {
+    pub fn validate_execution_costs(&self) -> Result<()> {
+        let costs = &self.execution_costs;
+        if [
+            self.underlying_slippage_bps,
+            self.commission_per_trade,
+            self.option_slippage,
+            costs.full_spread_bps,
+            costs.option_commission_per_contract_per_side,
+            costs.option_impact_at_full_participation,
+        ]
+        .iter()
+        .any(|value| !value.is_finite() || *value < 0.0)
+        {
+            bail!("research execution costs must be finite and nonnegative");
+        }
+        if !costs.option_max_participation_rate.is_finite()
+            || !(0.0..=1.0).contains(&costs.option_max_participation_rate)
+            || costs.option_max_participation_rate == 0.0
+            || costs.latency_ms < 0
+            || costs.latency_ms > self.option_max_staleness_seconds.saturating_mul(1000)
+            || self.option_max_staleness_seconds <= 0
+            || !self.option_max_spread_pct.is_finite()
+            || self.option_max_spread_pct <= 0.0
+            || self.underlying_slippage_bps + 0.5 * costs.full_spread_bps >= 10_000.0
+        {
+            bail!("research execution latency, participation, or spread limits are invalid");
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -566,6 +629,7 @@ impl AppConfig {
 
     pub fn validate(&self) -> Result<()> {
         self.risk_policy.validate()?;
+        self.research.validate_execution_costs()?;
         if self.os.max_position_pct != self.risk_policy.max_single_name_pct
             || self.os.max_gross_exposure != self.risk_policy.max_total_gross_pct
             || self.os.max_correlated_exposure != self.risk_policy.max_correlated_cluster_pct

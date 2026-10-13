@@ -13,9 +13,11 @@ from __future__ import annotations
 
 import csv
 import datetime as dt
+import json
 import shutil
 from pathlib import Path
 
+import pandas as pd
 import pytest
 
 from intraday_quant.config import AppConfig, DataConfig, ModelConfig
@@ -153,3 +155,26 @@ def test_bridge_raises_rather_than_falling_back_when_bars_are_missing(tmp_path: 
             target="SPY",
             config=config,
         )
+
+
+def test_research_export_cutoff_is_parsed_and_joined_to_completed_bar_label(tmp_path: Path, monkeypatch) -> None:
+    """Unit-test only the transport decoder; real Rust integration remains above."""
+    bars = tmp_path / "decoder-only-bars.csv"
+    bars.write_text("timestamp,symbol\n", encoding="utf-8")
+
+    def write_transport_fixture(command, **kwargs):
+        path = Path(command[command.index("--output") + 1])
+        path.write_text(json.dumps([{
+            "decision_as_of": "2026-06-11T14:01:00Z", "status": "OK",
+            "distribution": {"kernel_weighted_mean": .001, "probability_up": .6,
+                             "average_mfe": .002, "average_mae": .001, "dispersion": .0005},
+            "diagnostics": {}, "top_analogs": [],
+        }]), encoding="utf-8")
+
+    monkeypatch.setattr("intraday_quant.models.walk_forward.subprocess.run", write_transport_fixture)
+    config = AppConfig(target="SPY", symbols=["SPY"], setups=[], models=["analog_kernel"],
+                       start_date="2026-06-01", end_date="2026-06-11",
+                       model=ModelConfig(analog_backtest_bars_path=str(bars)))
+    result = _run_analog_backtest(["2026-06-11"], 5, "SPY", config)
+    assert result.iloc[0].decision_as_of == pd.Timestamp("2026-06-11 10:01", tz="America/New_York")
+    assert result.iloc[0].timestamp == pd.Timestamp("2026-06-11 10:00", tz="America/New_York")

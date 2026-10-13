@@ -6,18 +6,20 @@ import numpy as np
 import pandas as pd
 
 from intraday_quant.config import AppConfig
+from intraday_quant.backtest.costs import minimum_round_trip_cost_return
 
 
 MODEL_SPECIFICATION: dict[str, Any] = {
-    "version": "1.0.0",
+    "version": "1.2.0",
     "signal_timing": {
-        "information_set": "F_t = sigma(all observations timestamped at or before minute t close)",
-        "signal_time": "minute t close",
-        "earliest_fill": "minute t+1 open or first later valid executable quote",
+        "bar_timestamp": "one-minute interval start; its closing features become available at timestamp + 1 minute",
+        "information_set": "F_t includes only observations available at the actual minute close cutoff",
+        "signal_time": "bar timestamp + 1 minute",
+        "earliest_fill": "first bar start >= actual close cutoff + latency; zero latency permits an explicitly idealized boundary fill",
     },
     "targets": {
-        "direction": "P(r_net(t,t+h) > 0 | F_t), h in {5,15,30,60}",
-        "return": "E[r_net(t,t+h) | F_t]",
+        "direction": "P(r_gross(t,t+h) > pre_trade_cost_baseline | F_t), h in {5,15,30,60}; future size impact excluded",
+        "return": "E[r_gross(t,t+h) | F_t]; scoring separately subtracts the pre-trade cost baseline",
         "excursions": "E[MFE_h | F_t], E[MAE_h | F_t]",
         "triple_barrier": "first passage of upper/lower ATR barrier, otherwise time barrier",
     },
@@ -33,18 +35,19 @@ MODEL_SPECIFICATION: dict[str, Any] = {
         ],
     },
     "ensemble": {
-        "families": ["logistic_regression", "gaussian_kernel_analog", "hist_gradient_boosting"],
-        "aggregation": "arithmetic mean across available out-of-sample family predictions",
+        "families": ["logistic_regression", "hist_gradient_boosting"],
+        "research_only": ["production_hmm_kernel_raw_up_frequency"],
+        "aggregation": "arithmetic mean across available classical out-of-sample predictions; raw analog probabilities excluded",
         "calibration": "Platt or isotonic fit on validation only; Brier score reported",
     },
     "execution": {
-        "underlying_entry": "next bar open adjusted against the trader by configured slippage",
+        "underlying_entry": "post-latency open plus adverse half-spread, slippage and optional size impact",
         "option_entry": "first valid NBBO after signal, ask + option slippage",
         "option_exit": "valid NBBO bid - option slippage",
         "collision": "if stop and target are both inside one bar, stop is assumed first",
     },
     "selection": {
-        "expected_net_return": "mu_hat - 2*(spread_bps+slippage_bps)/10000",
+        "expected_net_return": "mu_hat - (full_spread_bps+2*slippage_bps)/10000 - 2*commission_per_side/trade_notional; excludes unknown size impact",
         "score": "(wr*mu_net*(p0+p_win)+wmfe*MFE_hat) / max(MAE_hat+wunc*uncertainty,risk_floor)",
         "threshold": "expected return must exceed a validation-derived quantile and modeled costs",
         "constraints": [
@@ -68,9 +71,7 @@ def score_candidates(frame: pd.DataFrame, config: AppConfig) -> pd.DataFrame:
     """Apply the documented utility equation without inspecting realized outcomes."""
 
     result = frame.copy()
-    round_trip_market_cost = 2 * (
-        config.costs.underlying_slippage_bps + config.costs.estimated_spread_bps
-    ) / 10_000
+    round_trip_market_cost = minimum_round_trip_cost_return(config)
     result["expected_net_return"] = result["expected_return"] - round_trip_market_cost
     floor = config.portfolio.risk_floor_bps / 10_000
     coefficients = config.scoring
@@ -102,6 +103,8 @@ def model_specification(config: AppConfig | None = None) -> dict[str, Any]:
                 "calibration": config.model.calibration,
                 "validation_quantile": config.model.score_threshold_quantile,
                 "score_coefficients": config.scoring.model_dump(),
+                "costs": config.costs.model_dump(),
+                "execution_costs": config.execution_costs.model_dump(),
                 "risk_floor_bps": config.portfolio.risk_floor_bps,
                 "max_trades_per_day": config.portfolio.max_trades_per_day,
             },

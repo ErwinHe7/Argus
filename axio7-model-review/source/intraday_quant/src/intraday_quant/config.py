@@ -77,29 +77,54 @@ class PortfolioConfig(StrictModel):
 
 
 class CostConfig(StrictModel):
-    commission_per_trade: float = 1.0
-    underlying_slippage_bps: float = 1.0
-    estimated_spread_bps: float = 1.0
-    option_slippage: float = 0.05
+    # Legacy Python amounts are per fill, not per round trip.
+    commission_per_trade: float = Field(default=1.0, ge=0, allow_inf_nan=False)
+    underlying_slippage_bps: float = Field(default=1.0, ge=0, allow_inf_nan=False)
+    estimated_spread_bps: float = Field(default=1.0, ge=0, allow_inf_nan=False)
+    option_slippage: float = Field(default=0.05, ge=0, allow_inf_nan=False)
+
+
+class ExecutionCostConfig(StrictModel):
+    """Explicit research assumptions; never broker or exchange calibration."""
+
+    trade_notional: float = Field(default=100_000.0, gt=0, allow_inf_nan=False)
+    full_spread_bps: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    commission_per_side: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    latency_ms: int = Field(default=0, ge=0)
+    require_volume_capacity: bool = False
+    max_participation_rate: float = Field(default=0.10, gt=0, le=1, allow_inf_nan=False)
+    impact_bps_at_full_participation: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def validate_impact(self) -> "ExecutionCostConfig":
+        if self.impact_bps_at_full_participation and not self.require_volume_capacity:
+            raise ValueError("positive impact requires same-symbol volume capacity validation")
+        return self
 
 
 class RiskConfig(StrictModel):
     stop_type: str = "atr"
     take_profit_type: str = "atr"
-    stop_value: float = 1.0
-    take_profit_value: float = 1.5
-    max_holding_minutes: int = 60
+    stop_value: float = Field(default=1.0, gt=0, allow_inf_nan=False)
+    take_profit_value: float = Field(default=1.5, gt=0, allow_inf_nan=False)
+    max_holding_minutes: int = Field(default=60, ge=1)
 
 
 class OptionExecutionConfig(StrictModel):
     enabled: bool = False
     quotes_path: str | None = None
     dte: list[int] = Field(default_factory=lambda: [0, 1])
-    delta_min: float = 0.35
-    delta_max: float = 0.60
-    max_spread_pct: float = 0.20
-    max_quote_age_seconds: int = 90
-    min_bid_size: int = 1
+    delta_min: float = Field(default=0.35, ge=0, le=1, allow_inf_nan=False)
+    delta_max: float = Field(default=0.60, ge=0, le=1, allow_inf_nan=False)
+    max_spread_pct: float = Field(default=0.20, gt=0, allow_inf_nan=False)
+    max_quote_age_seconds: int = Field(default=90, ge=1)
+    min_bid_size: int = Field(default=1, ge=1)
+
+    @model_validator(mode="after")
+    def validate_delta(self) -> "OptionExecutionConfig":
+        if self.delta_min > self.delta_max:
+            raise ValueError("delta_min must not exceed delta_max")
+        return self
 
 
 class AppConfig(StrictModel):
@@ -120,6 +145,7 @@ class AppConfig(StrictModel):
     walk_forward: WalkForwardConfig = Field(default_factory=WalkForwardConfig)
     portfolio: PortfolioConfig = Field(default_factory=PortfolioConfig)
     costs: CostConfig = Field(default_factory=CostConfig)
+    execution_costs: ExecutionCostConfig = Field(default_factory=ExecutionCostConfig)
     risk: RiskConfig = Field(default_factory=RiskConfig)
     option_execution: OptionExecutionConfig = Field(default_factory=OptionExecutionConfig)
     config_path: Path | None = None

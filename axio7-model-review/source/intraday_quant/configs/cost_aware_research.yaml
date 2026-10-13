@@ -1,0 +1,77 @@
+# SYNTHETIC SOFTWARE VALIDATION ONLY. Every execution number is an assumption.
+# For market research, replace adapter/input_path with entitled point-in-time
+# same-symbol share-volume data. No orders, promotion, or calibration is enabled.
+target: SPY
+bar_frequency: 1min
+timezone: America/New_York
+start_date: "2026-01-05"
+end_date: "2026-03-31"
+session:
+  start: "09:30"
+  end: "16:00"
+data:
+  adapter: synthetic
+  input_path: null
+  synthetic_seed: 7
+  synthetic_sessions: 50
+  price_ffill_limit: 2
+  output_dir: data/cost-aware-software-validation
+symbols: [SPX, ES, SPY, QQQ, SOXX, IWM, VIX]
+forecast_horizons: [5, 15, 30, 60]
+opening_range_minutes: 15
+setups: [opening_range_breakout, vwap_pullback, mean_reversion, closing_short_cover]
+# Local software demonstration only: these two families do not need quantctl.
+# This does not replace or promote the Rust HMM/kernel/SDE/OU models.
+models: [logistic, gradient_boosting]
+model:
+  analog_neighbors: 25
+  analog_bandwidth: 1.0
+  calibration: isotonic
+  score_threshold_quantile: 0.60
+scoring:
+  return_weight: 1.0
+  probability_base: 0.5
+  mfe_weight: 0.25
+  uncertainty_weight: 1.0
+walk_forward:
+  train_sessions: 30
+  validation_sessions: 10
+  test_sessions: 10
+  step_sessions: 10
+  expanding: true
+  purge_minutes: 60
+  embargo_minutes: 15
+portfolio:
+  max_trades_per_day: 2
+  max_open_positions: 1
+  cooldown_minutes: 30
+  max_same_direction_per_day: 1
+  risk_floor_bps: 5.0
+costs:
+  commission_per_trade: 1.0 # legacy Python per-fill dollars; overridden below for underlying
+  underlying_slippage_bps: 1.0 # per fill, adverse, separate from spread and impact
+  estimated_spread_bps: 1.0 # legacy half spread; overridden by full_spread_bps below
+  option_slippage: 0.05 # dollars per option premium share, each fill
+execution_costs:
+  trade_notional: 1000.0 # dollars at the raw entry; quantity stays constant through exit
+  full_spread_bps: 2.0 # total bid-ask spread, half charged at each fill
+  commission_per_side: 0.50 # dollars per underlying fill
+  latency_ms: 250 # signal barstart+1m availability; first eligible open is barstart+2m
+  require_volume_capacity: true # equity share volume for SPY itself, not SPX's SPY proxy
+  max_participation_rate: 0.05 # quantity / previous completed minute share volume
+  impact_bps_at_full_participation: 10.0 # assumed linear temporary penalty, NOT fitted
+risk:
+  stop_type: atr
+  take_profit_type: atr
+  stop_value: 1.0
+  take_profit_value: 1.5
+  max_holding_minutes: 60
+option_execution:
+  enabled: false
+  quotes_path: null
+  dte: [0, 1]
+  delta_min: 0.35
+  delta_max: 0.60
+  max_spread_pct: 0.20
+  max_quote_age_seconds: 90
+  min_bid_size: 1

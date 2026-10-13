@@ -51,10 +51,8 @@ jobs:
           workspaces: axio7-model-review/source/quant_engine_rs
       - run: cargo fmt --check
       - run: cargo clippy --all-targets --locked -- -D warnings
-      # 显式排除：这个测试调用 MarketBarCsvImporter::import，而 src/data/ 目前是
-      # unimplemented!() 的 stub（原实现被 .gitignore 排除，见 HANDOFF.zh-CN.md）。
-      # 真实模块补回后删掉 --skip，它必须重新跑起来。
-      - run: cargo test --locked -- --skip csv_requires_offset_deduplicates_and_rejects_bad_rows
+      # Restored source packages are exercised without historical stub exclusions.
+      - run: cargo test --locked
 
   python:
     name: Python (intraday_quant)
@@ -73,11 +71,8 @@ jobs:
       # 已知问题：causal_tcn.py:6 是模块级 import torch，而 torch 只在可选 extra
       # `neural` 里。tests/test_cuda_challenger.py 的 5 个 skip 全部来自这里。
       # torch 进入默认依赖后，那 5 个 skip 应该变成真正的运行。
-      # 显式排除：这三个测试调用 data/ 与 reports/ 里的函数，而那两个包目前是
-      # NotImplementedError 的 stub（原实现被 .gitignore 排除，见 HANDOFF.zh-CN.md）。
-      # 真实模块补回后删掉这些 --deselect，它们必须重新跑起来。
-      - run: |
-          python -m pytest --basetemp .pytest-tmp -p no:cacheprovider             --deselect tests/test_core.py::test_timezone_dedup_and_invalid_volume             --deselect tests/test_pipeline.py::test_synthetic_pipeline_runs_end_to_end             --deselect tests/test_theory_audit.py::test_theory_audit_distinguishes_win_rate_and_payoff
+      # Restored ingestion/cleaning/reports are covered by the complete suite.
+      - run: python -m pytest --basetemp .pytest-tmp -p no:cacheprovider
 
   cpp:
     name: C++ (quant_core_cpp)
