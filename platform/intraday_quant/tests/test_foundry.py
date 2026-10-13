@@ -908,10 +908,14 @@ class FoundryTests(unittest.TestCase):
         with patch("intraday_quant.overlay_lab.engine.run_overlay", wraps=real) as recorded:
             regenerated = agents.publication_bytes(agents.synthetic_publication())
 
-        def calendar_neutral(payload: bytes) -> bytes:  # unpinned CI installs may carry a newer exchange-calendars release
-            return re.sub(rb"exchange_calendars/[^/\"]+/XNYS", b"exchange_calendars/VERSION/XNYS", payload)
-        self.assertEqual(calendar_neutral(regenerated), calendar_neutral(FIXTURE.read_bytes()))
+        def environment_neutral(payload: bytes) -> bytes:
+            # Unpinned CI installs may carry newer dependency releases. Trial receipts record dependency
+            # versions as provenance, so the ledger head hash legitimately differs by environment.
+            payload = re.sub(rb"exchange_calendars/[^/\"]+/XNYS", b"exchange_calendars/VERSION/XNYS", payload)
+            return re.sub(rb'"headSha256": "[0-9a-f]{64}"', b'"headSha256": "HEAD"', payload)
+        self.assertEqual(environment_neutral(regenerated), environment_neutral(FIXTURE.read_bytes()))
         fixture = json.loads(regenerated)
+        self.assertRegex(fixture["ledger"]["ledger"]["headSha256"], r"^[0-9a-f]{64}$")
         self.assertEqual(fixture["overlay"]["artifact"]["evidenceStatus"], agents.SYNTHETIC)
         self.assertEqual(fixture["ledger"]["ledger"]["specs"][0]["status"], "BLOCKED")
         self.assertIn(["SYNTHETIC_EVIDENCE_CAPPED_AT_BACKTEST"], [event["reasons"] for event in fixture["ledger"]["ledger"]["events"]])
