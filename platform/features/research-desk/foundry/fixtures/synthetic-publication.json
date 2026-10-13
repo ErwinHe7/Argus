@@ -1,0 +1,525 @@
+{
+  "derivedPublicationRightsConfirmed": true,
+  "executionAuthorized": false,
+  "generatedAt": "2026-10-01T13:00:00+00:00",
+  "ladder": [
+    {
+      "automatic": true,
+      "futureGates": [],
+      "gate": "Baseline trial on development data with enough sessions and a positive compounded result.",
+      "id": "PROBE",
+      "lockReason": null,
+      "locked": false,
+      "name": "Probe",
+      "owner": "sweeper"
+    },
+    {
+      "automatic": true,
+      "futureGates": [],
+      "gate": "Predeclared grid on development data; a survivor needs a Benjamini-Hochberg rejection and a positive bootstrap lower bound.",
+      "id": "BACKTEST",
+      "lockReason": null,
+      "locked": false,
+      "name": "Backtest",
+      "owner": "sweeper"
+    },
+    {
+      "automatic": true,
+      "futureGates": [],
+      "gate": "One holdout evaluation, observed evidence, and stable neighbours; then a paper proposal awaits the owner.",
+      "id": "PAPER",
+      "lockReason": null,
+      "locked": false,
+      "name": "Paper",
+      "owner": "grower"
+    },
+    {
+      "automatic": false,
+      "futureGates": [
+        "A written amendment to the owner's operating contract",
+        "An approved live broker adapter",
+        "Options-execution approval",
+        "A declared capital cap",
+        "A tested kill switch",
+        "A paper track record reviewed by the owner"
+      ],
+      "gate": "Not implemented.",
+      "id": "LIVE_SMALL",
+      "lockReason": "Real-money and options execution are disabled by the operating contract.",
+      "locked": true,
+      "name": "Live small",
+      "owner": "human"
+    },
+    {
+      "automatic": false,
+      "futureGates": [
+        "A written amendment to the owner's operating contract",
+        "An approved live broker adapter",
+        "Options-execution approval",
+        "A declared capital cap",
+        "A tested kill switch",
+        "A paper track record reviewed by the owner"
+      ],
+      "gate": "Not implemented.",
+      "id": "LIVE_SCALED",
+      "lockReason": "Real-money and options execution are disabled by the operating contract.",
+      "locked": true,
+      "name": "Live scaled",
+      "owner": "human"
+    }
+  ],
+  "ledger": {
+    "ledger": {
+      "eventCount": 5,
+      "events": [
+        {
+          "at": "2026-10-01T12:00:00+00:00",
+          "fromStage": null,
+          "kind": "SPEC_REJECTED",
+          "reasons": [
+            "source validation rejected: OVERLAY-v1.sweep.call_otm_pct.0: literal_error"
+          ],
+          "role": "prototype_builder",
+          "seq": 1,
+          "specId": "synthetic-rejected-draft",
+          "status": "BLOCKED",
+          "toStage": null
+        },
+        {
+          "at": "2026-10-01T12:01:00+00:00",
+          "fromStage": null,
+          "kind": "SPEC_FROZEN",
+          "reasons": [],
+          "role": "prototype_builder",
+          "seq": 2,
+          "specId": "synthetic-covered-call",
+          "status": "ACTIVE",
+          "toStage": "PROBE"
+        },
+        {
+          "at": "2026-10-01T12:02:00+00:00",
+          "fromStage": "PROBE",
+          "kind": "PROBE_COMPLETED",
+          "reasons": [],
+          "role": "sweeper",
+          "seq": 3,
+          "specId": "synthetic-covered-call",
+          "status": "ACTIVE",
+          "toStage": "BACKTEST"
+        },
+        {
+          "at": "2026-10-01T12:03:00+00:00",
+          "fromStage": "BACKTEST",
+          "kind": "BACKTEST_COMPLETED",
+          "reasons": [],
+          "role": "sweeper",
+          "seq": 4,
+          "specId": "synthetic-covered-call",
+          "status": "ACTIVE",
+          "toStage": "BACKTEST"
+        },
+        {
+          "at": "2026-10-01T12:04:00+00:00",
+          "fromStage": "BACKTEST",
+          "kind": "BLOCKED",
+          "reasons": [
+            "SYNTHETIC_EVIDENCE_CAPPED_AT_BACKTEST"
+          ],
+          "role": "grower",
+          "seq": 5,
+          "specId": "synthetic-covered-call",
+          "status": "BLOCKED",
+          "toStage": null
+        }
+      ],
+      "headSha256": "0e65ded0288ae7c93275277110e0c888a5270b41336bb38dfc23bbea56d4de8a",
+      "llmCalls": 0,
+      "specs": [
+        {
+          "familyTrialCount": 3,
+          "gates": [
+            {
+              "detail": "OVERLAY-v1 spec frozen with 3 predeclared grid points and 0 LLM calls.",
+              "id": "spec_frozen",
+              "passed": true
+            },
+            {
+              "detail": "Development baseline over 187 sessions: positive compounded statistic.",
+              "id": "probe_positive",
+              "passed": true
+            },
+            {
+              "detail": "1 of 3 development trials survived Benjamini-Hochberg at 0.05 with a positive statistic and bootstrap lower bound.",
+              "id": "bh_survivors",
+              "passed": true
+            },
+            {
+              "detail": "OVERLAY-v1 may reach PAPER as a proposal or shadow only.",
+              "id": "template_max_stage",
+              "passed": true
+            },
+            {
+              "detail": "Synthetic-fixture evidence is capped at BACKTEST.",
+              "id": "evidence_observed",
+              "passed": false
+            },
+            {
+              "detail": "Overlay trials priced from executable bid/ask quotes.",
+              "id": "executable_quotes",
+              "passed": true
+            },
+            {
+              "detail": "No other spec has evaluated an overlapping holdout on this frozen input.",
+              "id": "holdout_unused",
+              "passed": true
+            },
+            {
+              "detail": "Grid point 3 of 3 selected by minimum adjusted p-value, then grid order.",
+              "id": "selection_rule",
+              "passed": true
+            },
+            {
+              "detail": "1 of 1 adjacent grid neighbours have a positive development statistic; at least half, and at least one, are required.",
+              "id": "neighbours_positive",
+              "passed": true
+            }
+          ],
+          "nextAction": "None; this spec cannot advance past BACKTEST.",
+          "specId": "synthetic-covered-call",
+          "stage": "BACKTEST",
+          "status": "BLOCKED",
+          "survivors": 1,
+          "symbolLabel": "Redacted holding",
+          "template": "OVERLAY-v1"
+        }
+      ],
+      "trialsTotal": 3
+    },
+    "status": "PUBLISHED"
+  },
+  "liveStagesLocked": true,
+  "llmCalls": 0,
+  "optionsExecutionEnabled": false,
+  "overlay": {
+    "artifact": {
+      "assumptions": [
+        "Decisions use the session-close snapshot; quotes and IV marks must be observed within 30 minutes before the close and available by the next session open.",
+        "Executable quotes sell at the bid and buy at the ask; model prices are Black-Scholes value minus or plus the half spread.",
+        "Daily marks are conservative: short legs at the ask (or model value plus half spread), long legs at the bid (or minus).",
+        "Expiry is the eligible date nearest the target calendar-day DTE; strikes are nearest the rule, ties further out of the money.",
+        "Assignment and exercise are physical at the expiry close; shares are repurchased so the share count stays constant.",
+        "Dividends are credited equally to the overlay and buy-and-hold on the ex-date when the policy includes verified dividends.",
+        "Commissions apply per contract at opening and at assignment or exercise; repurchased shares pay the configured slippage.",
+        "Close-to-close returns realized on each listed session; the first evaluated session measures the opening trade against pre-trade capital at the same close, so buy-and-hold is 0 on that row."
+      ],
+      "availabilityCutoff": "2024-06-28T20:01:00+00:00",
+      "caveats": [
+        "SYNTHETIC_FIXTURE_NOT_MARKET_EVIDENCE: inputs are a synthetic fixture, not market performance.",
+        "Historical backtest, not live. No orders, options execution or promotion are authorized.",
+        "Early exercise and early assignment are not modelled; ex-dividend in-the-money short calls are only counted as a risk flag.",
+        "Cash earns and pays zero interest; margin, borrow, taxes and financing are excluded.",
+        "Expiry settles physically at the official close with immediate share repurchase at that close plus slippage; pin risk and after-hours moves are not modelled.",
+        "Bootstrap interval and sign-flip p-value are descriptive diagnostics, not promotion evidence.",
+        "Dividends excluded: a price-only comparison omits income for both sides and ex-dividend assignment risk."
+      ],
+      "configSha256": "37245d2840d22c7528fce6a047e3b41d604dcfbbab83439ece983da850e0dc72",
+      "coverage": {
+        "calendarSource": "exchange_calendars/4.13.2/XNYS",
+        "cycles": 12,
+        "deferredRolls": 0,
+        "end": "2024-06-28",
+        "sessions": 250,
+        "start": "2023-07-03"
+      },
+      "cycles": [
+        {
+          "baselineReturnPct": 7.29,
+          "cycleId": "cycle-001",
+          "expiry": "2023-08-18",
+          "legs": [
+            {
+              "dte": 46,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 5.0
+            }
+          ],
+          "opened": "2023-07-03",
+          "outcome": "call_assigned",
+          "overlayReturnPct": 6.37
+        },
+        {
+          "baselineReturnPct": -1.56,
+          "cycleId": "cycle-002",
+          "expiry": "2023-09-15",
+          "legs": [
+            {
+              "dte": 28,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 4.86
+            }
+          ],
+          "opened": "2023-08-18",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": -0.75
+        },
+        {
+          "baselineReturnPct": 3.25,
+          "cycleId": "cycle-003",
+          "expiry": "2023-10-20",
+          "legs": [
+            {
+              "dte": 35,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 4.15
+            }
+          ],
+          "opened": "2023-09-15",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": 4.49
+        },
+        {
+          "baselineReturnPct": -1.55,
+          "cycleId": "cycle-004",
+          "expiry": "2023-11-17",
+          "legs": [
+            {
+              "dte": 28,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 5.46
+            }
+          ],
+          "opened": "2023-10-20",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": -0.85
+        },
+        {
+          "baselineReturnPct": 3.08,
+          "cycleId": "cycle-005",
+          "expiry": "2023-12-15",
+          "legs": [
+            {
+              "dte": 28,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 4.79
+            }
+          ],
+          "opened": "2023-11-17",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": 3.84
+        },
+        {
+          "baselineReturnPct": 2.38,
+          "cycleId": "cycle-006",
+          "expiry": "2024-01-19",
+          "legs": [
+            {
+              "dte": 35,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 3.91
+            }
+          ],
+          "opened": "2023-12-15",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": 3.6
+        },
+        {
+          "baselineReturnPct": -1.15,
+          "cycleId": "cycle-007",
+          "expiry": "2024-02-16",
+          "legs": [
+            {
+              "dte": 28,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 5.91
+            }
+          ],
+          "opened": "2024-01-19",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": -0.52
+        },
+        {
+          "baselineReturnPct": 5.03,
+          "cycleId": "cycle-008",
+          "expiry": "2024-03-15",
+          "legs": [
+            {
+              "dte": 28,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 4.91
+            }
+          ],
+          "opened": "2024-02-16",
+          "outcome": "call_assigned",
+          "overlayReturnPct": 5.44
+        },
+        {
+          "baselineReturnPct": -6.35,
+          "cycleId": "cycle-009",
+          "expiry": "2024-04-19",
+          "legs": [
+            {
+              "dte": 35,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 4.14
+            }
+          ],
+          "opened": "2024-03-15",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": -4.86
+        },
+        {
+          "baselineReturnPct": 0.94,
+          "cycleId": "cycle-010",
+          "expiry": "2024-05-17",
+          "legs": [
+            {
+              "dte": 28,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 4.39
+            }
+          ],
+          "opened": "2024-04-19",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": 1.75
+        },
+        {
+          "baselineReturnPct": -2.03,
+          "cycleId": "cycle-011",
+          "expiry": "2024-06-21",
+          "legs": [
+            {
+              "dte": 35,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 5.67
+            }
+          ],
+          "opened": "2024-05-17",
+          "outcome": "expired_worthless",
+          "overlayReturnPct": -1.08
+        },
+        {
+          "baselineReturnPct": 0.7,
+          "cycleId": "cycle-012",
+          "expiry": "2024-07-19",
+          "legs": [
+            {
+              "dte": 28,
+              "fillSide": "bid",
+              "right": "call",
+              "side": "short",
+              "strikeMoneynessPct": 5.56
+            }
+          ],
+          "opened": "2024-06-21",
+          "outcome": "open_at_end",
+          "overlayReturnPct": 0.69
+        }
+      ],
+      "engineVersion": "leo-overlay-engine.v1",
+      "evidenceStatus": "SYNTHETIC_FIXTURE_NOT_MARKET_EVIDENCE",
+      "executionAuthorized": false,
+      "freshness": "historical_backtest_not_live",
+      "inputSha256": "01d046734530a001a4cea042d1c159dca37a590c463f2d0ce77292f8a2e2fb37",
+      "metrics": {
+        "activeReturnBootstrap": {
+          "blockLength": 21,
+          "lower95Pct": 2.0,
+          "resamples": 200,
+          "status": "descriptive_block_bootstrap_not_promotion",
+          "upper95Pct": 13.73
+        },
+        "activeReturnSignFlipP": 0.0199,
+        "buyAndHold": {
+          "annualizedReturnPct": null,
+          "annualizedVolatilityPct": 12.9,
+          "maxDrawdownPct": -9.38,
+          "totalReturnPct": 9.7
+        },
+        "counts": {
+          "assignments": 2,
+          "capHits": 2,
+          "deferredRolls": 0,
+          "exDividendItmShortCallEvents": 0,
+          "putExercises": 0
+        },
+        "difference": {
+          "maxDrawdownPct": 2.6,
+          "totalReturnPct": 9.31
+        },
+        "overlay": {
+          "annualizedReturnPct": null,
+          "annualizedVolatilityPct": 10.02,
+          "downsideCapturePct": 69.0,
+          "maxDrawdownPct": -6.78,
+          "premiumYieldAnnualizedPct": 11.59,
+          "totalReturnPct": 19.01,
+          "upsideCapturePct": 81.65
+        }
+      },
+      "observationCutoff": "2024-06-28T20:00:00+00:00",
+      "optionsExecutionEnabled": false,
+      "pricingMode": "EXECUTABLE_QUOTES",
+      "promotionEligible": false,
+      "source": {
+        "ivSources": [],
+        "licenseScope": "Contract drift test only",
+        "name": "Deterministic synthetic fixture (not market data)",
+        "quoteSources": [
+          "synthetic_quote_fixture"
+        ]
+      },
+      "structure": "covered_call",
+      "symbolLabel": "Redacted holding"
+    },
+    "status": "PUBLISHED"
+  },
+  "roles": [
+    {
+      "boundary": "Chooses only allow-listed values; makes no LLM calls and cannot change a frozen spec.",
+      "duty": "Validates the owner's idea against a fixed template and freezes it as a versioned research spec.",
+      "id": "prototype_builder",
+      "name": "Prototype Builder"
+    },
+    {
+      "boundary": "Never sees the holdout; multiple-testing control decides survivors.",
+      "duty": "Runs the baseline probe and the predeclared parameter grid on development data, recording every trial.",
+      "id": "sweeper",
+      "name": "Sweeper"
+    },
+    {
+      "boundary": "Can prepare a paper proposal or forward shadow only; places no orders.",
+      "duty": "Selects a survivor by a predeclared rule and evaluates the holdout exactly once.",
+      "id": "grower",
+      "name": "Grower"
+    },
+    {
+      "boundary": "Can pause but never resume; only the owner resumes.",
+      "duty": "Checks stale data, source revisions, and forward decay, and requests a pause when a check fails.",
+      "id": "maintainer",
+      "name": "Maintainer"
+    }
+  ],
+  "schemaVersion": "leo-foundry-publication.v1"
+}

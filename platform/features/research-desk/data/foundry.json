@@ -1,0 +1,111 @@
+{
+  "derivedPublicationRightsConfirmed": false,
+  "executionAuthorized": false,
+  "generatedAt": null,
+  "ladder": [
+    {
+      "automatic": true,
+      "futureGates": [],
+      "gate": "Baseline trial on development data with enough sessions and a positive compounded result.",
+      "id": "PROBE",
+      "lockReason": null,
+      "locked": false,
+      "name": "Probe",
+      "owner": "sweeper"
+    },
+    {
+      "automatic": true,
+      "futureGates": [],
+      "gate": "Predeclared grid on development data; a survivor needs a Benjamini-Hochberg rejection and a positive bootstrap lower bound.",
+      "id": "BACKTEST",
+      "lockReason": null,
+      "locked": false,
+      "name": "Backtest",
+      "owner": "sweeper"
+    },
+    {
+      "automatic": true,
+      "futureGates": [],
+      "gate": "One holdout evaluation, observed evidence, and stable neighbours; then a paper proposal awaits the owner.",
+      "id": "PAPER",
+      "lockReason": null,
+      "locked": false,
+      "name": "Paper",
+      "owner": "grower"
+    },
+    {
+      "automatic": false,
+      "futureGates": [
+        "A written amendment to the owner's operating contract",
+        "An approved live broker adapter",
+        "Options-execution approval",
+        "A declared capital cap",
+        "A tested kill switch",
+        "A paper track record reviewed by the owner"
+      ],
+      "gate": "Not implemented.",
+      "id": "LIVE_SMALL",
+      "lockReason": "Real-money and options execution are disabled by the operating contract.",
+      "locked": true,
+      "name": "Live small",
+      "owner": "human"
+    },
+    {
+      "automatic": false,
+      "futureGates": [
+        "A written amendment to the owner's operating contract",
+        "An approved live broker adapter",
+        "Options-execution approval",
+        "A declared capital cap",
+        "A tested kill switch",
+        "A paper track record reviewed by the owner"
+      ],
+      "gate": "Not implemented.",
+      "id": "LIVE_SCALED",
+      "lockReason": "Real-money and options execution are disabled by the operating contract.",
+      "locked": true,
+      "name": "Live scaled",
+      "owner": "human"
+    }
+  ],
+  "ledger": {
+    "command": "python -m intraday_quant.foundry publish --state-dir STATE_DIR --overlay-artifact ARTIFACT.json --rights-confirmed --output ../features/research-desk/data/foundry.json",
+    "reason": "No research-agent ledger has been exported for publication. Run the command from platform/intraday_quant/. Each publish rewrites both sections, so pass the state directory and the overlay artifact together when both exist.",
+    "status": "ARTIFACT_PENDING"
+  },
+  "liveStagesLocked": true,
+  "llmCalls": 0,
+  "optionsExecutionEnabled": false,
+  "overlay": {
+    "command": "python -m intraday_quant.foundry publish --state-dir STATE_DIR --overlay-artifact ARTIFACT.json --rights-confirmed --output ../features/research-desk/data/foundry.json",
+    "reason": "No overlay backtest built from licensed, point-in-time option quotes has been published. Run the command from platform/intraday_quant/. Each publish rewrites both sections, so pass the state directory and the overlay artifact together when both exist.",
+    "status": "ARTIFACT_PENDING"
+  },
+  "roles": [
+    {
+      "boundary": "Chooses only allow-listed values; makes no LLM calls and cannot change a frozen spec.",
+      "duty": "Validates the owner's idea against a fixed template and freezes it as a versioned research spec.",
+      "id": "prototype_builder",
+      "name": "Prototype Builder"
+    },
+    {
+      "boundary": "Never sees the holdout; multiple-testing control decides survivors.",
+      "duty": "Runs the baseline probe and the predeclared parameter grid on development data, recording every trial.",
+      "id": "sweeper",
+      "name": "Sweeper"
+    },
+    {
+      "boundary": "Can prepare a paper proposal or forward shadow only; places no orders.",
+      "duty": "Selects a survivor by a predeclared rule and evaluates the holdout exactly once.",
+      "id": "grower",
+      "name": "Grower"
+    },
+    {
+      "boundary": "Can pause but never resume; only the owner resumes.",
+      "duty": "Checks stale data, source revisions, and forward decay, and requests a pause when a check fails.",
+      "id": "maintainer",
+      "name": "Maintainer"
+    }
+  ],
+  "schemaVersion": "leo-foundry-publication.v1"
+}

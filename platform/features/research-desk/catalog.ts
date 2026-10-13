@@ -1,6 +1,7 @@
 export const TOOLS = [
   { id: 'radar', title: 'Event radar', group: 'Events', description: 'Upcoming catalysts, source evidence, and an assistant that explains the record.', detail: 'Official calendars · earnings · evidence assistant' },
   { id: 'strategies', title: 'Strategies', group: 'Strategies', description: 'Choose rules, replay a grid, and monitor your local paper connector.', detail: 'Mean reversion · momentum · grid research' },
+  { id: 'foundry', title: 'Return enhancement', group: 'Strategies', description: 'Inspect a historical options-overlay backtest and the paper-only research-agent ladder.', detail: 'Covered call · collar · protective put · agent ladder' },
   { id: 'crypto', title: 'Crypto', group: 'Markets', description: 'Analyze Bitcoin and Ethereum spot charts, then create a trade plan.', detail: 'TradingView charts · BTC and ETH' },
   { id: 'playbook', title: 'Market overview', group: 'Markets', description: 'Follow SPY on TradingView and review the dated market research.', detail: 'SPY ETF proxy · TradingView chart' },
   { id: 'tech-playbook', title: 'Technology', group: 'Markets', description: 'Follow QQQ on TradingView and explore the technology market.', detail: 'QQQ ETF proxy · TradingView chart' },
@@ -29,5 +30,6 @@ export const HANDBOOK = [
   ['What does Options lab calculate?', 'It shows precomputed European option values under your price, IV, and time assumptions. Spreads, fees, slippage, American early exercise, and actual dividends are excluded.'],
   ['Where are my notes stored?', 'Notes, trade plans, and calendar entries stay in this browser on this website. Export JSON to keep a copy. They are your records, not synchronized brokerage positions, orders, or verified trading results.'],
   ['Where can I manage my subscription?', 'Open Membership from your account or the footer for AXIO7 payments through Whop. Refresh membership after checkout; manage renewal, payment methods, and receipts on Whop. Paddle plans and payment remain available at /pricing. Paying does not connect a broker or enable real-money trading.'],
+  ['What does Return enhancement show?', 'It shows a historical backtest of a covered call, collar, or protective put on a long stock position compared with buy-and-hold, plus the research agents’ ledger. Every figure comes from the offline Python lab with its source, cutoff, coverage, and caveats; model-priced results are labeled not executable. The agents reach paper research at most. Live stages stay locked, and no orders or options trades are placed.'],
   ['Why is there no forecast win rate?', 'Publishing probabilities or performance requires a validated model and an immutable, dated forecast record. That evidence is not available here. Model status lists the remaining requirements.'],
 ];
