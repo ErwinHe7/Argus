@@ -127,6 +127,15 @@ test('a dry run fills the form but never submits', async () => {
   assert.equal(submissions.length, 0);
 });
 
+test('an unresolved combobox never implicitly submits a native form during a dry run', { timeout: 20_000 }, async () => {
+  const result = await run('/combobox-native.html', false, answerer([
+    [/full name/i, ['Jane Doe']], [/location/i, ['New York']],
+  ]));
+  assert.equal(submissions.length, 0, 'Enter in a native combobox must not trigger form submission');
+  assert.equal(result.status, 'needs_you');
+  assert.match(result.missing[0]?.label ?? '', /location/i);
+});
+
 test('stops before submitting when a required answer is unknown', async () => {
   const result = await run('/lever.html', true, answerer(leverRules.filter(([re]) => !re.test('authorized'))));
   assert.equal(result.status, 'needs_you');

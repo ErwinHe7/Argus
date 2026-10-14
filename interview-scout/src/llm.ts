@@ -28,38 +28,56 @@ export async function ask<Schema extends z.ZodType>(env: LlmEnv, request: {
   schema: Schema;
   responseSchema: ResponseSchema;
 }): Promise<z.infer<Schema>> {
-  const model = env.GEMINI_MODEL || 'gemini-2.5-flash';
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: request.system }] },
-      contents: [{ role: 'user', parts: request.parts }],
-      generationConfig: { temperature: 0, responseMimeType: 'application/json', responseSchema: request.responseSchema },
-    }),
-  });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new Error(`Gemini request failed (${response.status}). ${detail.slice(0, 200)}`);
-  }
-  const data = await response.json() as GeminiResponse;
-  const blocked = data.promptFeedback?.blockReason;
-  if (blocked) throw new Error(`Gemini declined this request (${blocked}).`);
-  const candidate = data.candidates?.[0];
-  if (candidate?.finishReason && candidate.finishReason !== 'STOP') {
-    throw new Error(`Gemini stopped early (${candidate.finishReason}).`);
-  }
-  const text = (candidate?.content?.parts ?? []).map(p => p.text ?? '').join('');
-  if (!text) throw new Error('Gemini returned an empty answer.');
-  let parsed: unknown;
+  const model = env.GEMINI_MODEL || 'gemini-3.5-flash-lite';
+  const controller = new AbortController();
+  // Covers response-body reads as well as the initial request.
+  const timeout = setTimeout(() => controller.abort(), 20_000);
   try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new Error('Gemini returned unreadable JSON.');
+    let response: Response;
+    try {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST',
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: request.system }] },
+          contents: [{ role: 'user', parts: request.parts }],
+          generationConfig: { responseMimeType: 'application/json', responseSchema: request.responseSchema },
+        }),
+      });
+    } catch {
+      throw new Error(controller.signal.aborted ? 'Gemini request timed out. Try again.' : 'Gemini request could not be completed. Try again.');
+    }
+    // Provider bodies can include applicant data. Expose only the numeric status.
+    if (!response.ok) throw new Error(`Gemini request failed (${response.status}).`);
+    let data: GeminiResponse;
+    try {
+      const value: unknown = await response.json();
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
+      data = value as GeminiResponse;
+    } catch {
+      throw new Error(controller.signal.aborted ? 'Gemini request timed out. Try again.' : 'Gemini returned an unreadable response.');
+    }
+    if (data.promptFeedback?.blockReason) throw new Error('Gemini declined this request.');
+    const candidate = Array.isArray(data.candidates) ? data.candidates[0] : undefined;
+    if (!candidate || candidate.finishReason !== 'STOP') throw new Error('Gemini stopped before returning a complete answer.');
+    const parts = candidate.content?.parts;
+    if (!Array.isArray(parts) || parts.some(part => !part || typeof part.text !== 'string')) throw new Error('Gemini returned an empty or invalid answer.');
+    const text = parts.map(part => part.text).join('');
+    if (!text) throw new Error('Gemini returned an empty answer.');
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      throw new Error('Gemini returned unreadable JSON.');
+    }
+    const result = request.schema.safeParse(parsed);
+    if (!result.success) throw new Error('Gemini returned data that did not match the expected shape.');
+    return result.data;
+  } finally {
+    clearTimeout(timeout);
   }
-  const result = request.schema.safeParse(parsed);
-  if (!result.success) throw new Error('Gemini returned data that did not match the expected shape.');
-  return result.data;
 }
 
 export const pdfPart = (base64: string): Part => ({ inlineData: { mimeType: 'application/pdf', data: base64 } });

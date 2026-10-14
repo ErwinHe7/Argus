@@ -120,15 +120,26 @@ npx wrangler secret put ACCESS_CODE
 ## Cost
 
 Gemini is called once per resume upload and once per application. The model is
-set by `GEMINI_MODEL` in `wrangler.jsonc`, defaulting to `gemini-2.5-flash`
-(change it to `gemini-2.0-flash` or another model without touching code).
-- **Gemini:** the free tier covers a generous daily request quota at no cost;
-  beyond it, Flash models are inexpensive. Each application sends the resume
-  plus the form and gets structured JSON back.
+set by `GEMINI_MODEL` in `wrangler.jsonc`, defaulting to `gemini-3.5-flash-lite`.
+This model supports PDF input and structured JSON and is available to new
+projects; older 2.5 models may require prior project usage.
+- **Gemini:** standard requests have a free tier, with project/model-specific
+  quotas. Free-tier exhaustion returns an error; this app does not enable
+  billing or switch to a paid model. Each application sends the resume plus
+  the form and gets structured JSON back.
 - **Browser Rendering:** billed by browser time, about one to two minutes per
   application. See Cloudflare's Browser Rendering pricing.
 - **Fails closed:** if Gemini declines or returns an answer that doesn't match
   the expected shape, the job is reported rather than submitted with a guess.
+  Requests time out after 20 seconds and provider responses are not included
+  in application errors or logs.
+
+Google's unpaid Gemini terms allow submitted content to be used for product
+improvement and say not to submit personal, confidential, or sensitive
+information. Use fictional or anonymized inputs for free-tier testing. Before
+accepting real applicants' resumes, choose suitable data-handling terms and
+make the provider disclosure explicit. See
+[Gemini terms](https://ai.google.dev/gemini-api/terms).
 
 ## Develop
 

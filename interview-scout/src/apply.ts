@@ -81,7 +81,12 @@ export async function runApplication(page: AgentPage, input: ApplyInput, answer:
     await page.click(`[data-ap-id="${fill.id}"]`);
     await page.keyboard.type(fill.values[0], { delay: 15 });
     await sleep(800);
-    if (!(await call<string | null>(page, 'pick', fill.id, fill.values[0]))) await page.keyboard.press('Enter');
+    if (!(await call<string | null>(page, 'pick', fill.id, fill.values[0]))) {
+      const field = questions.find(field => field.id === fill.id);
+      // Enter can implicitly submit a native form, including during a dry run.
+      // Only selecting an actual menu option completes a combobox answer.
+      missing.push({ label: field?.label || fill.id, note: 'The agent could not select an option for this field.' });
+    }
   }
   for (const field of questions) {
     if (failed.has(field.id)) missing.push({ label: field.label, note: 'The agent could not fill this field.' });
