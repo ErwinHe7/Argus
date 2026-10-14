@@ -10,7 +10,6 @@
     "test": "node --test test/*.test.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.129.0",
     "@cloudflare/puppeteer": "1.4.0",
     "zod": "4.6.5"
   },
