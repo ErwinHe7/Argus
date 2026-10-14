@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "job-autopilot",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-04",
+  "compatibility_flags": ["nodejs_compat"],
+  // Served at https://job-autopilot.<your-subdomain>.workers.dev
+  "workers_dev": true,
+  "assets": { "directory": "./public" },
+  // Cloudflare Browser Rendering: the headless Chrome the agent fills forms with.
+  "browser": { "binding": "BROWSER" },
+  "vars": { "CLAUDE_MODEL": "claude-opus-5-5" },
+  "secrets": { "required": ["ANTHROPIC_API_KEY", "ACCESS_CODE"] },
+  "observability": { "enabled": true }
+}

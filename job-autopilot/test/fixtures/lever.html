@@ -1,0 +1,34 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Acme - Data Analyst</title></head>
+<body>
+<h2>Data Analyst</h2>
+<form id="application-form" action="/submit" method="post" enctype="multipart/form-data">
+  <h4>Submit your application</h4>
+  <ul>
+    <li class="application-question resume"><label>
+      <div class="application-label">Resume/CV<span class="required">✱</span></div>
+      <div class="application-field"><a class="visible-resume-upload">Attach resume/CV<input type="file" id="resume-upload-input" name="resume" style="opacity:0;width:1px;height:1px"></a></div>
+    </label></li>
+    <li class="application-question"><label><div class="application-label">Full name<span class="required">✱</span></div>
+      <div class="application-field"><input type="text" name="name" required></div></label></li>
+    <li class="application-question"><label><div class="application-label">Email<span class="required">✱</span></div>
+      <div class="application-field"><input type="email" name="email" required></div></label></li>
+    <li class="application-question"><label><div class="application-label">Phone</div>
+      <div class="application-field"><input type="text" name="phone"></div></label></li>
+    <li class="application-question"><label><div class="application-label">LinkedIn URL</div>
+      <div class="application-field"><input type="text" name="urls[LinkedIn]"></div></label></li>
+  </ul>
+  <div class="application-question custom-question">
+    <div class="application-label full-width">Are you legally authorized to work in the United States?<span class="required">✱</span></div>
+    <div class="application-field full-width"><ul data-qa="multiple-choice">
+      <li><label><input type="radio" name="cards[q][field0]" value="Yes" required><span class="application-answer-alternative">Yes</span></label></li>
+      <li><label><input type="radio" name="cards[q][field0]" value="No"><span class="application-answer-alternative">No</span></label></li>
+    </ul></div>
+  </div>
+  <div class="application-question"><label><div class="application-label">Gender</div>
+    <select name="eeo[gender]"><option value="">Select ...</option><option value="Female">Female</option><option value="Male">Male</option><option value="Decline">Decline to self-identify</option></select></label></div>
+  <div class="application-question"><label><div class="application-label">Additional information</div>
+    <textarea name="comments"></textarea></label></div>
+  <button type="submit" id="btn-submit">Submit application</button>
+</form>
+</body></html>

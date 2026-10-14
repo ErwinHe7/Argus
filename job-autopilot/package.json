@@ -1,0 +1,22 @@
+{
+  "name": "job-autopilot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.129.0",
+    "@cloudflare/puppeteer": "1.4.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "puppeteer-core": "25.12.0",
+    "typescript": "5.9.3",
+    "wrangler": "4.127.1"
+  }
+}
