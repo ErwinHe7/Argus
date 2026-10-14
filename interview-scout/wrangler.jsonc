@@ -1,10 +1,10 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "interview-hunter",
+  "name": "interview-scout",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-04",
   "compatibility_flags": ["nodejs_compat"],
-  // Served at https://interview-hunter.<your-subdomain>.workers.dev
+  // Served free at https://interview-scout.<your-subdomain>.workers.dev; CI can also attach a custom domain.
   "workers_dev": true,
   "assets": { "directory": "./public" },
   // Cloudflare Browser Rendering: the headless Chrome the agent fills forms with.
@@ -13,7 +13,7 @@
   "kv_namespaces": [{ "binding": "HUNTS" }],
   // Background hunts keep applying after the browser tab is closed.
   "workflows": [
-    { "name": "interview-hunter-hunt", "binding": "HUNT", "class_name": "HuntWorkflow", "concurrency": { "limit": 2 } }
+    { "name": "interview-scout-hunts", "binding": "HUNT", "class_name": "HuntWorkflow", "concurrency": { "limit": 2 } }
   ],
   "vars": { "CLAUDE_MODEL": "claude-opus-5-5" },
   "secrets": { "required": ["ANTHROPIC_API_KEY", "ACCESS_CODE"] },

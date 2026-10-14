@@ -1,4 +1,4 @@
-# Interview Hunter
+# Interview Scout
 
 A website on Cloudflare Workers that applies to jobs for you, in the background:
 
@@ -17,7 +17,8 @@ A website on Cloudflare Workers that applies to jobs for you, in the background:
    - checks the answers against the form, fills it in and submits it.
 
    In the page, every job is a star in the night sky, and each one lights up
-   when its application goes in.
+   when its application goes in. The hero art is the Big Dipper's pointer
+   stars leading to Polaris, the North Star scouts steer by.
 
 It never makes things up. If a required question can't be answered truthfully
 from what you gave it, the job is marked **Needs you** with that question
@@ -49,11 +50,30 @@ and hunt again.
 | Resume and answers for a running hunt | Workers KV (`hunt:<id>:input`) | Deleted when the hunt ends or you press Stop; 7-day expiry as a backstop |
 | Hunt results and form screenshots | Workers KV | 30 days |
 
-## Deploy
+## Domain
 
-The Worker is named `interview-hunter`, so on the axio7 account it is served at
-`https://interview-hunter.axio7.workers.dev`. **Deploying replaces any other
-Worker with that name, including Codex's earlier version.**
+- **Free, by default:** the Worker is named `interview-scout`, so every deploy
+  serves it at `https://interview-scout.<account-subdomain>.workers.dev`. On the
+  axio7 account that's `https://interview-scout.axio7.workers.dev`.
+- **`interview-scout.dev` is not free.** `.dev` domains are sold by Google
+  Registry, and no registrar gives them away. Cloudflare Registrar sells at
+  cost, roughly $10–15 a year; check the price at checkout. To use it:
+  1. In the same Cloudflare account, open **Domain Registration → Register
+     Domains** and buy `interview-scout.dev`. It becomes a zone in that account
+     automatically. If you buy it elsewhere, add it to Cloudflare and switch its
+     nameservers instead.
+  2. In GitHub, add a repository **variable** (not a secret): `CUSTOM_DOMAIN` =
+     `interview-scout.dev www.interview-scout.dev`.
+  3. The next deploy attaches both names with HTTPS. For a deploy by hand, add
+     `--domain interview-scout.dev --domain www.interview-scout.dev`.
+
+  If the deploy says the token lacks permission for the zone, give the API
+  token **Zone → DNS → Edit** and **Zone → Workers Routes → Edit** for
+  `interview-scout.dev`.
+- Codex's older `interview-hunter` Worker is a separate Worker and is left
+  untouched. Delete it in the dashboard if you no longer want it.
+
+## Deploy
 
 You need:
 - A Cloudflare account on the **Workers Paid** plan. The free plan's CPU and
@@ -66,7 +86,7 @@ own.
 
 ### Automatic (CI/CD)
 
-The `interview-hunter` GitHub Actions workflow has two paths:
+The `interview-scout` GitHub Actions workflow has two paths:
 - **Pull requests:** typecheck, test, and a bundle check.
 - **Merges to `main`** (or a manual run from the Actions tab): the same
   checks, then a deploy, then it sets the Worker secrets and checks that the
@@ -79,12 +99,14 @@ Add these repository secrets once (Settings → Secrets and variables → Action
 | `CLOUDFLARE_API_TOKEN` | A Cloudflare API token with Workers Scripts, Workers KV and Workflows edit access (the "Edit Cloudflare Workers" template covers it) |
 | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID |
 | `ANTHROPIC_API_KEY` | The Anthropic API key |
-| `INTERVIEW_HUNTER_ACCESS_CODE` | The access code |
+| `INTERVIEW_SCOUT_ACCESS_CODE` | The access code |
+
+Optional repository variable: `CUSTOM_DOMAIN` (see **Domain**).
 
 ### By hand
 
 ```bash
-cd interview-hunter
+cd interview-scout
 npm ci
 npx wrangler login
 npx wrangler deploy
@@ -126,4 +148,4 @@ default path in `test/apply.test.ts`.
 | `src/answers.ts` | Claude's form answers and the checks before filling |
 | `src/profile.ts` | Resume → profile with Claude |
 | `src/jobs.ts`, `src/companies.ts` | Job board search, filtering, pasted links |
-| `public/` | The website; `sky.js` draws the starfield, Orion and the hunt sky |
+| `public/` | The website; `sky.js` draws the starfield, the North Star art and the hunt sky |

@@ -1,17 +1,18 @@
-name: interview-hunter
+name: interview-scout
 
 # Pull requests run the checks. Merging to main runs the checks, deploys to
-# interview-hunter.<subdomain>.workers.dev, and smoke-tests the live site.
+# interview-scout.<subdomain>.workers.dev (plus any CUSTOM_DOMAIN), and
+# smoke-tests the live site.
 on:
   pull_request:
     paths:
-      - "interview-hunter/**"
-      - ".github/workflows/interview-hunter.yml"
+      - "interview-scout/**"
+      - ".github/workflows/interview-scout.yml"
   push:
     branches: [main]
     paths:
-      - "interview-hunter/**"
-      - ".github/workflows/interview-hunter.yml"
+      - "interview-scout/**"
+      - ".github/workflows/interview-scout.yml"
   workflow_dispatch:
 
 concurrency:
@@ -27,14 +28,14 @@ jobs:
     timeout-minutes: 10
     defaults:
       run:
-        working-directory: interview-hunter
+        working-directory: interview-scout
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22.x"
           cache: npm
-          cache-dependency-path: interview-hunter/package-lock.json
+          cache-dependency-path: interview-scout/package-lock.json
       - run: npm ci
       - run: npm run typecheck
       - run: npx wrangler deploy --dry-run --outdir dist
@@ -46,25 +47,28 @@ jobs:
     if: github.event_name != 'pull_request'
     needs: check
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     concurrency:
-      group: interview-hunter-deploy
+      group: interview-scout-deploy
       cancel-in-progress: false
     defaults:
       run:
-        working-directory: interview-hunter
+        working-directory: interview-scout
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-      ACCESS_CODE: ${{ secrets.INTERVIEW_HUNTER_ACCESS_CODE }}
+      ACCESS_CODE: ${{ secrets.INTERVIEW_SCOUT_ACCESS_CODE }}
+      # Optional repository variable, e.g. "interview-scout.dev www.interview-scout.dev".
+      # The domain must already be a zone in this Cloudflare account.
+      CUSTOM_DOMAIN: ${{ vars.CUSTOM_DOMAIN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: "22.x"
           cache: npm
-          cache-dependency-path: interview-hunter/package-lock.json
+          cache-dependency-path: interview-scout/package-lock.json
       - name: Require deploy secrets
         run: |
           missing=""
@@ -72,15 +76,18 @@ jobs:
             [ -n "${!name}" ] || missing="$missing $name"
           done
           if [ -n "$missing" ]; then
-            echo "::error::Add these repository secrets to deploy:$missing (ACCESS_CODE comes from INTERVIEW_HUNTER_ACCESS_CODE). See interview-hunter/README.md."
+            echo "::error::Add these repository secrets to deploy:$missing (ACCESS_CODE comes from INTERVIEW_SCOUT_ACCESS_CODE). See interview-scout/README.md."
             exit 1
           fi
       - run: npm ci
       - name: Deploy
         run: |
           set -euo pipefail
-          npx wrangler deploy | tee deploy.log
-          url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)"
+          domains=()
+          for domain in $CUSTOM_DOMAIN; do domains+=(--domain "$domain"); done
+          npx wrangler deploy "${domains[@]}" | tee deploy.log
+          url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1 || true)"
+          for domain in $CUSTOM_DOMAIN; do url="https://$domain"; break; done
           test -n "$url"
           echo "SITE_URL=$url" >> "$GITHUB_ENV"
       - name: Set Worker secrets
@@ -91,8 +98,9 @@ jobs:
       - name: Smoke test the live site
         run: |
           set -euo pipefail
-          for attempt in 1 2 3 4 5; do
-            if curl -fsS "$SITE_URL/" | grep -q "Interview Hunter" && curl -fsS "$SITE_URL/api/companies" | grep -q '"companies"'; then
+          # A new custom domain can take a few minutes to get its certificate.
+          for attempt in $(seq 1 18); do
+            if curl -fsS "$SITE_URL/" | grep -q "Interview Scout" && curl -fsS "$SITE_URL/api/companies" | grep -q '"companies"'; then
               echo "Live at $SITE_URL"
               exit 0
             fi

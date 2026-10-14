@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Interview Hunter</title>
-  <meta name="description" content="Upload your resume. Interview Hunter finds matching jobs and applies for you, honestly, while you sleep.">
+  <title>Interview Scout</title>
+  <meta name="description" content="Upload your resume. Interview Scout finds matching jobs and applies for you, honestly, while you sleep.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -15,7 +15,7 @@
 <svg id="starfield" class="starfield" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg>
 
 <header class="topbar">
-  <a class="wordmark" href="#top"><span class="spark" aria-hidden="true">✦</span> Interview Hunter</a>
+  <a class="wordmark" href="#top"><span class="spark" aria-hidden="true">✦</span> Interview Scout</a>
   <label class="key">
     <span class="sr-only">Access code</span>
     <input id="code" type="password" autocomplete="current-password" placeholder="Access code">
@@ -25,13 +25,13 @@
 <main id="top">
   <section class="hero">
     <div class="hero-copy">
-      <p class="eyebrow">Your job hunt, after dark</p>
-      <h1>Interview<br><em>Hunter</em></h1>
-      <p class="tagline">Upload a resume. Tell it what you're after.<br>It hunts while you sleep.</p>
+      <p class="eyebrow">Find your way by the stars</p>
+      <h1>Interview<br><em>Scout</em></h1>
+      <p class="tagline">Upload a resume. Tell it what you're after.<br>It scouts while you sleep.</p>
       <p class="fine">Applies on Greenhouse, Lever and Ashby. It never makes up an answer: anything it can't answer truthfully comes back to you.</p>
-      <a class="button" href="#resume-chapter">Begin the hunt</a>
+      <a class="button" href="#resume-chapter">Get started</a>
     </div>
-    <svg id="orion" class="orion" viewBox="0 0 400 440" role="img" aria-label="The constellation Orion, the hunter"></svg>
+    <svg id="north-star" class="constellation" viewBox="0 0 400 440" role="img" aria-label="The Big Dipper's pointer stars leading to Polaris, the North Star"></svg>
   </section>
 
   <section class="chapter" id="resume-chapter">
@@ -76,7 +76,7 @@
   </section>
 
   <section class="chapter" id="search-section" hidden>
-    <div class="chapter-head"><span class="numeral">III</span><div><h2>What you're hunting</h2><p>Searches public job boards and keeps titles that contain every word you list.</p></div></div>
+    <div class="chapter-head"><span class="numeral">III</span><div><h2>What you're looking for</h2><p>Searches public job boards and keeps titles that contain every word you list.</p></div></div>
     <div class="panel">
       <div class="grid">
         <label>Job titles <span class="hint">comma separated</span> <input id="titles"></label>
@@ -99,7 +99,7 @@
   </section>
 
   <section class="chapter" id="jobs-section" hidden>
-    <div class="chapter-head"><span class="numeral">IV</span><div><h2>The hunt</h2><p>Every star is a job. Each one lights up when its application goes in.</p></div></div>
+    <div class="chapter-head"><span class="numeral">IV</span><div><h2>Night watch</h2><p>Every star is a job. Each one lights up when its application goes in.</p></div></div>
     <div class="panel sky-panel">
       <svg id="hunt-sky" class="hunt-sky" viewBox="0 0 800 280" role="img" aria-labelledby="sky-summary"></svg>
       <ul id="counts" class="counts" aria-live="polite"></ul>
@@ -113,9 +113,9 @@
       <ul id="jobs" class="jobs"></ul>
       <div class="launch">
         <label class="check"><input id="real" type="checkbox"> <span>Submit for real. <span class="hint">Leave this off for a dry run: forms get filled and screenshotted, never sent.</span></span></label>
-        <label class="check"><input id="consent" type="checkbox"> I authorize Interview Hunter to apply to the selected jobs for me, using my resume and the answers above.</label>
+        <label class="check"><input id="consent" type="checkbox"> I authorize Interview Scout to apply to the selected jobs for me, using my resume and the answers above.</label>
         <div class="row">
-          <button id="start" type="button">Start the hunt</button>
+          <button id="start" type="button">Send the scout out</button>
           <button id="stop" type="button" class="ghost" disabled>Stop</button>
           <span id="run-status" class="hint" role="status"></span>
         </div>
@@ -124,7 +124,7 @@
   </section>
 
   <footer class="footer">
-    <p>The hunt runs on Cloudflare, so you can close this tab. Your resume is stored only while a hunt runs and is deleted when it ends. Everything else stays in this browser.</p>
+    <p>The scout runs on Cloudflare, so you can close this tab. Your resume is stored only while the scout is out and is deleted when it returns. Everything else stays in this browser.</p>
   </footer>
 </main>
 

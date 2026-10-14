@@ -1,7 +1,7 @@
 'use strict';
 
-// The art: a background starfield, the Orion constellation, and the hunt sky
-// where every job is a star.
+// The art: a background starfield, the Big Dipper pointing to the North Star,
+// and the hunt sky where every job is a star.
 const Sky = (() => {
   const NS = 'http://www.w3.org/2000/svg';
   const node = (tag, attrs = {}, parent) => {
@@ -41,45 +41,39 @@ const Sky = (() => {
     }
   }
 
-  // Approximate shape of Orion, drawn in a 400 x 440 box.
-  const ORION = {
-    meissa: [205, 78], betelgeuse: [138, 136], bellatrix: [270, 150],
-    alnitak: [180, 262], alnilam: [204, 254], mintaka: [228, 245],
-    saiph: [158, 384], rigel: [286, 368],
-    club1: [116, 96], club2: [102, 56], club3: [120, 24], club4: [146, 30],
-    arm: [304, 156], shield1: [326, 96], shield2: [340, 130], shield3: [344, 168], shield4: [336, 206], shield5: [320, 238],
-    sword1: [198, 296], sword2: [203, 318], sword3: [206, 340],
+  // The Big Dipper in a 400 x 440 box. Its pointer stars, Merak and Dubhe,
+  // line up with Polaris, the North Star scouts steer by.
+  const DIPPER = {
+    alkaid: [44, 286], mizar: [96, 246], alcor: [103, 233], alioth: [146, 232],
+    megrez: [196, 244], phecda: [206, 314], merak: [288, 322], dubhe: [298, 238],
   };
+  const POLARIS = [318, 78];
   const LINKS = [
-    ['meissa', 'betelgeuse'], ['meissa', 'bellatrix'], ['betelgeuse', 'alnitak'], ['bellatrix', 'mintaka'],
-    ['alnitak', 'alnilam'], ['alnilam', 'mintaka'], ['alnitak', 'saiph'], ['mintaka', 'rigel'],
-    ['betelgeuse', 'club1'], ['club1', 'club2'], ['club2', 'club3'], ['club3', 'club4'],
-    ['bellatrix', 'arm'], ['arm', 'shield3'], ['shield1', 'shield2'], ['shield2', 'shield3'], ['shield3', 'shield4'], ['shield4', 'shield5'],
-    ['alnilam', 'sword1'], ['sword1', 'sword2'], ['sword2', 'sword3'],
+    ['alkaid', 'mizar'], ['mizar', 'alioth'], ['alioth', 'megrez'],
+    ['megrez', 'dubhe'], ['dubhe', 'merak'], ['merak', 'phecda'], ['phecda', 'megrez'],
   ];
-  const BRIGHT = { betelgeuse: [6, 'warm'], rigel: [6, 'cool'], bellatrix: [4.2], alnilam: [4], alnitak: [3.8], mintaka: [3.6], saiph: [3.8], meissa: [3] };
+  const SIZE = { alkaid: 4, mizar: 4, alcor: 1.6, alioth: 4.4, megrez: 3, phecda: 3.8, merak: 4, dubhe: 4.6 };
 
-  function orion(svg) {
-    const defs = node('defs', {}, svg);
-    const nebula = node('radialGradient', { id: 'nebula' }, defs);
-    node('stop', { offset: '0%', 'stop-color': '#d78bd0', 'stop-opacity': '.55' }, nebula);
-    node('stop', { offset: '100%', 'stop-color': '#6c6ad8', 'stop-opacity': '0' }, nebula);
-    node('ellipse', { class: 'nebula', cx: 203, cy: 318, rx: 34, ry: 24 }, svg);
-
+  function northStar(svg) {
     LINKS.forEach(([a, b], i) => {
-      const line = node('line', { class: 'link', x1: ORION[a][0], y1: ORION[a][1], x2: ORION[b][0], y2: ORION[b][1] }, svg);
-      line.style.animationDelay = `${(i * 0.07).toFixed(2)}s`;
+      const line = node('line', { class: 'link', x1: DIPPER[a][0], y1: DIPPER[a][1], x2: DIPPER[b][0], y2: DIPPER[b][1] }, svg);
+      line.style.animationDelay = `${(i * 0.12).toFixed(2)}s`;
     });
+    node('line', { class: 'guide', x1: DIPPER.dubhe[0], y1: DIPPER.dubhe[1] - 10, x2: POLARIS[0], y2: POLARIS[1] + 16 }, svg);
     const rand = random(11);
-    for (const [name, [x, y]] of Object.entries(ORION)) {
-      const [r = 2, tone = ''] = BRIGHT[name] ?? [];
-      if (r > 5) node('circle', { class: 'halo', cx: x, cy: y, r: r * 3 }, svg);
-      const star = node('circle', { class: `star ${tone} twinkle`, cx: x, cy: y, r }, svg);
+    for (const [name, [x, y]] of Object.entries(DIPPER)) {
+      const star = node('circle', { class: 'star twinkle', cx: x, cy: y, r: SIZE[name] }, svg);
       star.style.animationDelay = `${(rand() * 4.5).toFixed(2)}s`;
     }
-    node('text', { class: 'name', x: 60, y: 150 }, svg).textContent = 'Betelgeuse';
-    node('text', { class: 'name', x: 300, y: 398 }, svg).textContent = 'Rigel';
-    node('text', { class: 'name', x: 242, y: 274 }, svg).textContent = 'the belt';
+    const [px, py] = POLARIS;
+    const glow = node('radialGradient', { id: 'polaris-glow' }, node('defs', {}, svg));
+    node('stop', { class: 'glow-core', offset: '0%' }, glow);
+    node('stop', { class: 'glow-edge', offset: '100%' }, glow);
+    node('circle', { class: 'goal-halo', cx: px, cy: py, r: 34 }, svg);
+    node('path', { class: 'goal', d: sparkle(px, py, 13) }, svg);
+    node('text', { class: 'name goal-name', x: px + 20, y: py - 14 }, svg).textContent = 'Polaris';
+    node('text', { class: 'name', x: 304, y: 288 }, svg).textContent = 'the pointer stars';
+    node('text', { class: 'name', x: 56, y: 330 }, svg).textContent = 'the Big Dipper';
   }
 
   function sparkle(x, y, s) {
@@ -135,5 +129,5 @@ const Sky = (() => {
     }
   }
 
-  return { starfield, orion, huntSky };
+  return { starfield, northStar, huntSky };
 })();

@@ -4,7 +4,7 @@ const $ = selector => document.querySelector(selector);
 const store = {
   get(key, fallback) {
     try {
-      const value = localStorage.getItem('hunter:' + key);
+      const value = localStorage.getItem('scout:' + key);
       return value === null ? fallback : JSON.parse(value);
     } catch {
       return fallback;
@@ -12,7 +12,7 @@ const store = {
   },
   set(key, value) {
     try {
-      localStorage.setItem('hunter:' + key, JSON.stringify(value));
+      localStorage.setItem('scout:' + key, JSON.stringify(value));
       return true;
     } catch {
       return false;
@@ -174,7 +174,7 @@ async function startHunt() {
   const jobs = selectedJobs();
   if (!jobs.length) { status.textContent = 'Pick at least one job.'; return; }
   $('#start').disabled = true;
-  status.textContent = 'Sending the hunt out…';
+  status.textContent = 'Sending the scout out…';
   try {
     const { id } = await api('/api/hunts', { jobs, profile: state.profile, facts: state.facts, resume: state.resume, submit: $('#real').checked });
     state.hunt = { id, jobKeys: jobs.map(j => j.key), status: 'queued' };
@@ -198,7 +198,7 @@ async function poll() {
     hunt.status = data.status;
     for (const [key, result] of Object.entries(data.results)) state.history[key] = { ...result, huntId: hunt.id };
     if (!ACTIVE.has(hunt.status)) {
-      // Jobs the hunt never reached go back to the open pile.
+      // Jobs the scout never reached go back to the open pile.
       for (const key of hunt.jobKeys) if (state.history[key]?.status === 'queued') delete state.history[key];
     }
     store.set('hunt', hunt);
@@ -311,9 +311,9 @@ function render() {
     const results = hunt.jobKeys.map(k => state.history[k]?.status);
     const finished = results.filter(s => s && s !== 'queued' && s !== 'working').length;
     $('#run-status').textContent = running
-      ? `Hunting: ${finished} of ${hunt.jobKeys.length} done. You can close this tab.`
-      : hunt.status === 'complete' ? `The hunt is over: ${finished} of ${hunt.jobKeys.length} done.`
-        : `The hunt stopped (${hunt.status}) after ${finished} of ${hunt.jobKeys.length}.`;
+      ? `Scouting: ${finished} of ${hunt.jobKeys.length} done. You can close this tab.`
+      : hunt.status === 'complete' ? `The scout is back: ${finished} of ${hunt.jobKeys.length} done.`
+        : `The scout stopped (${hunt.status}) after ${finished} of ${hunt.jobKeys.length}.`;
   }
 }
 
@@ -321,7 +321,7 @@ function render() {
 
 function init() {
   Sky.starfield($('#starfield'));
-  Sky.orion($('#orion'));
+  Sky.northStar($('#north-star'));
   $('#code').value = store.get('code', '');
   $('#code').addEventListener('change', () => store.set('code', $('#code').value));
 
