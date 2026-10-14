@@ -99,14 +99,13 @@ class RawDataset(StrictModel):
     slippage_bps: int = 10
 
 
-def prepare(raw: dict[str, Any]) -> dict[str, Any]:
+def verified_xnys_bars(bars: list[RawBar]) -> tuple[list[dict[str, Any]], str]:
     """Verify observed sessions against XNYS. Never infer historical availability."""
     import exchange_calendars as calendars
 
-    source = RawDataset.model_validate(raw)
-    if not source.bars or len(source.bars) > 20_000:
+    if not bars or len(bars) > 20_000:
         raise ValueError("empty or oversized source history")
-    dates = [bar.session_date for bar in source.bars]
+    dates = [bar.session_date for bar in bars]
     if dates != sorted(set(dates)):
         raise ValueError("duplicate or unordered source dates")
     calendar = calendars.get_calendar("XNYS", start=str(dates[0]), end=str(dates[-1]))
@@ -114,14 +113,21 @@ def prepare(raw: dict[str, Any]) -> dict[str, Any]:
     expected = [timestamp.date() for timestamp in schedule.index]
     if dates != expected:
         raise ValueError("official XNYS session coverage incomplete; do not bridge missing sessions")
-    bars = []
-    for bar, (_, session) in zip(source.bars, schedule.iterrows(), strict=True):
+    verified = []
+    for bar, (_, session) in zip(bars, schedule.iterrows(), strict=True):
         closed = session["close"].to_pydatetime()
         if utc(bar.available_at) < utc(closed):
             raise ValueError("daily bar allegedly available before its session close")
-        bars.append({**bar.model_dump(mode="json"), "open_at": session["open"].isoformat(), "close_at": session["close"].isoformat()})
+        verified.append({**bar.model_dump(mode="json"), "open_at": session["open"].isoformat(), "close_at": session["close"].isoformat()})
+    return verified, f"exchange_calendars/{importlib.metadata.version('exchange-calendars')}/XNYS"
+
+
+def prepare(raw: dict[str, Any]) -> dict[str, Any]:
+    """Verify observed sessions against XNYS. Never infer historical availability."""
+    source = RawDataset.model_validate(raw)
+    bars, calendar_source = verified_xnys_bars(source.bars)
     evidence = source.evidence.model_dump(mode="json")
-    evidence.update(calendar_source=f"exchange_calendars/{importlib.metadata.version('exchange-calendars')}/XNYS", coverage_verified=True)
+    evidence.update(calendar_source=calendar_source, coverage_verified=True)
     if not source.code_revision.strip() or not 0 <= source.slippage_bps <= 1000:
         raise ValueError("code revision and bounded costs required")
     return {

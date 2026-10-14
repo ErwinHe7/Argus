@@ -2,7 +2,7 @@
 
 Astra's Pick opens with a short, explained stock ranking. Read why a candidate
 stands out, inspect its chart and counterpoint, then keep a plan. Broader markets
-and the fourteen retained tools support that first decision. The existing purple
+and the fifteen retained tools support that first decision. The existing purple
 model palette and Leo Lion remain.
 Source paths, asset paths, route IDs, and storage keys retain research-desk
 naming for compatibility; that is not the public product name.
@@ -38,6 +38,7 @@ of option/event/chart archives.
 | Hash route | Public tool | Implemented capability |
 | --- | --- | --- |
 | #/strategies | Strategies | MR/MOM rules and local paper connector controls; separate GRID-R1 browser-local historical replay with per-slot accounting and clearly labeled fictional demonstrations. Grid broker execution unavailable. |
+| #/foundry | Return enhancement | Validated data/foundry.json: four research-agent roles, the PROBE → BACKTEST → PAPER ladder with both live stages locked, a historical covered-call/collar/protective-put backtest against buy-and-hold, and the agent ledger. Currently both sections are pending; no result is published. No orders or options execution. |
 | #/crypto | Crypto | TradingView's Coinbase BTC/USD and ETH/USD daily charts in UTC, attribution, and a link to create a local plan. No local crypto dataset or option-model integration. |
 | #/playbook | Market overview | TradingView SPY chart plus separately dated averages, RSI, realized volatility, ATR, and trailing range. SPY remains an ETF proxy. |
 | #/tech-playbook | Technology | TradingView QQQ chart and dated research context; QQQ is an ETF proxy, not NDX. |
@@ -92,6 +93,21 @@ Stock/fund availability and delays vary by listing; crypto uses Coinbase spot.
 The widgets do not republish data into this project or supply research, option
 model, or broker execution inputs. Existing IBKR metrics remain dated snapshots.
 
+The Return enhancement page (`foundry/`) renders data/foundry.json, a
+leo-foundry-publication.v1 document written by the offline Python foundry. The
+browser and build validate it with foundry/contract.ts and reject overlays
+labelled as synthetic fixtures (the Python `publish` refuses every synthetic
+input); TypeScript formats values and derives none. Regenerate it from
+Argus/platform/intraday_quant with the command below. With no `--state-dir` or
+`--overlay-artifact` it writes the pending sections; published sections need
+`--rights-confirmed`. The [root README](../../../README.md) section "Return
+enhancement & exploration agents" covers the roles, ladder, commands, and data
+rights.
+
+~~~powershell
+python -m intraday_quant.foundry publish --output ../features/research-desk/data/foundry.json
+~~~
+
 The [shortlist contract](shortlist/README.md) explains the separate three-rule
 Python screen, exact source binding, five-company/three-fund scope, expiry labels,
 and regeneration commands. Screen matches are descriptive research candidates;
@@ -119,6 +135,7 @@ node scripts/grid-research-build.mjs
 node --import tsx scripts/research-desk-build.mjs
 node node_modules/typescript/bin/tsc --noEmit -p features/research-desk/tsconfig.json
 node --import tsx --test features/research-desk/worker-routing.test.cjs
+node --import tsx --test features/research-desk/foundry/contract.test.ts
 ~~~
 
 For a clean checkout, install dependencies and the Rust WASM target first; see

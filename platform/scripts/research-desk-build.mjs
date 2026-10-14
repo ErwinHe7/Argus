@@ -11,6 +11,7 @@ const {validateIvLabBundle,ivLabEventsSchema}=require('../lib/iv-lab/types.ts');
 const {publicConfigSchema}=require('../features/strategy-lab/config.ts');
 const {shortlistSchema}=require('../features/research-desk/shortlist/contract.ts');
 const {eventRadarSchema}=require('../features/research-desk/radar/contract.ts');
+const {foundryPublicationSchema,assertPublishable,foundryAge}=require('../features/research-desk/foundry/contract.ts');
 const output=resolve(root,'public/app/research-desk');
 await mkdir(resolve(output,'data/iv'),{recursive:true});
 await prepareGridAssets(root,output);
@@ -36,6 +37,9 @@ await writeFile(resolve(output,'data/shortlist.json'),JSON.stringify(shortlist))
 await writeFile(resolve(output,'data/events.json'),JSON.stringify(events));
 const eventRadar=eventRadarSchema.parse(JSON.parse(await readFile(resolve(root,'features/research-desk/data/event-radar.json'),'utf8')));
 await writeFile(resolve(output,'data/event-radar.json'),JSON.stringify(eventRadar));
+const foundry=assertPublishable(foundryPublicationSchema.parse(JSON.parse(await readFile(resolve(root,'features/research-desk/data/foundry.json'),'utf8'))));
+if(foundryAge(foundry)==='invalid-future')throw new Error('Foundry publication is future-dated');
+await copyFile(resolve(root,'features/research-desk/data/foundry.json'),resolve(output,'data/foundry.json'));
 await copyFile(resolve(root,'docs/earnings-radar-comparison.md'),resolve(output,'earnings-research-guide.md'));
 await copyFile(resolve(root,'public/brand/leo-lion.png'),resolve(output,'lion.png'));
 for(const name of ['google-signin.png','google-signin.png.json'])await copyFile(resolve(root,'features/research-desk/account',name),resolve(output,name));

@@ -56,6 +56,23 @@ membership and Paddle billing remain unchanged.
 
 Implementation and outstanding prerequisites: `docs/event-radar-delivery.md`.
 
+## Return enhancement · October 13, 2026
+
+The Return enhancement tool (`#/foundry`, under Tools) shows two offline research
+records. One is a historical backtest of a covered call, collar, or protective put
+on a long stock position, compared with buy-and-hold. The other is the ledger of
+four research agents: Prototype Builder, Sweeper, Grower, and Maintainer. Ideas
+come from the owner, and the agents run the mechanical research. Python computes
+every figure. The page validates the published file and only formats it.
+
+The agents reach PAPER at most, which means a proposal that waits for the owner
+or a forward shadow. Both live stages are locked. The page places no orders and
+enables no options execution. Model-priced results stay labelled not executable,
+synthetic fixtures are never shown as evidence, and holdings are redacted unless
+the owner publishes symbols. The current publication is pending: no overlay
+result or ledger has been published. Invalid or future-dated files show a
+fail-closed message and nothing from the file.
+
 ## Shortlist evidence
 
 The first shortlist screens five retained company stocks and three funds using

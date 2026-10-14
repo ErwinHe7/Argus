@@ -139,7 +139,7 @@ The opening candidate answer uses a 22px semibold heading with 1.4 leading, beco
 
 Picks centers within a 1600px maximum width. A short introduction and automatic-screening status lead into asset-type filters and the snapshot date, then a plain candidate answer, scope line, ranked rows, and supporting detail. The answer places its Why action alongside the text on desktop; at 800px and below the action sits beneath the explanation and the status detail takes a separate line. The desktop list/detail grid uses equal columns with a 44px gap; at 1100px it becomes .95fr / 1fr with a 28px gap. Horizontal gutters are 3.5%, then 24px at 1100px and 18px at 800px. At 800px and below, the complete shortlist precedes the selected detail. Explicit selection moves focus to the detail heading; Back to shortlist returns focus to the selected row. Initial loading does not move focus away from the opening list. The detailed home composition belongs to the surface brief, not every tool page.
 
-The primary navigation is Picks, Markets, My plans, and Tools. Tools discloses the twelve supporting routes; existing hash routes remain compatible. At 1100px navigation wraps into a second row; at 700px the toggle opens a two-column menu and Tools expands within it. A provider tape appears only on Charts, Market overview, Technology, Crypto, and Options lab. Picks, Markets, Strategies, and the dedicated authentication callback mount no tape. When reduced motion is requested on a tape-bearing route, Leo replaces the hosted tape with ten static symbol links and a market link; the strip displays no prices and mounts no tape frame.
+The primary navigation is Picks, Markets, My plans, and Tools. Tools discloses the thirteen supporting routes; existing hash routes remain compatible. At 1100px navigation wraps into a second row; at 700px the toggle opens a two-column menu and Tools expands within it. A provider tape appears only on Charts, Market overview, Technology, Crypto, and Options lab. Picks, Markets, Strategies, and the dedicated authentication callback mount no tape. When reduced motion is requested on a tape-bearing route, Leo replaces the hosted tape with ten static symbol links and a market link; the strip displays no prices and mounts no tape frame.
 
 Tool bodies center within a 1600px maximum. Markets uses stock, crypto, and forex tabs above the provider screener, with source and coverage context outside the hosted stage. Screeners reserve 640px on desktop and 600px at 700px and below. The compact candidate chart reserves 370px, becoming 350px at 700px and below; full chart stages reserve 560px, becoming 480px at that breakpoint. These chart dimensions are independent of the shortlist's 800px stacking breakpoint. Provider controls and attribution remain visible when the provider renders them.
 
@@ -163,7 +163,7 @@ Primary actions, navigation, shortlist rows, chart containers, and readouts use 
 - **Opening candidate answer:** the first row in the selected group supplies the named starting point and plain reason. All-checks, incomplete-checks, and expired-ranking cases have distinct copy. Why followed by the symbol selects that candidate and scrolls to supporting detail; mobile selection also focuses the detail heading. The answer reuses the flat surface, existing text action, and direct movement without adding animation.
 - **Candidate rows and detail:** a full-width button carries rank, symbol, recorded close, company name, plain-language reason, and criteria count. Gold symbol/rank and panel tone identify selection; aria-pressed and visible focus convey it without color alone. Supporting detail holds the chart, published checks, counterpoint, what to review, dated coverage, and a symbol-preserving plan action. Standard primary actions retain a 44px minimum height.
 - **Filters and disclosure:** Stocks and ETFs & funds use labeled pressed-state buttons with a gold underline. Compare all expands the tracked group; How we choose opens and focuses its native disclosure. Dates and universe scope remain above the rows. The three-check count is a descriptive screen result, not a probability or forecast.
-- **Navigation:** Picks, Markets, My plans, and Tools expose the homepage and fourteen catalog routes. Original Leo opens /original/ and the footer's Leo app link opens the preserved app. Mobile state, the Tools disclosure, and the skip link remain keyboard accessible.
+- **Navigation:** Picks, Markets, My plans, and Tools expose the homepage and fifteen catalog routes. Original Leo opens /original/ and the footer's Leo app link opens the preserved app. Mobile state, the Tools disclosure, and the skip link remain keyboard accessible.
 - **Markets:** Stocks, Crypto, and Forex are keyboard-operated tabs, with Arrow keys, Home, and End moving both selection and focus. Only the active tab mounts a screener. The full-screener link follows the active market. Provider ordering, ratings, coverage, and delays remain clearly separate from Astra's small dated research universe. Recorded observations and export remain in their own disclosure.
 - **Chart and reading:** official TradingView candles and volume support the selected candidate, Charts, Market overview, Technology, Crypto, and the embedded Options Charts tab. U.S. widgets may be delayed. Dated research and its Python-generated descriptions remain clearly labeled. Historical indicators, replay, and exports remain available in disclosures. What-to-watch text compares against frozen reference levels, not alerts or targets.
 - **Options matrix:** signed red/green cells and a gold selected outline connect stated price, IV, and time assumptions to a theoretical result. Units, premium basis, attribution, exclusions, and the save-note action remain visible or available in methods.
@@ -207,6 +207,28 @@ research record. Sources and dates carry the evidence hierarchy; no confidence
 meter or invented win rate is used. The homepage remains shortlist-first and
 adds one compact Next catalyst link below the research list. Existing rasters
 and TradingView attribution are unchanged; no new bitmap asset was generated.
+
+## Return enhancement · October 13, 2026
+
+`/#/foundry` is a supporting Tools page in the same flat aubergine/gold system,
+centered within 1600px with 3.5% gutters. It adds no new tokens, rasters or
+shadows. A heading of up to 44px and a short owner/agents introduction lead
+into a boundary strip: publication state, no orders, options execution off, live
+stages locked, and LLM calls. Below that come the four roles, the ladder, the
+overlay backtest, and the agent ledger. The roles sit in four ruled columns and
+the ladder in five. Locked live stages use panel tone, a gold lock icon, the lock
+reason, and the gates they would need. Pending sections show the reason and the
+owner's local command in a field-styled code block.
+
+Published overlays use a ruled facts grid for provenance, then a results table
+(overlay, buy-and-hold, difference), outcome counts, the bootstrap interval and
+sign-flip p-value, a disclosure with every cycle, and assumptions and caveats.
+Model-priced results add a not-executable notice. Ledger gates use check and
+cross icons in observed green and loss red, always with passed/not-passed words.
+At 1100px the roles become two columns and the ladder one column. At 800px
+everything stacks with 18px gutters, and the headline drops to 31px. Loading,
+unavailable and invalid states are explicit. An invalid file renders nothing
+from that file.
 
 ## Google welcome and account · September 11, 2026
 
