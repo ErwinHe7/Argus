@@ -69,32 +69,35 @@ jobs:
           node-version: "22.x"
           cache: npm
           cache-dependency-path: interview-scout/package-lock.json
-      - name: Require deploy secrets
+      - name: Check deploy secrets
         run: |
-          missing=""
-          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ANTHROPIC_API_KEY ACCESS_CODE; do
-            [ -n "${!name}" ] || missing="$missing $name"
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Add the $name repository secret to deploy. See interview-scout/README.md."
+              exit 1
+            fi
           done
-          if [ -n "$missing" ]; then
-            echo "::error::Add these repository secrets to deploy:$missing (ACCESS_CODE comes from INTERVIEW_SCOUT_ACCESS_CODE). See interview-scout/README.md."
-            exit 1
+          if [ -z "$ANTHROPIC_API_KEY" ] || [ -z "$ACCESS_CODE" ]; then
+            echo "::warning::ANTHROPIC_API_KEY or INTERVIEW_SCOUT_ACCESS_CODE is not set. The site deploys, but its API stays locked until both secrets are added and this workflow runs again."
           fi
       - run: npm ci
       - name: Deploy
         run: |
           set -euo pipefail
-          domains=()
-          for domain in $CUSTOM_DOMAIN; do domains+=(--domain "$domain"); done
-          npx wrangler deploy "${domains[@]}" | tee deploy.log
+          args=()
+          for domain in $CUSTOM_DOMAIN; do args+=(--domain "$domain"); done
+          if [ -n "$ANTHROPIC_API_KEY" ] && [ -n "$ACCESS_CODE" ]; then
+            # Uploaded with this version. The file never leaves the runner's temp dir.
+            secrets_file="$RUNNER_TEMP/worker-secrets.json"
+            trap 'rm -f "$secrets_file"' EXIT
+            ( umask 077; node -e 'process.stdout.write(JSON.stringify({ ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, ACCESS_CODE: process.env.ACCESS_CODE }))' > "$secrets_file" )
+            args+=(--secrets-file "$secrets_file")
+          fi
+          npx wrangler deploy "${args[@]}" | tee deploy.log
           url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1 || true)"
           for domain in $CUSTOM_DOMAIN; do url="https://$domain"; break; done
           test -n "$url"
           echo "SITE_URL=$url" >> "$GITHUB_ENV"
-      - name: Set Worker secrets
-        run: |
-          set -euo pipefail
-          printf '%s' "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY
-          printf '%s' "$ACCESS_CODE" | npx wrangler secret put ACCESS_CODE
       - name: Smoke test the live site
         run: |
           set -euo pipefail

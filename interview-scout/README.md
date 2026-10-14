@@ -89,10 +89,13 @@ own.
 The `interview-scout` GitHub Actions workflow has two paths:
 - **Pull requests:** typecheck, test, and a bundle check.
 - **Merges to `main`** (or a manual run from the Actions tab): the same
-  checks, then a deploy, then it sets the Worker secrets and checks that the
-  live site answers.
+  checks, then a deploy that uploads the Worker secrets with it, then a check
+  that the live site answers.
 
-Add these repository secrets once (Settings → Secrets and variables → Actions):
+Add these repository secrets (Settings → Secrets and variables → Actions). The
+two Cloudflare secrets are enough to deploy. Until `ANTHROPIC_API_KEY` and
+`INTERVIEW_SCOUT_ACCESS_CODE` are also set, the site loads but its API stays
+locked (401). Add them and run the workflow again from the Actions tab.
 
 | Secret | Value |
 | --- | --- |

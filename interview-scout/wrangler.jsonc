@@ -16,6 +16,7 @@
     { "name": "interview-scout-hunts", "binding": "HUNT", "class_name": "HuntWorkflow", "concurrency": { "limit": 2 } }
   ],
   "vars": { "CLAUDE_MODEL": "claude-opus-5-5" },
-  "secrets": { "required": ["ANTHROPIC_API_KEY", "ACCESS_CODE"] },
+  // Secrets ANTHROPIC_API_KEY and ACCESS_CODE are uploaded by CI (or `wrangler secret put`).
+  // Until both exist the API answers 401, so a first deploy without them is safe.
   "observability": { "enabled": true }
 }
