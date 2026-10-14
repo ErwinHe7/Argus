@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interview Hunter</title>
+  <meta name="description" content="Upload your resume. Interview Hunter finds matching jobs and applies for you, honestly, while you sleep.">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<svg id="starfield" class="starfield" aria-hidden="true" preserveAspectRatio="xMidYMid slice"></svg>
+
+<header class="topbar">
+  <a class="wordmark" href="#top"><span class="spark" aria-hidden="true">✦</span> Interview Hunter</a>
+  <label class="key">
+    <span class="sr-only">Access code</span>
+    <input id="code" type="password" autocomplete="current-password" placeholder="Access code">
+  </label>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="hero-copy">
+      <p class="eyebrow">Your job hunt, after dark</p>
+      <h1>Interview<br><em>Hunter</em></h1>
+      <p class="tagline">Upload a resume. Tell it what you're after.<br>It hunts while you sleep.</p>
+      <p class="fine">Applies on Greenhouse, Lever and Ashby. It never makes up an answer: anything it can't answer truthfully comes back to you.</p>
+      <a class="button" href="#resume-chapter">Begin the hunt</a>
+    </div>
+    <svg id="orion" class="orion" viewBox="0 0 400 440" role="img" aria-label="The constellation Orion, the hunter"></svg>
+  </section>
+
+  <section class="chapter" id="resume-chapter">
+    <div class="chapter-head"><span class="numeral">I</span><div><h2>Your resume</h2><p>One PDF. Claude reads it and drafts your profile.</p></div></div>
+    <label class="drop" id="drop">
+      <input id="resume" class="sr-only" type="file" accept="application/pdf">
+      <span class="drop-mark" aria-hidden="true">✧</span>
+      <span class="drop-title">Drop your resume here, or <u>browse</u></span>
+      <span class="drop-sub" id="resume-status">PDF, up to 5 MB</span>
+    </label>
+  </section>
+
+  <section class="chapter" id="profile-section" hidden>
+    <div class="chapter-head"><span class="numeral">II</span><div><h2>Who you are</h2><p>The agent answers every form from this, and nothing else. Fix anything that's off.</p></div></div>
+    <div class="panel">
+      <div class="grid">
+        <label>Full name <input data-p="fullName"></label>
+        <label>First name <input data-p="firstName"></label>
+        <label>Last name <input data-p="lastName"></label>
+        <label>Email <input data-p="email" type="email"></label>
+        <label>Phone <input data-p="phone"></label>
+        <label>Location <input data-p="location"></label>
+        <label>LinkedIn <input data-p="linkedin"></label>
+        <label>Website <input data-p="website"></label>
+        <label>GitHub <input data-p="github"></label>
+        <label>Current title <input data-p="currentTitle"></label>
+        <label>Current company <input data-p="currentCompany"></label>
+        <label>Education <input data-p="education"></label>
+      </div>
+      <label>Skills <span class="hint">comma separated</span> <input data-p="skills" data-list></label>
+      <label>Summary <textarea data-p="summary" rows="2"></textarea></label>
+      <div class="grid two">
+        <label>Authorized to work in the US?
+          <select data-f="workAuthorizedUS"><option value="">Not stated</option><option>yes</option><option>no</option></select></label>
+        <label>Need visa sponsorship, now or later?
+          <select data-f="needsSponsorship"><option value="">Not stated</option><option>yes</option><option>no</option></select></label>
+      </div>
+      <label>Anything else forms ask <span class="hint">the agent may use these facts</span>
+        <textarea data-f="notes" rows="4" placeholder="Over 18: yes. Start date: two weeks' notice. Salary expectation: $85k. Willing to relocate: yes. Heard about the job: LinkedIn. Gender, race, veteran, disability: prefer not to say."></textarea></label>
+      <div class="row"><button id="save-profile" type="button" class="ghost">Save profile</button><span id="profile-status" class="hint" role="status"></span></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="search-section" hidden>
+    <div class="chapter-head"><span class="numeral">III</span><div><h2>What you're hunting</h2><p>Searches public job boards and keeps titles that contain every word you list.</p></div></div>
+    <div class="panel">
+      <div class="grid">
+        <label>Job titles <span class="hint">comma separated</span> <input id="titles"></label>
+        <label>Locations <span class="hint">"Remote" works</span> <input id="locations" placeholder="New York, Remote"></label>
+        <label>Skip titles with <input id="exclude" value="senior, staff, principal, director, manager, lead, intern"></label>
+      </div>
+      <details>
+        <summary>Companies to search</summary>
+        <p class="hint">One per line: <code>greenhouse:slug</code>, <code>lever:slug</code> or <code>ashby:slug</code>. The slug is the company part of a job-board link, like <code>jobs.lever.co/<b>palantir</b></code>.</p>
+        <textarea id="companies" rows="8"></textarea>
+      </details>
+      <details>
+        <summary>Or paste job links</summary>
+        <p class="hint">Greenhouse, Lever or Ashby links, one per line. Find them on LinkedIn or company career pages.</p>
+        <textarea id="links" rows="4" placeholder="https://jobs.lever.co/company/1234-abcd"></textarea>
+        <button id="add-links" type="button" class="ghost">Add links</button>
+      </details>
+      <div class="row"><button id="search" type="button">Search the boards</button><span id="search-status" class="hint" role="status"></span></div>
+    </div>
+  </section>
+
+  <section class="chapter" id="jobs-section" hidden>
+    <div class="chapter-head"><span class="numeral">IV</span><div><h2>The hunt</h2><p>Every star is a job. Each one lights up when its application goes in.</p></div></div>
+    <div class="panel sky-panel">
+      <svg id="hunt-sky" class="hunt-sky" viewBox="0 0 800 280" role="img" aria-labelledby="sky-summary"></svg>
+      <ul id="counts" class="counts" aria-live="polite"></ul>
+      <p id="sky-summary" class="sr-only"></p>
+    </div>
+    <div class="panel">
+      <div class="row between">
+        <label class="check"><input id="select-all" type="checkbox" checked> Select all open jobs</label>
+        <span id="selected-count" class="hint"></span>
+      </div>
+      <ul id="jobs" class="jobs"></ul>
+      <div class="launch">
+        <label class="check"><input id="real" type="checkbox"> <span>Submit for real. <span class="hint">Leave this off for a dry run: forms get filled and screenshotted, never sent.</span></span></label>
+        <label class="check"><input id="consent" type="checkbox"> I authorize Interview Hunter to apply to the selected jobs for me, using my resume and the answers above.</label>
+        <div class="row">
+          <button id="start" type="button">Start the hunt</button>
+          <button id="stop" type="button" class="ghost" disabled>Stop</button>
+          <span id="run-status" class="hint" role="status"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <p>The hunt runs on Cloudflare, so you can close this tab. Your resume is stored only while a hunt runs and is deleted when it ends. Everything else stays in this browser.</p>
+  </footer>
+</main>
+
+<dialog id="shot"><img alt="Screenshot of the filled application form"><form method="dialog"><button class="ghost">Close</button></form></dialog>
+<script src="/sky.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>

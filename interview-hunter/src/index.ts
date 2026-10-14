@@ -1,13 +1,14 @@
-import puppeteer from '@cloudflare/puppeteer';
 import { z } from 'zod';
-import { answerFields } from './answers.ts';
-import { runApplication, type AgentPage, type ApplyResult } from './apply.ts';
 import { DEFAULT_COMPANIES } from './companies.ts';
+import { kvStore, MAX_HUNT_JOBS } from './hunt.ts';
 import { fetchJobs, jobFromLink, matchJobs, MAX_COMPANIES, parseCompany, type Company } from './jobs.ts';
 import { extractProfile, ProfileSchema } from './profile.ts';
 
+export { HuntWorkflow } from './hunt-workflow.ts';
+
 const MAX_RESUME_BASE64 = 7_000_000; // About 5 MB of PDF.
 const APPLY_HOSTS = new Set(['job-boards.greenhouse.io', 'boards.greenhouse.io', 'jobs.lever.co', 'jobs.eu.lever.co', 'jobs.ashbyhq.com']);
+const HUNT_PATH = /^\/api\/hunts\/([0-9a-f-]{36})(?:\/(stop|shots\/([^/]{1,300})))?$/;
 
 const shortText = z.string().max(200);
 const Resume = z.string().max(MAX_RESUME_BASE64).refine(s => s.startsWith('JVBER'), 'Resume must be a PDF.');
@@ -19,19 +20,21 @@ const JobsRequest = z.object({
   companies: z.array(shortText).max(MAX_COMPANIES).optional(),
 });
 
-const ApplyRequest = z.object({
-  job: z.object({
-    key: shortText, ats: z.enum(['greenhouse', 'lever', 'ashby']), company: shortText, title: z.string().max(300),
-    location: z.string().max(300), remote: z.boolean(), postedAt: shortText, url: z.string().max(1000),
-    applyUrl: z.string().max(1000).refine(u => {
-      try {
-        const url = new URL(u);
-        return url.protocol === 'https:' && APPLY_HOSTS.has(url.hostname);
-      } catch {
-        return false;
-      }
-    }, 'Only Greenhouse, Lever and Ashby application pages are supported.'),
-  }),
+const Job = z.object({
+  key: shortText, ats: z.enum(['greenhouse', 'lever', 'ashby']), company: shortText, title: z.string().max(300),
+  location: z.string().max(300), remote: z.boolean(), postedAt: shortText, url: z.string().max(1000),
+  applyUrl: z.string().max(1000).refine(u => {
+    try {
+      const url = new URL(u);
+      return url.protocol === 'https:' && APPLY_HOSTS.has(url.hostname);
+    } catch {
+      return false;
+    }
+  }, 'Only Greenhouse, Lever and Ashby application pages are supported.'),
+});
+
+const HuntRequest = z.object({
+  jobs: z.array(Job).min(1, 'Pick at least one job.').max(MAX_HUNT_JOBS, `A hunt can hold up to ${MAX_HUNT_JOBS} jobs.`),
   profile: ProfileSchema,
   facts: z.object({ workAuthorizedUS: shortText, needsSponsorship: shortText, notes: z.string().max(5000) }),
   resume: z.object({ name: shortText, base64: Resume }),
@@ -51,24 +54,59 @@ async function authorized(request: Request, env: Env): Promise<boolean> {
   return crypto.subtle.timingSafeEqual(await digest(given), await digest(env.ACCESS_CODE));
 }
 
-async function apply(env: Env, body: z.infer<typeof ApplyRequest>): Promise<ApplyResult> {
-  const browser = await puppeteer.launch(env.BROWSER);
+async function huntStatus(env: Env, id: string): Promise<string> {
   try {
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 1000 });
-    return await runApplication(page as unknown as AgentPage, body, (fields, pageText) => answerFields(env, {
-      resumeBase64: body.resume.base64, profile: body.profile, facts: body.facts,
-      job: { company: body.job.company, title: body.job.title, url: body.job.url }, pageText, fields,
-    }));
-  } finally {
-    await browser.close();
+    return (await (await env.HUNT.get(id)).status()).status;
+  } catch {
+    return 'unknown';
   }
+}
+
+async function routeHunt(request: Request, env: Env, path: string): Promise<Response | null> {
+  const store = kvStore(env.HUNTS);
+  if (path === '/api/hunts' && request.method === 'POST') {
+    const parsed = HuntRequest.safeParse(await request.json().catch(() => null));
+    if (!parsed.success) return json({ error: parsed.error.issues[0]?.message ?? 'Invalid hunt.' }, 400);
+    const jobs = [...new Map(parsed.data.jobs.map(j => [j.key, j])).values()];
+    const id = crypto.randomUUID();
+    await store.create(id, { ...parsed.data, jobs }, new Date().toISOString());
+    try {
+      await env.HUNT.create({ id, params: { huntId: id } });
+    } catch (error) {
+      await store.deleteInput(id); // Don't keep the resume for a hunt that never started.
+      throw error;
+    }
+    return json({ id });
+  }
+  const match = HUNT_PATH.exec(path);
+  if (!match) return null;
+  const [, id, action, shotKey] = match;
+  if (!action && request.method === 'GET') {
+    const meta = await store.meta(id);
+    if (!meta) return json({ error: 'Hunt not found. Hunts are kept for 30 days.' }, 404);
+    return json({ ...meta, results: await store.results(id), status: await huntStatus(env, id) });
+  }
+  if (action === 'stop' && request.method === 'POST') {
+    try {
+      await (await env.HUNT.get(id)).terminate();
+    } catch {
+      // Already finished.
+    }
+    await store.deleteInput(id);
+    return json({ status: await huntStatus(env, id) });
+  }
+  if (shotKey && request.method === 'GET') {
+    const shot = await store.shot(id, decodeURIComponent(shotKey));
+    return shot ? new Response(shot, { headers: { 'content-type': 'image/jpeg', 'cache-control': 'private, max-age=86400' } }) : json({ error: 'No screenshot.' }, 404);
+  }
+  return null;
 }
 
 async function route(request: Request, env: Env, path: string): Promise<Response> {
   if (path === '/api/companies' && request.method === 'GET') return json({ companies: DEFAULT_COMPANIES });
-  if (request.method !== 'POST') return json({ error: 'Not found.' }, 404);
   if (!(await authorized(request, env))) return json({ error: 'Wrong access code, or the site is not configured yet.' }, 401);
+  if (path.startsWith('/api/hunts')) return (await routeHunt(request, env, path)) ?? json({ error: 'Not found.' }, 404);
+  if (request.method !== 'POST') return json({ error: 'Not found.' }, 404);
   const body: unknown = await request.json().catch(() => null);
 
   if (path === '/api/profile') {
@@ -90,16 +128,6 @@ async function route(request: Request, env: Env, path: string): Promise<Response
     if (!parsed.success) return json({ error: 'Invalid links.' }, 400);
     const links = parsed.data.links.map(l => l.trim()).filter(Boolean);
     return json({ jobs: links.map(jobFromLink).filter(j => j !== null), invalid: links.filter(l => !jobFromLink(l)) });
-  }
-  if (path === '/api/apply') {
-    const parsed = ApplyRequest.safeParse(body);
-    if (!parsed.success) return json({ error: parsed.error.issues[0]?.message ?? 'Invalid application request.' }, 400);
-    try {
-      return json(await apply(env, parsed.data));
-    } catch (error) {
-      const result: ApplyResult = { status: 'failed', message: error instanceof Error ? error.message : 'The agent failed.', missing: [], screenshot: null };
-      return json(result);
-    }
   }
   return json({ error: 'Not found.' }, 404);
 }

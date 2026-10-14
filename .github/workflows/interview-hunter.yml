@@ -1,0 +1,102 @@
+name: interview-hunter
+
+# Pull requests run the checks. Merging to main runs the checks, deploys to
+# interview-hunter.<subdomain>.workers.dev, and smoke-tests the live site.
+on:
+  pull_request:
+    paths:
+      - "interview-hunter/**"
+      - ".github/workflows/interview-hunter.yml"
+  push:
+    branches: [main]
+    paths:
+      - "interview-hunter/**"
+      - ".github/workflows/interview-hunter.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: interview-hunter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: interview-hunter/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx wrangler deploy --dry-run --outdir dist
+      - run: npm test
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: interview-hunter-deploy
+      cancel-in-progress: false
+    defaults:
+      run:
+        working-directory: interview-hunter
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      ACCESS_CODE: ${{ secrets.INTERVIEW_HUNTER_ACCESS_CODE }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+          cache-dependency-path: interview-hunter/package-lock.json
+      - name: Require deploy secrets
+        run: |
+          missing=""
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID ANTHROPIC_API_KEY ACCESS_CODE; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Add these repository secrets to deploy:$missing (ACCESS_CODE comes from INTERVIEW_HUNTER_ACCESS_CODE). See interview-hunter/README.md."
+            exit 1
+          fi
+      - run: npm ci
+      - name: Deploy
+        run: |
+          set -euo pipefail
+          npx wrangler deploy | tee deploy.log
+          url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)"
+          test -n "$url"
+          echo "SITE_URL=$url" >> "$GITHUB_ENV"
+      - name: Set Worker secrets
+        run: |
+          set -euo pipefail
+          printf '%s' "$ANTHROPIC_API_KEY" | npx wrangler secret put ANTHROPIC_API_KEY
+          printf '%s' "$ACCESS_CODE" | npx wrangler secret put ACCESS_CODE
+      - name: Smoke test the live site
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS "$SITE_URL/" | grep -q "Interview Hunter" && curl -fsS "$SITE_URL/api/companies" | grep -q '"companies"'; then
+              echo "Live at $SITE_URL"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::$SITE_URL did not serve the site after deploy."
+          exit 1
