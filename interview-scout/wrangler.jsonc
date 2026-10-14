@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "interview-scout",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-04",
+  "compatibility_flags": ["nodejs_compat"],
+  // Served free at https://interview-scout.<your-subdomain>.workers.dev; CI can also attach a custom domain.
+  "workers_dev": true,
+  "assets": { "directory": "./public" },
+  // Cloudflare Browser Rendering: the headless Chrome the agent fills forms with.
+  "browser": { "binding": "BROWSER" },
+  // Hunt inputs, progress and screenshots. Wrangler creates the namespace on first deploy.
+  "kv_namespaces": [{ "binding": "HUNTS" }],
+  // Background hunts keep applying after the browser tab is closed.
+  "workflows": [
+    { "name": "interview-scout-hunts", "binding": "HUNT", "class_name": "HuntWorkflow", "concurrency": { "limit": 2 } }
+  ],
+  "vars": { "CLAUDE_MODEL": "claude-opus-5-5" },
+  // Secrets ANTHROPIC_API_KEY and ACCESS_CODE are uploaded by CI (or `wrangler secret put`).
+  // Until both exist the API answers 401, so a first deploy without them is safe.
+  "observability": { "enabled": true }
+}

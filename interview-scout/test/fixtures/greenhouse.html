@@ -1,0 +1,71 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Job Application for Data Analyst at Acme</title>
+<style>.visually-hidden{position:absolute;width:1px;height:1px;opacity:0} [role=listbox][hidden]{display:none} .select__control{border:1px solid #999;padding:4px;width:300px} [role=option]{padding:4px}</style></head>
+<body>
+<div id="app">
+  <h1>Data Analyst</h1>
+  <div class="job__description"><p>Analyze data. Thank you for your interest in Acme!</p></div>
+  <form id="application_form" novalidate>
+    <div><label for="first_name" id="first_name-label" class="label">First Name<span class="required">*</span></label><input id="first_name" aria-required="true"></div>
+    <div><label for="last_name" class="label">Last Name<span class="required">*</span></label><input id="last_name" aria-required="true"></div>
+    <div><label for="email" class="label">Email<span class="required">*</span></label><input id="email" type="email" aria-required="true"></div>
+    <div><label for="phone" class="label">Phone</label><input id="phone" type="tel"></div>
+    <div class="file-upload"><div class="label" id="upload-label-resume">Resume/CV<span>*</span></div>
+      <button type="button">Attach</button><input type="file" id="resume" class="visually-hidden"></div>
+    <div class="select">
+      <label id="question_1-label" for="question_1" class="label">Will you now or in the future require visa sponsorship?<span>*</span></label>
+      <div class="select__control"><span class="select__placeholder">Select...</span>
+        <input id="question_1" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-required="true" aria-controls="question_1-listbox" autocomplete="off"></div>
+      <div id="question_1-listbox" role="listbox" hidden></div>
+    </div>
+    <fieldset><legend>Which offices are you open to?</legend>
+      <label><input type="checkbox" name="offices" value="ny">New York</label>
+      <label><input type="checkbox" name="offices" value="sf">San Francisco</label>
+      <label><input type="checkbox" name="offices" value="remote">Remote</label>
+    </fieldset>
+    <div><input type="checkbox" id="privacy"><label for="privacy">I acknowledge the candidate privacy notice<span>*</span></label></div>
+    <div><input type="checkbox" id="newsletter"><label for="newsletter">Send me Acme job alerts</label></div>
+    <div><label for="why" class="label">Why do you want to work at Acme?</label><textarea id="why"></textarea></div>
+    <button type="submit">Submit application</button>
+  </form>
+</div>
+<script>
+  // A small stand-in for react-select: opens on mousedown, filters on input,
+  // selects on option click.
+  const input = document.getElementById('question_1');
+  const box = document.getElementById('question_1-listbox');
+  let selected = '';
+  const render = filter => {
+    box.innerHTML = '';
+    for (const text of ['Yes', 'No']) {
+      if (filter && !text.toLowerCase().includes(filter.toLowerCase())) continue;
+      const option = document.createElement('div');
+      option.setAttribute('role', 'option');
+      option.textContent = text;
+      option.addEventListener('click', () => { selected = text; input.value = ''; document.querySelector('.select__placeholder').textContent = text; box.hidden = true; });
+      box.appendChild(option);
+    }
+    box.hidden = false;
+  };
+  document.querySelector('.select__control').addEventListener('mousedown', () => render(''));
+  input.addEventListener('keydown', e => { if (e.key === 'ArrowDown') render(input.value); if (e.key === 'Escape') box.hidden = true; });
+  input.addEventListener('input', () => render(input.value));
+  document.getElementById('application_form').addEventListener('submit', async event => {
+    event.preventDefault();
+    const value = id => document.getElementById(id).value;
+    const resume = document.getElementById('resume').files[0];
+    const body = {
+      first_name: value('first_name'), last_name: value('last_name'), email: value('email'), phone: value('phone'),
+      sponsorship: selected, resume: resume ? resume.name + ':' + resume.size : '',
+      offices: Array.from(document.querySelectorAll('input[name=offices]:checked')).map(i => i.value),
+      privacy: document.getElementById('privacy').checked, newsletter: document.getElementById('newsletter').checked, why: value('why'),
+    };
+    if (!body.first_name || !body.email || !body.sponsorship || !body.resume || !body.privacy) {
+      document.getElementById('app').insertAdjacentHTML('afterbegin', '<div class="error" role="alert">Please complete all required fields.</div>');
+      return;
+    }
+    await fetch('/submit', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    document.getElementById('app').innerHTML = '<h1>Thank you for applying!</h1><p>Your application has been received.</p>';
+  });
+</script>
+</body></html>
