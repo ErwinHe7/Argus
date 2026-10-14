@@ -2,7 +2,7 @@
 
 A website on Cloudflare Workers that applies to jobs for you, in the background:
 
-1. **Your resume.** Drop in a PDF. Claude reads it into a profile you can correct.
+1. **Your resume.** Drop in a PDF. Gemini reads it into a profile you can correct.
 2. **Who you are.** Add the facts application forms ask for: work
    authorization, sponsorship, start date, salary, voluntary self-identification
    preference, and so on.
@@ -13,7 +13,7 @@ A website on Cloudflare Workers that applies to jobs for you, in the background:
    works through them one by one on the server, so you can close the tab. For
    each job, a headless Chrome (Cloudflare Browser Rendering):
    - opens the hosted application form and uploads the resume;
-   - asks Claude to answer every field from your resume and facts;
+   - asks Gemini to answer every field from your resume and facts;
    - checks the answers against the form, fills it in and submits it.
 
    In the page, every job is a star in the night sky, and each one lights up
@@ -40,7 +40,7 @@ and hunt again.
   time and holds up to 400 jobs. At most two hunts run at once; others wait
   their turn.
 - **Sharing the access code shares your bill.** Anyone with the code spends
-  your Claude and Cloudflare credit, so share it only with people you trust.
+  your Gemini and Cloudflare credit, so share it only with people you trust.
 
 ## Where data lives
 
@@ -78,7 +78,7 @@ and hunt again.
 You need:
 - A Cloudflare account on the **Workers Paid** plan. The free plan's CPU and
   Browser Rendering limits are too small for this.
-- An Anthropic API key.
+- A Google Gemini API key (free tier) from https://aistudio.google.com/apikey.
 - An access code: any long random password you choose.
 
 The first deploy creates the KV namespace and registers the Workflow on its
@@ -93,7 +93,7 @@ The `interview-scout` GitHub Actions workflow has two paths:
   that the live site answers.
 
 Add these repository secrets (Settings → Secrets and variables → Actions). The
-two Cloudflare secrets are enough to deploy. Until `ANTHROPIC_API_KEY` and
+two Cloudflare secrets are enough to deploy. Until `GEMINI_API_KEY` and
 `INTERVIEW_SCOUT_ACCESS_CODE` are also set, the site loads but its API stays
 locked (401). Add them and run the workflow again from the Actions tab.
 
@@ -101,7 +101,7 @@ locked (401). Add them and run the workflow again from the Actions tab.
 | --- | --- |
 | `CLOUDFLARE_API_TOKEN` | A Cloudflare API token with Workers Scripts, Workers KV and Workflows edit access (the "Edit Cloudflare Workers" template covers it) |
 | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID |
-| `ANTHROPIC_API_KEY` | The Anthropic API key |
+| `GEMINI_API_KEY` | A Google Gemini API key (free at aistudio.google.com/apikey) |
 | `INTERVIEW_SCOUT_ACCESS_CODE` | The access code |
 
 Optional repository variable: `CUSTOM_DOMAIN` (see **Domain**).
@@ -113,21 +113,22 @@ cd interview-scout
 npm ci
 npx wrangler login
 npx wrangler deploy
-npx wrangler secret put ANTHROPIC_API_KEY
+npx wrangler secret put GEMINI_API_KEY
 npx wrangler secret put ACCESS_CODE
 ```
 
 ## Cost
 
-Claude is called once per resume upload and once per application. The model is
-set by `CLAUDE_MODEL` in `wrangler.jsonc`, defaulting to `claude-opus-5-5`.
-- **Claude:** a rough estimate is a few cents per application. Each one sends
-  the resume plus the form, a few thousand input tokens, and gets back a few
-  thousand output tokens.
+Gemini is called once per resume upload and once per application. The model is
+set by `GEMINI_MODEL` in `wrangler.jsonc`, defaulting to `gemini-2.5-flash`
+(change it to `gemini-2.0-flash` or another model without touching code).
+- **Gemini:** the free tier covers a generous daily request quota at no cost;
+  beyond it, Flash models are inexpensive. Each application sends the resume
+  plus the form and gets structured JSON back.
 - **Browser Rendering:** billed by browser time, about one to two minutes per
   application. See Cloudflare's Browser Rendering pricing.
-- **Fallback:** if Claude declines a request on safety grounds, the API reruns
-  it on Anthropic's recommended fallback model (`fallbacks: "default"`).
+- **Fails closed:** if Gemini declines or returns an answer that doesn't match
+  the expected shape, the job is reported rather than submitted with a guess.
 
 ## Develop
 
@@ -135,7 +136,7 @@ set by `CLAUDE_MODEL` in `wrangler.jsonc`, defaulting to `claude-opus-5-5`.
 npm ci
 npm run typecheck
 npm test          # unit tests, the hunt loop, and headless-Chrome runs against test/fixtures
-npm run dev       # local server; put ACCESS_CODE and ANTHROPIC_API_KEY in .dev.vars
+npm run dev       # local server; put ACCESS_CODE and GEMINI_API_KEY in .dev.vars
 ```
 
 The browser tests need Chrome or Chromium. Set `CHROME_PATH` if it isn't at the
@@ -148,7 +149,8 @@ default path in `test/apply.test.ts`.
 | `src/hunt-workflow.ts` | The Cloudflare Workflow that runs a hunt in a browser |
 | `src/apply.ts` | Filling one application: open, fill, submit, confirm |
 | `src/page-script.ts` | Code that runs inside the application page |
-| `src/answers.ts` | Claude's form answers and the checks before filling |
-| `src/profile.ts` | Resume → profile with Claude |
+| `src/answers.ts` | Gemini's form answers and the checks before filling |
+| `src/profile.ts` | Resume → profile with Gemini |
+| `src/llm.ts` | The Gemini request helper (structured output, fails closed) |
 | `src/jobs.ts`, `src/companies.ts` | Job board search, filtering, pasted links |
 | `public/` | The website; `sky.js` draws the starfield, the North Star art and the hunt sky |

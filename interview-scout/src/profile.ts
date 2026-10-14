@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { askClaude, pdfBlock, type ClaudeEnv } from './claude.ts';
+import { ask, pdfPart, STRING, STRING_ARRAY, type LlmEnv, type ResponseSchema } from './llm.ts';
 
 export const ProfileSchema = z.object({
   fullName: z.string(),
@@ -26,11 +26,22 @@ education: highest degree, school and graduation year on one line.
 summary: two factual sentences about the candidate's experience, using only what the resume says.
 targetTitles: 3 to 5 short job titles (2-3 words each, no seniority words) that fit this resume, for searching job boards.`;
 
-export function extractProfile(env: ClaudeEnv, resumeBase64: string): Promise<Profile> {
-  return askClaude(env, {
+const RESPONSE_SCHEMA: ResponseSchema = {
+  type: 'OBJECT',
+  properties: {
+    fullName: STRING, firstName: STRING, lastName: STRING, email: STRING, phone: STRING, location: STRING,
+    linkedin: STRING, website: STRING, github: STRING, currentTitle: STRING, currentCompany: STRING, education: STRING,
+    skills: STRING_ARRAY, summary: STRING, targetTitles: STRING_ARRAY,
+  },
+  required: ['fullName', 'firstName', 'lastName', 'email', 'phone', 'location', 'linkedin', 'website',
+    'github', 'currentTitle', 'currentCompany', 'education', 'skills', 'summary', 'targetTitles'],
+};
+
+export function extractProfile(env: LlmEnv, resumeBase64: string): Promise<Profile> {
+  return ask(env, {
     system: SYSTEM,
-    content: [pdfBlock(resumeBase64), { type: 'text', text: 'Extract the profile from this resume.' }],
+    parts: [pdfPart(resumeBase64), { text: 'Extract the profile from this resume.' }],
     schema: ProfileSchema,
-    effort: 'low',
+    responseSchema: RESPONSE_SCHEMA,
   });
 }

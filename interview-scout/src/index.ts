@@ -49,7 +49,7 @@ async function digest(text: string): Promise<ArrayBuffer> {
 
 /** Fails closed: without a configured access code nothing is served. */
 async function authorized(request: Request, env: Env): Promise<boolean> {
-  if (!env.ACCESS_CODE || !env.ANTHROPIC_API_KEY) return false;
+  if (!env.ACCESS_CODE || !env.GEMINI_API_KEY) return false;
   const given = request.headers.get('x-access-code') ?? '';
   return crypto.subtle.timingSafeEqual(await digest(given), await digest(env.ACCESS_CODE));
 }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { askClaude, pdfBlock, type ClaudeEnv } from './claude.ts';
+import { ask, pdfPart, STRING, STRING_ARRAY, type LlmEnv, type ResponseSchema } from './llm.ts';
 import type { Profile } from './profile.ts';
 
 export type FieldType =
@@ -33,7 +33,22 @@ Rules:
 - If you cannot answer a field truthfully from what you were given, return values [] and, in note, say in one short sentence what the candidate needs to tell you. Do this for required fields too; never guess.
 - Leave note empty when you answered.`;
 
-export async function answerFields(env: ClaudeEnv, input: {
+const RESPONSE_SCHEMA: ResponseSchema = {
+  type: 'OBJECT',
+  properties: {
+    answers: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: { id: STRING, values: STRING_ARRAY, note: STRING },
+        required: ['id', 'values', 'note'],
+      },
+    },
+  },
+  required: ['answers'],
+};
+
+export async function answerFields(env: LlmEnv, input: {
   resumeBase64: string;
   profile: Profile;
   facts: Facts;
@@ -42,14 +57,14 @@ export async function answerFields(env: ClaudeEnv, input: {
   fields: FormField[];
 }): Promise<Answer[]> {
   const { resumeBase64, fields, ...context } = input;
-  const result = await askClaude(env, {
+  const result = await ask(env, {
     system: SYSTEM,
-    content: [
-      pdfBlock(resumeBase64),
-      { type: 'text', text: JSON.stringify({ ...context, fields: fields.map(({ id, type, label, required, options }) => ({ id, type, label, required, options })) }) },
+    parts: [
+      pdfPart(resumeBase64),
+      { text: JSON.stringify({ ...context, fields: fields.map(({ id, type, label, required, options }) => ({ id, type, label, required, options })) }) },
     ],
     schema: AnswersSchema,
-    effort: 'medium',
+    responseSchema: RESPONSE_SCHEMA,
   });
   return result.answers;
 }
