@@ -14,11 +14,8 @@ def market_schedule(start_date: str, end_date: str, timezone: str = "America/New
         schedule["close"] = schedule["close"].dt.tz_convert(timezone)
         schedule.index = pd.to_datetime(schedule.index).date
         return schedule
-    except ImportError:
-        dates = pd.bdate_range(start_date, end_date)
-        opens = pd.to_datetime(dates.strftime("%Y-%m-%d") + " 09:30").tz_localize(timezone)
-        closes = pd.to_datetime(dates.strftime("%Y-%m-%d") + " 16:00").tz_localize(timezone)
-        return pd.DataFrame({"open": opens, "close": closes}, index=dates.date)
+    except ImportError as exc:
+        raise RuntimeError("official XNYS sessions require exchange-calendars; no weekday fallback") from exc
 
 
 def session_minutes(schedule: pd.DataFrame) -> pd.DatetimeIndex:
@@ -37,6 +34,8 @@ def filter_regular_session(frame: pd.DataFrame, schedule: pd.DataFrame) -> pd.Da
     """Keep official XNYS minutes, including early closes and excluding the 16:00 tick."""
     if frame.empty:
         return frame.copy()
+    if schedule.empty:
+        return frame.iloc[0:0].copy()
     opens = schedule["open"].to_dict()
     closes = schedule["close"].to_dict()
     dates = frame["timestamp"].dt.date

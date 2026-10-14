@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from intraday_quant.backtest.metrics import performance_metrics
+from intraday_quant.reports.cost_audit import cost_audit
 from intraday_quant.config import AppConfig
 from intraday_quant.reports.theory_audit import THEORY_MAP, hypothesis_event_audit, theory_performance_audit
 
@@ -94,6 +95,9 @@ def generate_report(config: AppConfig, ingest_stats: dict[str, int] | None = Non
         "cost": float(trades["cost"].sum()) if not trades.empty else 0,
         "net_pnl": float(trades["net_pnl"].sum()) if not trades.empty else 0,
     }])
+    costs = cost_audit(trades, config)
+    (report_dir / "cost_audit.json").write_text(json.dumps(costs, indent=2, allow_nan=False), encoding="utf-8")
+    cost_scenarios = pd.DataFrame(costs["cost_scenarios"])
     analog = predictions[predictions.get("model", "") == "analog_kernel"] if not predictions.empty else pd.DataFrame()
     sources = set(features.get("source", pd.Series(dtype=str)).dropna().astype(str))
     is_synthetic = not sources or sources == {"synthetic"}
@@ -105,8 +109,9 @@ def generate_report(config: AppConfig, ingest_stats: dict[str, int] | None = Non
         data_assumption = f"Sources: {sorted(sources)}. Coverage is short and lacks historical executable NBBO."
     assumptions = [
         data_assumption,
-        "Signals are produced after minute t closes and fills begin at t+1 or the first later valid quote.",
+        "Minute labels identify interval starts; closing features become available at label + one minute. Fills use the first bar open at or after that actual cutoff plus latency (zero latency is an explicitly idealized boundary fill).",
         "Same-minute stop/target collisions resolve to the stop first (conservative).",
+        "Transaction costs are explicit uncalibrated research assumptions. Capacity uses prior completed same-symbol share volume when enabled; it does not prove executable liquidity.",
         option_status or "Options backtest not executed: real historical NBBO data is absent.",
     ]
     lines = [
@@ -120,10 +125,13 @@ def generate_report(config: AppConfig, ingest_stats: dict[str, int] | None = Non
         "## 3. Candidates", "", _table(setup_counts), "",
         f"Total candidates: **{len(candidates)}**; rejected OOS candidates: **{len(rejected)}**.", "",
         "## 4. Models and probability calibration", "", _table(diagnostics), "",
-        "Validation Brier scores measure calibrated probabilities. Analog probabilities are empirical kernel weights.", "",
+        "Validation Brier scores are calibration-fit diagnostics measured on the calibration fitting partition, not independent calibration evidence. Analog upward probabilities remain raw frequencies and are excluded from the strategy ensemble until cost-label semantics are separately validated.", "",
         "## 5. Walk-forward out-of-sample performance", "", "```json", json.dumps(metrics, indent=2), "```", "",
         "Only test-fold trades are included; validation data chooses thresholds without test-outcome tuning.", "",
         "## 6. Gross, costs, and net", "", _table(cost_summary), "",
+        "### Cost stress and break-even", "", _table(cost_scenarios), "",
+        f"Break-even cost multiplier: `{costs['break_even_cost_multiplier']}`; capacity status: `{costs['capacity_status']}`. Detailed component totals and assumptions: `cost_audit.json`.", "",
+        "Stress holds the test trade sample and fills fixed. These scenarios do not retune models or prove realizable execution.", "",
         "## 7. Setup and time-of-day stability", "", _table(setup_perf), "", _table(time_perf), "",
         "## 8. Simons-style theory audit", "", _table(THEORY_MAP, 20), "",
         "### Strict OOS selected trades", "", _table(theory_audit, 20), "",
@@ -134,7 +142,7 @@ def generate_report(config: AppConfig, ingest_stats: dict[str, int] | None = Non
     lines.extend([f"![{path}]({path})" for path in chart_paths])
     lines.extend([
         "", "## 10. Analog historical cases", "",
-        _table(analog[[c for c in ["timestamp", "expected_return", "win_probability", "similarity_score", "uncertainty", "neighbor_dates"] if c in analog]], 10), "",
+        _table(analog[[c for c in ["timestamp", "direction", "expected_return", "raw_up_probability", "win_probability", "probability_semantics", "strategy_eligibility", "similarity_score", "uncertainty", "neighbor_dates"] if c in analog]], 10), "",
         "## 11. Best and worst trades", "", "### Best", "", _table(best), "", "### Worst", "", _table(worst), "",
         "## 12. Rejected candidates", "",
         _table(rejected[[c for c in ["timestamp", "setup_type", "direction", "score", "rejection_reason"] if c in rejected]], 30), "",

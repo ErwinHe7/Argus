@@ -71,17 +71,11 @@ def generate_candidates(features: pd.DataFrame, config: AppConfig) -> pd.DataFra
         + result["market_confirmation_score"].abs().clip(upper=5).fillna(0)
         + np.where(result["setup_type"] == "closing_short_cover", 5.0, 0.0)
     )
-    def cap_session(group: pd.DataFrame) -> pd.DataFrame:
-        ranked = group.sort_values("candidate_strength", ascending=False)
-        # Preserve at least the strongest occurrence of every active anomaly
-        # family before filling the remaining daily research slots.
-        anchors = ranked.groupby("setup_type", group_keys=False).head(1)
-        remaining = ranked.drop(index=anchors.index)
-        return pd.concat([anchors, remaining], ignore_index=False).sort_values(
-            "candidate_strength", ascending=False
-        ).head(10)
-
-    result = pd.concat([cap_session(group) for _, group in result.groupby("session_date")], ignore_index=True)
+    # Consume the existing ten research slots online. Strength only breaks
+    # same-timestamp ties; an afternoon anomaly cannot replace a morning state.
+    result = result.sort_values(
+        ["timestamp", "candidate_strength", "candidate_id"], ascending=[True, False, True], kind="stable"
+    ).groupby("session_date", sort=False).head(10)
     return result.drop(columns=["ret_15m", "dist_vwap", "volume_zscore", "market_confirmation_score"]).sort_values("timestamp").reset_index(drop=True)
 
 

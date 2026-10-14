@@ -1,0 +1,294 @@
+# Research-only snapshot derived from production.yaml on 2026-10-12. No promotion.
+risk_policy_path: risk_policy.yaml
+
+server:
+  host: 127.0.0.1
+  port: 8001
+  registry_path: data/state/quant_runs.sqlite3
+
+live:
+  enabled: false
+  # Databento EQUS.MINI is the configured server-side live equities feed.
+  # It is consumed only by the Rust service and is not a broker connection.
+  provider: databento
+  require_realtime: true
+  quote_only: true
+  # host/port remain only for the explicitly-invoked legacy moomoo commands.
+  host: 127.0.0.1
+  port: 11111
+  symbols: [US.SPY, US.QQQ, US.NVDA, US.AAPL, US.MU, US.SOXX, US.NBIS, US.BE, US.IGV, US.IWM, US.HYG, US.TLT, US.UUP, US.VXX]
+  # A forecast is generated only after the matching symbol's one-minute bar
+  # is finalized. The opportunity endpoint scans this explicit, auditable
+  # universe on demand and reports missing/stale symbols instead of silently
+  # substituting delayed data. SPY is the SPX direction proxy; every other
+  # symbol remains its own underlying or ETF.
+  forecast_symbols: [US.SPY, US.QQQ, US.NVDA, US.AAPL, US.MU, US.SOXX, US.NBIS, US.BE, US.IGV]
+  # No cross-asset average is formed unless every required symbol is present
+  # at the same point-in-time cutoff. VXX and USO are explicit tradable
+  # volatility/oil proxies; they are never mislabeled as VIX/WTI spot.
+  required_context_symbols: [QQQ, IWM, SOXX, HYG, TLT, UUP, VXX]
+  session: regular
+  subscribe_quote: true
+  subscribe_k_1m: true
+  subscribe_ticker: true
+  subscribe_order_book: false
+  finalize_grace_ms: 2000
+  # A completed provider minute bar should arrive shortly after its interval
+  # end. Records more than ten seconds late fail closed.
+  stale_after_ms: 10000
+  execution_latency_ms: 250
+  prediction_sla_ms: 5000
+  max_context_skew_ms: 5000
+  reconnect_min_ms: 1000
+  reconnect_max_ms: 30000
+  # Raw SDK callbacks are immutable within each segment, but the active file
+  # rotates before it can exhaust the disk and terminate the live supervisor.
+  raw_log_max_bytes: 134217728
+  raw_log_archive_count: 4
+  shadow_only: true
+  allow_trade_api: false
+  enable_spxw_recorder: false
+
+# Execution code is retained only as an offline simulator for engineering
+# tests. The production research profile does not propose or route orders.
+execution:
+  enabled: false
+  provider: none
+  mode: simulate
+  gateway_url: http://127.0.0.1:8765
+  gateway_token_env: AXIO_BROKER_GATEWAY_TOKEN
+  live_arm_token_env: AXIO_LIVE_ARMING_TOKEN
+  account_id: null
+  allow_real_orders: false
+  long_only: true
+  allowed_symbols: [US.SPY]
+  max_order_notional: 500.0
+  max_position_notional: 1000.0
+  # Loaded from risk_policy.yaml at runtime. These serialized compatibility
+  # fields are overwritten before validation so there is only one authority.
+  max_gross_exposure: 0.10
+  max_daily_loss: 0.01
+  max_snapshot_age_seconds: 10
+  max_signal_age_seconds: 30
+  limit_price_collar_bps: 5.0
+  reconcile_interval_ms: 2000
+  oms_path: data/state/execution_oms.sqlite3
+
+os:
+  freshness_limit_seconds: 120
+  minimum_samples: 200
+  confidence_threshold: 0.60
+  minimum_expected_return_bps: 2.0
+  starting_capital: 100000.0
+  # Compatibility mirror only; risk_policy.yaml is authoritative.
+  max_position_pct: 0.02
+  max_gross_exposure: 0.10
+  max_correlated_exposure: 0.04
+  max_daily_loss: 0.01
+  max_drawdown: 0.05
+  max_daily_trades: 3
+  cooldown_minutes: 30
+  force_flat_time: "15:55"
+  execution_mode: paper
+  latency_ms: 250
+  spread_bps: 1.0
+  slippage_bps: 0.5
+  fee_per_order: 0.0
+  train_months: 12
+  validation_months: 2
+  test_months: 1
+  purge_minutes: 60
+  embargo_minutes: 60
+  random_seed: 7
+
+research:
+  # Free-data phase predicts the tradable SPY proxy. Switch to SPX only when
+  # licensed SPX index bars have been normalized into the market-bar file.
+  target: SPY
+  targets:
+    - public_symbol: SPX
+      model_symbol: SPY
+      price_symbol: I:SPX
+      options_underlying: SPX
+      vwap_volume_source: SPY
+      target_status: SPX_DIRECTION_AND_VWAP_PROXY_VIA_SPY
+    - public_symbol: QQQ
+      model_symbol: QQQ
+      price_symbol: QQQ
+      options_underlying: QQQ
+      vwap_volume_source: QQQ
+      target_status: DIRECT_ETF
+    - public_symbol: NVDA
+      model_symbol: NVDA
+      price_symbol: NVDA
+      options_underlying: NVDA
+      vwap_volume_source: NVDA
+      target_status: DIRECT_EQUITY
+    - public_symbol: AAPL
+      model_symbol: AAPL
+      price_symbol: AAPL
+      options_underlying: AAPL
+      vwap_volume_source: AAPL
+      target_status: DIRECT_EQUITY
+    - public_symbol: MU
+      model_symbol: MU
+      price_symbol: MU
+      options_underlying: MU
+      vwap_volume_source: MU
+      target_status: DIRECT_EQUITY
+    - public_symbol: SOXX
+      model_symbol: SOXX
+      price_symbol: SOXX
+      options_underlying: SOXX
+      vwap_volume_source: SOXX
+      target_status: DIRECT_ETF
+    - public_symbol: NBIS
+      model_symbol: NBIS
+      price_symbol: NBIS
+      options_underlying: NBIS
+      vwap_volume_source: NBIS
+      target_status: DIRECT_EQUITY
+    - public_symbol: BE
+      model_symbol: BE
+      price_symbol: BE
+      options_underlying: BE
+      vwap_volume_source: BE
+      target_status: DIRECT_EQUITY
+    - public_symbol: IGV
+      model_symbol: IGV
+      price_symbol: IGV
+      options_underlying: IGV
+      vwap_volume_source: IGV
+      target_status: DIRECT_ETF
+  timezone: America/New_York
+  session_open: "09:30"
+  session_close: "16:00"
+  horizons: [5, 15, 30, 60]
+  max_trades_per_day: 2
+  cooldown_minutes: 30
+  analog_neighbors: 40
+  analog_bandwidth: 0.9
+  # Executed natively in Rust: calibrated logistic + Gaussian analog + boosted regression heads.
+  validation_score_threshold: 0.35
+  stop_bps: 18.0
+  take_profit_bps: 30.0
+  max_holding_minutes: 60
+  underlying_slippage_bps: 0.5
+  commission_per_trade: 0.0
+  option_slippage: 0.05
+  option_max_spread_pct: 0.15
+  option_max_staleness_seconds: 60
+  execution_costs:
+    # Illustrative scenario assumptions, not measured market costs or a fee schedule.
+    full_spread_bps: 2.0
+    latency_ms: 250
+    option_commission_per_contract_per_side: 0.65
+    option_max_participation_rate: 0.25
+    option_impact_at_full_participation: 0.02
+  regime:
+    # K=8 must compete, but is never promoted from biography lore alone.
+    # The selected K maximizes chronological held-out predictive likelihood.
+    state_candidates: [2, 3, 4, 5, 8]
+    validation_fraction: 0.20
+    minimum_validation_sessions: 5
+    max_iterations: 40
+    restarts: 3
+    # Historical analogs must have the same raw dominant hidden state and a
+    # very similar full posterior. There is no cross-regime fallback.
+    require_same_dominant_state: true
+    minimum_dominant_probability: 0.50
+    minimum_posterior_cosine_similarity: 0.90
+    maximum_normalized_entropy: 0.85
+    minimum_effective_sample_size: 20.0
+
+data:
+  raw_root: data/raw
+  normalized_root: data/normalized
+  manifest_root: data/manifests
+  required_symbols: [SPX, SPY, QQQ, NVDA, AAPL, MU, SOXX, NBIS, BE, IGV, IWM, HYG, TLT, UUP, VXX]
+  massive:
+    enabled: true
+    base_url: https://api.massive.com
+    stock_websocket_url: wss://socket.massive.com/stocks
+    options_websocket_url: wss://socket.massive.com/options
+    # Authenticated T/Q/A/AM stock events are archived here. Only finalized AM
+    # bars enter the current 5/15/30/60-minute model.
+    stock_tape_output: data/live/massive_stock_tape.jsonl
+    api_key_env: MASSIVE_API_KEY
+    symbols: [SPY, QQQ, NVDA, AAPL, MU, SOXX, NBIS, BE, IGV, IWM, HYG, TLT, UUP, VXX]
+    index_symbols: [I:SPX]
+    option_underlyings: [SPX, QQQ, NVDA, AAPL, MU, SOXX, NBIS, BE, IGV]
+    option_chain_output_root: data/live/options
+    option_chain_refresh_seconds: 60
+    option_chain_max_pages: 200
+    option_chain_max_contracts: 250000
+    # The full raw chain is always retained. Modeling uses only fresh contracts
+    # with NBBO, daily OI, IV/Greeks, and underlying price, and fails closed
+    # unless this explicit coverage contract is met.
+    option_chain_min_eligible_contracts: 20
+    option_chain_min_quote_coverage: 0.80
+    option_chain_min_open_interest_coverage: 0.80
+    option_chain_min_greeks_coverage: 0.80
+    # Stocks Basic is limited to five REST calls/minute. This guard is enforced.
+    request_interval_ms: 12100
+    # 28 calendar days stays below the 50,000 base-aggregate limit for 1m bars.
+    # 56 calendar days stays below the 50k-row aggregate limit for US equity
+    # extended-hours one-minute bars while halving free-plan request latency.
+    chunk_days: 56
+  # Official slow/context layer. It stays disabled until
+  # `npm run quant:context:sync` has produced a validated SEC acceptance-time +
+  # ALFRED initial-release archive. Enabling ingestion does not promote a model.
+  context:
+    enabled: false
+    provider: sec_edgar+fred_alfred
+    input_path: data/context/official_observations.jsonl
+    minimum_history_days: 120
+    require_upstream_vendor: true
+    max_snapshot_staleness_seconds: 300
+  databento:
+    enabled: true
+    requests:
+      - name: es_ohlcv_1m
+        dataset: GLBX.MDP3
+        schema: ohlcv-1m
+        stype_in: parent
+        symbols: [ES.FUT]
+        start: "2013-01-01T00:00:00Z"
+        end: "2026-07-19T00:00:00Z"
+      - name: spx_option_cbbo_1m
+        dataset: OPRA.PILLAR
+        schema: cbbo-1m
+        stype_in: parent
+        # Resolve and validate the provider parent symbology with `quantctl data cost`
+        # before purchase. It is deliberately configuration, never buried in code.
+        symbols: [SPX.OPT]
+        start: "2013-01-01T00:00:00Z"
+        end: "2026-07-19T00:00:00Z"
+      - name: context_etf_ohlcv_1m
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY, QQQ, NVDA, AAPL, MU, SOXX, NBIS, BE, IGV, IWM, HYG, TLT, UUP, VXX]
+        start: "2023-03-28T00:00:00Z"
+        end: "2026-07-19T00:00:00Z"
+      # Scoped-down subset of context_etf_ohlcv_1m for the M7 remediation
+      # backtest: context_etf_ohlcv_1m's own cost estimate (3+ years x 14
+      # symbols) timed out against Databento's metadata API (504) rather
+      # than pricing cleanly, so this starts with just the primary target
+      # over 12 months -- still enough sessions for several purged
+      # walk-forward folds at the default train=30/validation=10/test=10.
+      - name: spy_ohlcv_1m_backtest
+        dataset: EQUS.MINI
+        schema: ohlcv-1m
+        stype_in: raw_symbol
+        symbols: [SPY]
+        start: "2026-06-19T00:00:00Z"
+        end: "2026-07-19T00:00:00Z"
+  cboe:
+    licensed_csv_root: data/import/cboe
+    spx_index_history_from: "2004-01-01"
+    option_quote_history_from: "2012-01-01"
+  broker:
+    provider: none
+    execution_only: true
+    mode: simulate

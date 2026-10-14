@@ -18,6 +18,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
 from intraday_quant.config import AppConfig
+from intraday_quant.backtest.costs import minimum_round_trip_cost_return
 from intraday_quant.models.calibration import ProbabilityCalibrator
 
 
@@ -100,9 +101,9 @@ def _run_analog_backtest(
     # Rust's own train/query separation is by session date -- every session
     # strictly before the query's own session is eligible train data (see
     # predictor::hmm_context / fit_analog_engine). Passing the first test
-    # date as the train cutoff reproduces that exactly, including causally
-    # excluding this fold's validation sessions, which already happens in
-    # production.
+    # date as the train cutoff preserves that policy. Unlike the Python
+    # challengers' train-only fit, it may include validation sessions; these
+    # raw research rows are not a comparable calibrated strategy ensemble.
     train_before = pd.Timestamp(min(test_dates))
     query_start = pd.Timestamp(min(test_dates))
     query_end = pd.Timestamp(max(test_dates))
@@ -158,6 +159,7 @@ def _run_analog_backtest(
         nearest_neighbor_distance = diagnostics.get("nearest_neighbor_distance")
         rows.append({
             "timestamp": forecast["decision_as_of"],
+            "decision_as_of": forecast["decision_as_of"],
             "expected_return": distribution.get("kernel_weighted_mean", 0.0),
             "median_return": distribution.get("kernel_weighted_mean", 0.0),
             "win_probability": distribution.get("probability_up", 0.5),
@@ -173,7 +175,16 @@ def _run_analog_backtest(
             "neighbor_dates": "|".join(str(analog["session_date"]) for analog in analogs),
             "analog_backtest_status": forecast["status"],
         })
-    return pd.DataFrame(rows)
+    result = pd.DataFrame(rows, columns=[
+        "timestamp", "decision_as_of", "expected_return", "median_return", "win_probability",
+        "predicted_mfe", "predicted_mae", "neighbor_count", "similarity_score", "uncertainty",
+        "neighbor_dates", "analog_backtest_status",
+    ])
+    result["decision_as_of"] = pd.to_datetime(result["decision_as_of"], utc=True).dt.tz_convert(config.timezone)
+    # The research export now identifies real completed-bar availability. Keep
+    # it visible while joining Python candidates by their interval-start label.
+    result["timestamp"] = result["decision_as_of"] - pd.Timedelta(minutes=1)
+    return result
 
 
 def _dataset(labels: pd.DataFrame, features: pd.DataFrame, horizon: int, round_trip_cost: float) -> pd.DataFrame:
@@ -197,6 +208,10 @@ def _dataset(labels: pd.DataFrame, features: pd.DataFrame, horizon: int, round_t
     data["target_mfe"] = data[mfe_column]
     data["target_mae"] = data[mae_column]
     data["target_win"] = (data["target_return"] > round_trip_cost).astype(int)
+    data["decision_as_of"] = data.get("signal_time", data["timestamp"] + pd.Timedelta(minutes=1))
+    available_column = f"forward_available_at_{horizon}m"
+    fallback_entry = data.get("earliest_entry", data["decision_as_of"])
+    data["target_available_at"] = data.get(available_column, fallback_entry + pd.Timedelta(minutes=horizon))
     data["horizon_minutes"] = horizon
     return data.dropna(subset=["target_return", "target_mfe", "target_mae"]).sort_values("timestamp")
 
@@ -239,6 +254,7 @@ def _fit_family(name: str, train: pd.DataFrame, validation: pd.DataFrame, test: 
     test_return_prediction = regressor.predict(x_test)
     output = pd.DataFrame({
         "candidate_id": test["candidate_id"].to_numpy(), "timestamp": test["timestamp"].to_numpy(),
+        "decision_as_of": test["decision_as_of"].to_numpy(),
         "model": name, "expected_return": test_return_prediction,
         "median_return": test_return_prediction, "win_probability": calibrator.predict(raw_test),
         "predicted_mfe": np.maximum(0, mfe_model.predict(x_test)),
@@ -256,14 +272,51 @@ def _fit_family(name: str, train: pd.DataFrame, validation: pd.DataFrame, test: 
     return output, {"classifier": classifier, "regressor": regressor, "mfe": mfe_model, "mae": mae_model, "calibrator": calibrator, "diagnostics": diagnostics}
 
 
+def directional_analog_predictions(test: pd.DataFrame, kernel_predictions: pd.DataFrame) -> pd.DataFrame:
+    """Orient raw upward kernel outputs without claiming cost-aware calibration."""
+    result = test[["candidate_id", "timestamp", "direction"]].merge(
+        kernel_predictions, on="timestamp", how="inner"
+    )
+    if not result["direction"].isin([-1, 1]).all():
+        raise ValueError("analog candidates require direction -1/1")
+    short = result["direction"].eq(-1)
+    result["expected_return"] = result["expected_return"] * result["direction"]
+    result["median_return"] = result["median_return"] * result["direction"]
+    raw_mfe, raw_mae = result["predicted_mfe"].copy(), result["predicted_mae"].copy()
+    result["predicted_mfe"] = np.where(short, raw_mae, raw_mfe)
+    result["predicted_mae"] = np.where(short, raw_mfe, raw_mae)
+    result["raw_up_probability"] = result["win_probability"]
+    # Cost-aware profitability is not derivable from a single zero-return
+    # upward frequency (its complement also includes zero-return observations).
+    result["win_probability"] = np.nan
+    result["probability_semantics"] = "raw_up_frequency_not_cost_aware_calibration"
+    result["strategy_eligibility"] = "unsupported_probability_semantics"
+    return result
+
+
+def mature_fold_partitions(
+    train: pd.DataFrame, validation: pd.DataFrame, test: pd.DataFrame, config: AppConfig,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Purge on real feature availability and exclude labels not yet mature."""
+    validation_start = validation["decision_as_of"].min()
+    test_start = test["decision_as_of"].min()
+    purge = pd.Timedelta(minutes=config.walk_forward.purge_minutes)
+    embargo = pd.Timedelta(minutes=config.walk_forward.embargo_minutes)
+    train = train[(train["decision_as_of"] < validation_start - purge)
+                  & (train["target_available_at"] <= validation_start)]
+    validation = validation[(validation["decision_as_of"] >= validation_start + embargo)
+                            & (validation["decision_as_of"] < test_start - purge)
+                            & (validation["target_available_at"] <= test_start)]
+    test = test[test["decision_as_of"] >= test_start + embargo]
+    return train, validation, test
+
+
 def train_walk_forward(labels: pd.DataFrame, features: pd.DataFrame, config: AppConfig) -> tuple[pd.DataFrame, pd.DataFrame]:
     predictions: list[pd.DataFrame] = []
     diagnostics: list[dict[str, object]] = []
     models_dir = config.output_dir / "models"
     models_dir.mkdir(parents=True, exist_ok=True)
-    round_trip_cost = (
-        2 * (config.costs.underlying_slippage_bps + config.costs.estimated_spread_bps)
-    ) / 10_000
+    round_trip_cost = minimum_round_trip_cost_return(config)
     for horizon in config.forecast_horizons:
         data = _dataset(labels, features, horizon, round_trip_cost)
         dates = sorted(data["session_date"].unique())
@@ -275,11 +328,7 @@ def train_walk_forward(labels: pd.DataFrame, features: pd.DataFrame, config: App
             test = data[data["session_date"].isin(fold.test_dates)].copy()
             if train.empty or validation.empty or test.empty or train["target_win"].nunique() < 2:
                 continue
-            validation_start = validation["timestamp"].min()
-            test_start = test["timestamp"].min()
-            train = train[train["timestamp"] < validation_start - pd.Timedelta(minutes=config.walk_forward.purge_minutes)]
-            validation = validation[(validation["timestamp"] >= validation_start + pd.Timedelta(minutes=config.walk_forward.embargo_minutes)) & (validation["timestamp"] < test_start - pd.Timedelta(minutes=config.walk_forward.purge_minutes))]
-            test = test[test["timestamp"] >= test_start + pd.Timedelta(minutes=config.walk_forward.embargo_minutes)]
+            train, validation, test = mature_fold_partitions(train, validation, test, config)
             if train.empty or validation.empty or test.empty or train["target_win"].nunique() < 2:
                 continue
             family_outputs: list[pd.DataFrame] = []
@@ -305,9 +354,7 @@ def train_walk_forward(labels: pd.DataFrame, features: pd.DataFrame, config: App
                     target=config.target,
                     config=config,
                 )
-                analog_output = test[["candidate_id", "timestamp"]].merge(
-                    kernel_predictions, on="timestamp", how="inner"
-                )
+                analog_output = directional_analog_predictions(test, kernel_predictions)
                 analog_output["model"] = "analog_kernel"
                 analog_output["fold"] = fold.fold
                 analog_output["horizon_minutes"] = horizon
@@ -320,6 +367,7 @@ def train_walk_forward(labels: pd.DataFrame, features: pd.DataFrame, config: App
                     "quantctl_query_states": len(kernel_predictions),
                     "quantctl_matched_test_rows": len(analog_output),
                     "quantctl_ok_rate": ok_rate,
+                    "strategy_eligibility": "unsupported_probability_semantics",
                 })
             if family_outputs:
                 fold_predictions = pd.concat(family_outputs, ignore_index=True)

@@ -1,5 +1,15 @@
 # Current source sync receipt
 
+## 2026-10-12 cost-aware research revision
+
+The counts, upstream hash comparisons, and test results below describe the
+original synchronized snapshot. This branch intentionally revises its Python
+and Rust research sources; those historical upstream equality claims are not
+new receipts for the revised code. Frozen model JSON and ZIP artifacts remain
+unchanged. See [the revision report](review-package/cost-aware-research.md) for
+the scope and current verification. No artifact promotion or live-data
+readiness is established by these code changes.
+
 本分支把 AXIO7 当前模型、训练、实时数据接入和 native research 源码同步到 Argus，供外部审阅者直接查看、修改并提交 PR。
 
 ## 完整性

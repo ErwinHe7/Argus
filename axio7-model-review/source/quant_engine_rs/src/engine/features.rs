@@ -870,6 +870,7 @@ mod tests {
             option_slippage: 0.0,
             option_max_spread_pct: 0.2,
             option_max_staleness_seconds: 60,
+            execution_costs: Default::default(),
             regime: Default::default(),
         }
     }

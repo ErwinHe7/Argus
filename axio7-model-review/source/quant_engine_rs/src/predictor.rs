@@ -1498,18 +1498,30 @@ pub fn backtest_analog_predictions(
         analog_engine_config(research),
     )
     .context("offline analog transform/index fit failed")?;
-    Ok(query_indices
+    query_indices
         .iter()
         .map(|query_index| {
-            analog_engine.query(
+            let query_state = states
+                .get(*query_index)
+                .context("query index out of range")?;
+            let decision_cutoff = query_state
+                .timestamp
+                .checked_add_signed(Duration::minutes(1))
+                .context("offline analog decision cutoff overflows timestamp range")?;
+            let mut forecast = analog_engine.query(
                 states,
                 &outcomes,
                 *query_index,
                 horizon_minutes,
                 Some(&filtered_history),
-            )
+            );
+            // Offline exports use the completed feature cutoff, matching
+            // production ForecastContract rather than the bar's start label.
+            // Retrieval itself remains conservative at its existing cutoff.
+            forecast.decision_as_of = decision_cutoff;
+            Ok(forecast)
         })
-        .collect())
+        .collect()
 }
 
 const SHORT_HORIZON_TRAINING_SESSIONS: usize = 60;
@@ -3042,6 +3054,7 @@ mod tests {
             option_slippage: 0.0,
             option_max_spread_pct: 0.1,
             option_max_staleness_seconds: 120,
+            execution_costs: Default::default(),
             regime: RegimeResearchConfig {
                 state_candidates: vec![2],
                 validation_fraction: 0.2,
@@ -3618,6 +3631,7 @@ mod tests {
             option_slippage: 0.0,
             option_max_spread_pct: 0.1,
             option_max_staleness_seconds: 120,
+            execution_costs: Default::default(),
             regime: RegimeResearchConfig {
                 state_candidates: vec![2],
                 validation_fraction: 0.2,

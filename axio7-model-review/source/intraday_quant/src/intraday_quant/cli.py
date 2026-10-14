@@ -8,6 +8,7 @@ import pandas as pd
 
 from intraday_quant.backtest.options import run_options_backtest
 from intraday_quant.backtest.underlying import run_underlying_backtest
+from intraday_quant.backtest.costs import minimum_round_trip_cost_return
 from intraday_quant.candidates.pipeline import generate_candidates, save_candidates
 from intraday_quant.config import AppConfig, load_config
 from intraday_quant.data.ingest import ingest, load_cleaned
@@ -52,11 +53,15 @@ def _backtest(config: AppConfig) -> tuple[pd.DataFrame, pd.DataFrame, str]:
     predictions = pd.read_parquet(config.output_dir / "models" / "predictions.parquet")
     selected, rejected = score_and_select(predictions, candidates, config)
     trades = run_underlying_backtest(selected, features, config)
+    execution_rejections = pd.DataFrame(trades.attrs.pop("execution_rejections", []))
+    if not execution_rejections.empty:
+        rejected = pd.concat([rejected, execution_rejections], ignore_index=True)
     options, option_status = run_options_backtest(trades, config)
     report_dir = config.output_dir / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
     selected.to_parquet(report_dir / "selected_candidates.parquet", index=False)
     rejected.to_parquet(report_dir / "rejected_candidates.parquet", index=False)
+    execution_rejections.to_csv(report_dir / "execution_rejections.csv", index=False)
     trades.to_parquet(report_dir / "trade_blotter.parquet", index=False)
     trades.to_csv(report_dir / "trade_blotter.csv", index=False)
     options.to_parquet(report_dir / "option_trade_blotter.parquet", index=False)
@@ -83,7 +88,7 @@ def _analog(config: AppConfig, target_date: str | None) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     analogs.to_csv(path, index=False)
     returns = analogs["return_1550_to_close"].astype(float)
-    market_cost = 2 * (config.costs.underlying_slippage_bps + config.costs.estimated_spread_bps) / 10_000
+    market_cost = minimum_round_trip_cost_return(config)
     july2 = analogs.loc[analogs["date_string"] == "2026-07-02", "rank"]
     summary = {
         "target_date": target_date,
@@ -94,6 +99,7 @@ def _analog(config: AppConfig, target_date: str | None) -> Path:
         "mean_gross_return_to_close": float(returns.mean()),
         "median_gross_return_to_close": float(returns.median()),
         "estimated_round_trip_market_cost": market_cost,
+        "cost_basis": "pre_trade_baseline_includes_commission_excludes_size_impact",
         "mean_return_after_market_cost": float(returns.mean() - market_cost),
         "july_2_rank": int(july2.iloc[0]) if len(july2) else None,
         "options_result": "not_tested_no_historical_nbbo",

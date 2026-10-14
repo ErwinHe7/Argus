@@ -10,6 +10,458 @@ use axio_quant_engine::{
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use tempfile::tempdir;
 
+#[test]
+fn option_costs_reconcile_mid_gross_to_net_and_increase_with_size() {
+    let signal = ts("2026-07-16T14:00:00Z");
+    let entry = quote(signal + Duration::seconds(1), 4.9, 5.0);
+    let exit = quote(signal + Duration::minutes(5), 5.5, 5.6);
+    let mut cfg = config();
+    cfg.execution_costs.option_commission_per_contract_per_side = 0.65;
+    cfg.execution_costs.option_impact_at_full_participation = 0.1;
+    cfg.execution_costs.option_max_participation_rate = 0.5;
+    let fill = execution::simulate_long_option_size(signal, exit.timestamp, &entry, &exit, 3, &cfg);
+    assert_eq!(fill.filled_contracts, 3);
+    assert_eq!(fill.exit_filled_contracts, 3);
+    let costs = fill.cost_breakdown.unwrap();
+    assert_abs_diff_eq!(
+        fill.mid_gross_pnl_per_contract.unwrap(),
+        60.0,
+        epsilon = 1e-9
+    );
+    assert_abs_diff_eq!(costs.spread_cost, 10.0, epsilon = 1e-9);
+    assert_abs_diff_eq!(costs.slippage_cost, 10.0, epsilon = 1e-9);
+    assert_abs_diff_eq!(costs.market_impact_cost, 6.0, epsilon = 1e-9);
+    assert_abs_diff_eq!(costs.commission_cost, 1.3, epsilon = 1e-9);
+    assert_abs_diff_eq!(fill.net_pnl_per_contract.unwrap(), 32.7, epsilon = 1e-9);
+    assert_abs_diff_eq!(fill.net_pnl_total.unwrap(), 98.1, epsilon = 1e-9);
+    let smaller = execution::simulate_long_option(signal, exit.timestamp, &entry, &exit, &cfg);
+    assert!(smaller.net_pnl_per_contract.unwrap() > fill.net_pnl_per_contract.unwrap());
+    cfg.execution_costs.option_max_participation_rate = 0.25;
+    let partial =
+        execution::simulate_long_option_size(signal, exit.timestamp, &entry, &exit, 3, &cfg);
+    assert_eq!(partial.fill_status, "PARTIAL_FILL");
+    assert_eq!(partial.filled_contracts, 2);
+    assert_eq!(partial.exit_filled_contracts, 2);
+    assert_abs_diff_eq!(
+        partial.net_pnl_total.unwrap(),
+        2.0 * partial.net_pnl_per_contract.unwrap()
+    );
+}
+
+#[test]
+fn option_exit_liquidity_cannot_change_earlier_entry_or_invent_net_pnl() {
+    let signal = ts("2026-07-16T14:00:00Z");
+    let entry = quote(signal + Duration::seconds(1), 4.9, 5.0);
+    let exit = quote(signal + Duration::minutes(5), 5.5, 5.6);
+    let completed =
+        execution::simulate_long_option_size(signal, exit.timestamp, &entry, &exit, 3, &config());
+    let mut thin_exit = exit.clone();
+    thin_exit.bid_size = 1;
+    let unliquidated = execution::simulate_long_option_size(
+        signal,
+        exit.timestamp,
+        &entry,
+        &thin_exit,
+        3,
+        &config(),
+    );
+    assert_eq!(completed.filled_contracts, unliquidated.filled_contracts);
+    assert_eq!(completed.entry_fill, unliquidated.entry_fill);
+    assert_eq!(unliquidated.unliquidated_contracts, 2);
+    assert_eq!(unliquidated.net_pnl_per_contract, None);
+    assert_eq!(unliquidated.net_pnl_total, None);
+    assert_eq!(unliquidated.cost_breakdown, None);
+    let zero =
+        execution::simulate_long_option_size(signal, exit.timestamp, &entry, &exit, 0, &config());
+    assert_eq!(zero.filled_contracts, 0);
+    assert_eq!(zero.net_pnl_total, None);
+}
+
+#[test]
+fn option_cost_and_quote_inputs_fail_closed_on_nonfinite_negative_and_latency() {
+    let signal = ts("2026-07-16T14:00:00Z");
+    let entry = quote(signal + Duration::milliseconds(500), 4.9, 5.0);
+    let exit = quote(
+        signal + Duration::minutes(5) + Duration::milliseconds(500),
+        5.5,
+        5.6,
+    );
+    for bad in [f64::NAN, f64::INFINITY, -0.1] {
+        let mut cfg = config();
+        cfg.option_slippage = bad;
+        let fill = execution::simulate_long_option(
+            signal,
+            signal + Duration::minutes(5),
+            &entry,
+            &exit,
+            &cfg,
+        );
+        assert_eq!(fill.filled_contracts, 0);
+        assert_eq!(fill.net_pnl_total, None);
+        assert_eq!(
+            fill.rejected_reason.as_deref(),
+            Some("invalid_execution_cost_config")
+        );
+    }
+    for bad in [f64::NAN, f64::INFINITY] {
+        let mut bad_entry = entry.clone();
+        bad_entry.bid = bad;
+        let fill = execution::simulate_long_option(
+            signal,
+            signal + Duration::minutes(5),
+            &bad_entry,
+            &exit,
+            &config(),
+        );
+        assert_eq!(fill.filled_contracts, 0);
+        assert_eq!(fill.rejected_reason.as_deref(), Some("nonfinite_quote"));
+    }
+    let mut cfg = config();
+    cfg.execution_costs.latency_ms = 750;
+    let too_early =
+        execution::simulate_long_option(signal, signal + Duration::minutes(5), &entry, &exit, &cfg);
+    assert_eq!(
+        too_early.rejected_reason.as_deref(),
+        Some("entry_before_latency")
+    );
+    cfg.execution_costs.latency_ms = 250;
+    let valid =
+        execution::simulate_long_option(signal, signal + Duration::minutes(5), &entry, &exit, &cfg);
+    assert_eq!(valid.fill_status, "FILLED");
+    let mut bad_exit = exit.clone();
+    bad_exit.timestamp = signal + Duration::minutes(5) + Duration::milliseconds(100);
+    let no_exit = execution::simulate_long_option(
+        signal,
+        signal + Duration::minutes(5),
+        &entry,
+        &bad_exit,
+        &cfg,
+    );
+    assert_eq!(
+        no_exit.rejected_reason.as_deref(),
+        Some("exit_before_latency")
+    );
+    assert_eq!(no_exit.filled_contracts, 1);
+    assert_eq!(no_exit.net_pnl_total, None);
+    bad_exit = exit.clone();
+    bad_exit.strike += 5.0;
+    let mismatch = execution::simulate_long_option(
+        signal,
+        signal + Duration::minutes(5),
+        &entry,
+        &bad_exit,
+        &cfg,
+    );
+    assert_eq!(
+        mismatch.rejected_reason.as_deref(),
+        Some("contract_mismatch")
+    );
+}
+
+fn cost_backtest_fixture() -> (Vec<MarketState>, Candidate, Vec<Outcome>) {
+    let mut states: Vec<_> = (1..=31).map(|day| state(0, day)).collect();
+    states.extend((1..=8).map(|minute| state(minute, 31)));
+    let outcomes = (0..30)
+        .map(|idx| Outcome {
+            state_index: idx,
+            entry_timestamp: states[idx].timestamp + Duration::minutes(1),
+            horizon_minutes: 5,
+            directional_return: 0.002,
+            mfe: 0.003,
+            mae: 0.001,
+        })
+        .collect();
+    let candidate = Candidate {
+        candidate_id: "cost-fixture".to_string(),
+        timestamp: states[30].timestamp,
+        session_date: states[30].session_date,
+        state_index: 30,
+        setup_type: SetupType::ClosingShortCover,
+        direction: 1,
+        entry_reference: states[30].close,
+        reason_codes: vec!["TEST_ONLY".to_string()],
+    };
+    (states, candidate, outcomes)
+}
+
+#[test]
+fn underlying_cost_gate_and_stress_report_include_commission_and_full_spread() {
+    let (states, candidate, outcomes) = cost_backtest_fixture();
+    let mut cfg = config();
+    cfg.execution_costs.full_spread_bps = 4.0;
+    cfg.commission_per_trade = 1.0;
+    assert_abs_diff_eq!(
+        backtest::estimated_underlying_cost_return(6000.0, &cfg).unwrap(),
+        6.0 / 10_000.0 + 1.0 / 6000.0,
+        epsilon = 1e-12
+    );
+    let result = backtest::run(&states, std::slice::from_ref(&candidate), &outcomes, &cfg);
+    assert_eq!(result.trades.len(), 1);
+    let trade = &result.trades[0];
+    assert_abs_diff_eq!(
+        trade.gross_return - trade.cost,
+        trade.net_return,
+        epsilon = 1e-12
+    );
+    let raw_entry = states[31].open;
+    assert_abs_diff_eq!(
+        (trade.underlying_exit - trade.underlying_entry - cfg.commission_per_trade) / raw_entry,
+        trade.net_return,
+        epsilon = 1e-12
+    );
+    let costs = trade.cost_breakdown.as_ref().unwrap();
+    assert_abs_diff_eq!(
+        costs.spread_cost + costs.slippage_cost + costs.commission_cost,
+        trade.cost,
+        epsilon = 1e-12
+    );
+    assert_eq!(result.cost_sensitivity.len(), 3);
+    assert_abs_diff_eq!(
+        result.cost_sensitivity[0].total_return,
+        result.metrics.total_return,
+        epsilon = 1e-12
+    );
+    assert!(
+        result.cost_sensitivity[0].expectancy_per_trade
+            > result.cost_sensitivity[1].expectancy_per_trade
+    );
+    cfg.commission_per_trade = 20.0;
+    let rejected = backtest::run(&states, std::slice::from_ref(&candidate), &outcomes, &cfg);
+    assert!(rejected.trades.is_empty());
+    assert_eq!(
+        rejected.decisions[0].rejection_reason.as_deref(),
+        Some("nonpositive_expected_net_after_costs")
+    );
+}
+
+#[test]
+fn underlying_rejects_missing_out_of_order_bars_and_invalid_candidates() {
+    let (mut states, candidate, outcomes) = cost_backtest_fixture();
+    states[31].timestamp = candidate.timestamp;
+    assert!(
+        backtest::run(
+            &states,
+            std::slice::from_ref(&candidate),
+            &outcomes,
+            &config()
+        )
+        .trades
+        .is_empty()
+    );
+    states[31].timestamp = candidate.timestamp + Duration::minutes(2);
+    assert!(
+        backtest::run(
+            &states,
+            std::slice::from_ref(&candidate),
+            &outcomes,
+            &config()
+        )
+        .trades
+        .is_empty()
+    );
+    states[31].timestamp = candidate.timestamp + Duration::minutes(1);
+    let mut invalid = candidate;
+    invalid.state_index = usize::MAX;
+    let result = backtest::run(&states, &[invalid], &outcomes, &config());
+    assert_eq!(
+        result.decisions[0].rejection_reason.as_deref(),
+        Some("invalid_execution_input")
+    );
+    assert!(serde_json::to_string(&result.decisions).is_ok());
+}
+
+#[test]
+fn execution_cost_serialization_preserves_legacy_profiles_without_invented_net() {
+    let mut legacy = serde_json::to_value(config()).unwrap();
+    legacy.as_object_mut().unwrap().remove("execution_costs");
+    let cfg: ResearchConfig = serde_json::from_value(legacy).unwrap();
+    assert_eq!(cfg.execution_costs, Default::default());
+    let fill: axio_quant_engine::domain::OptionFill = serde_json::from_value(serde_json::json!({
+        "option_symbol": "TEST", "entry_fill": 1.0, "exit_fill": 2.0,
+        "gross_pnl_per_contract": 100.0, "rejected_reason": null
+    }))
+    .unwrap();
+    assert_eq!(fill.net_pnl_total, None);
+    assert_eq!(fill.mid_gross_pnl_per_contract, None);
+}
+
+#[test]
+fn retrospective_exit_failures_invalidate_the_whole_evaluation() {
+    let (states, candidate, outcomes) = cost_backtest_fixture();
+    let mut invalid_prices = states.clone();
+    invalid_prices[34].close = f64::NAN;
+    let result = backtest::run(
+        &invalid_prices,
+        std::slice::from_ref(&candidate),
+        &outcomes,
+        &config(),
+    );
+    assert_eq!(result.evaluation_status, "INVALID_EVALUATION");
+    assert!(result.trades.is_empty());
+    assert!(result.cost_sensitivity.is_empty());
+    assert!(
+        backtest::try_run(
+            &invalid_prices,
+            std::slice::from_ref(&candidate),
+            &outcomes,
+            &config()
+        )
+        .is_err()
+    );
+    let truncated = &states[..34];
+    let result = backtest::run(
+        truncated,
+        std::slice::from_ref(&candidate),
+        &outcomes,
+        &config(),
+    );
+    assert_eq!(result.evaluation_status, "INVALID_EVALUATION");
+    assert_eq!(
+        result.invalidation_reason.as_deref(),
+        Some("truncated_holding_window_without_session_close")
+    );
+    assert!(result.equity.is_empty());
+    assert!(backtest::try_run(truncated, &[candidate], &outcomes, &config()).is_err());
+}
+
+#[test]
+fn only_a_verified_configured_session_close_can_end_a_short_holding_window() {
+    let (mut states, mut candidate, outcomes) = cost_backtest_fixture();
+    states.truncate(35);
+    for (offset, row) in states.iter_mut().skip(30).enumerate() {
+        row.timestamp = ts("2026-07-31T19:55:00Z") + Duration::minutes(offset as i64);
+        row.minutes_to_close = 5 - offset as i32;
+    }
+    candidate.timestamp = states[30].timestamp;
+    let result = backtest::try_run(&states, &[candidate], &outcomes, &config()).unwrap();
+    assert_eq!(result.trades.len(), 1);
+    assert_eq!(result.trades[0].exit_reason, "session_close");
+}
+
+#[test]
+fn explicit_cost_profile_loads_with_execution_disabled_and_legacy_profile_still_loads() {
+    let cfg = axio_quant_engine::AppConfig::load("configs/research-cost-aware.yaml").unwrap();
+    assert!(!cfg.live.enabled);
+    assert!(!cfg.execution.enabled);
+    assert!(!cfg.execution.allow_real_orders);
+    assert_abs_diff_eq!(cfg.research.execution_costs.full_spread_bps, 2.0);
+    assert_abs_diff_eq!(
+        cfg.research
+            .execution_costs
+            .option_commission_per_contract_per_side,
+        0.65
+    );
+    assert_eq!(cfg.research.execution_costs.latency_ms, 250);
+    assert!(axio_quant_engine::AppConfig::load("configs/production.yaml").is_ok());
+}
+
+#[test]
+fn underlying_holding_horizons_match_forward_labels_for_one_and_two_bars() {
+    let (states, candidate, outcomes) = cost_backtest_fixture();
+    for horizon in [1, 2] {
+        let mut cfg = config();
+        cfg.max_holding_minutes = horizon;
+        cfg.underlying_slippage_bps = 0.0;
+        let result =
+            backtest::try_run(&states, std::slice::from_ref(&candidate), &outcomes, &cfg).unwrap();
+        assert_eq!(result.trades.len(), 1);
+        let trade = &result.trades[0];
+        let labels = labels::forward_outcomes(&states, horizon);
+        let label = labels
+            .iter()
+            .find(|label| label.state_index == candidate.state_index)
+            .unwrap();
+        assert_eq!(trade.entry_time, label.entry_timestamp);
+        assert_eq!(trade.holding_minutes, horizon);
+        assert_eq!(
+            trade.signal_time,
+            candidate.timestamp + Duration::minutes(1)
+        );
+        assert_eq!(
+            trade.exit_time,
+            trade.entry_time + Duration::minutes(horizon as i64)
+        );
+        assert!(trade.exit_time > trade.entry_time);
+        assert_abs_diff_eq!(
+            trade.gross_return,
+            label.directional_return,
+            epsilon = 1e-12
+        );
+    }
+}
+
+#[test]
+fn underlying_entry_bar_standing_barriers_execute_and_stop_wins_ties() {
+    let (states, candidate, outcomes) = cost_backtest_fixture();
+    let mut cfg = config();
+    cfg.max_holding_minutes = 2;
+    cfg.stop_bps = 10.0;
+    cfg.take_profit_bps = 10.0;
+    for (high, low, expected_reason) in [
+        (6001.5, 5990.0, "stop_loss"),
+        (6010.0, 6000.5, "take_profit"),
+        (6010.0, 5990.0, "stop_loss"),
+    ] {
+        let mut scenario = states.clone();
+        scenario[31].high = high;
+        scenario[31].low = low;
+        let result =
+            backtest::try_run(&scenario, std::slice::from_ref(&candidate), &outcomes, &cfg)
+                .unwrap();
+        assert_eq!(result.trades.len(), 1);
+        let trade = &result.trades[0];
+        assert_eq!(trade.exit_reason, expected_reason);
+        assert_eq!(trade.holding_minutes, 1);
+        assert_eq!(
+            trade.exit_time,
+            scenario[31].timestamp + Duration::minutes(1)
+        );
+        assert!(trade.exit_time > trade.entry_time);
+    }
+}
+
+#[test]
+fn underlying_positive_latency_cannot_use_the_already_passed_boundary_open() {
+    let (states, candidate, outcomes) = cost_backtest_fixture();
+    let mut cfg = config();
+    cfg.max_holding_minutes = 1;
+    cfg.execution_costs.latency_ms = 250;
+    let result =
+        backtest::try_run(&states, std::slice::from_ref(&candidate), &outcomes, &cfg).unwrap();
+    assert_eq!(result.trades.len(), 1);
+    let trade = &result.trades[0];
+    assert_eq!(
+        trade.signal_time,
+        candidate.timestamp + Duration::minutes(1)
+    );
+    assert_eq!(trade.entry_time, states[32].timestamp);
+    assert_eq!(trade.holding_minutes, 1);
+    assert!(trade.entry_time > trade.signal_time);
+}
+
+#[test]
+fn forward_labels_require_complete_positive_continuous_same_instrument_horizons() {
+    let states: Vec<_> = (0..4).map(|minute| state(minute, 1)).collect();
+    assert!(labels::forward_outcomes(&states, 0).is_empty());
+    assert!(labels::forward_outcomes(&states, usize::MAX).is_empty());
+    let complete = labels::forward_outcomes(&states, 3);
+    assert_eq!(complete.len(), 1);
+    assert_eq!(complete[0].state_index, 0);
+    assert_eq!(labels::forward_outcomes(&states, 1).len(), 3);
+    let mut missing = states.clone();
+    missing.remove(2);
+    assert!(labels::forward_outcomes(&missing, 2).is_empty());
+    let mut next_session = states.clone();
+    next_session[3].session_date = NaiveDate::from_ymd_opt(2026, 7, 2).unwrap();
+    assert!(labels::forward_outcomes(&next_session, 3).is_empty());
+    let mut wrong_symbol = states.clone();
+    wrong_symbol[2].symbol = "QQQ".to_string();
+    assert!(labels::forward_outcomes(&wrong_symbol, 3).is_empty());
+    let mut bad_price = states;
+    bad_price[2].close = f64::NAN;
+    assert!(labels::forward_outcomes(&bad_price, 3).is_empty());
+}
+
 fn config() -> ResearchConfig {
     ResearchConfig {
         target: "SPX".to_string(),
@@ -31,6 +483,7 @@ fn config() -> ResearchConfig {
         option_slippage: 0.05,
         option_max_spread_pct: 0.20,
         option_max_staleness_seconds: 60,
+        execution_costs: Default::default(),
         regime: Default::default(),
     }
 }
@@ -364,8 +817,11 @@ fn option_execution_respects_displayed_size() {
         &config(),
     );
     assert_eq!(fill.requested_contracts, 3);
-    assert_eq!(fill.filled_contracts, 1);
-    assert_eq!(fill.fill_status, "PARTIAL_FILL");
+    assert_eq!(fill.filled_contracts, 2);
+    assert_eq!(fill.exit_filled_contracts, 1);
+    assert_eq!(fill.unliquidated_contracts, 1);
+    assert_eq!(fill.fill_status, "UNLIQUIDATED");
+    assert_eq!(fill.net_pnl_total, None);
 }
 
 #[test]

@@ -54,6 +54,18 @@ pub struct BacktestMetrics {
     pub annualization_status: String,
 }
 
+/// Accounting stress on the same selected trades, not strategy reselection.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CostSensitivity {
+    pub cost_multiplier: f64,
+    pub total_return: f64,
+    pub expectancy_per_trade: f64,
+    pub win_rate: f64,
+    pub gross_return_sum: f64,
+    pub cost_return_sum: f64,
+    pub break_even_cost_multiplier: Option<f64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EquityPoint {
     pub date: NaiveDate,
@@ -98,10 +110,13 @@ pub struct ResearchReport {
     pub current_hint: Option<CurrentAnalogHint>,
     #[serde(default)]
     pub time_bucket_effects: Vec<effects::TimeBucketEffect>,
+    #[serde(default)]
+    pub cost_sensitivity: Vec<CostSensitivity>,
     pub assumptions: Vec<String>,
 }
 
 pub fn run_csv_research(path: &Path, config: &ResearchConfig) -> Result<ResearchReport> {
+    config.validate_execution_costs()?;
     let imported = MarketBarCsvImporter.import(path)?;
     let source_counts =
         imported
@@ -117,9 +132,8 @@ pub fn run_csv_research(path: &Path, config: &ResearchConfig) -> Result<Research
     let outcomes = labels::forward_outcomes(&states, config.max_holding_minutes.max(60));
     let effect_outcomes = labels::forward_outcomes(&states, 30);
     let time_bucket_effects = effects::audit_time_bucket_reversals(&states, &effect_outcomes);
-    let result = backtest::run(&states, &candidates, &outcomes, config);
+    let result = backtest::try_run(&states, &candidates, &outcomes, config)?;
     let current_hint = states.last().and_then(|latest| {
-        let cost = 2.0 * config.underlying_slippage_bps / 10_000.0;
         let mut horizons = Vec::new();
         for horizon in &config.horizons {
             let idx = states.iter().rposition(|state| {
@@ -151,14 +165,16 @@ pub fn run_csv_research(path: &Path, config: &ResearchConfig) -> Result<Research
                 (_, Some(short)) => (-1, short),
                 _ => continue,
             };
-            let abstain = prediction.expected_return <= cost
+            let cost = backtest::estimated_underlying_cost_return(states[idx].close, config)?;
+            let abstain = !prediction.expected_return.is_finite()
+                || prediction.expected_return <= cost
                 || prediction.win_probability < 0.52
                 || prediction.similarity_score < 0.05
                 || prediction.effective_sample_size < 20.0
                 || prediction.max_day_weight > 0.30;
             horizons.push(HorizonAnalogHint {
                 horizon_minutes: *horizon,
-                as_of: states[idx].timestamp,
+                as_of: states[idx].timestamp + chrono::Duration::minutes(1),
                 bucket_5m: states[idx].bucket_5m,
                 suggested_direction: direction,
                 abstain,
@@ -222,13 +238,17 @@ pub fn run_csv_research(path: &Path, config: &ResearchConfig) -> Result<Research
         analogs: report_analogs,
         current_hint,
         time_bucket_effects,
+        cost_sensitivity: result.cost_sensitivity,
         assumptions: vec![
-            "Signals use minute t close information; entry begins at minute t+1.".to_string(),
+            "Minute timestamps label interval starts; signal features become available at interval close. Entry uses an open at or after close plus latency, and zero-latency boundary fills are an idealized research baseline.".to_string(),
             "Historical analog eligibility requires its entire label horizon to end before the query.".to_string(),
             "This underlying result is not an executable option result unless real NBBO quotes are joined.".to_string(),
             "Clock-time effects are selected on validation data; their reported test fields are untouched out-of-sample observations.".to_string(),
             "The repository's 2024-07-18 through 2026-07-17 history has already been inspected; point-in-time replay on it is exploratory and cannot be a frozen final holdout.".to_string(),
             "The configured trading threshold is not re-selected from the reported test interval.".to_string(),
+            "Underlying costs include full-spread half on each side, per-side slippage and the legacy one-unit round-trip commission; index price returns are research quantities, not executable instrument P&L.".to_string(),
+            "Cost sensitivity multiplies costs on unchanged selected trades at 1x/2x/3x; it does not refit, reselect, or model changed market impact.".to_string(),
+            "Holding horizons include the entry bar, standing stop/target barriers are evaluated on that bar with stop-first ties, and the exit timestamp is the completed exit-bar cutoff. Minute OHLC cannot establish the intrabar path, sub-minute execution, or volume capacity.".to_string(),
         ],
     })
 }

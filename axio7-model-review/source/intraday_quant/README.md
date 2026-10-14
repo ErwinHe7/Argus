@@ -9,8 +9,14 @@ cd intraday_quant
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e ".[dev]"
 .\.venv\Scripts\python.exe -m pytest
-.\.venv\Scripts\python.exe -m intraday_quant.cli run-all --config configs/default.yaml
+.\.venv\Scripts\python.exe -m intraday_quant.cli run-all --config configs/cost_aware_research.yaml
 ```
+
+This bounded synthetic example evaluates the existing Python challengers with
+explicit research execution assumptions. The older `configs/default.yaml`
+also requests the Rust `analog_kernel` bridge and requires a real compatible
+`quantctl` executable and normalized bar input; it does not silently substitute
+a Python estimator when that integration is absent.
 
 ## SPY five-minute demo artifact
 
@@ -101,12 +107,21 @@ report eligible.
 
 ## Research controls
 
-- Signals are known only after bar `t`; entry starts at `t+1`.
+For explicit spread/commission/slippage/size-impact assumptions, strict
+post-latency fills, online selection and break-even stress reports, see
+[cost-aware offline research](docs/cost-aware-research.md). The bounded
+`configs/cost_aware_research.yaml` example is synthetic software validation;
+its numbers are not fitted market or broker estimates.
+
+- Minute labels identify interval starts. Signals become known at label + one
+  minute; entry uses the first bar open at or after that cutoff plus latency.
 - Walk-forward splits are chronological with purge and embargo.
 - Scaling, fitting, calibration and thresholds use train/validation only.
 - Same-minute stop/target ambiguity resolves to the stop first.
 - A dedicated `closing_short_cover` setup scores the final 10 minutes using upside acceleration, close-location/volume buy-pressure proxies and cross-asset confirmation, then reports prior analog dates and their forward distributions.
 - The default daily limit is two trades, one open position and one trade per direction.
 - All rejected candidates retain a machine-readable reason.
+- Daily candidate slots and trade limits are consumed chronologically;
+  only candidates known at the same timestamp compete by strength or score.
 
 The photos supplied with the request motivated the public concepts of historical analogs, momentum and reversal. This project does not reproduce or claim access to any proprietary institutional model.

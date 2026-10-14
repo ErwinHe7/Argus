@@ -1,25 +1,63 @@
-"""STUB — 见 ``intraday_quant/data/__init__.py``。
-
-签名由 ``intraday_quant/cli.py`` 反推：
-    _, stats = ingest(config)          # cli.py:68
-    result = ingest(config)[1]         # cli.py:119  -> 返回 2-tuple，[1] 是统计字典
-    features = build_features(load_cleaned(config), config)   # cli.py:23 -> 返回 DataFrame
-"""
-
 from __future__ import annotations
+
+import json
 
 import pandas as pd
 
+from intraday_quant.calendar import filter_regular_session, market_schedule
 from intraday_quant.config import AppConfig
+from intraday_quant.data.adapters import build_adapter
+from intraday_quant.data.clean import clean_bars
+from intraday_quant.data.integrity import (
+    DataIntegrityError,
+    enforce_complete_panel_sessions,
+)
 
-from . import _STUB_REASON
 
+def ingest(config: AppConfig) -> tuple[pd.DataFrame, dict[str, int]]:
+    raw = build_adapter(config).load()
+    cleaned, stats = clean_bars(raw, config.timezone, config.data.price_ffill_limit)
+    before_session_filter = len(cleaned)
+    schedule = market_schedule(config.start_date, config.end_date, config.timezone)
+    cleaned = filter_regular_session(cleaned, schedule).reset_index(drop=True)
+    stats["outside_session_removed"] = before_session_filter - len(cleaned)
+    integrity = enforce_complete_panel_sessions(
+        cleaned,
+        schedule,
+        config.symbols,
+        frequency="1min",
+    )
+    cleaned = integrity.bars
+    stats.update(integrity.stats)
+    stats["output_rows"] = len(cleaned)
+    cleaned_dir = config.output_dir / "cleaned"
+    cleaned_dir.mkdir(parents=True, exist_ok=True)
+    integrity.session_audit.to_csv(
+        cleaned_dir / "session_integrity.csv",
+        index=False,
+    )
+    (cleaned_dir / "ingest_integrity.json").write_text(
+        json.dumps(stats, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+    if cleaned.empty:
+        raise DataIntegrityError(
+            "no complete panel session remains after exact timestamp and "
+            "required-symbol coverage checks"
+        )
+    path = cleaned_dir / "bars.parquet"
+    cleaned.to_parquet(path, index=False)
+    try:
+        import duckdb
 
-def ingest(config: AppConfig) -> tuple[pd.DataFrame, dict[str, object]]:
-    """按 point-in-time 约束拉取并落盘原始 bar，返回 (frame, 统计字典)。"""
-    raise NotImplementedError(f"ingest: {_STUB_REASON}")
+        db = config.output_dir / "market.duckdb"
+        with duckdb.connect(str(db)) as conn:
+            parquet = str(path.resolve()).replace("'", "''")
+            conn.execute(f"CREATE OR REPLACE VIEW bars AS SELECT * FROM read_parquet('{parquet}')")
+    except ImportError:
+        pass
+    return cleaned, stats
 
 
 def load_cleaned(config: AppConfig) -> pd.DataFrame:
-    """读取已清洗的 bar 数据。"""
-    raise NotImplementedError(f"load_cleaned: {_STUB_REASON}")
+    return pd.read_parquet(config.output_dir / "cleaned" / "bars.parquet")

@@ -74,7 +74,7 @@ pub struct RawOptionNbbo {
 
 impl OptionQuote {
     pub fn mid(&self) -> f64 {
-        (self.bid + self.ask) * 0.5
+        self.bid * 0.5 + self.ask * 0.5
     }
     pub fn spread_pct(&self) -> f64 {
         let mid = self.mid();
@@ -292,6 +292,9 @@ pub struct Trade {
     pub underlying_exit: f64,
     pub gross_return: f64,
     pub cost: f64,
+    /// Return units relative to the raw one-unit entry price.
+    #[serde(default)]
+    pub cost_breakdown: Option<TransactionCostBreakdown>,
     pub net_return: f64,
     pub mfe: f64,
     pub mae: f64,
@@ -307,13 +310,38 @@ pub struct OptionFill {
     pub entry_fill: f64,
     pub exit_fill: f64,
     pub gross_pnl_per_contract: f64,
+    /// Legacy `gross_pnl_per_contract` uses executed prices (already after
+    /// spread, slippage, and impact). These fields expose the actual mid gross
+    /// and commission-net economics only for fully liquidated round trips.
+    #[serde(default)]
+    pub mid_gross_pnl_per_contract: Option<f64>,
+    #[serde(default)]
+    pub net_pnl_per_contract: Option<f64>,
+    #[serde(default)]
+    pub net_pnl_total: Option<f64>,
+    /// Dollars per contract, using the standard 100-share option multiplier.
+    #[serde(default)]
+    pub cost_breakdown: Option<TransactionCostBreakdown>,
     #[serde(default = "default_one_contract")]
     pub requested_contracts: u32,
     #[serde(default)]
     pub filled_contracts: u32,
     #[serde(default)]
+    pub exit_filled_contracts: u32,
+    #[serde(default)]
+    pub unliquidated_contracts: u32,
+    #[serde(default)]
     pub fill_status: String,
     pub rejected_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TransactionCostBreakdown {
+    pub spread_cost: f64,
+    pub slippage_cost: f64,
+    pub market_impact_cost: f64,
+    pub commission_cost: f64,
+    pub total_cost: f64,
 }
 
 fn default_one_contract() -> u32 {
