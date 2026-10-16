@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Interview Scout</title>
-  <meta name="description" content="Upload your resume. Interview Scout finds matching jobs and applies for you, honestly, while you sleep.">
+  <meta name="description" content="Save your resume, find matching jobs, and track application results in one private workspace.">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -27,33 +27,44 @@
     <div class="hero-copy">
       <p class="eyebrow">Find your way by the stars</p>
       <h1>Interview<br><em>Scout</em></h1>
-      <p class="tagline">Upload a resume. Tell it what you're after.<br>It scouts while you sleep.</p>
+      <p class="tagline">Your resume. Your next role.<br>Your applications, all here.</p>
       <p class="fine">Applies on Greenhouse, Lever and Ashby. It never makes up an answer: anything it can't answer truthfully comes back to you.</p>
-      <a class="button" href="#resume-chapter">Get started</a>
+      <a class="button" href="#workspace">Get started</a>
     </div>
     <svg id="north-star" class="constellation" viewBox="0 0 400 440" role="img" aria-label="The Big Dipper's pointer stars leading to Polaris, the North Star"></svg>
   </section>
 
+  <section class="workspace" id="workspace" aria-labelledby="workspace-title">
+    <div><h2 id="workspace-title">Your saved application</h2><p>Resume, job preferences and results stay together in your private workspace. Open it automatically when you return to this browser.</p></div>
+    <div class="row"><button id="open-application" type="button">Open saved application</button><span id="application-status" class="hint" role="status">Enter your access code above to open your private workspace.</span></div>
+    <details class="workspace-options">
+      <summary>Open on another device or manage your data</summary>
+      <p class="hint">Copy your recovery key before switching browsers. You need that key and the access code to open your saved application elsewhere. Keep the key private, like a password.</p>
+      <div class="row"><button id="copy-recovery" class="ghost" type="button">Copy recovery key</button><button id="restore-application" class="ghost" type="button">Use recovery key</button><button id="delete-application" class="ghost danger" type="button" disabled>Delete saved data</button></div>
+    </details>
+  </section>
+
   <section class="chapter" id="resume-chapter">
-    <div class="chapter-head"><span class="numeral">I</span><div><h2>Your resume</h2><p>One PDF. Gemini reads it and drafts your profile.</p></div></div>
+    <div class="chapter-head"><span class="numeral">I</span><div><h2>Your resume</h2><p>One PDF. It is saved first, then Gemini drafts your profile.</p></div></div>
     <label class="drop" id="drop">
-      <input id="resume" class="sr-only" type="file" accept="application/pdf">
+      <input id="resume" class="sr-only" type="file" accept="application/pdf" disabled>
       <span class="drop-mark" aria-hidden="true">✧</span>
       <span class="drop-title">Drop your resume here, or <u>browse</u></span>
-      <span class="drop-sub" id="resume-status">PDF, up to 5 MB</span>
+      <span class="drop-sub" id="resume-status" role="status">PDF, up to 5 MB</span>
     </label>
+    <div class="row"><button id="manual-profile" class="link" type="button" disabled>Enter your profile manually</button><span class="hint">You can save a draft before uploading a resume.</span></div>
   </section>
 
   <section class="chapter" id="profile-section" hidden>
     <div class="chapter-head"><span class="numeral">II</span><div><h2>Who you are</h2><p>The agent answers every form from this, and nothing else. Fix anything that's off.</p></div></div>
     <div class="panel">
       <div class="grid">
-        <label>Full name <input data-p="fullName"></label>
-        <label>First name <input data-p="firstName"></label>
-        <label>Last name <input data-p="lastName"></label>
-        <label>Email <input data-p="email" type="email"></label>
-        <label>Phone <input data-p="phone"></label>
-        <label>Location <input data-p="location"></label>
+        <label>Full name <input data-p="fullName" autocomplete="name" maxlength="200"></label>
+        <label>First name <input data-p="firstName" autocomplete="given-name" maxlength="200"></label>
+        <label>Last name <input data-p="lastName" autocomplete="family-name" maxlength="200"></label>
+        <label>Contact email <input data-p="email" type="email" autocomplete="email" maxlength="200"><span class="hint">Employers use this address. Scout results appear on this website.</span></label>
+        <label>Phone <input data-p="phone" type="tel" autocomplete="tel" maxlength="200"></label>
+        <label>Location <input data-p="location" maxlength="200"></label>
         <label>LinkedIn <input data-p="linkedin"></label>
         <label>Website <input data-p="website"></label>
         <label>GitHub <input data-p="github"></label>
@@ -70,8 +81,8 @@
           <select data-f="needsSponsorship"><option value="">Not stated</option><option>yes</option><option>no</option></select></label>
       </div>
       <label>Anything else forms ask <span class="hint">the agent may use these facts</span>
-        <textarea data-f="notes" rows="4" placeholder="Over 18: yes. Start date: two weeks' notice. Salary expectation: $85k. Willing to relocate: yes. Heard about the job: LinkedIn. Gender, race, veteran, disability: prefer not to say."></textarea></label>
-      <div class="row"><button id="save-profile" type="button" class="ghost">Save profile</button><span id="profile-status" class="hint" role="status"></span></div>
+        <textarea data-f="notes" rows="4" maxlength="5000" placeholder="Only include answers that are true for you. For example: start date, relocation preference, salary expectations, or answers you want the scout to use."></textarea></label>
+      <div class="row"><button id="save-profile" type="button">Save application</button><span id="profile-status" class="hint" role="status"></span></div>
     </div>
   </section>
 
@@ -99,7 +110,7 @@
   </section>
 
   <section class="chapter" id="jobs-section" hidden>
-    <div class="chapter-head"><span class="numeral">IV</span><div><h2>Night watch</h2><p>Every star is a job. Each one lights up when its application goes in.</p></div></div>
+    <div class="chapter-head"><span class="numeral">IV</span><div><h2>Application status</h2><p>Track every job here. Queued and dry-run applications have not been sent. “Needs you” means you must finish the form.</p></div></div>
     <div class="panel sky-panel">
       <svg id="hunt-sky" class="hunt-sky" viewBox="0 0 800 280" role="img" aria-labelledby="sky-summary"></svg>
       <ul id="counts" class="counts" aria-live="polite"></ul>
@@ -115,7 +126,7 @@
         <label class="check"><input id="real" type="checkbox"> <span>Submit for real. <span class="hint">Leave this off for a dry run: forms get filled and screenshotted, never sent.</span></span></label>
         <label class="check"><input id="consent" type="checkbox"> I authorize Interview Scout to apply to the selected jobs for me, using my resume and the answers above.</label>
         <div class="row">
-          <button id="start" type="button">Send the scout out</button>
+          <button id="start" type="button">Start selected applications</button>
           <button id="stop" type="button" class="ghost" disabled>Stop</button>
           <span id="run-status" class="hint" role="status"></span>
         </div>
@@ -123,12 +134,17 @@
     </div>
   </section>
 
+  <section class="chapter" id="history-section" hidden aria-labelledby="history-title">
+    <div class="chapter-head"><div><h2 id="history-title">Previous runs</h2><p>Your saved record of application attempts and dry runs.</p></div></div>
+    <ul id="hunt-history" class="hunt-history"></ul>
+  </section>
+
   <footer class="footer">
-    <p>The scout runs on Cloudflare, so you can close this tab. Your resume and profile are saved in this browser. Gemini receives your resume and application questions. Cloudflare keeps a copy of the resume during a hunt, then deletes that copy; hunt results and screenshots stay for 30 days.</p>
+    <p>The scout runs on Cloudflare, so you can close this tab and return for results. Your profile, preferences and application history are stored in a private Cloudflare database. Your PDF stays in private file storage until you delete your saved data. Screenshots stay for up to 30 days. Gemini receives your resume and application questions. Email notifications are not connected yet.</p>
   </footer>
 </main>
 
-<dialog id="shot"><img alt="Screenshot of the filled application form"><form method="dialog"><button class="ghost">Close</button></form></dialog>
+<dialog id="shot"><img alt="Screenshot of the filled application form" hidden><form method="dialog"><button class="ghost">Close</button></form></dialog>
 <script src="/sky.js"></script>
 <script src="/app.js"></script>
 </body>

@@ -66,11 +66,11 @@ function answerer(rules: [RegExp, string[]][], seen: FormField[][] = []): Answer
   };
 }
 
-async function run(path: string, submit: boolean, answer: Answerer) {
+async function run(path: string, submit: boolean, answer: Answerer, onSubmissionAttempt?: () => Promise<void>) {
   submissions = [];
   const page = await browser.newPage();
   try {
-    return await runApplication(page as unknown as AgentPage, input(path, submit), answer);
+    return await runApplication(page as unknown as AgentPage, { ...input(path, submit), onSubmissionAttempt }, answer);
   } finally {
     await page.close();
   }
@@ -148,4 +148,16 @@ test('hands visible CAPTCHAs back to the person', async () => {
   assert.equal(result.status, 'needs_you');
   assert.match(result.message, /CAPTCHA/);
   assert.equal(submissions.length, 0);
+});
+
+test('records submission intent before the irreversible click, and never records it in a dry run', async () => {
+  let attempts = 0;
+  const record = async () => { assert.equal(submissions.length, 0); attempts++; };
+  const dry = await run('/lever.html', false, answerer(leverRules), record);
+  assert.equal(dry.status, 'dry_run');
+  assert.equal(attempts, 0);
+  const submitted = await run('/lever.html', true, answerer(leverRules), record);
+  assert.equal(attempts, 1);
+  assert.equal(submitted.submissionAttempted, true);
+  assert.equal(submissions.length, 1);
 });

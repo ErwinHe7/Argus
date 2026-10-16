@@ -19,6 +19,7 @@ export interface ApplyInput {
   facts: Facts;
   resume: { name: string; base64: string };
   submit: boolean;
+  onSubmissionAttempt?: () => Promise<void>;
 }
 
 export interface ApplyResult {
@@ -26,6 +27,7 @@ export interface ApplyResult {
   message: string;
   missing: Missing[];
   screenshot: string | null;
+  submissionAttempted?: boolean;
 }
 
 export type Answerer = (fields: FormField[], pageText: string) => Promise<Answer[]>;
@@ -50,8 +52,9 @@ async function screenshot(page: AgentPage, fullPage: boolean): Promise<string | 
  * and submits only when every required field is answered and no CAPTCHA shows.
  */
 export async function runApplication(page: AgentPage, input: ApplyInput, answer: Answerer): Promise<ApplyResult> {
+  let submissionAttempted = false;
   const needsYou = async (message: string, missing: Missing[] = []): Promise<ApplyResult> =>
-    ({ status: 'needs_you', message, missing, screenshot: await screenshot(page, true) });
+    ({ status: 'needs_you', message, missing, screenshot: await screenshot(page, true), submissionAttempted });
 
   // Some single-page forms never go network-idle; look for the form regardless.
   await page.goto(input.job.applyUrl, { waitUntil: 'networkidle2', timeout: 30_000 }).catch(() => undefined);
@@ -100,6 +103,9 @@ export async function runApplication(page: AgentPage, input: ApplyInput, answer:
   if (!(await call<boolean>(page, 'markSubmit'))) return needsYou('The submit button was not found.');
 
   const startUrl = page.url();
+  // Record uncertainty before the click, so a worker interruption cannot silently retry it.
+  await input.onSubmissionAttempt?.();
+  submissionAttempted = true;
   await page.click('[data-ap-submit="1"]');
   for (let second = 1; second <= 20; second++) {
     await sleep(1000);
@@ -112,7 +118,7 @@ export async function runApplication(page: AgentPage, input: ApplyInput, answer:
     }
     const moved = page.url() !== startUrl;
     if (state.confirmed && (state.formGone || moved)) {
-      return { status: 'submitted', message: 'Application submitted.', missing, screenshot: await screenshot(page, false) };
+      return { status: 'submitted', message: 'Application submitted.', missing, screenshot: await screenshot(page, false), submissionAttempted: true };
     }
     if (state.captcha) return needsYou('A CAPTCHA appeared after submitting. Finish it yourself.');
     if (state.errors.length && !moved && second >= 3) return needsYou(`The form reported: ${state.errors.join(' | ')}`);

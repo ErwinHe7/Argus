@@ -77,20 +77,25 @@ jobs:
               exit 1
             fi
           done
-          if [ -z "$GEMINI_API_KEY" ] || [ -z "$ACCESS_CODE" ]; then
-            echo "::warning::GEMINI_API_KEY or INTERVIEW_SCOUT_ACCESS_CODE is not set. The site deploys, but its API stays locked until both secrets are added and this workflow runs again."
+          if [ -z "$ACCESS_CODE" ]; then
+            echo "::warning::INTERVIEW_SCOUT_ACCESS_CODE is not set. Saved workspaces stay locked unless ACCESS_CODE is already configured on the Worker."
+          fi
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::warning::GEMINI_API_KEY is not set. Saved workspaces work with ACCESS_CODE; AI preparation requires Gemini to be configured on the Worker."
           fi
       - run: npm ci
+      - name: Apply application database migrations
+        run: npx wrangler d1 migrations apply interview-scout --remote
       - name: Deploy
         run: |
           set -euo pipefail
           args=()
           for domain in $CUSTOM_DOMAIN; do args+=(--domain "$domain"); done
-          if [ -n "$GEMINI_API_KEY" ] && [ -n "$ACCESS_CODE" ]; then
+          if [ -n "$GEMINI_API_KEY" ] || [ -n "$ACCESS_CODE" ]; then
             # Uploaded with this version. The file never leaves the runner's temp dir.
             secrets_file="$RUNNER_TEMP/worker-secrets.json"
             trap 'rm -f "$secrets_file"' EXIT
-            ( umask 077; node -e 'process.stdout.write(JSON.stringify({ GEMINI_API_KEY: process.env.GEMINI_API_KEY, ACCESS_CODE: process.env.ACCESS_CODE }))' > "$secrets_file" )
+            ( umask 077; node -e 'process.stdout.write(JSON.stringify(Object.fromEntries(["GEMINI_API_KEY", "ACCESS_CODE"].filter(key => process.env[key]).map(key => [key, process.env[key]]))))' > "$secrets_file" )
             args+=(--secrets-file "$secrets_file")
           fi
           npx wrangler deploy "${args[@]}" | tee deploy.log

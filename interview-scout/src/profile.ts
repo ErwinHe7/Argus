@@ -2,21 +2,21 @@ import { z } from 'zod';
 import { ask, pdfPart, STRING, STRING_ARRAY, type LlmEnv, type ResponseSchema } from './llm.ts';
 
 export const ProfileSchema = z.object({
-  fullName: z.string(),
-  firstName: z.string(),
-  lastName: z.string(),
-  email: z.string(),
-  phone: z.string(),
-  location: z.string(),
-  linkedin: z.string(),
-  website: z.string(),
-  github: z.string(),
-  currentTitle: z.string(),
-  currentCompany: z.string(),
-  education: z.string(),
-  skills: z.array(z.string()),
-  summary: z.string(),
-  targetTitles: z.array(z.string()),
+  fullName: z.string().max(200),
+  firstName: z.string().max(100),
+  lastName: z.string().max(100),
+  email: z.string().max(254).refine(value => !value || z.email().safeParse(value).success, 'Enter a valid email address.'),
+  phone: z.string().max(100),
+  location: z.string().max(300),
+  linkedin: z.string().max(1000),
+  website: z.string().max(1000),
+  github: z.string().max(1000),
+  currentTitle: z.string().max(300),
+  currentCompany: z.string().max(300),
+  education: z.string().max(2000),
+  skills: z.array(z.string().max(200)).max(100),
+  summary: z.string().max(5000),
+  targetTitles: z.array(z.string().max(200)).max(20),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
