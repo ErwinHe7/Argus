@@ -16,9 +16,10 @@ export interface HuntInput {
   resume: { name: string; base64: string };
   submit: boolean;
   jobs: Job[];
+  authorizedAt?: string;
 }
 
-export interface HuntMeta { id: string; createdAt: string; submit: boolean; jobs: Job[] }
+export interface HuntMeta { id: string; createdAt: string; submit: boolean; jobs: Job[]; authorizedAt?: string }
 
 export interface JobResult {
   status: ApplyResult['status'] | 'working';
@@ -26,6 +27,7 @@ export interface JobResult {
   missing: Missing[];
   hasShot: boolean;
   at: string;
+  submissionAttempted?: boolean;
 }
 
 export type Results = Record<string, JobResult>;
@@ -39,6 +41,7 @@ export interface HuntStore {
   putResults(id: string, results: Results): Promise<void>;
   putShot(id: string, jobKey: string, dataUrl: string): Promise<void>;
   shot(id: string, jobKey: string): Promise<ArrayBuffer | null>;
+  setStatus?(id: string, status: 'queued' | 'running' | 'complete' | 'stopped' | 'errored'): Promise<void>;
 }
 
 export function kvStore(kv: KVNamespace): HuntStore {
@@ -66,15 +69,18 @@ export function kvStore(kv: KVNamespace): HuntStore {
 export interface Steps {
   do<T>(name: string, config: StepConfig, callback: () => Promise<T>): Promise<T>;
 }
-export interface StepConfig { retries: { limit: number; delay: number }; timeout?: string }
+export interface StepConfig { retries: { limit: number; delay: number; backoff?: 'constant' | 'linear' | 'exponential' }; timeout?: string }
 
 // Never retry: a retried step could submit the same application twice.
 export const NO_RETRY: StepConfig = { retries: { limit: 0, delay: 0 } };
 const APPLY_STEP: StepConfig = { ...NO_RETRY, timeout: '10 minutes' };
+// Newly saved KV input can take time to reach the Workflow's location. Only
+// retry this read, before opening any employer application.
+const LOAD_STEP: StepConfig = { retries: { limit: 4, delay: 10_000, backoff: 'exponential' }, timeout: '2 minutes' };
 
 export interface HuntDeps {
   store: HuntStore;
-  applyOne(input: HuntInput, job: Job): Promise<ApplyResult>;
+  applyOne(input: HuntInput, job: Job, onSubmissionAttempt: () => Promise<void>): Promise<ApplyResult>;
   now?: () => Date;
 }
 
@@ -84,7 +90,12 @@ export interface HuntDeps {
  */
 export async function runHunt(huntId: string, step: Steps, deps: HuntDeps): Promise<{ done: number; stopped: boolean }> {
   const now = () => (deps.now?.() ?? new Date()).toISOString();
-  const keys = await step.do('load', NO_RETRY, async () => (await deps.store.input(huntId))?.jobs.map(j => j.key) ?? []);
+  const keys = await step.do('load', LOAD_STEP, async () => {
+    const input = await deps.store.input(huntId);
+    if (!input && (await deps.store.meta(huntId))?.jobs.length) throw new Error('Saved application input has not reached the background worker yet.');
+    await deps.store.setStatus?.(huntId, 'running');
+    return input?.jobs.map(j => j.key) ?? [];
+  });
   const results: Results = {};
   let stopped = false;
 
@@ -96,14 +107,17 @@ export async function runHunt(huntId: string, step: Steps, deps: HuntDeps): Prom
         const job = input?.jobs.find(j => j.key === key);
         if (!input || !job) return null;
         await deps.store.putResults(huntId, { ...results, [key]: { status: 'working', message: '', missing: [], hasShot: false, at: now() } });
-        const applied = await deps.applyOne(input, job);
+        const applied = await deps.applyOne(input, job, async () => {
+          await deps.store.putResults(huntId, { ...results, [key]: { status: 'working', message: 'Submitting the application.', missing: [], hasShot: false, at: now(), submissionAttempted: true } });
+        });
         if (applied.screenshot) await deps.store.putShot(huntId, key, applied.screenshot);
-        const done: JobResult = { status: applied.status, message: applied.message, missing: applied.missing, hasShot: !!applied.screenshot, at: now() };
+        const done: JobResult = { status: applied.status, message: applied.message, missing: applied.missing, hasShot: !!applied.screenshot, at: now(), submissionAttempted: applied.submissionAttempted || applied.status === 'submitted' };
         await deps.store.putResults(huntId, { ...results, [key]: done });
         return done;
       });
     } catch {
-      result = { status: 'failed', message: 'The agent was interrupted. Check the form before trying again.', missing: [], hasShot: false, at: now() };
+      const attempted = (await deps.store.results(huntId))[key]?.submissionAttempted === true;
+      result = { status: attempted ? 'needs_you' : 'failed', message: attempted ? 'Submission was attempted, but its outcome is unknown. Check the employer form before trying again.' : 'The agent was interrupted. Check the form before trying again.', missing: [], hasShot: false, at: now(), submissionAttempted: attempted };
       const snapshot = { ...results, [key]: result };
       await step.do(`record ${key}`, NO_RETRY, async () => { await deps.store.putResults(huntId, snapshot); return true; });
     }
@@ -114,6 +128,10 @@ export async function runHunt(huntId: string, step: Steps, deps: HuntDeps): Prom
     results[key] = result;
   }
 
-  await step.do('cleanup', NO_RETRY, async () => { await deps.store.deleteInput(huntId); return true; });
+  await step.do('cleanup', NO_RETRY, async () => {
+    await deps.store.deleteInput(huntId);
+    await deps.store.setStatus?.(huntId, stopped ? 'stopped' : 'complete');
+    return true;
+  });
   return { done: Object.keys(results).length, stopped };
 }

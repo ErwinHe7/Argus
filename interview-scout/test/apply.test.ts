@@ -66,11 +66,11 @@ function answerer(rules: [RegExp, string[]][], seen: FormField[][] = []): Answer
   };
 }
 
-async function run(path: string, submit: boolean, answer: Answerer) {
+async function run(path: string, submit: boolean, answer: Answerer, onSubmissionAttempt?: () => Promise<void>) {
   submissions = [];
   const page = await browser.newPage();
   try {
-    return await runApplication(page as unknown as AgentPage, input(path, submit), answer);
+    return await runApplication(page as unknown as AgentPage, { ...input(path, submit), onSubmissionAttempt }, answer);
   } finally {
     await page.close();
   }
@@ -127,6 +127,15 @@ test('a dry run fills the form but never submits', async () => {
   assert.equal(submissions.length, 0);
 });
 
+test('an unresolved combobox never implicitly submits a native form during a dry run', { timeout: 20_000 }, async () => {
+  const result = await run('/combobox-native.html', false, answerer([
+    [/full name/i, ['Jane Doe']], [/location/i, ['New York']],
+  ]));
+  assert.equal(submissions.length, 0, 'Enter in a native combobox must not trigger form submission');
+  assert.equal(result.status, 'needs_you');
+  assert.match(result.missing[0]?.label ?? '', /location/i);
+});
+
 test('stops before submitting when a required answer is unknown', async () => {
   const result = await run('/lever.html', true, answerer(leverRules.filter(([re]) => !re.test('authorized'))));
   assert.equal(result.status, 'needs_you');
@@ -139,4 +148,16 @@ test('hands visible CAPTCHAs back to the person', async () => {
   assert.equal(result.status, 'needs_you');
   assert.match(result.message, /CAPTCHA/);
   assert.equal(submissions.length, 0);
+});
+
+test('records submission intent before the irreversible click, and never records it in a dry run', async () => {
+  let attempts = 0;
+  const record = async () => { assert.equal(submissions.length, 0); attempts++; };
+  const dry = await run('/lever.html', false, answerer(leverRules), record);
+  assert.equal(dry.status, 'dry_run');
+  assert.equal(attempts, 0);
+  const submitted = await run('/lever.html', true, answerer(leverRules), record);
+  assert.equal(attempts, 1);
+  assert.equal(submitted.submissionAttempted, true);
+  assert.equal(submissions.length, 1);
 });

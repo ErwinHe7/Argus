@@ -1,22 +1,22 @@
 import { z } from 'zod';
-import { askClaude, pdfBlock, type ClaudeEnv } from './claude.ts';
+import { ask, pdfPart, STRING, STRING_ARRAY, type LlmEnv, type ResponseSchema } from './llm.ts';
 
 export const ProfileSchema = z.object({
-  fullName: z.string(),
-  firstName: z.string(),
-  lastName: z.string(),
-  email: z.string(),
-  phone: z.string(),
-  location: z.string(),
-  linkedin: z.string(),
-  website: z.string(),
-  github: z.string(),
-  currentTitle: z.string(),
-  currentCompany: z.string(),
-  education: z.string(),
-  skills: z.array(z.string()),
-  summary: z.string(),
-  targetTitles: z.array(z.string()),
+  fullName: z.string().max(200),
+  firstName: z.string().max(100),
+  lastName: z.string().max(100),
+  email: z.string().max(254).refine(value => !value || z.email().safeParse(value).success, 'Enter a valid email address.'),
+  phone: z.string().max(100),
+  location: z.string().max(300),
+  linkedin: z.string().max(1000),
+  website: z.string().max(1000),
+  github: z.string().max(1000),
+  currentTitle: z.string().max(300),
+  currentCompany: z.string().max(300),
+  education: z.string().max(2000),
+  skills: z.array(z.string().max(200)).max(100),
+  summary: z.string().max(5000),
+  targetTitles: z.array(z.string().max(200)).max(20),
 });
 export type Profile = z.infer<typeof ProfileSchema>;
 
@@ -26,11 +26,22 @@ education: highest degree, school and graduation year on one line.
 summary: two factual sentences about the candidate's experience, using only what the resume says.
 targetTitles: 3 to 5 short job titles (2-3 words each, no seniority words) that fit this resume, for searching job boards.`;
 
-export function extractProfile(env: ClaudeEnv, resumeBase64: string): Promise<Profile> {
-  return askClaude(env, {
+const RESPONSE_SCHEMA: ResponseSchema = {
+  type: 'OBJECT',
+  properties: {
+    fullName: STRING, firstName: STRING, lastName: STRING, email: STRING, phone: STRING, location: STRING,
+    linkedin: STRING, website: STRING, github: STRING, currentTitle: STRING, currentCompany: STRING, education: STRING,
+    skills: STRING_ARRAY, summary: STRING, targetTitles: STRING_ARRAY,
+  },
+  required: ['fullName', 'firstName', 'lastName', 'email', 'phone', 'location', 'linkedin', 'website',
+    'github', 'currentTitle', 'currentCompany', 'education', 'skills', 'summary', 'targetTitles'],
+};
+
+export function extractProfile(env: LlmEnv, resumeBase64: string): Promise<Profile> {
+  return ask(env, {
     system: SYSTEM,
-    content: [pdfBlock(resumeBase64), { type: 'text', text: 'Extract the profile from this resume.' }],
+    parts: [pdfPart(resumeBase64), { text: 'Extract the profile from this resume.' }],
     schema: ProfileSchema,
-    effort: 'low',
+    responseSchema: RESPONSE_SCHEMA,
   });
 }

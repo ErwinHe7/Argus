@@ -1,22 +1,51 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "interview-scout",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-09-04",
-  "compatibility_flags": ["nodejs_compat"],
-  // Served free at https://interview-scout.<your-subdomain>.workers.dev; CI can also attach a custom domain.
-  "workers_dev": true,
-  "assets": { "directory": "./public" },
-  // Cloudflare Browser Rendering: the headless Chrome the agent fills forms with.
-  "browser": { "binding": "BROWSER" },
-  // Hunt inputs, progress and screenshots. Wrangler creates the namespace on first deploy.
-  "kv_namespaces": [{ "binding": "HUNTS" }],
-  // Background hunts keep applying after the browser tab is closed.
-  "workflows": [
-    { "name": "interview-scout-hunts", "binding": "HUNT", "class_name": "HuntWorkflow", "concurrency": { "limit": 2 } }
-  ],
-  "vars": { "CLAUDE_MODEL": "claude-opus-5-5" },
-  // Secrets ANTHROPIC_API_KEY and ACCESS_CODE are uploaded by CI (or `wrangler secret put`).
-  // Until both exist the API answers 401, so a first deploy without them is safe.
-  "observability": { "enabled": true }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "interview-scout",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-09-04",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	// Served free at https://interview-scout.<your-subdomain>.workers.dev; CI can also attach a custom domain.
+	"workers_dev": true,
+	"assets": {
+		"directory": "./public"
+	},
+	// Cloudflare Browser Rendering: the headless Chrome the agent fills forms with.
+	"browser": {
+		"binding": "BROWSER"
+	},
+	// Private resume files, temporary hunt inputs and expiring screenshots.
+	"kv_namespaces": [
+		{
+			"binding": "HUNTS",
+			"id": "e8912c55cd8a462ab0cc514cf44f8621"
+		}
+	],
+	// Background hunts keep applying after the browser tab is closed.
+	"workflows": [
+		{
+			"name": "interview-scout-hunts",
+			"binding": "HUNT",
+			"class_name": "HuntWorkflow",
+			"concurrency": {
+				"limit": 2
+			}
+		}
+	],
+	"vars": {
+		"GEMINI_MODEL": "gemini-3.5-flash-lite"
+	},
+	// Secrets GEMINI_API_KEY and ACCESS_CODE are uploaded by CI (or `wrangler secret put`).
+	// ACCESS_CODE protects saved workspaces; Gemini is only required for AI preparation.
+	"observability": {
+		"enabled": true
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "interview-scout",
+			"database_id": "355304f8-a526-47b2-8b2c-06f13d8bbc14"
+		}
+	]
 }
