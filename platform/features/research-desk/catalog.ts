@@ -6,6 +6,7 @@ export const TOOLS = [
   { id: 'tech-playbook', title: 'Technology', group: 'Markets', description: 'Follow QQQ on TradingView and explore the technology market.', detail: 'QQQ ETF proxy · TradingView chart' },
   { id: 'earnings', title: 'Earnings radar', group: 'Options', description: 'Follow verified issuer dates and inspect the evidence behind an earnings comparison.', detail: 'Issuer sources · research comparisons · saved calendar' },
   { id: 'structure', title: 'Charts', group: 'Markets', description: 'Explore TradingView candlesticks, volume, and technical tools.', detail: 'Stocks · ETFs · crypto · recorded research' },
+  { id: 'models', title: 'Model atlas', group: 'About', description: 'See how the nine frozen candidate models read regimes, find analogs, and where they stop.', detail: 'HMM · kernel regression · SDE · OU · not promoted' },
   { id: 'forecast', title: 'Forecast record', group: 'Markets', description: 'Inspect registered hypotheses, sourced outcomes, and model readiness.', detail: 'Research ledger · validation status' },
   { id: 'board', title: 'Markets', group: 'Markets', description: 'Search and compare a wider market with TradingView’s screeners.', detail: 'Provider screeners · searchable listings' },
   { id: 'algo', title: 'Trade journal', group: 'Strategies', description: 'Record a strategy, track your reasoning, and review it.', detail: 'Your notes · open and closed entries' },
@@ -13,7 +14,7 @@ export const TOOLS = [
   { id: 'events', title: 'Catalysts', group: 'Events', description: 'Check the evidence behind a company catalyst.', detail: 'Primary sources · confirmed and unknown dates' },
   { id: 'research', title: 'Methods', group: 'About', description: 'Inspect the data, calculations, and assumptions.', detail: 'Source coverage · downloadable data' },
   { id: 'iv', title: 'Options lab', group: 'Options', description: 'Test an option against changes in price, IV, and time.', detail: 'Call and Put · 12,960 conditional valuations' },
-  { id: 'handbook', title: 'Guide', group: 'About', description: "Learn the Astra's Pick workflow and key terms.", detail: 'Charts · Options lab · Trade plans' },
+  { id: 'handbook', title: 'Guide', group: 'About', description: "Learn the LEO workflow and key terms.", detail: 'Charts · Options lab · Trade plans' },
 ] as const;
 
 export type ToolId = 'home' | typeof TOOLS[number]['id'];

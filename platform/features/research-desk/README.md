@@ -16,6 +16,7 @@ naming for compatibility; that is not the public product name.
 | /#/structure?symbol=AVGO | Charts for the selected instrument |
 | /#/iv?symbol=AVGO | Options lab for a supported stock |
 | /#/positions?symbol=AVGO | Trade plan with the symbol prefilled |
+| /#/models?symbol=NVDA | Model atlas: the nine frozen candidate models |
 | /original/ | Preserved original Leo marketing homepage |
 | /app/ | Existing Leo app |
 | /app/research-desk/ | Compatible direct entry and static asset base |
@@ -30,7 +31,7 @@ original-page alias patch and cache revision are documented in the release stage
 
 ## Tools and boundaries
 
-The header exposes Picks, Markets, My plans, and a Tools disclosure. All tool IDs
+The header exposes Picks, Radar, Markets, Models, My plans, Connect broker, and a Tools disclosure. All tool IDs
 remain hash routes under the root or compatible direct entry. The original site
 remains accessible in the footer. Picks and local journals/plans load independently
 of option/event/chart archives.
@@ -44,6 +45,7 @@ of option/event/chart archives.
 | #/radar | Event radar | Official-source calendar collection, source freshness, deterministic explanations, chart/plan links, and evidence export. |
 | #/earnings | Earnings radar | Sourced earnings-call dates and validated local earnings-comparison reports; the user-entered calendar remains available. |
 | #/structure | Charts | TradingView candles and volume for ten tracked markets; verified AAPL/MSFT/WMT chart links also resolve. Dated SMA20/SMA50/RSI, replay, reference levels, and readings remain in an expandable archive. |
+| #/models | Model atlas | Frozen HMM, kernel, SDE and OU parameters for nine candidate models; pipeline, regimes, transitions, state-count selection and lineage. Not promoted; no probability or live reading. See [models/README.md](models/README.md). |
 | #/forecast | Forecast record | Publication requirements and recorded evidence; no published probability model or verified performance record. |
 | #/board | Markets | TradingView stock, crypto, and forex screeners with provider sorting, filters where supported, and verified full-screener links; archived observations and export remain separately accessible. |
 | #/algo | Trade journal | User-entered strategy notes and reviews. No algorithm execution or verified performance. |

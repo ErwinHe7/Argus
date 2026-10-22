@@ -17,8 +17,9 @@ import { IdentityProvider } from '../strategy-lab/Identity';
 import { AccountControl, Welcome } from './account/Welcome';
 import { Brokers } from '../strategy-lab/brokers/Brokers';
 import { Membership } from './membership/Membership';
+import { ModelAtlas } from './models/ModelAtlas';
 
-// THESIS: Astra's Pick answers what deserves a closer look with a short, explained stock screen before supporting analysis.
+// THESIS: LEO answers what deserves a closer look with a short, explained stock screen before supporting analysis.
 // OWN-WORLD: The existing model interface supplies aubergine surfaces, candle gold, lilac evidence and Lion identity.
 // STORY: Read the shortlist and its reasons, inspect a candidate, then keep a plan; broader markets and advanced tools support that decision.
 // FIRST VIEWPORT: Lion identity, Picks navigation, and a dated ranked list with plain-language reasons beside the selected candidate's chart.
@@ -29,10 +30,10 @@ const fmt = (n: number | null | undefined, digits = 2) => n == null ? '—' : n.
 const money = (n: number | null | undefined) => n == null ? '—' : `$${fmt(n)}`;
 const pct = (n: number | null | undefined) => n == null ? '—' : `${n > 0 ? '+' : ''}${fmt(n)}%`;
 type DeskRoute = ToolId | 'welcome' | 'brokers' | 'membership';
-const route = (): DeskRoute => { if (location.pathname === '/strategy-auth/callback') return 'welcome'; const id = location.hash.slice(2).split('?')[0]; return id === 'welcome' || id === 'brokers' || id === 'membership' ? id : TOOLS.some(t => t.id === id) ? id as ToolId : 'home'; };
+const route = (): DeskRoute => { if (location.pathname === '/strategy-auth/callback') return 'welcome'; const id = location.hash.slice(2).split('?')[0]; return id === 'home' || id === 'welcome' || id === 'brokers' || id === 'membership' ? id : TOOLS.some(t => t.id === id) ? id as ToolId : 'playbook'; };
 const localDate = () => new Date().toLocaleDateString('en-CA');
 const readJson = async <T,>(url: string): Promise<T> => { const response = await fetch(url); if (!response.ok) throw new Error('Market data could not be loaded. Reload to try again.'); return response.json(); };
-const titleFor = (id: ToolId) => TOOLS.find(t => t.id === id)?.title ?? "Astra's Pick";
+const titleFor = (id: ToolId) => TOOLS.find(t => t.id === id)?.title ?? "LEO";
 function Source({asset}: {asset: Asset}) { return <p className="source-line"><ShieldCheck size={13}/><span>{asset.source} · last trade {asset.observedAt} · daily bars through {asset.dailyBarLastDate} · historical data</span></p>; }
 function External({href, children}: {href: string; children: React.ReactNode}) { return <a href={href} target="_blank" rel="noreferrer">{children}<ExternalLink size={12}/></a>; }
 
@@ -44,22 +45,22 @@ function Desk() {
   useEffect(()=>{ const change=()=>{setActive(route());setMenu(false);window.scrollTo({top:0,behavior:'instant'});}; window.addEventListener('hashchange',change); return()=>window.removeEventListener('hashchange',change);},[]);
   useEffect(()=>{ Promise.all([readJson<DeskData>('/app/research-desk/data/desk-data.json'),readJson<IvLabEvents>('/app/research-desk/data/events.json'),readJson<IvLabOverview>('/app/research-desk/data/iv-overview.json')]).then(([d,e,i])=>{if(!Array.isArray(d.symbols)||!d.symbols.length)throw new Error('Market data is unavailable.');setData(d);setEvents(e);setIv(i);}).catch(e=>setError(e.message));},[]);
   useEffect(()=>{readJson<{symbols:MarketRead[]}>('/app/research-desk/data/market-analysis.json').then(result=>setReadings(result.symbols)).catch(()=>setReadings([]));},[]);
-  useEffect(()=>{document.title=active==='membership'?'Membership · Leo Investing':active==='welcome'?'Welcome · Leo Investing':active==='brokers'?'Connect your broker · Leo Investing':active==='home'?"Astra's Pick · Stock shortlist":`${titleFor(active)} · Astra's Pick`;},[active]);
+  useEffect(()=>{document.title=active==='membership'?'Membership · Leo Investing':active==='welcome'?'Welcome · Leo Investing':active==='brokers'?'Connect your broker · Leo Investing':active==='home'?"LEO · Stock shortlist":`${titleFor(active)} · LEO`;},[active]);
   const asset = data?.symbols.find(a=>a.symbol==='AVGO') ?? data?.symbols[0];
   return <div id="desk">
     <a className="skip-link" href="#desk-content">Skip to analysis</a>
-    <header className="desk-header"><a className="desk-brand" href="#/home"><img src="/app/research-desk/lion.png" width="44" height="44" alt="Leo Lion"/><span><b>Astra's Pick</b><small>by Leo Investing</small></span></a><button className="mobile-menu icon-button" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button>
-      <nav className={menu?'desk-nav open':'desk-nav'} aria-label="Main navigation"><a href="#/home" aria-current={active==='home'?'page':undefined}>Picks</a><a href="#/radar" aria-current={['radar','events','earnings'].includes(active)?'page':undefined}>Radar</a><a href="#/board" aria-current={active==='board'?'page':undefined}>Markets</a><a href="#/positions" aria-current={active==='positions'?'page':undefined}>My plans</a><a href="#/brokers" aria-current={active==='brokers'?'page':undefined}>Connect broker</a><details className="nav-more"><summary>Tools<ChevronDown size={13}/></summary><div>{TOOLS.filter(t=>!['board','positions','radar'].includes(t.id)).map(t=><a key={t.id} href={`#/${t.id}`} aria-current={active===t.id?'page':undefined} onClick={e=>e.currentTarget.closest('details')?.removeAttribute('open')}>{t.title}</a>)}</div></details></nav><AccountControl/></header>
+    <header className="desk-header"><a className="desk-brand" href="#/playbook"><img src="/app/research-desk/lion.png" width="44" height="44" alt="Leo Lion"/><span><b>LEO</b><small>by Leo Investing</small></span></a><button className="mobile-menu icon-button" aria-label="Toggle navigation" aria-expanded={menu} onClick={()=>setMenu(!menu)}>{menu?<X/>:<Menu/>}</button>
+      <nav className={menu?'desk-nav open':'desk-nav'} aria-label="Main navigation"><a href="#/home" aria-current={active==='home'?'page':undefined}>Picks</a><a href="#/radar" aria-current={['radar','events','earnings'].includes(active)?'page':undefined}>Radar</a><a href="#/board" aria-current={active==='board'?'page':undefined}>Markets</a><a href="#/models" aria-current={active==='models'?'page':undefined}>Models</a><a href="#/positions" aria-current={active==='positions'?'page':undefined}>My plans</a><a href="#/brokers" aria-current={active==='brokers'?'page':undefined}>Connect broker</a><details className="nav-more"><summary>Tools<ChevronDown size={13}/></summary><div>{TOOLS.filter(t=>!['board','positions','radar','models'].includes(t.id)).map(t=><a key={t.id} href={`#/${t.id}`} aria-current={active===t.id?'page':undefined} onClick={e=>e.currentTarget.closest('details')?.removeAttribute('open')}>{t.title}</a>)}</div></details></nav><AccountControl/></header>
     {['structure','playbook','tech-playbook','crypto','iv'].includes(active) && <TradingViewTape/>}
     <main id="desk-content">
-      {active==='membership'?<Membership/>:active==='welcome'?<Welcome/>:active==='brokers'?<Brokers/>:active==='home'?<AstraHome/>:active==='strategies'?<StrategyWorkspace/>:active==='radar'||active==='events'?<Radar key={active}/>:active==='forecast'?<ForecastRecord/>:active==='earnings'?<><Radar initialFilter="Earnings"/><section className="tool-body"><details className="study-list"><summary>Your saved earnings calendar</summary><Journal kind="earnings"/></details></section></>:['positions','algo'].includes(active)?<><ToolHeading active={active}/><Journal key={`${active}:${location.hash}`} kind={active as 'positions'|'algo'}/><ToolPagination active={active}/></>:['structure','playbook','tech-playbook','board','crypto'].includes(active)?<>
+      {active==='membership'?<Membership/>:active==='welcome'?<Welcome/>:active==='brokers'?<Brokers/>:active==='home'?<AstraHome/>:active==='strategies'?<StrategyWorkspace/>:active==='radar'||active==='events'?<Radar key={active}/>:active==='forecast'?<ForecastRecord/>:active==='models'?<><ToolHeading active={active}/><ModelAtlas/><ToolPagination active={active}/></>:active==='earnings'?<><Radar initialFilter="Earnings"/><section className="tool-body"><details className="study-list"><summary>Your saved earnings calendar</summary><Journal kind="earnings"/></details></section></>:['positions','algo'].includes(active)?<><ToolHeading active={active}/><Journal key={`${active}:${location.hash}`} kind={active as 'positions'|'algo'}/><ToolPagination active={active}/></>:['structure','playbook','tech-playbook','board','crypto'].includes(active)?<>
         <ToolHeading active={active}/>
         {active==='structure'&&<Structure data={data} readings={readings}/>}
         {(active==='playbook'||active==='tech-playbook')&&<Playbook asset={data?.symbols.find(a=>a.symbol===(active==='playbook'?'SPY':'QQQ'))} tech={active==='tech-playbook'}/>}
         {active==='board'&&<><ExploreMarkets/>{data&&<section className="tool-body market-archive-section"><details className="market-archive"><summary><ChevronDown size={15}/>Recorded observations &amp; export<span>Archived research data</span></summary><RecordedBoard data={data}/></details></section>}</>}
         {active==='crypto'&&<CryptoMarkets/>}
         <ToolPagination active={active}/>
-      </>:error?<div className="tool-body"><div className="load-error" role="alert"><h1>Research snapshots are unavailable</h1><p>{error}</p><button className="gold-button" onClick={()=>location.reload()}>Reload research</button><a href="#/structure" className="text-button">Browse TradingView charts</a></div><TradingViewChart symbol="AVGO"/></div>:!data||!events||!asset?<div className="loading-desk" role="status"><img src="/app/research-desk/lion.png" alt="" width="64"/><h1>Opening Astra’s Pick…</h1></div>:<>
+      </>:error?<div className="tool-body"><div className="load-error" role="alert"><h1>Research snapshots are unavailable</h1><p>{error}</p><button className="gold-button" onClick={()=>location.reload()}>Reload research</button><a href="#/structure" className="text-button">Browse TradingView charts</a></div><TradingViewChart symbol="AVGO"/></div>:!data||!events||!asset?<div className="loading-desk" role="status"><img src="/app/research-desk/lion.png" alt="" width="64"/><h1>Opening LEO…</h1></div>:<>
         <ToolHeading active={active}/>
         {active==='iv'&&iv&&<div className="iv-container"><IvLab overview={iv} dataBaseUrl="/app/research-desk/data/iv" embedded initialSymbol={new URLSearchParams(location.hash.split('?')[1]).get('symbol')??undefined} renderMarketChart={symbol=><TradingViewChart symbol={symbol}/>}/></div>}
 
@@ -67,11 +68,11 @@ function Desk() {
         {active==='handbook'&&<Handbook returnUrl={returnUrl}/>}
         <ToolPagination active={active}/>
       </>}
-    </main><footer className="desk-footer"><a className="desk-brand" href="#/home"><img src="/app/research-desk/lion.png" width="32" height="32" alt="Leo Lion"/><b>Astra's Pick</b></a><p>Market analysis and trade planning by Leo Investing.</p><div><a href="#/handbook">Guide</a><a href="#/membership">Membership</a><a href="/privacy">Privacy</a><a href="/original/">Original website<ArrowUpRight size={12}/></a><a href={returnUrl}>Leo app<ArrowUpRight size={12}/></a></div></footer>
+    </main><footer className="desk-footer"><a className="desk-brand" href="#/playbook"><img src="/app/research-desk/lion.png" width="32" height="32" alt="Leo Lion"/><b>LEO</b></a><p>Market analysis and trade planning by Leo Investing.</p><div><a href="#/handbook">Guide</a><a href="#/membership">Membership</a><a href="/privacy">Privacy</a><a href="/original/">Original website<ArrowUpRight size={12}/></a><a href={returnUrl}>Leo app<ArrowUpRight size={12}/></a></div></footer>
   </div>;
 }
 
-function ToolHeading({active}: {active:ToolId}) { return <div className="page-heading"><a href="#/home"><ArrowLeft size={13}/>Picks</a><div><h1>{titleFor(active)}</h1><span className="mode-label">{['algo','positions','earnings'].includes(active)?'Saved in this browser':'Market research'}</span></div><p>{TOOLS.find(t=>t.id===active)?.description}</p></div>; }
+function ToolHeading({active}: {active:ToolId}) { return <div className="page-heading"><a href="#/home"><ArrowLeft size={13}/>Picks</a><div><h1>{titleFor(active)}</h1><span className="mode-label">{['algo','positions','earnings'].includes(active)?'Saved in this browser':active==='models'?'Frozen model parameters':'Market research'}</span></div><p>{TOOLS.find(t=>t.id===active)?.description}</p></div>; }
 function ToolPagination({active}: {active:ToolId}) { return <div className="tool-pagination"><a href="#/home"><ArrowLeft size={15}/>Back to picks</a>{active!=='board'&&<a href="#/board">Explore markets<ArrowRight size={15}/></a>}</div>; }
 
 function PriceChart({asset, hero=false, ma20=true, ma50=false, levels=[], index, responsiveLabels=false}: {asset:Asset;hero?:boolean;ma20?:boolean;ma50?:boolean;levels?:number[];index?:number;responsiveLabels?:boolean}) {

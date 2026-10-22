@@ -123,7 +123,7 @@ export function IvLab({ overview, dataBaseUrl, embedded = false, initialSymbol, 
   return <div className={`${styles.page}${embedded ? ` ${styles.embedded}` : ''}`} data-design-contract="leo-market-map-extension-iv-v1" lang="en">
     <a className={styles.skip} href="#iv-workspace">Skip to Options lab</a>
     {!embedded && <header className={styles.header}>
-      <Link href="/" className={styles.brand}><Image src="/brand/leo-lion.png" alt="" width={33} height={33} /><span>Astra's Pick</span><small>Options lab</small></Link>
+      <Link href="/" className={styles.brand}><Image src="/brand/leo-lion.png" alt="" width={33} height={33} /><span>LEO</span><small>Options lab</small></Link>
       <nav aria-label="Analysis navigation"><Link href="/discover/market-map">Market map <ArrowUpRight size={13} /></Link><a href="#iv-method">Data & methods</a><Link href="/app/">Leo app <ArrowUpRight size={13} /></Link></nav>
     </header>}
     <Workspace className={styles.main} id="iv-workspace">
@@ -215,7 +215,7 @@ export function IvLab({ overview, dataBaseUrl, embedded = false, initialSymbol, 
         <div><h3>Observed data and assumed inputs</h3><p>IBKR supplies prices, daily bars, composite IV, percentiles, and available contract quotes. This archived snapshot does not refresh automatically. Last trades may occur after hours; indicators use completed daily bars.</p><p>Composite IV and its percentile have no independent timestamps. Composite IV is a scenario assumption, not contract IV, a term structure, or a volatility skew.</p><p>Scenarios do not estimate outcome probabilities. A low IV percentile alone is not a buy signal.</p><a href="https://www.optionseducation.org/news/the-crush-is-real" target="_blank" rel="noreferrer">OIC: events and IV crush <ExternalLink size={11} /></a></div>
         <div><h3>Quantitative methods</h3><dl><div><dt>Option valuation</dt><dd>European Black–Scholes model. American early exercise, actual dividends, spreads, fees, and slippage are excluded.</dd></div><div><dt>Input assumptions</dt><dd>Risk-free rate {fractionPercent(overview.methodology.rateAnnual)}; dividend yield {fractionPercent(overview.methodology.dividendYieldAnnual, 0)}; calendar days per year: {overview.methodology.optionCalendarDaysPerYear}; assumed multiplier: {overview.methodology.assumedContractMultiplier}. Tenors start at the reference time and do not identify listed contracts.</dd></div><div><dt>P&L attribution</dt><dd>Price, IV, and time are changed separately; the residual is nonlinear interaction. Greeks describe starting sensitivity. Matrix cells use full repricing.</dd></div><div><dt>Data version</dt><dd>{overview.generatedAt}<br />{overview.schemaVersion} · {overview.methodology.modelVersion}</dd></div></dl></div>
       </div></details>
-      {!embedded && <footer className={styles.footer}><p>Astra's Pick · Archived market data and conditional option valuations. No automated trading.</p><span>Price × Volatility × Time</span></footer>}
+      {!embedded && <footer className={styles.footer}><p>LEO · Archived market data and conditional option valuations. No automated trading.</p><span>Price × Volatility × Time</span></footer>}
     </Workspace>
   </div>;
 }
