@@ -1,0 +1,4926 @@
+{
+ "schemaVersion": "astra-model-atlas.v1",
+ "dataMode": "frozen_candidate_parameters_not_live",
+ "registrySha256": "1dd2992a2d8aac92c06483835c9368af4328d8ae8f121f365e9abbd2ad885726",
+ "registryGeneratedAt": "2026-07-27T04:55:36.218000Z",
+ "featureSchemaVersion": "point-in-time-v4-strict-context+frozen-hmm+analog12",
+ "hmmStepMinutes": 5,
+ "features": {
+  "hmm": [
+   {
+    "id": "hmm.active_5m_return",
+    "label": "5-minute return"
+   },
+   {
+    "id": "hmm.dist_vwap",
+    "label": "Distance from VWAP"
+   },
+   {
+    "id": "hmm.rolling_realized_vol",
+    "label": "Realized volatility"
+   },
+   {
+    "id": "hmm.volume_zscore",
+    "label": "Volume z-score"
+   }
+  ],
+  "kernel": [
+   {
+    "id": "analog.ret_1m",
+    "label": "1-minute return"
+   },
+   {
+    "id": "analog.ret_5m",
+    "label": "5-minute return"
+   },
+   {
+    "id": "analog.ret_15m",
+    "label": "15-minute return"
+   },
+   {
+    "id": "analog.vwap_distance",
+    "label": "Distance from VWAP"
+   },
+   {
+    "id": "analog.realized_volatility",
+    "label": "Realized volatility"
+   },
+   {
+    "id": "analog.normalized_range",
+    "label": "Normalized range"
+   },
+   {
+    "id": "analog.volume_zscore",
+    "label": "Volume z-score"
+   },
+   {
+    "id": "analog.rvol",
+    "label": "Relative volume"
+   },
+   {
+    "id": "analog.session_range_position",
+    "label": "Position in session range"
+   },
+   {
+    "id": "analog.cross_asset_breadth",
+    "label": "Cross-asset breadth"
+   },
+   {
+    "id": "analog.slope_15m",
+    "label": "15-minute slope"
+   },
+   {
+    "id": "analog.minute_of_session",
+    "label": "Minute of session"
+   }
+  ]
+ },
+ "models": [
+  {
+   "symbol": "SPX",
+   "modelSymbol": "SPY",
+   "priceSymbol": "I:SPX",
+   "targetStatus": "SPX_DIRECTION_AND_VWAP_PROXY_VIA_SPY",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/SPX.frozen.json",
+    "artifactFileSha256": "1bbcf46f0a586609b7b0392e7c942bfc06059d0f402902e3afc8c894a6c7be25",
+    "artifactSha256": "035f00ce938710fc32b253ac83a8b40c4bae0fea62744e952692f960ea38c1f2",
+    "modelHash": "7de856986d4f2cb55fc20da81ff3eee6c59b2793fe0c66ffbba387c966e63f60",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:39:23.959794Z",
+    "trainingCutoff": "2026-07-22T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 195665
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 12,
+    "atBoundary": true,
+    "warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+    "fitSessions": 399,
+    "validationSessions": 100,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -4.205162,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -3.831902,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -3.636141,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -3.460301,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -3.302506,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -3.1605,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -3.048332,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -2.958203,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -2.881712,
+      "eligible": false,
+      "status": "REJECTED_LOW_VALIDATION_STATE_OCCUPANCY"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -2.808993,
+      "eligible": false,
+      "status": "REJECTED_LOW_VALIDATION_STATE_OCCUPANCY"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -2.726779,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 12,
+    "logLikelihood": -110529.23,
+    "bic": 223584.52,
+    "transition": [
+     [
+      0.8683,
+      0.0107,
+      0.021,
+      0.0291,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0697,
+      0.0009,
+      0.0002,
+      0.0001
+     ],
+     [
+      0.0295,
+      0.8009,
+      0.0361,
+      0.0138,
+      0.0131,
+      0.0005,
+      0.0165,
+      0.0044,
+      0.0821,
+      0.0005,
+      0.0014,
+      0.0011
+     ],
+     [
+      0.0189,
+      0.0109,
+      0.9109,
+      0.0,
+      0.0135,
+      0.0,
+      0.0,
+      0.0002,
+      0.0456,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0267,
+      0.0098,
+      0.0,
+      0.8678,
+      0.0,
+      0.029,
+      0.0,
+      0.0,
+      0.0657,
+      0.0007,
+      0.0,
+      0.0004
+     ],
+     [
+      0.0,
+      0.009,
+      0.0099,
+      0.0,
+      0.9133,
+      0.0,
+      0.0,
+      0.0077,
+      0.0591,
+      0.0,
+      0.0003,
+      0.0007
+     ],
+     [
+      0.0,
+      0.0002,
+      0.0,
+      0.0353,
+      0.0,
+      0.8768,
+      0.0226,
+      0.0,
+      0.0349,
+      0.0284,
+      0.0008,
+      0.0012
+     ],
+     [
+      0.0,
+      0.09,
+      0.0,
+      0.0144,
+      0.0,
+      0.0224,
+      0.7816,
+      0.0116,
+      0.049,
+      0.0095,
+      0.0191,
+      0.0023
+     ],
+     [
+      0.0,
+      0.001,
+      0.0,
+      0.0,
+      0.0299,
+      0.0,
+      0.0102,
+      0.9248,
+      0.0154,
+      0.0,
+      0.0079,
+      0.0108
+     ],
+     [
+      0.0695,
+      0.1789,
+      0.0416,
+      0.0749,
+      0.0762,
+      0.058,
+      0.1622,
+      0.0082,
+      0.3106,
+      0.0048,
+      0.0103,
+      0.0047
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0398,
+      0.0005,
+      0.0,
+      0.0,
+      0.9307,
+      0.0218,
+      0.0071
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0041,
+      0.0798,
+      0.035,
+      0.0038,
+      0.0205,
+      0.8392,
+      0.0176
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.001,
+      0.0,
+      0.0,
+      0.0153,
+      0.0,
+      0.0094,
+      0.0669,
+      0.9075
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.07833,
+     "persistence": 0.8683,
+     "meanStayMinutes": 38.0,
+     "driftBpPerMinute": -0.00641,
+     "volatilityBpPerSqrtMinute": 1.8266,
+     "inputMeans": [
+      -0.0021,
+      -0.0221,
+      -0.6453,
+      -0.1744
+     ],
+     "ou": {
+      "halfLifeMinutes": 124.96,
+      "longRunResidualBp": -1.16,
+      "autoregressivePhi": 0.99447
+     }
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.14413,
+     "persistence": 0.8009,
+     "meanStayMinutes": 25.1,
+     "driftBpPerMinute": 0.00909,
+     "volatilityBpPerSqrtMinute": 2.8545,
+     "inputMeans": [
+      0.0776,
+      0.1476,
+      -0.2359,
+      -0.351
+     ],
+     "ou": {
+      "halfLifeMinutes": 34.7,
+      "longRunResidualBp": 4.231,
+      "autoregressivePhi": 0.98023
+     }
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.12949,
+     "persistence": 0.9109,
+     "meanStayMinutes": 56.1,
+     "driftBpPerMinute": -0.00964,
+     "volatilityBpPerSqrtMinute": 1.4657,
+     "inputMeans": [
+      0.0425,
+      0.3987,
+      -0.7201,
+      -0.0761
+     ],
+     "ou": {
+      "halfLifeMinutes": 63.88,
+      "longRunResidualBp": 8.321,
+      "autoregressivePhi": 0.98921
+     }
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.10253,
+     "persistence": 0.8678,
+     "meanStayMinutes": 37.8,
+     "driftBpPerMinute": -0.04922,
+     "volatilityBpPerSqrtMinute": 2.2183,
+     "inputMeans": [
+      -0.0531,
+      -0.4359,
+      -0.4459,
+      -0.1778
+     ],
+     "ou": {
+      "halfLifeMinutes": 28.75,
+      "longRunResidualBp": -12.51,
+      "autoregressivePhi": 0.97618
+     }
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.13381,
+     "persistence": 0.9133,
+     "meanStayMinutes": 57.7,
+     "driftBpPerMinute": 0.05419,
+     "volatilityBpPerSqrtMinute": 1.8581,
+     "inputMeans": [
+      0.0739,
+      0.8716,
+      -0.5183,
+      -0.1021
+     ],
+     "ou": {
+      "halfLifeMinutes": 43.62,
+      "longRunResidualBp": 25.828,
+      "autoregressivePhi": 0.98424
+     }
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.08681,
+     "persistence": 0.8768,
+     "meanStayMinutes": 40.6,
+     "driftBpPerMinute": 0.05929,
+     "volatilityBpPerSqrtMinute": 3.315,
+     "inputMeans": [
+      -0.1231,
+      -0.9092,
+      -0.0313,
+      -0.1081
+     ],
+     "ou": {
+      "halfLifeMinutes": 25.86,
+      "longRunResidualBp": -18.971,
+      "autoregressivePhi": 0.97355
+     }
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.11765,
+     "persistence": 0.7816,
+     "meanStayMinutes": 22.9,
+     "driftBpPerMinute": 0.02956,
+     "volatilityBpPerSqrtMinute": 3.7862,
+     "inputMeans": [
+      0.0196,
+      -0.0655,
+      0.3364,
+      -0.4083
+     ],
+     "ou": {
+      "halfLifeMinutes": 27.33,
+      "longRunResidualBp": 1.72,
+      "autoregressivePhi": 0.97495
+     }
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.03807,
+     "persistence": 0.9248,
+     "meanStayMinutes": 66.5,
+     "driftBpPerMinute": 0.0302,
+     "volatilityBpPerSqrtMinute": 3.9183,
+     "inputMeans": [
+      0.2091,
+      1.327,
+      0.2726,
+      -0.0372
+     ],
+     "ou": {
+      "halfLifeMinutes": 155.93,
+      "longRunResidualBp": -10.001,
+      "autoregressivePhi": 0.99556
+     }
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.05721,
+     "persistence": 0.3106,
+     "meanStayMinutes": 7.3,
+     "driftBpPerMinute": -0.02414,
+     "volatilityBpPerSqrtMinute": 3.5765,
+     "inputMeans": [
+      -0.0933,
+      0.0585,
+      -0.168,
+      2.5587
+     ],
+     "ou": {
+      "halfLifeMinutes": 52.23,
+      "longRunResidualBp": 1.219,
+      "autoregressivePhi": 0.98682
+     }
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.04141,
+     "persistence": 0.9307,
+     "meanStayMinutes": 72.2,
+     "driftBpPerMinute": -0.19747,
+     "volatilityBpPerSqrtMinute": 4.8513,
+     "inputMeans": [
+      -0.3373,
+      -1.7131,
+      0.5728,
+      0.1868
+     ],
+     "ou": {
+      "halfLifeMinutes": 62.53,
+      "longRunResidualBp": -40.121,
+      "autoregressivePhi": 0.98898
+     }
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.05738,
+     "persistence": 0.8392,
+     "meanStayMinutes": 31.1,
+     "driftBpPerMinute": 0.06957,
+     "volatilityBpPerSqrtMinute": 6.2691,
+     "inputMeans": [
+      0.0392,
+      -0.1114,
+      1.4055,
+      -0.3194
+     ],
+     "ou": {
+      "halfLifeMinutes": 39.82,
+      "longRunResidualBp": 1.612,
+      "autoregressivePhi": 0.98274
+     }
+    },
+    {
+     "state": 11,
+     "label": "R12",
+     "timeShare": 0.01317,
+     "persistence": 0.9075,
+     "meanStayMinutes": 54.0,
+     "driftBpPerMinute": 0.01479,
+     "volatilityBpPerSqrtMinute": 8.9172,
+     "inputMeans": [
+      0.0476,
+      -0.1585,
+      3.4225,
+      0.3702
+     ],
+     "ou": {
+      "halfLifeMinutes": 58.53,
+      "longRunResidualBp": -4.984,
+      "autoregressivePhi": 0.98823
+     }
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 2.8346,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 195665,
+    "trainEnd": "2026-07-22T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-22T20:00:00Z",
+    "ouEnabled": true,
+    "ouRejectionReasons": [],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  },
+  {
+   "symbol": "QQQ",
+   "modelSymbol": "QQQ",
+   "priceSymbol": "QQQ",
+   "targetStatus": "DIRECT_ETF",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/QQQ.frozen.json",
+    "artifactFileSha256": "42fe1c8ce37016348f61937b27a55e034623d127ff454c40f27dc12f03618a3d",
+    "artifactSha256": "992917e3eb93bfb95f20364f9ca1ee446da2d8fa27c9f09bc5dfc7a206a16549",
+    "modelHash": "cc6355bea3b4685e0085a13f929d83348aa18d6132f86c1fbb95e99e82af493e",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:39:23.959794Z",
+    "trainingCutoff": "2026-07-22T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 195665
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 12,
+    "atBoundary": true,
+    "warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+    "fitSessions": 399,
+    "validationSessions": 100,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -4.627449,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -4.287416,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -4.081274,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -3.968589,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -3.802373,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -3.650011,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -3.564111,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -3.377105,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -3.310955,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -3.245303,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -3.215428,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 12,
+    "logLikelihood": -117882.98,
+    "bic": 238292.02,
+    "transition": [
+     [
+      0.8892,
+      0.0025,
+      0.0138,
+      0.0049,
+      0.0,
+      0.0003,
+      0.0,
+      0.0889,
+      0.0,
+      0.0001,
+      0.0003,
+      0.0
+     ],
+     [
+      0.0036,
+      0.89,
+      0.0126,
+      0.0,
+      0.0121,
+      0.0,
+      0.0,
+      0.08,
+      0.0,
+      0.0,
+      0.0017,
+      0.0
+     ],
+     [
+      0.0402,
+      0.0153,
+      0.8203,
+      0.017,
+      0.0005,
+      0.0184,
+      0.0,
+      0.0869,
+      0.0,
+      0.0002,
+      0.0007,
+      0.0005
+     ],
+     [
+      0.0112,
+      0.0,
+      0.0066,
+      0.8844,
+      0.0,
+      0.0015,
+      0.0233,
+      0.0702,
+      0.0003,
+      0.0018,
+      0.0,
+      0.0008
+     ],
+     [
+      0.0,
+      0.0349,
+      0.0,
+      0.0,
+      0.88,
+      0.0125,
+      0.0,
+      0.0466,
+      0.0,
+      0.0,
+      0.0252,
+      0.0008
+     ],
+     [
+      0.0,
+      0.0,
+      0.0679,
+      0.0152,
+      0.0101,
+      0.8234,
+      0.0183,
+      0.0247,
+      0.0072,
+      0.0131,
+      0.0193,
+      0.0008
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0303,
+      0.0,
+      0.0166,
+      0.893,
+      0.022,
+      0.0008,
+      0.0367,
+      0.0004,
+      0.0002
+     ],
+     [
+      0.1079,
+      0.1082,
+      0.1531,
+      0.1049,
+      0.0614,
+      0.1008,
+      0.0385,
+      0.3151,
+      0.0011,
+      0.0049,
+      0.0041,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0972,
+      0.0048,
+      0.0,
+      0.806,
+      0.0363,
+      0.0448,
+      0.0109
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0571,
+      0.0,
+      0.0394,
+      0.8955,
+      0.0,
+      0.008
+     ],
+     [
+      0.0,
+      0.0,
+      0.001,
+      0.0,
+      0.0648,
+      0.0252,
+      0.0,
+      0.0,
+      0.0501,
+      0.0,
+      0.8526,
+      0.0063
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0536,
+      0.0143,
+      0.0174,
+      0.9147
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.05152,
+     "persistence": 0.8892,
+     "meanStayMinutes": 45.1,
+     "driftBpPerMinute": 0.0609,
+     "volatilityBpPerSqrtMinute": 1.9856,
+     "inputMeans": [
+      0.0256,
+      0.2426,
+      -0.8467,
+      -0.1521
+     ],
+     "ou": {
+      "halfLifeMinutes": 23.3,
+      "longRunResidualBp": 15.862,
+      "autoregressivePhi": 0.97068
+     }
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.1157,
+     "persistence": 0.89,
+     "meanStayMinutes": 45.5,
+     "driftBpPerMinute": -0.01003,
+     "volatilityBpPerSqrtMinute": 2.2931,
+     "inputMeans": [
+      0.0455,
+      0.8233,
+      -0.7138,
+      -0.1641
+     ],
+     "ou": {
+      "halfLifeMinutes": 61.1,
+      "longRunResidualBp": 26.622,
+      "autoregressivePhi": 0.98872
+     }
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.09189,
+     "persistence": 0.8203,
+     "meanStayMinutes": 27.8,
+     "driftBpPerMinute": 0.01818,
+     "volatilityBpPerSqrtMinute": 3.4205,
+     "inputMeans": [
+      0.0511,
+      0.2419,
+      -0.4248,
+      -0.3113
+     ],
+     "ou": {
+      "halfLifeMinutes": 454.3,
+      "longRunResidualBp": -14.378,
+      "autoregressivePhi": 0.99848
+     }
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.06483,
+     "persistence": 0.8844,
+     "meanStayMinutes": 43.3,
+     "driftBpPerMinute": 0.00813,
+     "volatilityBpPerSqrtMinute": 2.9572,
+     "inputMeans": [
+      -0.0191,
+      -0.3215,
+      -0.5572,
+      -0.205
+     ],
+     "ou": {
+      "halfLifeMinutes": 35.89,
+      "longRunResidualBp": -7.897,
+      "autoregressivePhi": 0.98087
+     }
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.10426,
+     "persistence": 0.88,
+     "meanStayMinutes": 41.7,
+     "driftBpPerMinute": 0.04215,
+     "volatilityBpPerSqrtMinute": 3.45,
+     "inputMeans": [
+      0.114,
+      1.1246,
+      -0.2246,
+      -0.2238
+     ],
+     "ou": {
+      "halfLifeMinutes": 124.47,
+      "longRunResidualBp": 26.556,
+      "autoregressivePhi": 0.99445
+     }
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.13381,
+     "persistence": 0.8234,
+     "meanStayMinutes": 28.3,
+     "driftBpPerMinute": 0.12013,
+     "volatilityBpPerSqrtMinute": 5.1031,
+     "inputMeans": [
+      0.0559,
+      0.0386,
+      0.1481,
+      -0.3118
+     ],
+     "ou": {
+      "halfLifeMinutes": 25.89,
+      "longRunResidualBp": 9.511,
+      "autoregressivePhi": 0.97358
+     }
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.0959,
+     "persistence": 0.893,
+     "meanStayMinutes": 46.7,
+     "driftBpPerMinute": -0.13753,
+     "volatilityBpPerSqrtMinute": 4.3656,
+     "inputMeans": [
+      -0.0971,
+      -0.9166,
+      -0.1001,
+      -0.1123
+     ],
+     "ou": {
+      "halfLifeMinutes": 67.13,
+      "longRunResidualBp": -36.533,
+      "autoregressivePhi": 0.98973
+     }
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.05169,
+     "persistence": 0.3151,
+     "meanStayMinutes": 7.3,
+     "driftBpPerMinute": -0.10945,
+     "volatilityBpPerSqrtMinute": 3.5498,
+     "inputMeans": [
+      -0.0091,
+      0.2218,
+      -0.4382,
+      2.6302
+     ],
+     "ou": {
+      "halfLifeMinutes": 99.67,
+      "longRunResidualBp": -14.85,
+      "autoregressivePhi": 0.99307
+     }
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.12464,
+     "persistence": 0.806,
+     "meanStayMinutes": 25.8,
+     "driftBpPerMinute": 0.09681,
+     "volatilityBpPerSqrtMinute": 8.1886,
+     "inputMeans": [
+      -0.0285,
+      -0.1613,
+      1.2336,
+      -0.4236
+     ],
+     "ou": {
+      "halfLifeMinutes": 20.99,
+      "longRunResidualBp": 1.694,
+      "autoregressivePhi": 0.96751
+     }
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.07935,
+     "persistence": 0.8955,
+     "meanStayMinutes": 47.9,
+     "driftBpPerMinute": -0.06097,
+     "volatilityBpPerSqrtMinute": 6.7175,
+     "inputMeans": [
+      -0.399,
+      -1.6075,
+      0.5931,
+      0.2737
+     ],
+     "ou": {
+      "halfLifeMinutes": 83.11,
+      "longRunResidualBp": -21.51,
+      "autoregressivePhi": 0.99169
+     }
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.05372,
+     "persistence": 0.8526,
+     "meanStayMinutes": 33.9,
+     "driftBpPerMinute": 0.04279,
+     "volatilityBpPerSqrtMinute": 6.5045,
+     "inputMeans": [
+      0.3303,
+      1.2229,
+      0.7356,
+      0.2696
+     ],
+     "ou": {
+      "halfLifeMinutes": 70.79,
+      "longRunResidualBp": 22.069,
+      "autoregressivePhi": 0.99026
+     }
+    },
+    {
+     "state": 11,
+     "label": "R12",
+     "timeShare": 0.03269,
+     "persistence": 0.9147,
+     "meanStayMinutes": 58.6,
+     "driftBpPerMinute": -0.27093,
+     "volatilityBpPerSqrtMinute": 12.6192,
+     "inputMeans": [
+      0.02,
+      -0.6563,
+      3.3611,
+      0.1826
+     ],
+     "ou": {
+      "halfLifeMinutes": 73.64,
+      "longRunResidualBp": -25.678,
+      "autoregressivePhi": 0.99063
+     }
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 3.0581,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 195665,
+    "trainEnd": "2026-07-22T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-22T20:00:00Z",
+    "ouEnabled": true,
+    "ouRejectionReasons": [],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  },
+  {
+   "symbol": "NVDA",
+   "modelSymbol": "NVDA",
+   "priceSymbol": "NVDA",
+   "targetStatus": "DIRECT_EQUITY",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/NVDA.frozen.json",
+    "artifactFileSha256": "9eb46b8cb06371b0317f9abc4d5a874668cb4f042f0295bd44fcf16f082a9598",
+    "artifactSha256": "d8760c28e9947531957cbc795549297680e52a18ecbc7f8399f74cd1ceb4dd17",
+    "modelHash": "4b1cc41cb8a5de10df39783e2343f24e5fdae518f8a0704de11ae89a38dba810",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:39:23.959794Z",
+    "trainingCutoff": "2026-07-24T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 194495
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 12,
+    "atBoundary": true,
+    "warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+    "fitSessions": 396,
+    "validationSessions": 100,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -4.09743,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -3.79165,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -3.54022,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -3.361048,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -3.208789,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -3.082252,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -2.967724,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -2.864683,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -2.821996,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -2.778919,
+      "eligible": false,
+      "status": "REJECTED_LOW_VALIDATION_STATE_OCCUPANCY"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -2.682976,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 12,
+    "logLikelihood": -118710.04,
+    "bic": 239944.71,
+    "transition": [
+     [
+      0.9021,
+      0.015,
+      0.0055,
+      0.0111,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0658,
+      0.0,
+      0.0002,
+      0.0003
+     ],
+     [
+      0.0509,
+      0.8301,
+      0.0189,
+      0.0165,
+      0.0126,
+      0.0,
+      0.0082,
+      0.0,
+      0.0603,
+      0.0,
+      0.0013,
+      0.0012
+     ],
+     [
+      0.0117,
+      0.0201,
+      0.8949,
+      0.0,
+      0.0,
+      0.0,
+      0.0026,
+      0.0178,
+      0.0529,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0118,
+      0.0083,
+      0.0,
+      0.8984,
+      0.0046,
+      0.0167,
+      0.0,
+      0.0,
+      0.0594,
+      0.0,
+      0.0004,
+      0.0005
+     ],
+     [
+      0.0,
+      0.0419,
+      0.0,
+      0.041,
+      0.8451,
+      0.0144,
+      0.0162,
+      0.0,
+      0.0206,
+      0.0001,
+      0.0207,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0247,
+      0.01,
+      0.9168,
+      0.0,
+      0.0,
+      0.0241,
+      0.0,
+      0.0239,
+      0.0005
+     ],
+     [
+      0.0,
+      0.0484,
+      0.0314,
+      0.0,
+      0.0267,
+      0.0,
+      0.8432,
+      0.0255,
+      0.0107,
+      0.0021,
+      0.0086,
+      0.0034
+     ],
+     [
+      0.0,
+      0.0,
+      0.0265,
+      0.0,
+      0.0,
+      0.0,
+      0.0202,
+      0.9438,
+      0.0,
+      0.0004,
+      0.0,
+      0.0091
+     ],
+     [
+      0.0848,
+      0.1574,
+      0.1164,
+      0.0986,
+      0.0832,
+      0.0462,
+      0.0549,
+      0.0029,
+      0.3501,
+      0.0028,
+      0.0025,
+      0.0
+     ],
+     [
+      0.0,
+      0.0002,
+      0.0,
+      0.0,
+      0.0622,
+      0.0,
+      0.0807,
+      0.0018,
+      0.0,
+      0.7959,
+      0.0366,
+      0.0226
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0409,
+      0.0434,
+      0.0005,
+      0.0,
+      0.0,
+      0.021,
+      0.8833,
+      0.0109
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0124,
+      0.0,
+      0.1104,
+      0.017,
+      0.8603
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.04652,
+     "persistence": 0.9021,
+     "meanStayMinutes": 51.0,
+     "driftBpPerMinute": -0.03094,
+     "volatilityBpPerSqrtMinute": 5.7445,
+     "inputMeans": [
+      0.0075,
+      0.2008,
+      -0.7967,
+      -0.0856
+     ],
+     "ou": null
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.10889,
+     "persistence": 0.8301,
+     "meanStayMinutes": 29.4,
+     "driftBpPerMinute": 0.08103,
+     "volatilityBpPerSqrtMinute": 7.0667,
+     "inputMeans": [
+      0.0197,
+      0.1959,
+      -0.3935,
+      -0.2591
+     ],
+     "ou": null
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.108,
+     "persistence": 0.8949,
+     "meanStayMinutes": 47.6,
+     "driftBpPerMinute": -0.06115,
+     "volatilityBpPerSqrtMinute": 7.2072,
+     "inputMeans": [
+      0.0542,
+      0.7915,
+      -0.5427,
+      -0.1103
+     ],
+     "ou": null
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.11249,
+     "persistence": 0.8984,
+     "meanStayMinutes": 49.2,
+     "driftBpPerMinute": -0.10756,
+     "volatilityBpPerSqrtMinute": 6.3523,
+     "inputMeans": [
+      -0.0134,
+      -0.3824,
+      -0.6009,
+      -0.1245
+     ],
+     "ou": null
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.10483,
+     "persistence": 0.8451,
+     "meanStayMinutes": 32.3,
+     "driftBpPerMinute": 0.05733,
+     "volatilityBpPerSqrtMinute": 10.4199,
+     "inputMeans": [
+      -0.0497,
+      -0.3428,
+      0.0786,
+      -0.3097
+     ],
+     "ou": null
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.14094,
+     "persistence": 0.9168,
+     "meanStayMinutes": 60.1,
+     "driftBpPerMinute": -0.05374,
+     "volatilityBpPerSqrtMinute": 8.1752,
+     "inputMeans": [
+      -0.0867,
+      -1.1404,
+      -0.2494,
+      -0.0328
+     ],
+     "ou": null
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.0932,
+     "persistence": 0.8432,
+     "meanStayMinutes": 31.9,
+     "driftBpPerMinute": 0.11053,
+     "volatilityBpPerSqrtMinute": 11.1107,
+     "inputMeans": [
+      0.1776,
+      0.5288,
+      0.2543,
+      -0.2692
+     ],
+     "ou": null
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.09094,
+     "persistence": 0.9438,
+     "meanStayMinutes": 89.0,
+     "driftBpPerMinute": 0.18732,
+     "volatilityBpPerSqrtMinute": 8.5533,
+     "inputMeans": [
+      0.1874,
+      1.5908,
+      -0.0757,
+      0.1484
+     ],
+     "ou": null
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.04113,
+     "persistence": 0.3501,
+     "meanStayMinutes": 7.7,
+     "driftBpPerMinute": 0.19464,
+     "volatilityBpPerSqrtMinute": 9.3943,
+     "inputMeans": [
+      0.0135,
+      0.0591,
+      -0.3781,
+      2.8568
+     ],
+     "ou": null
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.08426,
+     "persistence": 0.7959,
+     "meanStayMinutes": 24.5,
+     "driftBpPerMinute": -0.42251,
+     "volatilityBpPerSqrtMinute": 17.399,
+     "inputMeans": [
+      0.0224,
+      -0.0374,
+      1.5055,
+      -0.4319
+     ],
+     "ou": null
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.05589,
+     "persistence": 0.8833,
+     "meanStayMinutes": 42.8,
+     "driftBpPerMinute": -0.18134,
+     "volatilityBpPerSqrtMinute": 14.7705,
+     "inputMeans": [
+      -0.3703,
+      -1.5202,
+      0.7799,
+      0.2245
+     ],
+     "ou": null
+    },
+    {
+     "state": 11,
+     "label": "R12",
+     "timeShare": 0.01291,
+     "persistence": 0.8603,
+     "meanStayMinutes": 35.8,
+     "driftBpPerMinute": 0.02416,
+     "volatilityBpPerSqrtMinute": 23.3357,
+     "inputMeans": [
+      0.0407,
+      0.4333,
+      2.7886,
+      0.1002
+     ],
+     "ou": null
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 2.9783,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 194495,
+    "trainEnd": "2026-07-24T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-24T20:00:00Z",
+    "ouEnabled": false,
+    "ouRejectionReasons": [
+     "OU_NOT_MEAN_REVERTING",
+     "OU_MODEL_DISABLED"
+    ],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  },
+  {
+   "symbol": "AAPL",
+   "modelSymbol": "AAPL",
+   "priceSymbol": "AAPL",
+   "targetStatus": "DIRECT_EQUITY",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/AAPL.frozen.json",
+    "artifactFileSha256": "796b9885eaae1a9a7c62130f659027809da222c5e2d0d32117186eeae32d39c5",
+    "artifactSha256": "aec381ae812e6ace3939d8e23392150133a59bc8056a2f0efbe6025e6742a2ff",
+    "modelHash": "60d3c60eca8669a1833e56f7cabc0e078b48dc5749d7097621fadb8b96620434",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:42:52.077680Z",
+    "trainingCutoff": "2026-07-24T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 194495
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 12,
+    "atBoundary": true,
+    "warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+    "fitSessions": 396,
+    "validationSessions": 100,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -4.542948,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -4.167044,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -3.976192,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -3.776244,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -3.601966,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -3.449232,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -3.353349,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -3.248554,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -3.150121,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -3.097911,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -3.013246,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 12,
+    "logLikelihood": -116408.82,
+    "bic": 235342.26,
+    "transition": [
+     [
+      0.8861,
+      0.0192,
+      0.0,
+      0.0135,
+      0.0111,
+      0.0152,
+      0.0004,
+      0.0,
+      0.0,
+      0.0533,
+      0.0,
+      0.001
+     ],
+     [
+      0.0197,
+      0.8951,
+      0.014,
+      0.0212,
+      0.0,
+      0.0,
+      0.0008,
+      0.0,
+      0.0002,
+      0.049,
+      0.0,
+      0.0
+     ],
+     [
+      0.0,
+      0.0126,
+      0.8974,
+      0.0237,
+      0.0,
+      0.0,
+      0.0028,
+      0.0173,
+      0.0,
+      0.0451,
+      0.0,
+      0.001
+     ],
+     [
+      0.0203,
+      0.0568,
+      0.0257,
+      0.8158,
+      0.0,
+      0.0116,
+      0.0146,
+      0.0,
+      0.0,
+      0.0543,
+      0.0,
+      0.001
+     ],
+     [
+      0.0118,
+      0.0,
+      0.0,
+      0.0,
+      0.9065,
+      0.0182,
+      0.0,
+      0.0,
+      0.0108,
+      0.0507,
+      0.0,
+      0.002
+     ],
+     [
+      0.0578,
+      0.0,
+      0.0,
+      0.0266,
+      0.0221,
+      0.8118,
+      0.0155,
+      0.0,
+      0.0175,
+      0.0473,
+      0.0,
+      0.0014
+     ],
+     [
+      0.0,
+      0.0,
+      0.0173,
+      0.0609,
+      0.0,
+      0.0493,
+      0.8102,
+      0.0182,
+      0.0083,
+      0.0272,
+      0.0028,
+      0.006
+     ],
+     [
+      0.0,
+      0.0,
+      0.0301,
+      0.0,
+      0.0,
+      0.0,
+      0.0087,
+      0.9255,
+      0.0,
+      0.0252,
+      0.001,
+      0.0095
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0345,
+      0.0301,
+      0.0058,
+      0.0,
+      0.9052,
+      0.0131,
+      0.0035,
+      0.0077
+     ],
+     [
+      0.0686,
+      0.0356,
+      0.0878,
+      0.1257,
+      0.0552,
+      0.1163,
+      0.0849,
+      0.0351,
+      0.0343,
+      0.3502,
+      0.0,
+      0.0063
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0026,
+      0.2018,
+      0.0037,
+      0.0242,
+      0.0,
+      0.7392,
+      0.0283
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0238,
+      0.0105,
+      0.0,
+      0.1151,
+      0.8506
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.08146,
+     "persistence": 0.8861,
+     "meanStayMinutes": 43.9,
+     "driftBpPerMinute": 0.07429,
+     "volatilityBpPerSqrtMinute": 3.8022,
+     "inputMeans": [
+      0.0215,
+      0.3988,
+      -0.6045,
+      -0.089
+     ],
+     "ou": {
+      "halfLifeMinutes": 65.1,
+      "longRunResidualBp": 23.926,
+      "autoregressivePhi": 0.98941
+     }
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.05835,
+     "persistence": 0.8951,
+     "meanStayMinutes": 47.6,
+     "driftBpPerMinute": -0.03353,
+     "volatilityBpPerSqrtMinute": 3.6814,
+     "inputMeans": [
+      -0.0178,
+      -0.1317,
+      -0.6944,
+      -0.0365
+     ],
+     "ou": {
+      "halfLifeMinutes": 54.17,
+      "longRunResidualBp": -7.944,
+      "autoregressivePhi": 0.98729
+     }
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.10438,
+     "persistence": 0.8974,
+     "meanStayMinutes": 48.7,
+     "driftBpPerMinute": 0.00683,
+     "volatilityBpPerSqrtMinute": 4.536,
+     "inputMeans": [
+      -0.0651,
+      -0.7365,
+      -0.4492,
+      -0.1325
+     ],
+     "ou": {
+      "halfLifeMinutes": 347.61,
+      "longRunResidualBp": 24.637,
+      "autoregressivePhi": 0.99801
+     }
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.09519,
+     "persistence": 0.8158,
+     "meanStayMinutes": 27.1,
+     "driftBpPerMinute": -0.11607,
+     "volatilityBpPerSqrtMinute": 5.0594,
+     "inputMeans": [
+      -0.0202,
+      -0.1514,
+      -0.2505,
+      -0.2568
+     ],
+     "ou": {
+      "halfLifeMinutes": 25.92,
+      "longRunResidualBp": -10.684,
+      "autoregressivePhi": 0.97361
+     }
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.12087,
+     "persistence": 0.9065,
+     "meanStayMinutes": 53.5,
+     "driftBpPerMinute": -0.01016,
+     "volatilityBpPerSqrtMinute": 4.6577,
+     "inputMeans": [
+      0.0563,
+      1.1032,
+      -0.4874,
+      -0.0621
+     ],
+     "ou": {
+      "halfLifeMinutes": 43.61,
+      "longRunResidualBp": 49.725,
+      "autoregressivePhi": 0.98423
+     }
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.08958,
+     "persistence": 0.8118,
+     "meanStayMinutes": 26.6,
+     "driftBpPerMinute": 0.17197,
+     "volatilityBpPerSqrtMinute": 5.8695,
+     "inputMeans": [
+      0.05,
+      0.5083,
+      -0.0813,
+      -0.2949
+     ],
+     "ou": {
+      "halfLifeMinutes": 24.62,
+      "longRunResidualBp": 29.914,
+      "autoregressivePhi": 0.97224
+     }
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.11174,
+     "persistence": 0.8102,
+     "meanStayMinutes": 26.3,
+     "driftBpPerMinute": 0.11904,
+     "volatilityBpPerSqrtMinute": 7.807,
+     "inputMeans": [
+      -0.0551,
+      -0.1475,
+      0.5078,
+      -0.3489
+     ],
+     "ou": {
+      "halfLifeMinutes": 50.1,
+      "longRunResidualBp": 3.756,
+      "autoregressivePhi": 0.98626
+     }
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.10226,
+     "persistence": 0.9255,
+     "meanStayMinutes": 67.1,
+     "driftBpPerMinute": -0.01108,
+     "volatilityBpPerSqrtMinute": 6.6733,
+     "inputMeans": [
+      -0.1934,
+      -1.5591,
+      0.0403,
+      -0.0525
+     ],
+     "ou": {
+      "halfLifeMinutes": 42.68,
+      "longRunResidualBp": -57.931,
+      "autoregressivePhi": 0.98389
+     }
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.09791,
+     "persistence": 0.9052,
+     "meanStayMinutes": 52.8,
+     "driftBpPerMinute": 0.10615,
+     "volatilityBpPerSqrtMinute": 6.901,
+     "inputMeans": [
+      0.2642,
+      1.4883,
+      0.2511,
+      -0.0935
+     ],
+     "ou": {
+      "halfLifeMinutes": 28.98,
+      "longRunResidualBp": 64.222,
+      "autoregressivePhi": 0.97637
+     }
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.04464,
+     "persistence": 0.3502,
+     "meanStayMinutes": 7.7,
+     "driftBpPerMinute": 0.26386,
+     "volatilityBpPerSqrtMinute": 7.7245,
+     "inputMeans": [
+      0.0425,
+      0.0502,
+      -0.1261,
+      3.0114
+     ],
+     "ou": {
+      "halfLifeMinutes": 297.95,
+      "longRunResidualBp": 81.258,
+      "autoregressivePhi": 0.99768
+     }
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.0701,
+     "persistence": 0.7392,
+     "meanStayMinutes": 19.2,
+     "driftBpPerMinute": 0.11423,
+     "volatilityBpPerSqrtMinute": 12.1001,
+     "inputMeans": [
+      0.0497,
+      -0.0196,
+      1.8985,
+      -0.4064
+     ],
+     "ou": {
+      "halfLifeMinutes": 20.47,
+      "longRunResidualBp": 2.891,
+      "autoregressivePhi": 0.96671
+     }
+    },
+    {
+     "state": 11,
+     "label": "R12",
+     "timeShare": 0.02352,
+     "persistence": 0.8506,
+     "meanStayMinutes": 33.5,
+     "driftBpPerMinute": -0.77149,
+     "volatilityBpPerSqrtMinute": 17.6413,
+     "inputMeans": [
+      -0.011,
+      -0.5377,
+      2.8934,
+      0.2829
+     ],
+     "ou": {
+      "halfLifeMinutes": 94.48,
+      "longRunResidualBp": -99.348,
+      "autoregressivePhi": 0.99269
+     }
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 3.1421,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 194495,
+    "trainEnd": "2026-07-24T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-24T20:00:00Z",
+    "ouEnabled": true,
+    "ouRejectionReasons": [],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  },
+  {
+   "symbol": "MU",
+   "modelSymbol": "MU",
+   "priceSymbol": "MU",
+   "targetStatus": "DIRECT_EQUITY",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/MU.frozen.json",
+    "artifactFileSha256": "134daa1b3869c846896ce3fda6692be7fc9f0b9d035f43acc361ccc7aebd9a55",
+    "artifactSha256": "28c2271d47be45f345127005cb315b6048566deecbaf5b6f93b247e996453e66",
+    "modelHash": "d2c8fc161d02f988b9004125cf8a66032014837b9723461a23dc4879c207debc",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:42:52.077680Z",
+    "trainingCutoff": "2026-07-22T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 194495
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 12,
+    "atBoundary": true,
+    "warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+    "fitSessions": 396,
+    "validationSessions": 100,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -6.102858,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -5.688668,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -5.546511,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -5.491589,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -5.335651,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -5.238473,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -5.081755,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -4.978935,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -4.915524,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -4.826849,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -4.727114,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 12,
+    "logLikelihood": -122081.57,
+    "bic": 246687.76,
+    "transition": [
+     [
+      0.8966,
+      0.0062,
+      0.0011,
+      0.0156,
+      0.0059,
+      0.0,
+      0.0,
+      0.0736,
+      0.0,
+      0.0001,
+      0.0007,
+      0.0002
+     ],
+     [
+      0.0057,
+      0.8965,
+      0.021,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0701,
+      0.0067,
+      0.0,
+      0.0,
+      0.0
+     ],
+     [
+      0.0084,
+      0.0684,
+      0.8182,
+      0.0,
+      0.0181,
+      0.0,
+      0.0206,
+      0.058,
+      0.0082,
+      0.0,
+      0.0002,
+      0.0
+     ],
+     [
+      0.0196,
+      0.0,
+      0.0,
+      0.9217,
+      0.0058,
+      0.0111,
+      0.0,
+      0.0379,
+      0.0,
+      0.0,
+      0.0039,
+      0.0
+     ],
+     [
+      0.0358,
+      0.0,
+      0.0149,
+      0.0223,
+      0.8532,
+      0.0,
+      0.0138,
+      0.0353,
+      0.0,
+      0.0,
+      0.0244,
+      0.0003
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0257,
+      0.0199,
+      0.875,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0794,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0963,
+      0.0,
+      0.0207,
+      0.0,
+      0.8386,
+      0.0019,
+      0.0178,
+      0.0142,
+      0.0086,
+      0.0019
+     ],
+     [
+      0.1402,
+      0.0855,
+      0.2111,
+      0.0467,
+      0.1096,
+      0.0,
+      0.0189,
+      0.3776,
+      0.0023,
+      0.0,
+      0.0081,
+      0.0
+     ],
+     [
+      0.0,
+      0.0064,
+      0.0098,
+      0.0,
+      0.0,
+      0.0,
+      0.016,
+      0.0,
+      0.9602,
+      0.0,
+      0.0026,
+      0.0051
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0661,
+      0.0016,
+      0.0758,
+      0.0,
+      0.0,
+      0.7962,
+      0.054,
+      0.0063
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0126,
+      0.1321,
+      0.0,
+      0.0,
+      0.0,
+      0.0832,
+      0.7602,
+      0.0118
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0002,
+      0.0,
+      0.0111,
+      0.1501,
+      0.0093,
+      0.8293
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.00514,
+     "persistence": 0.8966,
+     "meanStayMinutes": 48.4,
+     "driftBpPerMinute": -1.16206,
+     "volatilityBpPerSqrtMinute": 9.7299,
+     "inputMeans": [
+      -0.0038,
+      -0.1028,
+      -0.7301,
+      -0.1024
+     ],
+     "ou": null
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.00846,
+     "persistence": 0.8965,
+     "meanStayMinutes": 48.3,
+     "driftBpPerMinute": 0.25496,
+     "volatilityBpPerSqrtMinute": 10.4181,
+     "inputMeans": [
+      0.0362,
+      0.6138,
+      -0.7284,
+      -0.0716
+     ],
+     "ou": null
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.0925,
+     "persistence": 0.8182,
+     "meanStayMinutes": 27.5,
+     "driftBpPerMinute": 0.11558,
+     "volatilityBpPerSqrtMinute": 11.1188,
+     "inputMeans": [
+      0.029,
+      0.4925,
+      -0.3492,
+      -0.2498
+     ],
+     "ou": null
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.01199,
+     "persistence": 0.9217,
+     "meanStayMinutes": 63.9,
+     "driftBpPerMinute": -0.12423,
+     "volatilityBpPerSqrtMinute": 11.5697,
+     "inputMeans": [
+      -0.056,
+      -0.7196,
+      -0.5986,
+      -0.0169
+     ],
+     "ou": null
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.09319,
+     "persistence": 0.8532,
+     "meanStayMinutes": 34.1,
+     "driftBpPerMinute": -0.22803,
+     "volatilityBpPerSqrtMinute": 13.2464,
+     "inputMeans": [
+      -0.0506,
+      -0.2462,
+      -0.127,
+      -0.2796
+     ],
+     "ou": null
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.07281,
+     "persistence": 0.875,
+     "meanStayMinutes": 40.0,
+     "driftBpPerMinute": -0.46686,
+     "volatilityBpPerSqrtMinute": 15.2357,
+     "inputMeans": [
+      -0.1076,
+      -1.4194,
+      -0.0384,
+      -0.161
+     ],
+     "ou": null
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.1424,
+     "persistence": 0.8386,
+     "meanStayMinutes": 31.0,
+     "driftBpPerMinute": 0.15817,
+     "volatilityBpPerSqrtMinute": 15.8327,
+     "inputMeans": [
+      0.1627,
+      0.5827,
+      0.2487,
+      -0.1176
+     ],
+     "ou": null
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.01737,
+     "persistence": 0.3776,
+     "meanStayMinutes": 8.0,
+     "driftBpPerMinute": 0.84082,
+     "volatilityBpPerSqrtMinute": 14.2662,
+     "inputMeans": [
+      0.0851,
+      0.1422,
+      -0.4581,
+      2.6796
+     ],
+     "ou": null
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.10942,
+     "persistence": 0.9602,
+     "meanStayMinutes": 125.6,
+     "driftBpPerMinute": -0.05537,
+     "volatilityBpPerSqrtMinute": 15.5082,
+     "inputMeans": [
+      0.1536,
+      1.6531,
+      -0.1676,
+      0.1171
+     ],
+     "ou": null
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.15628,
+     "persistence": 0.7962,
+     "meanStayMinutes": 24.5,
+     "driftBpPerMinute": 0.09154,
+     "volatilityBpPerSqrtMinute": 23.7335,
+     "inputMeans": [
+      -0.0424,
+      -0.1401,
+      1.0553,
+      -0.4975
+     ],
+     "ou": null
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.11656,
+     "persistence": 0.7602,
+     "meanStayMinutes": 20.9,
+     "driftBpPerMinute": -0.20533,
+     "volatilityBpPerSqrtMinute": 24.0489,
+     "inputMeans": [
+      -0.4189,
+      -1.64,
+      0.7072,
+      0.6791
+     ],
+     "ou": null
+    },
+    {
+     "state": 11,
+     "label": "R12",
+     "timeShare": 0.17389,
+     "persistence": 0.8293,
+     "meanStayMinutes": 29.3,
+     "driftBpPerMinute": 0.12109,
+     "volatilityBpPerSqrtMinute": 35.7856,
+     "inputMeans": [
+      0.1863,
+      0.2613,
+      2.7841,
+      -0.2994
+     ],
+     "ou": null
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 3.3847,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 194495,
+    "trainEnd": "2026-07-22T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-22T20:00:00Z",
+    "ouEnabled": false,
+    "ouRejectionReasons": [
+     "OU_NOT_MEAN_REVERTING",
+     "OU_MODEL_DISABLED"
+    ],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  },
+  {
+   "symbol": "SOXX",
+   "modelSymbol": "SOXX",
+   "priceSymbol": "SOXX",
+   "targetStatus": "DIRECT_ETF",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/SOXX.frozen.json",
+    "artifactFileSha256": "3bc05b26d40be6809dad596f75da41a114887ce879a59a32019a5586349d80ea",
+    "artifactSha256": "716f937ffeaee4f62d21a0288d8e4ee50736f6d245753fbb6f5b8b134fd15553",
+    "modelHash": "d6c3c5615d8f5a8aae9bd62373b837e038693165eef2dde185d37ab319a2afbf",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:39:25.041560Z",
+    "trainingCutoff": "2026-07-22T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 195402
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 12,
+    "atBoundary": true,
+    "warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+    "fitSessions": 399,
+    "validationSessions": 100,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -5.615623,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -5.327312,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -5.111859,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -4.936057,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -4.853638,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -4.702678,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -4.596216,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -4.462594,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -4.436988,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -4.363917,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -4.295115,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 12,
+    "logLikelihood": -119877.37,
+    "bic": 242279.26,
+    "transition": [
+     [
+      0.8028,
+      0.0514,
+      0.0107,
+      0.0249,
+      0.0167,
+      0.0131,
+      0.0,
+      0.0005,
+      0.0002,
+      0.0,
+      0.0792,
+      0.0006
+     ],
+     [
+      0.012,
+      0.9308,
+      0.0,
+      0.0158,
+      0.0134,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0281,
+      0.0
+     ],
+     [
+      0.0281,
+      0.0,
+      0.8283,
+      0.0336,
+      0.0,
+      0.0,
+      0.0343,
+      0.0067,
+      0.0088,
+      0.0,
+      0.0598,
+      0.0004
+     ],
+     [
+      0.0186,
+      0.0096,
+      0.0078,
+      0.9237,
+      0.0,
+      0.0,
+      0.0161,
+      0.0002,
+      0.0,
+      0.0,
+      0.024,
+      0.0
+     ],
+     [
+      0.0156,
+      0.0107,
+      0.0,
+      0.0,
+      0.9295,
+      0.0105,
+      0.0,
+      0.0,
+      0.0,
+      0.0104,
+      0.0233,
+      0.0
+     ],
+     [
+      0.0489,
+      0.0,
+      0.0001,
+      0.0,
+      0.0428,
+      0.7787,
+      0.0,
+      0.0067,
+      0.0,
+      0.0429,
+      0.0794,
+      0.0004
+     ],
+     [
+      0.0,
+      0.0,
+      0.0198,
+      0.0117,
+      0.0,
+      0.0,
+      0.9425,
+      0.0,
+      0.0107,
+      0.0,
+      0.0152,
+      0.0
+     ],
+     [
+      0.0068,
+      0.0,
+      0.0615,
+      0.0,
+      0.0,
+      0.0518,
+      0.0,
+      0.8197,
+      0.0123,
+      0.0,
+      0.0288,
+      0.0192
+     ],
+     [
+      0.0,
+      0.0,
+      0.0145,
+      0.0,
+      0.0,
+      0.0,
+      0.0226,
+      0.0082,
+      0.9485,
+      0.0,
+      0.0027,
+      0.0036
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0037,
+      0.0451,
+      0.0,
+      0.0,
+      0.0,
+      0.936,
+      0.0003,
+      0.0149
+     ],
+     [
+      0.2308,
+      0.0,
+      0.1478,
+      0.0,
+      0.0,
+      0.1672,
+      0.0,
+      0.0588,
+      0.0002,
+      0.0061,
+      0.3852,
+      0.0038
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.1073,
+      0.0095,
+      0.0214,
+      0.0,
+      0.8618
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.04415,
+     "persistence": 0.8028,
+     "meanStayMinutes": 25.4,
+     "driftBpPerMinute": -0.08189,
+     "volatilityBpPerSqrtMinute": 6.5654,
+     "inputMeans": [
+      -0.0121,
+      -0.0836,
+      -0.3598,
+      -0.3151
+     ],
+     "ou": {
+      "halfLifeMinutes": 54.38,
+      "longRunResidualBp": -9.217,
+      "autoregressivePhi": 0.98733
+     }
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.00425,
+     "persistence": 0.9308,
+     "meanStayMinutes": 72.3,
+     "driftBpPerMinute": -0.63842,
+     "volatilityBpPerSqrtMinute": 5.3221,
+     "inputMeans": [
+      0.0079,
+      -0.0412,
+      -0.8123,
+      -0.0241
+     ],
+     "ou": {
+      "halfLifeMinutes": 25.44,
+      "longRunResidualBp": -34.873,
+      "autoregressivePhi": 0.97312
+     }
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.11186,
+     "persistence": 0.8283,
+     "meanStayMinutes": 29.1,
+     "driftBpPerMinute": 0.29992,
+     "volatilityBpPerSqrtMinute": 7.8626,
+     "inputMeans": [
+      0.0974,
+      0.4724,
+      -0.065,
+      -0.2792
+     ],
+     "ou": {
+      "halfLifeMinutes": 24.01,
+      "longRunResidualBp": 48.923,
+      "autoregressivePhi": 0.97154
+     }
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.0191,
+     "persistence": 0.9237,
+     "meanStayMinutes": 65.5,
+     "driftBpPerMinute": 0.10818,
+     "volatilityBpPerSqrtMinute": 5.5136,
+     "inputMeans": [
+      0.0482,
+      0.4163,
+      -0.713,
+      0.0474
+     ],
+     "ou": {
+      "halfLifeMinutes": 46.19,
+      "longRunResidualBp": 39.32,
+      "autoregressivePhi": 0.98511
+     }
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.03382,
+     "persistence": 0.9295,
+     "meanStayMinutes": 70.9,
+     "driftBpPerMinute": 0.24563,
+     "volatilityBpPerSqrtMinute": 6.463,
+     "inputMeans": [
+      -0.0706,
+      -0.7487,
+      -0.513,
+      0.0118
+     ],
+     "ou": {
+      "halfLifeMinutes": 110.24,
+      "longRunResidualBp": 5.792,
+      "autoregressivePhi": 0.99373
+     }
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.05884,
+     "persistence": 0.7787,
+     "meanStayMinutes": 22.6,
+     "driftBpPerMinute": -0.17343,
+     "volatilityBpPerSqrtMinute": 9.7174,
+     "inputMeans": [
+      -0.0829,
+      -0.5825,
+      0.1856,
+      -0.3745
+     ],
+     "ou": {
+      "halfLifeMinutes": 141.21,
+      "longRunResidualBp": -50.068,
+      "autoregressivePhi": 0.9951
+     }
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.13553,
+     "persistence": 0.9425,
+     "meanStayMinutes": 87.0,
+     "driftBpPerMinute": 0.04008,
+     "volatilityBpPerSqrtMinute": 5.6856,
+     "inputMeans": [
+      0.0945,
+      1.0337,
+      -0.5787,
+      0.0748
+     ],
+     "ou": {
+      "halfLifeMinutes": 35.46,
+      "longRunResidualBp": 76.801,
+      "autoregressivePhi": 0.98065
+     }
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.14019,
+     "persistence": 0.8197,
+     "meanStayMinutes": 27.7,
+     "driftBpPerMinute": 0.18678,
+     "volatilityBpPerSqrtMinute": 14.9691,
+     "inputMeans": [
+      0.095,
+      0.0243,
+      1.0638,
+      -0.418
+     ],
+     "ou": {
+      "halfLifeMinutes": 42.11,
+      "longRunResidualBp": 10.476,
+      "autoregressivePhi": 0.98367
+     }
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.13989,
+     "persistence": 0.9485,
+     "meanStayMinutes": 97.0,
+     "driftBpPerMinute": 0.16312,
+     "volatilityBpPerSqrtMinute": 9.7659,
+     "inputMeans": [
+      0.2093,
+      1.7819,
+      0.2467,
+      0.0936
+     ],
+     "ou": {
+      "halfLifeMinutes": 210.79,
+      "longRunResidualBp": 58.27,
+      "autoregressivePhi": 0.99672
+     }
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.11268,
+     "persistence": 0.936,
+     "meanStayMinutes": 78.1,
+     "driftBpPerMinute": -0.0481,
+     "volatilityBpPerSqrtMinute": 12.1586,
+     "inputMeans": [
+      -0.2868,
+      -1.6815,
+      0.3709,
+      0.1663
+     ],
+     "ou": {
+      "halfLifeMinutes": 49.62,
+      "longRunResidualBp": -92.0,
+      "autoregressivePhi": 0.98613
+     }
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.03396,
+     "persistence": 0.3852,
+     "meanStayMinutes": 8.1,
+     "driftBpPerMinute": -0.62167,
+     "volatilityBpPerSqrtMinute": 11.1523,
+     "inputMeans": [
+      -0.1055,
+      -0.0574,
+      -0.0702,
+      2.27
+     ],
+     "ou": {
+      "halfLifeMinutes": 73.74,
+      "longRunResidualBp": -62.97,
+      "autoregressivePhi": 0.99064
+     }
+    },
+    {
+     "state": 11,
+     "label": "R12",
+     "timeShare": 0.16572,
+     "persistence": 0.8618,
+     "meanStayMinutes": 36.2,
+     "driftBpPerMinute": -0.33652,
+     "volatilityBpPerSqrtMinute": 23.0345,
+     "inputMeans": [
+      -0.0893,
+      -0.6101,
+      2.7553,
+      -0.085
+     ],
+     "ou": {
+      "halfLifeMinutes": 64.07,
+      "longRunResidualBp": -35.976,
+      "autoregressivePhi": 0.98924
+     }
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 3.3968,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 195402,
+    "trainEnd": "2026-07-22T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-22T20:00:00Z",
+    "ouEnabled": true,
+    "ouRejectionReasons": [],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  },
+  {
+   "symbol": "NBIS",
+   "modelSymbol": "NBIS",
+   "priceSymbol": "NBIS",
+   "targetStatus": "DIRECT_EQUITY",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/NBIS.frozen.json",
+    "artifactFileSha256": "8a78d990cc0404db933725610d32e92eaf7ab9ff3eb87f4797631fcfe8a80fd6",
+    "artifactSha256": "fb7c6e5f071548ead11231adb21e6a39b13c6efcd1ac0787be7a5e2f4f0255e2",
+    "modelHash": "4e929d3fae813d3b6ccd718d543887d743d1386c503ae20223c20953b70d5c18",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:39:25.041560Z",
+    "trainingCutoff": "2026-07-24T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 170528
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 12,
+    "atBoundary": true,
+    "warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+    "fitSessions": 348,
+    "validationSessions": 87,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -4.691269,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -4.420358,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -4.244407,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -4.049123,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -3.872169,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -3.73444,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -3.647574,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -3.53764,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -3.474928,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -3.46433,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -3.344727,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 12,
+    "logLikelihood": -113523.48,
+    "bic": 229539.1,
+    "transition": [
+     [
+      0.8477,
+      0.0137,
+      0.0102,
+      0.0,
+      0.0283,
+      0.0046,
+      0.0,
+      0.0,
+      0.094,
+      0.0015,
+      0.0,
+      0.0
+     ],
+     [
+      0.0126,
+      0.8718,
+      0.0138,
+      0.011,
+      0.0,
+      0.0,
+      0.0019,
+      0.0,
+      0.088,
+      0.0,
+      0.0008,
+      0.0
+     ],
+     [
+      0.0116,
+      0.0598,
+      0.7775,
+      0.0163,
+      0.0,
+      0.0166,
+      0.017,
+      0.0,
+      0.1009,
+      0.0,
+      0.0,
+      0.0003
+     ],
+     [
+      0.0,
+      0.012,
+      0.0159,
+      0.9029,
+      0.0,
+      0.0,
+      0.0056,
+      0.0208,
+      0.0424,
+      0.0,
+      0.0,
+      0.0003
+     ],
+     [
+      0.0295,
+      0.0,
+      0.0,
+      0.0,
+      0.8941,
+      0.0091,
+      0.0,
+      0.0,
+      0.0324,
+      0.0333,
+      0.0,
+      0.0016
+     ],
+     [
+      0.0409,
+      0.0,
+      0.0477,
+      0.0,
+      0.0206,
+      0.8129,
+      0.0129,
+      0.0,
+      0.0343,
+      0.0228,
+      0.0056,
+      0.0023
+     ],
+     [
+      0.0,
+      0.0,
+      0.0535,
+      0.0424,
+      0.0,
+      0.0131,
+      0.8298,
+      0.023,
+      0.0134,
+      0.0,
+      0.017,
+      0.0078
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0192,
+      0.0,
+      0.0,
+      0.0159,
+      0.9538,
+      0.0008,
+      0.0,
+      0.0,
+      0.0104
+     ],
+     [
+      0.1729,
+      0.1012,
+      0.2059,
+      0.0751,
+      0.0336,
+      0.0963,
+      0.0426,
+      0.001,
+      0.2644,
+      0.0017,
+      0.002,
+      0.0032
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0422,
+      0.0346,
+      0.0,
+      0.0,
+      0.0,
+      0.902,
+      0.0138,
+      0.0074
+     ],
+     [
+      0.0,
+      0.0,
+      0.0015,
+      0.0,
+      0.0,
+      0.0929,
+      0.0822,
+      0.0,
+      0.0001,
+      0.0177,
+      0.7729,
+      0.0328
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0022,
+      0.015,
+      0.0,
+      0.0063,
+      0.1987,
+      0.7778
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.0874,
+     "persistence": 0.8477,
+     "meanStayMinutes": 32.8,
+     "driftBpPerMinute": -0.207,
+     "volatilityBpPerSqrtMinute": 17.4434,
+     "inputMeans": [
+      -0.0275,
+      -0.4918,
+      -0.5875,
+      -0.2253
+     ],
+     "ou": {
+      "halfLifeMinutes": 45.54,
+      "longRunResidualBp": -96.757,
+      "autoregressivePhi": 0.9849
+     }
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.04634,
+     "persistence": 0.8718,
+     "meanStayMinutes": 39.0,
+     "driftBpPerMinute": -0.48157,
+     "volatilityBpPerSqrtMinute": 15.7042,
+     "inputMeans": [
+      -0.002,
+      0.1167,
+      -0.7628,
+      -0.1044
+     ],
+     "ou": {
+      "halfLifeMinutes": 65.09,
+      "longRunResidualBp": -23.881,
+      "autoregressivePhi": 0.98941
+     }
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.10067,
+     "persistence": 0.7775,
+     "meanStayMinutes": 22.5,
+     "driftBpPerMinute": -0.29762,
+     "volatilityBpPerSqrtMinute": 20.8986,
+     "inputMeans": [
+      0.0088,
+      0.1242,
+      -0.2423,
+      -0.3467
+     ],
+     "ou": {
+      "halfLifeMinutes": 23.33,
+      "longRunResidualBp": 21.247,
+      "autoregressivePhi": 0.97072
+     }
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.0937,
+     "persistence": 0.9029,
+     "meanStayMinutes": 51.5,
+     "driftBpPerMinute": 0.22583,
+     "volatilityBpPerSqrtMinute": 18.7033,
+     "inputMeans": [
+      0.0479,
+      0.804,
+      -0.5658,
+      -0.0983
+     ],
+     "ou": {
+      "halfLifeMinutes": 65.28,
+      "longRunResidualBp": 166.352,
+      "autoregressivePhi": 0.98944
+     }
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.0961,
+     "persistence": 0.8941,
+     "meanStayMinutes": 47.2,
+     "driftBpPerMinute": 0.10997,
+     "volatilityBpPerSqrtMinute": 19.7689,
+     "inputMeans": [
+      -0.0964,
+      -1.0904,
+      -0.4541,
+      -0.03
+     ],
+     "ou": {
+      "halfLifeMinutes": 43.47,
+      "longRunResidualBp": -182.646,
+      "autoregressivePhi": 0.98418
+     }
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.10742,
+     "persistence": 0.8129,
+     "meanStayMinutes": 26.7,
+     "driftBpPerMinute": -0.60981,
+     "volatilityBpPerSqrtMinute": 28.2837,
+     "inputMeans": [
+      -0.0993,
+      -0.4915,
+      0.2786,
+      -0.3003
+     ],
+     "ou": {
+      "halfLifeMinutes": 25.03,
+      "longRunResidualBp": -107.205,
+      "autoregressivePhi": 0.97268
+     }
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.07825,
+     "persistence": 0.8298,
+     "meanStayMinutes": 29.4,
+     "driftBpPerMinute": 0.8947,
+     "volatilityBpPerSqrtMinute": 30.4605,
+     "inputMeans": [
+      0.2245,
+      0.6842,
+      0.3787,
+      -0.1749
+     ],
+     "ou": {
+      "halfLifeMinutes": 28.63,
+      "longRunResidualBp": 137.368,
+      "autoregressivePhi": 0.97608
+     }
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.11746,
+     "persistence": 0.9538,
+     "meanStayMinutes": 108.1,
+     "driftBpPerMinute": 0.25413,
+     "volatilityBpPerSqrtMinute": 20.6913,
+     "inputMeans": [
+      0.1789,
+      1.7094,
+      -0.2106,
+      0.1443
+     ],
+     "ou": {
+      "halfLifeMinutes": 52.93,
+      "longRunResidualBp": 277.522,
+      "autoregressivePhi": 0.98699
+     }
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.05004,
+     "persistence": 0.2644,
+     "meanStayMinutes": 6.8,
+     "driftBpPerMinute": -0.91402,
+     "volatilityBpPerSqrtMinute": 24.5864,
+     "inputMeans": [
+      0.0204,
+      -0.073,
+      -0.3661,
+      2.4799
+     ],
+     "ou": {
+      "halfLifeMinutes": 152.34,
+      "longRunResidualBp": -197.961,
+      "autoregressivePhi": 0.99546
+     }
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.08493,
+     "persistence": 0.902,
+     "meanStayMinutes": 51.0,
+     "driftBpPerMinute": -0.11115,
+     "volatilityBpPerSqrtMinute": 29.0285,
+     "inputMeans": [
+      -0.3202,
+      -1.7178,
+      0.2047,
+      0.2268
+     ],
+     "ou": {
+      "halfLifeMinutes": 76.53,
+      "longRunResidualBp": -157.549,
+      "autoregressivePhi": 0.99098
+     }
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.10358,
+     "persistence": 0.7729,
+     "meanStayMinutes": 22.0,
+     "driftBpPerMinute": 0.3253,
+     "volatilityBpPerSqrtMinute": 46.069,
+     "inputMeans": [
+      -0.052,
+      -0.1037,
+      1.5564,
+      -0.4373
+     ],
+     "ou": {
+      "halfLifeMinutes": 30.01,
+      "longRunResidualBp": 6.459,
+      "autoregressivePhi": 0.97716
+     }
+    },
+    {
+     "state": 11,
+     "label": "R12",
+     "timeShare": 0.03411,
+     "persistence": 0.7778,
+     "meanStayMinutes": 22.5,
+     "driftBpPerMinute": -0.84208,
+     "volatilityBpPerSqrtMinute": 59.9439,
+     "inputMeans": [
+      0.1762,
+      0.5652,
+      2.7538,
+      0.1616
+     ],
+     "ou": {
+      "halfLifeMinutes": 32.47,
+      "longRunResidualBp": -61.95,
+      "autoregressivePhi": 0.97888
+     }
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 3.7812,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 170528,
+    "trainEnd": "2026-07-24T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-24T20:00:00Z",
+    "ouEnabled": true,
+    "ouRejectionReasons": [],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  },
+  {
+   "symbol": "BE",
+   "modelSymbol": "BE",
+   "priceSymbol": "BE",
+   "targetStatus": "DIRECT_EQUITY",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/BE.frozen.json",
+    "artifactFileSha256": "a470a8c44dac979cd927d7f038a967ca60fe8ce3218751ef835c713848b0f139",
+    "artifactSha256": "ed473df4a8f175e5e0f742225791c9409c06d349597a0763aabe11eff70747f5",
+    "modelHash": "3d12de12c4d0560347f6971876c6763af972a4639e9d25740f639a15a01b3383",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:39:25.041560Z",
+    "trainingCutoff": "2026-07-24T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 194143
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 12,
+    "atBoundary": true,
+    "warning": "BEST_VALIDATION_SCORE_IS_AT_MAXIMUM_TESTED_K; STATE_COUNT_OPTIMUM_IS_NOT_ESTABLISHED",
+    "fitSessions": 396,
+    "validationSessions": 99,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -5.10668,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -4.824363,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -4.515807,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -4.423942,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -4.295554,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -4.129558,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -4.024206,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -3.956411,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -3.864166,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -3.795011,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -3.761978,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 12,
+    "logLikelihood": -126663.76,
+    "bic": 255850.5,
+    "transition": [
+     [
+      0.851,
+      0.0184,
+      0.0215,
+      0.0104,
+      0.0031,
+      0.0,
+      0.0,
+      0.0004,
+      0.0949,
+      0.0,
+      0.0,
+      0.0002
+     ],
+     [
+      0.0199,
+      0.8867,
+      0.0,
+      0.0109,
+      0.0,
+      0.0266,
+      0.0,
+      0.0,
+      0.0556,
+      0.0,
+      0.0003,
+      0.0
+     ],
+     [
+      0.0276,
+      0.0,
+      0.8819,
+      0.0,
+      0.0105,
+      0.0,
+      0.0237,
+      0.0,
+      0.056,
+      0.0,
+      0.0003,
+      0.0
+     ],
+     [
+      0.0332,
+      0.045,
+      0.0,
+      0.7977,
+      0.0117,
+      0.0204,
+      0.0,
+      0.0029,
+      0.0716,
+      0.0158,
+      0.0014,
+      0.0004
+     ],
+     [
+      0.0254,
+      0.0,
+      0.046,
+      0.0191,
+      0.8121,
+      0.0,
+      0.0188,
+      0.0065,
+      0.0533,
+      0.0,
+      0.0184,
+      0.0004
+     ],
+     [
+      0.0,
+      0.026,
+      0.0,
+      0.019,
+      0.0,
+      0.9137,
+      0.0,
+      0.0,
+      0.0167,
+      0.0241,
+      0.0005,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0191,
+      0.0,
+      0.0207,
+      0.0,
+      0.9335,
+      0.0,
+      0.0082,
+      0.0,
+      0.0186,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0765,
+      0.0592,
+      0.0,
+      0.0,
+      0.8007,
+      0.0034,
+      0.0354,
+      0.0209,
+      0.004
+     ],
+     [
+      0.1879,
+      0.0564,
+      0.0719,
+      0.1999,
+      0.1822,
+      0.0019,
+      0.0015,
+      0.0186,
+      0.2722,
+      0.003,
+      0.0045,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0113,
+      0.0,
+      0.0288,
+      0.0,
+      0.0277,
+      0.001,
+      0.9258,
+      0.0,
+      0.0055
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0436,
+      0.0,
+      0.0409,
+      0.0207,
+      0.0,
+      0.0,
+      0.8887,
+      0.0062
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.1726,
+      0.0,
+      0.0124,
+      0.021,
+      0.794
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.06963,
+     "persistence": 0.851,
+     "meanStayMinutes": 33.6,
+     "driftBpPerMinute": -0.60479,
+     "volatilityBpPerSqrtMinute": 15.8384,
+     "inputMeans": [
+      -0.0027,
+      0.0749,
+      -0.6342,
+      -0.1903
+     ],
+     "ou": {
+      "halfLifeMinutes": 27.17,
+      "longRunResidualBp": -10.846,
+      "autoregressivePhi": 0.97481
+     }
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.04115,
+     "persistence": 0.8867,
+     "meanStayMinutes": 44.1,
+     "driftBpPerMinute": -0.03881,
+     "volatilityBpPerSqrtMinute": 16.1036,
+     "inputMeans": [
+      -0.0405,
+      -0.4653,
+      -0.708,
+      -0.0804
+     ],
+     "ou": {
+      "halfLifeMinutes": 20.28,
+      "longRunResidualBp": -74.065,
+      "autoregressivePhi": 0.96639
+     }
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.06217,
+     "persistence": 0.8819,
+     "meanStayMinutes": 42.3,
+     "driftBpPerMinute": 0.07238,
+     "volatilityBpPerSqrtMinute": 15.8413,
+     "inputMeans": [
+      0.0409,
+      0.6182,
+      -0.636,
+      -0.0794
+     ],
+     "ou": {
+      "halfLifeMinutes": 22.77,
+      "longRunResidualBp": 114.654,
+      "autoregressivePhi": 0.97002
+     }
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.10912,
+     "persistence": 0.7977,
+     "meanStayMinutes": 24.7,
+     "driftBpPerMinute": -0.2456,
+     "volatilityBpPerSqrtMinute": 21.3494,
+     "inputMeans": [
+      -0.0636,
+      -0.3464,
+      -0.0558,
+      -0.3208
+     ],
+     "ou": {
+      "halfLifeMinutes": 42.03,
+      "longRunResidualBp": -64.589,
+      "autoregressivePhi": 0.98365
+     }
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.10343,
+     "persistence": 0.8121,
+     "meanStayMinutes": 26.6,
+     "driftBpPerMinute": 0.27389,
+     "volatilityBpPerSqrtMinute": 22.4404,
+     "inputMeans": [
+      0.0771,
+      0.5455,
+      0.036,
+      -0.2989
+     ],
+     "ou": {
+      "halfLifeMinutes": 33.12,
+      "longRunResidualBp": 103.545,
+      "autoregressivePhi": 0.97929
+     }
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.07343,
+     "persistence": 0.9137,
+     "meanStayMinutes": 57.9,
+     "driftBpPerMinute": -0.79689,
+     "volatilityBpPerSqrtMinute": 18.5769,
+     "inputMeans": [
+      -0.1171,
+      -1.084,
+      -0.4546,
+      0.0661
+     ],
+     "ou": {
+      "halfLifeMinutes": 72.64,
+      "longRunResidualBp": -224.099,
+      "autoregressivePhi": 0.9905
+     }
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.09068,
+     "persistence": 0.9335,
+     "meanStayMinutes": 75.2,
+     "driftBpPerMinute": -0.28896,
+     "volatilityBpPerSqrtMinute": 18.0541,
+     "inputMeans": [
+      0.1171,
+      1.3578,
+      -0.399,
+      0.1195
+     ],
+     "ou": {
+      "halfLifeMinutes": 50.22,
+      "longRunResidualBp": 179.291,
+      "autoregressivePhi": 0.98629
+     }
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.11828,
+     "persistence": 0.8007,
+     "meanStayMinutes": 25.1,
+     "driftBpPerMinute": -0.64239,
+     "volatilityBpPerSqrtMinute": 36.9632,
+     "inputMeans": [
+      -0.0234,
+      -0.1239,
+      1.0474,
+      -0.3903
+     ],
+     "ou": {
+      "halfLifeMinutes": 26.54,
+      "longRunResidualBp": -41.412,
+      "autoregressivePhi": 0.97422
+     }
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.04366,
+     "persistence": 0.2722,
+     "meanStayMinutes": 6.9,
+     "driftBpPerMinute": 0.30865,
+     "volatilityBpPerSqrtMinute": 22.548,
+     "inputMeans": [
+      0.0546,
+      0.0495,
+      -0.3115,
+      2.4777
+     ],
+     "ou": {
+      "halfLifeMinutes": 352.3,
+      "longRunResidualBp": 123.941,
+      "autoregressivePhi": 0.99803
+     }
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.15054,
+     "persistence": 0.9258,
+     "meanStayMinutes": 67.4,
+     "driftBpPerMinute": -0.40744,
+     "volatilityBpPerSqrtMinute": 29.5926,
+     "inputMeans": [
+      -0.2891,
+      -1.7465,
+      0.281,
+      0.114
+     ],
+     "ou": {
+      "halfLifeMinutes": 130.19,
+      "longRunResidualBp": -105.09,
+      "autoregressivePhi": 0.99469
+     }
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.06436,
+     "persistence": 0.8887,
+     "meanStayMinutes": 44.9,
+     "driftBpPerMinute": 0.34521,
+     "volatilityBpPerSqrtMinute": 29.9257,
+     "inputMeans": [
+      0.3628,
+      1.726,
+      0.4935,
+      0.1584
+     ],
+     "ou": {
+      "halfLifeMinutes": 38.14,
+      "longRunResidualBp": 193.283,
+      "autoregressivePhi": 0.98199
+     }
+    },
+    {
+     "state": 11,
+     "label": "R12",
+     "timeShare": 0.07355,
+     "persistence": 0.794,
+     "meanStayMinutes": 24.3,
+     "driftBpPerMinute": -0.0956,
+     "volatilityBpPerSqrtMinute": 53.6396,
+     "inputMeans": [
+      0.0451,
+      -0.2075,
+      3.0256,
+      -0.3161
+     ],
+     "ou": {
+      "halfLifeMinutes": 31.55,
+      "longRunResidualBp": -44.864,
+      "autoregressivePhi": 0.97827
+     }
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 3.0954,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 194143,
+    "trainEnd": "2026-07-24T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-24T20:00:00Z",
+    "ouEnabled": true,
+    "ouRejectionReasons": [],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  },
+  {
+   "symbol": "IGV",
+   "modelSymbol": "IGV",
+   "priceSymbol": "IGV",
+   "targetStatus": "DIRECT_ETF",
+   "promotionStatus": "CANDIDATE_NOT_PROMOTED",
+   "calibrationVersion": "UNAVAILABLE_FAIL_CLOSED",
+   "lineage": {
+    "artifactPath": "quant_engine_rs/data/models/universe/IGV.frozen.json",
+    "artifactFileSha256": "004c1d02cf47e19eff9572be9d49b52acbbe9a43ad696df7fcd45431068d013a",
+    "artifactSha256": "ba5e22997b4d0e37fafdb8f18287dc0039b6163fe9bafbdde3c82965733a6b80",
+    "modelHash": "efc0255997593935b115c81ee092bed82dda928d1bfa753de773fd1d15e2d840",
+    "modelVersion": "same-regime-kernel+logspace-hmm+occupancy-gated-selection+regime-sde-shadow-frozen-v3",
+    "createdAt": "2026-07-27T04:39:25.041560Z",
+    "trainingCutoff": "2026-07-24T20:00:00Z",
+    "codeCommit": "81a91f5490c78254c1b3e5b241c5df9aa6b86cb8",
+    "trainingDatasetHash": "ef9a80712ac2b57489c563efade124c76f06e563320b69aafe23a5d8f2bd92eb",
+    "trainingRows": 194379
+   },
+   "selection": {
+    "criterion": "MAX_VALIDATION_AVERAGE_LOG_LIKELIHOOD_AMONG_OCCUPANCY_ELIGIBLE_CANDIDATES",
+    "selectedStates": 11,
+    "atBoundary": false,
+    "warning": null,
+    "fitSessions": 396,
+    "validationSessions": 100,
+    "minimumStateOccupancy": 0.01,
+    "candidates": [
+     {
+      "states": 2,
+      "validationLogLikelihood": -5.989649,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 3,
+      "validationLogLikelihood": -5.587929,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 4,
+      "validationLogLikelihood": -5.337276,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 5,
+      "validationLogLikelihood": -5.161927,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 6,
+      "validationLogLikelihood": -4.972814,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 7,
+      "validationLogLikelihood": -4.885388,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 8,
+      "validationLogLikelihood": -4.748634,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 9,
+      "validationLogLikelihood": -4.651754,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 10,
+      "validationLogLikelihood": -4.590916,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 11,
+      "validationLogLikelihood": -4.54644,
+      "eligible": true,
+      "status": "ELIGIBLE_VALIDATION_SCORED"
+     },
+     {
+      "states": 12,
+      "validationLogLikelihood": -4.470457,
+      "eligible": false,
+      "status": "REJECTED_LOW_VALIDATION_STATE_OCCUPANCY"
+     }
+    ]
+   },
+   "hmm": {
+    "states": 11,
+    "logLikelihood": -120676.12,
+    "bic": 243548.82,
+    "transition": [
+     [
+      0.7947,
+      0.0002,
+      0.0399,
+      0.0388,
+      0.004,
+      0.0129,
+      0.0,
+      0.0,
+      0.1082,
+      0.0014,
+      0.0
+     ],
+     [
+      0.0001,
+      0.88,
+      0.0,
+      0.0187,
+      0.0,
+      0.0,
+      0.0,
+      0.0289,
+      0.0708,
+      0.0014,
+      0.0002
+     ],
+     [
+      0.0225,
+      0.0,
+      0.9369,
+      0.0145,
+      0.0,
+      0.0172,
+      0.0,
+      0.0,
+      0.0083,
+      0.0,
+      0.0006
+     ],
+     [
+      0.0125,
+      0.0109,
+      0.0156,
+      0.9347,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0258,
+      0.0006,
+      0.0
+     ],
+     [
+      0.0567,
+      0.0,
+      0.0,
+      0.0001,
+      0.7906,
+      0.0208,
+      0.0,
+      0.0,
+      0.1098,
+      0.0208,
+      0.0011
+     ],
+     [
+      0.0141,
+      0.0,
+      0.0206,
+      0.0,
+      0.0099,
+      0.926,
+      0.0188,
+      0.0,
+      0.0102,
+      0.0005,
+      0.0
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0318,
+      0.9551,
+      0.0,
+      0.0,
+      0.0111,
+      0.002
+     ],
+     [
+      0.0,
+      0.0436,
+      0.0,
+      0.0,
+      0.0003,
+      0.0,
+      0.0,
+      0.9379,
+      0.0047,
+      0.0099,
+      0.0036
+     ],
+     [
+      0.2494,
+      0.1516,
+      0.0,
+      0.0001,
+      0.1768,
+      0.0,
+      0.0,
+      0.0167,
+      0.4003,
+      0.005,
+      0.0
+     ],
+     [
+      0.0002,
+      0.0,
+      0.0,
+      0.0,
+      0.1303,
+      0.0,
+      0.0181,
+      0.0226,
+      0.0031,
+      0.8197,
+      0.006
+     ],
+     [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.005,
+      0.0053,
+      0.0,
+      0.1561,
+      0.8337
+     ]
+    ]
+   },
+   "regimes": [
+    {
+     "state": 0,
+     "label": "R1",
+     "timeShare": 0.11565,
+     "persistence": 0.7947,
+     "meanStayMinutes": 24.3,
+     "driftBpPerMinute": -0.05283,
+     "volatilityBpPerSqrtMinute": 4.5764,
+     "inputMeans": [
+      0.0394,
+      0.1183,
+      -0.3182,
+      -0.329
+     ],
+     "ou": null
+    },
+    {
+     "state": 1,
+     "label": "R2",
+     "timeShare": 0.11233,
+     "persistence": 0.88,
+     "meanStayMinutes": 41.7,
+     "driftBpPerMinute": 0.00592,
+     "volatilityBpPerSqrtMinute": 4.8848,
+     "inputMeans": [
+      -0.069,
+      -0.8027,
+      -0.3722,
+      -0.2214
+     ],
+     "ou": null
+    },
+    {
+     "state": 2,
+     "label": "R3",
+     "timeShare": 0.01883,
+     "persistence": 0.9369,
+     "meanStayMinutes": 79.2,
+     "driftBpPerMinute": -0.14667,
+     "volatilityBpPerSqrtMinute": 5.1184,
+     "inputMeans": [
+      0.0432,
+      0.4518,
+      -0.7269,
+      0.0589
+     ],
+     "ou": null
+    },
+    {
+     "state": 3,
+     "label": "R4",
+     "timeShare": 0.01559,
+     "persistence": 0.9347,
+     "meanStayMinutes": 76.6,
+     "driftBpPerMinute": -0.02155,
+     "volatilityBpPerSqrtMinute": 3.9106,
+     "inputMeans": [
+      -0.0089,
+      -0.1112,
+      -0.7311,
+      0.0776
+     ],
+     "ou": null
+    },
+    {
+     "state": 4,
+     "label": "R5",
+     "timeShare": 0.10928,
+     "persistence": 0.7906,
+     "meanStayMinutes": 23.9,
+     "driftBpPerMinute": 0.15508,
+     "volatilityBpPerSqrtMinute": 7.6288,
+     "inputMeans": [
+      0.0638,
+      0.0415,
+      0.3724,
+      -0.4007
+     ],
+     "ou": null
+    },
+    {
+     "state": 5,
+     "label": "R6",
+     "timeShare": 0.10607,
+     "persistence": 0.926,
+     "meanStayMinutes": 67.5,
+     "driftBpPerMinute": 0.03734,
+     "volatilityBpPerSqrtMinute": 4.9764,
+     "inputMeans": [
+      0.1097,
+      0.9587,
+      -0.395,
+      0.1414
+     ],
+     "ou": null
+    },
+    {
+     "state": 6,
+     "label": "R7",
+     "timeShare": 0.15702,
+     "persistence": 0.9551,
+     "meanStayMinutes": 111.3,
+     "driftBpPerMinute": 0.10897,
+     "volatilityBpPerSqrtMinute": 5.6364,
+     "inputMeans": [
+      0.1733,
+      1.8351,
+      -0.0029,
+      0.0384
+     ],
+     "ou": null
+    },
+    {
+     "state": 7,
+     "label": "R8",
+     "timeShare": 0.08876,
+     "persistence": 0.9379,
+     "meanStayMinutes": 80.5,
+     "driftBpPerMinute": -0.05585,
+     "volatilityBpPerSqrtMinute": 6.6342,
+     "inputMeans": [
+      -0.2089,
+      -1.6657,
+      0.1872,
+      0.0698
+     ],
+     "ou": null
+    },
+    {
+     "state": 8,
+     "label": "R9",
+     "timeShare": 0.06299,
+     "persistence": 0.4003,
+     "meanStayMinutes": 8.3,
+     "driftBpPerMinute": -0.20292,
+     "volatilityBpPerSqrtMinute": 6.101,
+     "inputMeans": [
+      -0.1589,
+      -0.2121,
+      -0.1012,
+      1.6257
+     ],
+     "ou": null
+    },
+    {
+     "state": 9,
+     "label": "R10",
+     "timeShare": 0.1361,
+     "persistence": 0.8197,
+     "meanStayMinutes": 27.7,
+     "driftBpPerMinute": 0.12508,
+     "volatilityBpPerSqrtMinute": 11.8682,
+     "inputMeans": [
+      -0.026,
+      -0.0968,
+      1.3941,
+      -0.2015
+     ],
+     "ou": null
+    },
+    {
+     "state": 10,
+     "label": "R11",
+     "timeShare": 0.07739,
+     "persistence": 0.8337,
+     "meanStayMinutes": 30.1,
+     "driftBpPerMinute": 0.70484,
+     "volatilityBpPerSqrtMinute": 17.6077,
+     "inputMeans": [
+      0.0293,
+      -0.0183,
+      3.4193,
+      -0.2059
+     ],
+     "ou": null
+    }
+   ],
+   "kernel": {
+    "metric": "shrinkage_mahalanobis",
+    "neighbors": 40,
+    "bandwidthRule": "adaptive_kth_neighbor",
+    "bandwidthMultiplier": 0.9,
+    "covarianceShrinkage": 0.2,
+    "regimeMatchPolicy": "same_dominant_and_posterior_cosine",
+    "minimumRegimeSimilarity": 0.9,
+    "minimumDominantRegimeProbability": 0.5,
+    "minimumEffectiveSampleSize": 20.0,
+    "sameTimeBucket": true,
+    "oodQuantile": 0.95,
+    "oodDistanceThreshold": 3.3247,
+    "metricWeights": [
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333,
+     0.083333
+    ],
+    "metricWeightsFitted": false,
+    "analogRows": 194379,
+    "trainEnd": "2026-07-24T19:59:00Z"
+   },
+   "shadow": {
+    "stepMinutes": 1,
+    "observations": 23160,
+    "observationCutoff": "2026-07-24T20:00:00Z",
+    "ouEnabled": false,
+    "ouRejectionReasons": [
+     "OU_NOT_MEAN_REVERTING",
+     "OU_MODEL_DISABLED"
+    ],
+    "jumpEnabled": false,
+    "jumpRejectionReasons": [
+     "JUMP_MODEL_UNVALIDATED"
+    ],
+    "policy": "RESEARCH_ONLY_SHADOW_LAYER; NO_ORDER_OR_PROFIT_CLAIM; NO_DECISION_AUTHORITY"
+   }
+  }
+ ],
+ "limitations": [
+  "These are frozen candidate parameters, not live readings. No current regime, price, or forecast is shown.",
+  "No model is promoted and no calibration artifact exists, so no calibrated probability, expected return, or win rate is published.",
+  "Regime numbers order states by HMM variance within one model. R3 for one symbol is not the same market condition as R3 for another.",
+  "The SDE and OU layers are research-only shadow models. They have no decision authority and imply no trade.",
+  "8 of 9 state-count selections reached the largest count tested, so their best number of regimes is not established."
+ ],
+ "predictionEnabled": false,
+ "executionEnabled": false
+}
