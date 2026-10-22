@@ -40,6 +40,10 @@ const model = z.object({
   const states = value.hmm.states;
   if (value.selection.selectedStates !== states || !value.selection.candidates.some(item => item.states === states && item.eligible)) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Selected state count is not an eligible candidate' });
   if (value.hmm.transition.length !== states || value.hmm.transition.some(row => row.length !== states)) return context.addIssue({ code: z.ZodIssueCode.custom, message: 'Transition matrix does not match the state count' });
+  // The exporter rounds each probability to four decimals; allow only that
+  // accumulated rounding error plus the raw model's 1e-8 validation tolerance.
+  const transitionTolerance = states * 0.00005 + 1e-8;
+  if (value.hmm.transition.some(row => Math.abs(row.reduce((sum, item) => sum + item, 0) - 1) > transitionTolerance)) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Transition row probabilities must sum to 1 within export precision' });
   if (value.regimes.length !== states || value.regimes.some((item, index) => item.state !== index || item.label !== `R${index + 1}` || item.persistence !== value.hmm.transition[index]![index])) context.addIssue({ code: z.ZodIssueCode.custom, message: 'Regimes do not match the HMM' });
   if (value.regimes.some(item => (item.ou !== null) !== value.shadow.ouEnabled)) context.addIssue({ code: z.ZodIssueCode.custom, message: 'OU parameters disagree with the shadow layer status' });
 });

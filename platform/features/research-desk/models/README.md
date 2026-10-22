@@ -1,6 +1,6 @@
 # Model atlas
 
-`/#/models` on Astra's Pick shows the nine frozen candidate models (SPX, QQQ,
+`/#/models` on LEO shows the nine frozen candidate models (SPX, QQQ,
 NVDA, AAPL, MU, SOXX, NBIS, BE, IGV) as an inspectable product: the pipeline
 each one runs, its HMM regimes, how regimes hand off, why its state count was
 chosen, the same-regime kernel settings, and the exact artifact behind every
@@ -53,8 +53,21 @@ node node_modules/typescript/bin/tsc --noEmit -p features/research-desk/tsconfig
 
 ## Release
 
-The page ships with the existing Astra's Pick static overlay; no Worker routing,
-binding, or Next.js rebuild changes. Copy the rebuilt `public/app/research-desk/`
-over `.open-next/assets/app/research-desk/` in a copy of the current frozen
-release stage, run `npx wrangler deploy --dry-run` there, then `npx wrangler
-deploy`. The page is then served at https://leo.axio7.workers.dev/#/models.
+The page ships through the retained LEO static overlay. Use the **current**
+release as the baseline; an older September stage would regress the October
+homepage, branding, and custom-domain configuration. The staging helper verifies
+saved manifests and current live hashes, preserves every backend file, and allows
+only `desk.js`, `desk.css`, and `data/model-atlas.json` to change. Keep the retained
+index, public configuration, Jev assets, Worker routing, bindings, and domains.
+
+```powershell
+python scripts/model-atlas-stage.py --base '<current-release>' --stage '<new-release>' --build public/app/research-desk
+# From the new release, using the installed Wrangler:
+wrangler deploy --dry-run --outdir .dry-run
+wrangler deploy --keep-vars --message 'Argus model atlas'
+```
+
+The page is served at https://leo.axio7.workers.dev/#/models. Verify the deployed
+asset hashes, retained routes, and atlas interactions; save the new version and
+the previous version for rollback. Deployment evidence for October 22 lives in
+`docs/model-atlas-delivery-20261022.md`.

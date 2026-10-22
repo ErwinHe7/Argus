@@ -83,6 +83,14 @@ class ModelAtlasTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             build_atlas(registry, self.registry_bytes, QUANT_ROOT)
 
+    def test_transition_rows_must_be_probability_distributions(self):
+        for fill in (0.0, 1.0):
+            with self.subTest(fill=fill):
+                artifact = deepcopy(self.artifact)
+                artifact["hmm"]["transition"][0] = [fill] * artifact["hmm"]["states"]
+                with self.assertRaisesRegex(ValueError, "probabilities must sum to 1"):
+                    self.view(artifact=artifact)
+
 
 if __name__ == "__main__":
     unittest.main()

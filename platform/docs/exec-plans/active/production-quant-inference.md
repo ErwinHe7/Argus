@@ -3309,3 +3309,19 @@ claims contract rejected. Explicit projection preserves the three verified
 identity/session claims. Isolated `strategy-api` v2 now serves the real Google
 owner correctly, with RLS, origins and all retained services unchanged. See the
 [session projection receipt](../../strategy-lab/SESSION-PROJECTION-FIX-20260911.md).
+
+## 2026-10-22 — Frozen model atlas display
+
+Published `/#/models` on the existing Leo Worker with nine exact-artifact
+candidate models, linked regime/transition/state-count views, pipeline status,
+kernel settings and lineage. Python and TypeScript reject invalid transition
+rows; model changes reset transient chart selection. Frozen July observations
+remain explicitly historical. No inference model, calibration, live-data
+readiness or execution authority was promoted.
+
+The release preserves 2,583 backend files, 273 unrelated assets, existing custom
+domains, services and authentication protections. Workers.dev is explicitly
+enabled in the release config to preserve the requested address. Scoped UI/data
+checks, static build, broad Python and Rust tests, and live hash/route checks pass;
+pre-existing root TypeScript/build, formatting and CMake-version limits remain
+documented in [the delivery receipt](../../model-atlas-delivery-20261022.md).

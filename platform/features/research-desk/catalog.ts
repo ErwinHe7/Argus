@@ -14,7 +14,7 @@ export const TOOLS = [
   { id: 'events', title: 'Catalysts', group: 'Events', description: 'Check the evidence behind a company catalyst.', detail: 'Primary sources · confirmed and unknown dates' },
   { id: 'research', title: 'Methods', group: 'About', description: 'Inspect the data, calculations, and assumptions.', detail: 'Source coverage · downloadable data' },
   { id: 'iv', title: 'Options lab', group: 'Options', description: 'Test an option against changes in price, IV, and time.', detail: 'Call and Put · 12,960 conditional valuations' },
-  { id: 'handbook', title: 'Guide', group: 'About', description: "Learn the Astra's Pick workflow and key terms.", detail: 'Charts · Options lab · Trade plans' },
+  { id: 'handbook', title: 'Guide', group: 'About', description: "Learn the LEO workflow and key terms.", detail: 'Charts · Options lab · Trade plans' },
 ] as const;
 
 export type ToolId = 'home' | typeof TOOLS[number]['id'];

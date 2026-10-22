@@ -32,3 +32,14 @@ test('candidate parameters cannot become promoted forecasts or execution authori
     assert.equal(modelAtlasSchema.safeParse(next).success, false);
   }
 });
+
+test('non-stochastic transition rows fail closed even when regime persistence agrees', () => {
+  for (const fill of [0, 1]) {
+    const next = structuredClone(source);
+    next.models[0].hmm.transition[0].fill(fill);
+    next.models[0].regimes[0].persistence = fill;
+    const result = modelAtlasSchema.safeParse(next);
+    assert.equal(result.success, false);
+    if (!result.success) assert.ok(result.error.issues.some(issue => issue.message.includes('Transition row probabilities must sum to 1')));
+  }
+});

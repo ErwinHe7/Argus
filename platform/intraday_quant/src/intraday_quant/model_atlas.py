@@ -107,6 +107,9 @@ def _selection(raw: dict[str, Any], states: int) -> dict[str, Any]:
 
 def _regimes(hmm: dict[str, Any], shadow: dict[str, Any], states: int) -> list[dict[str, Any]]:
     transition = _matrix(hmm.get("transition"), states, states, "hmm.transition", minimum=0, maximum=1)
+    for index, row in enumerate(transition):
+        if not math.isclose(sum(row), 1.0, rel_tol=0, abs_tol=1e-8):
+            raise ValueError(f"hmm.transition[{index}]: probabilities must sum to 1")
     means = _matrix(hmm.get("means"), states, len(HMM_FEATURES), "hmm.means")
     diffusion = shadow.get("diffusion_states") or []
     ou_states = shadow.get("vwap_residual_ou_states") or []

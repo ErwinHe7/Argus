@@ -230,3 +230,24 @@ membership requirements and publication evidence. Nine fixture browser groups an
 five existing strategy groups passed; desktop 1536×960, mobile 390×844 and
 signed-in/error captures are in `../../.impeccable/review/account-auth/`. These
 captures show layout and injected states, not a completed hosted Google login.
+
+## Model atlas · October 22, 2026
+
+The Model atlas is a supporting read-only extension of the existing research
+workspace. Its nine frozen candidate selectors retain aubergine panels,
+candle-gold selection, lilac chart geometry, Inter, fine rules, and the Leo Lion
+identity. At 1200px and above the picker has nine columns; at 700px and below it
+has three. The pipeline stays in a native disclosure. A selected regime links
+the volatility/drift chart, readout, and regime table; transitions and state-count
+selection follow before kernel settings and lineage. Tables keep deliberate
+horizontal scrolling within their own labeled, keyboard-focusable regions.
+
+The bounded finish review initially required two accessibility fixes: a native
+Candidate scores table for the score chart, and a Full artifact identifiers
+disclosure with selectable, wrap-safe hashes, commit, and artifact path. Both
+are implemented and the final review verdict is **ship** for the rendered regime
+views and these two fixes. Browser checks at 1280px and 390px found no page
+overflow or runtime errors and exercised keyboard regime selection and switching
+from a 12-regime model to an 11-regime model. The [surface review](models/SURFACE.md)
+links the captures and records the limited scope. No new raster assets or design
+tokens were introduced.
