@@ -108,6 +108,11 @@ report eligible.
 - Signals are known only after bar `t`; entry starts at `t+1`.
 - Walk-forward splits are chronological with purge and embargo.
 - Scaling, fitting, calibration and thresholds use train/validation only.
+- Probability and return-interval calibration use early validation sessions;
+  later sessions independently assess accuracy and empirical interval coverage.
+- Frozen challenger artifacts can forecast new unlabeled candidate observations
+  after their evidence cutoff. See [return forecasts](docs/return-forecasts.md)
+  for output fields, the Python API, and the nominal-coverage limitation.
 - Same-minute stop/target ambiguity resolves to the stop first.
 - A dedicated `closing_short_cover` setup scores the final 10 minutes using upside acceleration, close-location/volume buy-pressure proxies and cross-asset confirmation, then reports prior analog dates and their forward distributions.
 - The default daily limit is two trades, one open position and one trade per direction.

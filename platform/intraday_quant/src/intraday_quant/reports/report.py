@@ -238,7 +238,7 @@ def generate_report(config: AppConfig, ingest_stats: dict[str, int] | None = Non
         "## 3. Candidates", "", _table(setup_counts), "",
         f"Total candidates: **{len(candidates)}**; rejected OOS candidates: **{len(rejected)}**.", "",
         "## 4. Models and probability calibration", "", _table(diagnostics), "",
-        "Validation Brier scores measure calibrated probabilities. Any legacy exploratory Euclidean analog rows are a distinct non-serving estimator, excluded from selection, trade blotters, and promotion evidence; they are not evidence for the Rust analog engine.", "",
+        "Challenger validation scores use later sessions held out from early-session probability and return-interval calibration. Interval coverage is empirical on those later sessions; the requested nominal level is not a guarantee for dependent market data. Any legacy exploratory Euclidean analog rows are a distinct non-serving estimator, excluded from selection, trade blotters, and promotion evidence; they are not evidence for the Rust analog engine.", "",
         "## 5. Walk-forward out-of-sample performance", "", "```json", json.dumps(metrics, indent=2, allow_nan=False), "```", "",
         "Only test-fold trades are included; validation data chooses thresholds without test-outcome tuning.", "",
         "The confidence interval resamples contiguous session blocks, not individual trades. Effective sample size is estimated from daily net-return autocorrelation. Neither statistic is promotion evidence.", "",
