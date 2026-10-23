@@ -3325,3 +3325,19 @@ enabled in the release config to preserve the requested address. Scoped UI/data
 checks, static build, broad Python and Rust tests, and live hash/route checks pass;
 pre-existing root TypeScript/build, formatting and CMake-version limits remain
 documented in [the delivery receipt](../../model-atlas-delivery-20261022.md).
+
+## 2026-10-22 — Seven-chapter learning companion
+
+Added `/#/learn` with seven untimed labs and 58 original exercises mapped to the
+Green Book's chapter topics. Practice offers a manually started, optional
+90-second timer, progressive hints, worked reasoning, and a mistake review queue.
+Browser-local progress supports export/import; activity completion does not
+certify mastery. All 41 numeric references are computed offline in Python.
+
+Ten Python and 22 scoped TypeScript tests, scoped type checking, the static build,
+and browser completion of all seven labs pass. Responsive, keyboard, persistence,
+review and import/export checks pass; independent interface review found no
+material blockers in its bounded scope. Only desk JavaScript and CSS are overlaid
+on the retained release. No quantitative model, account service or execution
+authority changes. Deployment, retained route checks and rollback evidence are
+recorded in [the learning delivery receipt](../../quant-practice-delivery-20261022.md).

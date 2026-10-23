@@ -1,4 +1,5 @@
 export const TOOLS = [
+  { id: 'learn', title: 'Quant practice', group: 'Learn', description: 'Strengthen each Green Book chapter through playable labs, original exercises, and worked explanations.', detail: 'Seven chapters · hints · review · saved progress' },
   { id: 'radar', title: 'Event radar', group: 'Events', description: 'Upcoming catalysts, source evidence, and an assistant that explains the record.', detail: 'Official calendars · earnings · evidence assistant' },
   { id: 'strategies', title: 'Strategies', group: 'Strategies', description: 'Choose rules, replay a grid, and monitor your local paper connector.', detail: 'Mean reversion · momentum · grid research' },
   { id: 'crypto', title: 'Crypto', group: 'Markets', description: 'Analyze Bitcoin and Ethereum spot charts, then create a trade plan.', detail: 'TradingView charts · BTC and ETH' },
