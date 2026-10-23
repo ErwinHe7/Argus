@@ -1,0 +1,1803 @@
+{
+  "schemaVersion": "quant-practice.v1",
+  "title": "Quant Quest",
+  "subtitle": "A chapter-by-chapter practice companion",
+  "language": "en",
+  "createdAt": "2026-10-22",
+  "provenance": {
+    "outlineTitle": "A Practical Guide to Quantitative Finance Interviews — Xinfeng Zhou",
+    "outlineUrl": "https://researchrepository.rmit.edu.au/nde/fulldisplay?adaptor=Local+Search+Engine&context=L&docid=alma9922567913201341&vid=61RMIT_INST%3ARMITU_AU",
+    "originalExercises": true,
+    "calculationEngine": "offline Python",
+    "note": "Independent study companion aligned to the book's seven chapter topics. All exercises and explanations are original, not reproduced book questions. Examples are educational toy models; this is not affiliated with the author or publisher."
+  },
+  "chapters": [
+    {
+      "id": "principles",
+      "number": 1,
+      "title": "General Principles",
+      "description": "Practise the habits that make a solution understandable: clarify, structure, check, and explain.",
+      "focus": [
+        "Clarifying assumptions",
+        "Thinking aloud",
+        "Checking a result"
+      ],
+      "challenges": [
+        {
+          "id": "principles-clarify",
+          "type": "choice",
+          "level": "foundation",
+          "section": "Clarifying the question",
+          "concept": "Ask before solving",
+          "prompt": "An interviewer asks: 'What is the chance this coin lands heads?' You have not been told anything about the coin. What is the best first response?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "It is always one half."
+            },
+            {
+              "id": "b",
+              "label": "Ask whether the coin is fair and whether tosses are independent."
+            },
+            {
+              "id": "c",
+              "label": "Start simulating a million tosses."
+            },
+            {
+              "id": "d",
+              "label": "Assume the last outcome determines the next."
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "Ask whether the coin is fair and whether tosses are independent."
+          },
+          "hints": [
+            "A probability model needs assumptions.",
+            "Fairness and independence are separate assumptions."
+          ],
+          "explanation": "The numerical answer depends on the model. A fair coin has a one-half marginal chance of heads; independence describes how multiple tosses relate.",
+          "workedSteps": [
+            "Identify what is random: the toss outcome.",
+            "Ask for the marginal probability and any dependence assumptions.",
+            "State those assumptions before calculating."
+          ],
+          "takeaway": "Make assumptions explicit before attaching a number to a problem."
+        },
+        {
+          "id": "principles-listen",
+          "type": "choice",
+          "level": "foundation",
+          "section": "Listening and constraints",
+          "concept": "Respect the rule",
+          "prompt": "You may query a sorted array, but you cannot copy or sort it again. Which opening move fits the stated constraints?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "Sort a duplicate of the array."
+            },
+            {
+              "id": "b",
+              "label": "Ask whether comparisons and indexed reads are allowed, then outline binary search."
+            },
+            {
+              "id": "c",
+              "label": "Ignore the restriction because sorting is familiar."
+            },
+            {
+              "id": "d",
+              "label": "Say the problem has no solution."
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "Ask whether comparisons and indexed reads are allowed, then outline binary search."
+          },
+          "hints": [
+            "Start with the permitted operations.",
+            "A sorted array already provides structure."
+          ],
+          "explanation": "A strong approach uses the supplied ordering and confirms the operations allowed. Re-sorting is unnecessary and violates the prompt.",
+          "workedSteps": [
+            "Repeat the constraint accurately.",
+            "Confirm indexed access and comparisons.",
+            "Use the ordering to discard part of the search space."
+          ],
+          "takeaway": "A correct method must fit the problem's constraints."
+        },
+        {
+          "id": "principles-explain",
+          "type": "choice",
+          "level": "foundation",
+          "section": "Communicating reasoning",
+          "concept": "Think in testable steps",
+          "prompt": "You suspect an answer but have not proved it. What is the most useful thing to say next?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "Give only the answer with maximum confidence."
+            },
+            {
+              "id": "b",
+              "label": "Stay silent until every detail is finished."
+            },
+            {
+              "id": "c",
+              "label": "State the idea, mark it as a conjecture, and test a small example."
+            },
+            {
+              "id": "d",
+              "label": "Switch topics to hide the uncertainty."
+            }
+          ],
+          "answer": {
+            "choiceId": "c",
+            "display": "State the idea, mark it as a conjecture, and test a small example."
+          },
+          "hints": [
+            "Separate a guess from a proof.",
+            "A small case can expose an error without pretending it proves every case."
+          ],
+          "explanation": "A conjecture plus a check shows progress honestly. The example is diagnostic; the final argument still needs a general justification.",
+          "workedSteps": [
+            "State the proposed pattern.",
+            "Test a case where the answer can be found directly.",
+            "Explain what remains to prove."
+          ],
+          "takeaway": "Communicate both your current idea and its limits."
+        },
+        {
+          "id": "principles-boundary",
+          "type": "choice",
+          "level": "application",
+          "section": "Checking edge cases",
+          "concept": "Test the boundary",
+          "prompt": "You write a function that returns the largest number in a list. It initializes the maximum to zero. Which test most directly exposes the flaw?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "[1, 2, 3]"
+            },
+            {
+              "id": "b",
+              "label": "[0, 2, 4]"
+            },
+            {
+              "id": "c",
+              "label": "[-8, -3, -5]"
+            },
+            {
+              "id": "d",
+              "label": "[4, 4, 4]"
+            }
+          ],
+          "answer": {
+            "choiceId": "c",
+            "display": "[-8, -3, -5]"
+          },
+          "hints": [
+            "Which inputs make zero an invalid candidate?",
+            "The answer must be one of the list's values."
+          ],
+          "explanation": "For an all-negative list, zero exceeds every element but is not in the list. Initialize from a real element after defining how an empty list is handled.",
+          "workedSteps": [
+            "The largest item in [-8, -3, -5] is -3.",
+            "A zero-initialized accumulator never updates.",
+            "Its output is therefore invalid."
+          ],
+          "takeaway": "Check empty, extreme, and boundary inputs before trusting a general rule."
+        },
+        {
+          "id": "principles-units",
+          "type": "choice",
+          "level": "application",
+          "section": "Sanity checks",
+          "concept": "Track units",
+          "prompt": "A speed calculation gives '12 dollars per second' for how fast a runner moves. What should you check first?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "Whether 12 is a prime number."
+            },
+            {
+              "id": "b",
+              "label": "Whether distance and elapsed time were measured and divided using compatible units."
+            },
+            {
+              "id": "c",
+              "label": "Whether a larger sample changes the currency."
+            },
+            {
+              "id": "d",
+              "label": "Whether the result rounds to an integer."
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "Whether distance and elapsed time were measured and divided using compatible units."
+          },
+          "hints": [
+            "Speed describes distance per time.",
+            "An answer can look numerical yet have the wrong dimensions."
+          ],
+          "explanation": "Dimensional analysis catches a setup error before detailed arithmetic. A runner's speed needs distance units divided by time units.",
+          "workedSteps": [
+            "Write the intended quantity: distance / time.",
+            "Attach a unit to every input.",
+            "Check that cancellation leaves the intended unit."
+          ],
+          "takeaway": "Units are part of the answer, not decoration."
+        },
+        {
+          "id": "principles-stuck",
+          "type": "choice",
+          "level": "application",
+          "section": "Recovering when stuck",
+          "concept": "Make a smaller model",
+          "prompt": "A problem with n objects feels too complicated. Which next step is most productive?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "Invent an extra assumption that removes the difficulty without saying so."
+            },
+            {
+              "id": "b",
+              "label": "Try n = 1, 2, 3, record the pattern, and look for an invariant or recurrence."
+            },
+            {
+              "id": "c",
+              "label": "Choose a formula because it looks familiar."
+            },
+            {
+              "id": "d",
+              "label": "Repeat the full problem faster."
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "Try n = 1, 2, 3, record the pattern, and look for an invariant or recurrence."
+          },
+          "hints": [
+            "Reduce complexity without changing the rules.",
+            "Small cases can suggest a recurrence, but still need a proof."
+          ],
+          "explanation": "A smaller instance preserves the structure while making it inspectable. It can suggest an invariant or recurrence for the general solution.",
+          "workedSteps": [
+            "Keep the original rules.",
+            "Solve the smallest cases directly.",
+            "Form a claim and justify why it extends."
+          ],
+          "takeaway": "Simplify the instance, then generalize with an argument."
+        },
+        {
+          "id": "principles-ambiguity",
+          "type": "choice",
+          "level": "challenge",
+          "section": "Clarifying definitions",
+          "concept": "Define the average",
+          "prompt": "A question asks for the 'average return' over several years. Before choosing a formula, what distinction matters most?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "Whether 'average' means arithmetic mean or compound annual growth rate."
+            },
+            {
+              "id": "b",
+              "label": "Whether the word average has an even number of letters."
+            },
+            {
+              "id": "c",
+              "label": "Whether every yearly observation is positive."
+            },
+            {
+              "id": "d",
+              "label": "Whether the answer can be made larger."
+            }
+          ],
+          "answer": {
+            "choiceId": "a",
+            "display": "Whether 'average' means arithmetic mean or compound annual growth rate."
+          },
+          "hints": [
+            "An average of period returns and a compounded growth rate answer different questions.",
+            "Ask whether the target is the mean yearly observation or the constant rate matching total growth."
+          ],
+          "explanation": "Arithmetic mean summarizes period returns; compound annual growth matches the starting and ending value over time. The requested definition determines the calculation.",
+          "workedSteps": [
+            "Ask what quantity the answer should summarize.",
+            "Clarify time periods and cash-flow assumptions.",
+            "State the selected definition before solving."
+          ],
+          "takeaway": "Clarify ambiguous words that change the mathematical target."
+        },
+        {
+          "id": "principles-conclude",
+          "type": "choice",
+          "level": "challenge",
+          "section": "Presenting a solution",
+          "concept": "Close the loop",
+          "prompt": "After deriving a result under independence, how should you finish?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "Repeat every intermediate calculation in reverse."
+            },
+            {
+              "id": "b",
+              "label": "State the result, its units if relevant, the independence assumption, and one sanity check."
+            },
+            {
+              "id": "c",
+              "label": "Claim it works even if dependence changes."
+            },
+            {
+              "id": "d",
+              "label": "Give only a decimal without context."
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "State the result, its units if relevant, the independence assumption, and one sanity check."
+          },
+          "hints": [
+            "A reader needs to know what the result means and when it applies.",
+            "A concise check makes the conclusion easier to assess."
+          ],
+          "explanation": "A useful conclusion ties the number back to the question and the assumptions that support it. It avoids extending the result to a different model.",
+          "workedSteps": [
+            "Answer the original question directly.",
+            "Name the material assumption.",
+            "Give a quick limiting-case or bounds check."
+          ],
+          "takeaway": "Finish with a clear, qualified answer rather than an unexplained number."
+        }
+      ]
+    },
+    {
+      "id": "brainteasers",
+      "number": 2,
+      "title": "Brain Teasers",
+      "description": "Turn a surprising puzzle into a simple invariant, counting argument, or proof.",
+      "focus": [
+        "Symmetry and simplification",
+        "Pigeonhole and modular arithmetic",
+        "Induction and contradiction"
+      ],
+      "challenges": [
+        {
+          "id": "brainteasers-parity",
+          "type": "choice",
+          "level": "foundation",
+          "section": "Simplification",
+          "concept": "Ignore unnecessary detail",
+          "prompt": "Seven integers are all odd. Without knowing their values, what can you say about their sum?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "It is always even."
+            },
+            {
+              "id": "b",
+              "label": "It is always odd."
+            },
+            {
+              "id": "c",
+              "label": "It must be positive."
+            },
+            {
+              "id": "d",
+              "label": "Its parity cannot be known."
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "It is always odd."
+          },
+          "hints": [
+            "Replace each odd integer by its remainder modulo 2.",
+            "Seven copies of 1 have remainder 1 modulo 2."
+          ],
+          "explanation": "Each odd number has form 2k + 1. Seven such terms sum to twice an integer plus 7, which is odd. Signs do not change parity.",
+          "workedSteps": [
+            "Write each term as 2kᵢ + 1.",
+            "The sum is 2Σkᵢ + 7.",
+            "An even integer plus an odd integer is odd."
+          ],
+          "takeaway": "Discard magnitudes when parity alone resolves the question."
+        },
+        {
+          "id": "brainteasers-logic",
+          "type": "choice",
+          "level": "foundation",
+          "section": "Logic",
+          "concept": "Separate implication from converse",
+          "prompt": "Every blue token is round. A token is round. What follows with certainty?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "The token is blue."
+            },
+            {
+              "id": "b",
+              "label": "The token is not blue."
+            },
+            {
+              "id": "c",
+              "label": "Its colour is not determined by the information."
+            },
+            {
+              "id": "d",
+              "label": "Every round token is blue."
+            }
+          ],
+          "answer": {
+            "choiceId": "c",
+            "display": "Its colour is not determined by the information."
+          },
+          "hints": [
+            "The statement gives one direction only.",
+            "Could a round red token also satisfy the rule?"
+          ],
+          "explanation": "'Blue implies round' does not say 'round implies blue'. A round token could be blue or another colour.",
+          "workedSteps": [
+            "Translate the rule: if blue, then round.",
+            "Construct a round red token; it does not violate the rule.",
+            "Therefore roundness alone does not determine colour."
+          ],
+          "takeaway": "Do not reverse an implication without evidence."
+        },
+        {
+          "id": "brainteasers-symmetry",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Symmetry",
+          "concept": "Exchangeable outcomes",
+          "prompt": "A and B draw independent numbers from the same continuous distribution. What is P(A > B)? Enter a decimal.",
+          "answer": {
+            "numericValue": 0.5,
+            "tolerance": 0.0001,
+            "display": "0.5",
+            "unit": "probability"
+          },
+          "hints": [
+            "Swap the names A and B.",
+            "Continuity makes the probability of a tie zero."
+          ],
+          "explanation": "Identical independent draws are symmetric under relabelling. P(A > B) equals P(B > A), and the two probabilities sum to one because ties have probability zero.",
+          "workedSteps": [
+            "Use exchangeability to equate the two strict-order probabilities.",
+            "P(A > B) + P(B > A) = 1.",
+            "Each probability is 1/2."
+          ],
+          "takeaway": "Symmetry can replace integration when ties are ruled out."
+        },
+        {
+          "id": "brainteasers-series",
+          "type": "numeric",
+          "level": "application",
+          "section": "Series",
+          "concept": "Break a sum into familiar sums",
+          "prompt": "Calculate 1×2 + 2×3 + 3×4 + … + 10×11.",
+          "answer": {
+            "numericValue": 440.0,
+            "tolerance": 0.0001,
+            "display": "440"
+          },
+          "hints": [
+            "The kth term is k² + k.",
+            "Use Σk² = n(n+1)(2n+1)/6 and Σk = n(n+1)/2."
+          ],
+          "explanation": "Expanding k(k+1) separates the series into a sum of squares and a sum of integers.",
+          "workedSteps": [
+            "Σ(k² + k) = Σk² + Σk.",
+            "For n = 10, the two sums are 385 and 55.",
+            "The total is 440."
+          ],
+          "takeaway": "Algebraic decomposition can make a long sum short."
+        },
+        {
+          "id": "brainteasers-pigeonhole",
+          "type": "numeric",
+          "level": "application",
+          "section": "Pigeonhole principle",
+          "concept": "Guarantee a crowded box",
+          "prompt": "Seventeen cards are placed into four boxes. What is the smallest number of cards that at least one box must contain?",
+          "answer": {
+            "numericValue": 5.0,
+            "tolerance": 0.0001,
+            "display": "5"
+          },
+          "hints": [
+            "Could every box hold at most four cards?",
+            "Four boxes with four cards each hold only sixteen."
+          ],
+          "explanation": "If all four boxes held at most four cards, they would contain at most sixteen. The seventeenth forces some box to have at least five. A 5,4,4,4 arrangement shows five is tight.",
+          "workedSteps": [
+            "Assume every box contains at most 4.",
+            "Then the total is at most 4×4 = 16, a contradiction.",
+            "The smallest guaranteed maximum is 5."
+          ],
+          "takeaway": "A guarantee often follows by ruling out every container staying below a threshold."
+        },
+        {
+          "id": "brainteasers-modular",
+          "type": "numeric",
+          "level": "application",
+          "section": "Modular arithmetic",
+          "concept": "Use a repeating remainder",
+          "prompt": "What is the remainder when 5³⁷ is divided by 7?",
+          "answer": {
+            "numericValue": 5.0,
+            "tolerance": 0.0001,
+            "display": "5"
+          },
+          "hints": [
+            "Compute small powers of 5 modulo 7 until the remainder repeats.",
+            "5⁶ has remainder 1, and 37 = 6×6 + 1."
+          ],
+          "explanation": "The powers cycle every six steps modulo 7. Since 5⁶ ≡ 1, the six full cycles in exponent 37 disappear and leave one factor of 5.",
+          "workedSteps": [
+            "5⁶ ≡ 1 (mod 7).",
+            "5³⁷ = (5⁶)⁶×5.",
+            "Its remainder is 5."
+          ],
+          "takeaway": "Reduce exponents using a modular cycle before expanding large numbers."
+        },
+        {
+          "id": "brainteasers-induction",
+          "type": "choice",
+          "level": "challenge",
+          "section": "Mathematical induction",
+          "concept": "Connect n to n + 1",
+          "prompt": "You know 1 + … + n = n(n+1)/2. Which expression completes the induction step after adding n+1?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "n(n+1)/2 + (n+1) = (n+1)(n+2)/2"
+            },
+            {
+              "id": "b",
+              "label": "n(n+1)/2 + (n+1) = n(n+2)/2"
+            },
+            {
+              "id": "c",
+              "label": "n(n+1)/2 + (n+1) = (n+1)²/2"
+            },
+            {
+              "id": "d",
+              "label": "Checking n = 2 proves every n."
+            }
+          ],
+          "answer": {
+            "choiceId": "a",
+            "display": "n(n+1)/2 + (n+1) = (n+1)(n+2)/2"
+          },
+          "hints": [
+            "Factor out n + 1.",
+            "The expression left inside the brackets is n/2 + 1."
+          ],
+          "explanation": "The induction step must produce exactly the claimed formula with n replaced by n+1. Together with a valid base case, this proves the identity for positive integers.",
+          "workedSteps": [
+            "Check the base case n = 1.",
+            "Assume the formula holds for n.",
+            "Add n+1 and factor to obtain (n+1)(n+2)/2."
+          ],
+          "takeaway": "An induction proof needs both the starting case and a valid transition."
+        },
+        {
+          "id": "brainteasers-contradiction",
+          "type": "choice",
+          "level": "challenge",
+          "section": "Proof by contradiction",
+          "concept": "Lowest terms matter",
+          "prompt": "To show √3 is irrational, suppose √3 = a/b for positive integers in lowest terms. From a² = 3b², which contradiction should the proof establish?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "Both a and b must be divisible by 3."
+            },
+            {
+              "id": "b",
+              "label": "Both a and b are positive."
+            },
+            {
+              "id": "c",
+              "label": "a is larger than b."
+            },
+            {
+              "id": "d",
+              "label": "a² is an integer."
+            }
+          ],
+          "answer": {
+            "choiceId": "a",
+            "display": "Both a and b must be divisible by 3."
+          },
+          "hints": [
+            "If a prime divides a square, it divides the number itself.",
+            "Substitute a = 3k back into a² = 3b²."
+          ],
+          "explanation": "Divisibility by 3 forces a = 3k. Substitution gives b² = 3k², so b is also divisible by 3. That conflicts with the assumed lowest terms.",
+          "workedSteps": [
+            "3 divides a², so 3 divides a.",
+            "Write a = 3k, giving b² = 3k².",
+            "Then 3 divides b, contradicting gcd(a,b) = 1."
+          ],
+          "takeaway": "Choose an assumption whose consequences violate an explicit constraint."
+        },
+        {
+          "id": "brainteasers-invariant",
+          "type": "choice",
+          "level": "challenge",
+          "section": "Modular arithmetic and invariants",
+          "concept": "Track what cannot change",
+          "prompt": "An island has red, green, and blue lizards. Whenever two differently coloured lizards meet, both change to the third colour. Which quantity is preserved by every meeting?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "The number of red lizards."
+            },
+            {
+              "id": "b",
+              "label": "The difference (red − green) modulo 3."
+            },
+            {
+              "id": "c",
+              "label": "The number of colours present."
+            },
+            {
+              "id": "d",
+              "label": "The largest colour count."
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "The difference (red − green) modulo 3."
+          },
+          "hints": [
+            "For a red-green meeting, red and green both fall by one.",
+            "For a red-blue meeting, red falls by one and green rises by two."
+          ],
+          "explanation": "For red-green meetings the difference is unchanged; for red-blue it decreases by 3; for green-blue it increases by 3. All leave the same remainder modulo 3.",
+          "workedSteps": [
+            "Red + green → blue: Δ(red−green) = 0.",
+            "Red + blue → green: Δ(red−green) = −3.",
+            "Green + blue → red: Δ(red−green) = +3."
+          ],
+          "takeaway": "An invariant can rule out a target state without exploring every path."
+        }
+      ]
+    },
+    {
+      "id": "calculus",
+      "number": 3,
+      "title": "Calculus and Linear Algebra",
+      "description": "Strengthen the core mathematical tools behind optimization and quantitative models.",
+      "focus": [
+        "Limits and derivatives",
+        "Approximation and optimization",
+        "Differential equations and matrices"
+      ],
+      "challenges": [
+        {
+          "id": "calculus-limit",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Limits",
+          "concept": "Remove a removable singularity",
+          "prompt": "Find lim as x → 3 of (x² − 9)/(x − 3).",
+          "answer": {
+            "numericValue": 6.0,
+            "tolerance": 0.0001,
+            "display": "6"
+          },
+          "hints": [
+            "Factor the numerator.",
+            "For x ≠ 3, cancel x − 3 before taking the limit."
+          ],
+          "explanation": "The expression is undefined at x = 3, but its neighbouring values equal x + 3. A limit concerns nearby values, not the value at the point.",
+          "workedSteps": [
+            "x² − 9 = (x−3)(x+3).",
+            "For x ≠ 3, the ratio is x+3.",
+            "As x approaches 3, x+3 approaches 6."
+          ],
+          "takeaway": "Simplify near the point before evaluating a removable singularity."
+        },
+        {
+          "id": "calculus-derivative",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Derivatives",
+          "concept": "Differentiate a polynomial",
+          "prompt": "For f(x) = x³ − 4x, find f′(2).",
+          "answer": {
+            "numericValue": 8.0,
+            "tolerance": 0.0001,
+            "display": "8"
+          },
+          "hints": [
+            "Use the power rule term by term.",
+            "f′(x) = 3x² − 4."
+          ],
+          "explanation": "The derivative is the local slope. Differentiating first and substituting second gives the slope at x = 2.",
+          "workedSteps": [
+            "d(x³)/dx = 3x².",
+            "d(−4x)/dx = −4.",
+            "f′(2) = 12−4 = 8."
+          ],
+          "takeaway": "A derivative is a local rate, not the function's height."
+        },
+        {
+          "id": "calculus-integral",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Integration",
+          "concept": "Use an antiderivative",
+          "prompt": "Evaluate the definite integral ∫₀² 3x² dx.",
+          "answer": {
+            "numericValue": 8.0,
+            "tolerance": 0.0001,
+            "display": "8"
+          },
+          "hints": [
+            "An antiderivative of 3x² is x³.",
+            "Evaluate at the upper endpoint and subtract the lower endpoint."
+          ],
+          "explanation": "The fundamental theorem of calculus turns the integral into the difference of antiderivative values at the endpoints.",
+          "workedSteps": [
+            "F(x) = x³.",
+            "F(2) = 8 and F(0) = 0.",
+            "The integral is 8−0 = 8."
+          ],
+          "takeaway": "Definite integrals accumulate signed area over an interval."
+        },
+        {
+          "id": "calculus-partial",
+          "type": "numeric",
+          "level": "application",
+          "section": "Partial derivatives",
+          "concept": "Hold the other variable fixed",
+          "prompt": "Let f(x,y) = x²y + 3y². Find ∂f/∂x at (2,3).",
+          "answer": {
+            "numericValue": 12.0,
+            "tolerance": 0.0001,
+            "display": "12"
+          },
+          "hints": [
+            "When differentiating in x, treat y as a constant.",
+            "∂f/∂x = 2xy."
+          ],
+          "explanation": "Only the x²y term changes with x. The 3y² term is constant for this partial derivative.",
+          "workedSteps": [
+            "∂(x²y)/∂x = 2xy.",
+            "∂(3y²)/∂x = 0.",
+            "At (2,3), 2xy = 12."
+          ],
+          "takeaway": "A partial derivative changes one coordinate while fixing the others."
+        },
+        {
+          "id": "calculus-taylor",
+          "type": "numeric",
+          "level": "application",
+          "section": "Taylor expansion",
+          "concept": "State the approximation order",
+          "prompt": "Using the second-order Taylor polynomial of eˣ around zero, approximate e⁰·². Enter the polynomial's value, not the exact exponential.",
+          "answer": {
+            "numericValue": 1.22,
+            "tolerance": 0.0001,
+            "display": "1.22"
+          },
+          "hints": [
+            "The polynomial is 1 + x + x²/2.",
+            "Use x = 0.2 and stop after the quadratic term."
+          ],
+          "explanation": "The requested approximation retains terms through x². Its value differs slightly from the exact exponential because higher-order terms are omitted.",
+          "workedSteps": [
+            "1 + 0.2 + (0.2)²/2.",
+            "The quadratic term is 0.02.",
+            "The approximation is 1.22."
+          ],
+          "takeaway": "An approximation must identify its expansion point and retained order."
+        },
+        {
+          "id": "calculus-newton",
+          "type": "numeric",
+          "level": "application",
+          "section": "Newton's method",
+          "concept": "Follow the tangent",
+          "prompt": "Apply one Newton step to f(x) = x² − 5 from x₀ = 2. What is x₁?",
+          "answer": {
+            "numericValue": 2.25,
+            "tolerance": 0.0001,
+            "display": "2.25"
+          },
+          "hints": [
+            "Newton's update is x₁ = x₀ − f(x₀)/f′(x₀).",
+            "Here f(2) = −1 and f′(2) = 4."
+          ],
+          "explanation": "The tangent line at x = 2 crosses the x-axis at 2.25. This is one iteration, not the exact root.",
+          "workedSteps": [
+            "Compute f(2) = −1.",
+            "Compute f′(2) = 4.",
+            "x₁ = 2 − (−1)/4 = 2.25."
+          ],
+          "takeaway": "Newton's method is a local iteration and requires a usable derivative."
+        },
+        {
+          "id": "calculus-lagrange",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Lagrange multipliers",
+          "concept": "Optimize with a constraint",
+          "prompt": "For real x and y satisfying x + y = 12, what is the maximum value of xy?",
+          "answer": {
+            "numericValue": 36.0,
+            "tolerance": 0.0001,
+            "display": "36"
+          },
+          "hints": [
+            "At a stationary point, the constraint gives equal x and y.",
+            "Alternatively write xy = x(12−x), a concave quadratic."
+          ],
+          "explanation": "The objective becomes 36 − (x−6)², so its global maximum is 36 at x = y = 6. The completed square also verifies that the stationary point is a maximum.",
+          "workedSteps": [
+            "L = xy − λ(x+y−12) gives y = λ and x = λ.",
+            "The constraint then gives x = y = 6.",
+            "xy = 36; completing the square verifies the maximum."
+          ],
+          "takeaway": "A stationary point needs a maximum/minimum check."
+        },
+        {
+          "id": "calculus-ode",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Ordinary differential equations",
+          "concept": "Exponential decay",
+          "prompt": "A quantity follows y′(t) = −0.2y(t), with y(0) = 10. What is y(5)? Enter a decimal to three or more decimal places.",
+          "answer": {
+            "numericValue": 3.6787944117144233,
+            "tolerance": 0.001,
+            "display": "3.678794"
+          },
+          "hints": [
+            "A constant proportional decay rate gives an exponential solution.",
+            "Use y(t) = 10e^(−0.2t)."
+          ],
+          "explanation": "The derivative of 10e^(−0.2t) is −0.2 times the function, and its value at zero is 10. At t = 5 the exponent is −1.",
+          "workedSteps": [
+            "Solve y(t) = Ce^(−0.2t).",
+            "The initial condition fixes C = 10.",
+            "y(5) = 10/e ≈ 3.678794."
+          ],
+          "takeaway": "Check a differential-equation solution against both the equation and initial condition."
+        },
+        {
+          "id": "calculus-matrix",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Linear algebra",
+          "concept": "Identify an eigenvalue",
+          "prompt": "For A = [[3,1],[1,3]], the vector v = (1,−1) is an eigenvector. What is its eigenvalue?",
+          "answer": {
+            "numericValue": 2.0,
+            "tolerance": 0.0001,
+            "display": "2"
+          },
+          "hints": [
+            "Multiply A by v directly.",
+            "Look for a scalar λ such that Av = λv."
+          ],
+          "explanation": "Matrix multiplication gives (2,−2), which is twice (1,−1). Thus the eigenvalue belonging to this vector is 2.",
+          "workedSteps": [
+            "First component: 3×1 + 1×(−1) = 2.",
+            "Second component: 1×1 + 3×(−1) = −2.",
+            "Av = 2v, so λ = 2."
+          ],
+          "takeaway": "An eigenvector's direction is preserved by the linear transformation."
+        }
+      ]
+    },
+    {
+      "id": "probability",
+      "number": 4,
+      "title": "Probability Theory",
+      "description": "Build a probability model, condition on evidence, and distinguish means from uncertainty.",
+      "focus": [
+        "Counting and conditioning",
+        "Distributions and moments",
+        "Order statistics"
+      ],
+      "challenges": [
+        {
+          "id": "probability-combinations",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Combinatorics",
+          "concept": "Order versus selection",
+          "prompt": "A group has 8 people. How many different committees of 3 can be formed when roles are not assigned?",
+          "answer": {
+            "numericValue": 56.0,
+            "tolerance": 0.0001,
+            "display": "56"
+          },
+          "hints": [
+            "Reordering the same three people does not create a new committee.",
+            "Use 8 choose 3, or 8×7×6 divided by 3!."
+          ],
+          "explanation": "There are 8×7×6 ordered triples of distinct people. Each committee occurs in 3! orders, so divide by six.",
+          "workedSteps": [
+            "Count ordered choices: 8×7×6 = 336.",
+            "Each set of three has 6 orderings.",
+            "336/6 = 56 committees."
+          ],
+          "takeaway": "Decide whether order matters before selecting a counting formula."
+        },
+        {
+          "id": "probability-bayes",
+          "type": "numeric",
+          "level": "application",
+          "section": "Bayes' theorem",
+          "concept": "Update a base rate",
+          "prompt": "A box is chosen: box A with probability 0.2, otherwise box B. A contains 75% red balls; B contains 25% red balls. After one random draw is red, what is P(A | red)? Enter a decimal.",
+          "answer": {
+            "numericValue": 0.42857142857142855,
+            "tolerance": 0.0001,
+            "display": "0.428571",
+            "unit": "probability"
+          },
+          "hints": [
+            "The red draw can come from either box.",
+            "P(A | red) = P(red | A)P(A) / P(red)."
+          ],
+          "explanation": "The joint probability of A and red is 0.15. The total probability of red is 0.15 + 0.20 = 0.35. The posterior is 0.15/0.35 = 3/7.",
+          "workedSteps": [
+            "P(A and red) = 0.2×0.75 = 0.15.",
+            "P(red) = 0.2×0.75 + 0.8×0.25 = 0.35.",
+            "P(A | red) = 3/7 ≈ 0.428571."
+          ],
+          "takeaway": "Conditioning must include both the likelihood and the prior."
+        },
+        {
+          "id": "probability-binomial",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Probability distributions",
+          "concept": "Count successes",
+          "prompt": "A fair coin is tossed 4 times independently. What is the probability of exactly 2 heads? Enter a decimal.",
+          "answer": {
+            "numericValue": 0.375,
+            "tolerance": 0.0001,
+            "display": "0.375",
+            "unit": "probability"
+          },
+          "hints": [
+            "Choose which two positions contain heads.",
+            "Each complete four-toss sequence has probability 1/16."
+          ],
+          "explanation": "There are six sequences with exactly two heads, and all sixteen sequences are equally likely under independent fair tosses.",
+          "workedSteps": [
+            "Choose the two head positions: C(4,2) = 6.",
+            "A specified sequence has probability (1/2)⁴ = 1/16.",
+            "The total is 6/16 = 0.375."
+          ],
+          "takeaway": "A binomial model needs a fixed number of independent trials with the same success probability."
+        },
+        {
+          "id": "probability-geometric",
+          "type": "numeric",
+          "level": "application",
+          "section": "Probability distributions",
+          "concept": "Wait for a first success",
+          "prompt": "Independent attempts succeed with probability 0.25 each. Let T count attempts up to and including the first success. What is E[T]?",
+          "answer": {
+            "numericValue": 4.0,
+            "tolerance": 0.0001,
+            "display": "4"
+          },
+          "hints": [
+            "The count starts at one, not zero.",
+            "For this convention, the geometric mean is 1/p."
+          ],
+          "explanation": "The geometric waiting time includes the successful attempt. Its expectation is 1/p = 4. Counting failures before success would instead have mean 3.",
+          "workedSteps": [
+            "T takes values 1,2,3,… .",
+            "A first-step equation is E[T] = 1 + 0.75E[T].",
+            "Thus 0.25E[T] = 1, giving E[T] = 4."
+          ],
+          "takeaway": "Check the support convention before using a geometric formula."
+        },
+        {
+          "id": "probability-expectation",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Expected value",
+          "concept": "Weight every outcome",
+          "prompt": "A toy game pays you $9 with probability 0.2 and costs you $3 with probability 0.8. What is its expected net payoff in dollars per play?",
+          "answer": {
+            "numericValue": -0.6,
+            "tolerance": 0.0001,
+            "display": "−0.6",
+            "unit": "dollars per play"
+          },
+          "hints": [
+            "Treat a cost as a negative payoff.",
+            "Multiply each net payoff by its probability, then add."
+          ],
+          "explanation": "Expected payoff is a probability-weighted average, not the most attractive outcome. Here the frequent losses outweigh the occasional larger win.",
+          "workedSteps": [
+            "Winning contribution: 0.2×9 = 1.8.",
+            "Losing contribution: 0.8×(−3) = −2.4.",
+            "The expected net payoff is −$0.60 per play."
+          ],
+          "takeaway": "Use signed net payoffs and include every outcome."
+        },
+        {
+          "id": "probability-variance",
+          "type": "numeric",
+          "level": "application",
+          "section": "Variance and covariance",
+          "concept": "Add independent uncertainty",
+          "prompt": "Independent random variables X and Y have variances 4 and 9. What is Var(2X − Y)?",
+          "answer": {
+            "numericValue": 25.0,
+            "tolerance": 0.0001,
+            "display": "25"
+          },
+          "hints": [
+            "Scaling a random variable by a scales its variance by a².",
+            "Independence makes the covariance term zero."
+          ],
+          "explanation": "The coefficients are squared in variance. The minus sign does not subtract Y's variance; independent sources of uncertainty add.",
+          "workedSteps": [
+            "Var(2X−Y) = 4Var(X) + Var(Y) − 4Cov(X,Y).",
+            "Independence gives Cov(X,Y) = 0.",
+            "4×4 + 9 = 25."
+          ],
+          "takeaway": "Variance is quadratic in scale; a negative coefficient still contributes positive variance."
+        },
+        {
+          "id": "probability-order",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Order statistics",
+          "concept": "Use the maximum's distribution",
+          "prompt": "X and Y are independent Uniform(0,1) variables. What is E[max(X,Y)]? Enter a decimal to four or more places.",
+          "answer": {
+            "numericValue": 0.6666666666666666,
+            "tolerance": 0.0001,
+            "display": "0.666667"
+          },
+          "hints": [
+            "For 0 ≤ m ≤ 1, both draws must be at most m for the maximum to be at most m.",
+            "The maximum has CDF m² and density 2m."
+          ],
+          "explanation": "The maximum is at most m exactly when both draws are at most m. Independence gives F(m) = m², so integration against density 2m gives 2/3.",
+          "workedSteps": [
+            "P(max(X,Y) ≤ m) = m² on [0,1].",
+            "Differentiate to get density f(m) = 2m.",
+            "E[max] = ∫₀¹ m×2m dm = 2/3."
+          ],
+          "takeaway": "An order statistic is often easiest to study through its CDF."
+        },
+        {
+          "id": "probability-conditional",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Conditional probability",
+          "concept": "Restrict the sample space",
+          "prompt": "Two fair dice are rolled independently. Given that their sum is 8, what is the probability that at least one die shows 6? Enter a decimal.",
+          "answer": {
+            "numericValue": 0.4,
+            "tolerance": 0.0001,
+            "display": "0.4",
+            "unit": "probability"
+          },
+          "hints": [
+            "List ordered outcomes whose sum is eight.",
+            "There are five such outcomes; count those containing a six."
+          ],
+          "explanation": "The conditional sample space is (2,6), (3,5), (4,4), (5,3), and (6,2). Two of these five equally likely outcomes contain a six.",
+          "workedSteps": [
+            "Condition on the five ordered pairs summing to 8.",
+            "Favourable pairs are (2,6) and (6,2).",
+            "The probability is 2/5 = 0.4."
+          ],
+          "takeaway": "Conditioning changes the sample space; preserve ordered outcomes when they are equally likely."
+        }
+      ]
+    },
+    {
+      "id": "stochastic",
+      "number": 5,
+      "title": "Stochastic Processes and Calculus",
+      "description": "Reason about evolving uncertainty, from discrete transitions to Brownian motion.",
+      "focus": [
+        "Markov chains and random walks",
+        "Martingales and dynamic programming",
+        "Brownian motion and Itô's lemma"
+      ],
+      "challenges": [
+        {
+          "id": "stochastic-markov",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Markov chains",
+          "concept": "One-step transition",
+          "prompt": "A two-state Markov chain is currently in A. It stays in A with probability 0.7 and moves to B with probability 0.3. What is the probability it is in B after one step?",
+          "answer": {
+            "numericValue": 0.3,
+            "tolerance": 0.0001,
+            "display": "0.3",
+            "unit": "probability"
+          },
+          "hints": [
+            "Use the row corresponding to the current state.",
+            "Only one transition is requested."
+          ],
+          "explanation": "The one-step probability is the A-to-B transition probability supplied by the model. No stationary calculation is needed.",
+          "workedSteps": [
+            "The starting state is A with certainty.",
+            "Read P(A→B) = 0.3.",
+            "Therefore P(next state B) = 0.3."
+          ],
+          "takeaway": "Choose the transition corresponding to the known current state."
+        },
+        {
+          "id": "stochastic-stationary",
+          "type": "numeric",
+          "level": "application",
+          "section": "Markov chains",
+          "concept": "Balance probability flow",
+          "prompt": "A two-state Markov chain has P(A→B) = 0.2 and P(B→A) = 0.4. What is the stationary probability of A? Enter a decimal to four or more places.",
+          "answer": {
+            "numericValue": 0.6666666666666666,
+            "tolerance": 0.0001,
+            "display": "0.666667",
+            "unit": "probability"
+          },
+          "hints": [
+            "Let πA + πB = 1.",
+            "At stationarity, πA×0.2 = πB×0.4."
+          ],
+          "explanation": "In a two-state stationary chain, the probability flow from A to B equals the reverse flow. Solving with probabilities summing to one gives πA = 2/3.",
+          "workedSteps": [
+            "0.2πA = 0.4(1−πA).",
+            "0.6πA = 0.4.",
+            "πA = 2/3."
+          ],
+          "takeaway": "A stationary distribution is a fixed point of the transition rule."
+        },
+        {
+          "id": "stochastic-martingale",
+          "type": "choice",
+          "level": "foundation",
+          "section": "Martingales",
+          "concept": "Conditional expected change",
+          "prompt": "A process M has E[Mₜ₊₁ | all information at t] = Mₜ and finite expectations. Which statement describes it?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "It increases on every path."
+            },
+            {
+              "id": "b",
+              "label": "Its next value is known exactly."
+            },
+            {
+              "id": "c",
+              "label": "It is a martingale with respect to that information."
+            },
+            {
+              "id": "d",
+              "label": "Its increments must all be zero."
+            }
+          ],
+          "answer": {
+            "choiceId": "c",
+            "display": "It is a martingale with respect to that information."
+          },
+          "hints": [
+            "A conditional mean equal to the current value is the defining idea.",
+            "Zero expected change does not mean zero realized change."
+          ],
+          "explanation": "A martingale has no predictable conditional drift under the specified information and probability model. Individual paths can rise or fall.",
+          "workedSteps": [
+            "Subtract Mₜ from both sides.",
+            "The conditional expected increment is zero.",
+            "Finite expectations make the defining condition meaningful."
+          ],
+          "takeaway": "A fair conditional expectation is a statement about a model, not a pathwise guarantee."
+        },
+        {
+          "id": "stochastic-walk",
+          "type": "numeric",
+          "level": "application",
+          "section": "Random walks",
+          "concept": "Hit a boundary",
+          "prompt": "A fair random walk on {0,1,2,3,4,5} moves ±1 with equal probability and stops at 0 or 5. Starting at 2, what is the probability of reaching 5 first?",
+          "answer": {
+            "numericValue": 0.4,
+            "tolerance": 0.0001,
+            "display": "0.4",
+            "unit": "probability"
+          },
+          "hints": [
+            "Let h(i) be the upper-boundary hitting probability.",
+            "h(0)=0, h(5)=1, and h(i)=[h(i−1)+h(i+1)]/2."
+          ],
+          "explanation": "The fair-walk recurrence has a linear solution. The boundary values force h(i) = i/5, so h(2) = 2/5.",
+          "workedSteps": [
+            "The second difference of h is zero, so h is linear.",
+            "Fit h(0)=0 and h(5)=1 to obtain h(i)=i/5.",
+            "Starting at 2 gives 0.4."
+          ],
+          "takeaway": "Boundary conditions turn a recurrence into a specific probability."
+        },
+        {
+          "id": "stochastic-dp",
+          "type": "numeric",
+          "level": "application",
+          "section": "Dynamic programming",
+          "concept": "Reuse smaller states",
+          "prompt": "A climber can move up 1 or 2 steps at a time. Counting different orders as different routes, how many routes reach step 5 from step 0?",
+          "answer": {
+            "numericValue": 8.0,
+            "tolerance": 0.0001,
+            "display": "8"
+          },
+          "hints": [
+            "Classify a route by whether its last move was one step or two.",
+            "Use W(n)=W(n−1)+W(n−2), with W(0)=1 and W(1)=1."
+          ],
+          "explanation": "The final move partitions routes into disjoint cases. Routes reaching n−1 can append one step; routes reaching n−2 can append two.",
+          "workedSteps": [
+            "W(0)=1 and W(1)=1.",
+            "W(2)=2, W(3)=3, and W(4)=5.",
+            "W(5)=5+3=8."
+          ],
+          "takeaway": "Define the state and base cases before applying a dynamic-programming recurrence."
+        },
+        {
+          "id": "stochastic-brownian",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Brownian motion",
+          "concept": "Variance of an increment",
+          "prompt": "W is standard Brownian motion. What is Var(W₇ − W₃)?",
+          "answer": {
+            "numericValue": 4.0,
+            "tolerance": 0.0001,
+            "display": "4"
+          },
+          "hints": [
+            "A standard Brownian increment over length Δt has variance Δt.",
+            "The interval runs from time 3 to time 7."
+          ],
+          "explanation": "For standard Brownian motion, Wt−Ws is normal with mean zero and variance t−s for t≥s. Here the interval length is four.",
+          "workedSteps": [
+            "Identify s=3 and t=7.",
+            "Use Var(Wt−Ws)=t−s.",
+            "The variance is 4, not the standard deviation 2."
+          ],
+          "takeaway": "Distinguish an increment's variance from its standard deviation."
+        },
+        {
+          "id": "stochastic-covariance",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Brownian motion",
+          "concept": "Shared history creates covariance",
+          "prompt": "For standard Brownian motion W, what is Cov(W₂, W₅)?",
+          "answer": {
+            "numericValue": 2.0,
+            "tolerance": 0.0001,
+            "display": "2"
+          },
+          "hints": [
+            "Write W₅ = W₂ + (W₅−W₂).",
+            "The future increment is independent of W₂."
+          ],
+          "explanation": "The two observations share the Brownian movement up to time 2. The later increment is independent and adds no covariance with W₂.",
+          "workedSteps": [
+            "Cov(W₂,W₅)=Var(W₂)+Cov(W₂,W₅−W₂).",
+            "The second term is zero by independent increments.",
+            "Var(W₂)=2."
+          ],
+          "takeaway": "For standard Brownian motion, covariance equals the length of shared history."
+        },
+        {
+          "id": "stochastic-ito",
+          "type": "choice",
+          "level": "challenge",
+          "section": "Itô's lemma",
+          "concept": "Keep the quadratic-variation term",
+          "prompt": "For standard Brownian motion Wₜ, which differential is correct for Wₜ²?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "d(Wₜ²)=2Wₜ dWₜ"
+            },
+            {
+              "id": "b",
+              "label": "d(Wₜ²)=2Wₜ dWₜ + dt"
+            },
+            {
+              "id": "c",
+              "label": "d(Wₜ²)=Wₜ dt"
+            },
+            {
+              "id": "d",
+              "label": "d(Wₜ²)=2 dt"
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "d(Wₜ²)=2Wₜ dWₜ + dt"
+          },
+          "hints": [
+            "The ordinary chain rule misses a second-order contribution.",
+            "For f(w)=w², f′=2w and f″=2; use (dW)²=dt in Itô's rule."
+          ],
+          "explanation": "Itô's lemma adds one half of the second derivative times dt. With f″=2, that term is dt.",
+          "workedSteps": [
+            "Apply df=f′(W)dW + ½f″(W)dt.",
+            "Substitute f′=2W and f″=2.",
+            "Obtain d(W²)=2W dW+dt."
+          ],
+          "takeaway": "Brownian quadratic variation survives even when higher-order ordinary terms would vanish."
+        }
+      ]
+    },
+    {
+      "id": "finance",
+      "number": 6,
+      "title": "Finance",
+      "description": "Use explicitly simplified contract examples to connect payoffs, hedges, and no-arbitrage pricing.",
+      "focus": [
+        "Option payoffs",
+        "No-arbitrage and binomial pricing",
+        "Greeks and hedging"
+      ],
+      "challenges": [
+        {
+          "id": "finance-call",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Option payoffs",
+          "concept": "Payoff versus profit",
+          "prompt": "A European call has strike $50. At expiration the underlying is $57. What is the call's payoff per unit, before subtracting any premium?",
+          "answer": {
+            "numericValue": 7.0,
+            "tolerance": 0.0001,
+            "display": "7",
+            "unit": "dollars per unit"
+          },
+          "hints": [
+            "A call permits buying at the strike.",
+            "Its expiration payoff is max(S−K,0)."
+          ],
+          "explanation": "The right to buy for $50 when the asset is worth $57 produces a $7 payoff per unit. Profit would also subtract the premium and any other costs.",
+          "workedSteps": [
+            "S−K=57−50=7.",
+            "The positive-part payoff is max(7,0).",
+            "The payoff is $7 per unit."
+          ],
+          "takeaway": "An option payoff excludes the purchase premium."
+        },
+        {
+          "id": "finance-put",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Option payoffs",
+          "concept": "A put protects a sale price",
+          "prompt": "A European put has strike $40. At expiration the underlying is $46. What is the put's payoff per unit?",
+          "answer": {
+            "numericValue": 0.0,
+            "tolerance": 0.0001,
+            "display": "0",
+            "unit": "dollars per unit"
+          },
+          "hints": [
+            "A put permits selling at the strike.",
+            "Use max(K−S,0)."
+          ],
+          "explanation": "Selling for $40 is worse than the market value of $46, so exercising is unnecessary. The payoff is zero, even though buying the option may have cost a premium.",
+          "workedSteps": [
+            "K−S=40−46=−6.",
+            "The holder can decline to exercise.",
+            "max(−6,0)=0."
+          ],
+          "takeaway": "An option holder's expiration payoff cannot be negative."
+        },
+        {
+          "id": "finance-parity",
+          "type": "numeric",
+          "level": "application",
+          "section": "Put-call parity",
+          "concept": "Match equivalent terminal payoffs",
+          "prompt": "In an ideal frictionless model with no dividends, S₀=$100 and the present value of strike K is $95. A European put costs $4. What call price satisfies C−P=S₀−PV(K)?",
+          "answer": {
+            "numericValue": 9.0,
+            "tolerance": 0.0001,
+            "display": "9",
+            "unit": "dollars per unit"
+          },
+          "hints": [
+            "The contracts must have the same underlying, strike, and expiration.",
+            "Rearrange the stated relation to C=P+S₀−PV(K)."
+          ],
+          "explanation": "Using the given present value avoids recomputing interest. With identical European contract terms and the stated ideal assumptions, parity fixes the call price at $9.",
+          "workedSteps": [
+            "C−4=100−95=5.",
+            "Add 4 to both sides.",
+            "C=$9 per unit."
+          ],
+          "takeaway": "No-arbitrage equalities rely on matched contracts and explicit financing assumptions."
+        },
+        {
+          "id": "finance-delta",
+          "type": "numeric",
+          "level": "application",
+          "section": "Greeks",
+          "concept": "Offset first-order sensitivity",
+          "prompt": "In a simplified delta-only hedge, one option contract represents 100 underlying units and has delta +0.6 per unit. You hold one long contract. How many underlying units must you short for zero initial net delta? Enter the positive number of units to short.",
+          "answer": {
+            "numericValue": 60.0,
+            "tolerance": 0.0001,
+            "display": "60",
+            "unit": "underlying units"
+          },
+          "hints": [
+            "Convert the per-unit delta to the whole contract.",
+            "One short underlying unit contributes delta −1."
+          ],
+          "explanation": "The contract contributes +60 units of first-order price sensitivity. Shorting 60 underlying units offsets it initially; delta can change, so this is not a permanent or complete risk hedge.",
+          "workedSteps": [
+            "Contract delta=100×0.6=+60.",
+            "Shorting n units contributes −n.",
+            "Solve 60−n=0 to get n=60."
+          ],
+          "takeaway": "Delta hedging offsets local first-order exposure and does not remove all risk."
+        },
+        {
+          "id": "finance-neutral",
+          "type": "numeric",
+          "level": "application",
+          "section": "Binomial option pricing",
+          "concept": "Pricing weights are not forecasts",
+          "prompt": "In a one-period binomial model, S₀=$100, Sᵤ=$120, S𝒹=$80, and the risk-free gross return is 1.05. What risk-neutral up weight makes discounted stock value consistent with S₀? Enter a decimal.",
+          "answer": {
+            "numericValue": 0.625,
+            "tolerance": 0.0001,
+            "display": "0.625",
+            "unit": "probability"
+          },
+          "hints": [
+            "Solve 100×1.05 = q×120 + (1−q)×80.",
+            "The up weight is (105−80)/(120−80)."
+          ],
+          "explanation": "The pricing weight makes the stock's weighted future value equal its risk-free grown value. It is a model-implied valuation weight, not a prediction of the real-world up probability.",
+          "workedSteps": [
+            "105=120q+80(1−q).",
+            "25=40q.",
+            "q=0.625."
+          ],
+          "takeaway": "Separate risk-neutral valuation weights from real-world event probabilities."
+        },
+        {
+          "id": "finance-binomial",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Binomial option pricing",
+          "concept": "Discount the weighted payoff",
+          "prompt": "Use a one-period model with Sᵤ=$120, S𝒹=$80, strike $100, risk-neutral up weight 0.625, and risk-free gross return 1.05. What is the European call value per unit? Enter a decimal to three or more places.",
+          "answer": {
+            "numericValue": 11.904761904761905,
+            "tolerance": 0.001,
+            "display": "11.904762",
+            "unit": "dollars per unit"
+          },
+          "hints": [
+            "First calculate the payoff in each branch.",
+            "Weight the payoffs by the supplied pricing weights and divide by 1.05."
+          ],
+          "explanation": "The call pays $20 in the up state and zero in the down state. Its risk-neutral weighted payoff is $12.50, which must be discounted by the gross risk-free return.",
+          "workedSteps": [
+            "Cᵤ=max(120−100,0)=20; C𝒹=0.",
+            "Weighted payoff=0.625×20+0.375×0=12.5.",
+            "C₀=12.5/1.05≈$11.904762."
+          ],
+          "takeaway": "A future weighted payoff and its present value are different quantities."
+        },
+        {
+          "id": "finance-straddle",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Payoff combinations",
+          "concept": "Combine contracts before costs",
+          "prompt": "A long straddle is one call plus one put, both with strike $100 and the same expiration. If the underlying ends at $112, what is their combined payoff per unit before premiums?",
+          "answer": {
+            "numericValue": 12.0,
+            "tolerance": 0.0001,
+            "display": "12",
+            "unit": "dollars per unit"
+          },
+          "hints": [
+            "Evaluate the call and put separately at expiration.",
+            "The combined payoff is |S−K|."
+          ],
+          "explanation": "The call pays $12 and the put pays zero. This is the combined payoff, while the strategy's profit would subtract both premiums and any costs.",
+          "workedSteps": [
+            "Call payoff=max(112−100,0)=12.",
+            "Put payoff=max(100−112,0)=0.",
+            "Combined payoff=$12 per unit."
+          ],
+          "takeaway": "Sum the contracts' signed payoffs before evaluating net profit."
+        },
+        {
+          "id": "finance-gamma",
+          "type": "choice",
+          "level": "challenge",
+          "section": "Greeks and hedge limitations",
+          "concept": "Curvature changes a hedge",
+          "prompt": "A portfolio has zero delta now and positive gamma. For a small underlying move, with other inputs held fixed, which statement is correct?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "Its value cannot change."
+            },
+            {
+              "id": "b",
+              "label": "Its delta generally changes as the underlying moves."
+            },
+            {
+              "id": "c",
+              "label": "It has no time or volatility exposure."
+            },
+            {
+              "id": "d",
+              "label": "It is guaranteed profitable after costs."
+            }
+          ],
+          "answer": {
+            "choiceId": "b",
+            "display": "Its delta generally changes as the underlying moves."
+          },
+          "hints": [
+            "Gamma is the local change of delta with the underlying price.",
+            "Zero delta at one price says nothing about every other price."
+          ],
+          "explanation": "Positive gamma means delta increases locally when the underlying price rises, holding other inputs fixed. Initial delta neutrality does not remove curvature, time decay, volatility exposure, or costs.",
+          "workedSteps": [
+            "Delta is the first derivative with respect to underlying price.",
+            "Gamma is the second derivative, or rate of change of delta.",
+            "Nonzero gamma therefore makes delta depend locally on price."
+          ],
+          "takeaway": "A neutral sensitivity at one instant is not a guarantee about future profit."
+        }
+      ]
+    },
+    {
+      "id": "algorithms",
+      "number": 7,
+      "title": "Algorithms and Numerical Methods",
+      "description": "Turn a solution into a precise algorithm and measure its work or approximation error.",
+      "focus": [
+        "Searching, sorting, and binary structure",
+        "Root finding and quadrature",
+        "Simulation and discretization"
+      ],
+      "challenges": [
+        {
+          "id": "algorithms-search",
+          "type": "numeric",
+          "level": "foundation",
+          "section": "Searching",
+          "concept": "Halve a search space",
+          "prompt": "A sorted array contains 127 distinct values. A standard binary search compares the target to one midpoint per round. What is the maximum number of rounds needed to find a target that is present?",
+          "answer": {
+            "numericValue": 7.0,
+            "tolerance": 0.0001,
+            "display": "7"
+          },
+          "hints": [
+            "A complete binary decision tree with h midpoint levels holds 2ʰ−1 values.",
+            "Find h with 2ʰ−1 ≥ 127."
+          ],
+          "explanation": "Seven midpoint levels can distinguish all 127 stored values because 2⁷−1=127. This counts midpoint rounds for a present target, not individual machine comparisons.",
+          "workedSteps": [
+            "One level holds 1 midpoint; two hold 3; three hold 7.",
+            "After h levels the tree holds 2ʰ−1 values.",
+            "For 127 values, h=7."
+          ],
+          "takeaway": "State what an operation count measures before reporting it."
+        },
+        {
+          "id": "algorithms-inversions",
+          "type": "numeric",
+          "level": "application",
+          "section": "Sorting",
+          "concept": "Count out-of-order pairs",
+          "prompt": "How many inversions are in [4,1,3,2]? An inversion is a pair of positions i<j with a[i]>a[j].",
+          "answer": {
+            "numericValue": 4.0,
+            "tolerance": 0.0001,
+            "display": "4"
+          },
+          "hints": [
+            "Count the later smaller values for each element.",
+            "The first element contributes three inversions; inspect the remaining suffix."
+          ],
+          "explanation": "The value 4 precedes and exceeds 1, 3, and 2, contributing three pairs. The value 3 precedes 2, contributing one more.",
+          "workedSteps": [
+            "Pairs involving 4: (4,1), (4,3), (4,2).",
+            "The remaining inversion is (3,2).",
+            "There are 4 inversions."
+          ],
+          "takeaway": "Count pairs, not merely elements that appear out of place."
+        },
+        {
+          "id": "algorithms-power-two",
+          "type": "choice",
+          "level": "foundation",
+          "section": "Powers of two",
+          "concept": "Recognize a single set bit",
+          "prompt": "For a positive integer n, which bitwise test is true exactly when n is a power of two?",
+          "choices": [
+            {
+              "id": "a",
+              "label": "(n & (n−1)) == 0"
+            },
+            {
+              "id": "b",
+              "label": "(n | (n−1)) == 0"
+            },
+            {
+              "id": "c",
+              "label": "n % 2 == 0"
+            },
+            {
+              "id": "d",
+              "label": "n + 1 == 2"
+            }
+          ],
+          "answer": {
+            "choiceId": "a",
+            "display": "(n & (n−1)) == 0"
+          },
+          "hints": [
+            "A power of two has exactly one 1 bit.",
+            "Subtracting one clears that bit and fills lower positions with 1s."
+          ],
+          "explanation": "For positive n, n&(n−1) clears its lowest set bit. The result is zero exactly when no other set bit existed. Positivity matters because zero also passes the raw expression.",
+          "workedSteps": [
+            "8 in binary is 1000; 7 is 0111.",
+            "1000 & 0111 = 0000.",
+            "An integer with multiple set bits retains at least one after clearing the lowest."
+          ],
+          "takeaway": "Include domain conditions: the raw bit test also accepts zero."
+        },
+        {
+          "id": "algorithms-exponent",
+          "type": "numeric",
+          "level": "application",
+          "section": "Powers of two and algorithms",
+          "concept": "Reuse squared values",
+          "prompt": "Compute x¹³ using this fixed schedule: a=x², b=a², c=b², d=c×b, result=d×x. How many multiplications does the schedule use? Count each square as one multiplication.",
+          "answer": {
+            "numericValue": 5.0,
+            "tolerance": 0.0001,
+            "display": "5"
+          },
+          "hints": [
+            "Count the assignments containing a product.",
+            "The exponents along the schedule are 2,4,8,12,13."
+          ],
+          "explanation": "The schedule builds powers by squaring and then combines the powers needed for 13. It uses three squares and two further multiplications.",
+          "workedSteps": [
+            "a=x², b=x⁴, c=x⁸ require 3 multiplications.",
+            "d=x⁸×x⁴=x¹² requires 1 more.",
+            "Multiplying by x gives x¹³: 5 total."
+          ],
+          "takeaway": "Reuse intermediate powers rather than multiplying by x twelve times."
+        },
+        {
+          "id": "algorithms-bisection",
+          "type": "numeric",
+          "level": "application",
+          "section": "Numerical root finding",
+          "concept": "Control interval width",
+          "prompt": "Bisection starts with a valid continuous-function sign-change bracket of width 64. After how many bisection steps is the bracket width at most 1?",
+          "answer": {
+            "numericValue": 6.0,
+            "tolerance": 0.0001,
+            "display": "6"
+          },
+          "hints": [
+            "Each step halves the bracket width.",
+            "After n steps its width is 64/2ⁿ."
+          ],
+          "explanation": "Six halvings reduce the bracket width from 64 to 1. A sign-changing continuous bracket supports the root containment guarantee; width and point-estimate error are different conventions.",
+          "workedSteps": [
+            "Require 64/2ⁿ ≤ 1.",
+            "Thus 2ⁿ ≥ 64.",
+            "The smallest integer n is 6."
+          ],
+          "takeaway": "A numerical stopping rule should state whether it bounds interval width or point error."
+        },
+        {
+          "id": "algorithms-trapezoid",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Numerical integration",
+          "concept": "Understand quadrature error",
+          "prompt": "Approximate ∫₀² x² dx using the composite trapezoidal rule with two equal subintervals. What approximation does the rule produce?",
+          "answer": {
+            "numericValue": 3.0,
+            "tolerance": 0.0001,
+            "display": "3"
+          },
+          "hints": [
+            "The grid is x=0,1,2 and the step width is 1.",
+            "Use h[f(0)/2 + f(1) + f(2)/2]."
+          ],
+          "explanation": "The trapezoids use endpoint heights 0,1,4. The approximation is 3; the exact integral is 8/3, so this convex function is overestimated.",
+          "workedSteps": [
+            "h=(2−0)/2=1.",
+            "T=1×[0/2+1+4/2].",
+            "The trapezoidal approximation is 3."
+          ],
+          "takeaway": "The numerical rule's value is not automatically the exact integral."
+        },
+        {
+          "id": "algorithms-monte-carlo",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Monte Carlo methods",
+          "concept": "Sampling error shrinks slowly",
+          "prompt": "Independent simulation outputs have known standard deviation 6. You average 900 outputs. What is the standard error of that sample mean?",
+          "answer": {
+            "numericValue": 0.2,
+            "tolerance": 0.0001,
+            "display": "0.2"
+          },
+          "hints": [
+            "For independent outputs, SE(mean)=σ/√n.",
+            "The square root of 900 is 30."
+          ],
+          "explanation": "Independence makes the mean's variance σ²/n. Taking the square root gives σ/√n = 0.2. This quantifies sampling variation, not systematic model bias.",
+          "workedSteps": [
+            "Var(mean)=6²/900=0.04.",
+            "SE(mean)=√0.04.",
+            "The standard error is 0.2."
+          ],
+          "takeaway": "To halve standard error at fixed variance, you need four times as many independent samples."
+        },
+        {
+          "id": "algorithms-euler",
+          "type": "numeric",
+          "level": "challenge",
+          "section": "Differential-equation numerics",
+          "concept": "Take one explicit step",
+          "prompt": "For y′=−2y with y(0)=3, apply one explicit Euler step of length h=0.1. What approximation do you obtain for y(0.1)?",
+          "answer": {
+            "numericValue": 2.4,
+            "tolerance": 0.0001,
+            "display": "2.4"
+          },
+          "hints": [
+            "Explicit Euler uses the slope at the start of the step.",
+            "y₁=y₀+h f(t₀,y₀)."
+          ],
+          "explanation": "At the starting point the slope is −6. One step changes y by 0.1×(−6)=−0.6, giving 2.4. It is a discretization approximation to the exponential solution.",
+          "workedSteps": [
+            "f(0,3)=−2×3=−6.",
+            "Increment=h×slope=−0.6.",
+            "y₁=3−0.6=2.4."
+          ],
+          "takeaway": "An explicit step evaluates the slope at the current state, not at the unknown next state."
+        }
+      ]
+    }
+  ]
+}

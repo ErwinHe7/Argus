@@ -251,3 +251,30 @@ overflow or runtime errors and exercised keyboard regime selection and switching
 from a 12-regime model to an 11-regime model. The [surface review](models/SURFACE.md)
 links the captures and records the limited scope. No new raster assets or design
 tokens were introduced.
+
+## Quant practice · October 22, 2026
+
+`/#/learn` adds a supporting chapter companion in the incumbent aubergine,
+candle-gold, lilac, Inter, and fine-rule system. A compact title and progress line
+lead into a desktop chapter rail and working activity; at 760px and below, a
+labelled native select replaces the rail. All seven chapters remain open. Each
+has a playable lab, followed by original exercises, hints, worked explanations,
+and review. Labs are untimed. The optional 90-second practice clock starts
+enabled but waits for an explicit start and permits continued solving at expiry.
+
+The 58 exercises use offline-computed references and fictional lab fixtures.
+Misses and help-assisted answers remain in review until a later independent
+pass. Progress is browser-local, separate from identity, with export/import
+merge and an explicit clear confirmation. Native controls, visible focus, status
+feedback, diagram descriptions, and native probability/payoff tables support the
+learning flow. Completion records activity rather than certified mastery.
+
+The bounded independent finish verdict is **ship**, with no material findings
+for the inspected source and captured states. The [surface record](../quant-practice/SURFACE.md)
+records the implementation owner's Python, TypeScript, build, and browser checks,
+the zero-finding mechanical detector, and all five evidence filenames with their
+actual dimensions. Requested 1280×900 and 390×844 DOM width checks found no page
+overflow; the captures are cropped viewport evidence, not full-page proof.
+The reviewer did not independently attest browser execution, numeric validation,
+or deployment. Shared tokens, existing sidecar authority, and shipping rasters
+remain unchanged; release status belongs to the delivery receipts.
